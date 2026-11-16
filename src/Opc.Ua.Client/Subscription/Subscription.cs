@@ -1072,18 +1072,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Event-side companion to <see cref="ReuseDataChangeNotification"/>.
+        /// Event-side companion to <see cref="ReuseDataChangeNotification"/>. Its
+        /// <see cref="EventFieldList"/> entries are values held by the list's array.
         /// </summary>
         private static void ReuseEventNotificationList(EventNotificationList notification)
         {
-            ReadOnlySpan<EventFieldList> events = notification.Events.Span;
-            for (int i = 0; i < events.Length; i++)
-            {
-                if (events[i] is IPooledEncodeable evt)
-                {
-                    evt.Reuse();
-                }
-            }
             if (notification is IPooledEncodeable container)
             {
                 container.Reuse();

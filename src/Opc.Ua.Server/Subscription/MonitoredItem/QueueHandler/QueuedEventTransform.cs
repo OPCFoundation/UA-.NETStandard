@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>The replacement, or <c>null</c> when the event cannot be expressed
         /// any more and is dropped.</returns>
-        public abstract EventFieldList? Apply(EventFieldList fields);
+        public abstract QueuedEvent? Apply(QueuedEvent fields);
 
         /// <summary>
         /// The number of transforms applied in sequence by <see cref="Apply"/>.
@@ -89,12 +89,12 @@ namespace Opc.Ua.Server
                 }
             }
 
-            public override EventFieldList? Apply(EventFieldList fields)
+            public override QueuedEvent? Apply(QueuedEvent fields)
             {
-                EventFieldList? current = fields;
+                QueuedEvent? current = fields;
                 for (int ii = 0; ii < m_steps.Count && current != null; ii++)
                 {
-                    current = m_steps[ii].Apply(current);
+                    current = m_steps[ii].Apply(current.Value);
                 }
                 return current;
             }

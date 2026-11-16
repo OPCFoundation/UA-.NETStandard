@@ -577,11 +577,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    if (m_hasLastDataChange)
-                    {
-                        return m_lastMessage;
-                    }
-                    return (m_lastNotification as EventFieldList)?.Message ?? m_lastMessage;
+                    return m_lastMessage;
                 }
             }
         }
@@ -606,7 +602,7 @@ namespace Opc.Ua.Client
 
                     if (m_eventCache != null)
                     {
-                        return (m_lastNotification as EventFieldList)?.Message;
+                        return m_hasLastEvent ? m_lastMessage : null;
                     }
 
                     return null;
@@ -650,7 +646,7 @@ namespace Opc.Ua.Client
         /// Saves a data change or event in the cache.
         /// </summary>
         /// <param name="newValue">The data change or event.</param>
-        /// <param name="message">The message that contained a data change.</param>
+        /// <param name="message">The message that contained the data change or event.</param>
         /// <param name="diagnosticInfo">The diagnostic info sent with a data change.</param>
         public void SaveValueInCache(
             IEncodeable newValue,
@@ -663,6 +659,12 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            if (newValue is EventFieldList eventFields)
+            {
+                SaveValueInCache(eventFields, message);
+                return;
+            }
+
             MonitoredItemNotificationEventHandler? notification;
             lock (m_cache)
             {
@@ -671,19 +673,58 @@ namespace Opc.Ua.Client
                 m_lastNotification = newValue;
                 m_lastDataChange = default;
                 m_hasLastDataChange = false;
+                m_lastEvent = default;
+                m_hasLastEvent = false;
                 m_lastMessage = message;
                 m_lastDiagnosticInfo = diagnosticInfo;
-
-                if (m_eventCache != null && newValue is EventFieldList eventchange)
-                {
-                    m_eventCache.OnNotification(eventchange);
-                }
                 notification = m_Notification;
             }
 
             try
             {
                 notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+            }
+            catch (Exception ex)
+            {
+                m_logger.ErrorWhileProcessingIncomingMessages(ex);
+            }
+        }
+
+        /// <summary>
+        /// Saves an event in the cache. The value is only boxed for a
+        /// <see cref="Notification"/> handler or when <see cref="LastValue"/> is read.
+        /// </summary>
+        /// <param name="newValue">The event.</param>
+        /// <param name="message">The message that contained the event.</param>
+        public void SaveValueInCache(
+            in EventFieldList newValue,
+            NotificationMessage? message = null)
+        {
+            MonitoredItemNotificationEventHandler? notification;
+            lock (m_cache)
+            {
+                EnsureCacheIsInitialized();
+
+                m_lastEvent = newValue;
+                m_hasLastEvent = true;
+                m_lastDataChange = default;
+                m_hasLastDataChange = false;
+                m_lastNotification = null;
+                m_lastMessage = message;
+                m_lastDiagnosticInfo = null;
+
+                m_eventCache?.OnNotification(newValue);
+                notification = m_Notification;
+            }
+
+            if (notification == null)
+            {
+                return;
+            }
+
+            try
+            {
+                notification(this, new MonitoredItemNotificationEventArgs(newValue));
             }
             catch (Exception ex)
             {
@@ -709,11 +750,13 @@ namespace Opc.Ua.Client
                 EnsureCacheIsInitialized();
 
                 // only validate timestamp on first sample
-                bool validateTimestamp = !m_hasLastDataChange && m_lastNotification == null;
+                bool validateTimestamp = !m_hasLastDataChange && !m_hasLastEvent && m_lastNotification == null;
 
                 m_lastDataChange = newValue;
                 m_hasLastDataChange = true;
                 m_lastNotification = null;
+                m_lastEvent = default;
+                m_hasLastEvent = false;
                 m_lastMessage = message;
                 m_lastDiagnosticInfo = diagnosticInfo;
 
@@ -1045,11 +1088,6 @@ namespace Opc.Ua.Client
             ArrayOf<QualifiedName> browsePath,
             uint attributeId)
         {
-            if (eventFields == null)
-            {
-                return null;
-            }
-
             if (State.Filter is not EventFilter filter)
             {
                 return null;
@@ -1205,18 +1243,15 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The service result for a field in an notification
-        /// (the field must contain a Status object).
+        /// The service result for a field in an event notification (the field must
+        /// contain a Status object), resolved against the string table of the message
+        /// that contained the event.
         /// </summary>
-        public static ServiceResult? GetServiceResult(IEncodeable notification, int index)
+        public static ServiceResult? GetServiceResult(
+            in EventFieldList eventFields,
+            NotificationMessage? message,
+            int index)
         {
-            if (notification is not EventFieldList eventFields)
-            {
-                return null;
-            }
-
-            NotificationMessage? message = eventFields.Message;
-
             if (message == null)
             {
                 return null;
@@ -1363,11 +1398,16 @@ namespace Opc.Ua.Client
         private readonly Lock m_cache = new();
         private MonitoredItemDataCache? m_dataCache;
         private MonitoredItemEventCache? m_eventCache;
-        private IEncodeable? LastNotification => m_hasLastDataChange ? m_lastDataChange : m_lastNotification;
+        private IEncodeable? LastNotification =>
+            m_hasLastDataChange ? m_lastDataChange :
+            m_hasLastEvent ? m_lastEvent :
+            m_lastNotification;
 
         private IEncodeable? m_lastNotification;
         private MonitoredItemNotification m_lastDataChange;
         private bool m_hasLastDataChange;
+        private EventFieldList m_lastEvent;
+        private bool m_hasLastEvent;
         private NotificationMessage? m_lastMessage;
         private DiagnosticInfo? m_lastDiagnosticInfo;
         private event MonitoredItemNotificationEventHandler? m_Notification;

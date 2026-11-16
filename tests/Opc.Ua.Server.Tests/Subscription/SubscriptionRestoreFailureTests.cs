@@ -1174,7 +1174,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(queue, Is.Not.Null, "the mirrored event queue survives the aborted restore");
                 ((IRestorableMonitoredItemQueue)queue!).AbortRestore();
                 Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
-                Assert.That(queue.Dequeue(out EventFieldList fields), Is.True);
+                Assert.That(queue.Dequeue(out QueuedEvent fields), Is.True);
                 Assert.That(fields.ClientHandle, Is.EqualTo(7u));
             }
 

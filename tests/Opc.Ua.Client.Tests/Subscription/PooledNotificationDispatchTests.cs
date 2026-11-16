@@ -62,7 +62,6 @@ namespace Opc.Ua.Client.Subscriptions
             // generic activator types, so prior tests in the run can
             // leave instances around; we evict everything we can see.
             DrainPool(DataChangeNotificationActivator.Instance);
-            DrainPool(EventFieldListActivator.Instance);
             DrainPool(EventNotificationListActivator.Instance);
         }
 
@@ -117,19 +116,15 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public void ReuseOnEventFieldListResetsAndPools()
+        public void GeneratedEventFieldListIsValueType()
         {
-            var rented = (EventFieldList)
-                EventFieldListActivator.Instance.CreateInstance();
-            rented.ClientHandle = 12;
-            rented.EventFields = new Variant[] { new(42), new("text") };
-            Assert.That(rented.EventFields.Count, Is.EqualTo(2));
-            rented.Reuse();
-            Assert.That(rented.ClientHandle, Is.Zero);
-            Assert.That(rented.EventFields.Count, Is.Zero);
-            var reRented = (EventFieldList)
-                EventFieldListActivator.Instance.CreateInstance();
-            Assert.That(reRented, Is.SameAs(rented));
+            // IsValueType="true" in the design: held inline by arrays and
+            // queues, so there is nothing to pool.
+            Assert.That(typeof(EventFieldList).IsValueType, Is.True);
+            Assert.That(typeof(IPooledEncodeable).IsAssignableFrom(typeof(EventFieldList)), Is.False);
+            var created = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
+            Assert.That(created.ClientHandle, Is.Zero);
+            Assert.That(created.EventFields.Count, Is.Zero);
         }
 
         [Test]

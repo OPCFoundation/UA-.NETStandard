@@ -2692,6 +2692,13 @@ namespace Opc.Ua
                 throw new ObjectDisposedException(nameof(BinaryEncoder));
             }
 
+            if (value.IsEmpty)
+            {
+                // GetSpan(0) means "any buffer" to an IBufferWriter and may
+                // rent a whole new chunk; nothing to write.
+                return;
+            }
+
             if (m_bufferWriter != null)
             {
                 value.CopyTo(m_bufferWriter.GetSpan(value.Length));

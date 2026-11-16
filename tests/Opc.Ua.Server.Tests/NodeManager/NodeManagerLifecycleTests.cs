@@ -8048,9 +8048,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <c>Message</c> fields match a live NodeManager lifecycle model-change
         /// notification with the given exact message.
         /// </summary>
-        private static void AssertModelChangeEvent(EventFieldList eventFields, string expectedMessage)
+        private static void AssertModelChangeEvent(EventFieldList? eventFields, string expectedMessage)
         {
-            ArrayOf<Variant> fields = eventFields.EventFields;
+            ArrayOf<Variant> fields = RequireLifecycleEvent(eventFields).EventFields;
             Assert.That(fields.Count, Is.EqualTo(4));
 
             Assert.That(fields[0].TryGetValue(out NodeId eventType), Is.True);
