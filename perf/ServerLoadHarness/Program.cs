@@ -1264,12 +1264,21 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 long start = Stopwatch.GetTimestamp();
                 int epoch = Volatile.Read(ref m_epoch);
+                bool succeeded = true;
                 try
                 {
                     switch (m_kind)
                     {
                         case "write":
-                            await session.WriteAsync(null, m_write, ct).ConfigureAwait(false);
+                            WriteResponse written = await session.WriteAsync(null, m_write, ct).ConfigureAwait(false);
+                            foreach (StatusCode result in written.Results)
+                            {
+                                if (!CheckOperation(result))
+                                {
+                                    succeeded = false;
+                                    break;
+                                }
+                            }
                             break;
                         case "churn":
                             await ChurnAsync(session, ct).ConfigureAwait(false);
@@ -1285,6 +1294,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                             {
                                 if (!CheckOperation(result.StatusCode))
                                 {
+                                    succeeded = false;
                                     break;
                                 }
                             }
@@ -1296,12 +1306,22 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                             {
                                 if (!CheckOperation(result.StatusCode))
                                 {
+                                    succeeded = false;
                                     break;
                                 }
                             }
                             break;
                         default:
-                            await session.ReadAsync(null, 0, TimestampsToReturn.Both, m_read, ct).ConfigureAwait(false);
+                            ReadResponse read = await session.ReadAsync(null, 0, TimestampsToReturn.Both, m_read, ct)
+                                .ConfigureAwait(false);
+                            foreach (DataValue result in read.Results)
+                            {
+                                if (!CheckOperation(result.StatusCode))
+                                {
+                                    succeeded = false;
+                                    break;
+                                }
+                            }
                             break;
                     }
                 }
@@ -1323,7 +1343,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     }
                     continue;
                 }
-                if (epoch == Volatile.Read(ref m_epoch))
+                // a request with a rejected operation is an error, not throughput
+                if (succeeded && epoch == Volatile.Read(ref m_epoch))
                 {
                     m_latency.Record(Stopwatch.GetTimestamp() - start);
                     Interlocked.Increment(ref m_requests);

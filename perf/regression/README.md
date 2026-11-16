@@ -17,7 +17,10 @@ pwsh perf/regression/Invoke-LoadFloors.ps1 -Rounds 1 -Only write
 ```
 
 Exit code 0 means every check passed, 1 means a check failed, and 2 means a scenario produced
-no result. The summary (Markdown, also written to the GitHub job summary), `results.json` and the
+no result or `-Only` named an unknown scenario or one without a check. A check fails when any
+round lacks its value, and every scenario fails when a round reports a workload error (a failed
+request, or a Read or Write with a rejected operation, which the harness does not count as
+throughput). The summary (Markdown, also written to the GitHub job summary), `results.json` and the
 raw harness result blocks are written to `-OutDirectory` (default `TestResults/load-floors`).
 
 ## What is measured

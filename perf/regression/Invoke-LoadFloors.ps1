@@ -83,7 +83,8 @@ function ConvertTo-Number([string] $text) {
 
 <#
  Parses one RESULT block of the harness into a flat metric table. Names:
-   client line : reqPerSec, valuesPerSec, notifPerSec, eventsPerSec, generatedPerSec,
+   client line : reqPerSec, valuesPerSec, notifPerSec, eventsPerSec, generatedPerSec, errors,
+                 writeErrors (failed requests or rejected operations),
                  delivered (received/expected as a fraction), p50Ms, p99Ms (the
                  write->notify or event->notify latency, else the request latency)
    server line : serverCpuCores, serverPauseMs, serverContention, serverAllocMB
@@ -97,6 +98,7 @@ function ConvertFrom-ResultBlock([string[]] $lines) {
             $pairs = @{
                 'req/s' = 'reqPerSec'; 'values/s' = 'valuesPerSec'; 'notif/s' = 'notifPerSec'
                 'events/s' = 'eventsPerSec'; 'generated/s' = 'generatedPerSec'
+                'errors' = 'errors'; 'writeErrors' = 'writeErrors'
             }
             foreach ($key in $pairs.Keys) {
                 $match = [regex]::Match($trimmed, "(?<![\w/])$([regex]::Escape($key))=([\d.]+)")
@@ -141,6 +143,16 @@ function Get-Median([double[]] $values) {
 $common = [string]$config.commonArgs
 $selected = @($config.scenarios | ForEach-Object { $_.name })
 if ($Only.Count -gt 0) {
+    # a typo or a stale name must not turn the run into a silent pass
+    $unknown = @($Only | Where-Object { $selected -notcontains $_ })
+    if ($unknown.Count -gt 0) {
+        Write-Host "::error title=Load floors::Unknown scenario(s): $($unknown -join ', '). Known: $($selected -join ', ')."
+        exit 2
+    }
+    if (-not ($config.checks | Where-Object { $Only -contains $_.scenario })) {
+        Write-Host "::error title=Load floors::No check uses the selected scenario(s): $($Only -join ', ')."
+        exit 2
+    }
     $references = @($config.checks |
         Where-Object { $Only -contains $_.scenario -and $_.PSObject.Properties.Name -contains 'per' } |
         ForEach-Object { $_.per.scenario })
@@ -178,21 +190,43 @@ for ($round = 1; $round -le $Rounds; $round++) {
 
 $failures = 0
 $rows = @()
+# A failed request or a rejected operation is not throughput, and rejecting work also
+# lowers the bytes per operation: any workload error fails the scenario's measurements.
+foreach ($scenario in $config.scenarios) {
+    if ($selected -notcontains $scenario.name) { continue }
+    $counts = @($results | ForEach-Object {
+        $r = $_[$scenario.name]
+        $(if ($r.ContainsKey('errors')) { $r['errors'] } else { 0 }) +
+        $(if ($r.ContainsKey('writeErrors')) { $r['writeErrors'] } else { 0 })
+    })
+    $total = ($counts | Measure-Object -Sum).Sum
+    if ($total -gt 0) { $failures++ }
+    $rows += [pscustomobject]@{
+        Check = "$($scenario.name) workload errors"
+        Median = "$total"
+        Rounds = ($counts | ForEach-Object { "$_" }) -join ', '
+        Bound = '= 0'
+        Result = if ($total -gt 0) { 'FAIL' } else { 'pass' }
+        Catches = 'failed requests or rejected operations counted as throughput'
+    }
+}
 foreach ($check in $config.checks) {
     if ($selected -notcontains $check.scenario) { continue }
     $values = @()
+    $missing = 0
     foreach ($roundResults in $results) {
         $own = $roundResults[$check.scenario]
-        if (-not $own -or -not $own.ContainsKey($check.metric)) { continue }
+        if (-not $own -or -not $own.ContainsKey($check.metric)) { $missing++; continue }
         $value = $own[$check.metric]
         if ($check.PSObject.Properties.Name -contains 'per') {
             $reference = $roundResults[$check.per.scenario]
-            if (-not $reference -or -not $reference.ContainsKey($check.per.metric) -or $reference[$check.per.metric] -le 0) { continue }
+            if (-not $reference -or -not $reference.ContainsKey($check.per.metric) -or $reference[$check.per.metric] -le 0) { $missing++; continue }
             $value = $value / $reference[$check.per.metric]
         }
         $values += $value
     }
-    $median = Get-Median $values
+    # every round must contribute: a median of the surviving rounds would hide failed runs
+    $median = if ($missing -gt 0) { [double]::NaN } else { Get-Median $values }
     $label = if ($check.PSObject.Properties.Name -contains 'per') {
         "$($check.scenario).$($check.metric) / $($check.per.scenario).$($check.per.metric)"
     } else {
@@ -207,7 +241,7 @@ foreach ($check in $config.checks) {
     $bound = if ($hasMin) { ">= $($check.min)" } else { "<= $($check.max)" }
     $rows += [pscustomobject]@{
         Check = $label
-        Median = if ([double]::IsNaN($median)) { 'n/a' } else { $median.ToString('G4', $invariant) }
+        Median = if ($missing -gt 0) { "n/a ($missing round(s) without a value)" } elseif ([double]::IsNaN($median)) { 'n/a' } else { $median.ToString('G4', $invariant) }
         Rounds = ($values | ForEach-Object { $_.ToString('G4', $invariant) }) -join ', '
         Bound = $bound
         Result = if ($ok) { 'pass' } else { 'FAIL' }
