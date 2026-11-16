@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -34,7 +35,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -373,11 +376,14 @@
           "DI SU Software Update"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The software update is used for the firmware of a physical device."
                 }
               ],
@@ -385,9 +391,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The software update is used for an executable software."
                 }
               ],
@@ -395,9 +403,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The software update is used for the configuration of a device or application."
                 }
               ],
@@ -405,9 +415,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The software update is used to install a solution with several software package to several components."
                 }
               ],
@@ -419,6 +431,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareClass"
           }
         ],
@@ -444,6 +457,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumStrings"
           }
         ],

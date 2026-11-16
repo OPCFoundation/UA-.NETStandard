@@ -35,6 +35,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
@@ -1745,12 +1746,26 @@ namespace Opc.Ua.Gds.Tests
             AssertIgnoreTestWithoutInvalidRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             await ConnectGDSAsync(true).ConfigureAwait(false);
+
+            // A revocation must reach the server's certificate manager so
+            // that already open channels and sessions using the revoked
+            // certificate are revalidated, not only new connections.
+            var crlUpdates = new Mock<IObserver<CertificateChangeEvent>>();
+            using IDisposable subscription = m_server.Config.CertificateManager.CertificateChanges
+                .Subscribe(crlUpdates.Object);
+            int revocations = 0;
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
                 await m_gdsClient.GDSClient.RevokeCertificateAsync(
                     application.ApplicationRecord.ApplicationId,
                     application.Certificate.ToByteString()).ConfigureAwait(false);
+                revocations++;
             }
+            crlUpdates.Verify(
+                observer => observer.OnNext(It.Is<CertificateChangeEvent>(change =>
+                    change.Kind == CertificateChangeKind.CrlUpdated &&
+                    change.TrustList == TrustListIdentifier.Peers)),
+                Times.AtLeast(revocations));
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
                 await Assert.ThatAsync(

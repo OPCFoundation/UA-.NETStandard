@@ -255,7 +255,7 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 // remove the node class if it is present.
-                int lastIndex = line.LastIndexOf(',');
+                int lastIndex = line.LastIndexOf(',', StringComparison.Ordinal);
 
                 if (lastIndex != -1 && index != lastIndex)
                 {

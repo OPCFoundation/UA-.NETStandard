@@ -95,7 +95,7 @@ namespace Opc.Ua
                 SecureChannelContext = context;
                 Request = request;
                 m_parkSink = request is PublishRequest || endpoint.RequestParkingPolicy?.CanPark(request) == true
-                    ? new RequestParkSink()
+                    ? new RequestParkSink(request)
                     : null;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
                 m_lease = m_vts.Lease;

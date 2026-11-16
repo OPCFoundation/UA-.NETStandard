@@ -206,5 +206,68 @@ namespace Opc.Ua.Types.Buffers.Tests
                     "clearArray:true must zero the pooled buffer on return.");
             }
         }
+
+        /// <summary>
+        /// A size hint of zero asks for any non-empty buffer: the writer hands
+        /// out the rest of the current chunk instead of closing it and renting
+        /// a new one per call, which stranded a pooled chunk per zero length
+        /// write until the writer was disposed.
+        /// </summary>
+        [Test]
+        public void ArrayPoolBufferWriterGetSpanZeroReturnsTheRestOfTheCurrentChunk()
+        {
+            using var writer = new ArrayPoolBufferWriter<byte>();
+            const int writes = 1000;
+            for (int i = 0; i < writes; i++)
+            {
+                Span<byte> span = writer.GetSpan(4);
+                span[..4].Fill((byte)i);
+                writer.Advance(4);
+
+                Assert.That(writer.GetSpan(0).Length, Is.GreaterThan(0));
+                writer.Advance(0);
+                Assert.That(writer.GetMemory(0).Length, Is.GreaterThan(0));
+                writer.Advance(0);
+            }
+
+            ReadOnlySequence<byte> sequence = writer.GetReadOnlySequence();
+            int segments = 0;
+            foreach (ReadOnlyMemory<byte> _ in sequence)
+            {
+                segments++;
+            }
+
+            Assert.That(sequence.Length, Is.EqualTo(writes * 4));
+            Assert.That(segments, Is.LessThanOrEqualTo(8),
+                "A zero size hint must not close the current chunk.");
+            byte[] bytes = sequence.ToArray();
+            for (int i = 0; i < writes; i++)
+            {
+                Assert.That(bytes[i * 4], Is.EqualTo((byte)i));
+            }
+        }
+
+        /// <summary>
+        /// A size hint of zero on a full chunk rents a new one, so the span
+        /// is never empty.
+        /// </summary>
+        [Test]
+        public void ArrayPoolBufferWriterGetSpanZeroOnAFullChunkReturnsANewChunk()
+        {
+            using var writer = new ArrayPoolBufferWriter<byte>(16, 16);
+            Span<byte> first = writer.GetSpan(0);
+            Assert.That(first.Length, Is.GreaterThan(0));
+            writer.Advance(first.Length);
+
+            Span<byte> second = writer.GetSpan(0);
+            Assert.That(second.Length, Is.GreaterThan(0));
+            second[0] = 0x42;
+            writer.Advance(1);
+
+            ReadOnlySequence<byte> sequence = writer.GetReadOnlySequence();
+            Assert.That(sequence.Length, Is.EqualTo(first.Length + 1));
+            byte[] bytes = sequence.ToArray();
+            Assert.That(bytes[bytes.Length - 1], Is.EqualTo(0x42));
+        }
     }
 }

@@ -587,7 +587,7 @@ namespace Opc.Ua.Security
             }
 
             // DataContractSerializer uses "Name_Value" format for enum members.
-            int underscoreIndex = value.LastIndexOf('_');
+            int underscoreIndex = value.LastIndexOf('_', StringComparison.Ordinal);
             if (underscoreIndex > 0 &&
                 int.TryParse(value[(underscoreIndex + 1)..], out int intValue))
             {

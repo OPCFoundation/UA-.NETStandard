@@ -228,8 +228,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
             Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
-            Assert.That(provider.Active(ResourceIsolationStage.ReassemblyBytes),
-                Is.EqualTo((3L * connection.Quotas.MessageContext.MaxMessageSize) + Connection.FrameSize));
+            // The socket holds only its receive buffer, not the largest possible message.
+            Assert.That(provider.Active(ResourceIsolationStage.ReassemblyBytes), Is.EqualTo(Connection.FrameSize));
             Assert.That(provider.Active(ResourceIsolationStage.RequestQueue), Is.EqualTo(1));
             connection.Close();
             await connection.Finished.WaitAsync(kTimeout).ConfigureAwait(false);

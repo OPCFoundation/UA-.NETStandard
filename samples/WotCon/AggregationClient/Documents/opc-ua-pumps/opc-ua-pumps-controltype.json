@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -159,6 +160,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/SEC"
+      },
       "title": "DeadTime",
       "type": "number",
       "uav:browseName": "ns1:DeadTime",
@@ -1738,6 +1745,7 @@
         "browseName": "1:ControlType",
         "displayName": [
           {
+            "locale": "",
             "value": "ControlType"
           }
         ],
@@ -1807,15 +1815,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:CommandVariable",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Variable quantity, which is not influenced by the control but is introduced into the control system from outside with the aim of making the final controlled variable follow it in a given relationship"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CommandVariable"
           }
         ],
@@ -1853,10 +1864,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1882,10 +1895,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1911,10 +1926,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1940,15 +1957,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ControlDifferenceVariable",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Difference between the reference variable and the feedback variable"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ControlDifferenceVariable"
           }
         ],
@@ -1986,10 +2006,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2015,10 +2037,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2044,10 +2068,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2073,15 +2099,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ControlledVariable",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Output variable of the controlled system that will be acted upon by one or more manipulated variables"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ControlledVariable"
           }
         ],
@@ -2119,10 +2148,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2148,10 +2179,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2177,10 +2210,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2206,15 +2241,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ControllerOutputVariable",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Output variable of the controlling element, which is deducted from the control difference variable and is also the input variable of the actuator"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ControllerOutputVariable"
           }
         ],
@@ -2252,10 +2290,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2281,10 +2321,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2310,10 +2352,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2340,15 +2384,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:DeadTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "In a dead-time element the duration of the time interval by which the output variable is shifted relative to the input variable"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeadTime"
           }
         ],
@@ -2386,10 +2433,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2415,10 +2464,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2445,10 +2496,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5457219</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>second [unit of time]</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2475,15 +2528,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:DerivativeActionCoefficient",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "For a derivative element, the quotient of the value of the output variable to the value of the time derivative of the input variable"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DerivativeActionCoefficient"
           }
         ],
@@ -2521,10 +2577,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2550,10 +2608,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2579,10 +2639,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2608,15 +2670,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:FeedbackVariable",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Variable quantity, which represents the controlled variable and is returned to the comparing element"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FeedbackVariable"
           }
         ],
@@ -2654,10 +2719,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2683,10 +2750,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2712,10 +2781,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2742,15 +2813,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:FinalControlledVariable",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Variable quantity which has, or combination of variable quantities which have, to be influenced by the control"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FinalControlledVariable"
           }
         ],
@@ -2788,10 +2862,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2817,10 +2893,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2846,10 +2924,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2876,15 +2956,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:IntegralActionCoefficient",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "For an integral element, the quotient of the time derivative of the output variable to the fixed value of the input variable"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IntegralActionCoefficient"
           }
         ],
@@ -2922,10 +3005,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2951,10 +3036,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2980,10 +3067,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3010,15 +3099,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:ManipulatedVariable",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Output variable of the controlling system, which is also an input variable of the controlled system"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ManipulatedVariable"
           }
         ],
@@ -3056,10 +3148,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3085,10 +3179,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3114,10 +3210,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3144,15 +3242,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:OperatingMode",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Characterization of the way and the extent to which the human operator intervenes in the control equipment"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OperatingMode"
           }
         ],
@@ -3182,10 +3283,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3212,15 +3315,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:ProportionalActionCoefficient",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "For a proportional element, the quotient of the variation of the output variable to the corresponding variation of the input variable"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ProportionalActionCoefficient"
           }
         ],
@@ -3258,10 +3364,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3287,10 +3395,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3316,10 +3426,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3346,15 +3458,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:ReferenceVariable",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Input variable to a comparing element in a controlling system, which sets the desired value of the controlled variable and is deducted from the command variable"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ReferenceVariable"
           }
         ],
@@ -3392,10 +3507,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3421,10 +3538,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3450,10 +3569,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],

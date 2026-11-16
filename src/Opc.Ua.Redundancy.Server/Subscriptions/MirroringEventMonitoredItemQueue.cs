@@ -64,14 +64,14 @@ namespace Opc.Ua.Redundancy.Server
         internal override bool IndexesRecentEvents => true;
 
         /// <inheritdoc/>
-        public override void Enqueue(EventFieldList value)
+        public override void Enqueue(QueuedEvent value)
         {
             base.Enqueue(value);
             Mirror();
         }
 
         /// <inheritdoc/>
-        public override bool Dequeue(out EventFieldList value)
+        public override bool Dequeue(out QueuedEvent value)
         {
             bool dequeued = base.Dequeue(out value);
             if (dequeued)
@@ -153,7 +153,7 @@ namespace Opc.Ua.Redundancy.Server
                 SetQueueSize(snapshot.QueueSize, true);
                 foreach (EventFieldList value in snapshot.Events)
                 {
-                    Enqueue(value);
+                    Enqueue(new QueuedEvent(value));
                 }
             }
             finally

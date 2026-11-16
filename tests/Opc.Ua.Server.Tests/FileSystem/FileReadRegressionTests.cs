@@ -142,6 +142,28 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
+        /// A read near the end of a seekable file requests, and allocates, only the
+        /// bytes left in the file, not the whole requested length.
+        /// </summary>
+        [Test]
+        public async Task FileReadNearTheEndRequestsOnlyTheRemainingBytesAsync()
+        {
+            using var stream = new ObservedReadStream();
+            using FileSystemNodeManager manager = CreateManager(stream);
+            FileObjectState file = CreateFile(manager);
+            uint handle = await OpenAsync(file, manager.SystemContext).ConfigureAwait(false);
+            stream.Position = kContents.Length - 2;
+
+            ByteString tail = await ReadAsync(file, manager.SystemContext, handle, 8).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(tail.ToArray(), Is.EqualTo(new byte[] { 10, 11 }));
+                Assert.That(stream.RequestedCount, Is.EqualTo(2));
+            });
+        }
+
+        /// <summary>
         /// Verifies that files created by directory binding advertise and enforce the server's byte-string limit.
         /// </summary>
         [Test]

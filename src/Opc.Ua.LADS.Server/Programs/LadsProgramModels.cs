@@ -492,7 +492,7 @@ namespace Opc.Ua.LADS.Server
             {
                 return Variant.From(text == "true");
             }
-            if (text.StartsWith('u') &&
+            if (text.StartsWith('u', StringComparison.Ordinal) &&
                 uint.TryParse(text.Remove(0, 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out uint index))
             {
                 return Variant.From(index);

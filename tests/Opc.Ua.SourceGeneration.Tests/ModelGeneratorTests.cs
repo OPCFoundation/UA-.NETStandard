@@ -1811,7 +1811,7 @@ namespace Opc.Ua.SourceGeneration
             const string marker = "\"browseName\": \"";
             int start = envelopeJson.IndexOf(marker, nodesStart, StringComparison.Ordinal);
             int valueStart = start + marker.Length;
-            int valueEnd = envelopeJson.IndexOf('"', valueStart);
+            int valueEnd = envelopeJson.IndexOf('"', valueStart, StringComparison.Ordinal);
             return new StringBuilder(envelopeJson.Length + 9)
                 .Append(envelopeJson, 0, valueEnd)
                 .Append("_MISMATCH")

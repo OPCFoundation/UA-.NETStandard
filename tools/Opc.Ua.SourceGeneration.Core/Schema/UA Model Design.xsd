@@ -492,6 +492,7 @@
         <xs:attribute name="NoArraysAllowed" type="xs:boolean" use="optional" default="false" />
         <xs:attribute name="ForceEnumValues" type="xs:boolean" use="optional" default="false" />
         <xs:attribute name="NoEncodings" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="IsValueType" type="xs:boolean" use="optional" default="false" />
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>

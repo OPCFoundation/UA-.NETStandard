@@ -115,8 +115,14 @@
              RemoveProperties="TargetFramework" />
   </Target>
   <!-- Populate NuspecProperties after $(PackageVersion) is materialized (NBGV runs
-       inside GetBuildVersion). Static evaluation in a PropertyGroup is too early. -->
-  <Target Name="_SetMigrationAnalyzerNuspecProperties" BeforeTargets="GenerateNuspec">
+       inside GetBuildVersion). Static evaluation in a PropertyGroup is too early.
+       The .NET 11 SDK also reads the nuspec <version> in _GetOutputItemsFromPack,
+       which runs before GenerateNuspec, so the properties must be set before that too.
+       _PreviewVersionDependsOn (version.targets) names GetBuildVersion only where
+       Nerdbank.GitVersioning is referenced. -->
+  <Target Name="_SetMigrationAnalyzerNuspecProperties"
+          BeforeTargets="_GetOutputItemsFromPack;GenerateNuspec"
+          DependsOnTargets="$(_PreviewVersionDependsOn)">
     <PropertyGroup>
       <_MigrationAnalyzerToolsDir>$(MSBuildThisFileDirectory)..</_MigrationAnalyzerToolsDir>
       <_MigrationAnalyzerBin50>$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0</_MigrationAnalyzerBin50>

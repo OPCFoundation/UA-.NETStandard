@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -30,7 +31,9 @@
       "input": {
         "properties": {
           "NodeIds": {
-            "items": {},
+            "items": {
+              "type": "string"
+            },
             "type": "array",
             "uav:arrayDimensions": [
               0
@@ -51,6 +54,7 @@
       "output": {
         "properties": {
           "UpdateBehavior": {
+            "type": "integer",
             "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=333",
             "uav:valueRank": -1
           }
@@ -80,7 +84,9 @@
       "input": {
         "properties": {
           "NodeIds": {
-            "items": {},
+            "items": {
+              "type": "string"
+            },
             "type": "array",
             "uav:arrayDimensions": [
               0
@@ -106,6 +112,7 @@
             "uav:valueRank": -1
           },
           "ErrorMessage": {
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           }
@@ -391,6 +398,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FileSystemLoadingType"
           }
         ],
@@ -425,6 +433,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GetUpdateBehavior"
           }
         ],
@@ -459,6 +468,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -491,6 +501,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -524,6 +535,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ValidateFiles"
           }
         ],
@@ -558,6 +570,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -590,6 +603,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],

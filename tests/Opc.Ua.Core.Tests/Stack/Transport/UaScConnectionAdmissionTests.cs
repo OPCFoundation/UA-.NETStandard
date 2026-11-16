@@ -178,6 +178,45 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [Parallelizable]
     public sealed class UaScConnectionAdmissionTests
     {
+        /// <summary>
+        /// The local connection ceiling invokes the same reclamation hook as aggregate resource exhaustion.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ChannelLimitReclaimsCapacityWithoutConsumingAnotherRateToken(bool withProvider)
+        {
+            var provider = withProvider ? new CountingIsolationProvider() : null;
+            var limiter = new SwitchableLimiter();
+            var admission = new UaScConnectionAdmission(1, limiter, provider);
+            Assert.That(admission.TryAcquire(null, out UaScConnectionAdmission.Lease? first), Is.True);
+            using (first)
+            {
+                int reclaimed = 0;
+                bool admitted = admission.TryAcquire(null, out UaScConnectionAdmission.Lease? replacement, () =>
+                {
+                    reclaimed++;
+                    first!.Close();
+                    return true;
+                });
+                using (replacement)
+                {
+                    Assert.That(admitted, Is.True);
+                    Assert.That(reclaimed, Is.EqualTo(1));
+                    Assert.That(limiter.Calls, Is.EqualTo(2), "one rate token per incoming connection");
+                    if (provider != null)
+                    {
+                        Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                        Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.EqualTo(1));
+                    }
+                }
+            }
+            if (provider != null)
+            {
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+            }
+        }
+
         [Test]
         public void HandshakeOwnerRejectionPreventsReclamationEvenWhenConnectionsAreFull()
         {

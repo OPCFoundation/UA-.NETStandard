@@ -112,8 +112,8 @@ namespace Opc.Ua.Client.Subscriptions
     /// <para>
     /// Lifetime note (pooled notifications): when the V2 subscription
     /// manager has <see cref="ISubscriptionManager.PoolNotifications"/>
-    /// enabled, the underlying <c>EventFieldList</c> is recycled back
-    /// to its activator pool after the handler returns. The
+    /// enabled, the underlying <c>EventNotificationList</c> is recycled
+    /// back to its activator pool after the handler returns. The
     /// <see cref="Fields"/> property is captured by value as an
     /// <see cref="ArrayOf{T}"/> wrapping the original event-fields
     /// array. Arrays are not pooled in this design (out of scope), so

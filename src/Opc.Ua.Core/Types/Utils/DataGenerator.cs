@@ -1684,7 +1684,7 @@ namespace Opc.Ua.Test
                             continue;
                         }
 
-                        if (token.StartsWith('='))
+                        if (token.StartsWith('=', StringComparison.Ordinal))
                         {
                             if (locale != null && tokens != null)
                             {

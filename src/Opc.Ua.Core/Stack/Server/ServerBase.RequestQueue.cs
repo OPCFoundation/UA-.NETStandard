@@ -555,6 +555,11 @@ namespace Opc.Ua
                     {
                         await Task.WhenAny(processing, parkSink.ParkedTask).ConfigureAwait(false);
                         CountWhileParked(processing);
+                        if (parkSink.ReleasesPayload && !processing.IsCompleted)
+                        {
+                            // the parked request no longer retains its decoded payload
+                            entry?.ReleaseRequestCost(parkSink);
+                        }
                     }
                 }
                 finally
