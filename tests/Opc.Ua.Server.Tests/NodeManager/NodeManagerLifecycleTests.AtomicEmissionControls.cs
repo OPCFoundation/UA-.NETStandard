@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 IServerInternal server = m_server.CurrentInstance;
                 var master = (MasterNodeManager)server.NodeManager;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 TrackingLifecycleNodeManager? first = null;
                 TrackingLifecycleNodeManager? second = null;
                 TrackingLifecycleNodeManager? survivor = null;
@@ -112,10 +112,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
                 if (!events)
                 {
-                    var initial = await PublishForDataChangeAsync(services, subscriptionId, default, 1)
-                        .ConfigureAwait(false);
-                    Assert.That(initial.Value.GetValueOrDefault().WrappedValue, Is.EqualTo(new Variant(202)));
-                    acknowledgements = initial.Acknowledgements;
+                    (DataValue? initialValue, ArrayOf<SubscriptionAcknowledgement> initialAcknowledgements) =
+                        await PublishForDataChangeAsync(services, subscriptionId, default, 1).ConfigureAwait(false);
+                    Assert.That(initialValue.GetValueOrDefault().WrappedValue, Is.EqualTo(new Variant(202)));
+                    acknowledgements = initialAcknowledgements;
                 }
                 MonitoredNode2 source = second.GetEmissionSource(sourceId);
                 var validating = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await ProduceAsync(771).ConfigureAwait(false);
                     await validating.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                     await ProduceAsync(772).ConfigureAwait(false);
-                    await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                    await using ILifecycleWriter exactWriter1 = await Capture(
                         m_server.NodeManagerLifecycle, firstRegistration, secondRegistration).BeginAsync(
                         timeout.Token).ConfigureAwait(false);
                     await using IPreparedChanges prepared = await exactWriter1.PrepareAsync([
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Assert.That(values.Where(value => StatusCode.IsGood(value.StatusCode))
                             .Select(value => value.WrappedValue)
                             .ToArray(),
-                            Is.EqualTo(new[] { new Variant(771), new Variant(772) }));
+                            Is.EqualTo<Variant[]>([new Variant(771), new Variant(772)]));
                         Assert.That(values[^1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                         Assert.That(messages, Is.Empty);
                     }
@@ -346,7 +346,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 using var decision = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
                 IServerInternal server = m_server.CurrentInstance;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 TrackingLifecycleNodeManager? manager = null;
                 LifecycleResult publicationResult3 = await CommitChangeAsync(
                     lifecycle, LifecycleChange.Add(
@@ -360,8 +360,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var services = new ServerTestServices(m_server, m_secureChannelContext);
                 (uint subscriptionId, uint itemId) = await CreateSubscriptionAndMonitoredItemAsync(
                     services, valueId, 1).ConfigureAwait(false);
-                var initial = await PublishForDataChangeAsync(
-                    services, subscriptionId, default, 1).ConfigureAwait(false);
+                (DataValue? Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements) initial =
+                    await PublishForDataChangeAsync(services, subscriptionId, default, 1).ConfigureAwait(false);
                 RequestHeader header = m_requestHeader;
                 header.Timestamp = DateTimeUtc.Now;
                 CreateMonitoredItemsResponse eventCreated = await services.CreateMonitoredItemsAsync(
@@ -370,7 +370,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(eventCreated.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 MonitoredNode2 source = manager.GetEmissionSource(valueId);
                 IDataChangeMonitoredItem2 item = source.DataChangeMonitoredItems[itemId];
-                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter2.PrepareAsync(
                     [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
@@ -411,7 +411,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
                 }
 
-                await using ILifecycleWriter exactWriter3 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter3 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges finalRemoval = await exactWriter3.PrepareAsync(
                     [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
@@ -432,12 +432,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(initial.Value.GetValueOrDefault().StatusCode, Is.EqualTo(StatusCodes.Good));
                     Assert.That(initial.Value.GetValueOrDefault().WrappedValue, Is.EqualTo(new Variant(value)));
                     await manager.ReportOwnedEmissionAsync($"usable-{value}", timeout.Token).ConfigureAwait(false);
-                    var business = await PublishForModelChangeEventAsync(
-                        services, subscriptionId, initial.Acknowledgements).ConfigureAwait(false);
-                    EventFieldList businessFields = RequireLifecycleEvent(business.EventFields);
+                    (EventFieldList? eventFields, ArrayOf<SubscriptionAcknowledgement> businessAcknowledgements) =
+                        await PublishForModelChangeEventAsync(
+                            services, subscriptionId, initial.Acknowledgements).ConfigureAwait(false);
+                    EventFieldList businessFields = RequireLifecycleEvent(eventFields);
                     Assert.That(businessFields.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
                     Assert.That(message.Text, Is.EqualTo($"usable-{value}"));
-                    initial = (initial.Value, business.Acknowledgements);
+                    initial = (initial.Value, businessAcknowledgements);
                 }
             }
             finally
@@ -457,7 +458,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var failureCancellation = new CancellationTokenSource();
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? manager = null;
             LifecycleResult publicationResult4 = await CommitChangeAsync(
                 lifecycle, LifecycleChange.Add(
@@ -503,7 +504,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await Assert.ThatAsync(async () => await source.OnReportEventAsync(
                     server.DefaultSystemContext, variable, occurrence, failureCancellation.Token).ConfigureAwait(false),
                     Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-                await using ILifecycleWriter exactWriter4 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter4 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter4.PrepareAsync(
                     [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);

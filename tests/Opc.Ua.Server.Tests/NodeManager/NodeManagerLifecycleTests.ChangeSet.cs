@@ -989,7 +989,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             WeakReference<NodeManagerRegistration> Registration,
             WeakReference<IAsyncNodeManager> Manager)> CreateLegacyResultAfterRetirementAsync()
         {
-            INodeManagerLifecycle lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             LifecycleResult result;
             await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
@@ -1165,6 +1165,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     /// </summary>
     [TestFixture]
     [Category("NodeManagerLifecycle")]
+    [Parallelizable(ParallelScope.All)]
     public sealed class NodeManagerLifecycleChangeSetCleanupTests
     {
         private const string kNamespaceUri = "urn:test:change-set-cleanup";
@@ -1275,9 +1276,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 for (int attempt = 0;
                     attempt < 3 &&
-                        (candidate.IsAlive || server.IsAlive ||
-                            (!retainPrepared && preparedReference.IsAlive) ||
-                            (!retainResource && resource.IsAlive));
+                    (candidate.IsAlive ||
+                        server.IsAlive ||
+                        (!retainPrepared && preparedReference.IsAlive) ||
+                        (!retainResource && resource.IsAlive));
                     attempt++)
                 {
                     GC.Collect();
@@ -1415,12 +1417,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task? disposal = null;
             try
             {
-                var pending = await BeginWriterCandidateDisposalAsync(writer, entered, release, timeout.Token)
-                    .ConfigureAwait(false);
-                prepared = pending.Prepared;
-                disposal = pending.Disposal;
-                WeakReference candidate = pending.Candidate;
-                CleanupCallCounts cleanupCalls = pending.CleanupCalls;
+                (prepared, disposal, WeakReference candidate, CleanupCallCounts cleanupCalls) =
+                    await BeginWriterCandidateDisposalAsync(writer, entered, release, timeout.Token)
+                        .ConfigureAwait(false);
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
@@ -1990,6 +1989,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Completes real validation outside the collection assertion's stack.
         /// </summary>
+        /// <exception cref="AssertionException">Validation did not enter inspection or create a candidate.</exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static async Task<(
             IPreparedChanges Inspected,

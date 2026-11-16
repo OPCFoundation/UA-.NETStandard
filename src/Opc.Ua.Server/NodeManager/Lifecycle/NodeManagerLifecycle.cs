@@ -249,25 +249,25 @@ namespace Opc.Ua.Server
             NodeManagerGeneration[] registrations;
             lock (m_registrationLock)
             {
-                registrations = m_registrations.Values
-                    .Select(state => state.Registration.Identity)
-                    .ToArray();
+                registrations = [.. m_registrations.Values.Select(state => state.Registration.Identity)];
             }
 
             NodeManagerGeneration[] privateCandidates;
             lock (m_privateCleanupLock)
             {
-                privateCandidates = m_privateCleanups
-                    .SelectMany(cleanup => cleanup.Candidates)
-                    .Select(candidate => candidate.Generation)
-                    .ToArray();
+                privateCandidates =
+                [
+                    .. m_privateCleanups.SelectMany(cleanup => cleanup.Candidates)
+                        .Select(candidate => candidate.Generation)
+                ];
             }
 
-            return registrations
-                .Concat(m_reclaimer.Snapshot().Select(retired => retired.Generation))
-                .Concat(privateCandidates)
-                .Distinct()
-                .ToArray();
+            return
+            [
+                .. registrations.Concat(m_reclaimer.Snapshot().Select(retired => retired.Generation))
+                    .Concat(privateCandidates)
+                    .Distinct()
+            ];
         }
 
         /// <summary>
@@ -512,8 +512,10 @@ namespace Opc.Ua.Server
                 PrivateBatchCleanup[] decidedCandidates;
                 lock (m_privateCleanupLock)
                 {
-                    decidedCandidates = m_privateCleanups
-                        .Where(cleanup => cleanup.Stage == PrivateCleanupStage.WaitingForShutdown).ToArray();
+                    decidedCandidates =
+                    [
+                        .. m_privateCleanups.Where(cleanup => cleanup.Stage == PrivateCleanupStage.WaitingForShutdown)
+                    ];
                     foreach (PrivateBatchCleanup cleanup in decidedCandidates)
                     {
                         cleanup.Stage = PrivateCleanupStage.Reserving;
@@ -880,11 +882,11 @@ namespace Opc.Ua.Server
             lock (m_registrationLock)
             {
                 return m_registrations.Values.Any(state =>
-                        NodeManagerGenerationRegistry.HasSameIdentity(
+                        NodeManagerGenerationRegistry.HasSameGenerationIdentity(
                             state.Registration.NodeManager,
                             nodeManager)) ||
                     m_reclaimer.Snapshot().Any(retired =>
-                        NodeManagerGenerationRegistry.HasSameIdentity(
+                        NodeManagerGenerationRegistry.HasSameGenerationIdentity(
                             retired.NodeManager,
                             nodeManager));
             }
@@ -2063,8 +2065,7 @@ namespace Opc.Ua.Server
                             if (entry.Prepared.PreparationFailure is { } preparationFailure)
                             {
                                 entry.Prepared.PreparationFailure = null;
-                                System.Runtime.ExceptionServices.ExceptionDispatchInfo
-                                    .Capture(preparationFailure).Throw();
+                                ExceptionDispatchInfo.Capture(preparationFailure).Throw();
                             }
                             await ValidateDataTypeCompatibilityAsync(stagingServer, entry.Manager, cancellationToken)
                                 .ConfigureAwait(false);
@@ -4104,7 +4105,7 @@ namespace Opc.Ua.Server
                 var candidate = (PreparedChanges)await PrepareCoreAsync(
                     changes, default, cancellationToken, validationOnly: true)
                     .ConfigureAwait(false);
-                ValueTask inspection = default;
+                ValueTask inspection;
                 try
                 {
                     try

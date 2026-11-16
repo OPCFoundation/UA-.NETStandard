@@ -83,6 +83,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves an unregistered source against publication before creating its legacy generation.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The source has no unique registered owner.</exception>
         internal NodeManagerGeneration ResolveUnregisteredSource(
             IAsyncNodeManager nodeManager,
             RoutingSnapshot? requestSnapshot)
@@ -313,7 +314,7 @@ namespace Opc.Ua.Server
                         routes[namespaceIndex] = [nodeManager];
                     }
                     else if (!existing.Any(manager =>
-                        HasSameIdentity(manager, nodeManager)))
+                        HasSameGenerationIdentity(manager, nodeManager)))
                     {
                         routes[namespaceIndex] = [.. existing, nodeManager];
                     }
@@ -322,7 +323,7 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !HasSameIdentity(manager, nodeManager))
+                        !HasSameGenerationIdentity(manager, nodeManager))
                 ];
                 if (!visible)
                 {
@@ -412,7 +413,7 @@ namespace Opc.Ua.Server
                 foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route in routes)
                 {
                     if (route.Value.Any(manager =>
-                        HasSameIdentity(manager, replacement)))
+                        HasSameGenerationIdentity(manager, replacement)))
                     {
                         replacementNamespaceSet.Add(route.Key);
                     }
@@ -421,7 +422,7 @@ namespace Opc.Ua.Server
                 {
                     IReadOnlyList<IAsyncNodeManager> existing = routes[namespaceIndex];
                     var updated = existing
-                        .Where(manager => !HasSameIdentity(
+                        .Where(manager => !HasSameGenerationIdentity(
                             manager,
                             replacement))
                         .ToList();
@@ -471,8 +472,8 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !HasSameIdentity(manager, current) &&
-                        !HasSameIdentity(manager, replacement))
+                        !HasSameGenerationIdentity(manager, current) &&
+                        !HasSameGenerationIdentity(manager, replacement))
                 ];
                 if (!replacementVisible)
                 {
@@ -564,7 +565,7 @@ namespace Opc.Ua.Server
                 {
                     var updated = routes[namespaceIndex]
                         .Where(manager =>
-                            !HasSameIdentity(manager, replacement))
+                            !HasSameGenerationIdentity(manager, replacement))
                         .ToList();
                     if (updated.Count == 0)
                     {
@@ -582,7 +583,7 @@ namespace Opc.Ua.Server
                         routePosition.Key,
                         out IReadOnlyList<IAsyncNodeManager>? existing);
                     var updated = existing?.Where(manager =>
-                        !HasSameIdentity(manager, previous)).ToList() ??
+                        !HasSameGenerationIdentity(manager, previous)).ToList() ??
                         [];
                     updated.Insert(
                         ResolveInsertionIndex(
@@ -595,8 +596,8 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !HasSameIdentity(manager, replacement) &&
-                        !HasSameIdentity(manager, previous))
+                        !HasSameGenerationIdentity(manager, replacement) &&
+                        !HasSameGenerationIdentity(manager, previous))
                 ];
                 if (!visible)
                 {
@@ -662,7 +663,7 @@ namespace Opc.Ua.Server
                 {
                     var updated = routes[namespaceIndex].ToList();
                     updated.RemoveAll(manager =>
-                        HasSameIdentity(manager, registeredManager));
+                        HasSameGenerationIdentity(manager, registeredManager));
                     if (updated.Count == 0)
                     {
                         routes.Remove(namespaceIndex);
@@ -678,7 +679,7 @@ namespace Opc.Ua.Server
                     routes,
                     [
                         .. snapshot.HiddenNodeManagers.Where(manager =>
-                            !HasSameIdentity(manager, registeredManager))
+                            !HasSameGenerationIdentity(manager, registeredManager))
                     ],
                     snapshot.TypeTree,
                     snapshot.Factory,
@@ -768,7 +769,7 @@ namespace Opc.Ua.Server
                         routePosition.Key,
                         out IReadOnlyList<IAsyncNodeManager>? existing);
                     var updated = existing?.Where(manager =>
-                        !HasSameIdentity(manager, nodeManager)).ToList() ??
+                        !HasSameGenerationIdentity(manager, nodeManager)).ToList() ??
                         [];
                     updated.Insert(
                         ResolveInsertionIndex(
@@ -781,7 +782,7 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !HasSameIdentity(manager, nodeManager))
+                        !HasSameGenerationIdentity(manager, nodeManager))
                 ];
                 if (!(visible ?? position.WasVisible))
                 {
@@ -865,7 +866,7 @@ namespace Opc.Ua.Server
             snapshot.NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<IAsyncNodeManager>? existing);
             int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
             IAsyncNodeManager registeredManager = managerIndex >= 0 ? snapshot.NodeManagers[managerIndex] : nodeManager;
-            if (existing?.Any(manager => HasSameIdentity(manager, registeredManager)) == true)
+            if (existing?.Any(manager => HasSameGenerationIdentity(manager, registeredManager)) == true)
             {
                 return null;
             }
@@ -873,7 +874,7 @@ namespace Opc.Ua.Server
             routes[namespaceIndex] = existing is null ? [registeredManager] : [.. existing, registeredManager];
             IAsyncNodeManager[] hiddenNodeManagers =
             [
-                .. snapshot.HiddenNodeManagers.Where(manager => !HasSameIdentity(manager, registeredManager))
+                .. snapshot.HiddenNodeManagers.Where(manager => !HasSameGenerationIdentity(manager, registeredManager))
             ];
             if (!visible)
             {
@@ -901,7 +902,7 @@ namespace Opc.Ua.Server
             var updated = existing.ToList();
             int removed = updated.RemoveAll(manager =>
                 asyncNodeManager is not null
-                    ? HasSameIdentity(manager, asyncNodeManager)
+                    ? HasSameGenerationIdentity(manager, asyncNodeManager)
                     : manager.SyncNodeManager is { } syncNodeManager && ReferenceEquals(syncNodeManager, nodeManager));
             if (removed == 0)
             {
@@ -943,7 +944,7 @@ namespace Opc.Ua.Server
                 {
                     var updated = routes[namespaceIndex].ToList();
                     updated.RemoveAll(manager =>
-                        HasSameIdentity(manager, nodeManager));
+                        HasSameGenerationIdentity(manager, nodeManager));
                     if (updated.Count == 0)
                     {
                         routes.Remove(namespaceIndex);
@@ -959,7 +960,7 @@ namespace Opc.Ua.Server
                     routes,
                     [
                         .. snapshot.HiddenNodeManagers.Where(manager =>
-                            !HasSameIdentity(manager, nodeManager))
+                            !HasSameGenerationIdentity(manager, nodeManager))
                     ],
                     snapshot.TypeTree,
                     snapshot.Factory,
@@ -976,9 +977,9 @@ namespace Opc.Ua.Server
         {
             RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
             return snapshot.NodeManagers.Any(manager =>
-                HasSameIdentity(manager, nodeManager)) &&
+                HasSameGenerationIdentity(manager, nodeManager)) &&
                 !snapshot.HiddenNodeManagers.Any(manager =>
-                    HasSameIdentity(manager, nodeManager));
+                    HasSameGenerationIdentity(manager, nodeManager));
         }
 
         /// <summary>
@@ -996,7 +997,7 @@ namespace Opc.Ua.Server
 
             RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
             return snapshot.NodeManagers.Any(manager =>
-                HasSameIdentity(manager, nodeManager));
+                HasSameGenerationIdentity(manager, nodeManager));
         }
 
         /// <summary>
@@ -1032,7 +1033,7 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager[] hiddenNodeManagers =
                 [
                     .. snapshot.HiddenNodeManagers.Where(manager =>
-                        !HasSameIdentity(manager, registeredManager))
+                        !HasSameGenerationIdentity(manager, registeredManager))
                 ];
                 if (!visible)
                 {
@@ -1092,7 +1093,7 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < managers.Count; ii++)
             {
-                if (HasSameIdentity(managers[ii], manager))
+                if (HasSameGenerationIdentity(managers[ii], manager))
                 {
                     return ii;
                 }
@@ -1150,7 +1151,7 @@ namespace Opc.Ua.Server
                 CreateInsertionPoint(snapshot.NodeManagers, managerIndex),
                 routePositions,
                 !snapshot.HiddenNodeManagers.Any(manager =>
-                    HasSameIdentity(manager, registeredManager)));
+                    HasSameGenerationIdentity(manager, registeredManager)));
         }
 
         private static NodeManagerInsertionPoint CreateInsertionPoint(
@@ -1626,7 +1627,8 @@ namespace Opc.Ua.Server
                         continue;
                     }
                     IAsyncNodeManager resource = GetIdentity(owner);
-                    if (!firstOwners.TryGetValue(resource, out var first))
+                    if (!firstOwners.TryGetValue(
+                        resource, out (IAsyncNodeManager Owner, NodeManagerGeneration Generation) first))
                     {
                         firstOwners.Add(resource, (owner, generations[ii]));
                     }
@@ -1887,7 +1889,7 @@ namespace Opc.Ua.Server
                         routes.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? existing);
                         routes[index] = existing is null
                             ? [candidate.NodeManager]
-                            : [.. existing.Where(manager => !HasSameIdentity(manager, candidate.NodeManager)),
+                            : [.. existing.Where(manager => !HasSameGenerationIdentity(manager, candidate.NodeManager)),
                                 candidate.NodeManager];
                     }
                 }
@@ -1922,7 +1924,7 @@ namespace Opc.Ua.Server
                     [
                         .. current.HiddenNodeManagers.Where(manager =>
                             !removals.Contains(manager) &&
-                            !publishing.Any(candidate => HasSameIdentity(candidate, manager)))
+                            !publishing.Any(candidate => HasSameGenerationIdentity(candidate, manager)))
                     ],
                     typeTree,
                     factory,
@@ -1992,12 +1994,16 @@ namespace Opc.Ua.Server
                 m_owner = owner;
                 m_previous = previous;
                 m_next = next;
-                m_reservedNamespaces = new HashSet<int>(
-                    previous.NamespaceManagers.Keys.Concat(next.NamespaceManagers.Keys)
+                m_reservedNamespaces =
+                [
+                    .. previous.NamespaceManagers.Keys.Concat(next.NamespaceManagers.Keys)
                         .Where(index =>
-                            !previous.NamespaceManagers.TryGetValue(index, out var before) ||
-                            !next.NamespaceManagers.TryGetValue(index, out var after) ||
-                            !before.SequenceEqual(after, RefEqualityComparer.Default)));
+                            !previous.NamespaceManagers.TryGetValue(
+                                index, out IReadOnlyList<IAsyncNodeManager>? before) ||
+                            !next.NamespaceManagers.TryGetValue(
+                                index, out IReadOnlyList<IAsyncNodeManager>? after) ||
+                            !before.SequenceEqual(after, RefEqualityComparer.Default))
+                ];
                 m_changingManagers =
                 [
                     .. previous.NodeManagers.Concat(next.NodeManagers).Where(manager =>
@@ -2055,7 +2061,7 @@ namespace Opc.Ua.Server
                 {
                     ValidateNamespaceMutation();
                     return m_reservedNamespaces.Contains(namespaceIndex) ||
-                        m_changingManagers.Any(manager => HasSameIdentity(manager, nodeManager));
+                        m_changingManagers.Any(manager => HasSameGenerationIdentity(manager, nodeManager));
                 }
             }
 

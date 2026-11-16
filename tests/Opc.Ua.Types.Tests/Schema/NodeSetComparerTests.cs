@@ -435,9 +435,25 @@ namespace Opc.Ua.Types.Tests.Schema
         /// Finds a file of this repository by walking up from the test
         /// assembly, or an empty string where the sources are not beside it.
         /// </summary>
+        /// <summary>
+        /// Resolves source from an explicitly configured checkout before trying assembly ancestors.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The configured checkout lacks the requested source.</exception>
         private static string FindRepositoryFile(string relativePath)
         {
-            DirectoryInfo directory = new(TestContext.CurrentContext.TestDirectory);
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                string candidate = Path.Combine(root, relativePath);
+                if (!File.Exists(Path.Combine(root, "UA.slnx")) || !File.Exists(candidate))
+                {
+                    throw new InvalidOperationException("The configured repository root lacks the comparer source.");
+                }
+                return candidate;
+            }
+
+            DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
             while (directory != null)
             {
                 string candidate = Path.Combine(directory.FullName, relativePath);
@@ -445,7 +461,7 @@ namespace Opc.Ua.Types.Tests.Schema
                 {
                     return candidate;
                 }
-                directory = directory.Parent!;
+                directory = directory.Parent;
             }
             return string.Empty;
         }

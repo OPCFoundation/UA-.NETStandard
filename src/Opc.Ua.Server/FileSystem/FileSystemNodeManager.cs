@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.FileSystem
                             cursor.Id, "DirectoryCursor", null, StatusCodes.BadUnexpectedError));
                     }
                 }
-                return new ArrayOf<NodeManagerCleanupFailure>(failures.ToArray());
+                return [.. failures];
             }
         }
 

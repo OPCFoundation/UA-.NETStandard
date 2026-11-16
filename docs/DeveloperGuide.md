@@ -101,8 +101,8 @@ Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
 - **Out-of-tree source inputs.** When `--artifacts-path` places source-backed
-  WoT aggregation/event-corpus, AMB model, RobotIntent conformance, source-generator model or
-  OpenUSD generator datasheet tests outside the checkout, set
+  WoT aggregation/event-corpus and digest-tool, NodeSet comparer, AMB model,
+  RobotIntent conformance, source-generator model or OpenUSD generator datasheet tests outside the checkout, set
   `OPCUA_TEST_REPOSITORY_ROOT` to the checkout containing `UA.slnx`. These fixtures read their original
   repository assets there; no asset or assembly copying is needed. An invalid
   configured root fails explicitly instead of falling back to another checkout.
@@ -246,7 +246,7 @@ you need to exercise:
 | `StripedCounterTests` | Entries across all stripes and cross-thread exits |
 | `GenerationGateTests` | Generation admission, retirement drain and view-epoch lifetimes |
 | `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
-| `NodeManagerLifecycleCompatibilityTests` | Argument guards, retries, prepared-owner cleanup, and retirement status |
+| `NodeManagerLifecycleCompatibilityTests` | Primary-contract preparation, argument guards, prepared-owner cleanup, and retirement status |
 | `NodeManagerCleanupAuthorityTests` | Cleanup-recovery authority binding and adapter identity |
 | `NodeManagerCleanupRecoveryTests` | Participant snapshots and sanitized failure descriptions |
 | `NodeManagerCleanupResourceTests` | Exact synchronous and asynchronous verification resources |

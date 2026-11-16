@@ -50,6 +50,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class NodeManagerLifecycleCompatibilityTests
     {
         /// <summary>
+        /// The primary lifecycle contract prepares real candidate ownership without starting a server.
+        /// </summary>
+        [Test]
+        [SetCulture("en-us")]
+        [SetUICulture("en-us")]
+        public async Task LifecycleReportsTransactionCapabilitiesOnThePrimaryContract()
+        {
+            await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
+            Mock<IAsyncNodeManager> candidate = NodeManagerLifecycleChangeSetCleanupTests.CreateManager(
+                "urn:test:lifecycle-primary-contract");
+            await using ILifecycleWriter writer = await harness.Lifecycle
+                .CaptureChanges().BeginAsync().ConfigureAwait(false);
+            await using IPreparedChanges prepared = await writer.PrepareAsync(
+                [LifecycleChange.Add(NodeManagerLifecycleChangeSetCleanupTests.CreateFactory(candidate))])
+                .ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(writer.IsCurrent, Is.True);
+                Assert.That(prepared.IsCommitted, Is.False);
+                Assert.That(prepared.Registrations.Count, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
         /// Adding a reconciliation stage preserves the numeric identities of existing stages.
         /// </summary>
         [TestCase(NodeManagerReconciliationStage.ApplicationState, 0)]
@@ -337,8 +361,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IAsyncNodeManager> candidate = NodeManagerLifecycleChangeSetCleanupTests.CreateManager(
                 "urn:test:native:preparation-cleanup");
             candidate.Setup(value => value.CreateAddressSpaceAsync(
-                It.IsAny<System.Collections.Generic.IDictionary<
-                    NodeId, System.Collections.Generic.IList<IReference>>>(),
+                It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
                 It.IsAny<CancellationToken>())).Throws(preparationFailure);
             candidate.Setup(value => value.DeleteAddressSpaceAsync(
                 It.IsAny<CancellationToken>())).Throws(cleanupFailure);
@@ -349,8 +372,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(observed!.Flatten().InnerExceptions, Does.Contain(preparationFailure));
             Assert.That(observed.Flatten().InnerExceptions, Does.Contain(cleanupFailure));
             candidate.Verify(value => value.CreateAddressSpaceAsync(
-                It.IsAny<System.Collections.Generic.IDictionary<
-                    NodeId, System.Collections.Generic.IList<IReference>>>(),
+                It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
             candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
             Assert.That(harness.Lifecycle.HasPendingShutdownCleanup, Is.True);

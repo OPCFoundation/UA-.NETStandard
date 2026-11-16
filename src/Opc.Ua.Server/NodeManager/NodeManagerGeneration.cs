@@ -1074,7 +1074,7 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                return new ArrayOf<NodeManagerCleanupFailure>(failures.ToArray());
+                return [.. failures];
             }
         }
 
@@ -1092,15 +1092,12 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The cleanup verification capability is invalid.");
                 }
-                RetiredConsumer? resource = m_retirementResources?.Find(
+                RetiredConsumer resource = m_retirementResources?.Find(
                     candidate => candidate.Id == id &&
                         candidate.Failure is not null &&
                         candidate.DisposingThreadId == 0 &&
-                        !candidate.ConfirmationInProgress);
-                if (resource is null)
-                {
+                        !candidate.ConfirmationInProgress) ??
                     throw new InvalidOperationException("The retained consumer was not found.");
-                }
                 return resource.Resource;
             }
         }
@@ -1676,8 +1673,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>Keeps stable participant identities without extending participant lifetimes.</summary>
+#if NET8_0_OR_GREATER
+        private readonly ConditionalWeakTable<INodeManagerCleanupParticipant, CleanupParticipantIdentity>
+            m_cleanupParticipants = [];
+#else
         private readonly ConditionalWeakTable<INodeManagerCleanupParticipant, CleanupParticipantIdentity>
             m_cleanupParticipants = new();
+#endif
 
         /// <summary>Retains only opaque identities for unresolved verified confirmations.</summary>
         private readonly HashSet<NodeManagerCleanupFailureHandle> m_pendingCleanupConfirmations = [];
@@ -2232,17 +2234,6 @@ namespace Opc.Ua.Server
             NodeManagerGeneration generation)
         {
             s_generations.Add(identity, new GenerationAssociation(generation));
-        }
-
-        /// <summary>
-        /// Compares logical owners, including only transparent stack aliases.
-        /// </summary>
-        /// <param name="left">The first facade.</param>
-        /// <param name="right">The second facade.</param>
-        /// <returns>Whether both facades identify the same logical owner.</returns>
-        internal static bool HasSameIdentity(IAsyncNodeManager left, IAsyncNodeManager right)
-        {
-            return HasSameGenerationIdentity(left, right);
         }
 
         /// <summary>
@@ -2917,14 +2908,26 @@ namespace Opc.Ua.Server
 #endif
 
         /// <summary>Maps a normalized lookup key to the associated generation.</summary>
+#if NET8_0_OR_GREATER
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, GenerationAssociation> s_generations = [];
+#else
         private static readonly ConditionalWeakTable<IAsyncNodeManager, GenerationAssociation> s_generations = new();
+#endif
 
         /// <summary>Arbitrates physical lifetime without assigning one facade's identity to another.</summary>
+#if NET8_0_OR_GREATER
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, ResourceLifetime> s_resources = [];
+#else
         private static readonly ConditionalWeakTable<IAsyncNodeManager, ResourceLifetime> s_resources =
             new();
+#endif
 
         /// <summary>Scopes restored ownerless items to the lifetime and identity of their server.</summary>
+#if NET8_0_OR_GREATER
+        private static readonly ConditionalWeakTable<IServerInternal, NodeManagerSlot> s_ownerlessSlots = [];
+#else
         private static readonly ConditionalWeakTable<IServerInternal, NodeManagerSlot> s_ownerlessSlots = new();
+#endif
     }
 
     /// <summary>

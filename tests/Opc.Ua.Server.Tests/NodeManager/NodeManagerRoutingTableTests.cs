@@ -1262,16 +1262,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         roundBarrier.SignalAndWait(stop);
                         beforeRead?.Invoke(reader, iteration);
-                        var pinned = table.PinCurrent();
+                        (NodeManagerRoutingTable.RoutingSnapshot pinnedSnapshot, AddressSpaceEpoch pinnedEpoch,
+                            int pinnedSlot) = table.PinCurrent();
                         try
                         {
-                            var pinnedManagers = pinned.Snapshot.NodeManagers;
+                            IAsyncNodeManager[] pinnedManagers = pinnedSnapshot.NodeManagers;
                             if (pinnedManagers.Length != 3 ||
                                 !ReferenceEquals(pinnedManagers[0], firstPermanent) ||
                                 !ReferenceEquals(pinnedManagers[1], secondPermanent) ||
                                 !expectedManagers.Contains(pinnedManagers[2]) ||
-                                pinned.Snapshot.Generations.Length != 3 ||
-                                !ReferenceEquals(pinned.Snapshot.Generations[2].NodeManager, pinnedManagers[2]))
+                                pinnedSnapshot.Generations.Length != 3 ||
+                                !ReferenceEquals(pinnedSnapshot.Generations[2].NodeManager, pinnedManagers[2]))
                             {
                                 managerSnapshotFailures.Add(
                                     $"iteration {iteration}: pinned manager count {pinnedManagers.Length}");
@@ -1279,7 +1280,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                         finally
                         {
-                            pinned.Epoch.Exit(pinned.Slot);
+                            pinnedEpoch.Exit(pinnedSlot);
                         }
 
                         using IEnumerator<IAsyncNodeManager> managerSnapshot = table.GetEnumerator();
@@ -1326,7 +1327,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default))];
 
-            Task completion = Task.WhenAll([writerTask, .. readerTasks]);
+            var completion = Task.WhenAll([writerTask, .. readerTasks]);
             try
             {
                 await completion.ConfigureAwait(false);

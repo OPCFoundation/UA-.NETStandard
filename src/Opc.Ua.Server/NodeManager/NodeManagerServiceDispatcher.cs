@@ -2936,7 +2936,7 @@ namespace Opc.Ua.Server
                     bool captured = false;
                     for (int ii = 0; ii < eventManagers.Count; ii++)
                     {
-                        captured |= NodeManagerGenerationRegistry.HasSameIdentity(manager, eventManagers[ii]);
+                        captured |= NodeManagerGenerationRegistry.HasSameGenerationIdentity(manager, eventManagers[ii]);
                     }
                     if (!captured)
                     {
@@ -5125,7 +5125,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < route.Count; ii++)
                 {
-                    if (NodeManagerGenerationRegistry.HasSameIdentity(route[ii], nodeManager))
+                    if (NodeManagerGenerationRegistry.HasSameGenerationIdentity(route[ii], nodeManager))
                     {
                         return true;
                     }

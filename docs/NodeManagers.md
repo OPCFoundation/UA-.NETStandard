@@ -1019,11 +1019,17 @@ Request routing remains owned by the explicit `OperationContext` view.
 | Scope | Purpose and expiration | Retained state |
 | --- | --- | --- |
 | `LifecycleWriter` decision scope | Rejects nested lifecycle operations during the durable decision, including spawned work. The decision's `finally` block revokes the scope before restoring its predecessor. | An active flag; no manager or generation |
-| `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access, restores the preceding scope only if it is still current, and clears the server, generation and parent references. | Server and generation references only while active |
+| `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears its server and generation. Normal unwinding preserves access to a still-active parent; out-of-order disposal severs the parent link. | Server and generation references only while active |
 | `MasterNodeManager` callback permit | Allows nested publication to borrow the capabilities currently held by a manager callback. Disposal rejects new borrows and waits for existing borrows before the callback releases its host admission; later operations must reacquire admission. | Capability flags, borrow accounting, the preceding permit and its execution-context slot; no manager or generation |
 | `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
 | `MasterNodeManager` namespace publication | Rejects serving namespace changes from publication callbacks and both staged and serving changes from the durable decision callback. Other flows can publish unrelated aliases into the serving and exact reserved successor images; conflicting aliases await release. Releasing the reservation completes its marker and restores the preceding slot, on success or failure. | A completion task with no manager or generation payload |
 | Node registration, AddNodes, adapter notification and NodeVersion guards | Suppresses nested notifications or reserves a request's NodeId only while the owning operation is active. Disposal revokes the value in captured contexts, including on failure. An ended inner guard can fall back to a still-active enclosing operation. | A Boolean or NodeId, an active flag and preceding guard; no manager or generation |
+| Certificate rotation and user-change collectors | Admit additions only through the nearest active typed guard. Their owners clear the collected rotations or deactivation tasks after completing the owned work. | The callback's collection; a revoked guard cannot collect later work |
+| Async and synchronous manager operation scopes | Permit re-entry only while the inherited operation is active. Disposal ends admission before restoring the preceding operation. Async disposal also checks its owner-wide active-disposal flag, so an escaped Boolean alone cannot authorize later work. | Active flags, counter slots and preceding markers; no manager reference |
+| Cleanup verification scope | Rejects same-generation re-entry only while verification is active; an ended inner scope cannot hide an active outer verification. | Opaque generation identifiers and preceding markers |
+| History request, dispatch and read scopes | Request/read guards revoke and release session, point and generation admissions when they end. Dispatch authority expires on callback exit, but its detached issuer identity remains available to attribute late saved points correctly. | Active ownership while admitted; detached request identity and weak generation attribution after dispatch |
+| Durable queue restore staging | Requests staged writes only while the owning restore marker is active. Disposing it revokes staging in captured child contexts. | One active flag; no queue, manager or generation |
+| NodeState event propagation | Shares a visited set during one event publication. Closing the publication revokes sharing and releases both the visited nodes and the event graph, including from captured callback contexts. | The occurrence and visited nodes only while active |
 
 When an intermediate readiness scope is disposed while a descendant remains active,
 it clears its link to the grandparent. The descendant cannot reach the grandparent's
@@ -1055,6 +1061,14 @@ The hosted namespace-getter and durable-decision controls replay their captured
 contexts after publication, and
 `RevokedCallbackAdmissionReacquiresBothCapabilitiesAsync` holds an opposing
 admission while revoking a borrowed permit.
+
+The source-slot inventory and owning control fixtures are recorded in
+[`NativeLifecycleAmbientScopes.csv`](../tests/Opc.Ua.Server.Tests/NodeManager/NativeLifecycleAmbientScopes.csv).
+The generic guard and callback-permit types hold references to their caller's
+slots; those references are not additional `AsyncLocal` allocations.
+`AmbientMessageContext` is deliberately separate: it carries deserialization
+and telemetry context, not lifecycle admission or route selection. Its ordinary
+execution-context flow is not suppressed or treated as a revocable lifetime lease.
 
 #### Session binding and shutdown ordering
 
@@ -2030,8 +2044,12 @@ from the current interface. During retirement, the reclaimer invalidates the
 exact generation in the built-in session continuation-point store. It does
 not invoke an equivalent invalidation method on custom
 `ISessionContinuationPoints` implementations, which received
-`RemoveForManager` in 2.0.1. The compatibility disposition for these members
-and providers remains open.
+`RemoveForManager` in 2.0.1. These are intentional 2.x-only removals; neither
+member existed in released 1.5.378. There is no equivalent provider callback
+or request-callback option in the native contract. Custom continuation stores
+must not assume they receive retirement notifications. Use the built-in store
+for generation-bound invalidation, and migrate/recompile affected 2.x callers;
+see the [migration guide](MigrationGuide.md#migrating-the-2x-nodemanager-lifecycle).
 
 These interfaces do not make explicit inspection handles non-owning. A
 `NodeManagerRegistration` or `NodeManagerSlotSnapshot` can

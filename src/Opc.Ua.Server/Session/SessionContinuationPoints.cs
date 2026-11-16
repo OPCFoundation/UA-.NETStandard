@@ -989,7 +989,9 @@ namespace Opc.Ua.Server
         {
             if (m_historyRead.Value is { } current)
             {
-                if (current.TryRestore(continuationPoint, requirePoint: false, out var scopedPoint, out bool expired))
+                if (current.TryRestore(
+                    continuationPoint, requirePoint: false, out IHistoryContinuationPoint? scopedPoint,
+                    out bool expired))
                 {
                     return scopedPoint;
                 }
@@ -1169,7 +1171,8 @@ namespace Opc.Ua.Server
                 else
                 {
                     if (current.TryRestore(
-                        continuationPoint, requirePoint: true, out var scopedPoint, out bool expired))
+                        continuationPoint, requirePoint: true, out IHistoryContinuationPoint? scopedPoint,
+                        out bool expired))
                     {
                         return scopedPoint;
                     }

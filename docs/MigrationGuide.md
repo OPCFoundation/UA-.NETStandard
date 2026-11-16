@@ -97,6 +97,8 @@ binary compatibility with removed instance members.
 | `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, `NodeManagerRemovalCommittedException`, `INodeManagerCommittedFailure` | Inspect the returned `LifecycleResult.CleanupFailure`, `Issues` and `Retired` separately |
 | `NodeManagerLifecycle(StandardServer)` | Use `server.NodeManagerLifecycle`, or resolve `INodeManagerLifecycle` from hosted DI |
 | `RuntimeNodeSetLifecycleExtensions` | Prepare a `LifecycleChange` using `RuntimeNodeSetNodeManagerFactory` |
+| `RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback`, `RuntimeNodeSetNodeManagerFactory.AllowLifecycleFromRequestCallback` | No equivalent option; finish the request callback before starting lifecycle work that must drain its admission |
+| `ISessionContinuationPoints.RemoveForManager` | No equivalent callback for custom stores; the built-in store invalidates exact retiring generations |
 | Separate synchronous readiness | Implement the existing TAP readiness contract; see [classic-manager readiness](#migrating-classic-manager-readiness-callbacks) |
 
 Use `LifecycleChange.Add(factory)`, `Reload(slot, factory, transitionMode)` and
@@ -105,6 +107,12 @@ generation, or `Invalidate` to invalidate them. Neither transition keeps the
 old generation available for new work. The released `IStandardServer`
 factory-list `AddNodeManager` and `RemoveNodeManager` contracts are not these
 dynamic lifecycle methods and remain available.
+
+The removed runtime request option and custom continuation-store retirement
+callback were also 2.x-only, not released 1.5.378 contracts. A custom store
+does not receive retirement notification from the native reclaimer. Use the
+built-in store when generation-bound invalidation is required; recompiling a
+custom store alone does not supply the removed behavior.
 
 Moving capture and preparation from extension methods to interface members
 preserves ordinary call syntax, not the static call targets in existing

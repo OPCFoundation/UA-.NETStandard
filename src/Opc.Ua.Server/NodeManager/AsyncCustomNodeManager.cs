@@ -1201,6 +1201,7 @@ namespace Opc.Ua.Server
         /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
         /// </summary>
         /// <exception cref="AggregateException"></exception>
+        /// <exception cref="InvalidOperationException">The adopted source has no generation.</exception>
         private async ValueTask<(ServiceResult Result, bool Changed)> AdoptMonitoredItemSourceAsync(
             IMonitoredItem monitoredItem,
             MonitoredItemAdoption adoption,

@@ -272,6 +272,14 @@ Both `INodeManagerFactory.NamespacesUris` and
 `IAsyncNodeManagerFactory.NamespacesUris` return `ArrayOf<string>` instead
 of `StringCollection`.
 
+This inherited 2.x signature change is an explicit binary-compatibility
+exception. Implementations compiled against the 1.5.378 factory getters must
+be rebuilt against 2.x; a source collection shim cannot satisfy their old
+compiled return signatures. The retained factory-list registration methods
+do not make those old factory implementations binary compatible. The
+exception is recorded in
+[`NativeLifecycleApiExceptions.csv`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tests/Opc.Ua.Server.Tests/NodeManager/NativeLifecycleApiExceptions.csv).
+
 `IConditionRefreshAsyncNodeManager.ConditionRefreshAsync` now returns
 `ValueTask<ServiceResult>` rather than `ValueTask`. Return the refresh
 result from the implementation.

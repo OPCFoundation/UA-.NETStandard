@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .Returns((ISystemContext context, IFilterTarget target, CancellationToken cancellationToken) =>
                     {
                         bool admitted = MasterNodeManager.TryCaptureSourceEmission(
-                            server.Object, master.CoreNodeManager!, out var child,
+                            server.Object, master.CoreNodeManager, out MasterNodeManager.SourceEmissionAdmission? child,
                             isGlobalServerEventSink: true, context: context);
                         propagatedGeneration = child?.Generation;
                         child?.Dispose();
@@ -302,7 +302,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(message.Text, Is.EqualTo("forwarded-before"));
 
                 Assert.That(MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, manager, out var admitted, monitored.Generation), Is.True);
+                    server.Object, manager, out MasterNodeManager.SourceEmissionAdmission? admitted,
+                    monitored.Generation), Is.True);
                 Task drain;
                 using (MasterNodeManager.SourceEmissionOrigin? origin = admitted?.TransferToOrigin())
                 {
@@ -312,7 +313,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     drain = generation.Gate.WaitForDrainAsync();
                     Assert.That(drain.IsCompleted, Is.False);
                     Assert.That(MasterNodeManager.TryCaptureSourceEmission(
-                        server.Object, manager, out var child, monitored.Generation,
+                        server.Object, manager, out MasterNodeManager.SourceEmissionAdmission? child,
+                        monitored.Generation,
                         context: origin!.CreateContext(manager.SystemContext)), Is.True);
                     using (child)
                     {
@@ -355,13 +357,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerGeneration unpublished = NodeManagerGenerationRegistry.GetOrCreate(unpublishedFacade.Object);
 
                 bool rejected = MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, unpublishedFacade.Object, out var rejectedAdmission);
+                    server.Object, unpublishedFacade.Object,
+                    out MasterNodeManager.SourceEmissionAdmission? rejectedAdmission);
                 bool admitted = MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, manager, out var sourceAdmission);
+                    server.Object, manager, out MasterNodeManager.SourceEmissionAdmission? sourceAdmission);
                 bool rejectedBound = MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, unpublishedFacade.Object, out var rejectedBoundAdmission, published.Reference);
+                    server.Object, unpublishedFacade.Object,
+                    out MasterNodeManager.SourceEmissionAdmission? rejectedBoundAdmission, published.Reference);
                 bool rejectedItem = MasterNodeManager.TryCaptureItemEmission(
-                    server.Object, unpublishedFacade.Object, published.Reference, out var rejectedItemAdmission);
+                    server.Object, unpublishedFacade.Object, published.Reference,
+                    out MasterNodeManager.SourceEmissionAdmission? rejectedItemAdmission);
                 try
                 {
                     Assert.Multiple(() =>
@@ -413,13 +418,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(prepared.ResourceOwnership, Is.SameAs(published.ResourceOwnership));
 
                 bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, preparedFacade.Object, out var eventAdmission);
+                    server.Object, preparedFacade.Object,
+                    out MasterNodeManager.SourceEmissionAdmission? eventAdmission);
                 bool valueAccepted = MasterNodeManager.TryCaptureItemEmission(
-                    server.Object, preparedFacade.Object, null, out var valueAdmission);
+                    server.Object, preparedFacade.Object, null,
+                    out MasterNodeManager.SourceEmissionAdmission? valueAdmission);
                 bool boundEventAccepted = MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, preparedFacade.Object, out var boundEvent, prepared.Reference);
+                    server.Object, preparedFacade.Object, out MasterNodeManager.SourceEmissionAdmission? boundEvent,
+                    prepared.Reference);
                 bool boundValueAccepted = MasterNodeManager.TryCaptureItemEmission(
-                    server.Object, preparedFacade.Object, prepared.Reference, out var boundValue);
+                    server.Object, preparedFacade.Object, prepared.Reference,
+                    out MasterNodeManager.SourceEmissionAdmission? boundValue);
                 eventAdmission?.Dispose();
                 valueAdmission?.Dispose();
                 boundEvent?.Dispose();
@@ -528,7 +537,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     legacyReference = legacy.Reference;
                     Assert.That(legacy.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
                     bool legacyAccepted = MasterNodeManager.TryCaptureSourceEmission(
-                        server.Object, resource.Object, out var legacyAdmission, legacyReference);
+                        server.Object, resource.Object, out MasterNodeManager.SourceEmissionAdmission? legacyAdmission,
+                        legacyReference);
                     legacyAdmission?.Dispose();
                     Assert.That(legacyAccepted, Is.True);
                 }
@@ -573,7 +583,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     if (legacyReference is not null)
                     {
                         bool staleAccepted = MasterNodeManager.TryCaptureSourceEmission(
-                            server.Object, resource.Object, out var staleAdmission, legacyReference);
+                            server.Object, resource.Object,
+                            out MasterNodeManager.SourceEmissionAdmission? staleAdmission,
+                            legacyReference);
                         staleAdmission?.Dispose();
                         Assert.That(staleAccepted, Is.False,
                             "An explicit legacy token must not be redirected to the newly published facade.");
@@ -594,7 +606,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Assert.That(resourceItemAccepted, Is.True);
                         Assert.That(resourceItemAdmission?.Generation, Is.SameAs(registered));
                         Assert.That(dispatches.Select(dispatch => dispatch.NodeManager),
-                            Is.EqualTo(new[] { facade.Object }));
+                            Is.EqualTo<IAsyncNodeManager[]>([facade.Object]));
                     });
                     MasterNodeManager.NotificationDispatchLease dispatch = dispatches.Single();
                     dispatch.Dispose();
@@ -729,9 +741,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(external.Object);
 
                 bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, external.Object, out var eventAdmission, generation.Reference);
+                    server.Object, external.Object, out MasterNodeManager.SourceEmissionAdmission? eventAdmission,
+                    generation.Reference);
                 bool valueAccepted = MasterNodeManager.TryCaptureItemEmission(
-                    server.Object, external.Object, generation.Reference, out var valueAdmission);
+                    server.Object, external.Object, generation.Reference,
+                    out MasterNodeManager.SourceEmissionAdmission? valueAdmission);
                 eventAdmission?.Dispose();
                 valueAdmission?.Dispose();
 
@@ -754,16 +768,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (queues)
             {
                 var sync = new Mock<INodeManager>();
-                sync.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                sync.SetupGet(value => value.NamespaceUris).Returns([]);
                 using var owner = new AsyncNodeManagerAdapter(sync.Object);
                 using var alias = new AsyncNodeManagerAdapter(sync.Object);
                 using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [owner]);
                 NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner);
 
                 bool eventAccepted = MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, alias, out var eventAdmission, generation.Reference);
+                    server.Object, alias, out MasterNodeManager.SourceEmissionAdmission? eventAdmission,
+                    generation.Reference);
                 bool valueAccepted = MasterNodeManager.TryCaptureItemEmission(
-                    server.Object, alias, generation.Reference, out var valueAdmission);
+                    server.Object, alias, generation.Reference,
+                    out MasterNodeManager.SourceEmissionAdmission? valueAdmission);
                 eventAdmission?.Dispose();
                 valueAdmission?.Dispose();
 
@@ -810,7 +826,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(monitored.Generation, Is.Null);
                 Assert.That(master.TryGetSourceGeneration(facade.Object, out _), Is.False);
                 Assert.That(MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, resource.Object, out var before, monitored.Generation), Is.False);
+                    server.Object, resource.Object, out MasterNodeManager.SourceEmissionAdmission? before,
+                    monitored.Generation), Is.False);
                 Assert.That(before.HasValue, Is.False);
 
                 routing.SetVisible(facade.Object, visible: true);
@@ -818,13 +835,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerGenerationReference? reference = monitored.Generation;
                 Assert.That(reference, Is.SameAs(published.Reference));
                 Assert.That(MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, resource.Object, out var admitted, reference), Is.True);
+                    server.Object, resource.Object, out MasterNodeManager.SourceEmissionAdmission? admitted, reference),
+                    Is.True);
                 admitted?.Dispose();
 
                 routing.Remove(facade.Object);
                 Assert.That(monitored.Generation, Is.SameAs(reference));
                 Assert.That(MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, resource.Object, out var after, reference), Is.False);
+                    server.Object, resource.Object, out MasterNodeManager.SourceEmissionAdmission? after, reference),
+                    Is.False);
                 Assert.That(after.HasValue, Is.False);
             }
         }
@@ -852,7 +871,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 Assert.That(monitored.Generation, Is.Null);
                 Assert.That(MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, resource.Object, out var admitted, monitored.Generation), Is.False);
+                    server.Object, resource.Object, out MasterNodeManager.SourceEmissionAdmission? admitted,
+                    monitored.Generation), Is.False);
                 Assert.That(admitted.HasValue, Is.False);
                 Assert.Throws<InvalidOperationException>(() => CreateDataItem(server.Object, resource.Object));
             }
@@ -1163,7 +1183,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 Assert.That(monitored.Generation, Is.SameAs(generation.Reference));
                 Assert.That(MasterNodeManager.TryCaptureSourceEmission(
-                    server.Object, external.Object, out var admission, monitored.Generation), Is.True);
+                    server.Object, external.Object, out MasterNodeManager.SourceEmissionAdmission? admission,
+                    monitored.Generation), Is.True);
                 admission?.Dispose();
             }
         }

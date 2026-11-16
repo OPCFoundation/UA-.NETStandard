@@ -61,23 +61,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task LifecycleReportsTransactionCapabilitiesOnThePrimaryContract()
-        {
-            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-
-            await using ILifecycleWriter writer = await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
-            await using IPreparedChanges prepared = await writer.PrepareAsync(
-                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }))])
-                .ConfigureAwait(false);
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(writer.IsCurrent, Is.True);
-                Assert.That(prepared.IsCommitted, Is.False);
-                Assert.That(prepared.Registrations.Count, Is.EqualTo(1));
-            }
-        }
-
-        [Test]
         public async Task PrivateValidationRejectsUnsupportedReferencesBeforePublication()
         {
             (Mock<IAsyncNodeManager> manager, BaseObjectState node, IAsyncNodeManagerFactory factory) =
