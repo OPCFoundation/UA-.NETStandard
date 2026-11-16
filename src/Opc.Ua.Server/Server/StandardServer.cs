@@ -2389,7 +2389,9 @@ namespace Opc.Ua.Server
                     };
                     response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
                     return response;
-                });
+                },
+                static (server, context, _, e) =>
+                    server.ServerInternal.ReportAuditEvent(context, "Write", e, server.m_logger));
         }
 
         /// <inheritdoc/>
@@ -2423,7 +2425,9 @@ namespace Opc.Ua.Server
                     };
                     response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
                     return response;
-                });
+                },
+                static (server, context, _, e) =>
+                    server.ServerInternal.ReportAuditEvent(context, "HistoryUpdate", e, server.m_logger));
         }
 
         /// <summary>
