@@ -5336,9 +5336,8 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // The cache shares the nodes resolved for one operation with the others of the
-            // request, so a request with one node only needs it for a node to validate.
-            IDictionary<NodeId, NodeState>? operationCache =
-                nodesToRead.Count > 1 ? new Dictionary<NodeId, NodeState>() : null;
+            // request and with their validation; created by the first handle lookup.
+            IDictionary<NodeId, NodeState>? operationCache = null;
             List<NodeHandle>? nodesToValidate = null;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -5351,7 +5350,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                (NodeState? node, NodeHandle? handle) = await FindOperationNodeAsync(
+                (NodeState? node, NodeHandle? handle, operationCache) = await FindOperationNodeAsync(
                     systemContext,
                     nodeToRead.NodeId,
                     nodeToRead.Handle,
@@ -5454,7 +5453,12 @@ namespace Opc.Ua.Server
         /// may still have to be validated. Both are <c>null</c> when the node is not one of
         /// this node manager.
         /// </summary>
-        private async ValueTask<(NodeState? Node, NodeHandle? Handle)> FindOperationNodeAsync(
+        /// <returns>
+        /// The node, the handle, and the operation cache: created for the first handle lookup
+        /// of the request, and kept by the caller for the other lookups and for the
+        /// validation of the nodes, which may depend on what the lookup cached.
+        /// </returns>
+        private async ValueTask<(NodeState? Node, NodeHandle? Handle, IDictionary<NodeId, NodeState>? OperationCache)> FindOperationNodeAsync(
             ServerSystemContext systemContext,
             NodeId nodeId,
             object? routed,
@@ -5464,16 +5468,20 @@ namespace Opc.Ua.Server
             NodeState? node = FindNodeWithDefaultLookup(nodeId);
             if (node != null)
             {
-                return (node, null);
+                return (node, null, operationCache);
             }
 
-            NodeHandle? handle = GetRoutedHandle(routed, nodeId) ??
-                await GetManagerHandleAsync(
+            NodeHandle? handle = GetRoutedHandle(routed, nodeId);
+            if (handle == null)
+            {
+                operationCache ??= new Dictionary<NodeId, NodeState>();
+                handle = await GetManagerHandleAsync(
                     systemContext,
                     nodeId,
-                    operationCache ?? new Dictionary<NodeId, NodeState>(),
+                    operationCache,
                     cancellationToken).ConfigureAwait(false);
-            return (handle?.Node, handle);
+            }
+            return (handle?.Node, handle, operationCache);
         }
 
         /// <summary>
@@ -5732,9 +5740,8 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // The cache shares the nodes resolved for one operation with the others of the
-            // request, so a request with one node only needs it for a node to validate.
-            IDictionary<NodeId, NodeState>? operationCache =
-                nodesToWrite.Count > 1 ? new Dictionary<NodeId, NodeState>() : null;
+            // request and with their validation; created by the first handle lookup.
+            IDictionary<NodeId, NodeState>? operationCache = null;
             List<NodeHandle>? nodesToValidate = null;
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
@@ -5750,7 +5757,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    (NodeState? node, NodeHandle? handle) = await FindOperationNodeAsync(
+                    (NodeState? node, NodeHandle? handle, operationCache) = await FindOperationNodeAsync(
                         systemContext,
                         nodeToWrite.NodeId,
                         routed: null,

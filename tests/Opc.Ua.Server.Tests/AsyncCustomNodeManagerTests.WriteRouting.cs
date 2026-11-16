@@ -186,6 +186,46 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// A node manager whose handle lookup caches the node and returns a handle to
+        /// validate finds the node in the same cache when it validates the handle, for a
+        /// single-node and a multi-node Write.
+        /// </summary>
+        [Test]
+        public async Task HandleLookupCacheIsKeptForTheValidationOfAWriteAsync()
+        {
+            var manager = new CachingLookupTestNodeManager(
+                m_mockServer.Object,
+                m_configuration,
+                m_useSamplingGroups,
+                m_mockLogger.Object,
+                m_testNamespaceUri);
+            SetupMasterNodeManager(manager);
+            (MasterNodeManager dispatcher, _, _) = CreateReadDispatcher(manager);
+            await using MasterNodeManager disposable = dispatcher;
+            ushort ns = manager.NamespaceIndexes[0];
+            BaseDataVariableState first = manager.AddCachedVariable(new NodeId("CachedFirst", ns));
+            BaseDataVariableState second = manager.AddCachedVariable(new NodeId("CachedSecond", ns));
+
+            (ArrayOf<StatusCode> single, _) = await WriteManyAsync(
+                dispatcher, null, DiagnosticsMasks.None, WriteInt32(first.NodeId, 3)).ConfigureAwait(false);
+            (ArrayOf<StatusCode> many, _) = await WriteManyAsync(
+                dispatcher,
+                null,
+                DiagnosticsMasks.None,
+                WriteInt32(first.NodeId, 4),
+                WriteInt32(second.NodeId, 5)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(single[0], Is.EqualTo(StatusCodes.Good));
+                Assert.That(many[0], Is.EqualTo(StatusCodes.Good));
+                Assert.That(many[1], Is.EqualTo(StatusCodes.Good));
+                Assert.That((int)first.Value, Is.EqualTo(4));
+                Assert.That((int)second.Value, Is.EqualTo(5));
+            });
+        }
+
         private static WriteValue WriteInt32(NodeId nodeId, int value)
         {
             return new WriteValue
@@ -229,11 +269,14 @@ namespace Opc.Ua.Server.Tests
 
         private static async Task<(ArrayOf<StatusCode>, ArrayOf<DiagnosticInfo>)> WriteManyAsync(
             MasterNodeManager dispatcher,
-            ISession session,
+            ISession? session,
             DiagnosticsMasks diagnosticsMask,
             params WriteValue[] nodesToWrite)
         {
-            using var context = new OperationContext(session, diagnosticsMask);
+            // without a session no permissions are validated.
+            using OperationContext context = session != null
+                ? new OperationContext(session, diagnosticsMask)
+                : new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None);
             return await dispatcher.WriteAsync(context, nodesToWrite).ConfigureAwait(false);
         }
     }
@@ -278,5 +321,83 @@ namespace Opc.Ua.Server.Tests
         }
 
         private int m_handleLookups;
+    }
+
+    /// <summary>
+    /// A node manager whose handle lookup puts nodes that are not in
+    /// <see cref="AsyncCustomNodeManager.PredefinedNodes"/> into the operation cache and
+    /// returns a handle that is validated from that cache only.
+    /// </summary>
+    public sealed class CachingLookupTestNodeManager : TestableAsyncCustomNodeManager
+    {
+        /// <summary>
+        /// Creates the node manager.
+        /// </summary>
+        public CachingLookupTestNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            bool useSamplingGroups,
+            ILogger logger,
+            params string[] namespaceUris)
+            : base(server, configuration, useSamplingGroups, logger, namespaceUris)
+        {
+        }
+
+        /// <summary>
+        /// Adds a writable Int32 variable the lookup finds.
+        /// </summary>
+        public BaseDataVariableState AddCachedVariable(NodeId nodeId)
+        {
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(SystemContext);
+            variable.NodeId = nodeId;
+            variable.BrowseName = new QualifiedName((string)nodeId.Identifier, nodeId.NamespaceIndex);
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.Value = 0;
+            m_nodes[nodeId] = variable;
+            return variable;
+        }
+
+        /// <inheritdoc/>
+        protected override ValueTask<NodeHandle> GetManagerHandleAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            if (!m_nodes.TryGetValue(nodeId, out BaseDataVariableState? node))
+            {
+                return base.GetManagerHandleAsync(context, nodeId, cache, cancellationToken);
+            }
+            if (cache != null)
+            {
+                cache[nodeId] = node;
+            }
+            return new ValueTask<NodeHandle>(new NodeHandle { NodeId = nodeId, ParsedNodeId = nodeId });
+        }
+
+        /// <inheritdoc/>
+        protected override ValueTask<NodeState> ValidateNodeAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            if (!m_nodes.ContainsKey(handle.NodeId))
+            {
+                return base.ValidateNodeAsync(context, handle, cache, cancellationToken);
+            }
+            if (cache != null && cache.TryGetValue(handle.NodeId, out NodeState? node))
+            {
+                handle.Node = node;
+                handle.Validated = true;
+            }
+            return new ValueTask<NodeState>(handle.Node!);
+        }
+
+        private readonly Dictionary<NodeId, BaseDataVariableState> m_nodes = [];
     }
 }
