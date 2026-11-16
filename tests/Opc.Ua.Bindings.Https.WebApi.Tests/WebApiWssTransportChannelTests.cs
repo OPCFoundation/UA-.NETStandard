@@ -1446,6 +1446,23 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
         }
 
+        [Test]
+        public async Task OpenAsyncSharesTheServerUrisOfTheSettingsAsync()
+        {
+            using var channel = new WebApiWssTransportChannel(new TelemetryStub());
+            var serverUris = new StringTable();
+            TransportChannelSettings settings = CreateChannelSettings(null);
+            settings.ServerUris = serverUris;
+            await channel.OpenAsync(m_baseUri, settings, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                Assert.That(channel.MessageContext.ServerUris, Is.SameAs(serverUris));
+            }
+            finally
+            {
+                await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
         private async Task<WebApiWssTransportChannel> OpenChannelAsync(
             WebApiClientOptions? options = null,
             EndpointConfiguration? configuration = null,

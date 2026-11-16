@@ -555,7 +555,7 @@ namespace Opc.Ua.Bindings
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                 NamespaceUris = settings.NamespaceUris ?? new NamespaceTable(),
-                ServerUris = new StringTable()
+                ServerUris = settings.ServerUris ?? new StringTable()
             })
             {
                 MaxBufferSize = configuration.MaxBufferSize,

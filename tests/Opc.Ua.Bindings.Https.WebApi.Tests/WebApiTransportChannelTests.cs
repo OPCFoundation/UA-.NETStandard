@@ -219,6 +219,29 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
+        public async Task OpenAsyncSharesTheServerUrisOfTheSettingsAsync()
+        {
+            using var channel = new WebApiTransportChannel(new TelemetryStub(),
+                new WebApiClientOptions { HttpMessageHandler = m_handler, DisposeHandler = false });
+            var serverUris = new StringTable();
+            var settings = new TransportChannelSettings
+            {
+                Description = new EndpointDescription
+                {
+                    EndpointUrl = s_baseAddress.AbsoluteUri,
+                    TransportProfileUri = Profiles.HttpsOpenApiTransport
+                },
+                Configuration = new EndpointConfiguration(),
+                Factory = m_stubServer!.MessageContext.Factory,
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = serverUris
+            };
+
+            await channel.OpenAsync(s_baseAddress, settings, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(channel.MessageContext.ServerUris, Is.SameAs(serverUris));
+        }
+        [Test]
         public void SupportedFeaturesIsNone()
         {
             using var channel = new WebApiTransportChannel(new TelemetryStub());
