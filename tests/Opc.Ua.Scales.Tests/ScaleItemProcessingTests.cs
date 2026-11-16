@@ -227,6 +227,134 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(Count(product.Statistic!), Is.EqualTo(1UL));
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task SynchronousStatisticsAndItemPublicationPreserveMetadataAndClearMissingFieldsAsync(
+            bool includePrice,
+            bool includeZone)
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.AutomaticWeightPriceLabeler);
+            var product = (AutomaticWeightPriceLabelerProductState)scale.ProductionPreset!.ActiveProduct!;
+            ConfigurePrice(m_fixture.Context, product, m_fixture.Manager.NamespaceIndices.Scales);
+            var statistic = new ScaleStatistics(m_fixture.Context, product.Statistic!);
+            DateTime timestamp = new(2026, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+            ScaleItemReport report = Item(17, 1.25) with
+            {
+                Weight = Item(17, 1.25).Weight with
+                {
+                    WeightId = "source-weight-17",
+                    Timestamp = timestamp,
+                    Stable = true
+                },
+                Height = new ScaleItemMeasurement(125, Millimetre, timestamp, StatusCodes.Uncertain)
+            };
+            ScaleItemPrice? price = includePrice ? new ScaleItemPrice(1.23m, Euro()) : null;
+
+            statistic.RecordItem(report, includeZone ? "High" : null, price);
+
+            Assert.That(product.Statistic!.LastItem!.ItemId!.Value, Is.EqualTo("item-17"));
+            Assert.That(product.Statistic.LastItem.MeasuredWeight!.Value.Net, Is.EqualTo(1.25));
+            var lastItem = (PriceItemState)product.LastItem!;
+            ScaleItemPublisher.Publish(
+                m_fixture.Context,
+                lastItem,
+                report with { Length = new ScaleItemMeasurement(250, Millimetre, timestamp, StatusCodes.Good) },
+                "Previous",
+                new ScaleItemPrice(4.56m, Euro()));
+            Assert.That(lastItem.MeasuredLength!.WrappedValue.GetDouble(), Is.EqualTo(250));
+            Assert.That(lastItem.ZoneName!.Value, Is.EqualTo("Previous"));
+            Assert.That(lastItem.ItemPrice!.WrappedValue.GetDouble(), Is.EqualTo(4.56));
+
+            ScaleItemPublisher.Publish(m_fixture.Context, lastItem, report, includeZone ? "High" : null, price);
+
+            Assert.That(lastItem.ItemId!.Value, Is.EqualTo("item-17"));
+            Assert.That(lastItem.ItemId.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(lastItem.MeasuredWeight!.Value.Net, Is.EqualTo(1.25));
+            Assert.That(lastItem.MeasuredWeight.WeightId!.Value, Is.EqualTo("source-weight-17"));
+            Assert.That((DateTime)lastItem.MeasuredWeight.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(lastItem.ZoneName!.Value, Is.EqualTo(includeZone ? "High" : null));
+            Assert.That(lastItem.ZoneName.StatusCode,
+                Is.EqualTo((StatusCode)(includeZone ? StatusCodes.Good : StatusCodes.BadNoData)));
+            Assert.That(lastItem.MeasuredHeight!.WrappedValue.GetDouble(), Is.EqualTo(125));
+            Assert.That(lastItem.MeasuredHeight.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That((DateTime)lastItem.MeasuredHeight.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(lastItem.MeasuredLength!.WrappedValue.IsNull, Is.True);
+            Assert.That(lastItem.MeasuredLength.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(lastItem.ItemPrice!.StatusCode,
+                Is.EqualTo((StatusCode)(includePrice ? StatusCodes.Good : StatusCodes.BadNoData)));
+            Assert.That(lastItem.ItemPrice.WrappedValue.IsNull, Is.EqualTo(!includePrice));
+            if (includePrice)
+            {
+                Assert.That(lastItem.ItemPrice.WrappedValue.GetDouble(), Is.EqualTo(1.23));
+                Assert.That(
+                    ScaleItemPublisher.CurrencyOf(m_fixture.Context, lastItem.ItemPrice)!.AlphabeticCode,
+                    Is.EqualTo("EUR"));
+            }
+            Assert.That(Count(product.Statistic!), Is.EqualTo(1UL));
+        }
+
+        /// <summary>
+        /// Publishes an analog range without changing the value or removing it for an absent update.
+        /// </summary>
+        [Test]
+        public void SynchronousRangePublicationPreservesValueAndIgnoresAbsentRange()
+        {
+            var variable = new AnalogItemState(null)
+            {
+                WrappedValue = new Variant(12.5)
+            };
+            variable.EURange = new PropertyState<Range>.Implementation<StructureBuilder<Range>>(variable)
+            {
+                BrowseName = new QualifiedName(Ua.BrowseNames.EURange),
+                Value = new Range { Low = 0, High = 10 },
+                StatusCode = StatusCodes.BadNoData,
+                Timestamp = DateTime.MinValue
+            };
+            var range = new Range { Low = -5, High = 25 };
+
+            ScaleValues.SetRange(m_fixture.Context, variable, range);
+
+            Assert.That(variable.EURange.Value.Low, Is.EqualTo(-5));
+            Assert.That(variable.EURange.Value.High, Is.EqualTo(25));
+            Assert.That(variable.EURange.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That((DateTime)variable.EURange.Timestamp, Is.GreaterThan(DateTime.MinValue));
+            Assert.That(variable.WrappedValue.GetDouble(), Is.EqualTo(12.5));
+
+            DateTime timestamp = (DateTime)variable.EURange.Timestamp;
+            ScaleValues.SetRange(m_fixture.Context, variable, null);
+            ScaleValues.SetRange(m_fixture.Context, null, range);
+            ScaleValues.SetRange(m_fixture.Context, new AnalogItemState(null), range);
+
+            Assert.That(variable.EURange.Value.Low, Is.EqualTo(-5));
+            Assert.That(variable.EURange.Value.High, Is.EqualTo(25));
+            Assert.That((DateTime)variable.EURange.Timestamp, Is.EqualTo(timestamp));
+            Assert.That(variable.WrappedValue.GetDouble(), Is.EqualTo(12.5));
+        }
+
+        /// <summary>
+        /// Rejects an equipment price on a catchweigher without committing the item.
+        /// </summary>
+        [Test]
+        public async Task CatchweigherRejectsEquipmentPriceWithoutCommittingAcquisitionAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            var product = (CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+            ScaleItemReport report = Item(1) with { Price = new ScaleItemPrice(1m, Euro()) };
+
+            ServiceResult result = await scale.Catchweigher!.ReportAsync(report);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(Count(product.Statistic!), Is.Zero);
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+            Assert.That(scale.RegisteredReading, Is.Null);
+            Assert.That(product.LastItem!.ItemId!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(
+                product.LastItem!.MeasuredWeight!.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+        }
+
         [TestCase(1.005, 1.0, 2, MidpointRounding.ToEven, 1.0)]
         [TestCase(1.005, 1.0, 2, MidpointRounding.AwayFromZero, 1.01)]
         [TestCase(2.5, 1.0, 0, MidpointRounding.ToEven, 2.0)]
@@ -888,6 +1016,54 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo(2UL));
             Assert.That(Count(first.Statistic!), Is.EqualTo(1UL));
             Assert.That(Count(second.Statistic!), Is.EqualTo(1UL));
+        }
+
+        [TestCase(BuiltInType.Byte, 255UL)]
+        [TestCase(BuiltInType.UInt16, 65535UL)]
+        [TestCase(BuiltInType.UInt32, 4000000000UL)]
+        [TestCase(BuiltInType.UInt64, 4294967295UL)]
+        public async Task CompletedHopperFillAcceptsUIntegerCounterRepresentationsAsync(
+            BuiltInType type,
+            ulong initial)
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.TotalizingHopper);
+            var product = (TotalizingHopperProductState)scale.ProductionPreset!.ActiveProduct!;
+            product.TipCounter!.WrappedValue = type switch
+            {
+                BuiltInType.Byte => new Variant((byte)initial),
+                BuiltInType.UInt16 => new Variant((ushort)initial),
+                BuiltInType.UInt32 => new Variant((uint)initial),
+                _ => new Variant(initial)
+            };
+
+            AssertGood(await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1)));
+
+            Assert.That(product.TipCounter.WrappedValue, Is.EqualTo(new Variant(initial + 1)));
+            Assert.That(Count(product.Statistic!), Is.EqualTo(1UL));
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo(1UL));
+            Assert.That(scale.RegisteredReading!.Net, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Rejects an item price before a completed hopper fill changes its counter or totals.
+        /// </summary>
+        [Test]
+        public async Task TotalizingHopperRejectsItemPriceWithoutCountingFillAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.TotalizingHopper);
+            var product = (TotalizingHopperProductState)scale.ProductionPreset!.ActiveProduct!;
+            int registered = 0;
+            scale.WeightRegistered += (_, _) => registered++;
+
+            ServiceResult result = await scale.TotalizingHopper!.ReportCompletedFillAsync(
+                Item(1) with { Price = new ScaleItemPrice(1m, Euro()) });
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(product.TipCounter!.WrappedValue, Is.EqualTo(new Variant(0UL)));
+            Assert.That(Count(product.Statistic!), Is.Zero);
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+            Assert.That(scale.RegisteredReading, Is.Null);
+            Assert.That(registered, Is.Zero);
         }
 
         /// <summary>
@@ -1800,6 +1976,55 @@ namespace Opc.Ua.Scales.Tests
                     fixture.Name(kind.ToString()), kind, b => Configure(b, kind, null));
                 Assert.That(fixture.Manager.ServerProfiles.ToArray(), Does.Contain(ScalesProfiles.FacetOf(scale.Kind)));
             }
+        }
+
+        [Test]
+        public async Task CompletedHopperFillPreservesSequenceAfterMalformedTipCounterRepairAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.TotalizingHopper);
+            var product = (TotalizingHopperProductState)scale.ProductionPreset!.ActiveProduct!;
+            StatisticState productStatistics = product.Statistic!;
+            StatisticState outputStatistics = scale.ProductionOutput!.Statistic;
+            ScaleItemReport report = Item(1);
+            var malformedCounter = new Variant(-1);
+            Assert.That(Count(productStatistics), Is.Zero);
+            Assert.That(Count(outputStatistics), Is.Zero);
+            product.TipCounter!.WrappedValue = malformedCounter;
+            int registered = 0;
+            ScaleReading? registeredWeight = null;
+            scale.WeightRegistered += (_, reading) =>
+            {
+                registered++;
+                registeredWeight = reading;
+            };
+
+            ServiceResult rejected = await scale.TotalizingHopper!.ReportCompletedFillAsync(report);
+            Assert.That(rejected.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+            Assert.That(product.TipCounter.WrappedValue, Is.EqualTo(malformedCounter));
+            Assert.That(Count(productStatistics), Is.Zero);
+            Assert.That(Count(outputStatistics), Is.Zero);
+            Assert.That(scale.RegisteredReading, Is.Null);
+            Assert.That(registered, Is.Zero);
+            Assert.That(registeredWeight, Is.Null);
+
+            product.TipCounter.WrappedValue = new Variant(7UL);
+            ServiceResult recovered = await scale.TotalizingHopper.ReportCompletedFillAsync(report);
+            Assert.That(recovered.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(product.TipCounter.WrappedValue, Is.EqualTo(new Variant(8UL)));
+            Assert.That(Count(productStatistics), Is.EqualTo(1UL));
+            Assert.That(Count(outputStatistics), Is.EqualTo(1UL));
+            Assert.That(scale.RegisteredReading!.Net, Is.EqualTo(1));
+            Assert.That(registered, Is.EqualTo(1));
+            Assert.That(registeredWeight, Is.Not.Null);
+            Assert.That(registeredWeight!.Net, Is.EqualTo(report.Weight.Net));
+
+            ServiceResult duplicate = await scale.TotalizingHopper.ReportCompletedFillAsync(report);
+            Assert.That(duplicate.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEntryExists));
+            Assert.That(product.TipCounter.WrappedValue, Is.EqualTo(new Variant(8UL)));
+            Assert.That(Count(productStatistics), Is.EqualTo(1UL));
+            Assert.That(Count(outputStatistics), Is.EqualTo(1UL));
+            Assert.That(registered, Is.EqualTo(1));
+            Assert.That(scale.RegisteredReading!.Net, Is.EqualTo(1));
         }
 
         internal static void Configure(IScaleBuilder builder, ScaleKind kind, IScalePriceCalculator? calculator)
