@@ -38,11 +38,11 @@ namespace Opc.Ua.Server.Tests
     public partial class AsyncCustomNodeManagerTests
     {
         /// <summary>
-        /// A single-node read through the dispatcher reads the node through the handle the
-        /// permission check resolved, and returns the value a multi-node read returns.
+        /// A single-node read through the dispatcher returns the value a multi-node read
+        /// returns, without a handle for a node manager with the default handle lookup.
         /// </summary>
         [Test]
-        public async Task SingleNodeReadUsesTheHandleOfTheValidationAsync()
+        public async Task SingleNodeReadMatchesAMultiNodeReadAsync()
         {
             (MasterNodeManager dispatcher, ITestNodeManager manager, ISession session) =
                 CreateReadDispatcher();
@@ -70,13 +70,9 @@ namespace Opc.Ua.Server.Tests
             });
             if (m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
-                // routed by the validation, for the node manager that owns the node: the
-                // fixture's core node manager is asked first for the namespace, so the
-                // validation resolves a handle (see WriteRouting for a node found without one).
-                Assert.That(single.Handle, Is.InstanceOf<NodeHandle>());
-                var handle = (NodeHandle)single.Handle;
-                Assert.That(handle.Node, Is.SameAs(manager.PredefinedNodes[nodeId]));
-                Assert.That(handle.RoutedBy, Is.SameAs(manager));
+                // the default handle lookup finds the node again without a handle; a node
+                // manager that overrides it gets the handle routed (see WriteRouting).
+                Assert.That(single.Handle, Is.Null);
             }
         }
 

@@ -90,9 +90,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A node manager with the default handle lookup that is asked first for a namespace
-        /// finds its in-memory nodes without a handle, for the validation and for the Read or
-        /// Write: no handle is routed.
+        /// A node manager with the default handle lookup finds its in-memory nodes without a
+        /// handle, for the validation and for the Read or Write: no handle is routed.
         /// </summary>
         [Test]
         public async Task DefaultHandleLookupFindsTheNodeWithoutAHandleAsync()
@@ -142,11 +141,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A node manager that overrides the handle lookup resolves each node once per Read
-        /// or Write: the request validation routes the handle it resolved to the operation.
+        /// A node manager that overrides the handle lookup gets handles: the request
+        /// validation routes the handle it resolved to a Read, and a Write looks the node up
+        /// again.
         /// </summary>
         [Test]
-        public async Task OverriddenHandleLookupRoutesTheValidatedHandleAsync()
+        public async Task OverriddenHandleLookupRoutesTheReadHandleAsync()
         {
             var manager = new HandleLookupTestNodeManager(
                 m_mockServer.Object,
@@ -177,54 +177,12 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(manager.FindNodeWithDefaultLookup(nodeId), Is.Null);
                 Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
                 Assert.That(ReadInt32(manager, nodeId), Is.EqualTo(7));
-                Assert.That(writeValue.Handle, Is.InstanceOf<NodeHandle>());
-                Assert.That(((NodeHandle)writeValue.Handle).RoutedBy, Is.SameAs(manager));
-                Assert.That(((NodeHandle)writeValue.Handle).Node, Is.SameAs(manager.PredefinedNodes[nodeId]));
-                Assert.That(writeLookups, Is.EqualTo(1));
+                Assert.That(writeValue.Handle, Is.Null);
+                Assert.That(writeLookups, Is.EqualTo(2));
                 Assert.That((int)value.WrappedValue, Is.EqualTo(7));
                 Assert.That(readValueId.Handle, Is.InstanceOf<NodeHandle>());
+                Assert.That(((NodeHandle)readValueId.Handle).RoutedBy, Is.SameAs(manager));
                 Assert.That(readLookups, Is.EqualTo(1));
-            });
-        }
-
-        /// <summary>
-        /// A write value that is written again does not write through the handle routed for
-        /// an earlier write of another node.
-        /// </summary>
-        [Test]
-        public async Task RoutedHandleOfAnEarlierWriteIsNotReusedAsync()
-        {
-            var manager = new HandleLookupTestNodeManager(
-                m_mockServer.Object,
-                m_configuration,
-                m_useSamplingGroups,
-                m_mockLogger.Object,
-                m_testNamespaceUri);
-            SetupMasterNodeManager(manager);
-            (MasterNodeManager dispatcher, _, ISession session) = CreateReadDispatcher(manager);
-            await using MasterNodeManager disposable = dispatcher;
-            NodeId first = await AddWritableVariableAsync(
-                manager, "RoutedWriteFirst", 1, PermissionType.Browse | PermissionType.Read | PermissionType.Write)
-                .ConfigureAwait(false);
-            NodeId second = await AddWritableVariableAsync(
-                manager, "RoutedWriteSecond", 2, PermissionType.Browse | PermissionType.Read | PermissionType.Write)
-                .ConfigureAwait(false);
-
-            WriteValue writeValue = WriteInt32(first, 11);
-            (ArrayOf<StatusCode> results, _) = await WriteManyAsync(
-                dispatcher, session, DiagnosticsMasks.None, writeValue).ConfigureAwait(false);
-            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
-
-            writeValue.NodeId = second;
-            writeValue.Value = new DataValue(new Variant(12));
-            (results, _) = await WriteManyAsync(
-                dispatcher, session, DiagnosticsMasks.None, writeValue).ConfigureAwait(false);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
-                Assert.That(ReadInt32(manager, first), Is.EqualTo(11));
-                Assert.That(ReadInt32(manager, second), Is.EqualTo(12));
             });
         }
 

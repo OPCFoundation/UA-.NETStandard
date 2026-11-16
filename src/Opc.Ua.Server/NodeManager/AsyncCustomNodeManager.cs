@@ -5351,26 +5351,16 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // an in-memory node found without a handle, the handle of an in-memory node
-                // this node manager already returned while the request was validated, or a
-                // new handle.
-                NodeState? node = FindNodeWithDefaultLookup(nodeToRead.NodeId);
-                NodeHandle? handle = null;
-                if (node == null)
+                (NodeState? node, NodeHandle? handle) = await FindOperationNodeAsync(
+                    systemContext,
+                    nodeToRead.NodeId,
+                    nodeToRead.Handle,
+                    operationCache,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (node == null && handle == null)
                 {
-                    handle = GetRoutedHandle(nodeToRead.Handle, nodeToRead.NodeId) ??
-                        await GetManagerHandleAsync(
-                            systemContext,
-                            nodeToRead.NodeId,
-                            operationCache!,
-                            cancellationToken).ConfigureAwait(false);
-
-                    if (handle == null)
-                    {
-                        continue;
-                    }
-
-                    node = handle.Node;
+                    continue;
                 }
 
                 // owned by this node manager.
@@ -5455,6 +5445,35 @@ namespace Opc.Ua.Server
                 nodesToValidate,
                 operationCache ?? new Dictionary<NodeId, NodeState>(),
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Finds the node of one Read or Write operation: an in-memory node found without a
+        /// handle (see <see cref="FindNodeWithDefaultLookup"/>), the handle the request
+        /// validation routed (see <see cref="GetRoutedHandle"/>), or a new handle whose node
+        /// may still have to be validated. Both are <c>null</c> when the node is not one of
+        /// this node manager.
+        /// </summary>
+        private async ValueTask<(NodeState? Node, NodeHandle? Handle)> FindOperationNodeAsync(
+            ServerSystemContext systemContext,
+            NodeId nodeId,
+            object? routed,
+            IDictionary<NodeId, NodeState>? operationCache,
+            CancellationToken cancellationToken)
+        {
+            NodeState? node = FindNodeWithDefaultLookup(nodeId);
+            if (node != null)
+            {
+                return (node, null);
+            }
+
+            NodeHandle? handle = GetRoutedHandle(routed, nodeId) ??
+                await GetManagerHandleAsync(
+                    systemContext,
+                    nodeId,
+                    operationCache ?? new Dictionary<NodeId, NodeState>(),
+                    cancellationToken).ConfigureAwait(false);
+            return (handle?.Node, handle);
         }
 
         /// <summary>
@@ -5712,9 +5731,10 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext systemContext = GetOperationSystemContext(context);
 
-            // created when a node is looked up or must be validated: the nodes the request
-            // validation resolved are written through their routed handles.
-            IDictionary<NodeId, NodeState>? operationCache = null;
+            // The cache shares the nodes resolved for one operation with the others of the
+            // request, so a request with one node only needs it for a node to validate.
+            IDictionary<NodeId, NodeState>? operationCache =
+                nodesToWrite.Count > 1 ? new Dictionary<NodeId, NodeState>() : null;
             List<NodeHandle>? nodesToValidate = null;
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
@@ -5730,26 +5750,16 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // an in-memory node found without a handle, the handle of an in-memory
-                    // node this node manager already returned while the request was
-                    // validated, or a new handle.
-                    NodeState? node = FindNodeWithDefaultLookup(nodeToWrite.NodeId);
-                    NodeHandle? handle = null;
-                    if (node == null)
+                    (NodeState? node, NodeHandle? handle) = await FindOperationNodeAsync(
+                        systemContext,
+                        nodeToWrite.NodeId,
+                        routed: null,
+                        operationCache,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (node == null && handle == null)
                     {
-                        handle = GetRoutedHandle(nodeToWrite.Handle, nodeToWrite.NodeId) ??
-                            await GetManagerHandleAsync(
-                                systemContext,
-                                nodeToWrite.NodeId,
-                                operationCache ??= new Dictionary<NodeId, NodeState>(),
-                                cancellationToken).ConfigureAwait(false);
-
-                        if (handle == null)
-                        {
-                            continue;
-                        }
-
-                        node = handle.Node;
+                        continue;
                     }
 
                     // owned by this node manager.
@@ -11008,9 +11018,11 @@ namespace Opc.Ua.Server
         /// Validates the role permissions and access restrictions of a node that
         /// <see cref="FindNodeWithDefaultLookup"/> returned, like
         /// <see cref="TryValidatePermissionsAsync(OperationContext, object, PermissionType, Dictionary{NodeId, Variant[]}?, bool, ILogger?, bool, CancellationToken)"/>
-        /// with the handle the lookup would have returned for it.
+        /// with the handle the lookup would have returned for it. A
+        /// <see cref="ServiceResultException"/> becomes the result, as in the dispatcher's
+        /// validation of a handle.
         /// </summary>
-        internal ValueTask<ServiceResult> ValidatePermissionsAsync(
+        internal async ValueTask<ServiceResult> ValidatePermissionsAsync(
             OperationContext context,
             NodeId nodeId,
             NodeState target,
@@ -11020,10 +11032,18 @@ namespace Opc.Ua.Server
             ILogger? logger,
             CancellationToken cancellationToken = default)
         {
-            return ValidateNodePermissionsAsync(
-                context, GetOperationSystemContext(context), nodeId, target, requestedPermission,
-                uniqueNodesServiceAttributesCache, permissionsOnly, logger, validateAccessRestrictions: true,
-                validateRolePermissions: true, cancellationToken);
+            try
+            {
+                return await ValidateNodePermissionsAsync(
+                        context, GetOperationSystemContext(context), nodeId, target, requestedPermission,
+                        uniqueNodesServiceAttributesCache, permissionsOnly, logger, validateAccessRestrictions: true,
+                        validateRolePermissions: true, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                return new ServiceResult(exception);
+            }
         }
 
         /// <summary>
