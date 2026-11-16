@@ -284,6 +284,9 @@ namespace Opc.Ua
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
                     encryptedSecret.TryDecryptRsa(m_token.Password.ToArray()!, receiverNonce?.Data, out byte[]? decryptedSecret))
                 {
+                    IdentityTokenLimits.ThrowIfSecretTooLong(
+                        decryptedSecret,
+                        IdentityTokenLimits.MaxPasswordLength);
                     DecryptedPassword = decryptedSecret;
                     return;
                 }
@@ -295,9 +298,18 @@ namespace Opc.Ua
                 };
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityTokenHandler>();
-                byte[]? decryptedPassword = await m_securityPolicies
-                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
-                    .ConfigureAwait(false);
+
+                // the legacy format decrypts every RSA block of the password, so
+                // the blocks are bounded to what the longest password needs before
+                // the first private-key operation (OPC 10000-4 7.41.2.2).
+                byte[]? decryptedPassword = await IdentityTokenLimits.DecryptLegacyAsync(
+                    m_securityPolicies,
+                    certificate,
+                    securityPolicyUri,
+                    encryptedData,
+                    IdentityTokenLimits.MaxPasswordLength,
+                    receiverNonce,
+                    ct).ConfigureAwait(false);
 
                 if (decryptedPassword == null)
                 {
@@ -321,6 +333,14 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(StatusCodes.BadIdentityTokenInvalid);
                     }
+                }
+
+                if (startOfNonce > IdentityTokenLimits.MaxPasswordLength)
+                {
+                    Array.Clear(decryptedPassword, 0, decryptedPassword.Length);
+                    IdentityTokenLimits.ThrowIfSecretTooLong(
+                        startOfNonce,
+                        IdentityTokenLimits.MaxPasswordLength);
                 }
 
                 // copy result to m_decrypted password field
@@ -353,6 +373,9 @@ namespace Opc.Ua
                         "Failed to decrypt UserNameIdentityToken password using ECC encrypted secret.");
                 }
 
+                IdentityTokenLimits.ThrowIfSecretTooLong(
+                    decryptedSecret,
+                    IdentityTokenLimits.MaxPasswordLength);
                 DecryptedPassword = decryptedSecret;
             }
         }
