@@ -391,14 +391,19 @@ namespace Opc.Ua.Client.Tests
             await using UaManagedSession session = await set.ConnectAsync(
                 new ServerRedundancyOptions(), timeout.Token, channelManager: channels).ConfigureAwait(false);
             Assert.That(set.Primary.SessionCount, Is.EqualTo(1));
-            var states = new ConcurrentQueue<ConnectionState>();
-            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+            ConcurrentQueue<ConnectionState> states = RecordStatesAfterConnect(session);
 
             await session.FailoverAsync(set.Backup.Endpoint, timeout.Token).ConfigureAwait(false);
-            await WaitUntilAsync(() => states.Contains(ConnectionState.Connected), timeout.Token).ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => states.SkipWhile(s => s != ConnectionState.Failover).Contains(ConnectionState.Connected),
+                timeout.Token).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
-            Assert.That(states.ToArray(), Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
+            // the Connected change of the initial connect can be raised after the handler is
+            // attached; only the transitions from the failover on belong to this call.
+            Assert.That(
+                states.SkipWhile(s => s != ConnectionState.Failover).ToArray(),
+                Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
             DataValue level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(level.GetValue<byte>(0), Is.EqualTo(230));
@@ -454,6 +459,24 @@ namespace Opc.Ua.Client.Tests
         private static string? ServerUriOf(UaManagedSession session)
         {
             return session.ConfiguredEndpoint.Description.Server?.ApplicationUri;
+        }
+
+        /// <summary>
+        /// Records the connection states the session enters from now on. The connect
+        /// call can return before the notification of the initial Connecting to Connected
+        /// transition is delivered, so that late notification is not recorded.
+        /// </summary>
+        private static ConcurrentQueue<ConnectionState> RecordStatesAfterConnect(UaManagedSession session)
+        {
+            var states = new ConcurrentQueue<ConnectionState>();
+            session.ConnectionStateChanged += (_, e) =>
+            {
+                if (e.PreviousState != ConnectionState.Connecting)
+                {
+                    states.Enqueue(e.NewState);
+                }
+            };
+            return states;
         }
 
         private static async Task WaitUntilAsync(Func<bool> condition, CancellationToken ct)

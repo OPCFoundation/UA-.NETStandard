@@ -881,7 +881,7 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static string SourceAffordanceName(string reference)
         {
-            int separator = reference.LastIndexOf('/');
+            int separator = reference.LastIndexOf('/', StringComparison.Ordinal);
             return separator >= 0 && separator + 1 < reference.Length
                 ? reference[(separator + 1)..]
                 : reference;
@@ -896,7 +896,7 @@ namespace Opc.Ua.Wot
             string pointer = SplitPointer(reference.Reference);
             string prefix = "/" + MapName(reference.AffordanceKind) + "/";
             if (!pointer.StartsWith(prefix, StringComparison.Ordinal) ||
-                pointer.IndexOf('/', prefix.Length) >= 0 ||
+                pointer.IndexOf('/', prefix.Length, StringComparison.Ordinal) >= 0 ||
                 !WotDocument.TryEvaluatePointer(
                     source.Document.RootElement, pointer, out JsonElement definition) ||
                 definition.ValueKind != JsonValueKind.Object)
@@ -1474,7 +1474,7 @@ namespace Opc.Ua.Wot
                 pathNode is not JsonValue pathValue ||
                 !pathValue.TryGetValue(out string? path) ||
                 path is null ||
-                path.StartsWith('/'))
+                path.StartsWith('/', StringComparison.Ordinal))
             {
                 return;
             }
@@ -2171,7 +2171,7 @@ namespace Opc.Ua.Wot
             SplitUriSuffix(href, out string referencePath, out string? query, out string? fragment);
             if (referencePath.StartsWith("//", StringComparison.Ordinal))
             {
-                int slash = referencePath.IndexOf('/', 2);
+                int slash = referencePath.IndexOf('/', 2, StringComparison.Ordinal);
                 string networkAuthority = slash < 0 ? referencePath : referencePath[..slash];
                 string networkPath = slash < 0 ? string.Empty : referencePath[slash..];
                 return scheme + ":" + networkAuthority + RemoveDotSegments(networkPath) + query + fragment;
@@ -2257,7 +2257,7 @@ namespace Opc.Ua.Wot
             {
                 return "/" + reference;
             }
-            int lastSlash = basePath.LastIndexOf('/');
+            int lastSlash = basePath.LastIndexOf('/', StringComparison.Ordinal);
             return lastSlash < 0
                 ? reference
                 : basePath[..(lastSlash + 1)] + reference;
@@ -2302,8 +2302,8 @@ namespace Opc.Ua.Wot
                 }
                 else
                 {
-                    int start = input.StartsWith('/') ? 1 : 0;
-                    int next = input.IndexOf('/', start);
+                    int start = input.StartsWith('/', StringComparison.Ordinal) ? 1 : 0;
+                    int next = input.IndexOf('/', start, StringComparison.Ordinal);
                     if (next < 0)
                     {
                         output.Append(input);

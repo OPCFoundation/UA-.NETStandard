@@ -266,7 +266,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
                 Is.True);
-            Assert.That(pool.RentCount, Is.GreaterThan(1));
+            // the body stops being encoded at the chunk that passes the limit.
+            Assert.That(pool.RentCount, Is.EqualTo(1));
             Assert.That(pool.OutstandingCount, Is.EqualTo(1));
             byte[] sentChunk = transport.LastSentChunk;
             Assert.That(sentChunk, Is.Not.Null);
@@ -283,6 +284,73 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
                 Is.True);
             Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A response past the message size limit of the channel stops being encoded
+        /// one chunk after the limit: it takes the buffers of the limit, not of the
+        /// whole response, and still ends with an abort chunk.
+        /// </summary>
+        [Test]
+        public async Task ResponsePastTheChannelSizeLimitStopsBeingEncodedAtTheLimitAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.SetMaxResponseMessageSizeForTest(16 * 1024);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            channel.SendResponse(1, CreateLargeResponse(1000 * 1024));
+
+            Assert.That(
+                await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                Is.True);
+            // the chunks up to the one that passes the limit; the whole body takes 16
+            // chunks of the 64 KiB send buffer.
+            Assert.That(pool.RentCount, Is.LessThanOrEqualTo(2));
+
+            transport.Complete();
+
+            Assert.That(
+                await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
+                Is.True);
+            byte[] sentChunk = transport.LastSentChunk;
+            Assert.That(TcpMessageType.IsAbort(GetMessageType(sentChunk)), Is.True);
+            Assert.That(
+                GetAbortStatusCode(sentChunk),
+                Is.EqualTo((uint)StatusCodes.BadResponseTooLarge));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A response past only the message size limit of the encoder fails with
+        /// BadEncodingLimitsExceeded as before, but stops being encoded one chunk
+        /// after the limit and is encoded once, not again for the fault.
+        /// </summary>
+        [Test]
+        public async Task ResponsePastTheEncoderSizeLimitIsEncodedOnceUpToTheLimitAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            ((ServiceMessageContext)channel.MessageContextForTest).MaxMessageSize = 256 * 1024;
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            channel.SendResponse(7, CreateLargeResponse(900 * 1024));
+
+            ServiceFault fault = await ReadSentServiceFaultAsync(transport, 7).ConfigureAwait(false);
+            Assert.That(
+                (uint)fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((uint)StatusCodes.BadEncodingLimitsExceeded));
+            // five chunks reach the limit, plus the fault; the 900 KiB body would
+            // take 15 chunks, twice.
+            Assert.That(pool.RentCount, Is.LessThanOrEqualTo(7));
+
+            Assert.That(
+                await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
+                Is.True);
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
@@ -650,7 +718,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void AdmissionDoesNotReclaimActiveHandshakePartialMessageOrServiceRequest()
+        public void AdmissionDoesNotReclaimActiveHandshakeOrServiceRequest()
         {
             var pool = new TrackingArrayPool();
             using TestServerChannel channel = CreateOpenChannel(pool);
@@ -661,13 +729,197 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
             }
-            byte[] part = channel.TakeBufferForTest(32);
-            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(part));
-            Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
-            channel.ReleaseSavedPartsForTest(1);
             Assert.That(channel.TryIdleCleanupForAdmission(), Is.True);
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
             Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// An unfinished message must not pin a channel without a session: a peer
+        /// without credentials could otherwise hold every channel slot by trickling
+        /// chunks it never finishes (Part 4 §5.6.2.1 closes the oldest channel without
+        /// a session).
+        /// </summary>
+        [Test]
+        public void AdmissionReclaimsSessionlessChannelHoldingOnlyAPartialMessage()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            byte[] part = channel.TakeBufferForTest(32);
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(part));
+            Assert.That(channel.HoldsPartialMessage, Is.True);
+
+            Assert.That(channel.TryIdleCleanupForAdmission(), Is.True);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A peer without a session must not restart the assembly deadline by
+        /// abandoning an unfinished message for a new request id: the deadline runs
+        /// from the first chunk of the first message the peer left unfinished.
+        /// </summary>
+        [Test]
+        public void AbandonedMessageKeepsAssemblyDeadlineOnSessionlessChannel()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock, channelLifetime: 1000);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(600));
+            channel.SaveReceivedPartForTest(2, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(300));
+            channel.SaveReceivedPartForTest(3, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(99));
+            Assert.That(channel.HasExpiredPartialMessage, Is.False);
+
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(channel.HasExpiredPartialMessage, Is.True);
+            channel.ReleaseSavedPartsForTest(3);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A completed message ends the history of abandoned ones on a channel without a
+        /// session: a later message starts its own assembly deadline instead of
+        /// inheriting the one of a message abandoned before the completed one.
+        /// </summary>
+        [Test]
+        public void CompletedMessageClearsAbandonedAssemblyDeadline()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock, channelLifetime: 1000);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(600));
+            channel.SaveReceivedPartForTest(2, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            channel.ReleaseSavedPartsForTest(2);
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+
+            channel.SaveReceivedPartForTest(3, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(999));
+            Assert.That(channel.HasExpiredPartialMessage, Is.False);
+
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(channel.HasExpiredPartialMessage, Is.True);
+            channel.ReleaseSavedPartsForTest(3);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A channel serving an activated session keeps the per-message deadline: an
+        /// abandoned message does not shorten the deadline of the next one.
+        /// </summary>
+        [Test]
+        public void AbandonedMessageRestartsAssemblyDeadlineOnSessionChannel()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            var provider = new Mock<IServerSessionBindingProvider>();
+            provider.Setup(value => value.HasSession(It.IsAny<string>())).Returns(true);
+            using TestServerChannel channel = CreateOpenChannel(
+                pool, clock: clock, channelLifetime: 1000, bindingProvider: provider.Object);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(600));
+            channel.SaveReceivedPartForTest(2, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(999));
+            Assert.That(channel.HasExpiredPartialMessage, Is.False);
+
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(channel.HasExpiredPartialMessage, Is.True);
+            channel.ReleaseSavedPartsForTest(2);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task InactivityCleanupDoesNotClaimPendingRequestsAndRejectsLateMessagesAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock);
+            clock.Advance(TimeSpan.FromSeconds(2));
+            using (channel.TrackPendingRequest())
+            {
+                Assert.That(channel.TryIdleCleanupForInactivity(1000), Is.False);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            }
+            Assert.That(channel.TryIdleCleanupForInactivity(1000), Is.True);
+            int delivered = 0;
+            channel.SetRequestReceivedCallback((_, _, _) => delivered++);
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(1, 1, new ReadRequest(), intermediate: false)).ConfigureAwait(false);
+            Assert.That(delivered, Is.Zero);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task ClosingChannelRejectsRequestWithoutTakingBufferOwnershipAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            int delivered = 0;
+            channel.SetRequestReceivedCallback((_, _, _) => delivered++);
+            ArraySegment<byte> chunk = channel.CreateRequestChunkForTest(
+                1, 1, new ReadRequest(), intermediate: false);
+            channel.StartClosingForTest();
+
+            bool ownsBuffer = await channel.HandleIncomingForTestAsync(chunk).ConfigureAwait(false);
+
+            Assert.That(ownsBuffer, Is.False);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closing));
+            Assert.That(delivered, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            Assert.That(pool.ReturnCount, Is.Zero);
+            channel.ReturnBufferForTest(chunk.Array!);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(1));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task QueuedResponsePreventsIdleAndAdmissionCleanupUntilWriteCompletesAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock);
+            var transport = new GateByteTransport(expectedSendCount: 1);
+            channel.SetTransport(transport);
+            try
+            {
+                using (channel.TrackPendingRequest())
+                {
+                    clock.Advance(TimeSpan.FromSeconds(2));
+                    Assert.That(await channel.SendResponseAsync(1, CreateResponse()).ConfigureAwait(false), Is.False);
+                    await transport.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+
+                Assert.That(channel.HasPendingWrites, Is.True);
+                Assert.That(channel.GetWriteStallTime(), Is.EqualTo(TimeSpan.Zero));
+                Assert.That(channel.TryIdleCleanupForInactivity(1000), Is.False);
+                Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+
+                transport.Complete();
+                Assert.That(await WaitForOutstandingCountAsync(pool, 0, 5).ConfigureAwait(false), Is.True);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                while (channel.HasPendingWrites)
+                {
+                    await Task.Delay(1, timeout.Token).ConfigureAwait(false);
+                }
+                clock.Advance(TimeSpan.FromSeconds(2));
+                Assert.That(channel.TryIdleCleanupForInactivity(1000), Is.True);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            }
+            finally
+            {
+                transport.Complete();
+            }
         }
 
         /// <summary>
@@ -2095,6 +2347,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 State = TcpChannelState.Opening;
             }
 
+            /// <summary>
+            /// Sets the claimed cleanup state without completing cleanup.
+            /// </summary>
+            public void StartClosingForTest()
+            {
+                State = TcpChannelState.Closing;
+            }
+
             public async Task WaitForBackgroundWorkAsync()
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -2259,6 +2519,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public ValueTask FeedReceivedChunkAsync(ArraySegment<byte> chunk)
             {
                 return OnChunkReceivedAsync(chunk, CancellationToken.None);
+            }
+
+            /// <summary>
+            /// Calls the handler directly to observe whether it takes ownership.
+            /// </summary>
+            public ValueTask<bool> HandleIncomingForTestAsync(ArraySegment<byte> chunk)
+            {
+                return HandleIncomingMessageAsync(
+                    TcpMessageType.Message | TcpMessageType.Final, chunk, CancellationToken.None);
+            }
+
+            /// <summary>
+            /// Returns a chunk retained by the caller.
+            /// </summary>
+            public void ReturnBufferForTest(byte[] buffer)
+            {
+                BufferManager.ReturnBuffer(buffer, nameof(ReturnBufferForTest));
             }
 
             /// <summary>

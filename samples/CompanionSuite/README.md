@@ -147,7 +147,7 @@ over real encrypted sessions. The sample uses the existing
 `AppTargetFrameworks`; it introduces no new package dependency.
 
 The managed sample has been built and run with two instances of every family
-on **net48, net8.0, net9.0 and net10.0**, including automatic loopback port
+on **net48, net10.0 and net11.0**, including automatic loopback port
 selection. The opt-in vision-job workflow is also exercised on net10.0.
 The composition regression suite runs on net48 and net10.0.
 

@@ -1120,9 +1120,13 @@ namespace Opc.Ua.Server.Tests
             ResourceIsolationStagePlan queue = plan.GetStage(ResourceIsolationStage.RequestQueue);
             Assert.That(queue.SharedCapacity, Is.EqualTo(150));
             Assert.That(queue.Capacity, Is.EqualTo(150 + floors));
+            // the parked stage also holds the Publish requests every Session may keep
             ResourceIsolationStagePlan parked = plan.GetStage(ResourceIsolationStage.ParkedRequest);
-            Assert.That(parked.SharedCapacity, Is.EqualTo(150));
-            Assert.That(parked.Capacity, Is.EqualTo(150 + floors));
+            ServerConfiguration server = configuration.ServerConfiguration;
+            long parkedShared = 150 + (server.MaxSessionCount * server.MaxPublishRequestCount) +
+                server.MaxSubscriptionCount;
+            Assert.That(parked.SharedCapacity, Is.EqualTo(parkedShared));
+            Assert.That(parked.Capacity, Is.EqualTo(parkedShared + floors));
             ResourceIsolationStagePlan bytes = plan.GetStage(ResourceIsolationStage.RequestQueueBytes);
             Assert.That(bytes.SharedCapacity, Is.EqualTo((2 * 150 + 120) * 10));
             Assert.That(bytes.Capacity, Is.EqualTo(((2 * 150) + 120 + floors) * 10));
@@ -1131,6 +1135,73 @@ namespace Opc.Ua.Server.Tests
             ResourceIsolationStagePlan execution = plan.GetStage(ResourceIsolationStage.RequestExecution);
             Assert.That(execution.Capacity, Is.EqualTo(120));
             Assert.That(execution.SharedCapacity, Is.EqualTo(120 - floors));
+        }
+
+        /// <summary>
+        /// With the default Balanced profile and default limits, Sessions that hold their full
+        /// Publish quota (and one more per subscription) cannot take the parked slots another
+        /// Session needs for its own Publish requests: the parked stage used to hold only
+        /// MaxQueuedRequestCount slots, so ten Sessions with 20 held Publish requests each
+        /// refused every other Session's Publish with Bad_ServerTooBusy.
+        /// </summary>
+        [Test]
+        public void HeldPublishQuotasOfOtherSessionsDoNotRefuseAnotherSessionsPublish()
+        {
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 };
+            var server = new ServerConfiguration
+            {
+                MaxQueuedRequestCount = 200,
+                MaxRequestThreadCount = 100,
+                MinRequestThreadCount = 5,
+                MaxSessionCount = 100,
+                MaxChannelCount = 1000
+            };
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = server,
+                TransportQuotas = new TransportQuotas { MaxMessageSize = 2 * 1024 * 1024, MaxBufferSize = 65535 }
+            };
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(1024 * 1024, 512 * 1024));
+            using var provider = new DefaultServerResourceIsolationProvider(plan, NUnitTelemetryContext.Create());
+
+            // one owner holds the quota of every other Session and a held request per subscription
+            ResourceIsolationOwner attacker = provider.ClassifyConnection(Peer(10));
+            Assert.That(attacker.Class, Is.EqualTo(ResourceIsolationClass.Established));
+            long held = ((server.MaxSessionCount - 1L) * server.MaxPublishRequestCount) + server.MaxSubscriptionCount;
+            Assert.That(held, Is.GreaterThan(server.MaxQueuedRequestCount));
+            using IDisposable attackerLeases = Acquire(provider, ResourceIsolationStage.ParkedRequest, attacker, held);
+
+            // the remaining Session can still hold its own quota
+            ResourceIsolationOwner victim = provider.ClassifyConnection(Peer(20));
+            using IDisposable victimLeases = Acquire(
+                provider, ResourceIsolationStage.ParkedRequest, victim, server.MaxPublishRequestCount);
+            Assert.That(provider.GetUsage(ResourceIsolationStage.ParkedRequest),
+                Is.EqualTo(held + server.MaxPublishRequestCount));
+        }
+
+        /// <summary>
+        /// Without a configured Publish quota a Session may still keep one more Publish request
+        /// than it has subscriptions, so the parked stage counts at least one per Session.
+        /// </summary>
+        [Test]
+        public void ParkedStageCoversSubscriptionsPlusOneWithoutAPublishQuota()
+        {
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 };
+            ApplicationConfiguration configuration = Configuration();
+            ServerConfiguration server = configuration.ServerConfiguration!;
+            server.MaxQueuedRequestCount = 150;
+            server.MaxRequestThreadCount = 120;
+            server.MaxPublishRequestCount = 0;
+            server.MaxSubscriptionCount = 8;
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+
+            // two Sessions with four subscriptions each may keep five Publish requests each
+            ResourceIsolationStagePlan parked = plan.GetStage(ResourceIsolationStage.ParkedRequest);
+            Assert.That(server.MaxSessionCount, Is.EqualTo(2));
+            Assert.That(parked.SharedCapacity, Is.EqualTo(150 + 2 + 8));
+            Assert.That(parked.SharedCapacity - 150, Is.GreaterThanOrEqualTo(2 * (4 + 1)));
         }
 
         [Test]

@@ -628,7 +628,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await survivor.ReportOwnedEmissionAsync("pre-cutoff-fence", timeout.Token).ConfigureAwait(false);
             var baselineDelivery = await PublishForModelChangeEventAsync(services, subscriptionId, default)
                 .ConfigureAwait(false);
-            Assert.That(baselineDelivery.EventFields!.EventFields[1]
+            Assert.That(RequireLifecycleEvent(baselineDelivery.EventFields).EventFields[1]
                 .TryGetValue(out LocalizedText baselineMessage), Is.True);
             Assert.That(baselineMessage.Text, Is.EqualTo("pre-cutoff-fence"));
             var failure = new IOException("The retired source rejected its first unsubscribe.");
@@ -685,7 +685,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await survivor.ReportOwnedEmissionAsync("cleanup-failure-fence", timeout.Token).ConfigureAwait(false);
                 var delivery = await PublishForModelChangeEventAsync(services, subscriptionId, default)
                     .ConfigureAwait(false);
-                EventFieldList deliveredFields = RequireLifecycleValue(delivery.EventFields);
+                EventFieldList deliveredFields = RequireLifecycleEvent(delivery.EventFields);
                 Assert.That(deliveredFields.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
                 Assert.That(message.Text, Is.EqualTo("cleanup-failure-fence"));
                 using (Assert.EnterMultipleScope())

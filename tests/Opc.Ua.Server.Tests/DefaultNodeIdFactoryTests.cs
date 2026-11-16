@@ -760,6 +760,193 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Audit finding #11: without collision detection (the Release default) two
+        /// distinct browse paths that hash to one numeric identifier both received it,
+        /// and the predefined-node index then replaced one node with the other.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ACollidingNumericPathMovesToTheNextFreeIdentifier(bool otherViewMintsSecond)
+        {
+            const ushort ns = 2;
+            var registered = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Numeric,
+                ns,
+                detectCollisions: false);
+            DefaultNodeIdFactory second = otherViewMintsSecond
+                ? registered.WithDefaultNamespaceIndex(ns)
+                : registered;
+            var temperature = new QualifiedName("Temperature", ns);
+            var firstParent = new NodeId("Machine2776", ns);
+            var secondParent = new NodeId("Machine64414", ns);
+            var expected = new NodeId(1794010027u, ns);
+
+            NodeId first = registered.CreateChildNodeId(firstParent, temperature, ns, m_namespaceUris);
+            NodeId moved = second.CreateChildNodeId(secondParent, temperature, ns, m_namespaceUris);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(registered.DetectsCollisions, Is.False);
+
+                // the first path keeps the identifier it always had.
+                Assert.That(first, Is.EqualTo(expected));
+
+                // the second one lands on it too and moves to the next free identifier.
+                Assert.That(moved, Is.EqualTo(new NodeId(1794010028u, ns)));
+
+                // re-minting either path gives the same answer as before.
+                Assert.That(
+                    registered.CreateChildNodeId(firstParent, temperature, ns, m_namespaceUris),
+                    Is.EqualTo(first));
+                Assert.That(
+                    second.CreateChildNodeId(secondParent, temperature, ns, m_namespaceUris),
+                    Is.EqualTo(moved));
+            });
+        }
+
+        [Test]
+        public void ManyNumericPathsKeepTheirIdentifiersAcrossRemints()
+        {
+            const ushort ns = 2;
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: false);
+            var reference = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: false);
+            var name = new QualifiedName("Value", ns);
+            var minted = new NodeId[20000];
+            for (int ii = 0; ii < minted.Length; ii++)
+            {
+                minted[ii] = factory.CreateChildNodeId(new NodeId((uint)ii + 1u, ns), name, ns, m_namespaceUris);
+            }
+
+            var distinct = new HashSet<NodeId>(minted);
+            Assert.That(distinct, Has.Count.EqualTo(minted.Length), "no two paths share an identifier");
+            for (int ii = 0; ii < minted.Length; ii++)
+            {
+                var parent = new NodeId((uint)ii + 1u, ns);
+                Assert.That(factory.CreateChildNodeId(parent, name, ns, m_namespaceUris), Is.EqualTo(minted[ii]));
+
+                // without a collision the identifier is the plain hash, as before the record.
+                NodeId plain = reference.CreateChildNodeId(parent, name, ns, m_namespaceUris);
+                if (distinct.Contains(plain) && !plain.Equals(minted[ii]))
+                {
+                    continue; // a moved path of this set; checked by the collision test
+                }
+                Assert.That(minted[ii], Is.EqualTo(plain));
+            }
+
+            // a counter value never lands on a minted identifier while detection is on.
+            DefaultNodeIdFactory watching = factory.WithCollisionDetection(true);
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                Assert.That(distinct.Contains(watching.NextCounterNodeId()), Is.False);
+            }
+        }
+
+        [Test]
+        public void TheNumericRecordStopsGrowingAtItsLimit()
+        {
+            const ushort ns = 2;
+            const int limit = 1000;
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: false);
+            var reference = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: false);
+            factory.LimitNumericRecord(limit);
+            var name = new QualifiedName("Value", ns);
+
+            // a dynamic address space that keeps minting new paths.
+            var minted = new NodeId[limit * 5];
+            for (int ii = 0; ii < minted.Length; ii++)
+            {
+                minted[ii] = factory.CreateChildNodeId(new NodeId((uint)ii + 1u, ns), name, ns, m_namespaceUris);
+            }
+
+            Assert.That(factory.NumericRecordIsFull, Is.True);
+
+            // past the limit an identifier is the plain hash and re-mints keep it.
+            for (int ii = limit; ii < minted.Length; ii++)
+            {
+                var parent = new NodeId((uint)ii + 1u, ns);
+                NodeId plain = reference.CreateChildNodeId(parent, name, ns, m_namespaceUris);
+                Assert.That(minted[ii], Is.EqualTo(plain));
+                Assert.That(factory.CreateChildNodeId(parent, name, ns, m_namespaceUris), Is.EqualTo(minted[ii]));
+            }
+
+            // the recorded identifiers are still defended: a counter value
+            // never lands on one while detection is on.
+            DefaultNodeIdFactory watching = factory.WithCollisionDetection(true);
+            var recorded = new HashSet<NodeId>(new ArraySegment<NodeId>(minted, 0, limit));
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                Assert.That(recorded.Contains(watching.NextCounterNodeId()), Is.False);
+            }
+        }
+
+        /// <summary>
+        /// A view whose default namespace differs from the one it mints into consults the
+        /// record of the destination namespace, so it cannot hand out an identifier the other
+        /// view already gave a different path there.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ViewsOfOtherDefaultNamespacesShareTheRecordOfTheDestinationNamespace(bool detect)
+        {
+            const ushort ns = 2;
+            var registered = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: detect);
+            DefaultNodeIdFactory otherView = registered.WithDefaultNamespaceIndex(3);
+            var temperature = new QualifiedName("Temperature", ns);
+
+            NodeId first = registered.CreateChildNodeId(
+                new NodeId("Machine2776", ns), temperature, ns, m_namespaceUris);
+            Assert.That(first, Is.EqualTo(new NodeId(1794010027u, ns)));
+
+            if (detect)
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
+                    otherView.CreateChildNodeId(new NodeId("Machine64414", ns), temperature, ns, m_namespaceUris));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            }
+            else
+            {
+                NodeId second = otherView.CreateChildNodeId(
+                    new NodeId("Machine64414", ns), temperature, ns, m_namespaceUris);
+                Assert.That(second, Is.EqualTo(new NodeId(1794010028u, ns)));
+            }
+        }
+
+        [Test]
+        public void ACollisionWithARecordedIdentifierIsStillResolvedOnceTheRecordIsFull()
+        {
+            // the Temperature children of Machine2776 and Machine64414 hash to
+            // one identifier (see ACollidingNumericPathMovesToTheNextFreeIdentifier).
+            const ushort ns = 2;
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, ns, detectCollisions: false);
+            factory.LimitNumericRecord(1);
+            var temperature = new QualifiedName("Temperature", ns);
+
+            NodeId first = factory.CreateChildNodeId(new NodeId("Machine2776", ns), temperature, ns, m_namespaceUris);
+            NodeId second = factory.CreateChildNodeId(new NodeId("Machine64414", ns), temperature, ns, m_namespaceUris);
+
+            Assert.That(first, Is.EqualTo(new NodeId(1794010027u, ns)));
+            Assert.That(second, Is.EqualTo(new NodeId(1794010028u, ns)));
+            Assert.That(factory.NumericRecordIsFull, Is.True);
+        }
+
+        [Test]
+        public void ACollisionIsStillReportedWhenDetectionIsOn()
+        {
+            const ushort ns = 2;
+            var factory = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Numeric,
+                ns,
+                detectCollisions: true);
+            var temperature = new QualifiedName("Temperature", ns);
+
+            factory.CreateChildNodeId(new NodeId("Machine2776", ns), temperature, ns, m_namespaceUris);
+
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                factory.CreateChildNodeId(new NodeId("Machine64414", ns), temperature, ns, m_namespaceUris));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
         [Test]
         public void AModeThatCannotCollideKeepsNoRecord()
         {

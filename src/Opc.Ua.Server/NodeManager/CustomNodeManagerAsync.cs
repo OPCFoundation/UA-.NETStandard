@@ -106,6 +106,11 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
+                // the call fails as a whole once its results exceed the response byte budget.
+                if (context.ResponseBudgetExceeded)
+                {
+                    yield break;
+                }
                 CallMethodRequest request = methodsToCall[ii];
                 if (request.Processed)
                 {

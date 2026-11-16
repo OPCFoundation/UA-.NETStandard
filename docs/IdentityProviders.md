@@ -437,6 +437,13 @@ Key design notes:
   The session then schedules proactive refresh at `provider.ExpiresAt - 60s` using the
   configured `TimeProvider`. Refresh failures are logged and retried
   with backoff; they do not close the session.
+* **The server honours the token expiration.** OPC 10000-4 7.40.6: once the
+  issued token of a session has expired, the server rejects the session's
+  requests (except CloseSession) with `Bad_IdentityTokenInvalid` until the
+  client activates the session with a new token. `JwtAuthenticator` sets the
+  expiration to the `exp` claim plus its clock skew tolerance. A custom
+  identity reports its expiration through `IIdentityExpiration`; an
+  `IIdentityAugmenter` that wraps an identity should forward it.
 
 ```csharp
 var options = new ManagedSessionOptions
@@ -750,7 +757,7 @@ their concrete `IssuerVerificationKey` instances according to their lifetime.
 The helper
 deliberately uses
 `byte[]` overloads (no `System.IdentityModel.Tokens.Jwt`) so it works
-on net48 / net8+/net9+/net10+ and is
+on net48 / net10+ and is
 AOT-friendly.
 
 Supported JWS algorithms (RFC 7518 §3.1):
@@ -1031,7 +1038,7 @@ OPC UA identity abstractions plus the provider SDK you need.
 - Implement `WindowsIntegratedClientIdentityProvider : IClientIdentityProvider` to run a SPNEGO/Kerberos
   exchange and emit the resulting AP-REQ or wrapped Negotiate token as an issued user token profile owned by
   the package.
-- Use `System.Net.Security.NegotiateAuthentication` on `net8.0+`; use `System.Net.NegotiateStream` on
+- Use `System.Net.Security.NegotiateAuthentication` on `net10.0+`; use `System.Net.NegotiateStream` on
   down-level TFMs where the newer API is unavailable.
 - Derive the service principal name from the target OPC UA endpoint and `ApplicationUri`, for example
   `HOST/<server-fqdn>` for host-bound deployments or `OPCUA/<server-fqdn>` where an OPC UA-specific SPN is

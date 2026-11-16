@@ -468,6 +468,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A session that never publishes collects a Good_SubscriptionTransferred status
+        /// message for every subscription transferred away from it. A create, transfer and
+        /// delete loop used to grow that queue without bound (audit finding #41); it now
+        /// keeps the newest messages up to the server's subscription limit.
+        /// </summary>
+        [Test]
+        public async Task StatusMessagesOfASessionThatDoesNotPublishAreBoundedAsync()
+        {
+            var configuration = new ServerConfiguration { MaxSubscriptionCount = 20 };
+            using SubscriptionManager manager = CreateManager(configuration);
+            TestSession source = CreateSession("urn:client:a");
+            TestSession destination = CreateSession("urn:client:a");
+            using var destinationContext = new OperationContext(destination.Mock.Object, DiagnosticsMasks.None);
+
+            const int cycles = 100;
+            uint lastSubscriptionId = 0;
+            for (int ii = 0; ii < cycles; ii++)
+            {
+                Subscription subscription = await CreateSubscriptionAsync(manager, source).ConfigureAwait(false);
+                TransferSubscriptionsResponse response = await manager.TransferSubscriptionsAsync(
+                    destinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false).ConfigureAwait(false);
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    await manager.DeleteSubscriptionAsync(destinationContext, subscription.Id).ConfigureAwait(false),
+                    Is.EqualTo(StatusCodes.Good));
+                lastSubscriptionId = subscription.Id;
+            }
+
+            System.Collections.IDictionary statusMessages =
+                GetPrivateField<System.Collections.IDictionary>(manager, "m_statusMessages");
+            var sourceQueue = (System.Collections.ICollection)statusMessages[source.Id]!;
+            int bound = Math.Max(configuration.MaxSubscriptionCount, SubscriptionManager.kMinStatusMessagesPerSession);
+            Assert.That(sourceQueue, Has.Count.EqualTo(bound),
+                "the status queue of a session that does not publish keeps only the newest messages");
+
+            // the newest message is still delivered.
+            object? newest = null;
+            foreach (object message in sourceQueue)
+            {
+                newest = message;
+            }
+            Assert.That(
+                (uint)newest!.GetType().GetField("SubscriptionId")!.GetValue(newest)!,
+                Is.EqualTo(lastSubscriptionId));
+        }
+
+        /// <summary>
         /// A queued ConditionRefresh or ConditionRefresh2 of a subscription blocks any
         /// further refresh of the same subscription with Bad_RefreshInProgress, whatever
         /// the monitored item (review U14, Part 9 5.5.7/5.5.8).

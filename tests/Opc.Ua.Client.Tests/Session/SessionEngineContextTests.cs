@@ -346,7 +346,7 @@ namespace Opc.Ua.Client.Tests
         {
             using TestSessionScope scope = CreateSessionScope();
             var initial = (ServiceMessageContext)scope.Session.MessageContext;
-            scope.Session.DeferNotificationBodies = true;
+            scope.Session.DeferNotificationDecoding = true;
             Assert.That(initial.DeferNotificationBodies, Is.True);
 
             // a managed channel keeps its identity and swaps the transport behind it.
@@ -377,7 +377,7 @@ namespace Opc.Ua.Client.Tests
             var shared = (ServiceMessageContext)scope.Session.MessageContext;
             shared.DeferNotificationBodies = true;
 
-            scope.Session.DeferNotificationBodies = false;
+            scope.Session.DeferNotificationDecoding = false;
 
             Assert.That(shared.DeferNotificationBodies, Is.True);
         }

@@ -59,6 +59,37 @@ namespace Opc.Ua.Server
         private const int MaxRelativePathElements = 4096;
 
         /// <summary>
+        /// The largest request whose permission attribute cache uses the default NodeId
+        /// comparer. With every key in one bucket chain, filling it costs at most about
+        /// 32k hash comparisons, which is negligible; larger requests use
+        /// <see cref="RandomizedNodeIdComparer"/>.
+        /// </summary>
+        internal const int MaxValidationCacheDefaultComparerCount = 256;
+
+        /// <summary>
+        /// The work one browse path may cost: node expansions plus the targets they yield.
+        /// </summary>
+        internal const int MaxTranslateBrowsePathWork = 100_000;
+
+        /// <summary>
+        /// The work one TranslateBrowsePathsToNodeIds request may cost over all of its paths.
+        /// </summary>
+        internal const int MaxTranslateBrowsePathsRequestWork = 1_000_000;
+
+        /// <summary>
+        /// The remaining work of one TranslateBrowsePathsToNodeIds request.
+        /// </summary>
+        private sealed class TranslateBrowsePathBudget
+        {
+            public TranslateBrowsePathBudget(int remaining)
+            {
+                Remaining = remaining;
+            }
+
+            public int Remaining { get; set; }
+        }
+
+        /// <summary>
         /// Initializes the dispatcher over the owning master node manager's routing table.
         /// </summary>
         public NodeManagerServiceDispatcher(
@@ -331,6 +362,7 @@ namespace Opc.Ua.Server
             bool diagnosticsExist = false;
             var results = new List<BrowsePathResult>(browsePaths.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(browsePaths.Count);
+            var budget = new TranslateBrowsePathBudget(MaxTranslateBrowsePathsRequestWork);
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
@@ -350,7 +382,7 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = await TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
+                    error = await TranslateBrowsePathAsync(context, browsePath, result, budget, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -363,6 +395,12 @@ namespace Opc.Ua.Server
                         e,
                         StatusCodes.BadUnexpectedError,
                         "Unexpected error translating browse path.");
+                }
+
+                // a walk stopped by the timeout or a cancellation ends the request.
+                if (StatusCode.IsBad(context.OperationStatus))
+                {
+                    throw new ServiceResultException(context.OperationStatus);
                 }
 
                 if (ServiceResult.IsGood(error))
@@ -473,14 +511,38 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates and follows a single browse path, adding matching targets to its result.
         /// </summary>
-        internal async ValueTask<ServiceResult> TranslateBrowsePathAsync(
+        internal ValueTask<ServiceResult> TranslateBrowsePathAsync(
             OperationContext context,
             BrowsePath browsePath,
             BrowsePathResult result,
             CancellationToken cancellationToken)
         {
+            return TranslateBrowsePathAsync(
+                context,
+                browsePath,
+                result,
+                new TranslateBrowsePathBudget(MaxTranslateBrowsePathWork),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates and follows a single browse path, adding matching targets to its result
+        /// and charging the work to the budget of its request.
+        /// </summary>
+        private async ValueTask<ServiceResult> TranslateBrowsePathAsync(
+            OperationContext context,
+            BrowsePath browsePath,
+            BrowsePathResult result,
+            TranslateBrowsePathBudget budget,
+            CancellationToken cancellationToken)
+        {
             Debug.Assert(browsePath != null);
             Debug.Assert(result != null);
+
+            if (budget.Remaining <= 0)
+            {
+                return StatusCodes.BadQueryTooComplex;
+            }
 
             // check for valid start node.
             (object? sourceHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
@@ -537,15 +599,20 @@ namespace Opc.Ua.Server
             {
                 List<BrowsePathTarget> targets = [];
                 // translate path only if validation is passing
-                await TranslateBrowsePathAsync(
+                StatusCode walkResult = await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
                     targets,
                     0,
+                    budget,
                     cancellationToken)
                 .ConfigureAwait(false);
+                if (StatusCode.IsBad(walkResult))
+                {
+                    return walkResult;
+                }
                 result!.Targets = targets;
             }
 
@@ -555,14 +622,26 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Processes the relative path depth first without growing the execution stack.
         /// </summary>
+        /// <remarks>
+        /// Each (node, path index) state is expanded at most once, and each target is
+        /// returned once, so the work is bounded by the nodes reached times the path
+        /// elements instead of by the product of the fan-outs along the path. As long as
+        /// every step yields at most one target the walk is a chain whose states all have
+        /// a different index, so the visited set is only created once a step branches.
+        /// The work is charged to <paramref name="budget"/> and capped per path.
+        /// </remarks>
+        /// <returns><see cref="StatusCodes.Good"/>, <see cref="StatusCodes.BadQueryTooComplex"/>
+        /// when the walk exceeds its work budget, or the bad operation status of the request
+        /// when it timed out or was cancelled.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private async ValueTask TranslateBrowsePathAsync(
+        private async ValueTask<StatusCode> TranslateBrowsePathAsync(
             OperationContext context,
             IAsyncNodeManager? nodeManager,
             object? sourceHandle,
             RelativePath relativePath,
             List<BrowsePathTarget> targets,
             int index,
+            TranslateBrowsePathBudget budget,
             CancellationToken cancellationToken)
         {
             Debug.Assert(nodeManager != null);
@@ -570,11 +649,19 @@ namespace Opc.Ua.Server
             Debug.Assert(relativePath != null);
             Debug.Assert(targets != null);
 
+            int lastIndex = relativePath.Elements.Count - 1;
+            int pathWork = 0;
+            HashSet<(ExpandedNodeId Target, int Index)>? visited = null;
             var pending = new Stack<(IAsyncNodeManager? Manager, object? Handle, ExpandedNodeId Target, int Index)>();
             pending.Push((nodeManager, sourceHandle, default, index));
             while (pending.Count != 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                StatusCode operationStatus = context.OperationStatus;
+                if (StatusCode.IsBad(operationStatus))
+                {
+                    return operationStatus;
+                }
                 (IAsyncNodeManager? manager, object? handle, ExpandedNodeId nextTarget, int nextIndex) = pending.Pop();
                 if (nextTarget.IsAbsolute)
                 {
@@ -677,18 +764,50 @@ namespace Opc.Ua.Server
                         targetIds.Add(externalTarget);
                     }
                 }
-                if (nextIndex != relativePath.Elements.Count - 1)
+
+                // charge the expansion and every target it produced.
+                int work = 1 + targetIds.Count + externalTargetIds.Count;
+                pathWork += work;
+                budget.Remaining -= work;
+                if (pathWork > MaxTranslateBrowsePathWork || budget.Remaining < 0)
+                {
+                    return StatusCodes.BadQueryTooComplex;
+                }
+
+                if (visited == null && targetIds.Count > 1)
+                {
+                    visited = [];
+                }
+
+                if (nextIndex != lastIndex)
                 {
                     // Reverse pushes preserve the recursive walk's target ordering,
-                    // including partial paths that lead to another server.
+                    // including partial paths that lead to another server. Branches that
+                    // converge expand their shared state once, from the first push.
+                    if (visited == null)
+                    {
+                        for (int ii = targetIds.Count - 1; ii >= 0; ii--)
+                        {
+                            pending.Push((null, null, targetIds[ii], nextIndex + 1));
+                        }
+                        continue;
+                    }
                     for (int ii = targetIds.Count - 1; ii >= 0; ii--)
                     {
-                        pending.Push((null, null, targetIds[ii], nextIndex + 1));
+                        if (visited.Add((targetIds[ii], nextIndex + 1)))
+                        {
+                            pending.Push((null, null, targetIds[ii], nextIndex + 1));
+                        }
                     }
                     continue;
                 }
                 foreach (ExpandedNodeId targetId in targetIds)
                 {
+                    // the same target reached on another branch is returned once.
+                    if (visited != null && !visited.Add((targetId, lastIndex + 1)))
+                    {
+                        continue;
+                    }
                     try
                     {
                         (object? targetHandle, IAsyncNodeManager? targetNodeManager) = await GetManagerHandleAsync(
@@ -730,6 +849,8 @@ namespace Opc.Ua.Server
                     });
                 }
             }
+
+            return StatusCodes.Good;
         }
 
         /// <summary>
@@ -795,23 +916,19 @@ namespace Opc.Ua.Server
 
             uint continuationPointsAssigned = 0;
 
+            // the references kept for the response are charged against the response byte
+            // budget of the service while they are fetched.
+            bool hasResponseBudget = context.ResponseBytesRemaining >= 0;
+
             for (int ii = 0; ii < nodesToBrowse.Count; ii++)
             {
                 // check if request has timed out or been cancelled.
                 if (StatusCode.IsBad(context.OperationStatus))
                 {
-                    // release all allocated continuation points.
-                    foreach (BrowseResult current in results)
-                    {
-                        if (current != null && !current.ContinuationPoint.IsEmpty)
-                        {
-                            ContinuationPoint? cp = context.Session?
-                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
-                            cp?.Dispose();
-                        }
-                    }
-
-                    throw new ServiceResultException(context.OperationStatus);
+                    throw ReleaseContinuationPoints(
+                        context,
+                        results,
+                        new ServiceResultException(context.OperationStatus));
                 }
 
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
@@ -832,7 +949,7 @@ namespace Opc.Ua.Server
                     error = await BrowseAsync(
                         context,
                         view,
-                        maxReferencesPerNode,
+                        LimitReferencesPerNode(maxReferencesPerNode, context.ResponseBytesRemaining),
                         m_owner.MaxContinuationPointsPerBrowse == 0 ||
                         continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                         nodeToBrowse,
@@ -851,6 +968,18 @@ namespace Opc.Ua.Server
                 if (!result.ContinuationPoint.IsEmpty)
                 {
                     continuationPointsAssigned++;
+                }
+
+                // a response that exceeds the message size limit cannot be sent.
+                if (hasResponseBudget &&
+                    !context.TryChargeResponse(ResponseSizeEstimator.Estimate(result.References)))
+                {
+                    throw ReleaseContinuationPoints(
+                        context,
+                        results,
+                        new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            "The references of the Browse exceed the response size limit."));
                 }
 
                 // check for error.
@@ -874,6 +1003,58 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
+        }
+
+        /// <summary>
+        /// Limits the references fetched for one node to what the rest of the response
+        /// byte budget can still hold: one more reference than the budget fits at the
+        /// smallest reference size. A node with more references gets a continuation point
+        /// and its result exceeds the budget, so no node keeps more references than the
+        /// response could carry.
+        /// </summary>
+        /// <param name="requested">The limit of the client; zero means no limit.</param>
+        /// <param name="remaining">The bytes left in the response byte budget; negative
+        /// when the call has no budget.</param>
+        internal static uint LimitReferencesPerNode(uint requested, long remaining)
+        {
+            if (remaining < 0)
+            {
+                return requested;
+            }
+            long limit = Math.Min(uint.MaxValue, (remaining / ResponseSizeEstimator.MinReferenceDescriptionSize) + 1);
+            return requested == 0 || requested > limit ? (uint)limit : requested;
+        }
+
+        /// <summary>
+        /// Releases the continuation points assigned to the results of a Browse that fails.
+        /// A point whose release fails does not stop the release of the others.
+        /// </summary>
+        /// <returns>The failure of the Browse, or an <see cref="AggregateException"/> of it
+        /// and the release failures.</returns>
+        private static Exception ReleaseContinuationPoints(
+            OperationContext context,
+            List<BrowseResult> results,
+            ServiceResultException failure)
+        {
+            List<Exception>? cleanupFailures = null;
+            foreach (BrowseResult current in results)
+            {
+                if (current == null || current.ContinuationPoint.IsEmpty)
+                {
+                    continue;
+                }
+                try
+                {
+                    context.Session?.ContinuationPoints.RestoreBrowse(current.ContinuationPoint)?.Dispose();
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    (cleanupFailures ??= [failure]).Add(cleanupFailure);
+                }
+            }
+            return cleanupFailures is null
+                ? failure
+                : new AggregateException("Browse and continuation cleanup failed.", cleanupFailures);
         }
 
         /// <summary>
@@ -905,7 +1086,7 @@ namespace Opc.Ua.Server
         /// <param name="nodesList">The collection of nodes on which the service operates upon</param>
         /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the attribute values needed by the validation process</param>
         /// <exception cref="ArgumentException"></exception>
-        private static void PrepareValidationCache<T>(
+        internal static void PrepareValidationCache<T>(
             ArrayOf<T> nodesList,
             out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes)
         {
@@ -922,7 +1103,13 @@ namespace Opc.Ua.Server
             }
 
             // uniqueNodesServiceAttributes is the place where the attributes for each unique nodeId are kept on the services
-            uniqueNodesServiceAttributes = new Dictionary<NodeId, Variant[]>(nodesList.Count);
+            // the ids are chosen by the client, so a large cache must not bucket them on a
+            // hash the client can target (hash flooding makes filling it quadratic). The
+            // randomized comparer costs an interface call per lookup, so a small request,
+            // whose worst case stays cheap, keeps the default comparer.
+            uniqueNodesServiceAttributes = nodesList.Count > MaxValidationCacheDefaultComparerCount
+                ? new Dictionary<NodeId, Variant[]>(nodesList.Count, RandomizedNodeIdComparer.Instance)
+                : new Dictionary<NodeId, Variant[]>(nodesList.Count);
             for (int i = 0; i < nodesList.Count; i++)
             {
                 NodeId nodeId = default;
@@ -966,6 +1153,7 @@ namespace Opc.Ua.Server
             var diagnosticInfos = new List<DiagnosticInfo>(continuationPoints.Count);
 
             uint continuationPointsAssigned = 0;
+            bool hasResponseBudget = context.ResponseBytesRemaining >= 0;
 
             try
             {
@@ -1001,6 +1189,10 @@ namespace Opc.Ua.Server
 
                         if (ServiceResult.IsGood(error) && !releaseContinuationPoints && cp is not null)
                         {
+                            // the restored page keeps the limit of its Browse: an earlier page of
+                            // this response can have used most of the budget.
+                            cp.MaxResultsToReturn = LimitReferencesPerNode(
+                                cp.MaxResultsToReturn, context.ResponseBytesRemaining);
                             ContinuationPoint fetching = cp;
                             cp = null;
                             try
@@ -1036,6 +1228,15 @@ namespace Opc.Ua.Server
                     finally
                     {
                         cp?.Dispose();
+                    }
+
+                    // a response that exceeds the message size limit cannot be sent.
+                    if (hasResponseBudget &&
+                        !context.TryChargeResponse(ResponseSizeEstimator.Estimate(result.References)))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            "The references of the BrowseNext exceed the response size limit.");
                     }
                     result.StatusCode = error.StatusCode;
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -1622,6 +1823,9 @@ namespace Opc.Ua.Server
 
             // pre-validate items.
             bool validItems = false;
+            bool eventFilterTooLarge =
+                details is ReadEventDetails { Filter: { } readEventFilter } &&
+                ExceedsSelectClauseLimit(readEventFilter);
             // create empty list of errors.
             var errors = new List<ServiceResult>(nodesToRead.Count);
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1638,9 +1842,21 @@ namespace Opc.Ua.Server
                 if (!nodesToRead[ii].ContinuationPoint.IsEmpty &&
                     context.Session?.ContinuationPoints is SessionContinuationPoints holder)
                 {
-                    (result, errors[ii]) = await ReadHistoryContinuationAsync(
-                        context, holder, nodesToRead[ii], details!, timestampsToReturn,
-                        releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
+                    if (eventFilterTooLarge && !releaseContinuationPoints)
+                    {
+                        // a resumed read passes the filter of the request on to the node
+                        // manager, so the limit applies here too. The point cannot be
+                        // resumed with this filter, so it is released rather than kept.
+                        holder.ReleaseHistory(nodesToRead[ii].ContinuationPoint);
+                        result = new HistoryReadResult();
+                        errors[ii] = StatusCodes.BadEventFilterInvalid;
+                    }
+                    else
+                    {
+                        (result, errors[ii]) = await ReadHistoryContinuationAsync(
+                            context, holder, nodesToRead[ii], details!, timestampsToReturn,
+                            releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
+                    }
                     nodesToRead[ii].Processed = true;
                     if (ServiceResult.IsBad(errors[ii]))
                     {
@@ -1659,6 +1875,13 @@ namespace Opc.Ua.Server
                 // pre-validate and pre-parse parameter.
                 errors[ii] = (await ValidateHistoryReadRequestAsync(context, nodesToRead[ii], cancellationToken)
                     .ConfigureAwait(false))!;
+
+                // the event filter is kept by the continuation points of the request, so its
+                // select clauses are limited for every node manager, legacy ones included.
+                if (eventFilterTooLarge && !ServiceResult.IsBad(errors[ii]))
+                {
+                    errors[ii] = StatusCodes.BadEventFilterInvalid;
+                }
 
                 // return error status.
                 if (ServiceResult.IsBad(errors[ii]))
@@ -2196,6 +2419,11 @@ namespace Opc.Ua.Server
             {
                 foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                 {
+                    if (context.ResponseBudgetExceeded)
+                    {
+                        break;
+                    }
+
                     await nodeManager.CallAsync(
                         context,
                         methodsToCall,
@@ -2203,6 +2431,14 @@ namespace Opc.Ua.Server
                         errors,
                         cancellationToken).ConfigureAwait(false);
                 }
+            }
+
+            // a response that exceeds the response byte budget cannot be sent.
+            if (context.ResponseBudgetExceeded)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadResponseTooLarge,
+                    "The results of the Call exceed the response size limit.");
             }
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
@@ -2493,6 +2729,12 @@ namespace Opc.Ua.Server
                     if (!itemToCreate.ItemToMonitor.DataEncoding.IsNull)
                     {
                         errors[ii] = StatusCodes.BadDataEncodingInvalid;
+                        continue;
+                    }
+
+                    if (ExceedsSelectClauseLimit(filter!))
+                    {
+                        errors[ii] = StatusCodes.BadEventFilterInvalid;
                         continue;
                     }
 
@@ -3181,6 +3423,12 @@ namespace Opc.Ua.Server
                 // all event subscriptions required an event filter.
 
                 if (!itemToModify.RequestedParameters.Filter.TryGetValue(out EventFilter? filter))
+                {
+                    errors[ii] = StatusCodes.BadEventFilterInvalid;
+                    continue;
+                }
+
+                if (ExceedsSelectClauseLimit(filter!))
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -4713,6 +4961,16 @@ namespace Opc.Ua.Server
         /// Server-wide queue and sampling limits for items without a bound source.
         /// </summary>
         private readonly ServerConfiguration m_configuration;
+
+        /// <summary>
+        /// Returns whether an event filter has more select clauses than the server accepts
+        /// (<see cref="ServerConfiguration.MaxSelectClauseParameters"/>, zero for no limit).
+        /// </summary>
+        private bool ExceedsSelectClauseLimit(EventFilter filter)
+        {
+            int maxSelectClauses = m_configuration.MaxSelectClauseParameters;
+            return maxSelectClauses > 0 && filter.SelectClauses.Count > maxSelectClauses;
+        }
 
         /// <summary>
         /// The optional legacy virtual lookup, bound once rather than inspected on a hot path.

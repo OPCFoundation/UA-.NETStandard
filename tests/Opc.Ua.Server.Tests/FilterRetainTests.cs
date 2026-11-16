@@ -940,7 +940,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = monitoredItem.Publish(
                 new OperationContext(monitoredItem),
                 notifications,
@@ -1051,9 +1051,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Published field lists go back to a process wide pool. A recycled instance that
-        /// once carried a trailing event must not hand its Retain override on to the event
-        /// it carries next.
+        /// A trailing event published earlier must not hand its Retain override on to the
+        /// event queued next.
         /// </summary>
         [Test]
         public void RecycledFieldListDoesNotInheritRetainOverride()
@@ -1076,12 +1075,12 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = true;
             monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
             Assert.That(notifications, Has.Count.EqualTo(1));
 
-            // the acknowledged trailing event goes back to the pool.
-            notifications.Dequeue().Reuse();
+            // the trailing event is published and dropped.
+            _ = notifications.Dequeue();
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
@@ -1125,7 +1124,7 @@ namespace Opc.Ua.Server.Tests
 
         private static bool PublishRetainAt(MonitoredItem monitoredItem, int index)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
 
             Assert.That(notifications, Has.Count.EqualTo(1));
@@ -1188,11 +1187,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private static bool PublishRetain(MonitoredItem monitoredItem)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
 
             Assert.That(notifications, Has.Count.EqualTo(1));
-            EventFieldList fields = notifications.Dequeue();
+            QueuedEvent fields = notifications.Dequeue();
             Assert.That(
                 fields.EventFields[kRetainFieldIndex].TryGetValue(out bool retain),
                 Is.True,

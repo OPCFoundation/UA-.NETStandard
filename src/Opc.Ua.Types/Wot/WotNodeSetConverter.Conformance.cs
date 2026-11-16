@@ -730,7 +730,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            int separator = key.IndexOf(':', 0);
+            int separator = key.IndexOf(':', 0, StringComparison.Ordinal);
             string? prefix = separator > 0 && separator + 1 < key.Length
                 ? key.Substring(0, separator)
                 : null;
@@ -1014,12 +1014,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static bool EndsWithMapMemberToken(string pointer, string map)
         {
-            int lastSeparator = pointer.LastIndexOf('/');
+            int lastSeparator = pointer.LastIndexOf('/', StringComparison.Ordinal);
             if (lastSeparator <= 0)
             {
                 return false;
             }
-            int previousSeparator = pointer.LastIndexOf('/', lastSeparator - 1);
+            int previousSeparator = pointer.LastIndexOf('/', lastSeparator - 1, StringComparison.Ordinal);
             int start = previousSeparator + 1;
             // A member name containing '/' is escaped as '~1' by the walker, so
             // a separator is always a pointer-token boundary.
@@ -1047,7 +1047,7 @@ namespace Opc.Ua.Wot
             }
             // A member name containing '/' is escaped as '~1' by the walker, so
             // a further separator can only be a further pointer token.
-            return pointer.IndexOf('/', first.Length + 2) < 0;
+            return pointer.IndexOf('/', first.Length + 2, StringComparison.Ordinal) < 0;
         }
 
         private static bool IsContextPrefix(string prefix)

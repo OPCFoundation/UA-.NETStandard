@@ -1286,6 +1286,11 @@ namespace Opc.Ua.Server
             MonitoredItemModifyRequest request,
             ServerConfiguration configuration)
         {
+            // The publishing interval takes the subscription lock. Read it before the item
+            // lock: every other path takes the subscription lock first and the item lock
+            // second, so reading it under the item lock deadlocks against them.
+            double? publishingInterval = SubscriptionCallback is ISubscription owner
+                ? owner.PublishingInterval : null;
             lock (m_lock)
             {
                 if (m_isDisposed)
@@ -1302,8 +1307,7 @@ namespace Opc.Ua.Server
                 {
                     return (StatusCodes.BadMonitoredItemFilterUnsupported, null);
                 }
-                double defaultInterval = SubscriptionCallback is ISubscription subscription
-                    ? subscription.PublishingInterval : SamplingInterval;
+                double defaultInterval = publishingInterval ?? SamplingInterval;
                 double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                     parameters.SamplingInterval, defaultInterval, metadata, AttributeId,
                     configuration.MinSupportedSamplingInterval);
@@ -1358,19 +1362,22 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            ArrayOf<SimpleAttributeOperand> previousSelectClauses =
+                (previousFilter as EventFilter)?.SelectClauses ?? default;
             bool selectClausesChanged = !AreSelectClausesEqual(
-                (previousFilter as EventFilter)?.SelectClauses ?? default,
+                previousSelectClauses,
                 filter.SelectClauses);
 
             if (!selectClausesChanged)
             {
                 if (previousClientHandle != clientHandle)
                 {
-                    m_eventQueueHandler.TransformQueuedEvents(fields =>
-                    {
-                        fields.ClientHandle = clientHandle;
-                        return fields;
-                    });
+                    m_eventQueueHandler.TransformQueuedEvents(new QueuedEventFieldsTransform(
+                        this,
+                        previousSelectClauses,
+                        null,
+                        null,
+                        clientHandle));
                 }
 
                 return;
@@ -1382,26 +1389,111 @@ namespace Opc.Ua.Server
                 Session?.PreferredLocales!,
                 m_server.Telemetry);
 
-            // where each new select clause was in the previous layout, for the events
-            // without a filter target, e.g. restored from a durable queue.
-            int[]? previousIndexes = null;
+            m_eventQueueHandler.TransformQueuedEvents(new QueuedEventFieldsTransform(
+                this,
+                previousSelectClauses,
+                filter,
+                context,
+                clientHandle));
+        }
 
-            m_eventQueueHandler.TransformQueuedEvents(fields =>
+        /// <summary>
+        /// The largest number of transforms a queued event of this item goes through when
+        /// it is published.
+        /// </summary>
+        internal int PendingQueuedEventTransformSteps
+        {
+            get
             {
+                lock (m_lock)
+                {
+                    return m_eventQueueHandler?.PendingTransformSteps ?? 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Brings a queued event in line with the select clauses and client handle of the
+        /// item after one or more modifications.
+        /// </summary>
+        /// <remarks>
+        /// Each modification supersedes the previous ones: an event with a filter target is
+        /// resolved again with the latest select clauses, and one without is moved from the
+        /// layout it was queued with onto the latest select clauses. Successive
+        /// modifications therefore combine into one transform per segment of queued events,
+        /// whatever their number.
+        /// </remarks>
+        private sealed class QueuedEventFieldsTransform : QueuedEventTransform
+        {
+            /// <summary>
+            /// Creates the transform of one modification.
+            /// </summary>
+            /// <param name="owner">The item whose events are transformed.</param>
+            /// <param name="previousSelectClauses">The select clauses the events were queued with.</param>
+            /// <param name="filter">The new filter, or <c>null</c> when the select clauses
+            /// are unchanged and only the client handle changes.</param>
+            /// <param name="context">The context to resolve the new select clauses with.</param>
+            /// <param name="clientHandle">The new client handle.</param>
+            public QueuedEventFieldsTransform(
+                MonitoredItem owner,
+                ArrayOf<SimpleAttributeOperand> previousSelectClauses,
+                EventFilter? filter,
+                FilterContext? context,
+                uint clientHandle)
+            {
+                m_owner = owner;
+                m_previousSelectClauses = previousSelectClauses;
+                m_filter = filter;
+                m_context = context;
+                m_clientHandle = clientHandle;
+            }
+
+            public override QueuedEvent? Apply(QueuedEvent fields)
+            {
+                if (m_filter == null)
+                {
+                    return fields.WithClientHandle(m_clientHandle);
+                }
+
                 if (fields.Handle is not IFilterTarget target)
                 {
-                    previousIndexes ??= MapSelectClauses(
-                        (previousFilter as EventFilter)?.SelectClauses ?? default,
-                        filter.SelectClauses);
-                    return ProjectEventFields(fields, previousIndexes, clientHandle);
+                    // where each new select clause was in the layout the event was queued
+                    // with, for the events without a filter target, e.g. restored from a
+                    // durable queue.
+                    m_previousIndexes ??= MapSelectClauses(
+                        m_previousSelectClauses,
+                        m_filter.SelectClauses);
+                    return ProjectEventFields(fields, m_previousIndexes, m_clientHandle);
                 }
 
                 // a trailing filtered retain event keeps its FilteredRetainTarget handle,
                 // so the rebuilt fields report the same Retain override.
-                EventFieldList rebuilt = GetEventFields(context, filter, target);
-                rebuilt.ClientHandle = clientHandle;
-                return rebuilt;
-            });
+                return m_owner.GetEventFields(m_context!, m_filter, target).WithClientHandle(m_clientHandle);
+            }
+
+            public override QueuedEventTransform Then(QueuedEventTransform next)
+            {
+                if (next is not QueuedEventFieldsTransform later || !ReferenceEquals(later.m_owner, m_owner))
+                {
+                    return base.Then(next);
+                }
+
+                // the later modification decides the client handle and, when it changed
+                // them, the select clauses; the events keep the layout they were queued with.
+                return new QueuedEventFieldsTransform(
+                    m_owner,
+                    m_previousSelectClauses,
+                    later.m_filter ?? m_filter,
+                    later.m_filter != null ? later.m_context : m_context,
+                    later.m_clientHandle);
+            }
+
+            private readonly MonitoredItem m_owner;
+            private readonly ArrayOf<SimpleAttributeOperand> m_previousSelectClauses;
+            private readonly EventFilter? m_filter;
+            private readonly FilterContext? m_context;
+            private readonly uint m_clientHandle;
+            private int[]? m_previousIndexes;
         }
 
         /// <summary>
@@ -1439,8 +1531,8 @@ namespace Opc.Ua.Server
         /// select clauses: a field selected before keeps its value, a new one is null. An
         /// event none of whose fields is selected any more is dropped.
         /// </summary>
-        private static EventFieldList? ProjectEventFields(
-            EventFieldList fields,
+        private static QueuedEvent? ProjectEventFields(
+            QueuedEvent fields,
             int[] previousIndexes,
             uint clientHandle)
         {
@@ -1464,11 +1556,11 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            return new EventFieldList
+            return new QueuedEvent(new EventFieldList
             {
                 ClientHandle = clientHandle,
                 EventFields = eventFields
-            };
+            });
         }
 
         private static bool AreSelectClausesEqual(
@@ -2052,7 +2144,7 @@ namespace Opc.Ua.Server
             m_logger.QUEUEVALUEMonitoredItemIdValueValueCODECode(
                 Id,
                 m_lastValue.WrappedValue,
-                m_lastValue.StatusCode.Code,
+                m_lastValue.StatusCodeValue,
                 overflow,
                 SubscriptionId);
         }
@@ -2109,25 +2201,45 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Fetches the event fields from the event.
         /// </summary>
-        private EventFieldList GetEventFields(
+        private QueuedEvent GetEventFields(
             FilterContext context,
             EventFilter filter,
             IFilterTarget instance)
         {
-            return CreateEventFieldList(instance, EvaluateEventFields(context, filter, instance));
+            return CreateQueuedEvent(instance, EvaluateEventFields(context, filter, instance));
         }
 
         /// <summary>
-        /// Creates the event field list of this item for event field values.
+        /// Creates the queued event of this item for event field values.
         /// </summary>
-        private EventFieldList CreateEventFieldList(IFilterTarget instance, Variant[] eventFieldValues)
+        /// <remarks>
+        /// The fields are a value held in the queue of the item, so only the field values
+        /// are allocated (and shared by a group of items, see SharedEventEvaluation).
+        /// </remarks>
+        private QueuedEvent CreateQueuedEvent(
+            IFilterTarget instance,
+            Variant[] eventFieldValues,
+            SharedEventEvaluation? sharedEvaluation = null)
         {
-            var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
-            result.ClientHandle = ClientHandle;
-            result.Handle = instance;
-            result.EventFields = eventFieldValues;
-            m_server.EventManager?.RegisterEventFields(result, instance);
-            return result;
+            var fields = new EventFieldList
+            {
+                ClientHandle = ClientHandle,
+                EventFields = eventFieldValues
+            };
+            object? stamp = null;
+            EventManager? eventManager = m_server.EventManager;
+            if (eventManager != null)
+            {
+                // with a shared evaluation the stamp depends only on the event and the shared
+                // field values, so it is created once for the group.
+                stamp = sharedEvaluation != null
+                    ? eventManager.RegisterEventFields(
+                        fields.EventFields,
+                        instance,
+                        sharedEvaluation.GetFieldsStamp(eventManager, instance, eventFieldValues))
+                    : eventManager.RegisterEventFields(fields.EventFields, instance);
+            }
+            return new QueuedEvent(fields, instance, stamp);
         }
 
         /// <summary>
@@ -2380,16 +2492,17 @@ namespace Opc.Ua.Server
                 // wrapper stays the handle of the queued event, so a later change of the
                 // select clauses rebuilds its fields with the same Retain override. Its
                 // fields are this item's own, the other fields are shared by the group.
-                EventFieldList fields;
+                QueuedEvent fields;
                 if (overrideRetain)
                 {
                     fields = GetEventFields(context, filter, new FilteredRetainTarget(instance));
                 }
                 else if (sharedEvaluation != null)
                 {
-                    fields = CreateEventFieldList(
+                    fields = CreateQueuedEvent(
                         instance,
-                        sharedEvaluation.GetEventFields(this, context, filter, instance));
+                        sharedEvaluation.GetEventFields(this, context, filter, instance),
+                        sharedEvaluation);
                 }
                 else
                 {
@@ -2411,14 +2524,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
-        /// <param name="fields">The event field list.</param>
-        public virtual void QueueEvent(EventFieldList fields)
+        /// <param name="fields">The queued event.</param>
+        public virtual void QueueEvent(QueuedEvent fields)
         {
             QueueEventFields(fields, TakeAdmittedSourceGeneration());
         }
 
         private void QueueEventFields(
-            EventFieldList fields,
+            QueuedEvent fields,
             NodeManagerGeneration? admittedGeneration)
         {
             bool capturedSourceEmission = admittedGeneration is not null;
@@ -2680,7 +2793,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public virtual bool Publish(
             OperationContext context,
-            Queue<EventFieldList> notifications,
+            Queue<QueuedEvent> notifications,
             uint maxNotificationsPerPublish)
         {
             if (context == null)
@@ -2793,7 +2906,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the fields of an EventQueueOverflowEventType event for this item.
         /// </summary>
-        private EventFieldList CreateEventQueueOverflowEventFields(OperationContext context)
+        private QueuedEvent CreateEventQueueOverflowEventFields(OperationContext context)
         {
             return CreateInternalEventFields(
                 context,
@@ -2806,7 +2919,7 @@ namespace Opc.Ua.Server
         /// Creates the fields of an event the server raises for this item, such as
         /// EventQueueOverflow or RefreshRequired (SourceNode = Server).
         /// </summary>
-        private EventFieldList CreateInternalEventFields(
+        private QueuedEvent CreateInternalEventFields(
             OperationContext context,
             BaseEventState e,
             string key,
@@ -2935,7 +3048,7 @@ namespace Opc.Ua.Server
                 {
                     m_logger.DequeueValue(
                         m_lastValue.WrappedValue,
-                        m_lastValue.StatusCode.Code,
+                        m_lastValue.StatusCodeValue,
                         m_lastValue.StatusCode.Overflow,
                         Id);
                     PublishObservedValue(
@@ -3025,21 +3138,16 @@ namespace Opc.Ua.Server
                 value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
-            // not pooled: a notification lives until its message was sent and acknowledged, so
-            // a publishing cycle holds all notifications of the cycle at once. Recycling them
-            // through the shared activator pool cost more CPU (pool contention, touching cold
-            // instances again) than allocating them.
-            var item = new MonitoredItemNotification
+            // a value type: the queue and the message's array hold it inline, no allocation.
+            ServerUtils.ReportPublishValue(NodeId, Id, value);
+            notifications.Enqueue(new MonitoredItemNotification
             {
                 ClientHandle = ClientHandle,
                 Value = value
-            };
-
-            ServerUtils.ReportPublishValue(NodeId, Id, value);
-            notifications.Enqueue(item);
+            });
             if (m_publishingFinalValue)
             {
-                m_valuePublication?.TrackNotification(item);
+                m_valuePublication?.TrackNotification(notifications);
             }
 
             // update diagnostic info.
@@ -3320,7 +3428,7 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            return !value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code;
+            return !value.IsNull && value.StatusCodeValue == StatusCodes.BadNodeIdUnknown.Code;
         }
 
         /// <summary>
@@ -3386,31 +3494,31 @@ namespace Opc.Ua.Server
             }
 
             // get the current status.
-            StatusCode status = StatusCodes.Good;
+            uint status = 0;
 
             if (error != null)
             {
-                status = error.StatusCode;
+                status = error.StatusCode.Code;
             }
             else if (!lastValue.IsNull)
             {
-                status = value.StatusCode;
+                status = value.StatusCodeValue;
             }
 
             // get the last status.
-            StatusCode lastStatus = StatusCodes.Good;
+            uint lastStatus = 0;
 
             if (lastError != null)
             {
-                lastStatus = lastError.StatusCode;
+                lastStatus = lastError.StatusCode.Code;
             }
             else if (!lastValue.IsNull)
             {
-                lastStatus = lastValue.StatusCode;
+                lastStatus = lastValue.StatusCodeValue;
             }
 
             // value changed if any status change occurrs.
-            if (!status.Equals(lastStatus, StatusCodeComparison.AllBits))
+            if (status != lastStatus)
             {
                 return true;
             }

@@ -60,6 +60,7 @@ namespace Opc.Ua.Client.Tests.Network
             m_session = new Mock<ISessionClient>(MockBehavior.Strict);
             m_session.SetupGet(session => session.MessageContext).Returns(context);
             m_browse.Clear();
+            m_removed.Clear();
             m_values.Clear();
             m_calls.Clear();
             m_callResult = new CallMethodResult { StatusCode = StatusCodes.Good };
@@ -71,6 +72,14 @@ namespace Opc.Ua.Client.Tests.Network
                     {
                         ct.ThrowIfCancellationRequested();
                         BrowseDescription request = requests[0];
+                        if (m_removed.Contains(request.NodeId))
+                        {
+                            return new ValueTask<BrowseResponse>(new BrowseResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [new BrowseResult { StatusCode = StatusCodes.BadNodeIdUnknown }]
+                            });
+                        }
                         m_browse.TryGetValue(
                             (request.NodeId, request.ReferenceTypeId, request.BrowseDirection), out var references);
                         return new ValueTask<BrowseResponse>(new BrowseResponse
@@ -130,6 +139,40 @@ namespace Opc.Ua.Client.Tests.Network
             ArrayOf<NodeId> actual = await m_client.DiscoverInterfacesAsync().ConfigureAwait(false);
 
             Assert.That(actual.ToArray(), Is.EquivalentTo(new[] { s_interface, implemented }));
+        }
+
+        /// <summary>
+        /// Skips objects the server removes between browsing their parent and browsing them.
+        /// </summary>
+        [Test]
+        public async Task DiscoverySkipsChildRemovedDuringTraversalAsync()
+        {
+            NodeId removed = new("Removed", 2);
+            SetBrowse(ObjectIds.NetworkInterfaces, ReferenceTypeIds.HasTypeDefinition,
+                Reference(ObjectTypeIds.FolderType));
+            SetBrowse(ObjectIds.NetworkInterfaces, ReferenceTypeIds.HierarchicalReferences,
+                Reference(removed), Reference(s_interface));
+            SetBrowse(s_interface, ReferenceTypeIds.HasTypeDefinition,
+                Reference(ObjectTypeIds.IetfBaseNetworkInterfaceType));
+            m_removed.Add(removed);
+
+            ArrayOf<NodeId> actual = await m_client.DiscoverInterfacesAsync().ConfigureAwait(false);
+
+            Assert.That(actual.ToArray(), Is.EqualTo(new[] { s_interface }));
+        }
+
+        /// <summary>
+        /// Still reports a missing discovery entry point instead of returning an empty result.
+        /// </summary>
+        [Test]
+        public async Task DiscoveryReportsMissingEntryPointAsync()
+        {
+            m_removed.Add(ObjectIds.NetworkInterfaces);
+
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.DiscoverInterfacesAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         /// <summary>
@@ -1052,6 +1095,9 @@ namespace Opc.Ua.Client.Tests.Network
 
         /// <summary>References returned by source, reference type and direction.</summary>
         private readonly Dictionary<(NodeId, NodeId, BrowseDirection), ArrayOf<ReferenceDescription>> m_browse = [];
+
+        /// <summary>Browse sources the server reports as removed (BadNodeIdUnknown).</summary>
+        private readonly HashSet<NodeId> m_removed = [];
 
         /// <summary>Read acquisitions keyed by their variable NodeIds.</summary>
         private readonly Dictionary<NodeId, DataValue> m_values = [];

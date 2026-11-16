@@ -4,7 +4,7 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Configuration.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <NoWarn>CS0618</NoWarn>
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

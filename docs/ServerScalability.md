@@ -14,6 +14,7 @@ Use this guide to size a reference server, limit overload, and configure its run
   - [Dynamic GC heap count (DATAS)](#dynamic-gc-heap-count-datas)
   - [Hybrid CPUs and processor affinity](#hybrid-cpus-and-processor-affinity)
   - [Small Windows machines and thread priority boost](#small-windows-machines-and-thread-priority-boost)
+  - [Thread-pool spinning on .NET 11](#thread-pool-spinning-on-net-11)
   - [JIT warm-up](#jit-warm-up)
   - [Verifying the effective configuration](#verifying-the-effective-configuration)
 - [Configuration](#configuration)
@@ -175,6 +176,19 @@ if (OperatingSystem.IsWindows())
 
 `Process.PriorityBoostEnabled` calls the Win32 `SetProcessPriorityBoost` function and applies to the existing and future threads of the process. On other platforms the setter has no effect; on .NET Framework, which runs only on Windows, omit the `OperatingSystem.IsWindows()` check. These measurements cover Windows only.
 
+### Thread-pool spinning on .NET 11
+
+The .NET 11 thread pool lets an idle worker spin much longer before it blocks: the default of the `UnfairSemaphoreSpinLimit` setting changed from 70 spin iterations to 1024 units of exponential backoff. A worker that is woken for a work item that another thread has already taken spins that whole budget, unless more than two thirds of the processors are busy (the new `SpuriousDispatchNoSpinThreshold` setting). Request/response traffic causes many such wake-ups. On 24 logical processors with 20 sessions on loopback, CPU time per request rose by up to 47 % on the server (Write; Read +4–16 %, Browse unchanged) and by 17–85 % on the client compared with .NET 10, while allocations and thread-pool work items per request stayed the same and the extra time was all user-mode spinning. Throughput moved between −10 % (single-value Read) and +5–10 % (Write, Browse).
+
+Two runtime settings bring CPU per request back to the .NET 10 level (medians of 4 rotated rounds per scenario and configuration, Windows, harness scenarios Read 1 value, Write 100 values, Browse):
+
+| Runtime setting (environment variable) | Server CPU/request | Client CPU/request | Throughput |
+|---|---|---|---|
+| `System.Threading.ThreadPool.SpuriousDispatchNoSpinThreshold` = 0 (`DOTNET_ThreadPool_SpuriousDispatchNoSpinThreshold=0`) | −14 % (Read), −40 % (Write), ±0 (Browse) | −23 %, −58 %, −54 % | +9 %, +6 %, +7 % |
+| `System.Threading.ThreadPool.UnfairSemaphoreSpinLimit` = 70 (`DOTNET_ThreadPool_UnfairSemaphoreSpinLimit=46`, hexadecimal) | −13 %, −40 %, −1 % | −18 %, −55 %, −51 % | −1 %, +2 %, +1 % |
+
+The changes are relative to .NET 11 with default settings. `SpuriousDispatchNoSpinThreshold=0` stops the spinning only after a wake-up that found no work, so it also kept the throughput gains of .NET 11. Neither setting is among the documented [threading settings](https://learn.microsoft.com/dotnet/core/runtime-config/threading), and both can change between releases; measure before and after with the [server load harness](../perf/README.md) (`SERVER_DOTNET_ThreadPool_…` for the server child, `DOTNET_ThreadPool_…` for the client). The client channel starts its writer on the requesting thread instead of queuing a work item for it, and its receive loop runs the continuations of the requests it answered on its own thread once the next receive is pending, which removes two of these wake-ups per request on every runtime (client CPU per request on .NET 11 −8 to −23 % for the second).
+
 ### JIT warm-up
 
 With tiered compilation enabled, .NET initially uses quick-JIT or ReadyToRun code and optimizes frequently called methods in the background. Short measurements can include that transition. With the external open62541 benchmark client of [o6-automation/opcua-benchmarks](https://github.com/o6-automation/opcua-benchmarks) (10 clients with 100 single-value Reads each in flight, server restricted to 4 logical processors), the reported server cost was about 28–31 µs of CPU time per Read in 3-second runs and 8.8 µs at steady state. The single-threaded open62541 result was 8.1 µs on the same machine; with Basic256Sha256 SignAndEncrypt, the recorded costs were 8.8 µs and 12.2 µs respectively.
@@ -229,7 +243,7 @@ The "thread" settings are concurrency limits: requests run on the .NET thread po
 
 Guidance:
 
-- **Size `MaxQueuedRequestCount` for the pipelining of all clients**: the sum over the clients of the requests each keeps outstanding. For example, 10 clients with 1,000 outstanding Reads each need 10,000. With the Balanced and TrustedReservations profiles the protected bootstrap, reconnect and control entries (one each by default) and the floors of trusted owners are added on top of the configured value, and held Publishes are counted in a separate stage of the same size; see [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits). Releases up to 2.0.1 carved the three protected entries out of the configured value, so there size it at clients × outstanding requests + 3.
+- **Size `MaxQueuedRequestCount` for the pipelining of all clients**: the sum over the clients of the requests each keeps outstanding. For example, 10 clients with 1,000 outstanding Reads each need 10,000. With the Balanced and TrustedReservations profiles the protected bootstrap, reconnect and control entries (one each by default) and the floors of trusted owners are added on top of the configured value, and held Publishes are counted in a separate stage that also holds `MaxSessionCount` × `MaxPublishRequestCount` + `MaxSubscriptionCount` held Publish requests; see [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits). Releases up to 2.0.1 carved the three protected entries out of the configured value, so there size it at clients × outstanding requests + 3.
 - **`MaxRequestThreadCount` bounds concurrent request execution, not threads.** Request handling is asynchronous, so a few busy workers per core are enough for in-memory node managers; the default 100 rarely needs raising. Raise it when node managers block a worker for I/O or locks (synchronous `CustomNodeManager2` code waiting on a device), or when `DecoupleHeldPublishRequests` is off.
 - **The thread pool is the host's to configure.** Up to 2.0.1 the server set the process-wide thread pool minimum to `MinRequestThreadCount`, which let the pool run many more threads than processors under load; on shared or pinned processors a preempted thread then delays every GC suspension until it runs again. A host whose node managers block threads and that relied on that minimum sets it itself, with `ThreadPool.SetMinThreads` or the `System.Threading.ThreadPool.MinThreads` runtime setting.
 - **Increasing the minimum worker count did not help the one-processor workload.** A `MinRequestThreadCount` of 4, 16 or 200 changed the number of ready threads but not CPU per request or latency; see [Small Windows machines and thread priority boost](#small-windows-machines-and-thread-priority-boost) for the measured scheduling change. With the FairShare, Balanced and TrustedReservations profiles, an idle worker spins for a few microseconds before it parks only when the runtime reports at least 8 processors (at most one spinning worker per 8 processors); on smaller machines it parks at once.

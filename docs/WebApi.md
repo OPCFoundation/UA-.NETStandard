@@ -6,7 +6,7 @@ defined in [OPC UA Part 6 §G.3](https://reference.opcfoundation.org/specs/OPC-1
 (v1.05.07).
 
 The binding ships as part of
-`OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` (net8+ only;
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` (net10+ only;
 mounted on the same Kestrel host as the binary and
 `application/opcua+uajson` sub-profiles).
 
