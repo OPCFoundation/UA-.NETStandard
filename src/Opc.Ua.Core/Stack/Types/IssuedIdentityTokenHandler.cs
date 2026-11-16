@@ -323,11 +323,12 @@ namespace Opc.Ua
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 // Part 4 §7.40.6: an encrypted IssuedIdentityToken uses the EncryptedSecret
-                // format and the server ignores encryptionAlgorithm. Clients that still send
-                // the legacy format (Table 191) set encryptionAlgorithm, so try the
-                // RsaEncryptedSecret first only when it is empty. TryDecryptRsa returns false
-                // only when the data is not an RsaEncryptedSecret; any other failure throws.
-                if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm))
+                // format and the server ignores encryptionAlgorithm. The envelope is
+                // recognized by its RsaEncryptedSecret type id, so the legacy format
+                // (Table 191, raw RSA blocks) still falls back below. TryDecryptRsa throws
+                // the specific cause for any malformed RsaEncryptedSecret.
+                byte[] tokenData = m_token.TokenData.ToArray();
+                if (StartsWithRsaEncryptedSecretTypeId(context, tokenData))
                 {
                     using var encryptedSecret = EncryptedSecret.CreateForRsa(
                         context,
@@ -335,10 +336,13 @@ namespace Opc.Ua
                         certificate,
                         receiverNonce);
                     if (encryptedSecret.TryDecryptRsa(
-                        m_token.TokenData.ToArray(),
+                        tokenData,
                         receiverNonce?.Data,
                         out byte[]? rsaSecret))
                     {
+                        IdentityTokenLimits.ThrowIfSecretTooLong(
+                            rsaSecret,
+                            IdentityTokenLimits.MaxIssuedTokenDataLength);
                         m_decryptedTokenData = rsaSecret;
                         return;
                     }
@@ -459,6 +463,23 @@ namespace Opc.Ua
         }
 
         private byte[]? m_decryptedTokenData;
+
+        /// <summary>
+        /// Returns <c>true</c> when the token data starts with the binary encoded
+        /// RsaEncryptedSecret type id, i.e. it is an EncryptedSecret envelope and not
+        /// legacy RSA blocks (whose random leading bytes match with negligible probability).
+        /// </summary>
+        private static bool StartsWithRsaEncryptedSecretTypeId(
+            IServiceMessageContext context,
+            byte[] tokenData)
+        {
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
+            byte[] typeId = encoder.CloseAndReturnBuffer()!;
+            return tokenData.Length > typeId.Length &&
+                tokenData.AsSpan(0, typeId.Length).SequenceEqual(typeId);
+        }
+
         private readonly IssuedIdentityToken m_token;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
         private readonly Func<SecurityPolicyInfo, Nonce> m_nonceFactory = Nonce.CreateNonce;

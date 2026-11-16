@@ -2274,11 +2274,17 @@ namespace Opc.Ua.Server
                     // Part 4 §6.5.8: failed HistoryUpdate invocations are audited too.
                     if (Server.Auditing && inputErrors[ii] == null)
                     {
+                        // annotations are updated with UpdateStructureDataDetails on the
+                        // Annotations property and audited as annotation updates.
+                        bool isAnnotationUpdate = nodesToUpdate[ii] is UpdateStructureDataDetails &&
+                            Historian.HistorianDispatcher.IsAnnotationsProperty(await FindNodeInAddressSpaceAsync(
+                                nodesToUpdate[ii].NodeId, cancellationToken).ConfigureAwait(false));
                         Server.ReportAuditHistoryUpdateRejectedEvent(
                             historyAuditContext ??= Server.DefaultSystemContext.Copy(context),
                             nodesToUpdate[ii],
                             error.Code,
-                            m_logger);
+                            m_logger,
+                            isAnnotationUpdate);
                     }
 
                     // add diagnostics if requested.
@@ -2432,14 +2438,17 @@ namespace Opc.Ua.Server
                     methodsToCall[ii].Processed = true;
 
                     // Part 4 §6.5.9: a rejected call (for example Bad_UserAccessDenied)
-                    // is a failed invocation and is audited like one.
+                    // is a failed invocation and is audited like one. The call never
+                    // reached the method, which owns the knowledge of which arguments are
+                    // secret (private keys, passwords, credential secrets; Part 12 §7.10.3),
+                    // so the input arguments are not copied into the audit event.
                     if (Server.Auditing)
                     {
                         Server.ReportAuditUpdateMethodEvent(
                             callAuditContext ??= Server.DefaultSystemContext.Copy(context),
                             methodsToCall[ii].ObjectId,
                             methodsToCall[ii].MethodId,
-                            methodsToCall[ii].InputArguments,
+                            default,
                             "Method/Call",
                             errors[ii].StatusCode,
                             m_logger);

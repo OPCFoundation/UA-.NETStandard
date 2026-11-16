@@ -1393,7 +1393,13 @@ namespace Opc.Ua
         {
             return channelSecurityMode == MessageSecurityMode.Sign &&
                 policy.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken &&
-                string.Equals(policy.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal);
+                // an empty policy inherits the channel policy; a policy may be given by
+                // its short name, so compare the canonical URI of the resolved policy.
+                !string.IsNullOrEmpty(policy.SecurityPolicyUri) &&
+                string.Equals(
+                    SecurityPolicies.Default.GetInfoIgnoringPlatformSupport(policy.SecurityPolicyUri)?.Uri,
+                    SecurityPolicies.None,
+                    StringComparison.Ordinal);
         }
 
         /// <summary>

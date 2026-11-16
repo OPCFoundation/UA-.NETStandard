@@ -47,10 +47,11 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
         /// <summary>
         /// Part 4 §7.40.6: an encrypted IssuedIdentityToken uses the EncryptedSecret
-        /// format with an empty encryptionAlgorithm.
+        /// format, and the server ignores encryptionAlgorithm.
         /// </summary>
-        [Test]
-        public async Task DecryptSupportsRsaEncryptedSecretFormatAsync()
+        [TestCase(null)]
+        [TestCase(SecurityAlgorithms.RsaOaep)]
+        public async Task DecryptSupportsRsaEncryptedSecretFormatAsync(string? encryptionAlgorithm)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
@@ -73,7 +74,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             var token = new IssuedIdentityToken
             {
                 TokenData = encryptedSecret.ToByteString(),
-                EncryptionAlgorithm = null
+                EncryptionAlgorithm = encryptionAlgorithm
             };
 
             var tokenHandler = new IssuedIdentityTokenHandler(token);
@@ -84,6 +85,39 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.DecryptedTokenData, Is.EqualTo(expectedToken));
+        }
+
+        [Test]
+        public async Task DecryptRejectsRsaEncryptedSecretLongerThanTheIssuedTokenLimitAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri)!;
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data!;
+            byte[] tooLongToken = new byte[IdentityTokenLimits.MaxIssuedTokenDataLength + 1];
+
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Issued Identity Token Limit Test Subject, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            byte[] encryptedSecret = UserNameIdentityTokenHandlerTests.CreateRsaEncryptedSecret(
+                context,
+                certificate,
+                kSecurityPolicyUri,
+                tooLongToken,
+                receiverNonce);
+
+            var tokenHandler = new IssuedIdentityTokenHandler(
+                new IssuedIdentityToken { TokenData = encryptedSecret.ToByteString() });
+
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await tokenHandler.DecryptAsync(
+                    certificate,
+                    Nonce.CreateNonce(securityPolicy, receiverNonce),
+                    kSecurityPolicyUri,
+                    context).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]

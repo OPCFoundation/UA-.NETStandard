@@ -222,6 +222,27 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
+        /// A rejected annotation update (UpdateStructureDataDetails on the Annotations
+        /// property) is audited as an annotation update, not a value update.
+        /// </summary>
+        [Test]
+        public void ReportAuditHistoryUpdateRejectedEventAuditsAnnotationUpdates()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditHistoryUpdateRejectedEvent(
+                CreateSystemContext(RequestType.HistoryUpdate),
+                CreateUpdateStructureDataDetails(),
+                StatusCodes.BadUserAccessDenied,
+                s_logger,
+                isAnnotationUpdate: true);
+
+            Assert.That(server.Events, Has.Count.EqualTo(1));
+            Assert.That(server.Events[0], Is.TypeOf<AuditHistoryAnnotationUpdateEventState>());
+            Assert.That(server.Events[0].Status!.Value, Is.False);
+        }
+
+        /// <summary>
         /// Verifies that a validated indexed write emits a successful Attribute/Write audit event.
         /// </summary>
         [Test]

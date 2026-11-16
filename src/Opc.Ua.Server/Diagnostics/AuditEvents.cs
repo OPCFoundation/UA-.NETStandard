@@ -794,12 +794,17 @@ namespace Opc.Ua.Server
         /// <param name="details">The update details of the rejected operation.</param>
         /// <param name="statusCode">The status the operation was rejected with.</param>
         /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="isAnnotationUpdate">
+        /// <c>true</c> when an <see cref="UpdateStructureDataDetails"/> targets the Annotations
+        /// property (Part 11 §5.2.7), which is audited as an annotation update.
+        /// </param>
         public static void ReportAuditHistoryUpdateRejectedEvent(
             this IAuditEventServer? server,
             ISystemContext systemContext,
             HistoryUpdateDetails details,
             StatusCode statusCode,
-            ILogger logger)
+            ILogger logger,
+            bool isAnnotationUpdate = false)
         {
             if (server?.Auditing != true)
             {
@@ -811,6 +816,10 @@ namespace Opc.Ua.Server
                 case UpdateDataDetails updateData:
                     server.ReportAuditHistoryValueUpdateEvent(
                         systemContext, updateData, [], statusCode, logger);
+                    break;
+                case UpdateStructureDataDetails updateAnnotation when isAnnotationUpdate:
+                    server.ReportAuditHistoryAnnotationUpdateEvent(
+                        systemContext, updateAnnotation, default(ArrayOf<Annotation>), statusCode, logger);
                     break;
                 case UpdateStructureDataDetails updateStructure:
                     server.ReportAuditHistoryValueUpdateEvent(

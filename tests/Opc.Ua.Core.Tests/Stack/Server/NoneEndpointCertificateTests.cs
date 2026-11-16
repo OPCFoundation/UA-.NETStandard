@@ -214,6 +214,19 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Is.EqualTo(!expectPublished));
         }
 
+        [TestCase("None", true)]
+        [TestCase("http://opcfoundation.org/UA/SecurityPolicy#None", true)]
+        [TestCase("", false)]
+        [TestCase("Basic256Sha256", false)]
+        public void CleartextTokenPolicyCheckResolvesShortNames(string policyUri, bool expected)
+        {
+            Assert.That(
+                ServerBase.IsCleartextTokenPolicyOnSignChannel(
+                    MessageSecurityMode.Sign,
+                    new UserTokenPolicy(UserTokenType.UserName) { SecurityPolicyUri = policyUri }),
+                Is.EqualTo(expected));
+        }
+
         private static EndpointDescription CreateEndpoint()
         {
             return new EndpointDescription

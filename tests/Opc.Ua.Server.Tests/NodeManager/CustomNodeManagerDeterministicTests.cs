@@ -858,6 +858,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
             continuationPoint?.Dispose();
         }
 
+        /// <summary>
+        /// The node manager returns only current references, so a View version is
+        /// rejected even when another node manager owns the View.
+        /// </summary>
+        [Test]
+        public void BrowseWithVersionOfAnotherNodeManagersViewIsRejected()
+        {
+            using Harness h = CreateHarness();
+            BaseObjectState node = h.NewObject("BrowseViewVersion");
+            h.Manager.AddPredefinedNodePublic(h.Context, node);
+            object handle = h.Manager.GetManagerHandle(node.NodeId)!;
+
+            ContinuationPoint continuationPoint = h.NewContinuationPoint(handle);
+            continuationPoint.View = new ViewDescription
+            {
+                ViewId = new NodeId("NoView", h.NamespaceIndex),
+                ViewVersion = 7
+            };
+            var references = new List<ReferenceDescription>();
+
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
+                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadViewVersionInvalid));
+            continuationPoint?.Dispose();
+        }
+
         [Test]
         public void TranslateBrowsePath_ResolvesTarget()
         {

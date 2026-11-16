@@ -125,7 +125,11 @@ namespace Opc.Ua.Server
                     statusCode,
                     new LocalizedText($"'{userCertificate.Subject}' is not a trusted user certificate."),
                     null,
-                    new ServiceResult(validationResult.StatusCode)));
+                    // keep the detailed chain (e.g. BadCertificateInvalid wrapping
+                    // the specific cause) so the cause-specific audit event is raised.
+                    validationResult.Errors.Count > 0
+                        ? validationResult.Errors[0]
+                        : new ServiceResult(validationResult.StatusCode)));
             }
 
             return AuthenticationResult.Accept(new X509UserIdentity(x509TokenHandler, userCertificate));

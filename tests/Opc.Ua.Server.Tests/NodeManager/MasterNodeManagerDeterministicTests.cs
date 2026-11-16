@@ -991,7 +991,11 @@ namespace Opc.Ua.Server.Tests
                     new()
                     {
                         ObjectId = new NodeId(99998u),
-                        MethodId = new NodeId(99999u)
+                        MethodId = new NodeId(99999u),
+                        InputArguments = new Variant[]
+                        {
+                            new(new byte[] { 0x53, 0x45, 0x43, 0x52, 0x45, 0x54 }.ToByteString())
+                        }.ToArrayOf()
                     }
                 }.ToArrayOf(),
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
@@ -999,6 +1003,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(StatusCode.IsBad(results[0].StatusCode), Is.True);
             AuditUpdateMethodEventState audit = audits.OfType<AuditUpdateMethodEventState>().Single();
             Assert.That(audit.Status!.Value, Is.False);
+            // a rejected call may carry a private key or password; it is not audited.
+            Assert.That(audit.InputArguments?.Value.Count ?? 0, Is.Zero);
         }
 
         [Test]
