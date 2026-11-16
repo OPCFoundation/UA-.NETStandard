@@ -542,7 +542,14 @@ pending until its real result, cancellation, or failure.
 With isolation enabled, selected requests reserve a `ParkedRequest` slot before
 entering the queue, even if the handler eventually completes without signaling.
 Signaling releases execution capacity only. The retained-data charge and parked
-slot remain in use until completion. A handler that ignores cancellation retains
+slot remain in use until completion, except for a Publish request: when it parks,
+the server drops the parts of the decoded request that the handler has consumed
+(the `AdditionalHeader` of its request header and its acknowledgements) and its
+`RequestQueueBytes` charge is replaced by an estimate of what it still retains: about
+2 KiB, plus 8 bytes per acknowledgement result (256 bytes when operation diagnostics
+are requested) and the audit entry id. A Publish whose estimate reaches the full charge
+keeps the full charge. Its parked slot remains in use until completion.
+A handler that ignores cancellation retains
 those charges through shutdown until it exits. Choose the policy narrowly to
 avoid reserving parked slots for ordinary short-running calls.
 
@@ -563,7 +570,7 @@ queue then applies the same parked-capacity, completion and cancellation rules.
 | `SessionEstablishment` | Concurrent CreateSession/ActivateSession processing, not the lifetime of the resulting Session. |
 | `RequestQueue` | Decoded requests awaiting dispatch. |
 | `RequestExecution` | A running request handler. A Publish request releases this slot when it starts waiting for a notification. |
-| `RequestQueueBytes` | One `MaxMessageSize` charge per retained decoded request, through queued, executing, and parked processing. |
+| `RequestQueueBytes` | One `MaxMessageSize` charge per retained decoded request, through queued, executing, and parked processing. A parked Publish request keeps only a charge for what it still retains. |
 | `ParkedRequest` | A request that may wait without occupying a worker, such as Publish. Its capacity is reserved before queueing and kept until completion. |
 
 ### What happens when a limit is reached
@@ -598,6 +605,15 @@ its total is `MaxRequestThreadCount`, and startup fails when that leaves no
 worker for ordinary requests (Balanced needs at least 4).
 An explicit `Stages[].Capacity` is still an absolute total that includes the
 floors, and it cannot exceed the default total.
+
+The ParkedRequest stage also holds the Publish requests that every Session may
+keep waiting: its default shared capacity is `MaxQueuedRequestCount` plus
+`MaxSessionCount` × `MaxPublishRequestCount` plus `MaxSubscriptionCount` (a
+Session may keep one more Publish request than it has subscriptions). With the
+defaults that is 200 + 100 × 20 + 100 = 2,300 slots, so Sessions that hold their
+Publish quota cannot refuse the Publish requests of other Sessions. A parked
+Publish keeps no decoded payload beyond its request header, so these slots carry
+only the small `RequestQueueBytes` charge of what a parked Publish still retains.
 
 `RequestQueueBytes` limits the data retained by decoded requests. The default
 shared capacity is `MaxMessageSize` multiplied by the combined queued, executing,

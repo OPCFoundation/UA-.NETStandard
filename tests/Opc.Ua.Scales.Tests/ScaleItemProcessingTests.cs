@@ -238,9 +238,9 @@ namespace Opc.Ua.Scales.Tests
         {
             var calculator = new RoundedScalePriceCalculator(precision, rounding);
             ScaleItemPrice? price = await calculator.CalculateAsync(
-                new ScalePriceRequest(Item(1, net), (decimal)unitPrice, Euro()));
+                new ScalePriceRequest(Item(1, net), RoundedScalePriceCalculator.ToDecimal(unitPrice), Euro()));
             Assert.That(price, Is.Not.Null);
-            Assert.That(price!.Amount, Is.EqualTo((decimal)expected));
+            Assert.That(price!.Amount, Is.EqualTo(RoundedScalePriceCalculator.ToDecimal(expected)));
             Assert.That(price.Currency.AlphabeticCode, Is.EqualTo("EUR"));
         }
 

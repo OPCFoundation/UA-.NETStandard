@@ -87,7 +87,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return;
             }
             start += Key.Length;
-            int end = report.IndexOf(' ', start);
+            int end = report.IndexOf(' ', start, StringComparison.Ordinal);
             m_serverSamples = double.Parse(
                 end < 0 ? report[start..] : report[start..end],
                 System.Globalization.CultureInfo.InvariantCulture);

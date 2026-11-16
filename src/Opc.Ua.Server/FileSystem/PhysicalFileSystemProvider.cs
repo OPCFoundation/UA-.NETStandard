@@ -544,7 +544,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             string name = string.IsNullOrEmpty(providerPath)
                 ? MountName
-                : providerPath[(providerPath.LastIndexOf('/') + 1)..];
+                : providerPath[(providerPath.LastIndexOf('/', StringComparison.Ordinal) + 1)..];
 
             if (isDirectory)
             {

@@ -50,7 +50,7 @@ bash where they differ.
 
 | Requirement | Route A | Route B |
 | --- | --- | --- |
-| .NET SDK | Stable SDK 10.0.400 or later. [`global.json`](../global.json) uses `latestMajor` roll-forward and excludes prerelease SDKs. | .NET 10 SDK. |
+| .NET SDK | Stable SDK 11.0.100 or later (the net11.0 target needs it). [`global.json`](../global.json) uses `latestFeature` roll-forward (any 11.0 SDK) and excludes prerelease SDKs. | .NET 10 SDK. |
 | Other requirements | Git, and internet access to restore NuGet packages on the first build | Internet access to nuget.org |
 | TCP port | 62541 | 62560 |
 
@@ -72,7 +72,7 @@ Route A uses two samples from `samples/MinimalApi`:
 ```bash
 git clone https://github.com/OPCFoundation/UA-.NETStandard.git
 cd UA-.NETStandard
-dotnet run --project samples/MinimalApi/MinimalBoilerServer
+dotnet run --project samples/MinimalApi/MinimalBoilerServer --framework net11.0
 ```
 
 The first build compiles the stack and can take a few minutes. The server is
@@ -94,7 +94,7 @@ Leave the server running.
 In the second terminal, at the repository root, run:
 
 ```bash
-dotnet run --project samples/MinimalApi/MinimalClient
+dotnet run --project samples/MinimalApi/MinimalClient --framework net11.0
 ```
 
 The client does not trust the new server certificate yet. It logs
@@ -475,7 +475,7 @@ persistent, access-controlled location; see the
 | `BadNotConnected` with `Could not connect to the remote endpoint` | No server is listening at the URL. | Start the server, then check the host, port, and path in the URL. |
 | `No discovered endpoint matched the configured security policy and mode.` | The server does not offer the requested security mode and policy. | Choose a mode and policy that the server offers. See [Profiles](Profiles.md#security-profiles). |
 | The server does not start, and the port is in use | Another application uses the port. | Stop that application, or change the port in both the server endpoint URL and the client discovery URL. |
-| `A compatible .NET SDK was not found` (Route A) | No stable SDK satisfying `global.json` is installed. | Install a stable .NET SDK version 10.0.400 or later. |
+| `A compatible .NET SDK was not found` (Route A) | No stable SDK satisfying `global.json` is installed. | Install a stable .NET 11 SDK version 11.0.100 or later. |
 
 See [Certificates](Certificates.md) for certificate stores and chains, and
 [Diagnostics](Diagnostics.md) for logging and packet capture.

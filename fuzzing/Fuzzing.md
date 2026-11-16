@@ -17,8 +17,8 @@ under `Common/`.
 | `Opc.Ua.PubSub.Fuzz` | Metadata-backed JSON, UADP decoding and chunk reassembly | modern .NET |
 
 `Encoders` and `Certificates` build for the repo's standard `TestsTargetFrameworks` matrix
-(`net48`, `net8.0`, `net9.0`, `net10.0`). `Network` and `PubSub` are modern .NET only;
-`Network` uses `net8.0;net9.0;net10.0` because
+(`net48`, `net10.0`, `net11.0`). `Network` and `PubSub` are modern .NET only;
+`Network` uses `net10.0;net11.0` because
 `Opc.Ua.Core.Diagnostics` does not target .NET Framework.
 
 ## Directory layout

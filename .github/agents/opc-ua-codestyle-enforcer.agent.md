@@ -11,7 +11,7 @@ You are a code-style enforcement specialist for the OPC UA .NET Standard reposit
 
 - **Solution:** `UA.slnx` at the repo root.
 - **Build command:** `dotnet build UA.slnx -c Debug --nologo -v:m`
-- **TFMs:** Projects multi-target `net48;net8.0;net9.0;net10.0` (`Opc.Ua.Types` additionally `netstandard2.0` for the source generators). Fixes must compile on ALL TFMs.
+- **TFMs:** Projects multi-target `net48;net10.0;net11.0` (`Opc.Ua.Types` additionally `netstandard2.0` for the source generators). Fixes must compile on ALL TFMs.
 - **Config files:**
   - `common.props` — `TreatWarningsAsErrors=true`, `CodeAnalysisTreatWarningsAsErrors=true`, `AnalysisMode=all`, `AnalysisLevel=preview`. Any CA rule reported at `warning` severity therefore fails the build, just like compiler warnings.
   - `.editorconfig` — Roslyn style rules + Roslynator analyzers. Several CA/RCS rules are promoted to `severity = error` (CA1014, CA1305, CA1307, CA2007, CA2016, CA2213, CA2000, RCS1166, NUnit4002, NUnit2046).
@@ -222,7 +222,7 @@ For each batch:
 | `string.Replace(string, string, StringComparison)` on net48 | CS0103 — `StringComparison` not in scope | Add `using System;` — the polyfill in `Polyfills/System.cs` provides the extension method. |
 | `ArgumentNullException.ThrowIfNull()` on net48 | CS0117 — method doesn't exist | Use `#pragma warning disable` + TODO comment, or keep the `if (x == null) throw` pattern. |
 | `System.Threading.Lock` (IDE0330) on older targets | The formatter must resolve the repository polyfill | Do not skip solely because of the target framework. Review each conversion and validate affected TFMs. If the formatter cannot resolve the polyfill, record the failure and fix manually. |
-| RCS1249 removing `!` operators | CS8602 on net48/472/net8.0+ | The nullable flow analysis differs across TFMs. Always build after applying RCS1249 and revert files that break. |
+| RCS1249 removing `!` operators | CS8602 on net48/472/net10.0+ | The nullable flow analysis differs across TFMs. Always build after applying RCS1249 and revert files that break. |
 | `await using var x = expr.ConfigureAwait(false)` | Changes variable type to `ConfiguredAsyncDisposable` | Skip `await using var` declarations for ConfigureAwait; the short-hand form can't configure the dispose-await. Use the block-scope form instead. |
 | Collection expressions `[]` on net48 | Usually fine (compiler lowers them) | Check runtime API requirements separately and use repository polyfills where available. |
 | CA1835 `Memory<byte>` overload on net48 | Overload doesn't exist on `net48` | Gate with `#if NET` to keep the byte[] overload on older TFMs. |

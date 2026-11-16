@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -301,6 +302,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceTopology"
           }
         ],
@@ -325,10 +327,12 @@
         "typeDefinition": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OnlineAccess",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "OnlineAccess"
           }
         ],

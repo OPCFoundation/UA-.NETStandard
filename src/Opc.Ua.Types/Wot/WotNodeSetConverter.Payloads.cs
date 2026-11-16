@@ -206,7 +206,7 @@ namespace Opc.Ua.Wot
             string? name = GetElementString(schema, "uav:browseName");
             if (name is null ||
                 name.StartsWith("nsu=", StringComparison.Ordinal) ||
-                name.StartsWith('{') ||
+                name.StartsWith('{', StringComparison.Ordinal) ||
                 !name.Contains(':', StringComparison.Ordinal))
             {
                 return name;

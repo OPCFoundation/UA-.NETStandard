@@ -655,8 +655,9 @@ namespace Opc.Ua.Bindings
                 }
                 candidates = [.. channels.Values.Select(entry => entry.Channel)];
             }
-            foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
-                channel => channel.ElapsedSinceLastActiveTime))
+            foreach (TcpListenerChannel candidate in candidates
+                .OrderBy(channel => channel.HoldsPartialMessage)
+                .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
             {
                 if (attempted.Contains(candidate) || candidate.UsedBySession)
                 {
@@ -714,7 +715,10 @@ namespace Opc.Ua.Bindings
             {
                 foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> _) in channels.Values)
                 {
-                    if (Channel.ElapsedSinceLastActiveTime > quotas.ChannelLifetime)
+                    // a send that waits for a peer that stopped reading also closes a
+                    // channel that a Session keeps active
+                    if (Channel.ElapsedSinceLastActiveTime > quotas.ChannelLifetime ||
+                        Channel.GetWriteStallTime().TotalMilliseconds > quotas.ChannelLifetime)
                     {
                         Logger.KestrelTcpInactiveChannelCleanup(Channel.Id);
                         Channel.IdleCleanup();

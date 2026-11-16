@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -430,6 +431,7 @@
       ],
       "observable": true,
       "title": "DistributionType",
+      "type": "integer",
       "uav:browseName": "ns1:DistributionType",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=11011",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3013",
@@ -523,6 +525,7 @@
       ],
       "observable": true,
       "title": "ExchangeMode",
+      "type": "integer",
       "uav:browseName": "ns1:ExchangeMode",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=11012",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3012",
@@ -576,6 +579,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "title": "ExchangeTimeDifference",
       "type": "number",
       "uav:browseName": "ns1:ExchangeTimeDifference",
@@ -633,6 +642,7 @@
       ],
       "observable": true,
       "title": "MultiPumpOperationMode",
+      "type": "integer",
       "uav:browseName": "ns1:MultiPumpOperationMode",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=11017",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3011",
@@ -720,6 +730,7 @@
       ],
       "observable": true,
       "title": "PumpRole",
+      "type": "integer",
       "uav:browseName": "ns1:PumpRole",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=11020",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3010",
@@ -985,11 +996,13 @@
         "browseName": "1:MultiPump",
         "description": [
           {
+            "locale": "",
             "value": "Properties for multi pump usage of a pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MultiPump"
           }
         ],
@@ -1065,11 +1078,13 @@
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "This property describes in ascending order the priority of pumps in addition operation mode."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DistributionPriority"
           }
         ],
@@ -1100,10 +1115,12 @@
         "valueRank": 1
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1130,15 +1147,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:DistributionType",
         "dataType": "DistributionTypeEnum",
         "description": [
           {
+            "locale": "",
             "value": "This property describes the share of operation time of different pumps of the pump system in addition operation mode."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DistributionType"
           }
         ],
@@ -1168,10 +1188,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1198,15 +1220,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:ExchangeMode",
         "dataType": "ExchangeModeEnum",
         "description": [
           {
+            "locale": "",
             "value": "This property specifies the exchange mode of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExchangeMode"
           }
         ],
@@ -1236,10 +1261,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1266,15 +1293,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:ExchangeTime",
         "dataType": "DateTime",
         "description": [
           {
+            "locale": "",
             "value": "This property specifies the determination of the absolute time for the next exchange of the pump, if operator specific Pump Exchange Mode is activated."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExchangeTime"
           }
         ],
@@ -1304,10 +1334,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1334,15 +1366,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:ExchangeTimeDifference",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "This property specifies the determination of the time for the next exchange of the pump relative to ExchangeTime, if operator specific Pump Exchange Mode is activated."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExchangeTimeDifference"
           }
         ],
@@ -1380,10 +1415,12 @@
         "typeDefinition": "i=17497"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1409,10 +1446,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1439,10 +1478,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1469,15 +1510,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:MaximumNumberOfPumpsInOperation",
         "dataType": "UInt32",
         "description": [
           {
+            "locale": "",
             "value": "This property specifies the maximum number of pumps in operation. The difference between NumberOfPumps and MaximumNumberOfPumpsInOperation identifies the redundant pumps."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaximumNumberOfPumpsInOperation"
           }
         ],
@@ -1507,10 +1551,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1537,15 +1583,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:MultiPumpOperationMode",
         "dataType": "MultiPumpOperationModeEnum",
         "description": [
           {
+            "locale": "",
             "value": "This property specifies the actual multi pump operation mode. In redundant operation mode a pump fulfils the process function of another pump. Addition operation mode characterizes the supplementary fulfilling of the process function. The mixed mode characterizes both operation tasks."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MultiPumpOperationMode"
           }
         ],
@@ -1575,10 +1624,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1605,15 +1656,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:NumberOfPumps",
         "dataType": "UInt32",
         "description": [
           {
+            "locale": "",
             "value": "This property identifies the number of pumps in multi pump management"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NumberOfPumps"
           }
         ],
@@ -1643,10 +1697,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1678,11 +1734,13 @@
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "This element identifies the pumps within the pump system"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpCollectiveIDs"
           }
         ],
@@ -1713,10 +1771,12 @@
         "valueRank": 1
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1743,15 +1803,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PumpRole",
         "dataType": "PumpRoleEnum",
         "description": [
           {
+            "locale": "",
             "value": "This property identifies the role rsp. task of the pump within the multi pump management."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpRole"
           }
         ],
@@ -1781,10 +1844,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1816,11 +1881,13 @@
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "This property identifies the actual redundant pumps within the pump system"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RedundantPumpIDs"
           }
         ],
@@ -1851,10 +1918,12 @@
         "valueRank": 1
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],

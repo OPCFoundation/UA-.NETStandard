@@ -622,9 +622,9 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                 foreach (MonitoredItemNotification item in notification.MonitoredItems)
                 {
                     Assert.That(
-                        originalItems.TryGetValue(item.ClientHandle, out MonitoredItemNotification? original),
+                        originalItems.TryGetValue(item.ClientHandle, out MonitoredItemNotification original),
                         Is.True);
-                    Assert.That(item.Value.WrappedValue, Is.EqualTo(original!.Value.WrappedValue));
+                    Assert.That(item.Value.WrappedValue, Is.EqualTo(original.Value.WrappedValue));
                     Assert.That(item.Value.StatusCode, Is.EqualTo(original.Value.StatusCode));
                     Assert.That(item.Value.SourceTimestamp, Is.EqualTo(original.Value.SourceTimestamp));
                 }

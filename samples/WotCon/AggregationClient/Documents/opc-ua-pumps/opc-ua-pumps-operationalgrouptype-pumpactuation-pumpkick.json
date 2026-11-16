@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -458,6 +459,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=11096"
@@ -488,6 +490,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=11572"
@@ -518,6 +521,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=11576"
@@ -548,6 +552,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=11592"
@@ -659,6 +664,7 @@
       ],
       "observable": true,
       "title": "PumpKickMode",
+      "type": "integer",
       "uav:browseName": "ns1:PumpKickMode",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=11584",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3009",
@@ -703,7 +709,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "This property determines the interval time of a pump kick, if Pump Kick Mode is operator specific. The time for the next pump kick results of the sum of Pump Kick Time and Pump Kick Time Difference",
       "links": [
         {
@@ -712,6 +718,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "title": "PumpKickTimeDifference",
       "type": "number",
       "uav:browseName": "ns1:PumpKickTimeDifference",
@@ -771,6 +783,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=11096"
@@ -801,6 +814,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=11572"
@@ -831,6 +845,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=11576"
@@ -861,6 +876,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=11592"
@@ -1095,11 +1111,13 @@
         "browseName": "1:PumpKick",
         "description": [
           {
+            "locale": "",
             "value": "This element describes a periodical operation of a pump, avoiding blockage at non operation time."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpKick"
           }
         ],
@@ -1158,15 +1176,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:DiscreteOutputValue",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property contains the actual value of the discrete output unit."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DiscreteOutputValue"
           }
         ],
@@ -1204,10 +1225,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1233,10 +1256,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -1262,10 +1287,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -1292,15 +1319,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:FaultAction",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property determines the action taken on variables in fault state."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FaultAction"
           }
         ],
@@ -1338,10 +1368,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1367,10 +1399,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -1396,10 +1430,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -1426,15 +1462,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:FaultValue",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property specifies a user-defined value for use with Fault action property."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FaultValue"
           }
         ],
@@ -1472,10 +1511,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1501,10 +1542,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -1530,10 +1573,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -1559,15 +1604,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OnOffCycle",
         "dataType": "UInt32",
         "description": [
           {
+            "locale": "",
             "value": "This property contains the total number of transitions of the value from the Off to the On state."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OnOffCycle"
           }
         ],
@@ -1605,10 +1653,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1634,10 +1684,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1663,10 +1715,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1693,15 +1747,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PumpKickMode",
         "dataType": "PumpKickModeEnum",
         "description": [
           {
+            "locale": "",
             "value": "This property describes the pump kick mode of the pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpKickMode"
           }
         ],
@@ -1731,10 +1788,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1761,15 +1820,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PumpKickTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "This property determines the absolute time of a pump kick, if Pump Kick Mode is operator specific. The time for the next pump kick results of the sum of Pump Kick Time and Pump Kick Time Difference"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpKickTime"
           }
         ],
@@ -1799,10 +1861,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1829,15 +1893,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:PumpKickTimeDifference",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "This property determines the interval time of a pump kick, if Pump Kick Mode is operator specific. The time for the next pump kick results of the sum of Pump Kick Time and Pump Kick Time Difference"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PumpKickTimeDifference"
           }
         ],
@@ -1876,10 +1943,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1905,10 +1974,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1935,10 +2006,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1964,15 +2037,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Status",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property contains the actual status of the element."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Status"
           }
         ],
@@ -2010,10 +2086,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2039,10 +2117,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -2068,10 +2148,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>$(ModernTargetFrameworks)</TargetFrameworks>
     <AssemblyName>Opc.Ua.Mcp</AssemblyName>
     <OutputType>Exe</OutputType>
     <Company>OPC Foundation</Company>

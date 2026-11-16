@@ -70,7 +70,7 @@ namespace Opc.Ua.Mcp
             string fullPath = Path.GetFullPath(filePath, allowedRoot);
             string fullRoot = Path.GetFullPath(allowedRoot);
 
-            if (!fullRoot.EndsWith(Path.DirectorySeparatorChar))
+            if (!fullRoot.EndsWith(Path.DirectorySeparatorChar, StringComparison.Ordinal))
             {
                 fullRoot += Path.DirectorySeparatorChar;
             }

@@ -134,11 +134,29 @@ namespace Opc.Ua
                 return;
             }
 
-            // handle RSA encryption.
+            // resolve names and aliases to the canonical policy.
             SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
                 ?? throw new ServiceResultException(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unknown security policy: " + securityPolicyUri);
+
+            if (securityPolicy.Uri == SecurityPolicies.None)
+            {
+                m_token.Password = DecryptedPassword.ToByteString();
+                m_token.EncryptionAlgorithm = null;
+                return;
+            }
+
+            if (receiverCertificate == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A receiver certificate is required to encrypt the user identity token.");
+            }
+
+            securityPolicyUri = securityPolicy.Uri;
+
+            // handle RSA encryption.
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -230,9 +248,14 @@ namespace Opc.Ua
                 Array.Clear(DecryptedPassword, 0, DecryptedPassword.Length);
             }
 
+            // a policy may be given by its short name; compare the canonical URI.
+            SecurityPolicyInfo? securityPolicy = string.IsNullOrEmpty(securityPolicyUri)
+                ? null
+                : m_securityPolicies.GetInfo(securityPolicyUri);
+
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+                securityPolicy?.Uri == SecurityPolicies.None)
             {
                 DecryptedPassword = new byte[m_token.Password.Length];
                 Array.Copy(m_token.Password.ToArray(), DecryptedPassword, m_token.Password.Length);
@@ -240,10 +263,13 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            // GetInfo returns null only for unknown URIs; bail/throw earlier handled None case.
-            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
-                ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected,
+            if (securityPolicy == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected,
                     "Unknown security policy: " + securityPolicyUri);
+            }
+
+            securityPolicyUri = securityPolicy.Uri;
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -258,6 +284,9 @@ namespace Opc.Ua
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
                     encryptedSecret.TryDecryptRsa(m_token.Password.ToArray()!, receiverNonce?.Data, out byte[]? decryptedSecret))
                 {
+                    IdentityTokenLimits.ThrowIfSecretTooLong(
+                        decryptedSecret,
+                        IdentityTokenLimits.MaxPasswordLength);
                     DecryptedPassword = decryptedSecret;
                     return;
                 }
@@ -269,9 +298,18 @@ namespace Opc.Ua
                 };
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityTokenHandler>();
-                byte[]? decryptedPassword = await m_securityPolicies
-                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
-                    .ConfigureAwait(false);
+
+                // the legacy format decrypts every RSA block of the password, so
+                // the blocks are bounded to what the longest password needs before
+                // the first private-key operation (OPC 10000-4 7.41.2.2).
+                byte[]? decryptedPassword = await IdentityTokenLimits.DecryptLegacyAsync(
+                    m_securityPolicies,
+                    certificate,
+                    securityPolicyUri,
+                    encryptedData,
+                    IdentityTokenLimits.MaxPasswordLength,
+                    receiverNonce,
+                    ct).ConfigureAwait(false);
 
                 if (decryptedPassword == null)
                 {
@@ -295,6 +333,14 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(StatusCodes.BadIdentityTokenInvalid);
                     }
+                }
+
+                if (startOfNonce > IdentityTokenLimits.MaxPasswordLength)
+                {
+                    Array.Clear(decryptedPassword, 0, decryptedPassword.Length);
+                    IdentityTokenLimits.ThrowIfSecretTooLong(
+                        startOfNonce,
+                        IdentityTokenLimits.MaxPasswordLength);
                 }
 
                 // copy result to m_decrypted password field
@@ -327,6 +373,9 @@ namespace Opc.Ua
                         "Failed to decrypt UserNameIdentityToken password using ECC encrypted secret.");
                 }
 
+                IdentityTokenLimits.ThrowIfSecretTooLong(
+                    decryptedSecret,
+                    IdentityTokenLimits.MaxPasswordLength);
                 DecryptedPassword = decryptedSecret;
             }
         }

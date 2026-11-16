@@ -106,7 +106,7 @@ namespace Opc.Ua.Server
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
         /// <exception cref="InvalidOperationException"></exception>
-        public virtual void Enqueue(DataValue value, ServiceResult error)
+        public virtual void Enqueue(in DataValue value, ServiceResult error)
         {
             if (m_values == null || m_values.Length == 0)
             {
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual void OverwriteLastValue(DataValue value, ServiceResult error)
+        public virtual void OverwriteLastValue(in DataValue value, ServiceResult error)
         {
             if (ItemsInQueue == 0)
             {

@@ -1268,8 +1268,8 @@ namespace Opc.Ua.WotCon.Server.Assets
         private static string LocalName(string value)
         {
             int separator = Math.Max(
-                value.LastIndexOf(':'),
-                Math.Max(value.LastIndexOf('#'), value.LastIndexOf('/')));
+                value.LastIndexOf(':', StringComparison.Ordinal),
+                Math.Max(value.LastIndexOf('#', StringComparison.Ordinal), value.LastIndexOf('/', StringComparison.Ordinal)));
             return separator >= 0 && separator + 1 < value.Length
                 ? value[(separator + 1)..]
                 : value;

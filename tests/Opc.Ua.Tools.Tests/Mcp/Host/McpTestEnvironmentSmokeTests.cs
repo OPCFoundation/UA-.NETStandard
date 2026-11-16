@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests.Mcp

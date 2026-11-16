@@ -733,7 +733,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(field, Is.GreaterThanOrEqualTo(0),
                 "The overriding method has no field of its own.");
             int nameStart = field + fieldDeclaration.Length;
-            string fieldName = derivedClass[nameStart..derivedClass.IndexOf(';', nameStart)];
+            string fieldName = derivedClass[nameStart..derivedClass.IndexOf(';', nameStart, StringComparison.Ordinal)];
 
             Assert.Multiple(() =>
             {
@@ -1507,7 +1507,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 at = states.IndexOf(prefix, at + prefix.Length, StringComparison.Ordinal))
             {
                 int start = at + prefix.Length;
-                int end = states.IndexOf(')', start);
+                int end = states.IndexOf(')', start, StringComparison.Ordinal);
                 castTypes.Add(states[start..end]);
             }
 

@@ -323,8 +323,21 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether chunks of an unfinished message are waiting on the channel.
+        /// Admission reclaim tries channels without one first.
+        /// </summary>
+        internal bool HoldsPartialMessage => HasPartialMessage;
+
+        /// <summary>
         /// Closes an unused channel to make room for admission unless it is disposed, closing, or serving a session.
         /// </summary>
+        /// <remarks>
+        /// An unfinished message does not protect a channel that serves no session
+        /// (Part 4 §5.6.2.1 closes the oldest SecureChannel that has no Session).
+        /// Otherwise a peer without credentials could pin every channel slot by
+        /// trickling chunks of messages it never finishes. Callers try channels
+        /// without an unfinished message first (<see cref="HoldsPartialMessage"/>).
+        /// </remarks>
         internal bool TryIdleCleanupForAdmission()
         {
             using (Gate.Enter())
@@ -332,14 +345,18 @@ namespace Opc.Ua.Bindings
                 if (Volatile.Read(ref m_disposed) != 0 ||
                     UsedBySession ||
                     !(State is TcpChannelState.Open or TcpChannelState.Faulted ||
-                        (State == TcpChannelState.Connecting && IsReclaimableWhileConnecting)) ||
-                    HasPartialMessage ||
-                    HasPendingWrites ||
-                    Volatile.Read(ref m_pendingServiceRequests) != 0)
+                        (State == TcpChannelState.Connecting && IsReclaimableWhileConnecting)))
                 {
                     return false;
                 }
-                State = TcpChannelState.Closing;
+                lock (m_pendingRequestLock)
+                {
+                    if (m_pendingServiceRequests != 0 || HasPendingWrites)
+                    {
+                        return false;
+                    }
+                    State = TcpChannelState.Closing;
+                }
             }
             OnCleanup(new ServiceResult(
                 StatusCodes.BadNoCommunication,
@@ -360,8 +377,42 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal PendingRequestScope TrackPendingRequest()
         {
-            Interlocked.Increment(ref m_pendingServiceRequests);
+            // Cleanup claims Closing under the same lock. A request that starts after the claim
+            // is rejected when it acquires the channel gate.
+            lock (m_pendingRequestLock)
+            {
+                m_pendingServiceRequests++;
+            }
             return new PendingRequestScope(this);
+        }
+
+        /// <summary>
+        /// Claims an inactive channel for cleanup only if no request or response write is in progress.
+        /// </summary>
+        internal bool TryIdleCleanupForInactivity(int lifetime)
+        {
+            using (Gate.Enter())
+            {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    State is not (TcpChannelState.Open or TcpChannelState.Connecting or
+                        TcpChannelState.Opening or TcpChannelState.Faulted) ||
+                    ElapsedSinceLastActiveTime <= lifetime)
+                {
+                    return false;
+                }
+                lock (m_pendingRequestLock)
+                {
+                    if (m_pendingServiceRequests != 0 || HasPendingWrites)
+                    {
+                        return false;
+                    }
+                    State = TcpChannelState.Closing;
+                }
+            }
+            OnCleanup(new ServiceResult(
+                StatusCodes.BadNoCommunication,
+                LocalizedText.From("Channel closed due to inactivity.")));
+            return true;
         }
 
         /// <summary>
@@ -1335,7 +1386,10 @@ namespace Opc.Ua.Bindings
             {
                 if (m_channel != null)
                 {
-                    Interlocked.Decrement(ref m_channel.m_pendingServiceRequests);
+                    lock (m_channel.m_pendingRequestLock)
+                    {
+                        m_channel.m_pendingServiceRequests--;
+                    }
                 }
             }
 
@@ -1343,6 +1397,7 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+        private readonly System.Threading.Lock m_pendingRequestLock = new();
         private int m_pendingServiceRequests;
 
         /// <summary>
