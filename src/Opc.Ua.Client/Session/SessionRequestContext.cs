@@ -346,12 +346,7 @@ namespace Opc.Ua.Client
 
             ApplicationDescription application = source.Server ?? new ApplicationDescription();
             ArrayOf<string> discoveryUrls = application.DiscoveryUrls;
-            ArrayOf<LocalizedText> names = application.ApplicationNames;
-            LocalizedText[] copiedNames = names.Span.ToArray();
-            for (int i = 0; i < copiedNames.Length; i++)
-            {
-                copiedNames[i] = copiedNames[i].Copy();
-            }
+            LocalizedText applicationName = application.ApplicationName.Copy();
             ArrayOf<UserTokenPolicy> sourcePolicies = source.UserIdentityTokens;
             var policies = new UserTokenPolicy[sourcePolicies.Count];
             for (int i = 0; i < policies.Length; i++)
@@ -380,7 +375,7 @@ namespace Opc.Ua.Client
                 {
                     ApplicationUri = application.ApplicationUri,
                     ProductUri = application.ProductUri,
-                    ApplicationNames = names.IsNull ? default : copiedNames.ToArrayOf(),
+                    ApplicationName = applicationName,
                     ApplicationType = application.ApplicationType,
                     GatewayServerUri = application.GatewayServerUri,
                     DiscoveryProfileUri = application.DiscoveryProfileUri,

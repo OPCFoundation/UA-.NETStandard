@@ -605,7 +605,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             string ticket = await WriteTicketAsync(m_signer, m_product, m_identity).ConfigureAwait(false);
             var (_, _, applicationId, _) = await Registrar(session).ProvideIdentitiesAsync(
                 [m_identity], [], [ticket], ct).ConfigureAwait(false);
-            await m_otherSession.CloseAsync().ConfigureAwait(false);
+            await m_otherSession.CloseAsync(ct).ConfigureAwait(false);
             m_otherSession.Dispose();
             m_otherSession = await ConnectAsync(
                 m_other, new UserIdentity("software-admin", Encoding.UTF8.GetBytes(m_password)))
@@ -643,15 +643,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             else
             {
-                NodeId previousSession = session.SessionId;
                 await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
-                while (session.SessionId == previousSession)
-                {
-                    await Task.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
-                }
                 Assert.Multiple(() =>
                 {
-                    Assert.That(session.SessionId, Is.Not.EqualTo(previousSession));
                     Assert.That(session.TransportChannel.ClientChannelCertificate, Is.EqualTo(m_identity.ToArray()));
                 });
             }

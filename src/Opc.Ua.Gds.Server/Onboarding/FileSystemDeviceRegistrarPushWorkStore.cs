@@ -316,20 +316,23 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 publicationError = ExceptionDispatchInfo.Capture(error);
             }
-            try
+            if (publicationError != null)
             {
-                if (m_fileSystem.Exists(staging))
+                try
                 {
-                    m_fileSystem.Delete(staging);
+                    if (m_fileSystem.Exists(staging))
+                    {
+                        m_fileSystem.Delete(staging);
+                    }
                 }
+                catch (Exception cleanupError)
+                {
+                    throw new AggregateException(
+                        "Publishing push work and removing its staging file both failed.",
+                        publicationError.SourceException, cleanupError);
+                }
+                publicationError.Throw();
             }
-            catch (Exception cleanupError) when (publicationError != null)
-            {
-                throw new AggregateException(
-                    "Publishing push work and removing its staging file both failed.",
-                    publicationError.SourceException, cleanupError);
-            }
-            publicationError?.Throw();
         }
 
         /// <summary>
@@ -388,19 +391,25 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The maximum encoded checkpoint length.</summary>
         private const int kMaximumCheckpointBytes = 16 * 1024 * 1024;
+
         /// <summary>The maximum accepted pending-work capacity.</summary>
         private const int kMaximumPendingWork = 1024;
+
         /// <summary>The maximum records, allowing one running item beyond pending capacity.</summary>
         private const int kMaximumStoredWork = kMaximumPendingWork + 1;
 
         /// <summary>The checkpoint path exclusively owned by this store instance.</summary>
         private readonly string m_path;
+
         /// <summary>The borrowed file system.</summary>
         private readonly IFileSystem m_fileSystem;
+
         /// <summary>The private codec context retaining the standard decoder quotas.</summary>
         private readonly ServiceMessageContext m_context;
+
         /// <summary>Serializes operations on this store instance, not across processes.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
         /// <summary>Whether this store has been disposed.</summary>
         private int m_disposed;
     }

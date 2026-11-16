@@ -303,10 +303,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             await installing.WaitAsync(s_timeout).ConfigureAwait(false);
             await resetting!.WaitAsync(s_timeout).ConfigureAwait(false);
-            Assert.That(events, Is.EqualTo(new[]
-            {
-                "install", "capture", "promote", "begin-reset", "reset", "complete-reset"
-            }));
+            Assert.That(events, Is.EqualTo(s_expectedInstallationRecoveryEvents));
             Assert.That(await security.GetStageAsync().ConfigureAwait(false),
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
         }
@@ -398,6 +395,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The maximum synchronization wait.</summary>
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>The installation and reset events expected after recovery.</summary>
+        private static readonly string[] s_expectedInstallationRecoveryEvents =
+        [
+            "install", "capture", "promote", "begin-reset", "reset", "complete-reset"
+        ];
 
         /// <summary>The telemetry context.</summary>
         private ITelemetryContext m_telemetry = null!;

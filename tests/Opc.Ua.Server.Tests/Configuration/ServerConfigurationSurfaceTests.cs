@@ -1897,12 +1897,16 @@ namespace Opc.Ua.Server.Tests
             using (harness.Manager)
             {
                 ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
-                file.MaxByteStringLength ??= new PropertyState<uint>(file);
+                file.MaxByteStringLength ??=
+                    new PropertyState<uint>.Implementation<VariantBuilder>(file)
+                    {
+                        BrowseName = new QualifiedName(Opc.Ua.BrowseNames.MaxByteStringLength)
+                    };
                 file.MaxByteStringLength.Value = fileLimit;
                 SessionSystemContext sessionContext = CreateAdminContextForSession(new NodeId(8101, 1));
                 ServerSystemContext ctx = harness.Manager.SystemContext.Copy(
                     (OperationContext)sessionContext.OperationContext!);
-                IServiceMessageContext messageContext = ctx.Server.MessageContext;
+                ServiceMessageContext messageContext = (ServiceMessageContext)ctx.Server.MessageContext;
                 int previousLimit = messageContext.MaxByteStringLength;
                 try
                 {
@@ -1923,7 +1927,7 @@ namespace Opc.Ua.Server.Tests
                             break;
                         }
                         existing.AddRange(read.Data.ToArray());
-                        Assert.That(existing.Count, Is.LessThanOrEqualTo(s_initialConfig.Length));
+                        Assert.That(existing, Has.Count.LessThanOrEqualTo(s_initialConfig.Length));
                     }
                     Assert.That(existing.ToArray(), Is.EqualTo(s_initialConfig.ToArray()));
                     GetPositionMethodStateResult position = await file.GetPosition!.OnCallAsync!(
@@ -2195,7 +2199,11 @@ namespace Opc.Ua.Server.Tests
                 OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(open.ServiceResult), Is.True);
 
-                file.MaxByteStringLength ??= new PropertyState<uint>(file);
+                file.MaxByteStringLength ??=
+                    new PropertyState<uint>.Implementation<VariantBuilder>(file)
+                    {
+                        BrowseName = new QualifiedName(Opc.Ua.BrowseNames.MaxByteStringLength)
+                    };
                 file.MaxByteStringLength.Value = (uint)s_maxConfigurationFileSize;
                 ReadMethodStateResult first = await file.Read!.OnCallAsync!(
                     ctx, file.Read, file.NodeId, open.FileHandle, (int)s_maxConfigurationFileSize - 5,

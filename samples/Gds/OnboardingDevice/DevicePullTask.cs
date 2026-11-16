@@ -386,7 +386,7 @@ namespace OnboardingDevice
             {
                 PullDcaResult result = managerOperation == null
                     ? await m_workflow.RunAsync(registrar, request, progress, ct).ConfigureAwait(false)
-                    : await m_workflow.RunAsync(registrar, request, progress, ct, managerOperation)
+                    : await m_workflow.RunAsync(registrar, request, progress, managerOperation, ct)
                         .ConfigureAwait(false);
                 return new CandidateOutcome(result, null);
             }

@@ -258,7 +258,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(await files.ReadAsync("abc", CancellationToken.None).ConfigureAwait(false),
                     Is.EqualTo(new byte[] { 1, 2, 3 }));
                 Assert.That(await files.CompareExchangeAsync(
-                    "abc", new byte[] { 1, 2, 3 }, bytes.AsMemory(4, 2), CancellationToken.None)
+                    "abc", new byte[] { 1, 2, 3 }, bytes.AsMemory(4, 2).ToArray(), CancellationToken.None)
                     .ConfigureAwait(false), Is.True);
             }
 

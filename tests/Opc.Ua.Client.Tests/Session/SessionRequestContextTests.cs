@@ -224,12 +224,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             {
                 ApplicationUri = "urn:physical:server",
                 ProductUri = "urn:physical:product",
-                ApplicationNames =
-                [
-                    new LocalizedText(translations,
-                        new TranslationInfo("physical-name", "en", "Physical {0}", arguments)),
-                    new LocalizedText("Second name")
-                ],
+                ApplicationName = new LocalizedText(translations,
+                    new TranslationInfo("physical-name", "en", "Physical {0}", arguments)),
                 DiscoveryUrls = discoveryUrls
             };
             var policy = new ProviderUserTokenPolicy
@@ -273,12 +269,10 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(captured.EndpointUrl, Is.EqualTo("opc.tcp://physical:4840"));
             Assert.That(captured.Server.ApplicationUri, Is.EqualTo("urn:physical:server"));
             Assert.That(captured.Server.ProductUri, Is.EqualTo("urn:physical:product"));
-            Assert.That(captured.Server.ApplicationNames.Count, Is.EqualTo(2));
-            Assert.That(captured.Server.ApplicationNames[0].FilterByPreferredLocales(["en"]).Text,
+            Assert.That(captured.Server.ApplicationName.FilterByPreferredLocales(["en"]).Text,
                 Is.EqualTo("Physical server"));
-            Assert.That(captured.Server.ApplicationNames[0].FilterByPreferredLocales(["de"]).Text,
+            Assert.That(captured.Server.ApplicationName.FilterByPreferredLocales(["de"]).Text,
                 Is.EqualTo("Physisch server"));
-            Assert.That(captured.Server.ApplicationNames[1].Text, Is.EqualTo("Second name"));
             Assert.That(captured.Server.DiscoveryUrls[0], Is.EqualTo("opc.tcp://physical:4840"));
             Assert.That(captured.ServerCertificate.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
             Assert.That(captured.UserIdentityTokens[0].PolicyId, Is.EqualTo("physical-token"));
@@ -777,11 +771,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Server = new ProviderApplicationDescription
                 {
                     ApplicationUri = "urn:configured",
-                    ApplicationNames =
-                    [
-                        new LocalizedText(translations,
-                            new TranslationInfo("configured", "en", "Configured {0}", arguments))
-                    ],
+                    ApplicationName = new LocalizedText(translations,
+                        new TranslationInfo("configured", "en", "Configured {0}", arguments)),
                     DiscoveryUrls = urls
                 },
                 ServerCertificate = ByteString.From(certificate),
@@ -840,9 +831,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(context.Session.TransportChannel.EndpointDescription.EndpointUrl,
                 Is.EqualTo("opc.tcp://physical:4840"));
             Assert.That(captured.Server.ApplicationUri, Is.EqualTo("urn:configured"));
-            Assert.That(captured.Server.ApplicationNames[0].FilterByPreferredLocales(["en"]).Text,
+            Assert.That(captured.Server.ApplicationName.FilterByPreferredLocales(["en"]).Text,
                 Is.EqualTo("Configured original"));
-            Assert.That(captured.Server.ApplicationNames[0].FilterByPreferredLocales(["de"]).Text,
+            Assert.That(captured.Server.ApplicationName.FilterByPreferredLocales(["de"]).Text,
                 Is.EqualTo("Konfiguriert original"));
             Assert.That(captured.Server.DiscoveryUrls[0], Is.EqualTo("opc.tcp://configured:4840"));
             Assert.That(captured.ServerCertificate.Span[0], Is.EqualTo(1));

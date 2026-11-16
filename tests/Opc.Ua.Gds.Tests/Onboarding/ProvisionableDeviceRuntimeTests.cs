@@ -628,7 +628,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             byte[] password = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N"));
             var provider = new ReferenceNetworkModelProvider(new NetworkModelSnapshot
             {
-                Timestamp = DateTime.UnixEpoch,
+                Timestamp = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 StatusCode = StatusCodes.Good,
                 Interfaces =
                 [
@@ -707,11 +707,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris))
                     .ToArray();
                 Assert.That(resourceChildren, Does.Contain(global::Opc.Ua.ObjectIds.Communication));
-                Assert.That(resourceChildren, Does.Contain(
-                    new NodeId(
-                        "ProvisionableDevice",
-                        checked((ushort)session.NamespaceUris.GetIndex(
-                            ProvisionableDeviceNodeManagerFactory.NamespaceUri)))));
+                Assert.That(resourceChildren, Does.Contain(new NodeId(29878u)));
 
                 BrowseResponse networkInterfaces = await session.BrowseAsync(
                     null,

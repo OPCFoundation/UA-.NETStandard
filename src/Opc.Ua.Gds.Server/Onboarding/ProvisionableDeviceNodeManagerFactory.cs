@@ -271,6 +271,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 CancellationToken cancellationToken = default)
             {
                 await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                ProvisionableDeviceState device = m_device ??
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError);
+                AddExternalReference(
+                    sourceId: Ua.ObjectIds.Resources,
+                    referenceTypeId: ReferenceTypeIds.Organizes,
+                    isInverse: false,
+                    targetId: device.NodeId,
+                    externalReferences: externalReferences);
                 foreach (NodeId nodeId in s_nodeOverrides)
                 {
                     if (FindPredefinedNode<NodeState>(nodeId) is null)
@@ -281,28 +289,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }
                 NodeState? resources = Server.DiagnosticsNodeManager.FindPredefinedNode<NodeState>(
                     Ua.ObjectIds.Resources);
-                if (resources is null ||
-                    !resources.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(29878)))
+                if (resources is null)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError, "The standard Resources device reference is missing.");
-                }
-                if (externalReferences.TryGetValue(Ua.ObjectIds.Resources, out IList<IReference>? references))
-                {
-                    for (int index = references.Count - 1; index >= 0; index--)
-                    {
-                        IReference reference = references[index];
-                        if (reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
-                            !reference.IsInverse &&
-                            reference.TargetId == new NodeId(29878))
-                        {
-                            references.RemoveAt(index);
-                        }
-                    }
-                    if (references.Count == 0)
-                    {
-                        externalReferences.Remove(Ua.ObjectIds.Resources);
-                    }
+                        StatusCodes.BadConfigurationError, "The standard Resources node is missing.");
                 }
                 if (m_applicationsProvider == null)
                 {
@@ -325,8 +315,6 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,
                         "Application components require a provisionable-device security provider.");
-                ProvisionableDeviceState device = m_device ??
-                    throw new ServiceResultException(StatusCodes.BadConfigurationError);
                 var applicationUris = new HashSet<string>(StringComparer.Ordinal);
                 try
                 {

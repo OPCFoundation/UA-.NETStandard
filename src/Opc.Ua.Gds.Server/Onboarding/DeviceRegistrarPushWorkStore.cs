@@ -122,7 +122,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     internal static class DeviceRegistrarPushApplicationSnapshot
     {
         /// <summary>
-        /// Copies each schema field, array, and localized name into a standard application description.
+        /// Copies each schema field, array, and localized application name into a standard application description.
         /// </summary>
         public static ApplicationDescription Create(ApplicationDescription application)
         {
@@ -141,8 +141,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 DiscoveryProfileUri = application.DiscoveryProfileUri,
                 DiscoveryUrls = application.DiscoveryUrls.IsNull
                     ? default
-                    : application.DiscoveryUrls.Span.ToArray().ToArrayOf(),
-                ApplicationNames = SnapshotNames(application.ApplicationNames)
+                    : application.DiscoveryUrls.Span.ToArray().ToArrayOf()
             };
             if (!Uri.TryCreate(snapshot.ApplicationUri, UriKind.Absolute, out _) ||
                 snapshot.DiscoveryUrls.IsEmpty ||
@@ -160,22 +159,5 @@ namespace Opc.Ua.Gds.Server.Onboarding
             return snapshot;
         }
 
-        /// <summary>
-        /// Copies localized names without retaining caller-owned translation state.
-        /// </summary>
-        private static ArrayOf<LocalizedText> SnapshotNames(ArrayOf<LocalizedText> names)
-        {
-            if (names.IsNull)
-            {
-                return default;
-            }
-
-            LocalizedText[] snapshot = names.Span.ToArray();
-            for (int index = 0; index < snapshot.Length; index++)
-            {
-                snapshot[index] = snapshot[index].Copy();
-            }
-            return snapshot.ToArrayOf();
-        }
     }
 }

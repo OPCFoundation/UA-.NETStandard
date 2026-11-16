@@ -415,8 +415,9 @@ namespace Opc.Ua.Gds.Client
             {
                 await RecordAssignmentsAsync(context, directory, binding, ct).ConfigureAwait(false);
             }
+
             bool dispatchAttempted = false;
-            Exception? failure = null;
+            NodeId requestId;
             try
             {
                 if (m_journal != null)
@@ -425,7 +426,7 @@ namespace Opc.Ua.Gds.Client
                     await m_journal.RecordDispatchAsync(SnapshotBinding(binding), ct).ConfigureAwait(false);
                 }
                 RequireChannel(context, binding);
-                NodeId requestId = await directory.StartSigningRequestAsync(
+                requestId = await directory.StartSigningRequestAsync(
                     applicationId, profile.CertificateGroupId, profile.CertificateTypeId, csr, ct)
                     .ConfigureAwait(false);
                 if (requestId.IsNull)
@@ -438,14 +439,8 @@ namespace Opc.Ua.Gds.Client
                     await m_journal.RecordStartedAsync(SnapshotBinding(binding), ct).ConfigureAwait(false);
                 }
                 m_binding = binding;
-                return SnapshotNodeId(requestId);
             }
             catch (Exception error)
-            {
-                failure = error;
-                throw;
-            }
-            finally
             {
                 if (dispatchAttempted && m_journal is IPullDcaStartDispatchObserver observer)
                 {
@@ -453,13 +448,20 @@ namespace Opc.Ua.Gds.Client
                     {
                         await observer.OnStartCompletedAsync(binding.AttemptId).ConfigureAwait(false);
                     }
-                    catch (Exception completionError) when (failure != null)
+                    catch (Exception completionError)
                     {
                         throw new AggregateException(
-                            "The signing dispatch and completion notification both failed.", failure, completionError);
+                            "The signing dispatch and completion notification both failed.", error, completionError);
                     }
                 }
+                throw;
             }
+
+            if (dispatchAttempted && m_journal is IPullDcaStartDispatchObserver completionObserver)
+            {
+                await completionObserver.OnStartCompletedAsync(binding.AttemptId).ConfigureAwait(false);
+            }
+            return SnapshotNodeId(requestId);
         }
 
         /// <inheritdoc/>

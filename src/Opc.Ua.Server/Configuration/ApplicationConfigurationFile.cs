@@ -65,6 +65,13 @@ namespace Opc.Ua.Server
     /// installed.
     /// </para>
     /// </remarks>
+    // The gate remains available after shutdown so late handler calls can observe m_stopped and return their
+    // established service status instead of throwing ObjectDisposedException.
+    // TODO: Move admission checks ahead of the gate so it can be safely disposed.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "CA2213:Disposable fields should be disposed",
+        Justification = "Disposing the gate changes post-shutdown handler errors and can race nonblocking disposal.")]
     public sealed class ApplicationConfigurationFile : IDisposable
     {
         private const int kDefaultCapacity = 64 * 1024;
@@ -295,6 +302,7 @@ namespace Opc.Ua.Server
                     m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
                 }
             }
+
         }
 
         private async ValueTask<OpenMethodStateResult> OpenAsync(
@@ -449,8 +457,7 @@ namespace Opc.Ua.Server
                     }
                     else
                     {
-                        MemoryStream stream = strm ??
-                            throw new InvalidOperationException("The provider read did not create a file stream.");
+                        MemoryStream stream = strm;
                         fileHandle = NextFileHandleNoLock();
                         m_handles.Add(fileHandle, new OpenFileHandle(reservation.SessionId, stream, isWriteMode));
                         handleAdded = true;
@@ -1985,32 +1992,41 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private readonly double m_activityTimeout;
         private readonly Dictionary<uint, OpenFileHandle> m_handles = [];
+
         /// <summary>The next candidate handle identifier.</summary>
         private uint m_nextFileHandle;
+
         /// <summary>The active write handle, or zero when no writer is open.</summary>
         private uint m_writeHandle;
+
         /// <summary>Whether a write open is waiting for its provider read.</summary>
         private bool m_writeOpenPending;
+
         /// <summary>
         /// Session ownership for provider reads that have not finished handle admission.
         /// </summary>
         private readonly HashSet<PendingOpen> m_openReservations = [];
+
         /// <summary>
         /// Admitted readers whose provider content has not yet produced an open handle.
         /// </summary>
         private int m_pendingReaders;
+
         /// <summary>
         /// Admitted provider reads that shutdown must drain before runtime release.
         /// </summary>
         private int m_pendingOpens;
+
         /// <summary>
         /// Completion of the current admitted-open group.
         /// </summary>
         private TaskCompletionSource<bool>? m_openDrain;
+
         /// <summary>
         /// Whether shutdown or disposal has closed new handle admission.
         /// </summary>
         private bool m_stopped;
+
         /// <summary>Whether a ConfigurationFile update owns the writer reservation.</summary>
         private bool m_updateInProgress;
         private ITimer? m_activityTimer;

@@ -1550,7 +1550,7 @@ namespace Opc.Ua.Gds.Client
                         {
                             ReferenceTypeId = ReferenceTypeIds.HasProperty,
                             IncludeSubtypes = true,
-                            TargetName = new QualifiedName(BrowseNames.MaxByteStringLength)
+                            TargetName = new QualifiedName(Opc.Ua.BrowseNames.MaxByteStringLength)
                         }]
                     }
                 }], ct).ConfigureAwait(false);

@@ -23,6 +23,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -201,7 +202,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 ServerByteStringLimit = serverLimit,
                 ConfigurationReadChunks = [ByteString.From(new byte[] { 7 }), ByteString.Empty]
             };
-            fixture.First.InnerSession.MessageContext.MaxByteStringLength = localLimit;
+            ((ServiceMessageContext)fixture.First.InnerSession.MessageContext).MaxByteStringLength = localLimit;
             await fixture.ConnectAsync().ConfigureAwait(false);
             ConfigurationFileUpdateResult result = await fixture.UpdateAsync().ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(ConfigurationFileUpdateOutcome.Applied));
@@ -782,7 +783,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         {
                             return new ReadResponse
                             {
-                                Results = [new DataValue { StatusCode = StatusCodes.BadNodeIdUnknown }]
+                                Results = [new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)]
                             };
                         }
                         value = ServerByteStringLimit.Value;
@@ -791,11 +792,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         return new ReadResponse
                         {
-                            Results = [new DataValue
-                            {
-                                StatusCode = LimitReadStatus,
-                                WrappedValue = MalformedLimit ? Variant.From("invalid-limit") : Variant.From(value)
-                            }]
+                            Results =
+                            [
+                                new DataValue(
+                                    MalformedLimit ? Variant.From("invalid-limit") : Variant.From(value),
+                                    LimitReadStatus)
+                            ]
                         };
                     }
                     return new ReadResponse { Results = [new DataValue(Variant.From(value))] };

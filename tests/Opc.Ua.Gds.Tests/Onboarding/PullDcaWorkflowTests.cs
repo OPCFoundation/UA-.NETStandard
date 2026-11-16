@@ -153,12 +153,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             PullDcaResult result = await fixture.Create(receipts: receipts.Object)
                 .RunAsync(kRegistrar, request).ConfigureAwait(false);
 
-            Assert.That(fixture.Calls, Is.EqualTo(new[]
-            {
-                "connect", "provide", "identity", "reconnect",
-                "start-keypair:dca", "finish-keypair:dca", "trust:dca", "install-keypair:dca",
-                "reconnect", "managers"
-            }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_initialNewKeyPairCalls));
             Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kDcaId }));
             Assert.That(fixture.Host.ReceivedPrivateKeyPfx, Is.EqualTo(kPrivateKeyPfx));
             Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
@@ -181,13 +176,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             PullDcaResult result = await fixture.Create().RunAsync(
                 kRegistrar, CreateRequest() with { ManagedApplications = [application] }).ConfigureAwait(false);
 
-            Assert.That(fixture.Calls, Is.EqualTo(new[]
-            {
-                "connect", "provide", "identity", "reconnect",
-                "csr:dca", "start:dca", "finish:dca", "trust:dca", "install:dca",
-                "reconnect", "managers", "register",
-                "start-keypair:managed", "finish-keypair:managed", "trust:managed", "install-keypair:managed"
-            }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_managedApplicationNewKeyPairCalls));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
             Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kManagedId }));
             Assert.That(result.ManagedApplications[0].ApplicationId, Is.EqualTo(kManagedId));
@@ -239,6 +228,39 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Calls, Does.Not.Contain("certificates:dca"));
             Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kDcaId }));
             Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            signingRecovery.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task TransientKeyPairFinishThenConsumedRequestRestartsWithFreshRequest()
+        {
+            var fixture = new Fixture();
+            fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(StatusCodes.BadTimeout));
+            fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(StatusCodes.BadInvalidArgument));
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            var signingRecovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            PullDcaResult result = await fixture.Create(
+                options: new PullDcaOptions
+                {
+                    FinishRetryDelay = TimeSpan.Zero,
+                    MaximumNewKeyPairRestarts = 1
+                },
+                receipts: receipts.Object,
+                signingRecovery: signingRecovery.Object).RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(fixture.Connection.FinishedRequestIds,
+                Is.EqualTo(new[] { kRequestId, kRequestId, kRestartedRequestId }));
+            Assert.That(fixture.Connection.NewKeyPairRequests, Is.EqualTo(2));
+            Assert.That(fixture.Calls, Is.EqualTo(s_restartedNewKeyPairCalls));
+            Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kDcaId }));
+            Assert.That(fixture.Host.ReceivedPrivateKeyPfx, Is.EqualTo(kPrivateKeyPfx));
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            receipts.VerifyNoOtherCalls();
             signingRecovery.VerifyNoOtherCalls();
         }
 
@@ -1952,6 +1974,33 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             "trust:dca", "install:dca"
         ];
         private static readonly string[] s_discoveryCalls = ["discover"];
+
+        /// <summary>The calls made by an initial DCA new-key-pair request.</summary>
+        private static readonly string[] s_initialNewKeyPairCalls =
+        [
+            "connect", "provide", "identity", "reconnect",
+            "start-keypair:dca", "finish-keypair:dca", "trust:dca", "install-keypair:dca",
+            "reconnect", "managers"
+        ];
+
+        /// <summary>The calls made when a managed application requests a new key pair.</summary>
+        private static readonly string[] s_managedApplicationNewKeyPairCalls =
+        [
+            "connect", "provide", "identity", "reconnect",
+            "csr:dca", "start:dca", "finish:dca", "trust:dca", "install:dca",
+            "reconnect", "managers", "register",
+            "start-keypair:managed", "finish-keypair:managed", "trust:managed", "install-keypair:managed"
+        ];
+
+        /// <summary>The calls made after a consumed new-key-pair request is restarted.</summary>
+        private static readonly string[] s_restartedNewKeyPairCalls =
+        [
+            "connect", "provide", "identity", "reconnect",
+            "start-keypair:dca", "finish-keypair:dca", "finish-keypair:dca",
+            "start-keypair:dca", "finish-keypair:dca", "trust:dca", "install-keypair:dca",
+            "reconnect", "managers"
+        ];
+
         private static readonly ArrayOf<string> s_expectedTickets = ["ticket"];
         private static readonly ArrayOf<string> s_expectedDiscoveryUrls = ["opc.tcp://managed:4840"];
         private static readonly ArrayOf<string> s_expectedCapabilities = ["DA"];
@@ -2032,7 +2081,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     Assert.That(certificate.IsEmpty, Is.False);
                     Assert.That(privateKey.IsEmpty, Is.False);
-                    Assert.That(fixture.Requests.Count, Is.GreaterThan(callsBeforeRecreate));
+                    Assert.That(fixture.Requests, Has.Count.GreaterThan(callsBeforeRecreate));
                 });
             }
             finally
@@ -2284,16 +2333,26 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [Test]
         public async Task SigningResponseCannotUnexpectedlySupplyPrivateKeyMaterial()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
-            context.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            var applicationId = new NodeId("app", 2);
+            var requestId = new NodeId("request", 2);
             ByteString certificate = ByteString.From(new byte[] { 1 });
-            Mock<ISession> session = CreateSession(context, _ =>
-                Good(certificate, certificate, Variant.From(ArrayOf<ByteString>.Null)));
-            var adapter = new PullDcaConnection(session.Object, kRegistrar, telemetry, 1024, _ => default);
+            NodeId startSigningRequestMethodId = NodeId.Null;
+            await using var session = CreateConfidentialSession(request =>
+                request.ObjectId == kRegistrar.CertificateDirectoryId
+                    ? request.MethodId == startSigningRequestMethodId
+                        ? Good(requestId)
+                        : Good(certificate, certificate, Variant.From(ArrayOf<ByteString>.Null))
+                    : throw new AssertionException("Unexpected certificate-directory object."));
+            startSigningRequestMethodId = Resolve(
+                Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartSigningRequest,
+                (ServiceMessageContext)session.MessageContext);
+            var adapter = new PullDcaConnection(
+                session.InnerSession, kRegistrar, session.Telemetry, 1024, _ => default);
+            await ((IPullDcaBoundSigningConnection)adapter).StartWithEvidenceAsync(
+                applicationId, kProfile, certificate, certificate, CancellationToken.None).ConfigureAwait(false);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await adapter.FinishAsync(new NodeId(1), new NodeId(2), CancellationToken.None).ConfigureAwait(false));
+                await adapter.FinishAsync(applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }

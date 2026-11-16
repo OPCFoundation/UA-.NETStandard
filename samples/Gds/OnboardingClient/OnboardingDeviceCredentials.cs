@@ -317,8 +317,14 @@ namespace OnboardingClientSample
             ByteString privateKeyPfx,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(profile);
-            ArgumentNullException.ThrowIfNull(credentials);
+            if (profile == null)
+            {
+                throw new ArgumentNullException(nameof(profile));
+            }
+            if (credentials == null)
+            {
+                throw new ArgumentNullException(nameof(credentials));
+            }
             cancellationToken.ThrowIfCancellationRequested();
             if (applicationId.IsNull || profile.CertificateGroupId.IsNull ||
                 profile.CertificateTypeId != ObjectTypeIds.RsaSha256ApplicationCertificateType ||
@@ -371,8 +377,14 @@ namespace OnboardingClientSample
             PullDcaCredentials credentials,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(binding);
-            ArgumentNullException.ThrowIfNull(credentials);
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            if (credentials == null)
+            {
+                throw new ArgumentNullException(nameof(credentials));
+            }
             cancellationToken.ThrowIfCancellationRequested();
             credentials = SnapshotCredentials(credentials);
             DevicePullJournal? journal = m_pullJournal;
@@ -423,7 +435,10 @@ namespace OnboardingClientSample
             DevicePullJournalCheckpoint checkpoint,
             CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(checkpoint);
+            if (checkpoint == null)
+            {
+                throw new ArgumentNullException(nameof(checkpoint));
+            }
             cancellationToken.ThrowIfCancellationRequested();
             if (checkpoint.Stage is not (DevicePullJournalStage.Received or DevicePullJournalStage.Installed))
             {
@@ -662,7 +677,7 @@ namespace OnboardingClientSample
             var detached = new ByteString[values.Count];
             for (int i = 0; i < detached.Length; i++)
             {
-                detached[i] = values[i].IsNull ? ByteString.Null : ByteString.From(values[i].Span);
+                detached[i] = values[i].IsNull ? default : ByteString.From(values[i].Span);
             }
             return detached;
         }

@@ -209,8 +209,8 @@ namespace Opc.Ua.Gds.Client
             PullDcaRegistrar registrar,
             PullDcaRequest request,
             IProgress<PullDcaProgress>? progress,
-            CancellationToken cancellationToken,
-            IPullDcaInstalledManagerOperation managerOperation)
+            IPullDcaInstalledManagerOperation managerOperation,
+            CancellationToken cancellationToken = default)
         {
             if (managerOperation == null)
             {

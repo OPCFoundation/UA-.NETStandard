@@ -71,6 +71,7 @@ namespace Opc.Ua.Gds.Tests
             using var second = await TestTarget.CreateAsync("urn:managed:channel:second").ConfigureAwait(false);
             string root = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory, "managed-channel", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
             var listener = new TcpListener(IPAddress.Loopback, 0);
             int port;
             try
@@ -1067,7 +1068,7 @@ namespace Opc.Ua.Gds.Tests
 
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-                var deviceNodeId = new NodeId("ProvisionableDevice", namespaceIndex);
+                var deviceNodeId = new NodeId(29878u);
                 var firstNodeId = new NodeId($"Application:{firstApplicationUri}", namespaceIndex);
                 var secondNodeId = new NodeId($"Application:{secondApplicationUri}", namespaceIndex);
                 object firstHandle = await manager.GetManagerHandleAsync(firstNodeId).ConfigureAwait(false);
@@ -1747,9 +1748,7 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task<NodeId> GetProvisionableDeviceNodeIdAsync(NodeManagerRegistration registration)
         {
-            ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
-                ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-            var expectedNodeId = new NodeId("ProvisionableDevice", namespaceIndex);
+            var expectedNodeId = new NodeId(29878u);
             object handle = await registration.NodeManager.GetManagerHandleAsync(expectedNodeId)
                 .ConfigureAwait(false);
             Assert.That(handle, Is.TypeOf<NodeHandle>());

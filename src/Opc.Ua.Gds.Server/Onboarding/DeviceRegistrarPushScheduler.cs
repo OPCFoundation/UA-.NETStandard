@@ -55,6 +55,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// When a work store is configured, accepted work survives restart and interrupted work is reconciled before retry.
     /// Without a work store, acceptance remains in memory and failed attempts are not automatically repeated.
     /// </summary>
+    // The gate remains available after disposal so late admissions return BadServerHalted rather than
+    // ObjectDisposedException.
+    // TODO: Replace the semaphore with an admission primitive that can be disposed without changing that contract.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "CA2213:Disposable fields should be disposed",
+        Justification = "The gate must remain usable for the established post-disposal BadServerHalted response.")]
     public sealed class DeviceRegistrarPushScheduler : BackgroundService, IDeviceRegistrarPushScheduler
     {
         /// <summary>
@@ -117,7 +124,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             await m_acceptance.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
+                if (Volatile.Read(ref m_disposalState) != 0 ||
+                    Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
                 {
                     throw new InvalidOperationException("The push scheduler can only be started once.");
                 }
@@ -167,12 +175,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
             finally
             {
                 m_acceptance.Release();
+                TryCompleteDisposal();
             }
         }
 
         /// <summary>
         /// Accepts a detached description only while running, or rejects a full queue without waiting.
         /// The caller's cancellation token governs acceptance, not the lifetime of an already accepted attempt.
+        /// A failed durable write is accepted only if read-back confirms the same unique pending item.
         /// </summary>
         public async ValueTask EnqueueAsync(
             ApplicationDescription application,
@@ -187,15 +197,37 @@ namespace Opc.Ua.Gds.Server.Onboarding
             await m_acceptance.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (Volatile.Read(ref m_state) != 1)
+                if (Volatile.Read(ref m_state) != 1 || Volatile.Read(ref m_disposalState) != 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
                 Guid id = Guid.NewGuid();
                 if (m_workStore != null)
                 {
-                    await m_workStore.EnqueueAsync(id, snapshot, m_capacity, cancellationToken)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        await m_workStore.EnqueueAsync(id, snapshot, m_capacity, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception publicationError)
+                    {
+                        bool confirmed;
+                        try
+                        {
+                            confirmed = await IsPendingPublicationConfirmedAsync(id, snapshot).ConfigureAwait(false);
+                        }
+                        catch (Exception reconciliationError)
+                        {
+                            throw new AggregateException(
+                                "Accepting push work and confirming its publication both failed.",
+                                publicationError, reconciliationError);
+                        }
+                        if (!confirmed)
+                        {
+                            throw;
+                        }
+                        m_logger.PushPublicationConfirmed(publicationError, snapshot.ApplicationUri!);
+                    }
                     if (!m_queue.Writer.TryWrite(new QueueEntry(
                         id, snapshot, DeviceRegistrarPushWorkState.Pending)))
                     {
@@ -211,6 +243,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             finally
             {
                 m_acceptance.Release();
+                TryCompleteDisposal();
             }
         }
 
@@ -225,13 +258,20 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
-        /// Closes acceptance before disposing the host-owned cancellation source.
+        /// Requests disposal without blocking an admitted acceptance operation.
+        /// Queue closure and worker cancellation wait until the acceptance holder has finished.
         /// The host should stop the worker before disposal so asynchronous cleanup can finish.
         /// </summary>
+        // Base disposal cancels the worker, so it must wait until an admitted durable acceptance has queued its work.
+        // TODO: Move this deferral into a host lifecycle abstraction that can safely drain before base disposal.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Reliability",
+            "CA2215:Dispose methods should call base class dispose",
+            Justification = "Calling base.Dispose here would cancel the worker before an admitted acceptance is queued.")]
         public override void Dispose()
         {
-            CompleteAcceptance();
-            base.Dispose();
+            Interlocked.CompareExchange(ref m_disposalState, 1, 0);
+            TryCompleteDisposal();
         }
 
         /// <summary>
@@ -342,6 +382,30 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
+        /// Completes requested disposal only when no acceptance operation owns the semaphore.
+        /// Every acceptance release retries this nonblocking acquisition to avoid missing a concurrent request.
+        /// </summary>
+        private void TryCompleteDisposal()
+        {
+            if (Volatile.Read(ref m_disposalState) != 1 || !m_acceptance.Wait(0))
+            {
+                return;
+            }
+            try
+            {
+                if (Interlocked.CompareExchange(ref m_disposalState, 2, 1) == 1)
+                {
+                    CompleteAcceptance();
+                    base.Dispose();
+                }
+            }
+            finally
+            {
+                m_acceptance.Release();
+            }
+        }
+
+        /// <summary>
         /// Waits for any durable acceptance write before closing the queue.
         /// </summary>
         private async ValueTask CompleteAcceptanceAsync()
@@ -354,6 +418,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             finally
             {
                 m_acceptance.Release();
+                TryCompleteDisposal();
             }
         }
 
@@ -363,6 +428,31 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private static ApplicationDescription SnapshotApplication(ApplicationDescription application)
         {
             return DeviceRegistrarPushApplicationSnapshot.Create(application);
+        }
+
+        /// <summary>
+        /// Confirms the exact pending item after an uncertain write without repeating acceptance or using its token.
+        /// </summary>
+        private async ValueTask<bool> IsPendingPublicationConfirmedAsync(Guid id, ApplicationDescription application)
+        {
+            ArrayOf<DeviceRegistrarPushWorkItem> items = await m_workStore!.ReadAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            DeviceRegistrarPushWorkItem? published = null;
+            for (int index = 0; index < items.Count; index++)
+            {
+                DeviceRegistrarPushWorkItem item = items[index];
+                if (item.Id == id)
+                {
+                    if (published != null)
+                    {
+                        return false;
+                    }
+                    published = item;
+                }
+            }
+            return published != null &&
+                published.State == DeviceRegistrarPushWorkState.Pending &&
+                application.IsEqual(SnapshotApplication(published.Application));
         }
 
         /// <summary>
@@ -396,6 +486,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>Zero before startup, one while accepting, and two after stopping.</summary>
         private int m_state;
+
+        /// <summary>Zero before disposal, one while requested, and two once teardown starts.</summary>
+        private int m_disposalState;
     }
 
     /// <summary>
@@ -443,5 +536,15 @@ namespace Opc.Ua.Gds.Server.Onboarding
             Message = "Push scheduler discarded {Count} queued registrations during shutdown; " +
                 "resubmission is required.")]
         public static partial void PushRegistrationsDiscarded(this ILogger logger, int count);
+
+        /// <summary>
+        /// Preserves the write failure when the exact pending publication was independently confirmed.
+        /// </summary>
+        [LoggerMessage(
+            EventId = GdsServerCommonEventIds.DeviceRegistrarPushScheduler + 4,
+            Level = LogLevel.Warning,
+            Message = "Push work publication for {ApplicationUri} was confirmed after the acceptance write failed.")]
+        public static partial void PushPublicationConfirmed(
+            this ILogger logger, Exception error, [ApplicationIdentity] string applicationUri);
     }
 }

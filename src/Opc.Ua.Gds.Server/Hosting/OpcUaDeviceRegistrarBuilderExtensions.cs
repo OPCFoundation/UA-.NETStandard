@@ -127,7 +127,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 isSingleton, identifiers, sp.GetRequiredService<ITicketStore>(),
                 sp.GetRequiredService<IOnboardingTicketValidator>(),
                 sp.GetRequiredService<IProvisionableDeviceRegistrarStore>(),
-                sp.GetService<IProvisionableDeviceSecurity>()));
+                sp.GetService<IProvisionableDeviceSecurity>(),
+                sp.GetService<IProvisionableDeviceRegistrarConfiguration>()));
             return services;
         }
 

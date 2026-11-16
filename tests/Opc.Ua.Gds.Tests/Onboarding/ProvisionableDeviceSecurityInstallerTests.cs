@@ -669,7 +669,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         throw new InvalidOperationException("Endpoint activation interrupted.");
                     }
-                    return default(ValueTask);
+                    return default;
                 });
             using (var first = CreateInstaller(pullKeys: pullKeys.Object))
             {

@@ -798,8 +798,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     TrustedCertificates = new CertificateCollection { authority },
                     IssuerCertificates = new CertificateCollection { authority },
-                    TrustedCrls = [trustedCrl],
-                    IssuerCrls = [issuerCrl]
+                    TrustedCrls = [new X509CRL(trustedCrl)],
+                    IssuerCrls = [new X509CRL(issuerCrl)]
                 });
             string directory = Path.Combine(
                 Path.GetTempPath(), nameof(OnboardingDeviceCredentialsTests), Guid.NewGuid().ToString("N"));

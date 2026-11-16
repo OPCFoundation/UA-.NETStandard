@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Gds.Server.Onboarding;
@@ -278,7 +279,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     deviceId, requestTicketsId, cancellationToken).ConfigureAwait(false);
                 Assert.That(outputs.Count, Is.EqualTo(1));
                 Assert.That(outputs[0].TryGetValue(out ArrayOf<string> tickets), Is.True);
-                Assert.That(tickets.ToArray(), Is.EqualTo(new[] { "signed-ticket" }));
+                Assert.That(tickets.ToArray(), Is.EqualTo(s_signedTickets));
                 runtime.Verify(device => device.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
             }
             finally
@@ -300,7 +301,6 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task ConnectedSessionAddReplaceRemoveUpdatesResourcesAndRoutesCurrentRuntimeAsync(
             CancellationToken cancellationToken)
         {
-            const string userNamePolicyId = "provisionable-device-user";
             string pkiRoot = Path.Combine(
                 Path.GetTempPath(), "OpcUaResourcesLifecycleTests", Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<NoListenerReferenceServer>(
@@ -325,20 +325,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             runtime2.Setup(runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync((ArrayOf<string>)["generation-2-ticket"]);
 
+            var runtime3 = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
+            runtime3.SetupGet(runtime => runtime.IsSingleton).Returns(true);
+            runtime3.Setup(runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ArrayOf<string>)["generation-3-ticket"]);
+
             try
             {
                 await fixture.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
-                fixture.Config.ServerConfiguration!.UserTokenPolicies =
-                [
-                    new UserTokenPolicy
-                    {
-                        PolicyId = userNamePolicyId,
-                        TokenType = UserTokenType.UserName,
-                        SecurityPolicyUri = SecurityPolicies.None
-                    }
-                ];
                 Assert.That(
-                    await fixture.Application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false),
+                    await fixture.Application.CheckApplicationInstanceCertificatesAsync(
+                        true, ct: cancellationToken).ConfigureAwait(false),
                     Is.True);
 
                 server = new NoListenerReferenceServer(NUnitTelemetryContext.Create());
@@ -346,13 +343,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
                 (requestHeader, secureChannelContext) = await server.CreateAndActivateSessionAsync(
                     TestContext.CurrentContext.Test.Name,
-                    useSecurity: false,
-                    identityToken: new UserNameIdentityToken
-                    {
-                        PolicyId = userNamePolicyId,
-                        UserName = "user1",
-                        Password = Encoding.UTF8.GetBytes("password").ToByteString()
-                    }).ConfigureAwait(false);
+                    useSecurity: false).ConfigureAwait(false);
                 sessionActive = true;
 
                 await using IPreparedNodeManagerBatch preparedAdd = await server.NodeManagerLifecycle
@@ -366,7 +357,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false);
                 Assert.That(added.CleanupFailure, Is.Null);
                 Assert.That(added.Registrations, Has.Count.EqualTo(1));
-                NodeManagerRegistration registration1 = added.Registrations.Single();
+                NodeManagerRegistration registration1 = added.Registrations[0];
                 retirements.Add(added.Retirement);
 
                 await AssertResourcesBindingAsync(
@@ -383,7 +374,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(firstCall.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(firstCall.OutputArguments.Count, Is.EqualTo(1));
                 Assert.That(firstCall.OutputArguments[0].TryGetValue(out ArrayOf<string> firstTickets), Is.True);
-                Assert.That(firstTickets.ToArray(), Is.EqualTo(new[] { "generation-1-ticket" }));
+                Assert.That(firstTickets.ToArray(), Is.EqualTo(s_generation1Tickets));
                 runtime1.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
 
@@ -401,7 +392,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false);
                 Assert.That(replaced.CleanupFailure, Is.Null);
                 Assert.That(replaced.Registrations, Has.Count.EqualTo(1));
-                NodeManagerRegistration replacementRegistration = replaced.Registrations.Single();
+                NodeManagerRegistration replacementRegistration = replaced.Registrations[0];
                 retirements.Add(replaced.Retirement);
                 await replaced.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -454,7 +445,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(
                     replacementCall.OutputArguments[0].TryGetValue(out ArrayOf<string> replacementTickets),
                     Is.True);
-                Assert.That(replacementTickets.ToArray(), Is.EqualTo(new[] { "generation-2-ticket" }));
+                Assert.That(replacementTickets.ToArray(), Is.EqualTo(s_generation2Tickets));
                 runtime1.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
                 runtime2.Verify(
@@ -490,9 +481,117 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(removedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(removedCall.OutputArguments, Is.Empty);
 
+                await using (IPreparedNodeManagerBatch abandonedFreshAdd = await server.NodeManagerLifecycle
+                    .PrepareAsync(
+                        [NodeManagerBatchChange.Add(
+                            new ProvisionableDeviceNodeManagerFactory(runtime3.Object))],
+                        cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    Assert.That(
+                        resourcesNode.ReferenceExists(
+                            Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)),
+                        Is.False);
+                    await AssertResourcesBindingAsync(
+                        server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                Assert.That(
+                    resourcesNode.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)),
+                    Is.False);
+                DataValue abandonedRead = await ReadSingletonAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(abandonedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                CallMethodResult abandonedCall = await RequestTicketsAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(abandonedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                runtime3.Verify(
+                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+                NodeManagerRegistration? freshRegistration = null;
+                try
+                {
+                    await using IPreparedNodeManagerBatch preparedFreshAdd = await server.NodeManagerLifecycle
+                        .PrepareAsync(
+                            [NodeManagerBatchChange.Add(
+                                new ProvisionableDeviceNodeManagerFactory(runtime3.Object))],
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    Assert.That(
+                        resourcesNode.ReferenceExists(
+                            Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)),
+                        Is.False);
+                    await AssertResourcesBindingAsync(
+                        server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
+                        .ConfigureAwait(false);
+                    NodeManagerBatchResult freshAdded = await preparedFreshAdd
+                        .CommitAsync(_ => default, cancellationToken)
+                        .ConfigureAwait(false);
+                    retirements.Add(freshAdded.Retirement);
+                    if (freshAdded.Registrations.Count == 1)
+                    {
+                        freshRegistration = freshAdded.Registrations[0];
+                    }
+                    Assert.That(freshAdded.CleanupFailure, Is.Null);
+                    Assert.That(freshAdded.Registrations, Has.Count.EqualTo(1));
+
+                    await AssertResourcesBindingAsync(
+                        server, requestHeader, secureChannelContext, expectedPresent: true, cancellationToken)
+                        .ConfigureAwait(false);
+                    DataValue freshRead = await ReadSingletonAsync(
+                        server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                    Assert.That(freshRead.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(freshRead.WrappedValue.TryGetValue(out bool freshSingleton), Is.True);
+                    Assert.That(freshSingleton, Is.True);
+
+                    CallMethodResult freshCall = await RequestTicketsAsync(
+                        server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                    Assert.That(freshCall.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(freshCall.OutputArguments.Count, Is.EqualTo(1));
+                    Assert.That(freshCall.OutputArguments[0].TryGetValue(out ArrayOf<string> freshTickets), Is.True);
+                    Assert.That(freshTickets.ToArray(), Is.EqualTo(s_generation3Tickets));
+                    runtime3.Verify(
+                        runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
+                }
+                finally
+                {
+                    if (freshRegistration is not null)
+                    {
+                        await using IPreparedNodeManagerBatch preparedFreshRemove = await server.NodeManagerLifecycle
+                            .PrepareAsync(
+                                [NodeManagerBatchChange.Remove(freshRegistration)],
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                        NodeManagerBatchResult freshRemoved = await preparedFreshRemove
+                            .CommitAsync(_ => default, cancellationToken)
+                            .ConfigureAwait(false);
+                        Assert.That(freshRemoved.CleanupFailure, Is.Null);
+                        retirements.Add(freshRemoved.Retirement);
+                        await freshRemoved.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                await AssertResourcesBindingAsync(
+                    server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(
+                    resourcesNode.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)),
+                    Is.False);
+                DataValue freshRemovedRead = await ReadSingletonAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(freshRemovedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                CallMethodResult freshRemovedCall = await RequestTicketsAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(freshRemovedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(freshRemovedCall.OutputArguments, Is.Empty);
+
                 runtime1.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
                 runtime2.Verify(
+                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
+                runtime3.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
             }
             finally
@@ -534,6 +633,267 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                             {
                                 Directory.Delete(pkiRoot, recursive: true);
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Preserves a fresh device's references and routing while an older same-identifier generation drains.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        [CancelAfter(60_000)]
+        // The pinned request intentionally outlives manager retirement and is awaited in cleanup before its session
+        // closes; the analyzer does not follow this task lifetime through the test's finally block.
+        // TODO: Extract the pinned-call scenario into a helper with an explicit async lifetime owner.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Reliability",
+            "CA2025:Ensure tasks using IDisposable instances complete before the instances are disposed",
+            Justification = "The pending call is awaited before CloseSessionAsync disposes its secure-channel context.")]
+        public async Task ConnectedSessionRemoveReaddPreservesResourcesAcrossPinnedRetirementAsync(
+            CancellationToken cancellationToken)
+        {
+            string pkiRoot = Path.Combine(
+                Path.GetTempPath(), "OpcUaResourcesPinnedRetirementTests", Guid.NewGuid().ToString("N"));
+            var fixture = new ServerFixture<NoListenerReferenceServer>(
+                telemetry => new NoListenerReferenceServer(telemetry))
+            {
+                AutoAccept = true,
+                SecurityNone = true
+            };
+            NoListenerReferenceServer? server = null;
+            RequestHeader? requestHeader = null;
+            SecureChannelContext? secureChannelContext = null;
+            Task<CallMethodResult>? pinnedCall = null;
+            var retirements = new List<Task>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<ArrayOf<string>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var oldRuntime = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
+            oldRuntime.SetupGet(runtime => runtime.IsSingleton).Returns(true);
+            oldRuntime.Setup(runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask<ArrayOf<string>>(release.Task.WaitAsync(token));
+                });
+            var freshRuntime = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
+            freshRuntime.SetupGet(runtime => runtime.IsSingleton).Returns(false);
+            freshRuntime.Setup(runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ArrayOf<string>)["fresh-generation-ticket"]);
+            var abandonedRuntime = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
+            abandonedRuntime.SetupGet(runtime => runtime.IsSingleton).Returns(true);
+
+            try
+            {
+                await fixture.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                Assert.That(
+                    await fixture.Application.CheckApplicationInstanceCertificatesAsync(
+                        true, ct: cancellationToken).ConfigureAwait(false),
+                    Is.True);
+                server = new NoListenerReferenceServer(NUnitTelemetryContext.Create());
+                await fixture.Application.StartAsync(server, cancellationToken).ConfigureAwait(false);
+                (requestHeader, secureChannelContext) = await server.CreateAndActivateSessionAsync(
+                    TestContext.CurrentContext.Test.Name,
+                    useSecurity: false).ConfigureAwait(false);
+
+                await using IPreparedNodeManagerBatch preparedOld = await server.NodeManagerLifecycle
+                    .PrepareAsync(
+                        [NodeManagerBatchChange.Add(new ProvisionableDeviceNodeManagerFactory(oldRuntime.Object))],
+                        cancellationToken).ConfigureAwait(false);
+                NodeManagerBatchResult oldAdded = await preparedOld.CommitAsync(_ => default, cancellationToken)
+                    .ConfigureAwait(false);
+                retirements.Add(oldAdded.Retirement);
+                Assert.That(oldAdded.CleanupFailure, Is.Null);
+                Assert.That(oldAdded.Registrations, Has.Count.EqualTo(1));
+                await AssertResourcesBindingAsync(
+                    server, requestHeader, secureChannelContext, expectedPresent: true, cancellationToken)
+                    .ConfigureAwait(false);
+
+                var pinnedHeader = new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken };
+                pinnedCall = RequestTicketsAsync(server, pinnedHeader, secureChannelContext, cancellationToken);
+                await entered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await using IPreparedNodeManagerBatch preparedRemove = await server.NodeManagerLifecycle
+                    .PrepareAsync(
+                        [NodeManagerBatchChange.Remove(oldAdded.Registrations[0])],
+                        cancellationToken).ConfigureAwait(false);
+                NodeManagerBatchResult removed = await preparedRemove.CommitAsync(_ => default, cancellationToken)
+                    .ConfigureAwait(false);
+                retirements.Add(removed.Retirement);
+                Assert.That(removed.CleanupFailure, Is.Null);
+                Assert.That(pinnedCall.IsCompleted, Is.False);
+                Assert.That(removed.Retirement.IsCompleted, Is.False);
+                NodeState resources = server.CurrentInstance.DiagnosticsNodeManager
+                    .FindPredefinedNode<NodeState>(Ua.ObjectIds.Resources) ??
+                    throw new AssertionException("The standard Resources node must remain available.");
+                Assert.That(resources.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
+                await AssertResourcesBindingAsync(
+                    server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
+                    .ConfigureAwait(false);
+
+                await using (IPreparedNodeManagerBatch abandoned = await server.NodeManagerLifecycle
+                    .PrepareAsync(
+                        [NodeManagerBatchChange.Add(new ProvisionableDeviceNodeManagerFactory(abandonedRuntime.Object))],
+                        cancellationToken).ConfigureAwait(false))
+                {
+                    Assert.That(pinnedCall.IsCompleted, Is.False);
+                    Assert.That(removed.Retirement.IsCompleted, Is.False);
+                    Assert.That(resources.ReferenceExists(
+                        Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
+                    await AssertResourcesBindingAsync(
+                        server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
+                        .ConfigureAwait(false);
+                    DataValue stagedRead = await ReadSingletonAsync(
+                        server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                    Assert.That(stagedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    CallMethodResult stagedCall = await RequestTicketsAsync(
+                        server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                    Assert.That(stagedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    Assert.That(stagedCall.OutputArguments, Is.Empty);
+                }
+                Assert.That(pinnedCall.IsCompleted, Is.False);
+                Assert.That(removed.Retirement.IsCompleted, Is.False);
+                Assert.That(resources.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
+                await AssertResourcesBindingAsync(
+                    server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
+                    .ConfigureAwait(false);
+                DataValue abandonedRead = await ReadSingletonAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(abandonedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                CallMethodResult abandonedCall = await RequestTicketsAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(abandonedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(abandonedCall.OutputArguments, Is.Empty);
+                abandonedRuntime.Verify(
+                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+                await using IPreparedNodeManagerBatch preparedFresh = await server.NodeManagerLifecycle
+                    .PrepareAsync(
+                        [NodeManagerBatchChange.Add(new ProvisionableDeviceNodeManagerFactory(freshRuntime.Object))],
+                        cancellationToken).ConfigureAwait(false);
+                Assert.That(resources.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
+                NodeManagerBatchResult freshAdded = await preparedFresh.CommitAsync(_ => default, cancellationToken)
+                    .ConfigureAwait(false);
+                retirements.Add(freshAdded.Retirement);
+                Assert.That(freshAdded.CleanupFailure, Is.Null);
+                Assert.That(freshAdded.Registrations, Has.Count.EqualTo(1));
+                Assert.That(pinnedCall.IsCompleted, Is.False);
+                Assert.That(removed.Retirement.IsCompleted, Is.False);
+                Assert.That(resources.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.True);
+                await AssertResourcesBindingAsync(
+                    server, requestHeader, secureChannelContext, expectedPresent: true, cancellationToken)
+                    .ConfigureAwait(false);
+                DataValue beforeRetirement = await ReadSingletonAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(beforeRetirement.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(beforeRetirement.WrappedValue.TryGetValue(out bool beforeSingleton), Is.True);
+                Assert.That(beforeSingleton, Is.False);
+                CallMethodResult beforeCall = await RequestTicketsAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(beforeCall.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(beforeCall.OutputArguments.Count, Is.EqualTo(1));
+                Assert.That(beforeCall.OutputArguments[0].TryGetValue(out ArrayOf<string> beforeTickets), Is.True);
+                Assert.That(beforeTickets.ToArray(), Is.EqualTo(s_freshGenerationTickets));
+
+                release.TrySetResult(["old-generation-ticket"]);
+                CallMethodResult oldCall = await pinnedCall.ConfigureAwait(false);
+                Assert.That(oldCall.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(oldCall.OutputArguments.Count, Is.EqualTo(1));
+                Assert.That(oldCall.OutputArguments[0].TryGetValue(out ArrayOf<string> oldTickets), Is.True);
+                Assert.That(oldTickets.ToArray(), Is.EqualTo(s_oldGenerationTickets));
+                await removed.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+                Assert.That(resources.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.True);
+                await AssertResourcesBindingAsync(
+                    server, requestHeader, secureChannelContext, expectedPresent: true, cancellationToken)
+                    .ConfigureAwait(false);
+                DataValue afterRetirement = await ReadSingletonAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(afterRetirement.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(afterRetirement.WrappedValue.TryGetValue(out bool afterSingleton), Is.True);
+                Assert.That(afterSingleton, Is.False);
+                CallMethodResult afterCall = await RequestTicketsAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(afterCall.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(afterCall.OutputArguments.Count, Is.EqualTo(1));
+                Assert.That(afterCall.OutputArguments[0].TryGetValue(out ArrayOf<string> afterTickets), Is.True);
+                Assert.That(afterTickets.ToArray(), Is.EqualTo(s_freshGenerationTickets));
+                oldRuntime.Verify(runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
+                freshRuntime.Verify(
+                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+                abandonedRuntime.Verify(
+                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+                await using IPreparedNodeManagerBatch preparedFinalRemove = await server.NodeManagerLifecycle
+                    .PrepareAsync(
+                        [NodeManagerBatchChange.Remove(freshAdded.Registrations[0])],
+                        cancellationToken).ConfigureAwait(false);
+                NodeManagerBatchResult finalRemoved = await preparedFinalRemove
+                    .CommitAsync(_ => default, cancellationToken).ConfigureAwait(false);
+                retirements.Add(finalRemoved.Retirement);
+                Assert.That(finalRemoved.CleanupFailure, Is.Null);
+                await finalRemoved.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+                Assert.That(resources.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
+                await AssertResourcesBindingAsync(
+                    server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(["old-generation-ticket"]);
+                try
+                {
+                    using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    try
+                    {
+                        if (pinnedCall is not null)
+                        {
+                            await pinnedCall.WaitAsync(cleanupTimeout.Token).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (server is not null && requestHeader is not null && secureChannelContext is not null)
+                            {
+                                requestHeader.Timestamp = DateTimeUtc.Now;
+                                await server.CloseSessionAsync(
+                                    secureChannelContext, requestHeader, true, RequestLifetime.None)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            foreach (Task retirement in retirements)
+                            {
+                                await retirement.WaitAsync(cleanupTimeout.Token).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (fixture.Application is not null)
+                        {
+                            await fixture.Application.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        if (Directory.Exists(pkiRoot))
+                        {
+                            Directory.Delete(pkiRoot, recursive: true);
                         }
                     }
                 }
@@ -674,8 +1034,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     [
                         new UserTokenPolicy
                         {
-                            PolicyId = "provisionable-device-user",
-                            TokenType = UserTokenType.UserName,
+                            PolicyId = "anonymous",
+                            TokenType = UserTokenType.Anonymous,
                             SecurityPolicyUri = SecurityPolicies.None
                         }
                     ]
@@ -715,5 +1075,23 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     string.Join(", ", matches.Select(reference => reference.NodeId)));
             return matches[0];
         }
+
+        /// <summary>The ticket returned by the signing identity provider.</summary>
+        private static readonly string[] s_signedTickets = ["signed-ticket"];
+
+        /// <summary>The ticket returned by the first runtime generation.</summary>
+        private static readonly string[] s_generation1Tickets = ["generation-1-ticket"];
+
+        /// <summary>The ticket returned by the replacement runtime generation.</summary>
+        private static readonly string[] s_generation2Tickets = ["generation-2-ticket"];
+
+        /// <summary>The ticket returned by the third runtime generation.</summary>
+        private static readonly string[] s_generation3Tickets = ["generation-3-ticket"];
+
+        /// <summary>The ticket returned by a newly registered runtime generation.</summary>
+        private static readonly string[] s_freshGenerationTickets = ["fresh-generation-ticket"];
+
+        /// <summary>The ticket returned by the retired runtime generation.</summary>
+        private static readonly string[] s_oldGenerationTickets = ["old-generation-ticket"];
     }
 }
