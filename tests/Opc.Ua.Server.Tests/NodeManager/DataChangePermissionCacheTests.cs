@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 get
                 {
-                    lock (m_statuses)
+                    lock (m_statusesLock)
                     {
                         return [.. m_statuses];
                     }
@@ -297,7 +297,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             private void OnQueued(in DataValue value, ServiceResult? error)
             {
-                lock (m_statuses)
+                lock (m_statusesLock)
                 {
                     m_statuses.Add(error != null && ServiceResult.IsBad(error) ? error.StatusCode : value.StatusCode);
                 }
@@ -312,6 +312,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private readonly MonitoredItemQueueFactory m_queues;
             private readonly Mock<IDataChangeMonitoredItem2> m_item = new();
             private readonly List<StatusCode> m_statuses = [];
+            private readonly Lock m_statusesLock = new();
             private readonly IUserIdentity m_identity;
             private readonly EndpointDescription m_endpoint;
 #pragma warning disable CA2213 // a modeled session has nothing to dispose
