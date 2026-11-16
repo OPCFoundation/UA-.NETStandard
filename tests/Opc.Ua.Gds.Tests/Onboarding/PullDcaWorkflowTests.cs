@@ -54,6 +54,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// An external DCA proceeds directly to managers and ordinary managed-application signing and installation.
         /// </summary>
+        /// <summary>
+        /// FinishRequest is rejected before dispatch when either channel certificate differs from StartRequest.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExternalHandoffSkipsTicketSelectionAndReusesManagedApplicationProvisioning(bool managed)
@@ -2092,8 +2095,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
-        [Test]
-        public async Task KeyPairFinishRejectsChangedRegistrarCertificateBeforeDispatch()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task KeyPairFinishRejectsChangedChannelCertificateBeforeDispatch(bool changeClientCertificate)
         {
             await using var fixture = new SessionRequestContextTestContext(
                 securityMode: MessageSecurityMode.SignAndEncrypt);
@@ -2129,7 +2133,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var adapter = new PullDcaConnection(fixture.ManagedSession, registrar, fixture.Telemetry, 1024);
             await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None).ConfigureAwait(false);
             int callsBeforeFinish = fixture.Requests.Count;
-            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(new byte[] { 23, 24, 25 });
+            if (changeClientCertificate)
+            {
+                fixture.Channel.SetupGet(channel => channel.ClientChannelCertificate)
+                    .Returns(new byte[] { 23, 24, 25 });
+            }
+            else
+            {
+                fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate)
+                    .Returns(new byte[] { 23, 24, 25 });
+            }
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await adapter.FinishNewKeyPairAsync(applicationId, requestId, CancellationToken.None)
@@ -2252,11 +2265,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 NodeId[] expectedMethods =
                 [
                     Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
-                        session.MessageContext),
-                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest, session.MessageContext),
+                        (ServiceMessageContext)session.MessageContext),
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest,
+                        (ServiceMessageContext)session.MessageContext),
                     Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
-                        session.MessageContext),
-                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest, session.MessageContext)
+                        (ServiceMessageContext)session.MessageContext),
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest,
+                        (ServiceMessageContext)session.MessageContext)
                 ];
                 Assert.That(requests.Select(request => request.MethodId), Is.EqualTo(expectedMethods));
             }
