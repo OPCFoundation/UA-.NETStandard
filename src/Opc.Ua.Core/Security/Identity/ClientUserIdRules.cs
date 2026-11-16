@@ -54,6 +54,7 @@ namespace Opc.Ua
         public static bool TryResolve(IUserIdentity identity, out string? clientUserId)
         {
             clientUserId = null;
+            identity = Unwrap(identity);
             if (identity.TokenHandler is IUserIdentityTokenHandler identityToken)
             {
                 try
@@ -80,6 +81,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the authenticated identity behind any decorations, such as Roles.
+        /// </summary>
+        public static IUserIdentity Unwrap(IUserIdentity identity)
+        {
+            while (identity is IDecoratedUserIdentity decorated && decorated.InnerIdentity != null)
+            {
+                identity = decorated.InnerIdentity;
+            }
+            return identity;
+        }
+
+        /// <summary>
         /// Joins an issued-token issuer and subject into the ClientUserId.
         /// </summary>
         public static string? Combine(string? issuer, string? subject)
@@ -93,8 +106,8 @@ namespace Opc.Ua
 
         /// <summary>
         /// Resolves the token type and the issuer and subject components that identify the
-        /// authenticated owner. A <c>null</c> subject denotes an anonymous identity. The
-        /// caller unwraps identities that decorate the authenticated one.
+        /// authenticated owner, looking through decorations such as Roles to the
+        /// authenticated identity. A <c>null</c> subject denotes an anonymous identity.
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="identityToken"/> or <paramref name="authenticatedIdentity"/> is <c>null</c>.
@@ -118,6 +131,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(authenticatedIdentity));
             }
 
+            authenticatedIdentity = Unwrap(authenticatedIdentity);
             issuer = null;
             switch (identityToken.Token)
             {

@@ -274,6 +274,47 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(variable.Value.GetString(), Is.EqualTo("abc"));
         }
 
+        [Test]
+        public void WriteSubstringIsValidatedAgainstValueAtCommit()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(s_trimmedStringTypeId, ValueRanks.Scalar);
+            variable.Value = "abc";
+
+            // another writer shortens the value first; the space at index 1 is now the last
+            // character of the merged value.
+            Assert.That(ServiceResult.IsGood(Write(context, variable, Variant.From("ab"))), Is.True);
+            ServiceResult result = Write(context, variable, Variant.From(" "), "1");
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(variable.Value.GetString(), Is.EqualTo("ab"));
+        }
+
+        [Test]
+        public void WriteSubstringToHandlerBackedValueIsNotSupported()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(s_trimmedStringTypeId, ValueRanks.Scalar);
+            bool handlerCalled = false;
+            variable.OnWriteValue = (
+                ISystemContext _,
+                NodeState _,
+                NumericRange _,
+                QualifiedName _,
+                ref Variant _,
+                ref StatusCode _,
+                ref DateTimeUtc _) =>
+            {
+                handlerCalled = true;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = Write(context, variable, Variant.From("x"), "1");
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
+            Assert.That(handlerCalled, Is.False);
+        }
+
         [TestCase("0")]
         [TestCase("2")]
         public async Task WriteAsyncSubstringAtBoundaryWithWhiteSpaceIsRejectedAsync(string indexRange)

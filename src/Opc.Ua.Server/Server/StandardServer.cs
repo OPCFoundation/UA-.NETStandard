@@ -4809,6 +4809,11 @@ namespace Opc.Ua.Server
                 {
                     await initialPublication.CompleteAsync().ConfigureAwait(false);
                 }
+                // later URI changes each raise UrisVersion, also while requests are halted.
+                if (m_serverInternal is { } startedServer)
+                {
+                    ServerUrisVersion.MarkStarted(startedServer);
+                }
                 // Application setup servers enter NoConfiguration (OPC 10000-12 G.2).
                 SetServerState(StartupServerState);
                 StartRegistrationAfterReadiness();

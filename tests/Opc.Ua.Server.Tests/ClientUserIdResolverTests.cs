@@ -436,6 +436,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void SystemContextWithoutOperationLooksThroughRoles()
+        {
+            (_, JwtUserIdentity identity) = CreateIssuedIdentity("https://issuer.example/", "subject");
+            var context = new SessionSystemContext(NUnitTelemetryContext.Create())
+            {
+                UserIdentity = new RoleBasedIdentity(identity, [Role.AuthenticatedUser], new NamespaceTable())
+            };
+
+            Assert.That(context.ClientUserId, Is.EqualTo("https://issuer.example/subject"));
+        }
+
+        [Test]
         public void SystemContextWithoutOperationUsesDisplayNameOnlyWithoutTokenOrClaims()
         {
             var identity = new Mock<IUserIdentity>();

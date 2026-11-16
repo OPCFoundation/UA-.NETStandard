@@ -133,6 +133,29 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ReadUrisVersion(), Is.EqualTo(after), "UrisVersion does not change without a table change.");
         }
 
+        [Test]
+        public void UrisVersionIsRaisedWhileServerIsSuspended()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            uint before = ReadUrisVersion();
+            server.UpdateServerStatus(status => status.Value.State = ServerState.Suspended);
+            try
+            {
+                Assert.That(server.IsRunning, Is.False);
+                server.NamespaceUris.Append(
+                    "urn:opcfoundation.org:Tests:UrisVersion:Suspended:" + Guid.NewGuid().ToString("N"));
+                ServerUrisVersion.Update(server);
+
+                Assert.That(GetUrisVersion().Value, Is.GreaterThan(before));
+            }
+            finally
+            {
+                server.UpdateServerStatus(status => status.Value.State = ServerState.Running);
+            }
+
+            Assert.That(ReadUrisVersion(), Is.GreaterThan(before));
+        }
+
         private PropertyState<uint> GetUrisVersion()
         {
             ServerObjectState serverObject = m_server.CurrentInstance.DiagnosticsNodeManager

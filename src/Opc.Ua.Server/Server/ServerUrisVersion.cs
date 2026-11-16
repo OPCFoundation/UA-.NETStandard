@@ -45,10 +45,12 @@ namespace Opc.Ua.Server
     /// appended a namespace or server URI.
     /// </para>
     /// <para>
-    /// Before the server accepts requests (<see cref="IServerInternal.IsRunning"/>) no Client can read the value,
-    /// so the changes made while it starts are folded into the start time instead of each
-    /// adding one: the startup burst of namespace registrations does not move the value
-    /// ahead of the clock. Once running, a change sets the larger of the previous value
+    /// Until the server has started (<see cref="MarkStarted"/>, or it was seen
+    /// <see cref="IServerInternal.IsRunning"/>) no Client can read the value, so the changes
+    /// made while it starts are folded into the start time instead of each adding one: the
+    /// startup burst of namespace registrations does not move the value ahead of the
+    /// clock. After that, including while requests are halted (Suspended, Test, Failed), a
+    /// change sets the larger of the previous value
     /// plus one and the current time. The value only runs ahead of the clock when more
     /// changes are made at runtime than seconds pass; a server restarted while it is ahead
     /// can then report an older value than the previous run until the clock catches up.
@@ -69,6 +71,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Records that the server finished starting, so later changes each raise the
+        /// UrisVersion, and reports a change made since the last update.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        public static void MarkStarted(IServerInternal server)
+        {
+            PropertyState<uint>? urisVersion = GetProperty(server);
+            if (urisVersion == null)
+            {
+                return;
+            }
+
+            Tracker tracker = s_trackers.GetValue(urisVersion, _ => new Tracker());
+            lock (tracker.Gate)
+            {
+                tracker.Started = true;
+            }
+            Update(server);
+        }
+
+        /// <summary>
         /// Raises the UrisVersion when a table changed since the last call. The change masks
         /// of the Property are updated but not cleared; the caller reports the change.
         /// </summary>
@@ -76,9 +99,7 @@ namespace Opc.Ua.Server
         /// <returns>The Property when its value was raised; otherwise <c>null</c>.</returns>
         public static PropertyState<uint>? Advance(IServerInternal server)
         {
-            ServerObjectState? serverObject =
-                server?.DiagnosticsNodeManager?.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
-            PropertyState<uint>? urisVersion = serverObject?.UrisVersion;
+            PropertyState<uint>? urisVersion = GetProperty(server);
             if (urisVersion == null)
             {
                 return null;
@@ -87,6 +108,11 @@ namespace Opc.Ua.Server
             Tracker tracker = s_trackers.GetValue(urisVersion, _ => new Tracker());
             lock (tracker.Gate)
             {
+                if (!tracker.Started && server!.IsRunning)
+                {
+                    tracker.Started = true;
+                }
+
                 // read inside the gate, a concurrent caller must not record older versions.
                 long namespaceVersion = server!.NamespaceUris.Version;
                 long serverVersion = server.ServerUris.Version;
@@ -103,14 +129,15 @@ namespace Opc.Ua.Server
                 uint previous = urisVersion.Value;
                 uint versionTime = ToVersionTime(utcNow);
                 uint value;
-                if (server.IsRunning)
+                if (tracker.Started)
                 {
                     uint next = previous == uint.MaxValue ? 1 : previous + 1;
                     value = Math.Max(next, versionTime);
                 }
                 else
                 {
-                    // not readable yet: fold startup changes into the start time.
+                    // not readable before the first start: fold startup changes into the
+                    // start time.
                     value = Math.Max(previous, versionTime);
                 }
 
@@ -127,6 +154,13 @@ namespace Opc.Ua.Server
                 urisVersion.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 return urisVersion;
             }
+        }
+
+        private static PropertyState<uint>? GetProperty(IServerInternal? server)
+        {
+            return server?.DiagnosticsNodeManager?
+                .FindPredefinedNode<ServerObjectState>(ObjectIds.Server)?
+                .UrisVersion;
         }
 
         /// <summary>
@@ -151,6 +185,7 @@ namespace Opc.Ua.Server
         {
             public readonly Lock Gate = new();
             public bool Initialized;
+            public bool Started;
             public long NamespaceVersion;
             public long ServerVersion;
         }

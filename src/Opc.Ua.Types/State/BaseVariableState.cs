@@ -1792,6 +1792,7 @@ namespace Opc.Ua
                 // apply the index range to the current value and commit it in one critical
                 // section, so concurrent writers of different ranges cannot lose each other's
                 // update (UpdateRange is pure and runs no callbacks).
+                bool validateMerged = IsTrimmedStringCharacterWrite(context, indexRange, value);
                 lock (m_attributeLock)
                 {
                     Variant target = m_value;
@@ -1800,6 +1801,14 @@ namespace Opc.Ua
                     if (ServiceResult.IsBad(result))
                     {
                         return result;
+                    }
+
+                    // validated against the value it is merged into, in the same critical
+                    // section that commits it.
+                    if (validateMerged &&
+                        HasUntrimmedTrimmedStringValue(context, m_dataType, target))
+                    {
+                        return CreateUntrimmedResult();
                     }
 
                     m_value = target;
@@ -1959,44 +1968,57 @@ namespace Opc.Ua
                     "The value is not a defined value of the Enumeration DataType.");
             }
 
-            // a slice that addresses characters inside a string element only changes part of
-            // it, so the element is checked after the slice is merged into the current value.
-            if (WritesWholeStringElements(indexRange, value)
-                    ? HasUntrimmedTrimmedStringValue(context, dataType, value)
-                    : HasUntrimmedMergedValue(context, dataType, indexRange, value))
+            if (WritesWholeStringElements(indexRange, value))
             {
+                if (HasUntrimmedTrimmedStringValue(context, dataType, value))
+                {
+                    return CreateUntrimmedResult();
+                }
+            }
+            else if (IsTrimmedStringCharacterWrite(context, indexRange, value) &&
+                (OnWriteValue != null || OnWriteValueAsync != null))
+            {
+                // a slice that addresses characters inside a string element only changes
+                // part of it; a handler owns the value the slice is merged into, so the result
+                // cannot be validated here (Part 4 5.11.4.4: Bad_WriteNotSupported "is also
+                // used if writing of IndexRanges is not supported for a Node"). Without a
+                // handler, the merged value is validated where it is committed.
                 return ServiceResult.Create(
-                    StatusCodes.BadTypeMismatch,
-                    "A TrimmedString value must not have leading or trailing white space.");
+                    StatusCodes.BadWriteNotSupported,
+                    "Character IndexRange writes to a TrimmedString value with a write handler are not supported.");
             }
 
             return null;
         }
 
         /// <summary>
-        /// Returns <c>true</c> if merging a character slice into the current value leaves a
-        /// TrimmedString element with leading or trailing white space. A slice the current
-        /// value cannot take is left to the write itself to reject.
+        /// Returns <c>true</c> if a String slice addresses characters inside the elements of a
+        /// TrimmedString Variable (or subtype), so only the merged value can be trim-validated.
         /// </summary>
-        private bool HasUntrimmedMergedValue(
+        private bool IsTrimmedStringCharacterWrite(
             ISystemContext context,
-            NodeId dataType,
             NumericRange indexRange,
             in Variant value)
         {
-            if (value.TypeInfo.BuiltInType != BuiltInType.String || value.IsNull)
+            if (indexRange.IsNull ||
+                value.TypeInfo.BuiltInType != BuiltInType.String ||
+                WritesWholeStringElements(indexRange, value))
             {
                 return false;
             }
 
-            Variant merged;
-            lock (m_attributeLock)
-            {
-                merged = m_value;
-            }
+            NodeId dataType = m_dataType;
+            return dataType == TrimmedStringDataTypeId ||
+                (!dataType.IsNull &&
+                    context.TypeTable != null &&
+                    context.TypeTable.IsTypeOf(dataType, TrimmedStringDataTypeId));
+        }
 
-            return !StatusCode.IsBad(indexRange.UpdateRange(ref merged, value)) &&
-                HasUntrimmedTrimmedStringValue(context, dataType, merged);
+        private static ServiceResult CreateUntrimmedResult()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadTypeMismatch,
+                "A TrimmedString value must not have leading or trailing white space.");
         }
 
         /// <summary>

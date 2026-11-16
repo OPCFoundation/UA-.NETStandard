@@ -297,11 +297,6 @@ namespace Opc.Ua.Server
             out string? issuer,
             out string? subject)
         {
-            while (authenticatedIdentity is RoleBasedIdentity roleBasedIdentity)
-            {
-                authenticatedIdentity = roleBasedIdentity.InnerIdentity;
-            }
-
             ClientUserIdRules.ResolveParts(
                 identityToken,
                 authenticatedIdentity,
