@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -665,7 +666,11 @@ namespace Opc.Ua.Pumps.Tests
                 UriScheme = Utils.UriSchemeOpcTcp
             };
             string pki = Path.Combine(
-                Path.GetTempPath(), "pump-history", Guid.NewGuid().ToString("N"));
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                    ? Path.GetTempPath()
+                    : TestContext.CurrentContext.WorkDirectory,
+                "pump-history",
+                Guid.NewGuid().ToString("N"));
             FileSystemAssetConfigurationStore? identity = null;
             bool shutdownCompleted = false;
             ExceptionDispatchInfo? shutdownFailure = null;

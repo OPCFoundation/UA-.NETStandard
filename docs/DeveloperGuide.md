@@ -267,6 +267,14 @@ Every listed fixture except `NodeManagerLifecycleTests` runs without starting a
 server. The conflict and cleanup fixtures use the real lifecycle and master
 routing publisher over constructed server internals. Use `NodeManagerLifecycleTests`
 when the behavior needs hosted requests, runtime consumers or server startup.
+
+The macOS and net48 CI profiles keep this hosted fixture nonparallel and split
+its methods into disjoint workloads: `Prepared*` first, remaining names starting
+with `A` through `N`, then all remaining names. The matrix generator owns these
+filters; update `CiMatrixScriptTests` and verify the discovered case multiset
+when changing them. Sharding does not relax the per-project timeout or remove
+cases from coverage collection.
+
 To run the component selection:
 
 ```powershell
