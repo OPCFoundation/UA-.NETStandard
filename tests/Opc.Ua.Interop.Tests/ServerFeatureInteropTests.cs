@@ -126,10 +126,11 @@ namespace Opc.Ua.Interop.Tests
                 CallMethodResult result = await CallAsync(new NodeId("Interop", m_ns), new NodeId("RaiseEvent", m_ns), ct)
                     .ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, "RaiseEvent returned " + result.StatusCode);
-                EventFieldList received = await WaitForAsync(events,
+                EventFieldList? found = await WaitForAsync(events,
                     e => e.EventFields[2].TryGetValue(out LocalizedText message) && message.Text == "interop event", ct)
                     .ConfigureAwait(false);
-                Assert.That(received, Is.Not.Null, $"no event in {s_wait.TotalSeconds} s; received {events.Count}");
+                Assert.That(found, Is.Not.Null, $"no event in {s_wait.TotalSeconds} s; received {events.Count}");
+                EventFieldList received = found!.Value;
                 Assert.That(received.EventFields[0].TryGetValue(out ByteString id) && !id.IsEmpty, Is.True, "no EventId");
                 Assert.That(received.EventFields[3].TryGetValue(out ushort severity), Is.True, "no Severity");
                 Assert.That(severity, Is.EqualTo(500));
@@ -155,7 +156,7 @@ namespace Opc.Ua.Interop.Tests
                 CallMethodResult result = await CallAsync(ObjectTypeIds.ConditionType,
                     MethodIds.ConditionType_ConditionRefresh, ct, new Variant(subscription.Id)).ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, "ConditionRefresh returned " + result.StatusCode);
-                EventFieldList end = await WaitForAsync(events,
+                EventFieldList? end = await WaitForAsync(events,
                     e => e.EventFields[1].TryGetValue(out NodeId type) && type == ObjectTypeIds.RefreshEndEventType, ct)
                     .ConfigureAwait(false);
                 Assert.That(end, Is.Not.Null, "no RefreshEndEvent");
@@ -649,7 +650,7 @@ namespace Opc.Ua.Interop.Tests
             }
         }
 
-        private static async Task<EventFieldList> WaitForAsync(
+        private static async Task<EventFieldList?> WaitForAsync(
             List<EventFieldList> events,
             Func<EventFieldList, bool> match,
             CancellationToken ct)
@@ -659,15 +660,17 @@ namespace Opc.Ua.Interop.Tests
             {
                 lock (events)
                 {
-                    EventFieldList found = events.FirstOrDefault(match)!;
-                    if (found != null)
+                    foreach (EventFieldList found in events)
                     {
-                        return found;
+                        if (match(found))
+                        {
+                            return found;
+                        }
                     }
                 }
                 await Task.Delay(100, ct).ConfigureAwait(false);
             }
-            return null!;
+            return null;
         }
 
         private async Task DeleteAsync(Subscription subscription, CancellationToken ct)

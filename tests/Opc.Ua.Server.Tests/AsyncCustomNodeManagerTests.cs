@@ -11799,7 +11799,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Reports that the stub has no publishable event notifications.
         /// </summary>
-        public bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
+        public bool Publish(OperationContext context, Queue<QueuedEvent> notifications, uint maxNotificationsPerPublish)
         {
             return false;
         }

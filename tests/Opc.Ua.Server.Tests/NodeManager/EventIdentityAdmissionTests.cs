@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -198,23 +199,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var fixture = new IdentityFixture(1);
             EnableAdmission(fixture);
             using MonitoredItem item = fixture.CreateItem();
-            QueueNativeOccurrence(fixture, item);
-            var published = new Queue<EventFieldList>();
-            using var context = NewContext();
-            item.Publish(context, published, 8);
-            Assert.That(published, Has.Count.EqualTo(1));
-            SentMessageQueue sent = NewQueue(fixture, 4);
-            NotificationMessage message = NewMessage(sent, published);
-            _ = sent.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
+            SentMessageQueue sent = NewQueue(4);
+            NotificationMessage message = PublishNativeOccurrenceMessage(fixture, item, sent, out RentedNotificationArrays rented);
+            _ = sent.Enqueue([message], [], out _, out _, out NotificationMessageLease lease, [rented]);
 
             Assert.That(sent.TryAcknowledge(message.SequenceNumber), Is.True);
             AssertIdentityHeld(fixture);
+
+            var events = (EventNotificationList)message.NotificationData[0].Body!;
+            Assert.That(events.Events.Count, Is.EqualTo(1));
+            Assert.That(events.Events[0].EventFields[0].TryGetValue(out ByteString id), Is.True);
+            Assert.That(id, Is.EqualTo(s_id));
 
             lease.Release();
             CollectUnownedTargets();
             Assert.DoesNotThrow(() => fixture.Manager.AdmitEvent(fixture.Context, Event(s_otherId)));
             Assert.That(fixture.Manager.EventIdentityAdmissionStatus, Is.EqualTo(StatusCodes.Good));
-            GC.KeepAlive(published);
         }
 
         /// <summary>
@@ -361,12 +361,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Variant[] values = [s_id];
 
             object? shared = fixture.Manager.CreateSharedEventFieldsStamp(snapshot, values);
-            var first = new EventFieldList { Handle = snapshot, EventFields = values };
-            var second = new EventFieldList { Handle = snapshot, EventFields = values };
-            var copy = new EventFieldList { Handle = snapshot, EventFields = [s_id] };
-            fixture.Manager.RegisterEventFields(first, snapshot, shared);
-            fixture.Manager.RegisterEventFields(second, snapshot, shared);
-            fixture.Manager.RegisterEventFields(copy, snapshot, shared);
+            QueuedEvent first = Register(fixture, snapshot, values, shared);
+            QueuedEvent second = Register(fixture, snapshot, values, shared);
+            QueuedEvent copy = Register(fixture, snapshot, [s_id], shared);
 
             Assert.That(shared, Is.Not.Null);
             Assert.That(first.AdmissionStamp, Is.SameAs(shared));
@@ -374,8 +371,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(copy.AdmissionStamp, Is.Not.Null.And.Not.SameAs(shared));
             Assert.DoesNotThrow(() => fixture.Manager.AdmitEventFields(first));
             Assert.DoesNotThrow(() => fixture.Manager.AdmitEventFields(copy));
-            second.EventFields = [s_otherId];
-            AssertStatus(() => fixture.Manager.AdmitEventFields(second), StatusCodes.BadSecurityChecksFailed);
+            QueuedEvent changed = WithChangedFields(second, [s_otherId]);
+            AssertStatus(() => fixture.Manager.AdmitEventFields(changed), StatusCodes.BadSecurityChecksFailed);
             GC.KeepAlive(native);
         }
 
@@ -393,8 +390,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Variant[] values = [s_id];
 
             object? shared = fixture.Manager.CreateSharedEventFieldsStamp(native, values);
-            var fields = new EventFieldList { Handle = native, EventFields = values };
-            fixture.Manager.RegisterEventFields(fields, native, shared);
+            QueuedEvent fields = Register(fixture, native, values, shared);
 
             Assert.That(shared, Is.Null);
             Assert.That(fields.AdmissionStamp, Is.Not.Null);
@@ -448,7 +444,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var fixture = new IdentityFixture();
             using MonitoredItem item = fixture.CreateItem();
             item.QueueEvent(new EventFieldList { EventFields = [s_id] });
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             using var context = NewContext();
             item.Publish(context, notifications, 8);
 
@@ -471,7 +467,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             reservation.Attach(fixture.Context, state);
             using MonitoredItem item = fixture.CreateItem();
 
-            AssertStatus(() => item.QueueEvent(new EventFieldList { Handle = state, EventFields = [s_otherId] }),
+            AssertStatus(() => item.QueueEvent(new QueuedEvent(new EventFieldList { EventFields = [s_otherId] }, state)),
                 StatusCodes.BadNotSupported);
         }
 
@@ -485,12 +481,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             EnableAdmission(fixture);
             using MonitoredItem item = fixture.CreateItem();
             item.QueueEvent(Event(s_id));
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             using var context = NewContext();
             item.Publish(context, notifications, 8);
             Assert.That(notifications, Has.Count.EqualTo(1));
-            EventFieldList fields = notifications.Dequeue();
-            fields.EventFields = [s_otherId];
+            QueuedEvent fields = WithChangedFields(notifications.Dequeue(), [s_otherId]);
 
             AssertStatus(() => item.QueueEvent(fields), StatusCodes.BadSecurityChecksFailed);
         }
@@ -512,7 +507,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseEventState unowned = Event(s_id);
             await EventManager.ReportEventAsync(unowned, nodeManager.Object, [item]).ConfigureAwait(false);
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             using var context = NewContext();
             item.Publish(context, notifications, 8);
             Assert.That(notifications, Is.Empty, "A rejected receiver must not queue an unowned occurrence.");
@@ -566,7 +561,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             CollectUnownedTargets();
 
             item.QueueEvent(Event(s_otherId));
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             using var context = NewContext();
             item.Publish(context, notifications, 8);
             Assert.That(notifications, Has.Count.EqualTo(1));
@@ -582,17 +577,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var fixture = new IdentityFixture(1);
             using MonitoredItem item = fixture.CreateItem();
-            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
-            SentMessageQueue sent = NewQueue(fixture, 4);
-            NotificationMessage message = NewMessage(sent, published);
+            SentMessageQueue sent = NewQueue(4);
+            NotificationMessage message = PublishOccurrenceMessage(fixture, item, sent, out RentedNotificationArrays rented);
 
-            _ = sent.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
+            _ = sent.Enqueue([message], [], out _, out _, out NotificationMessageLease lease, [rented]);
             Assert.That(sent.TryAcknowledge(message.SequenceNumber), Is.True);
             AssertIdentityHeld(fixture);
 
             lease.Release();
             AssertIdentityReleased(fixture);
-            GC.KeepAlive(published);
         }
 
         /// <summary>
@@ -603,17 +596,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var fixture = new IdentityFixture(1);
             using MonitoredItem item = fixture.CreateItem();
-            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
-            SentMessageQueue sent = NewQueue(fixture, 1);
-            NotificationMessage dropped = NewMessage(sent, published);
+            SentMessageQueue sent = NewQueue(1);
+            NotificationMessage dropped = PublishOccurrenceMessage(fixture, item, sent, out RentedNotificationArrays rented);
             NotificationMessage kept = NewMessage(sent, null);
 
-            _ = sent.Enqueue([dropped, kept], [], out _, out uint discarded, out NotificationMessageLease lease);
+            _ = sent.Enqueue([dropped, kept], [], out _, out uint discarded, out NotificationMessageLease lease, [rented, default]);
 
             Assert.That(discarded, Is.EqualTo(1u));
             AssertIdentityReleased(fixture);
             lease.Release();
-            GC.KeepAlive(published);
         }
 
         /// <summary>
@@ -624,9 +615,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var fixture = new IdentityFixture(1);
             using MonitoredItem item = fixture.CreateItem();
-            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
-            SentMessageQueue sent = NewQueue(fixture, 1);
-            _ = sent.Enqueue([NewMessage(sent, published)], [], out _, out _, out NotificationMessageLease first);
+            SentMessageQueue sent = NewQueue(1);
+            NotificationMessage message = PublishOccurrenceMessage(fixture, item, sent, out RentedNotificationArrays rented);
+            _ = sent.Enqueue([message], [], out _, out _, out NotificationMessageLease first, [rented]);
             AssertIdentityHeld(fixture);
 
             _ = sent.Enqueue([NewMessage(sent, null)], [], out _, out _, out NotificationMessageLease second);
@@ -635,7 +626,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             first.Release();
             AssertIdentityReleased(fixture);
             second.Release();
-            GC.KeepAlive(published);
         }
 
         /// <summary>
@@ -646,14 +636,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var fixture = new IdentityFixture(1);
             using MonitoredItem item = fixture.CreateItem();
-            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
+            Queue<QueuedEvent> published = PublishOccurrence(fixture, item);
             SentMessageQueue restored = SentMessageQueue.CreateRestored(
                 () => 1, 4, null,
                 fixture.Context.Telemetry.CreateLogger<EventIdentityAdmissionTests>(),
-                [NewMessage(NewQueue(fixture, 4), published)],
+                [NewMessage(NewQueue(4), published)],
                 nextSequenceNumber: 10,
-                lastSentMessage: 1,
-                fixture.Manager);
+                lastSentMessage: 1);
 
             Assert.That(restored.TryAcknowledge(1), Is.True);
             restored.Clear();
@@ -670,8 +659,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var fixture = new IdentityFixture(1);
             using MonitoredItem item = fixture.CreateItem();
-            Queue<EventFieldList> published = PublishOccurrence(fixture, item);
-            SentMessageQueue sent = NewQueue(fixture, 1);
+            Queue<QueuedEvent> published = PublishOccurrence(fixture, item);
+            SentMessageQueue sent = NewQueue(1);
 
             Assert.DoesNotThrow(() =>
             {
@@ -831,7 +820,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void PublishAndKeepIdentity(IdentityFixture fixture, MonitoredItem item)
         {
-            var published = new Queue<EventFieldList>();
+            var published = new Queue<QueuedEvent>();
             using var context = NewContext();
             item.Publish(context, published, 8);
             Assert.That(published, Has.Count.EqualTo(1));
@@ -851,24 +840,102 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static Queue<EventFieldList> PublishOccurrence(IdentityFixture fixture, MonitoredItem item)
+        private static Queue<QueuedEvent> PublishOccurrence(IdentityFixture fixture, MonitoredItem item)
         {
             EnqueueProjectedOccurrence(fixture, item);
-            var published = new Queue<EventFieldList>();
+            var published = new Queue<QueuedEvent>();
             using var context = NewContext();
             item.Publish(context, published, 8);
             Assert.That(published, Has.Count.EqualTo(1));
             return published;
         }
 
-        private static SentMessageQueue NewQueue(IdentityFixture fixture, uint capacity)
+        private static SentMessageQueue NewQueue(uint capacity)
         {
             return new SentMessageQueue(
                 () => 1, capacity, null,
-                fixture.Context.Telemetry.CreateLogger<EventIdentityAdmissionTests>(), fixture.Manager);
+                NUnitTelemetryContext.Create().CreateLogger<EventIdentityAdmissionTests>());
         }
 
-        private static NotificationMessage NewMessage(SentMessageQueue queue, Queue<EventFieldList>? published)
+        private static QueuedEvent Register(
+            IdentityFixture fixture,
+            IFilterTarget occurrence,
+            ArrayOf<Variant> values,
+            object? sharedStamp)
+        {
+            object? stamp = fixture.Manager.RegisterEventFields(values, occurrence, sharedStamp);
+            return new QueuedEvent(new EventFieldList { EventFields = values }, occurrence, stamp);
+        }
+
+        /// <summary>
+        /// Returns the queued event with other field values but the stamp of the original ones.
+        /// </summary>
+        private static QueuedEvent WithChangedFields(QueuedEvent queued, ArrayOf<Variant> values)
+        {
+            return new QueuedEvent(
+                new EventFieldList { ClientHandle = queued.ClientHandle, EventFields = values },
+                queued.Handle,
+                queued.AdmissionStamp);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static NotificationMessage PublishNativeOccurrenceMessage(
+            IdentityFixture fixture,
+            MonitoredItem item,
+            SentMessageQueue queue,
+            out RentedNotificationArrays rented)
+        {
+            QueueNativeOccurrence(fixture, item);
+            var published = new Queue<QueuedEvent>();
+            using var context = NewContext();
+            item.Publish(context, published, 8);
+            Assert.That(published, Has.Count.EqualTo(1));
+            return NewLeasedMessage(queue, published, out rented);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static NotificationMessage PublishOccurrenceMessage(
+            IdentityFixture fixture,
+            MonitoredItem item,
+            SentMessageQueue queue,
+            out RentedNotificationArrays rented)
+        {
+            return NewLeasedMessage(queue, PublishOccurrence(fixture, item), out rented);
+        }
+
+        /// <summary>
+        /// Moves the published events into rented arrays as Subscription.ConstructMessage does,
+        /// so only the message keeps their admission stamps.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static NotificationMessage NewLeasedMessage(
+            SentMessageQueue queue,
+            Queue<QueuedEvent> published,
+            out RentedNotificationArrays rented)
+        {
+            int count = published.Count;
+            EventFieldList[] events = System.Buffers.ArrayPool<EventFieldList>.Shared.Rent(count);
+            object?[] stamps = System.Buffers.ArrayPool<object?>.Shared.Rent(count);
+            for (int ii = 0; ii < count; ii++)
+            {
+                QueuedEvent queued = published.Dequeue();
+                events[ii] = queued.Fields;
+                stamps[ii] = queued.AdmissionStamp;
+            }
+            var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
+            message.SequenceNumber = queue.AssignSequenceNumber();
+            message.NotificationData =
+            [
+                new ExtensionObject(new EventNotificationList
+                {
+                    Events = new ArrayOf<EventFieldList>(events.AsMemory(0, count))
+                })
+            ];
+            rented = new RentedNotificationArrays(null, events, stamps);
+            return message;
+        }
+
+        private static NotificationMessage NewMessage(SentMessageQueue queue, Queue<QueuedEvent>? published)
         {
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = queue.AssignSequenceNumber();
@@ -877,7 +944,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 message.NotificationData = [];
                 return message;
             }
-            var events = new EventNotificationList { Events = published.ToArrayOf() };
+            var events = new EventNotificationList { Events = published.Select(e => e.Fields).ToArrayOf() };
             message.NotificationData = [new ExtensionObject(events)];
             return message;
         }
@@ -899,18 +966,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static void DrainSentMessage(IdentityFixture fixture, MonitoredItem item, bool acknowledge)
         {
             EnqueueProjectedOccurrence(fixture, item);
-            var published = new Queue<EventFieldList>();
+            var published = new Queue<QueuedEvent>();
             using var context = NewContext();
             item.Publish(context, published, 8);
             Assert.That(published, Has.Count.EqualTo(1));
             var sent = new SentMessageQueue(
                 () => 1, 1, null,
-                fixture.Context.Telemetry.CreateLogger<EventIdentityAdmissionTests>(), fixture.Manager);
-            var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
-            message.SequenceNumber = sent.AssignSequenceNumber();
-            var events = new EventNotificationList { Events = published.ToArrayOf() };
-            message.NotificationData = [new ExtensionObject(events)];
-            _ = sent.Enqueue([message], [], out _, out _);
+                fixture.Context.Telemetry.CreateLogger<EventIdentityAdmissionTests>());
+            NotificationMessage message = NewLeasedMessage(sent, published, out RentedNotificationArrays rented);
+            _ = sent.Enqueue([message], [], out _, out _, out NotificationMessageLease lease, [rented]);
+            lease.Release();
             CollectUnownedTargets();
             AssertStatus(() => fixture.Manager.ReserveEventIdentity(s_id, new Origin()).Dispose(),
                 StatusCodes.BadSecurityChecksFailed);

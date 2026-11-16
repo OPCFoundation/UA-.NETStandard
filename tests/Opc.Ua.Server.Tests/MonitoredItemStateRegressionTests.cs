@@ -476,7 +476,7 @@ namespace Opc.Ua.Server.Tests
             };
             ModifyEventItem(item, modified, clientHandle: 9);
 
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
 
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].ClientHandle, Is.EqualTo(9u));
@@ -504,7 +504,7 @@ namespace Opc.Ua.Server.Tests
 
             ModifyEventItem(item, filter, clientHandle: 11);
 
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].ClientHandle, Is.EqualTo(11u));
             Assert.That(published[0].EventFields.ToArray(), Is.EqualTo(new[] { Variant.From("A") }));
@@ -543,7 +543,7 @@ namespace Opc.Ua.Server.Tests
             };
             ModifyEventItem(item, modified, clientHandle: 7);
 
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].ClientHandle, Is.EqualTo(7u));
             Assert.That(
@@ -578,7 +578,7 @@ namespace Opc.Ua.Server.Tests
             };
             ModifyEventItem(item, modified, clientHandle: 5);
 
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].Handle, Is.AssignableTo<EventQueueOverflowEventState>());
             Assert.That(published[0].EventFields.Count, Is.EqualTo(2));
@@ -610,7 +610,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(item.ClientHandle, Is.EqualTo(9u));
             Assert.That(item.Filter, Is.SameAs(modified));
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].Handle, Is.AssignableTo<EventQueueOverflowEventState>());
             Assert.That(published[0].ClientHandle, Is.EqualTo(9u));
@@ -658,7 +658,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.That(failedValidations, Is.EqualTo(1));
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(5));
             Assert.That(
                 published[4].EventFields.ToArray(),
@@ -750,9 +750,9 @@ namespace Opc.Ua.Server.Tests
             return [.. notifications];
         }
 
-        private static List<EventFieldList> PublishEvents(MonitoredItem item)
+        private static List<QueuedEvent> PublishEvents(MonitoredItem item)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = item.Publish(new OperationContext(item), notifications, 100);
             return [.. notifications];
         }

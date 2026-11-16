@@ -93,6 +93,96 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(Build(shape, 1, 1).GetHashCode(), Is.Not.EqualTo(Build(shape, 1, 2).GetHashCode()));
         }
 
+        /// <summary>
+        /// A value nested as deep as the decoders accept is copied and
+        /// compared on a thread with a 1 MB stack. Copying recursed through
+        /// frames of several KB per level: a server cloning a written value
+        /// for a monitored item overflowed the stack (which ends the process)
+        /// at about 100 levels, and equality reported such a value unequal
+        /// to an identical one.
+        /// </summary>
+        [TestCase(Shape.VariantArray)]
+        [TestCase(Shape.DataValue)]
+        public void ValuesNestedToTheDecoderLimitAreCopiedAndCompared(Shape shape)
+        {
+            int depth = DefaultEncodingLimits.MaxEncodingNestingLevels;
+            Variant value = Build(shape, depth);
+
+            (Variant copy, bool equal, bool equalToCopy) = RunOnThread(() =>
+            {
+                Variant c = CoreUtils.Clone(value);
+                return (c, value.Equals(Build(shape, depth)), value.Equals(c));
+            });
+
+            Assert.That(equal, Is.True);
+            Assert.That(equalToCopy, Is.True);
+            Assert.That(copy.TypeInfo, Is.EqualTo(value.TypeInfo));
+        }
+
+        /// <summary>
+        /// Copying a value nested deeper than the stack allows fails with a
+        /// service result instead of overflowing the stack.
+        /// </summary>
+        [TestCase(Shape.VariantArray)]
+        [TestCase(Shape.DataValue)]
+        public void NestedValuesAreNotCopiedBeyondTheAvailableStack(Shape shape)
+        {
+            Variant value = Build(shape, 3);
+
+            StatusCode status = RunAtStackLimit(() =>
+            {
+                try
+                {
+                    value.Copy();
+                    return StatusCodes.Good;
+                }
+                catch (ServiceResultException sre)
+                {
+                    return sre.StatusCode;
+                }
+            });
+            Assert.That(status, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+
+            // scalars and arrays of scalars do not nest and are copied as usual.
+            var array = new Variant(s_oneTwo);
+            Assert.That(RunAtStackLimit(() => array.Copy()), Is.EqualTo(array));
+
+            if (shape != Shape.VariantArray)
+            {
+                // a data value is a struct the copy shares, it does not recurse.
+                return;
+            }
+
+            // a value far deeper than the stack fails the copy the same way.
+            Variant deep = Build(shape, 20_000);
+            StatusCode deepStatus = RunOnThread(() =>
+            {
+                try
+                {
+                    deep.Copy();
+                    return StatusCodes.Good;
+                }
+                catch (ServiceResultException sre)
+                {
+                    return sre.StatusCode;
+                }
+            });
+            Assert.That(deepStatus, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Formatting a value nested deeper than the stack allows elides the
+        /// innermost levels instead of overflowing the stack.
+        /// </summary>
+        [TestCase(Shape.VariantArray)]
+        [TestCase(Shape.DataValue)]
+        public void NestedValuesAreNotFormattedBeyondTheAvailableStack(Shape shape)
+        {
+            Variant deep = Build(shape, 20_000);
+            string text = RunOnThread(() => deep.ToString());
+            Assert.That(text, Does.Contain("..."));
+        }
+
         private static Variant Build(Shape shape, int depth, int innermost = 1)
         {
             var value = new Variant(innermost);
@@ -119,6 +209,33 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     try
                     {
                         result = Recurse(action, 0);
+                    }
+                    catch (Exception e)
+                    {
+                        error = e;
+                    }
+                },
+                1024 * 1024);
+            thread.Start();
+            thread.Join();
+            Assert.That(error, Is.Null, error?.ToString());
+            return result;
+        }
+
+        /// <summary>
+        /// Runs <paramref name="action"/> on a new thread with a 1 MB stack,
+        /// the smallest default stack of a thread pool thread.
+        /// </summary>
+        private static T RunOnThread<T>(Func<T> action)
+        {
+            T result = default!;
+            Exception? error = null;
+            var thread = new Thread(
+                () =>
+                {
+                    try
+                    {
+                        result = action();
                     }
                     catch (Exception e)
                     {

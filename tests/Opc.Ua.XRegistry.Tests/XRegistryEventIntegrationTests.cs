@@ -109,23 +109,23 @@ namespace Opc.Ua.XRegistry.Tests
                     Assert.Multiple(() =>
                     {
                         Assert.That(
-                            Field(evt!, filter, BrowseNames.SourceUrl).TryGetValue(out string sourceUrl)
+                            Field(evt.Value, filter, BrowseNames.SourceUrl).TryGetValue(out string sourceUrl)
                                 ? sourceUrl
                                 : string.Empty,
                             Is.EqualTo(options.EventSourceUrl));
                         Assert.That(
-                            Field(evt!, filter, BrowseNames.Subject).TryGetValue(out string subject)
+                            Field(evt.Value, filter, BrowseNames.Subject).TryGetValue(out string subject)
                                 ? subject
                                 : string.Empty,
                             Is.EqualTo("/groups/schemas"));
                         Assert.That(
-                            Field(evt!, filter, BrowseNames.Epoch).TryGetValue(out uint epoch)
+                            Field(evt.Value, filter, BrowseNames.Epoch).TryGetValue(out uint epoch)
                                 ? epoch
                                 : 0u,
                             Is.EqualTo(1u));
                         Assert.That(
                             Field(
-                                evt!,
+                                evt.Value,
                                 filter,
                                 Ua.BrowseNames.SourceNode)
                                 .TryGetValue(out NodeId sourceNode)

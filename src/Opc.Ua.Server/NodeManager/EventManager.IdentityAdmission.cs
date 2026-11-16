@@ -241,13 +241,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Verifies that queued event fields originate from an admitted occurrence.
         /// </summary>
-        /// <param name="fields">The event field list.</param>
-        internal void AdmitEventFields(EventFieldList fields)
+        /// <param name="fields">The queued event.</param>
+        internal void AdmitEventFields(in QueuedEvent fields)
         {
-            if (fields is null)
-            {
-                throw new ArgumentNullException(nameof(fields));
-            }
             ThrowIfIdentityDisposed();
             if (fields.AdmissionStamp is EventFieldsStamp stamp && ReferenceEquals(stamp.Owner, this))
             {
@@ -275,38 +271,40 @@ namespace Opc.Ua.Server
         /// Associates event fields with the identity of their admitted occurrence.
         /// </summary>
         /// <remarks>
-        /// The association is kept on the fields themselves: it is made, verified and
-        /// released once per notification by the producers, Publish and Acknowledge, so a
-        /// shared table would make all of them meet in its lock. Fields dropped without being
-        /// released take their association with them.
+        /// The association is kept in the queued event (<see cref="QueuedEvent"/>): it is made
+        /// once per notification by the producers and verified by Publish, so a shared table
+        /// would make all of them meet in its lock. When the fields are copied into a
+        /// notification message the stamp moves to the message, which keeps it until its last
+        /// owner releases it.
         /// </remarks>
-        /// <param name="fields">The event field list.</param>
+        /// <param name="fields">The event field values.</param>
         /// <param name="occurrence">The filter target.</param>
-        internal void RegisterEventFields(EventFieldList fields, IFilterTarget occurrence)
+        /// <returns>The admission stamp to queue with the fields, or <c>null</c>.</returns>
+        internal object? RegisterEventFields(ArrayOf<Variant> fields, IFilterTarget occurrence)
         {
             IdentityStamp? stamp = AdmitEventCore(m_server.DefaultSystemContext, occurrence);
-            fields.AdmissionStamp = stamp != null ? new EventFieldsStamp(this, stamp, fields.EventFields) : null;
+            return stamp != null ? new EventFieldsStamp(this, stamp, fields) : null;
         }
 
         /// <summary>
         /// Associates event fields with a stamp created once for the event and the group of
         /// items that share the field values (see <see cref="CreateSharedEventFieldsStamp"/>).
-        /// Falls back to <see cref="RegisterEventFields(EventFieldList, IFilterTarget)"/> when
+        /// Falls back to <see cref="RegisterEventFields(ArrayOf{Variant}, IFilterTarget)"/> when
         /// there is no shared stamp or it does not belong to these fields.
         /// </summary>
-        /// <param name="fields">The event field list.</param>
+        /// <param name="fields">The event field values.</param>
         /// <param name="occurrence">The filter target.</param>
         /// <param name="sharedStamp">The stamp shared by the group, or <c>null</c>.</param>
-        internal void RegisterEventFields(EventFieldList fields, IFilterTarget occurrence, object? sharedStamp)
+        /// <returns>The admission stamp to queue with the fields, or <c>null</c>.</returns>
+        internal object? RegisterEventFields(ArrayOf<Variant> fields, IFilterTarget occurrence, object? sharedStamp)
         {
             if (sharedStamp is EventFieldsStamp stamp && ReferenceEquals(stamp.Owner, this) &&
-                stamp.Fields.Span == fields.EventFields.Span)
+                stamp.Fields.Span == fields.Span)
             {
                 ThrowIfIdentityDisposed();
-                fields.AdmissionStamp = stamp;
-                return;
+                return stamp;
             }
-            RegisterEventFields(fields, occurrence);
+            return RegisterEventFields(fields, occurrence);
         }
 
         /// <summary>
@@ -329,19 +327,6 @@ namespace Opc.Ua.Server
             }
             ThrowIfIdentityDisposed();
             return new EventFieldsStamp(this, stamp, fields);
-        }
-
-        /// <summary>
-        /// Releases the identity association of event fields.
-        /// </summary>
-        /// <param name="fields">The event field list.</param>
-        internal void ReleaseEventFields(EventFieldList fields)
-        {
-            if (fields.AdmissionStamp is EventFieldsStamp stamp && ReferenceEquals(stamp.Owner, this))
-            {
-                fields.AdmissionStamp = null;
-                fields.Handle = null;
-            }
         }
 
         /// <summary>
