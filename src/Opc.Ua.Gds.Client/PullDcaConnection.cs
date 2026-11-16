@@ -321,11 +321,15 @@ namespace Opc.Ua.Gds.Client
                 profile.CertificateGroupId, profile.CertificateTypeId);
             ITransportChannel channel = context.Session.TransportChannel;
             ByteString clientCertificate = ByteString.From(channel.ClientChannelCertificate.AsSpan());
-            if (clientCertificate.IsEmpty || context.Invalidated.IsCompleted)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed, "The key-pair request requires a current secure channel.");
-            }
+            var binding = new KeyPairRequestBinding(
+                applicationId,
+                NodeId.Null,
+                profile,
+                clientCertificate,
+                ByteString.From(channel.ServerChannelCertificate.AsSpan()),
+                channel.EndpointDescription.Server?.ApplicationUri ?? string.Empty,
+                context.Session.NamespaceUris.ToArrayOf());
+            RequireKeyPairChannel(context, binding);
             var directory = new CertificateDirectoryTypeClient(
                 context.Session, m_selectedRegistrar.CertificateDirectoryId, m_telemetry);
             m_binding = null;
@@ -342,15 +346,8 @@ namespace Opc.Ua.Gds.Client
             {
                 throw new ServiceResultException(StatusCodes.BadUnexpectedError);
             }
+            binding = binding with { RequestId = SnapshotNodeId(requestId) };
             var key = new KeyPairRequestKey(applicationId, SnapshotNodeId(requestId));
-            var binding = new KeyPairRequestBinding(
-                applicationId,
-                SnapshotNodeId(requestId),
-                profile,
-                clientCertificate,
-                ByteString.From(channel.ServerChannelCertificate.AsSpan()),
-                channel.EndpointDescription.Server?.ApplicationUri ?? string.Empty,
-                context.Session.NamespaceUris.ToArrayOf());
             if (!m_keyPairRequests.TryAdd(key, binding))
             {
                 throw new ServiceResultException(
@@ -486,15 +483,7 @@ namespace Opc.Ua.Gds.Client
                 context.Session.NamespaceUris, binding.NamespaceUris, m_selectedRegistrar.RegistrarId,
                 m_selectedRegistrar.CertificateDirectoryId, applicationId,
                 binding.Profile.CertificateGroupId, binding.Profile.CertificateTypeId);
-            ITransportChannel channel = context.Session.TransportChannel;
-            if (binding.ClientChannelCertificate.IsEmpty ||
-                !binding.ClientChannelCertificate.Span.SequenceEqual(channel.ClientChannelCertificate) ||
-                context.Invalidated.IsCompleted)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "FinishRequest must use the client certificate that started the key-pair request.");
-            }
+            RequireKeyPairChannel(context, binding);
             var directory = new CertificateDirectoryTypeClient(
                 context.Session, m_selectedRegistrar.CertificateDirectoryId, m_telemetry);
             try
@@ -831,6 +820,31 @@ namespace Opc.Ua.Gds.Client
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed, "The signing request belongs to a different channel.");
+            }
+        }
+
+        /// <summary>
+        /// Requires the original secure registrar channel for a Part 12 key-pair request.
+        /// </summary>
+        private void RequireKeyPairChannel(SessionRequestContext context, KeyPairRequestBinding binding)
+        {
+            ITransportChannel channel = context.Session.TransportChannel;
+            if (binding.ClientChannelCertificate.IsEmpty ||
+                !binding.ClientChannelCertificate.Span.SequenceEqual(channel.ClientChannelCertificate) ||
+                binding.RegistrarChannelCertificate.IsEmpty ||
+                !binding.RegistrarChannelCertificate.Span.SequenceEqual(channel.ServerChannelCertificate) ||
+                !Uri.TryCreate(binding.RegistrarApplicationUri, UriKind.Absolute, out _) ||
+                !string.Equals(
+                    binding.RegistrarApplicationUri,
+                    channel.EndpointDescription.Server?.ApplicationUri,
+                    StringComparison.Ordinal) ||
+                !Uri.TryCreate(channel.EndpointDescription.EndpointUrl, UriKind.Absolute, out Uri? endpoint) ||
+                !endpoint.Equals(m_selectedRegistrar.EndpointUrl) ||
+                context.Invalidated.IsCompleted)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The key-pair request belongs to a different channel.");
             }
         }
 

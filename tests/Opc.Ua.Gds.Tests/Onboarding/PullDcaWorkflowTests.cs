@@ -2033,7 +2033,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 securityMode: MessageSecurityMode.SignAndEncrypt);
             fixture.MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
             byte[] clientCertificate = [17, 18, 19];
+            byte[] serverCertificate = [20, 21, 22];
             fixture.Channel.SetupGet(channel => channel.ClientChannelCertificate).Returns(clientCertificate);
+            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(serverCertificate);
             var applicationId = new NodeId("app", 0);
             var requestId = new NodeId("request", 0);
             var registrar = new PullDcaRegistrar(
@@ -2088,6 +2090,53 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 ClearReturnedPrivateKey(privateKey);
             }
+        }
+
+        [Test]
+        public async Task KeyPairFinishRejectsChangedRegistrarCertificateBeforeDispatch()
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            fixture.MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            byte[] clientCertificate = [17, 18, 19];
+            byte[] registrarCertificate = [20, 21, 22];
+            fixture.Channel.SetupGet(channel => channel.ClientChannelCertificate).Returns(clientCertificate);
+            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(registrarCertificate);
+            var applicationId = new NodeId("app", 0);
+            var requestId = new NodeId("request", 0);
+            var registrar = new PullDcaRegistrar(
+                new Uri("opc.tcp://localhost:4840"), new NodeId("registrar", 0), new NodeId("directory", 0));
+            fixture.Handler = (request, _) =>
+            {
+                if (request is BrowseRequest)
+                {
+                    return new ValueTask<IServiceResponse>(
+                        new BrowseResponse { Results = [new BrowseResult { References = [] }] });
+                }
+                if (request is CallRequest call)
+                {
+                    ArrayOf<Variant> output = call.MethodsToCall[0].MethodId ==
+                        Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
+                            (ServiceMessageContext)fixture.MessageContext)
+                        ? [Variant.From(requestId)]
+                        : [Variant.From(ByteString.From(new byte[] { 1 })),
+                            Variant.From(ByteString.From(new byte[] { 2 })), Variant.From(ArrayOf<ByteString>.Empty)];
+                    return new ValueTask<IServiceResponse>(
+                        new CallResponse { Results = [new CallMethodResult { OutputArguments = output }] });
+                }
+                throw new InvalidOperationException("Unexpected key-pair request.");
+            };
+            var adapter = new PullDcaConnection(fixture.ManagedSession, registrar, fixture.Telemetry, 1024);
+            await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None).ConfigureAwait(false);
+            int callsBeforeFinish = fixture.Requests.Count;
+            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(new byte[] { 23, 24, 25 });
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.FinishNewKeyPairAsync(applicationId, requestId, CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fixture.Requests, Has.Count.EqualTo(callsBeforeFinish));
         }
 
         /// <summary>
