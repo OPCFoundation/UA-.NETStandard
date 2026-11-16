@@ -85,6 +85,12 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// The listener that accepts the requests of a listener-bound dispatcher. Its
+        /// body admission charges REST request bodies like every other HTTPS body.
+        /// </summary>
+        internal HttpsTransportListener? Listener { get; }
+
+        /// <summary>
         /// Creates a dispatcher whose remote authority belongs only to the accepting listener.
         /// </summary>
         internal WebApiServer(HttpsTransportListener listener)
@@ -93,6 +99,7 @@ namespace Opc.Ua.Bindings
                 listener.ListenerId)
         {
             m_listenerBound = true;
+            Listener = listener;
             m_callback = listener.Callback;
             MessageSecurityMode requiredSecurityMode = listener.MutualTlsEnabled
                 ? MessageSecurityMode.SignAndEncrypt
