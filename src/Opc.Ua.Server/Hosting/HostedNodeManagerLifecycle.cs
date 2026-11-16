@@ -82,7 +82,9 @@ namespace Opc.Ua.Server.Hosting
 
         /// <inheritdoc/>
         public ILifecycleCapture CaptureChanges()
-            => Current.CaptureChanges();
+        {
+            return Current.CaptureChanges();
+        }
 
         /// <inheritdoc/>
         public ValueTask<IPreparedChanges> PrepareAsync(

@@ -296,7 +296,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
-        private readonly System.Threading.Lock m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly SemaphoreSlim m_childAdmission = new(1, 1);
         private TaskCompletionSource<bool>? m_drained;
 

@@ -119,7 +119,7 @@ namespace Opc.Ua.Server
         public async ValueTask<NodeManagerCleanupDiscoveryResult> DiscoverDetailedAsync(
             CancellationToken cancellationToken = default)
         {
-            Guid requestId = Guid.NewGuid();
+            var requestId = Guid.NewGuid();
             INodeManagerCleanupAudit audit = RequireAudit();
             NodeManagerCleanupAuthorization authorization = await AuthorizeAsync(
                 audit, requestId, NodeManagerCleanupOperation.Discover, default, cancellationToken)
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server
         public async ValueTask<ArrayOf<NodeManagerCleanupFailureHandle>> DiscoverPendingConfirmationsAsync(
             CancellationToken cancellationToken = default)
         {
-            Guid requestId = Guid.NewGuid();
+            var requestId = Guid.NewGuid();
             INodeManagerCleanupAudit audit = RequireAudit();
             NodeManagerCleanupAuthorization authorization = await AuthorizeAsync(
                 audit, requestId, NodeManagerCleanupOperation.DiscoverPendingConfirmations, default, cancellationToken)
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server
             NodeManagerCleanupFailureHandle handle,
             CancellationToken cancellationToken = default)
         {
-            Guid requestId = Guid.NewGuid();
+            var requestId = Guid.NewGuid();
             INodeManagerCleanupAudit audit = RequireAudit();
             NodeManagerCleanupAuthorization authorization = await AuthorizeAsync(
                 audit, requestId, NodeManagerCleanupOperation.Confirm, handle, cancellationToken)
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
             bool admitted = false;
             try
             {
-                var failureOutcome = NodeManagerCleanupAuditOutcome.Failed;
+                NodeManagerCleanupAuditOutcome failureOutcome = NodeManagerCleanupAuditOutcome.Failed;
                 ConfirmationObservation confirmation;
                 try
                 {
@@ -372,7 +372,7 @@ namespace Opc.Ua.Server
             NodeManagerCleanupFailureHandle handle,
             CancellationToken cancellationToken = default)
         {
-            Guid requestId = Guid.NewGuid();
+            var requestId = Guid.NewGuid();
             INodeManagerCleanupAudit audit = RequireAudit();
             NodeManagerCleanupAuthorization authorization = await AuthorizeAsync(
                 audit, requestId, NodeManagerCleanupOperation.Reconcile, handle, cancellationToken)

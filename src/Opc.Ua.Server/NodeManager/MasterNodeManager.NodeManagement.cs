@@ -216,7 +216,9 @@ namespace Opc.Ua.Server
                 }
                 try
                 {
-                    if (TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var preRoutingResponse))
+                    if (TryCreatePreRoutingAddNodesResponse(
+                        context, nodesToAdd,
+                        out (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) preRoutingResponse))
                     {
                         return preRoutingResponse;
                     }

@@ -340,6 +340,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reads committed managers while their exact generations remain admitted.
         /// </summary>
+        /// <exception cref="InvalidOperationException">A contributor retired before admission.</exception>
         private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) ReadNodeManagerContributions()
         {
             var owners = new List<(IAsyncNodeManager Manager, NodeManagerGeneration Generation)>();

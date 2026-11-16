@@ -156,7 +156,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentException("A resource name cannot exceed 256 characters.", nameof(resourceName));
             }
-            if (!Opc.Ua.StatusCode.IsBad(statusCode))
+            if (!StatusCode.IsBad(statusCode))
             {
                 throw new ArgumentException("A cleanup failure must have a bad status.", nameof(statusCode));
             }

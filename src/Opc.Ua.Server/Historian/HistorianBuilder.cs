@@ -562,7 +562,8 @@ namespace Opc.Ua.Server.Historian
                     static (completed, state) =>
                     {
                         _ = completed.Exception;
-                        var (owner, pendingProvider) = ((HistorianBuilder, IHistorianProvider))state!;
+                        (HistorianBuilder owner, IHistorianProvider pendingProvider) =
+                            ((HistorianBuilder, IHistorianProvider))state!;
                         owner.CompleteProviderCleanup(pendingProvider);
                     },
                     (this, provider),
@@ -681,6 +682,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Rejects registration after terminal capture disposal starts.
         /// </summary>
+        /// <exception cref="ObjectDisposedException">Capture disposal has started.</exception>
         private void ThrowIfDisposing()
         {
             if (m_disposalFinished is not null)

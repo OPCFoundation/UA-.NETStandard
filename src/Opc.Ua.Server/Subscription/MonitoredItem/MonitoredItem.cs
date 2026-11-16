@@ -3532,6 +3532,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Installs a source binding, optionally using an already resolved generation.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeManager"/> is null.
+        /// </exception>
         private NodeManagerGeneration SetNodeManager(
             IAsyncNodeManager? nodeManager,
             NodeManagerGeneration? sourceGeneration)

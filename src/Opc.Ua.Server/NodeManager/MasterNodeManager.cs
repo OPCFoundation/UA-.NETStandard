@@ -1344,7 +1344,8 @@ namespace Opc.Ua.Server
                 try
                 {
                     if (TryChangeNamespaceRegistration(
-                        namespaceUri, nodeManager, register, visible, out bool changed, out var publication))
+                        namespaceUri, nodeManager, register, visible, out bool changed,
+                        out NamespacePublication? publication))
                     {
                         return changed;
                     }
@@ -1394,7 +1395,8 @@ namespace Opc.Ua.Server
                 try
                 {
                     if (TryChangeNamespaceRegistration(
-                        namespaceUri, nodeManager, register, visible, out bool changed, out var publication))
+                        namespaceUri, nodeManager, register, visible, out bool changed,
+                        out NamespacePublication? publication))
                     {
                         return changed;
                     }

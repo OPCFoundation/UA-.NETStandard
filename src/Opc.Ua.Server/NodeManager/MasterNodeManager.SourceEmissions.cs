@@ -87,6 +87,7 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The source node manager.</param>
         /// <param name="operationContext">The request whose routing image owns the binding, when available.</param>
         /// <returns>The generation associated with the source.</returns>
+        /// <exception cref="InvalidOperationException">The source has no unique registered owner.</exception>
         internal static NodeManagerGeneration GetSourceGeneration(
             IServerInternal server,
             IAsyncNodeManager nodeManager,

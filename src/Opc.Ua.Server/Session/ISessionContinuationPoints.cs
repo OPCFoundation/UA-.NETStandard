@@ -38,13 +38,16 @@ namespace Opc.Ua.Server
     /// and for historical reads.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A continuation point survives between service calls, so the session owns its lifetime.
     /// Saved points can be dropped when the per-session limit is reached or when the session
     /// closes. The built-in store also invalidates points associated with a retiring generation.
     /// The retirement reclaimer does not notify custom stores.
-    ///
+    /// </para>
+    /// <para>
     /// A Browse point's generation identity is weak, but its cursor data or node handle can
     /// retain its NodeManager and other objects after the point is disposed.
+    /// </para>
     /// </remarks>
     public interface ISessionContinuationPoints
     {

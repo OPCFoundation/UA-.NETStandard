@@ -3345,10 +3345,10 @@ namespace Opc.Ua.Server.Historian
                     throw;
                 }
                 catch (Exception exception) when (claim.IsActive &&
-                    exception is (ServiceResultException or
+                    exception is ServiceResultException or
                         InvalidOperationException or
                         IOException or
-                        TimeoutException))
+                        TimeoutException)
                 {
                     await DisposeContinuationClaimAsync(claim, exception).ConfigureAwait(false);
                     result.StatusCode =
