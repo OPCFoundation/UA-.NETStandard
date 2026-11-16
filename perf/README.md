@@ -80,6 +80,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--out <file>` | | Append the result block to a file. |
 | `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
 | `--client-cores` | all | Windows only. Relaunch the client with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) and affinity to the last N allowed processors. If processors remain, pin the server to them. On Linux the process-affinity API changes only the main thread's affinity; use a cgroup (`docker --cpuset-cpus`) or launch under `taskset` instead. |
+| `--server-affinity`, `--client-affinity` | all | Windows only. Hexadecimal processor masks of the server child and of the client; they override the masks `--client-cores` derives. The server runtime is sized for the processors of its mask (`DOTNET_PROCESSOR_COUNT`). On a processor with cores of different speed, compare runs on the same core type: see [Processors with cores of different speed](#processors-with-cores-of-different-speed). |
 | `--client-memory` | unlimited | Emulated client memory budget in MB. Sets the GC heap hard limit to 75 % of that budget; native memory is not capped. |
 
 Environment variables prefixed `SERVER_` are passed to the server process without the prefix,
@@ -375,10 +376,10 @@ Use the following procedure for comparisons:
 - **CPU per operation** (`per-op: cpuUs`): pin the server when comparing a specific core type. In the
   `native-read` and `native-counters` scenarios use `--server-affinity 0xF` and
   `SERVER_DOTNET_PROCESSOR_COUNT=4` for the child, so that the runtime sizes the thread pool
-  and the GC heaps for the mask. The other scenarios ignore `--server-affinity`: start the
-  harness itself with the affinity (`start /affinity F` on Windows, `taskset -c 0-3` on
-  Linux), which the server child inherits at its start, keeping in mind that the in-process
-  client then shares those processors. On a hybrid CPU, choose a mask
+  and the GC heaps for the mask. The .NET client scenarios take `--server-affinity` and
+  `--client-affinity` on Windows and size the server runtime for its mask themselves; on
+  Linux start the harness under `taskset -c 0-3`, which the server child inherits, keeping in
+  mind that the in-process client then shares those processors. On a hybrid CPU, choose a mask
   of one core type only (all performance or all efficiency cores) to separate that core
   type's cost from scheduling across types. Use the default mixed-core placement for a
   separate deployment comparison. Measure the native scenarios at [steady state](#steady-state-parameters).
@@ -390,6 +391,18 @@ Use the following procedure for comparisons:
   Retain the paired differences as well; overlapping ranges alone do not determine whether
   a difference is statistically significant.
 - Publish every number with its [run record](#run-record) and keep the result files.
+
+### Processors with cores of different speed
+
+On a processor with two core types the CPU time per operation depends on where the server
+threads run. On a Ryzen AI 9 HX 370 (logical processors 0-7: four Zen5 cores, 8-23: eight
+Zen5c cores) the same build cost, for `events --sessions 20 --subs 15 --event-rate 400`,
+2.9 µs per notification on one Zen5 core (`--server-affinity 0x3`) and 6.8 µs on one Zen5c
+core (`0x300`); 3.1 µs on four Zen5 cores (`0xFF`) and 4.9 µs on four Zen5c cores (`0xFF00`);
+unpinned on all 24 logical processors about 6 µs. `--client-cores 22` leaves the server the
+*first* two logical processors, a Zen5 core, so a comparison of that shape with an unpinned run
+compares core types, not core counts. Compare core counts within one core type, and record
+the masks in the run record.
 
 ### Run record
 
