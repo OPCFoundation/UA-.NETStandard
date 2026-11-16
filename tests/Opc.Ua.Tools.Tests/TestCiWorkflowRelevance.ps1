@@ -1148,7 +1148,7 @@ foreach ($case in $cases) {
                 throw "$($case.Name): build relevance or AOT matrix output is missing."
             }
             $matrix = @(ConvertFrom-Json -InputObject $outputs['aot_matrix'])
-            if (($outputs['relevant_changes'] -eq 'true' -and $matrix.Count -ne 3) -or
+            if (($outputs['relevant_changes'] -eq 'true' -and $matrix.Count -ne 6) -or
                 ($outputs['relevant_changes'] -eq 'false' -and $matrix.Count -ne 0)) {
                 throw "$($case.Name): relevance and AOT matrix disagree."
             }
