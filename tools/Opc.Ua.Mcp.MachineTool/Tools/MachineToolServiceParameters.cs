@@ -195,7 +195,7 @@ namespace Opc.Ua.Mcp.Tools
             {
                 string name = segment.Name ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(name) || name.Length > 255 || name is "." or ".." ||
-                    name.EndsWith(' ') || name.EndsWith('.') ||
+                    name.EndsWith(' ', StringComparison.Ordinal) || name.EndsWith('.', StringComparison.Ordinal) ||
                     name.IndexOfAny(['/', '\\', ':', '\0']) >= 0)
                 {
                     throw new ArgumentException("Unsafe or oversized remote path segment.", nameof(value));

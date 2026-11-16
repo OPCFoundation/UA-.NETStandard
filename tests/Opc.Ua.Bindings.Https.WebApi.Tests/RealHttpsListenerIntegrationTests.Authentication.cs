@@ -456,7 +456,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             // The listener enforces the expiry on its own clock, so the
             // handshake is not raced against a short real-time token.
             var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
-            await using AuthListener listener = await OpenAuthListenerAsync("bearer", timeProvider: clock)
+            // Advance the credential clock independently of the connection's idle deadline.
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                "bearer",
+                timeProvider: clock,
+                configureSettings: settings => settings.Configuration!.ChannelLifetime = 0)
                 .ConfigureAwait(false);
             DateTime now = clock.GetUtcNow().UtcDateTime;
             string token = CreateJwt(s_jwtSigningKey, notBefore: now.AddMinutes(-1), expires: now + lifetime);

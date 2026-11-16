@@ -316,8 +316,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         new MonitoredItemNotification
                         {
                             ClientHandle = monitoredItem.ClientHandle,
-                            Value = new DataValue("test"),
-                            DiagnosticInfo = new DiagnosticInfo()
+                            Value = new DataValue("test")
                         }
                     ]
                 };
@@ -342,13 +341,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             await using var manager = new MonitoredItemManager(m_context, m_telemetry);
             var first = new DiagnosticInfo { AdditionalInfo = "first wire diagnostic" };
             var second = new DiagnosticInfo { AdditionalInfo = "second wire diagnostic" };
-            var stale = new DiagnosticInfo { AdditionalInfo = "client-side annotation" };
             var notification = new DataChangeNotification
             {
                 MonitoredItems =
                 [
-                    new MonitoredItemNotification { ClientHandle = 1, DiagnosticInfo = stale },
-                    new MonitoredItemNotification { ClientHandle = 2, DiagnosticInfo = stale }
+                    new MonitoredItemNotification { ClientHandle = 1 },
+                    new MonitoredItemNotification { ClientHandle = 2 }
                 ],
                 DiagnosticInfos = includeDiagnostics ? [first, second] : []
             };
@@ -382,20 +380,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         new MonitoredItemNotification
                         {
                             ClientHandle = monitoredItem2.ClientHandle,
-                            Value = new DataValue("test1", StatusCodes.Good, DateTimeUtc.Now),
-                            DiagnosticInfo = new DiagnosticInfo()
+                            Value = new DataValue("test1", StatusCodes.Good, DateTimeUtc.Now)
                         },
                         new MonitoredItemNotification
                         {
                             ClientHandle = monitoredItem2.ClientHandle,
-                            Value = new DataValue("test2", StatusCodes.Good, DateTimeUtc.Now),
-                            DiagnosticInfo = new DiagnosticInfo()
+                            Value = new DataValue("test2", StatusCodes.Good, DateTimeUtc.Now)
                         },
                         new MonitoredItemNotification
                         {
                             ClientHandle = monitoredItem1.ClientHandle,
-                            Value = new DataValue("test3", StatusCodes.Good, DateTimeUtc.Now),
-                            DiagnosticInfo = new DiagnosticInfo()
+                            Value = new DataValue("test3", StatusCodes.Good, DateTimeUtc.Now)
                         }
                     ]
                 };
@@ -439,20 +434,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         new MonitoredItemNotification
                         {
                             ClientHandle = monitoredItem2.ClientHandle,
-                            Value = new DataValue("test1", StatusCodes.Good, DateTimeUtc.Now),
-                            DiagnosticInfo = new DiagnosticInfo()
+                            Value = new DataValue("test1", StatusCodes.Good, DateTimeUtc.Now)
                         },
                         new MonitoredItemNotification
                         {
                             ClientHandle = monitoredItem2.ClientHandle,
-                            Value = new DataValue("test2", StatusCodes.Good, DateTimeUtc.Now),
-                            DiagnosticInfo = new DiagnosticInfo()
+                            Value = new DataValue("test2", StatusCodes.Good, DateTimeUtc.Now)
                         },
                         new MonitoredItemNotification
                         {
                             ClientHandle = monitoredItem1.ClientHandle,
-                            Value = new DataValue("test3", StatusCodes.Good, DateTimeUtc.Now),
-                            DiagnosticInfo = new DiagnosticInfo()
+                            Value = new DataValue("test3", StatusCodes.Good, DateTimeUtc.Now)
                         }
                     ]
                 };

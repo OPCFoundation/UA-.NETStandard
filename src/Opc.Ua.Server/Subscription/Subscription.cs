@@ -142,8 +142,7 @@ namespace Opc.Ua.Server
                 () => Id,
                 maxMessageCount,
                 m_server.SubscriptionStore as ISubscriptionRetransmissionStore,
-                m_logger,
-                m_server.EventManager);
+                m_logger);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = false;
 
@@ -267,21 +266,30 @@ namespace Opc.Ua.Server
             {
                 foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
                 {
-                    if (link.Value == null || !m_monitoredItems.ContainsKey(link.Key))
+                    if (link.Value == null ||
+                        !m_monitoredItems.ContainsKey(link.Key) ||
+                        m_itemsToTrigger.ContainsKey(link.Key))
                     {
                         continue;
                     }
 
-                    var triggeredItems = new List<ITriggeredMonitoredItem>(link.Value.Count);
+                    var triggeredItems = new List<ITriggeredMonitoredItem>(
+                        Math.Min(link.Value.Count, kMaxTriggeringLinks - m_triggeringLinkCount));
+                    var linkedIds = new HashSet<uint>();
                     foreach (uint linkedItemId in link.Value)
                     {
+                        if (m_triggeringLinkCount >= kMaxTriggeringLinks)
+                        {
+                            break;
+                        }
                         if (m_monitoredItems.TryGetValue(
                                 linkedItemId,
                                 out LinkedListNode<IMonitoredItem>? linkedNode) &&
                             linkedNode.Value is ITriggeredMonitoredItem triggeredItem &&
-                            !triggeredItems.Exists(item => item.Id == linkedItemId))
+                            linkedIds.Add(linkedItemId))
                         {
                             triggeredItems.Add(triggeredItem);
+                            AddTriggeredTarget(linkedItemId);
                         }
                     }
 
@@ -341,8 +349,7 @@ namespace Opc.Ua.Server
                 m_logger,
                 storedSubscription.SentMessages,
                 storedSubscription.SequenceNumber,
-                storedSubscription.LastSentMessage,
-                m_server.EventManager);
+                storedSubscription.LastSentMessage);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
             // UserIdentityToken is null for anonymous sessions; the owner is then an
@@ -773,7 +780,7 @@ namespace Opc.Ua.Server
                         ReleaseMonitoredItemOwnership(monitoredItem);
                     }
                     m_monitoredItems.Clear();
-                    m_itemsToTrigger.Clear();
+                    ClearTriggeringLinks();
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
                     ClearReadyCandidates();
@@ -1107,6 +1114,54 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Drops the candidates of deleted monitored items once they outnumber the live
+        /// ones.
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. A deleted item keeps its candidate entry until
+        /// the publish timer looks at it, which a subscription with publishing disabled
+        /// never does, so without this a create/delete loop would retain every deleted item.
+        /// A live item holds at most one entry (its ready signal), so the lists are compacted
+        /// only when they hold more than twice the live items plus a slack; the cost is
+        /// amortized over at least as many deletes as entries are walked.
+        /// </remarks>
+        private void PurgeDeletedReadyCandidates()
+        {
+            int intake;
+            lock (m_readyIntakeLock)
+            {
+                intake = m_readyIntake.Count;
+            }
+            if (m_readyCandidates.Count + intake <= (2 * m_signalingItemCount) + kReadyCandidateSlack)
+            {
+                return;
+            }
+
+            TakeReadyIntake();
+
+            int kept = 0;
+            for (int ii = 0; ii < m_readyCandidates.Count; ii++)
+            {
+                IMonitoredItem monitoredItem = m_readyCandidates[ii];
+                if (!m_monitoredItems.TryGetValue(
+                        monitoredItem.Id,
+                        out LinkedListNode<IMonitoredItem>? node) ||
+                    !ReferenceEquals(node.Value, monitoredItem))
+                {
+                    ((IReadySignalingMonitoredItem)monitoredItem).ReleaseReadySignal();
+                    continue;
+                }
+                m_readyCandidates[kept++] = monitoredItem;
+            }
+            m_readyCandidates.RemoveRange(kept, m_readyCandidates.Count - kept);
+        }
+
+        /// <summary>
+        /// The candidate entries of deleted items tolerated before they are purged.
+        /// </summary>
+        private const int kReadyCandidateSlack = 64;
+
+        /// <summary>
         /// Forgets all candidates when the monitored items are removed together.
         /// </summary>
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
@@ -1118,38 +1173,6 @@ namespace Opc.Ua.Server
             }
             m_readyCandidates.Clear();
             m_signalingItemCount = 0;
-            CountPooledItems(-m_pooledItemCount);
-        }
-
-        /// <summary>
-        /// Adds the monitored items of this subscription to the process-wide count that sizes
-        /// the event field list pool, and raises the pool bound when the count grew.
-        /// </summary>
-        /// <remarks>
-        /// The activator pool is process-wide and retains 1024 instances by default. An
-        /// event field list is recycled after its message was sent and acknowledged, so about
-        /// two publishing cycles of event field lists are in flight; with more items than the
-        /// bound most of them would be allocated again. The bound follows twice the number of
-        /// monitored items of all subscriptions in the process, capped at
-        /// <see cref="kMaxPooledNotifications"/>, and is never lowered. Data change
-        /// notifications are not pooled (see <see cref="MonitoredItem"/>).
-        /// </remarks>
-        private void CountPooledItems(int delta)
-        {
-            if (delta == 0)
-            {
-                return;
-            }
-
-            m_pooledItemCount += delta;
-            long total = Interlocked.Add(ref s_pooledItemCount, delta);
-            if (delta > 0)
-            {
-                int bound = (int)Math.Min(
-                    kMaxPooledNotifications,
-                    Math.Max(PooledEncodeableType<MonitoredItemNotification>.DefaultMaximumRetained, total * 2));
-                EventFieldListActivator.Instance.EnsureMaximumRetained(bound);
-            }
         }
 
         /// <summary>
@@ -1175,7 +1198,6 @@ namespace Opc.Ua.Server
                     generation.MonitoredItems[monitoredItem] = this;
                 }
             }
-            CountPooledItems(1);
             if (monitoredItem is IReadySignalingMonitoredItem)
             {
                 m_signalingItemCount++;
@@ -2237,7 +2259,7 @@ namespace Opc.Ua.Server
             // the collections are reused by every Publish of the subscription (under m_lock);
             // the constructed messages copy what they keep.
             List<NotificationMessage> messages = m_publishMessages;
-            List<MonitoredItemNotification[]?> rentedItemArrays = m_publishRentedItemArrays;
+            List<RentedNotificationArrays> rentedItemArrays = m_publishRentedItemArrays;
             messages.Clear();
             rentedItemArrays.Clear();
 
@@ -2246,10 +2268,11 @@ namespace Opc.Ua.Server
                 DateTime start1 = DateTime.UtcNow;
 
                 // collect notifications to publish.
-                Queue<EventFieldList> events = m_publishEvents;
+                Queue<QueuedEvent> events = m_publishEvents;
                 Queue<MonitoredItemNotification> datachanges = m_publishDataChanges;
                 Queue<DiagnosticInfo> datachangeDiagnostics = m_publishDataChangeDiagnostics;
                 events.Clear();
+                AdvanceDataChangeOrdinal(null, datachanges.Count);
                 datachanges.Clear();
                 datachangeDiagnostics.Clear();
 
@@ -2344,7 +2367,7 @@ namespace Opc.Ua.Server
                             datachanges,
                             datachangeDiagnostics,
                             out int notificationCount,
-                            out MonitoredItemNotification[]? rentedItems);
+                            out RentedNotificationArrays rentedItems);
 
                         // add to list of messages to send.
                         messages.Add(message);
@@ -2376,7 +2399,7 @@ namespace Opc.Ua.Server
                         datachanges,
                         datachangeDiagnostics,
                         out int notificationCount,
-                        out MonitoredItemNotification[]? rentedItems);
+                        out RentedNotificationArrays rentedItems);
 
                     // add to list of messages to send.
                     messages.Add(message);
@@ -2490,14 +2513,16 @@ namespace Opc.Ua.Server
         /// Construct a message from the queues.
         /// </summary>
         private NotificationMessage ConstructMessage(
-            Queue<EventFieldList> events,
+            Queue<QueuedEvent> events,
             Queue<MonitoredItemNotification> datachanges,
             Queue<DiagnosticInfo> datachangeDiagnostics,
             out int notificationCount,
-            out MonitoredItemNotification[]? rentedItems)
+            out RentedNotificationArrays rented)
         {
             notificationCount = 0;
-            rentedItems = null;
+            EventFieldList[]? rentedEvents = null;
+            object?[]? rentedStamps = null;
+            MonitoredItemNotification[]? rentedItems = null;
 
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
@@ -2522,17 +2547,28 @@ namespace Opc.Ua.Server
             // add events.
             if (eventCount > 0)
             {
-                var eventList = new EventFieldList[eventCount];
-                for (int ii = 0; ii < eventList.Length; ii++)
+                // the arrays are rented and returned with the payload of the message like the
+                // data change array. The admission stamps stay referenced by the message until
+                // its last owner releases it, so the occurrences it reports keep their EventIds.
+                EventFieldList[] eventList = ArrayPool<EventFieldList>.Shared.Rent(eventCount);
+                rentedEvents = eventList;
+                EventManager? eventManager = m_server.EventManager;
+                for (int ii = 0; ii < eventCount; ii++)
                 {
-                    EventFieldList fields = events.Dequeue();
-                    m_server.EventManager?.AdmitEventFields(fields);
-                    eventList[ii] = fields;
+                    QueuedEvent queued = events.Dequeue();
+                    eventManager?.AdmitEventFields(queued);
+                    eventList[ii] = queued.Fields;
+                    if (queued.AdmissionStamp != null)
+                    {
+                        rentedStamps ??= ArrayPool<object?>.Shared.Rent(eventCount);
+                        rentedStamps[ii] = queued.AdmissionStamp;
+                    }
                 }
                 notificationCount += eventCount;
-                var notification = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
-                notification.Events = eventList;
-                notificationData[dataIndex++] = new ExtensionObject(notification);
+                notificationData[dataIndex++] = new ExtensionObject(new EventNotificationList
+                {
+                    Events = new ArrayOf<EventFieldList>(eventList.AsMemory(0, eventCount))
+                });
             }
 
             // add datachanges (space permitting).
@@ -2559,6 +2595,7 @@ namespace Opc.Ua.Server
                     }
                 }
                 notificationCount += dataChangeCount;
+                AdvanceDataChangeOrdinal(message, dataChangeCount);
 
                 var notification = (DataChangeNotification)DataChangeNotificationActivator.Instance.CreateInstance();
                 notification.MonitoredItems = new ArrayOf<MonitoredItemNotification>(
@@ -2568,6 +2605,7 @@ namespace Opc.Ua.Server
             }
 
             message.NotificationData = notificationData;
+            rented = new RentedNotificationArrays(rentedItems, rentedEvents, rentedStamps);
             return message;
         }
 
@@ -2795,21 +2833,25 @@ namespace Opc.Ua.Server
                     m_itemsToTrigger[triggeringItemId] = triggeredItems = [];
                 }
 
+                // the ids linked from the triggering item: the lookups below cost one hash
+                // probe each instead of a scan of the link list.
+                var linkedIds = new HashSet<uint>();
+                foreach (ITriggeredMonitoredItem linkedItem in triggeredItems)
+                {
+                    linkedIds.Add(linkedItem.Id);
+                }
+
                 // remove old links.
+                HashSet<uint>? removedIds = null;
                 for (int ii = 0; ii < linksToRemove.Count; ii++)
                 {
                     removeResultList.Add(StatusCodes.Good);
 
-                    bool found = false;
-
-                    for (int jj = 0; jj < triggeredItems.Count; jj++)
+                    bool found = linkedIds.Remove(linksToRemove[ii]);
+                    if (found)
                     {
-                        if (triggeredItems[jj].Id == linksToRemove[ii])
-                        {
-                            found = true;
-                            triggeredItems.RemoveAt(jj);
-                            break;
-                        }
+                        (removedIds ??= []).Add(linksToRemove[ii]);
+                        RemoveTriggeredTarget(linksToRemove[ii]);
                     }
 
                     if (!found)
@@ -2836,6 +2878,11 @@ namespace Opc.Ua.Server
                     {
                         removeDiagnosticInfoList!.Add(null!);
                     }
+                }
+
+                if (removedIds != null)
+                {
+                    triggeredItems.RemoveAll(item => removedIds.Contains(item.Id));
                 }
 
                 // The trigger flag is only consumed while the item has links, so it can still
@@ -2890,20 +2937,30 @@ namespace Opc.Ua.Server
                     }
 
                     // add value if not already in list.
-                    bool found = false;
-
-                    for (int jj = 0; jj < triggeredItems.Count; jj++)
+                    if (!linkedIds.Contains(triggeredItem.Id))
                     {
-                        if (triggeredItems[jj].Id == triggeredItem.Id)
+                        if (m_triggeringLinkCount >= kMaxTriggeringLinks)
                         {
-                            found = true;
-                            break;
-                        }
-                    }
+                            addResultList[ii] = StatusCodes.BadTooManyOperations;
 
-                    if (!found)
-                    {
+                            // update diagnostics.
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                DiagnosticInfo? diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                    m_server,
+                                    context,
+                                    addResultList[ii],
+                                    m_logger);
+                                diagnosticsExist = true;
+                                addDiagnosticInfoList!.Add(diagnosticInfo!);
+                            }
+
+                            continue;
+                        }
+
+                        linkedIds.Add(triggeredItem.Id);
                         triggeredItems.Add(triggeredItem);
+                        AddTriggeredTarget(triggeredItem.Id);
                     }
 
                     // update diagnostics.
@@ -3459,6 +3516,7 @@ namespace Opc.Ua.Server
             var originalMonitoringModes = new MonitoringMode[count];
 
             bool validItems = false;
+            HashSet<uint>? deletedTriggeredTargets = null;
 
             lock (m_lock)
             {
@@ -3502,25 +3560,8 @@ namespace Opc.Ua.Server
                     {
                         m_signalingItemCount--;
                     }
-                    if (m_pooledItemCount > 0)
-                    {
-                        CountPooledItems(-1);
-                    }
                     countChange?.Decrement();
-                    m_itemsToTrigger.Remove(monitoredItemIds[ii]);
-                    foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
-                    {
-                        //remove the links towards the deleted monitored item
-                        List<ITriggeredMonitoredItem>? triggeredItems = item.Value;
-                        for (int jj = 0; jj < triggeredItems.Count; jj++)
-                        {
-                            if (triggeredItems[jj].Id == monitoredItemIds[ii])
-                            {
-                                triggeredItems.RemoveAt(jj);
-                                break;
-                            }
-                        }
-                    }
+                    RemoveTriggeringLinksOfDeletedItem(monitoredItemIds[ii], ref deletedTriggeredTargets);
 
                     node.List?.Remove(node);
 
@@ -3535,6 +3576,12 @@ namespace Opc.Ua.Server
                     {
                         diagnosticInfos!.Add(null!);
                     }
+                }
+
+                RemoveDeletedTriggeredTargets(deletedTriggeredTargets);
+                if (validItems)
+                {
+                    PurgeDeletedReadyCandidates();
                 }
             }
 
@@ -4386,8 +4433,8 @@ namespace Opc.Ua.Server
         /// <summary>The authorization epoch of the retained messages.</summary>
         private NotificationAuthorization? m_notificationAuthorization;
         private readonly List<NotificationMessage> m_publishMessages = [];
-        private readonly List<MonitoredItemNotification[]?> m_publishRentedItemArrays = [];
-        private readonly Queue<EventFieldList> m_publishEvents = new();
+        private readonly List<RentedNotificationArrays> m_publishRentedItemArrays = [];
+        private readonly Queue<QueuedEvent> m_publishEvents = new();
         private readonly Queue<MonitoredItemNotification> m_publishDataChanges = new();
         private readonly Queue<DiagnosticInfo> m_publishDataChangeDiagnostics = new();
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
@@ -4402,9 +4449,6 @@ namespace Opc.Ua.Server
         private List<IMonitoredItem> m_readyIntakeSpare = [];
         private readonly List<IMonitoredItem> m_readyCandidates = [];
         private int m_signalingItemCount;
-        private int m_pooledItemCount;
-        private static long s_pooledItemCount;
-        private const int kMaxPooledNotifications = 65536;
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;
         private bool m_expired;

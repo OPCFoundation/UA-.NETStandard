@@ -63,14 +63,12 @@ namespace Opc.Ua.Server
         /// server is not distributed.
         /// </param>
         /// <param name="logger">The logger used to report queue overflow.</param>
-        /// <param name="eventManager">Releases occurrence references when a message payload is recycled.</param>
         public SentMessageQueue(
             Func<uint> subscriptionIdProvider,
             uint maxMessageCount,
             ISubscriptionRetransmissionStore? retransmissionStore,
-            ILogger logger,
-            EventManager? eventManager = null)
-            : this(subscriptionIdProvider, maxMessageCount, retransmissionStore, logger, [], 1, 0, eventManager)
+            ILogger logger)
+            : this(subscriptionIdProvider, maxMessageCount, retransmissionStore, logger, [], 1, 0)
         {
         }
 
@@ -84,10 +82,8 @@ namespace Opc.Ua.Server
             ILogger logger,
             List<NotificationMessage>? sentMessages,
             uint nextSequenceNumber,
-            int lastSentMessage,
-            EventManager? eventManager)
+            int lastSentMessage)
         {
-            m_eventManager = eventManager;
             m_subscriptionIdProvider = subscriptionIdProvider
                 ?? throw new ArgumentNullException(nameof(subscriptionIdProvider));
             MaxMessageCount = maxMessageCount;
@@ -131,8 +127,7 @@ namespace Opc.Ua.Server
             ILogger logger,
             List<NotificationMessage>? sentMessages,
             uint nextSequenceNumber,
-            int lastSentMessage,
-            EventManager? eventManager = null)
+            int lastSentMessage)
         {
             return new SentMessageQueue(
                 subscriptionIdProvider,
@@ -141,8 +136,7 @@ namespace Opc.Ua.Server
                 logger,
                 sentMessages,
                 nextSequenceNumber,
-                lastSentMessage,
-                eventManager);
+                lastSentMessage);
         }
 
         /// <summary>
@@ -325,9 +319,9 @@ namespace Opc.Ua.Server
         /// longer reads the message (when the Publish response was sent).
         /// </param>
         /// <param name="rentedItemArrays">
-        /// Optional, aligned with <paramref name="messages"/>: the array rented from
-        /// <c>ArrayPool&lt;T&gt;.Shared</c> whose slice holds the data change notifications of
-        /// each message, returned to the pool with the payload. Trimmed with the messages.
+        /// Optional, aligned with <paramref name="messages"/>: the arrays rented from
+        /// <c>ArrayPool&lt;T&gt;.Shared</c> whose slices hold the notifications of each
+        /// message, returned to the pools with the payload. Trimmed with the messages.
         /// </param>
         public NotificationMessage Enqueue(
             List<NotificationMessage> messages,
@@ -335,7 +329,7 @@ namespace Opc.Ua.Server
             out bool moreNotifications,
             out uint discardedMessageCount,
             out NotificationMessageLease lease,
-            List<MonitoredItemNotification[]?>? rentedItemArrays = null)
+            List<RentedNotificationArrays>? rentedItemArrays = null)
         {
             discardedMessageCount = 0;
             uint effectiveMaxMessageCount = Math.Max(1u, MaxMessageCount);
@@ -350,7 +344,7 @@ namespace Opc.Ua.Server
                 // never handed out, so nobody else references them.
                 for (int ii = 0; ii < overflowCount; ii++)
                 {
-                    NotificationMessageLease.RecyclePayload(messages[ii], rentedItemArrays?[ii], m_eventManager);
+                    NotificationMessageLease.RecyclePayload(messages[ii], rentedItemArrays?[ii] ?? default);
                 }
                 messages.RemoveRange(0, overflowCount);
                 rentedItemArrays?.RemoveRange(0, overflowCount);
@@ -381,7 +375,7 @@ namespace Opc.Ua.Server
             m_lastSentMessage = m_sent.Count;
             for (int ii = 0; ii < messages.Count; ii++)
             {
-                m_sent.Add(new NotificationMessageLease(messages[ii], rentedItemArrays?[ii], m_eventManager));
+                m_sent.Add(new NotificationMessageLease(messages[ii], rentedItemArrays?[ii] ?? default));
             }
             StoreRetransmissionState(messages, removedSequenceNumbers);
 
@@ -664,7 +658,6 @@ namespace Opc.Ua.Server
         private readonly Func<uint> m_subscriptionIdProvider;
         private readonly ISubscriptionRetransmissionStore? m_retransmissionStore;
         private readonly ILogger m_logger;
-        private readonly EventManager? m_eventManager;
         private uint m_sequenceNumber;
         private int m_lastSentMessage;
         private uint m_mirroredFirstUnsentSequenceNumber;

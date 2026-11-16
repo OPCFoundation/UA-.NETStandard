@@ -232,5 +232,175 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
 
             Assert.That(diags.Any(d => d.Id == "UA0021"), Is.False);
         }
+
+        /// <summary>
+        /// Regression test for #5083: on the bare 2.0 stack (legacy types absent), a
+        /// property named <c>CertificateValidator</c> of type <c>ICertificateValidatorEx</c>
+        /// must not be reported when it is accessed, assigned, initialized or passed to
+        /// <c>nameof</c>.
+        /// </summary>
+        [Test]
+        public async Task DoesNotReportOnPropertyNamedCertificateValidatorAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+
+                namespace Opc.Ua
+                {
+                    public interface ICertificateValidatorEx { }
+                }
+
+                namespace Plc
+                {
+                    public sealed class DeferredListener
+                    {
+                        public DeferredListener(ICertificateValidatorEx validator)
+                        {
+                            CertificateValidator = validator;
+                        }
+
+                        public ICertificateValidatorEx CertificateValidator { get; set; }
+
+                        public static string Name => nameof(CertificateValidator);
+                    }
+
+                    public static class Usage
+                    {
+                        public static ICertificateValidatorEx Get(DeferredListener l)
+                        {
+                            l.CertificateValidator = l.CertificateValidator;
+                            var copy = new DeferredListener(l.CertificateValidator)
+                            {
+                                CertificateValidator = l.CertificateValidator
+                            };
+                            return copy.CertificateValidator;
+                        }
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsWithoutStubsAsync(
+                    new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
+
+            Assert.That(diags.Where(d => d.Id == "UA0021"), Is.Empty);
+        }
+
+        /// <summary>
+        /// Regression test for #5083: fields, locals, parameters, methods and events named
+        /// <c>CertificateValidator</c> / <c>CertificateValidationEventArgs</c> bind to
+        /// non-type symbols and must not be reported by the symbol-absent fallback.
+        /// </summary>
+        [Test]
+        public async Task DoesNotReportOnNonTypeSymbolsNamedLikeLegacyTypesAsync()
+        {
+            const string source = """
+                using System;
+                using Opc.Ua.Server;
+
+                namespace Plc
+                {
+                    public sealed class C
+                    {
+                        private object? CertificateValidationEventArgs;
+
+                        public event EventHandler? CertificateValidator;
+
+                        public void M(object CertificateValidator)
+                        {
+                            CertificateValidationEventArgs = CertificateValidator;
+                            object? CertificateValidationEventArgs2 = this.CertificateValidationEventArgs;
+                            _ = CertificateValidationEventArgs2;
+                            this.CertificateValidator?.Invoke(this, EventArgs.Empty);
+                        }
+
+                        public static int N()
+                        {
+                            int CertificateValidationEventArgs = 1;
+                            return CertificateValidationEventArgs + Helpers.CertificateValidator(1, 2);
+                        }
+                    }
+
+                    public static class Helpers
+                    {
+                        public static int CertificateValidator(int a, int b) => a + b;
+
+                        public static int Twice(int a) => CertificateValidator(a, a);
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsWithoutStubsAsync(
+                    new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
+
+            Assert.That(diags.Where(d => d.Id == "UA0021"), Is.Empty);
+        }
+
+        /// <summary>
+        /// A consumer-defined type named <c>CertificateValidator</c> outside the
+        /// <c>Opc.Ua</c> tree is not the legacy type even when the file imports
+        /// <c>Opc.Ua</c>, while an unresolved legacy reference in the same file still is.
+        /// </summary>
+        [Test]
+        public async Task ReportsOnlyUnresolvedLegacyTypeWhenOwnTypeIsInScopeAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+
+                namespace Other.Pki
+                {
+                    public class CertificateValidator { }
+
+                    public static class C
+                    {
+                        public static void M(CertificateValidator v, CertificateValidationEventArgs e) { }
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsWithoutStubsAsync(
+                    new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
+
+            Diagnostic[] ua0021 = [.. diags.Where(d => d.Id == "UA0021")];
+            Assert.That(ua0021, Has.Length.EqualTo(1));
+            Assert.That(
+                ua0021[0].GetMessage(System.Globalization.CultureInfo.InvariantCulture),
+                Does.Contain("CertificateValidationEventArgs"));
+        }
+
+        /// <summary>
+        /// Unresolved legacy usages on the bare 2.0 stack keep being reported, both in
+        /// type positions and as a simple name in a type-only position where a member with
+        /// the same name is in scope.
+        /// </summary>
+        [Test]
+        public async Task ReportsUnresolvedLegacyTypeUsagesWithoutStubsAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+
+                public sealed class C
+                {
+                    public object? CertificateValidator { get; set; }
+
+                    public static void M(CertificateValidationEventArgs e)
+                    {
+                        System.Console.WriteLine(typeof(CertificateValidator).FullName);
+                    }
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsWithoutStubsAsync(
+                    new UA0021CertificateValidatorRenameAnalyzer(), source)
+                .ConfigureAwait(false);
+
+            Assert.That(diags.Count(d => d.Id == "UA0021"), Is.EqualTo(2));
+        }
     }
 }

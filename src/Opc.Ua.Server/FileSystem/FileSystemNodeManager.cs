@@ -190,6 +190,30 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public bool AllowAnonymousWrite { get; set; }
 
+        /// <summary>
+        /// The files one Session can keep open in this mount through <c>FileType.Open</c>,
+        /// 64 by default; zero means no limit. An open beyond it fails with
+        /// <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        public int MaxOpenFilesPerSession
+        {
+            get => m_openQuota.MaxOpenFilesPerSession;
+            set => m_openQuota.MaxOpenFilesPerSession = value;
+        }
+
+        /// <summary>
+        /// The files all Sessions together can keep open in this mount through
+        /// <c>FileType.Open</c>, 1024 by default; zero means no limit. An open beyond it
+        /// fails with <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        public int MaxOpenFiles
+        {
+            get => m_openQuota.MaxOpenFiles;
+            set => m_openQuota.MaxOpenFiles = value;
+        }
+
+        private readonly FileOpenQuota m_openQuota = new();
+
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
         {
@@ -334,7 +358,7 @@ namespace Opc.Ua.Server.FileSystem
         public override async ValueTask DisposeAsync()
         {
             Task cleanup = base.DisposeAsync().AsTask();
-            if (await Task.WhenAny(cleanup, Task.Delay(CloseTimeout)).ConfigureAwait(false) == cleanup)
+            if (await FileHandle.CompletesWithinAsync(cleanup, CloseTimeout).ConfigureAwait(false))
             {
                 await cleanup.ConfigureAwait(false);
             }
@@ -524,7 +548,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return NodeId.Null;
             }
-            int slash = providerPath.LastIndexOf('/');
+            int slash = providerPath.LastIndexOf('/', StringComparison.Ordinal);
             string parent = slash < 0 ? string.Empty : providerPath[..slash];
             return string.IsNullOrEmpty(parent)
                 ? FileSystemNodeId.BuildRoot(NamespaceIndex)
@@ -586,7 +610,11 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return handle;
                 }
-                handle = new FileHandle(Provider, providerPath, IsSessionTerminated) { CloseTimeout = CloseTimeout };
+                handle = new FileHandle(Provider, providerPath, IsSessionTerminated)
+                {
+                    CloseTimeout = CloseTimeout,
+                    OpenQuota = m_openQuota
+                };
                 FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                 m_handles.Add(identity, handle);
                 return handle;

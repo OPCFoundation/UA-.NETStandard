@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -44,6 +45,7 @@
       "output": {
         "properties": {
           "CompletionStateMachine": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -89,6 +91,7 @@
       "output": {
         "properties": {
           "CompletionStateMachine": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           },
@@ -98,6 +101,7 @@
             "uav:valueRank": -1
           },
           "FileNodeId": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -152,6 +156,7 @@
             "uav:valueRank": -1
           },
           "FileNodeId": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -207,6 +212,7 @@
       "observable": true,
       "readOnly": true,
       "title": "ClientProcessingTimeout",
+      "type": "number",
       "uav:browseName": "ClientProcessingTimeout",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=123",
       "uav:mapToType": "i=290",
@@ -459,6 +465,7 @@
         "browseName": "1:Parameters",
         "displayName": [
           {
+            "locale": "",
             "value": "Parameters"
           }
         ],
@@ -500,10 +507,12 @@
         "typeDefinition": "i=15744"
       },
       {
+        "arrayDimensions": "",
         "browseName": "ClientProcessingTimeout",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "ClientProcessingTimeout"
           }
         ],
@@ -532,6 +541,7 @@
         "browseName": "GenerateFileForRead",
         "displayName": [
           {
+            "locale": "",
             "value": "GenerateFileForRead"
           }
         ],
@@ -566,6 +576,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -598,6 +609,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -628,6 +640,7 @@
         "browseName": "GenerateFileForWrite",
         "displayName": [
           {
+            "locale": "",
             "value": "GenerateFileForWrite"
           }
         ],
@@ -662,6 +675,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -694,6 +708,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -724,6 +739,7 @@
         "browseName": "CloseAndCommit",
         "displayName": [
           {
+            "locale": "",
             "value": "CloseAndCommit"
           }
         ],
@@ -758,6 +774,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -790,6 +807,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],

@@ -308,7 +308,7 @@ namespace Opc.Ua.SpecTraceability
                 return IsExcluded(type) ? "is excluded from a normal run" : "runs";
             }
 
-            int lastDot = name.LastIndexOf('.');
+            int lastDot = name.LastIndexOf('.', StringComparison.Ordinal);
             if (lastDot <= 0)
             {
                 return "is neither a fixture nor a method";

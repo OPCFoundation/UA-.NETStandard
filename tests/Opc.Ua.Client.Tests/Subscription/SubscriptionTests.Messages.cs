@@ -394,10 +394,12 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                 });
             };
+            // Two workers: one parks on the full queue, the other stays free (a single
+            // worker never parks, it leaves the message on the server for Republish).
             var manager = new SubscriptionManager(context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
             {
-                MinPublishWorkerCount = 1,
-                MaxPublishWorkerCount = 1
+                MinPublishWorkerCount = 2,
+                MaxPublishWorkerCount = 2
             };
             Task? disposing = null;
             string stage = "starting the subscription manager";
@@ -410,7 +412,8 @@ namespace Opc.Ua.Client.Subscriptions
                 await entered.Task.WaitAsync(ct).ConfigureAwait(false);
                 stage = "waiting for ingress saturation";
                 await saturated.Task.WaitAsync(ct).ConfigureAwait(false);
-                Assert.That(Volatile.Read(ref received), Is.EqualTo(kCapacity + 1));
+                Assert.That(Volatile.Read(ref received), Is.GreaterThanOrEqualTo(kCapacity + 1));
+                Assert.That(manager.ParkedPublishWorkerCount, Is.EqualTo(1));
 
                 stage = "waiting for manager shutdown";
                 disposing = manager.DisposeAsync().AsTask();

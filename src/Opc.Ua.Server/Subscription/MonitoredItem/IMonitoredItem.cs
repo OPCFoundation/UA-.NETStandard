@@ -199,7 +199,7 @@ namespace Opc.Ua.Server
         /// <returns>True if the caller should re-queue the item for publishing after the next interval elaspses.</returns>
         bool Publish(
             OperationContext context,
-            Queue<EventFieldList> notifications,
+            Queue<QueuedEvent> notifications,
             uint maxNotificationsPerPublish);
 
         /// <summary>

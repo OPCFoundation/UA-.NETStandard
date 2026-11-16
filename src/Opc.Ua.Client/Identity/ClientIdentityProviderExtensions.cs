@@ -264,10 +264,14 @@ namespace Opc.Ua.Identity
                 return true;
             }
 
+            // compare normalized URIs: an offered policy may use the short name.
+            ISecurityPolicyRegistry registry = context.EffectiveSecurityPolicies;
+            string offeredUri = registry.GetInfo(policy.SecurityPolicyUri!)?.Uri ?? policy.SecurityPolicyUri!;
             ReadOnlySpan<string> span = enabled.Span;
             for (int i = 0; i < span.Length; i++)
             {
-                if (string.Equals(span[i], policy.SecurityPolicyUri, StringComparison.Ordinal))
+                if (string.Equals(span[i], policy.SecurityPolicyUri, StringComparison.Ordinal) ||
+                    string.Equals(span[i], offeredUri, StringComparison.Ordinal))
                 {
                     rejectionReason = null;
                     return true;
@@ -300,6 +304,17 @@ namespace Opc.Ua.Identity
                 : context.EndpointDescription?.SecurityPolicyUri ?? SecurityPolicies.None;
 
             if (string.Equals(effectiveUri, boundUri, StringComparison.Ordinal))
+            {
+                rejectionReason = null;
+                return true;
+            }
+
+            // The bound URI is the normalized policy URI; an offered policy may
+            // name the same policy by its short name.
+            ISecurityPolicyRegistry registry = context.EffectiveSecurityPolicies;
+            string? effectiveCanonical = registry.GetInfo(effectiveUri)?.Uri;
+            if (effectiveCanonical != null &&
+                string.Equals(effectiveCanonical, registry.GetInfo(boundUri!)?.Uri, StringComparison.Ordinal))
             {
                 rejectionReason = null;
                 return true;

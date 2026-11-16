@@ -152,11 +152,11 @@ namespace Opc.Ua.Server.Tests
             }
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
-            var published = new List<List<EventFieldList>>();
+            var published = new List<List<QueuedEvent>>();
             for (int ii = 0; ii < specs.Length; ii++)
             {
-                List<EventFieldList> expected = Publish(alone[ii]);
-                List<EventFieldList> actual = Publish(shared[ii]);
+                List<QueuedEvent> expected = Publish(alone[ii]);
+                List<QueuedEvent> actual = Publish(shared[ii]);
                 published.Add(actual);
                 Assert.That(actual, Has.Count.EqualTo(expected.Count), $"item {ii}");
                 for (int jj = 0; jj < expected.Count; jj++)
@@ -225,11 +225,11 @@ namespace Opc.Ua.Server.Tests
             }
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
-            List<EventFieldList> expected = Publish(alone);
+            List<QueuedEvent> expected = Publish(alone);
             Assert.That(expected, Has.Count.EqualTo(2));
             foreach (MonitoredItem item in derived.Cast<MonitoredItem>().Append(plain))
             {
-                List<EventFieldList> actual = Publish(item);
+                List<QueuedEvent> actual = Publish(item);
                 Assert.That(actual, Has.Count.EqualTo(2));
                 for (int jj = 0; jj < expected.Count; jj++)
                 {
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server.Tests
             EventFilter filter = CreateFilter(SelectA(), null);
             MonitoredItem reference = CreateItem(3, filter, null);
             reference.QueueEvent(snapshot);
-            EventFieldList fields = Publish(reference)[0];
+            QueuedEvent fields = Publish(reference)[0];
             var source = new Mock<IAsyncNodeManager>();
             var unrelatedSource = new Mock<IAsyncNodeManager>();
             var parent = new CountingMonitoredItem(this, 1, filter, source.Object);
@@ -638,7 +638,7 @@ namespace Opc.Ua.Server.Tests
             EventFilter filter = CreateFilter(SelectA(), null);
             MonitoredItem reference = CreateItem(2, filter, null);
             reference.QueueEvent(snapshot);
-            EventFieldList fields = Publish(reference)[0];
+            QueuedEvent fields = Publish(reference)[0];
             var source = new Mock<IAsyncNodeManager>();
             var item = new CountingMonitoredItem(this, 1, filter, source.Object);
             m_disposables.Add(item);
@@ -829,8 +829,8 @@ namespace Opc.Ua.Server.Tests
             item.QueueSharedEvent(snapshot, otherKey, evaluation);
             alone.QueueEvent(snapshot);
 
-            List<EventFieldList> expected = Publish(alone);
-            List<EventFieldList> actual = Publish(item);
+            List<QueuedEvent> expected = Publish(alone);
+            List<QueuedEvent> actual = Publish(item);
             Assert.That(actual, Has.Count.EqualTo(1));
             Assert.That(actual[0].EventFields.ToArray(), Is.EqualTo(expected[0].EventFields.ToArray()));
             Assert.That(actual[0].EventFields.Count, Is.EqualTo(SelectA().Length));
@@ -870,22 +870,22 @@ namespace Opc.Ua.Server.Tests
             Assert.That(keys[0].Representative, Is.SameAs(keys[0]), "the first held key stays its own");
         }
 
-        private static string? Message(EventFieldList fields)
+        private static string? Message(QueuedEvent fields)
         {
             // Message is the third select clause of SelectA and SelectB.
             return fields.EventFields[2].TryGetValue(out LocalizedText text) ? text.Text : null;
         }
 
-        private static List<EventFieldList> Publish(MonitoredItem item)
+        private static List<QueuedEvent> Publish(MonitoredItem item)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = item.Publish(new OperationContext(item), notifications, 100);
             return [.. notifications];
         }
 
-        private static List<EventFieldList> Publish(MonitoredItem item, DiagnosticsMasks diagnosticsMask)
+        private static List<QueuedEvent> Publish(MonitoredItem item, DiagnosticsMasks diagnosticsMask)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             using var context = new OperationContext(
                 new RequestHeader { ReturnDiagnostics = (uint)diagnosticsMask },
                 null,
@@ -938,7 +938,67 @@ namespace Opc.Ua.Server.Tests
             Assert.That(firstResult.DiagnosticInfo, Is.SameAs(firstDiagnostics), "the first notification is unchanged");
         }
 
-        private static StatusResult ResultOf(EventFieldList fields, int index)
+        /// <summary>
+        /// Items with equal filters that receive a sealed snapshot through a real event
+        /// manager share one admission stamp, whether the items are queued on one thread or
+        /// in ranges on several threads; items whose fields are copied per item (StatusResult
+        /// fields) get a stamp of their own.
+        /// </summary>
+        [Test]
+        public async Task ItemsWithEqualFiltersShareTheAdmissionStampOfASealedSnapshotAsync(
+            [Values(false, true)] bool splitEvents)
+        {
+            using var events = new EventManager(m_server, 100, 100);
+            Mock.Get(m_server).SetupGet(value => value.EventManager).Returns(events);
+            MonitoredNode2 monitoredNode = CreateMonitoredNode(true, splitEvents);
+            var plain = new List<MonitoredItem>();
+            var withResult = new List<MonitoredItem>();
+            for (uint ii = 1; ii <= 4; ii++)
+            {
+                MonitoredItem item = CreateItem(ii, CreateFilter(SelectA(), null), null);
+                monitoredNode.Add((IEventMonitoredItem)item);
+                plain.Add(item);
+                MonitoredItem copied = CreateItem(ii + 10, CreateFilter([.. SelectA(), Field("Result")], null), null);
+                monitoredNode.Add((IEventMonitoredItem)copied);
+                withResult.Add(copied);
+            }
+
+            BaseEventState e = CreateEventState(EventSeverity.High);
+            e.AddChild(new PropertyState(e)
+            {
+                NodeId = new NodeId("Result", 1),
+                BrowseName = QualifiedName.From("Result"),
+                DisplayName = new LocalizedText("Result"),
+                TypeDefinitionId = VariableTypeIds.PropertyType,
+                DataType = DataTypeIds.StatusResult,
+                ValueRank = ValueRanks.Scalar,
+                WrappedValue = Variant.FromStructure(new StatusResult(new ServiceResult(StatusCodes.BadUserAccessDenied)))
+            });
+
+            // a NodeState is cloned by the notifier, and the clone is sealed with the identity of the event.
+            await monitoredNode.OnReportEventAsync(m_systemContext, monitoredNode.Node, e).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            List<QueuedEvent> shared = [.. plain.Select(item => Publish(item).Single())];
+            object? stamp = shared[0].AdmissionStamp;
+            Assert.That(stamp, Is.Not.Null);
+            Assert.That(shared.Select(fields => fields.AdmissionStamp), Is.All.SameAs(stamp));
+
+            List<QueuedEvent> copies = [.. withResult.Select(item => Publish(item).Single())];
+            for (int ii = 0; ii < copies.Count; ii++)
+            {
+                Assert.That(copies[ii].AdmissionStamp, Is.Not.Null.And.Not.SameAs(stamp));
+                for (int jj = 0; jj < ii; jj++)
+                {
+                    Assert.That(
+                        copies[ii].AdmissionStamp,
+                        Is.Not.SameAs(copies[jj].AdmissionStamp),
+                        "every copy has a stamp of its own");
+                }
+            }
+        }
+
+        private static StatusResult ResultOf(QueuedEvent fields, int index)
         {
             StatusResult result;
             Assert.That(fields.EventFields[index].TryGetStructure(out result!), Is.True);

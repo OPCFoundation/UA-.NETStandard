@@ -100,12 +100,10 @@ namespace UaLens.Tests.Samples
             }
         }
 
-        [TestCase(true, 8, false)]
-        [TestCase(false, 8, true)]
-        [TestCase(true, 9, true)]
-        [TestCase(false, 9, false)]
         [TestCase(true, 10, false)]
         [TestCase(false, 10, true)]
+        [TestCase(true, 11, true)]
+        [TestCase(false, 11, false)]
         public async Task ManagedBuildSelectionResolvesOnlyFixedLayouts(bool debug, int major, bool runtime)
         {
             RepositorySampleTestContext context = await RepositorySampleTestContext.CreateAsync().ConfigureAwait(false);
@@ -113,9 +111,8 @@ namespace UaLens.Tests.Samples
             {
                 RepositorySampleFramework framework = major switch
                 {
-                    8 => RepositorySampleFramework.Net8,
-                    9 => RepositorySampleFramework.Net9,
                     10 => RepositorySampleFramework.Net10,
+                    11 => RepositorySampleFramework.Net11,
                     _ => throw new ArgumentOutOfRangeException(nameof(major))
                 };
                 RepositorySampleSource source = context.Source with
@@ -130,7 +127,7 @@ namespace UaLens.Tests.Samples
                 };
                 string expected = Path.Combine(
                     context.Source.Root, "samples", "Reference", "ConsoleReferenceServer", "bin",
-                    debug ? "Debug" : "Release", major == 8 ? "net8.0" : major == 9 ? "net9.0" : "net10.0");
+                    debug ? "Debug" : "Release", major == 11 ? "net11.0" : "net10.0");
                 if (runtime)
                 {
                     expected = Path.Combine(expected, RuntimeInformation.RuntimeIdentifier);
@@ -442,27 +439,6 @@ namespace UaLens.Tests.Samples
             }
         }
 
-        [TestCase(8)]
-        [TestCase(9)]
-        public async Task DraftIntentRejectsUnsupportedManagedFrameworkBeforePreparingFiles(int major)
-        {
-            RepositorySampleTestContext context = await RepositorySampleTestContext.CreateAsync().ConfigureAwait(false);
-            await using (context.ConfigureAwait(false))
-            {
-                RepositorySampleSnapshot result = await context.Service.ConfigureAsync(
-                    RepositorySampleId.IntentEnabledRobot, context.Source with
-                    {
-                        Framework = major == 8 ? RepositorySampleFramework.Net8 : RepositorySampleFramework.Net9
-                    }).ConfigureAwait(false);
-
-                Assert.That(result.Phase, Is.EqualTo(RepositorySamplePhase.RequiresConfiguration));
-                Assert.That(result.Message, Does.Contain("draft Robot Intent").And.Contain("managed .NET 10"));
-                Assert.That(Directory.Exists(context.RunParent), Is.False);
-                context.Runtime.VerifyNoOtherCalls();
-                context.Ports.VerifyNoOtherCalls();
-            }
-        }
-
         [Test]
         public async Task VisionLaunchUsesOnlyPrivatePkiAndTheInProcessFixtureBackend()
         {
@@ -487,27 +463,6 @@ namespace UaLens.Tests.Samples
                     Is.EqualTo(Path.Combine("samples", "Vision", "VisualInspectionCell")));
                 Assert.That(RepositorySampleRuntime.CreateStartInfo(launch).WorkingDirectory,
                     Is.EqualTo(launch.Files.Root));
-                context.Runtime.VerifyNoOtherCalls();
-            }
-        }
-
-        [TestCase(8)]
-        [TestCase(9)]
-        public async Task VisionRejectsUnsupportedManagedFrameworksBeforeAllocatingResources(int major)
-        {
-            RepositorySampleTestContext context = await RepositorySampleTestContext.CreateAsync().ConfigureAwait(false);
-            await using (context.ConfigureAwait(false))
-            {
-                RepositorySampleSnapshot result = await context.Service.ConfigureAsync(
-                    RepositorySampleId.VisualInspectionCell, context.Source with
-                    {
-                        Framework = major == 8 ? RepositorySampleFramework.Net8 : RepositorySampleFramework.Net9
-                    }).ConfigureAwait(false);
-
-                Assert.That(result.Phase, Is.EqualTo(RepositorySamplePhase.RequiresConfiguration));
-                Assert.That(result.Message, Does.Contain(".NET 10"));
-                Assert.That(Directory.Exists(context.RunParent), Is.False);
-                context.Ports.VerifyNoOtherCalls();
                 context.Runtime.VerifyNoOtherCalls();
             }
         }

@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
+        public bool Publish(OperationContext context, Queue<QueuedEvent> notifications, uint maxNotificationsPerPublish)
         {
             return item.Publish(context, notifications, maxNotificationsPerPublish);
         }

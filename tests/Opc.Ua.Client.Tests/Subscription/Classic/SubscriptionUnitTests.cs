@@ -289,6 +289,655 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// While a message is missing at the head of the incoming queue, later
+        /// messages are delivered but their entries stay queued behind it. The
+        /// queue stays within its limit, and processed entries do not keep their
+        /// messages.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task IncomingMessageQueueIsBoundedWhileAMessageIsMissingAsync(CancellationToken ct)
+        {
+            const int kMessages = Subscription.kMaxIncomingMessages + 1000;
+            int delivered = 0;
+            var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                DisableMonitoredItemCache = true,
+                FastDataChangeCallback = (_, _, _) => Interlocked.Increment(ref delivered)
+            };
+            using (subscription)
+            {
+                // Republish never succeeds; message 2 stays listed as available.
+                subscription.Session = BuildSessionMock((_, _) => false);
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+                subscription.SaveMessageInCache([1], BuildDataMessage(1));
+                int saved = 1;
+                for (uint sequenceNumber = 3; sequenceNumber < kMessages + 3; sequenceNumber++)
+                {
+                    subscription.SaveMessageInCache([2, sequenceNumber], BuildDataMessage(sequenceNumber));
+                    saved++;
+                    Assert.That(CountIncomingMessages(subscription, out _),
+                        Is.LessThanOrEqualTo(Subscription.kMaxIncomingMessages));
+                    if (saved % 256 == 0)
+                    {
+                        // Let the worker deliver each batch, so the limit gives up
+                        // processed entries rather than messages still waiting for it.
+                        await WaitForDeliveredAsync(saved).ConfigureAwait(false);
+                    }
+                }
+
+                // Every message after the gap is delivered without the missing one.
+                await WaitForDeliveredAsync(kMessages + 1).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref delivered), Is.EqualTo(kMessages + 1));
+                CountIncomingMessages(subscription, out int retained);
+                Assert.That(retained, Is.Zero, "Processed entries must not keep their messages.");
+            }
+
+            async Task WaitForDeliveredAsync(int count)
+            {
+                while (Volatile.Read(ref delivered) < count)
+                {
+                    await Task.Delay(5, ct).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A classic subscription acknowledges a message when it saves it, so its
+        /// queue must not give up messages to take new ones while the callback
+        /// stalls. The publish worker waits for room when it may, or leaves the
+        /// message on the server. A message the queue still has to give up is
+        /// reported with a publish state change.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task StalledCallbackHoldsBackSavingAndReportsLostMessagesAsync(CancellationToken ct)
+        {
+            using var gate = new SemaphoreSlim(0);
+            using var entered = new SemaphoreSlim(0);
+            int delivered = 0;
+            var states = new ConcurrentQueue<PublishStateChangedMask>();
+            var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                DisableMonitoredItemCache = true,
+                FastDataChangeCallback = (_, _, _) =>
+                {
+                    if (Interlocked.Increment(ref delivered) == 1)
+                    {
+                        entered.Release();
+                        gate.Wait(ct);
+                    }
+                }
+            };
+            subscription.PublishStatusChanged += (_, e) => states.Enqueue(e.Status);
+            using (subscription)
+            {
+                subscription.Session = BuildSessionMock((_, _) => false);
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+                // The callback stalls on the first message.
+                subscription.SaveMessageInCache([1], BuildDataMessage(1));
+                await entered.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(subscription.HasIncomingRoom(), Is.True);
+
+                uint sequenceNumber = 2;
+                while (subscription.HasIncomingRoom())
+                {
+                    subscription.SaveMessageInCache([sequenceNumber], BuildDataMessage(sequenceNumber));
+                    sequenceNumber++;
+                }
+                Assert.That(sequenceNumber - 2, Is.LessThanOrEqualTo(
+                    (uint)(Subscription.kMaxIncomingMessages - 1024)));
+                Assert.That(states, Does.Not.Contain(PublishStateChangedMask.MessagesLost));
+
+                // A worker that may not wait leaves the message on the server.
+                var refuse = new CountingWaitPolicy(allow: false);
+                Assert.That(await subscription.WaitForIncomingRoomAsync(refuse, ct).ConfigureAwait(false),
+                    Is.False);
+                Assert.That(refuse.Entered, Is.Zero);
+
+                // A worker that may wait does so until the callback returns.
+                var allow = new CountingWaitPolicy(allow: true);
+                Task<bool> waiting = subscription.WaitForIncomingRoomAsync(allow, ct).AsTask();
+                await Task.Delay(200, ct).ConfigureAwait(false);
+                Assert.That(waiting.IsCompleted, Is.False);
+                Assert.That(allow.Entered, Is.EqualTo(1));
+
+                gate.Release();
+                Assert.That(await waiting.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false),
+                    Is.True);
+                Assert.That(allow.Exited, Is.EqualTo(1));
+                while (Volatile.Read(ref delivered) < (int)sequenceNumber - 1)
+                {
+                    await Task.Delay(5, ct).ConfigureAwait(false);
+                }
+
+                // Saving past the limit without waiting gives up messages, and says so.
+                Interlocked.Exchange(ref delivered, 0);
+                for (int i = 0; i < 2 * Subscription.kMaxIncomingMessages; i++)
+                {
+                    subscription.SaveMessageInCache([sequenceNumber], BuildDataMessage(sequenceNumber));
+                    sequenceNumber++;
+                }
+                gate.Release();
+                Assert.That(states, Does.Contain(PublishStateChangedMask.MessagesLost));
+            }
+        }
+
+        private sealed class CountingWaitPolicy(bool allow) : IIngressWaitPolicy
+        {
+            public int Entered => Volatile.Read(ref m_entered);
+            public int Exited => Volatile.Read(ref m_exited);
+
+            public bool TryEnterWait()
+            {
+                if (!allow)
+                {
+                    return false;
+                }
+                Interlocked.Increment(ref m_entered);
+                return true;
+            }
+
+            public void ExitWait()
+            {
+                Interlocked.Increment(ref m_exited);
+            }
+
+            private int m_entered;
+            private int m_exited;
+        }
+
+        /// <summary>
+        /// A body decoded on first use is dispatched decoded, then keeps only its bytes
+        /// while the message stays cached: reading the cached message decodes it again,
+        /// as a new instance with the same content (#5003).
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task CachedMessageKeepsDeferredBodyAsBytesAfterDispatchAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var delivered = new ConcurrentDictionary<uint, TaskCompletionSource<EventNotificationList>>();
+            TaskCompletionSource<EventNotificationList> Delivered(uint sequenceNumber)
+            {
+                return delivered.GetOrAdd(sequenceNumber, _ => new TaskCompletionSource<EventNotificationList>(
+                    TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            using var subscription = new Subscription(telemetry, new() { PublishingEnabled = true })
+            {
+                FastEventCallback = (_, events, _) => Delivered(events.SequenceNumber).TrySetResult(events),
+                Session = BuildSessionMock()
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            ExtensionObject body = DecodeDeferred(telemetry, new EventNotificationList
+            {
+                Events = [new EventFieldList { ClientHandle = 3, EventFields = [Variant.From("first")] }]
+            });
+            subscription.SaveMessageInCache([1u], new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [body]
+            });
+            EventNotificationList dispatched = await Delivered(1).Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(dispatched.Events[0].ClientHandle, Is.EqualTo(3u));
+
+            // Messages are dispatched in order, so the first one is done once the second arrives.
+            subscription.SaveMessageInCache([2u], new NotificationMessage
+            {
+                SequenceNumber = 2,
+                NotificationData = [new(new EventNotificationList())]
+            });
+            await Delivered(2).Task.WaitAsync(ct).ConfigureAwait(false);
+
+            NotificationMessage cached = subscription.Notifications.First();
+            Assert.That(cached.SequenceNumber, Is.EqualTo(1u));
+            Assert.That(cached.NotificationData[0].TryGetValue(out EventNotificationList? reread), Is.True);
+            Assert.That(reread, Is.Not.SameAs(dispatched));
+            Assert.That(reread!.Events[0].ClientHandle, Is.EqualTo(3u));
+
+            // What the dispatch set on the first instance is set on the new one too.
+            Assert.That(reread.SequenceNumber, Is.EqualTo(1u));
+            Assert.That(reread.Events[0].EventFields[0].TryGetValue(out string? field), Is.True);
+            Assert.That(field, Is.EqualTo("first"));
+
+            // The dispatched instance stays usable for the application that holds it.
+            Assert.That(dispatched.Events[0].EventFields[0].TryGetValue(out string? kept), Is.True);
+            Assert.That(kept, Is.EqualTo("first"));
+        }
+
+        /// <summary>
+        /// How the application could have been handed a message.
+        /// </summary>
+        public enum MessageHandOut
+        {
+            None,
+            SessionNotificationHandler,
+            LastNotification
+        }
+
+        /// <summary>
+        /// A message that leaves the message cache returns the buffer of its deferred body,
+        /// unless the application could hold the message: a session Notification handler
+        /// was attached, or it read the cached messages (#5003).
+        /// </summary>
+        [TestCase(MessageHandOut.None, false)]
+        [TestCase(MessageHandOut.SessionNotificationHandler, true)]
+        [TestCase(MessageHandOut.LastNotification, true)]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessageReleasesDeferredBodyUnlessHandedOutAsync(
+            MessageHandOut handOut, bool stillReadable, CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            var delivered = new ConcurrentDictionary<uint, TaskCompletionSource<bool>>();
+            TaskCompletionSource<bool> Delivered(uint sequenceNumber)
+            {
+                return delivered.GetOrAdd(sequenceNumber, _ => new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            using var subscription = new Subscription(telemetry, new() { PublishingEnabled = true })
+            {
+                MaxMessageCount = 1,
+                FastEventCallback = (_, events, _) => Delivered(events.SequenceNumber).TrySetResult(true),
+                Session = BuildSessionMock()
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            subscription.Session = session;
+            if (handOut == MessageHandOut.SessionNotificationHandler)
+            {
+                session.Notification += (_, _) => { };
+            }
+
+            var first = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [DecodeDeferred(telemetry, new EventNotificationList
+                {
+                    Events = [new EventFieldList { ClientHandle = 3, EventFields = [Variant.From("first")] }]
+                })]
+            };
+            subscription.SaveMessageInCache([1u], first);
+            await Delivered(1).Task.WaitAsync(ct).ConfigureAwait(false);
+            if (handOut == MessageHandOut.LastNotification)
+            {
+                Assert.That(subscription.LastNotification, Is.SameAs(first));
+            }
+
+            // The second message evicts the first; the third one is dispatched after the
+            // round of the second, which releases what it evicted, has ended.
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    NotificationData = [new(new EventNotificationList())]
+                });
+                await Delivered(sequenceNumber).Task.WaitAsync(ct).ConfigureAwait(false);
+            }
+
+            Assert.That(subscription.LastNotification?.SequenceNumber, Is.EqualTo(3u));
+            Assert.That(first.NotificationData[0].TryGetValue(out EventNotificationList? reread), Is.EqualTo(stillReadable));
+            if (stillReadable)
+            {
+                Assert.That(reread!.Events[0].ClientHandle, Is.EqualTo(3u));
+            }
+        }
+
+        /// <summary>
+        /// A message that left the cache keeps its deferred body while it is still the
+        /// last message of a monitored item that got nothing newer, also when the
+        /// application reads that item's LastMessage only after the eviction.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessageStaysReadableAsLastMessageOfAQuietItemAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            var quiet = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            var busy = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            subscription.AddItems([quiet, busy]);
+            subscription.Session = session;
+
+            NotificationMessage first = DeferredEventMessage(telemetry, 1, quiet.ClientHandle);
+            subscription.SaveMessageInCache([1u], first);
+            await delivered(1).ConfigureAwait(false);
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], EventMessage(sequenceNumber, busy.ClientHandle));
+                await delivered(sequenceNumber).ConfigureAwait(false);
+            }
+
+            NotificationMessage? last = quiet.LastMessage;
+            Assert.That(last, Is.SameAs(first));
+            Assert.That(last!.NotificationData[0].TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events[0].ClientHandle, Is.EqualTo(quiet.ClientHandle));
+        }
+
+        /// <summary>
+        /// A monitored item removed from the subscription still returns its last message,
+        /// which keeps its deferred body when it leaves the cache afterwards.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessageStaysReadableAsLastMessageOfARemovedItemAsync(
+            bool removeItems, CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            var removed = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            var busy = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            subscription.AddItems([removed, busy]);
+            subscription.Session = session;
+
+            NotificationMessage first = DeferredEventMessage(telemetry, 1, removed.ClientHandle);
+            subscription.SaveMessageInCache([1u], first);
+            await delivered(1).ConfigureAwait(false);
+            if (removeItems)
+            {
+                subscription.RemoveItems([removed]);
+            }
+            else
+            {
+                subscription.RemoveItem(removed);
+            }
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], EventMessage(sequenceNumber, busy.ClientHandle));
+                await delivered(sequenceNumber).ConfigureAwait(false);
+            }
+
+            NotificationMessage? last = removed.LastMessage;
+            Assert.That(last, Is.SameAs(first));
+            Assert.That(last!.NotificationData[0].TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events[0].ClientHandle, Is.EqualTo(removed.ClientHandle));
+        }
+
+        /// <summary>
+        /// An item removed after the dispatch looked it up but before it saved the value
+        /// still returns the new message as its last message, which keeps its deferred
+        /// body when it leaves the cache.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessageStaysReadableAsLastMessageOfAnItemRemovedDuringItsSaveAsync(
+            CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            var trigger = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            var removed = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            var busy = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            subscription.AddItems([trigger, removed, busy]);
+            subscription.Session = session;
+
+            // The dispatch saves the event of the trigger, then looks up and saves the
+            // event of the removed item. The trigger removes that item, and puts it back
+            // in the lookup only, so the dispatch finds it although it was removed; once
+            // its value is saved, it leaves the lookup again.
+            // The later messages go to the trigger, so that no item in the lookup holds
+            // the first message.
+            var items = (System.Collections.Concurrent.ConcurrentDictionary<uint, MonitoredItem>)
+                typeof(Subscription).GetField(
+                    "m_monitoredItems",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(subscription)!;
+            int triggered = 0;
+            trigger.Notification += (_, _) =>
+            {
+                if (Interlocked.Increment(ref triggered) != 1)
+                {
+                    return;
+                }
+                subscription.RemoveItem(removed);
+                items[removed.ClientHandle] = removed;
+            };
+            removed.Notification += (_, _) => items.TryRemove(removed.ClientHandle, out _);
+
+            var first = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [DecodeDeferred(telemetry, new EventNotificationList
+                {
+                    Events =
+                    [
+                        new EventFieldList { ClientHandle = trigger.ClientHandle },
+                        new EventFieldList { ClientHandle = removed.ClientHandle }
+                    ]
+                })]
+            };
+            subscription.SaveMessageInCache([1u], first);
+            await delivered(1).ConfigureAwait(false);
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], EventMessage(sequenceNumber, trigger.ClientHandle));
+                await delivered(sequenceNumber).ConfigureAwait(false);
+            }
+
+            NotificationMessage? last = removed.LastMessage;
+            Assert.That(last, Is.SameAs(first));
+            Assert.That(last!.NotificationData[0].TryGetValue(out EventNotificationList? events), Is.True);
+        }
+
+        /// <summary>
+        /// Whether the session raises Notification with a message is decided when the
+        /// message is saved: a handler attached later does not get messages saved before,
+        /// whose buffers the subscription can already have returned.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task SessionNotificationIsRaisedForMessagesSavedWithAHandlerAttachedAsync(
+            CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            subscription.Session = session;
+
+            bool raiseFirst = subscription.SaveMessageInCache([1u], DeferredEventMessage(telemetry, 1, 3), null);
+            session.Notification += (_, _) => { };
+            bool raiseSecond = subscription.SaveMessageInCache([2u], EventMessage(2, 3), null);
+            await delivered(2).ConfigureAwait(false);
+
+            Assert.That(raiseFirst, Is.False);
+            Assert.That(raiseSecond, Is.True);
+        }
+
+        /// <summary>
+        /// In a large subscription the messages that left the cache are released in
+        /// batches, so that each check of the last messages of all items covers several.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task EvictedMessagesOfALargeSubscriptionAreReleasedInBatchesAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var session = SessionMock.Create();
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            var items = new MonitoredItem[100];
+            for (int ii = 0; ii < items.Length; ii++)
+            {
+                items[ii] = new MonitoredItem(telemetry) { NodeClass = NodeClass.Object };
+            }
+            subscription.AddItems(items);
+            subscription.Session = session;
+
+            // two messages for an unknown handle evict two messages: one per 64 items.
+            var messages = new NotificationMessage[4];
+            for (uint sequenceNumber = 1; sequenceNumber <= 4; sequenceNumber++)
+            {
+                messages[sequenceNumber - 1] = DeferredEventMessage(telemetry, sequenceNumber, 9999);
+                subscription.SaveMessageInCache([sequenceNumber], messages[sequenceNumber - 1]);
+                await delivered(sequenceNumber).ConfigureAwait(false);
+                if (sequenceNumber == 2)
+                {
+                    Assert.That(messages[0].NotificationData[0].TryGetValue(out EventNotificationList? _), Is.True);
+                }
+            }
+
+            Assert.That(messages[0].NotificationData[0].TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(messages[1].NotificationData[0].TryGetValue(out EventNotificationList? _), Is.False);
+            Assert.That(messages[3].NotificationData[0].TryGetValue(out EventNotificationList? _), Is.True);
+        }
+
+        /// <summary>
+        /// Messages handed to a Notification handler of one session stay readable after the
+        /// subscription moved to a session without handlers.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task MessagesHandedOutBeforeASessionChangeStayReadableAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var withHandler = SessionMock.Create();
+            using var withoutHandler = SessionMock.Create();
+            withHandler.Notification += (_, _) => { };
+            (Subscription subscription, Func<uint, Task> delivered) =
+                await CreateEvictingSubscriptionAsync(telemetry, ct).ConfigureAwait(false);
+            using Subscription disposeSubscription = subscription;
+            subscription.Session = withHandler;
+
+            NotificationMessage first = DeferredEventMessage(telemetry, 1, 3);
+            subscription.SaveMessageInCache([1u], first);
+            await delivered(1).ConfigureAwait(false);
+
+            subscription.Session = withoutHandler;
+            for (uint sequenceNumber = 2; sequenceNumber <= 3; sequenceNumber++)
+            {
+                subscription.SaveMessageInCache([sequenceNumber], EventMessage(sequenceNumber, 4));
+                await delivered(sequenceNumber).ConfigureAwait(false);
+            }
+
+            Assert.That(first.NotificationData[0].TryGetValue(out EventNotificationList? events), Is.True);
+            Assert.That(events!.Events[0].ClientHandle, Is.EqualTo(3u));
+        }
+
+        /// <summary>
+        /// A created subscription that caches one message and reports each dispatched
+        /// event message by sequence number.
+        /// </summary>
+        private static async Task<(Subscription Subscription, Func<uint, Task> Delivered)>
+            CreateEvictingSubscriptionAsync(ITelemetryContext telemetry, CancellationToken ct)
+        {
+            var delivered = new ConcurrentDictionary<uint, TaskCompletionSource<bool>>();
+            TaskCompletionSource<bool> Delivered(uint sequenceNumber)
+            {
+                return delivered.GetOrAdd(sequenceNumber, _ => new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            var subscription = new Subscription(telemetry, new() { PublishingEnabled = true })
+            {
+                MaxMessageCount = 1,
+                FastEventCallback = (_, events, _) => Delivered(events.SequenceNumber).TrySetResult(true),
+                Session = BuildSessionMock()
+            };
+            try
+            {
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                subscription.Dispose();
+                throw;
+            }
+            return (subscription, sequenceNumber => Delivered(sequenceNumber).Task.WaitAsync(ct));
+        }
+
+        private static NotificationMessage DeferredEventMessage(
+            ITelemetryContext telemetry, uint sequenceNumber, uint clientHandle)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = [DecodeDeferred(telemetry, new EventNotificationList
+                {
+                    Events = [new EventFieldList { ClientHandle = clientHandle, EventFields = [Variant.From("first")] }]
+                })]
+            };
+        }
+
+        private static NotificationMessage EventMessage(uint sequenceNumber, uint clientHandle)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = [new(new EventNotificationList
+                {
+                    Events = [new EventFieldList { ClientHandle = clientHandle }]
+                })]
+            };
+        }
+
+        private static ExtensionObject DecodeDeferred(ITelemetryContext telemetry, EventNotificationList notification)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            context.DeferNotificationBodies = true;
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteExtensionObject(null, new ExtensionObject(notification));
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
+            return decoder.ReadExtensionObject(null);
+        }
+
+        private static NotificationMessage BuildDataMessage(uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = [new(new DataChangeNotification
+                {
+                    SequenceNumber = sequenceNumber,
+                    MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                })]
+            };
+        }
+
+        /// <summary>
+        /// Counts the entries of the incoming message queue, and those that still
+        /// reference a message.
+        /// </summary>
+        private static int CountIncomingMessages(Subscription subscription, out int withMessage)
+        {
+            System.Reflection.FieldInfo field = typeof(Subscription).GetField(
+                "m_incomingMessages",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            // Only the thread that saves messages changes the structure of the queue.
+            withMessage = 0;
+            if (field.GetValue(subscription) is not System.Collections.ICollection entries)
+            {
+                return 0;
+            }
+            foreach (object entry in entries)
+            {
+                if (entry.GetType().GetField("Message")!.GetValue(entry) != null)
+                {
+                    withMessage++;
+                }
+            }
+            return entries.Count;
+        }
+
+        /// <summary>
         /// Whole-message diagnostics come from the wire array even when caching is disabled
         /// or the message contains client handles that are not registered locally.
         /// </summary>
@@ -345,9 +994,6 @@ namespace Opc.Ua.Client.Tests
             }, subscription.GetAcknowledgementScope());
 
             SubscriptionNotificationMessage message = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
-
-            Assert.That(data.MonitoredItems[0].DiagnosticInfo,
-                Is.SameAs(registeredItems && !disableCache ? first : null));
             Assert.That(message.Notifications[0].DataChanges[0].DiagnosticInfo, Is.SameAs(first));
             Assert.That(message.Notifications[0].DataChanges[1].DiagnosticInfo, Is.SameAs(second));
             Assert.That(message.StringTable[1], Is.EqualTo("second"));
@@ -689,6 +1335,83 @@ namespace Opc.Ua.Client.Tests
             Mock.Get(session).Verify(value =>
                 value.RepublishAsync(subscription.Id, It.IsAny<uint>(), It.IsAny<CancellationToken>()),
                 Times.Exactly(messageCount));
+        }
+
+        /// <summary>
+        /// A message republished for an earlier lifetime of the subscription is not
+        /// taken once the subscription was deleted and created again.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task RepublishedMessageOfAnEarlierLifetimeIsNotTakenAsync(CancellationToken ct)
+        {
+            var received = new ConcurrentQueue<uint>();
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                FastDataChangeCallback = (_, message, _) => received.Enqueue(message.SequenceNumber)
+            };
+            subscription.Session = BuildSessionMock();
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            AcknowledgementScope firstLifetime = subscription.GetAcknowledgementScope();
+
+            await subscription.DeleteAsync(true, ct).ConfigureAwait(false);
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            Assert.That(subscription.TrySaveRepublishedMessageInCache(
+                new NotificationMessage
+                {
+                    SequenceNumber = 1,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                },
+                firstLifetime,
+                out _), Is.False);
+            Assert.That(subscription.TrySaveRepublishedMessageInCache(
+                new NotificationMessage
+                {
+                    SequenceNumber = 1,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                },
+                subscription.GetAcknowledgementScope(),
+                out _), Is.True);
+            while (received.IsEmpty)
+            {
+                await Task.Delay(10, ct).ConfigureAwait(false);
+            }
+            Assert.That(received, Is.EqualTo(new uint[] { 1 }));
+        }
+
+        /// <summary>
+        /// Transfer recovery queues at most as many messages as the incoming queue
+        /// holds. The older messages stay in the acknowledgement list.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task TransferRecoveryQueuesNoMoreMessagesThanTheQueueBoundAsync(CancellationToken ct)
+        {
+            const int kAvailable = Subscription.kMaxIncomingMessages + 500;
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                RepublishAfterTransfer = true
+            };
+            var available = Enumerable.Range(1, kAvailable).Select(value => (uint)value).ToArrayOf();
+            ISession session = BuildSessionMock(
+                (_, _) => false,
+                mock =>
+                {
+                    mock.Setup(value => value.Subscriptions).Returns([]);
+                    mock.Setup(value => value.RemoveTransferredSubscription(subscription)).Returns(true);
+                    mock.Setup(value => value.AddSubscription(subscription)).Returns(true);
+                });
+            subscription.Session = session;
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            (bool transferred, ArrayOf<uint> acknowledgements) = await subscription
+                .TransferWithAcknowledgementsAsync(session, subscription.Id, available, false, ct)
+                .ConfigureAwait(false);
+
+            Assert.That(transferred, Is.True);
+            Assert.That(acknowledgements.Count, Is.EqualTo(kAvailable - Subscription.kMaxIncomingMessages));
+            Assert.That(acknowledgements.ToArray()!.Max(), Is.EqualTo((uint)(kAvailable - Subscription.kMaxIncomingMessages)));
         }
 
         /// <summary>

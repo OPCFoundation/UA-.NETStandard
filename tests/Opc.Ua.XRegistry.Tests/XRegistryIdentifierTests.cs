@@ -118,7 +118,7 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 string candidate = XRegistryIdentifier.FromSourceIdentity(
                     identity, occupied.ToArrayOf(), prefix, 2);
-                string suffix = candidate[(candidate.LastIndexOf('.') + 1)..];
+                string suffix = candidate[(candidate.LastIndexOf('.', StringComparison.Ordinal) + 1)..];
                 int budget = 128 - 1 - suffixLength;
                 string expectedPrefix = readable[..Math.Min(readable.Length, budget)].TrimEnd('.', '-');
                 Assert.Multiple(() =>
@@ -373,7 +373,7 @@ namespace Opc.Ua.XRegistry.Tests
                 "The disambiguated identifier must honour MaxLength; it is used as a " +
                 "NodeId component and as a file name.");
             Assert.That(disambiguated, Is.Not.EqualTo(plain));
-            Assert.That(disambiguated[(disambiguated.LastIndexOf('.') + 1)..], Has.Length.EqualTo(16));
+            Assert.That(disambiguated[(disambiguated.LastIndexOf('.', StringComparison.Ordinal) + 1)..], Has.Length.EqualTo(16));
         }
 
         [Test]
