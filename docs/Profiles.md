@@ -244,7 +244,9 @@ canonical URI string before claiming a facet):
   `Opc.Ua.PADIM.Client` discovers them and accesses their methods through
   generated proxies. The runtime supports configured signal and analyser
   families; applications select optional capabilities per device and supply
-  acquisition or operation providers. See [PA-DIM](PADIM.md).
+  acquisition or operation providers. Analog bindings retain copied engineering
+  metadata and report registered property changes through semantic notifications.
+  See [PA-DIM](PADIM.md).
 - **Energy Consumption Management** (OPC 34100), **Full** — `Opc.Ua.ECM`,
   `Opc.Ua.ECM.Server` and `Opc.Ua.ECM.Client` provide provider-backed
   measurement, standby and WOL bindings with typed client access.
