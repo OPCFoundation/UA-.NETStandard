@@ -170,11 +170,11 @@ namespace Opc.Ua.LADS.Tests.Server
                     observedState.TrySetResult(device.ItemState);
                 }
             };
-            Action notificationWaitStarting = () =>
+            Action<bool> notificationWaitStarting = waitIsCompleted =>
             {
                 if (second.State == LadsFunctionalStateValue.Running)
                 {
-                    secondNotificationWaitStarting.TrySetResult(true);
+                    secondNotificationWaitStarting.TrySetResult(waitIsCompleted);
                 }
             };
             device.ItemStateMachine.StateChangedAsync += handler;
@@ -192,9 +192,9 @@ namespace Opc.Ua.LADS.Tests.Server
                 Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.NotExecuting));
 
                 secondStart = Task.Run(async () => await second.StartAsync().ConfigureAwait(false));
-                await secondNotificationWaitStarting.Task
+                bool waitCompleted = await secondNotificationWaitStarting.Task
                     .WaitAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds)).ConfigureAwait(false);
-                Assert.That(secondStart.IsCompleted, Is.False);
+                Assert.That(waitCompleted, Is.False);
                 Assert.That(device.ItemState, Is.EqualTo(MachineryItemStateValue.NotExecuting));
 
                 releaseNotification.TrySetResult(true);

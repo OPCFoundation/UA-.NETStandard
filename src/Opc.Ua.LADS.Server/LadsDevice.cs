@@ -337,7 +337,7 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Raised after an asynchronous item-state change requests the shared item-state notification gate.
         /// </summary>
-        internal event Action? ItemStateNotificationWaitStarting;
+        internal event Action<bool>? ItemStateNotificationWaitStarting;
 
         /// <summary>
         /// Gets whether failed storage compensation has quarantined the device.
@@ -1926,7 +1926,7 @@ namespace Opc.Ua.LADS.Server
         private async ValueTask UpdateItemStateAsync(CancellationToken cancellationToken)
         {
             Task wait = m_itemStateGate.WaitAsync(cancellationToken);
-            ItemStateNotificationWaitStarting?.Invoke();
+            ItemStateNotificationWaitStarting?.Invoke(wait.IsCompleted);
             await wait.ConfigureAwait(false);
             try
             {
