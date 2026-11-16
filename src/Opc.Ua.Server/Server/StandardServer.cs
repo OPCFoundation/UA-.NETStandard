@@ -1645,89 +1645,163 @@ namespace Opc.Ua.Server
             return responseHeader;
         }
 
+        /// <summary>
+        /// The service-specific part of a session service: runs once the request was
+        /// validated, inside the service envelope of
+        /// <see cref="ExecuteServiceAsync{TRequest, TResponse}"/>, and returns the response
+        /// with its response header created.
+        /// </summary>
+        /// <param name="server">The server (handlers are static to avoid a closure per call).</param>
+        /// <param name="context">The context of the validated request.</param>
+        /// <param name="requestHeader">The validated request header.</param>
+        /// <param name="requestLifetime">The lifetime of the request.</param>
+        /// <typeparam name="TRequest">The service parameters (a tuple for several).</typeparam>
+        /// <typeparam name="TResponse">The service response.</typeparam>
+        /// <param name="request">The service parameters.</param>
+        private delegate ValueTask<TResponse> ServiceHandler<TRequest, TResponse>(
+            StandardServer server,
+            OperationContext context,
+            RequestHeader requestHeader,
+            RequestLifetime requestLifetime,
+            TRequest request);
+
+        /// <summary>
+        /// Reports the audit event of a session service that failed with a service fault,
+        /// before the fault is translated for the client.
+        /// </summary>
+        /// <typeparam name="TRequest">The service parameters.</typeparam>
+        private delegate void ServiceFaultAudit<TRequest>(
+            StandardServer server,
+            OperationContext context,
+            TRequest request,
+            ServiceResultException fault);
+
+        /// <summary>
+        /// The service envelope shared by the session services: validates the request
+        /// (which creates the operation context), runs the service, and on a service fault
+        /// counts the rejected request, reports the service's fault audit (if it has one)
+        /// and translates the fault for the client; the request is completed in any case.
+        /// </summary>
+        /// <remarks>
+        /// When the service has no fault audit, the envelope drops its copy of the request
+        /// parameters once the service started, so a request that waits long (a held
+        /// Publish) does not keep them alive for the whole wait.
+        /// </remarks>
+        /// <typeparam name="TRequest">The service parameters (a tuple for several).</typeparam>
+        /// <typeparam name="TResponse">The service response.</typeparam>
+        private async ValueTask<TResponse> ExecuteServiceAsync<TRequest, TResponse>(
+            SecureChannelContext secureChannelContext,
+            RequestHeader? requestHeader,
+            RequestType requestType,
+            RequestLifetime requestLifetime,
+            TRequest request,
+            ServiceHandler<TRequest, TResponse> service,
+            ServiceFaultAudit<TRequest>? faultAudit = null)
+        {
+            using OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                requestType,
+                requestLifetime).ConfigureAwait(false);
+
+            try
+            {
+                ValueTask<TResponse> pending = service(
+                    this,
+                    context,
+                    requestHeader,
+                    requestLifetime,
+                    request);
+
+                if (faultAudit == null)
+                {
+                    request = default!;
+                }
+
+                return await pending.ConfigureAwait(false);
+            }
+            catch (ServiceResultException e)
+            {
+                CountRejectedServiceRequest(context, e.StatusCode);
+
+                faultAudit?.Invoke(this, context, request, e);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
         /// <inheritdoc/>
-        public override async ValueTask<CloseSessionResponse> CloseSessionAsync(
+        public override ValueTask<CloseSessionResponse> CloseSessionAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             bool deleteSubscriptions,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CloseSession,
-                requestLifetime).ConfigureAwait(false);
-            try
-            {
-                ISession? session = ServerInternal.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken);
+                requestLifetime,
+                deleteSubscriptions,
+                static async (server, context, header, lifetime, deleteSubscriptions) =>
+                {
+                    ISession? session = server.ServerInternal.SessionManager
+                        .GetSession(header.AuthenticationToken);
 
-                await ServerInternal.CloseSessionAsync(context, context.Session.Id, deleteSubscriptions, requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
+                    await server.ServerInternal.CloseSessionAsync(
+                        context,
+                        context.Session.Id,
+                        deleteSubscriptions,
+                        lifetime.CancellationToken).ConfigureAwait(false);
 
-                // report the audit event for close session
-                ServerInternal.ReportAuditCloseSessionEvent(
-                    context.AuditEntryId!,
-                    session!,
-                    m_logger,
-                    "Session/CloseSession");
+                    // report the audit event for close session
+                    server.ServerInternal.ReportAuditCloseSessionEvent(
+                        context.AuditEntryId!,
+                        session!,
+                        server.m_logger,
+                        "Session/CloseSession");
 
-                var response = new CloseSessionResponse();
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    var response = new CloseSessionResponse();
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<CancelResponse> CancelAsync(
+        public override ValueTask<CancelResponse> CancelAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             uint requestHandle,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Cancel,
-                requestLifetime).ConfigureAwait(false);
-            CancelResponse response;
-            try
-            {
-                ServerInternal.RequestManager.CancelRequests(
-                    context,
-                    requestHandle,
-                    out uint cancelCount);
-
-                response = new CancelResponse
+                requestLifetime,
+                requestHandle,
+                static (server, context, header, _, requestHandle) =>
                 {
-                    CancelCount = cancelCount
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ServerInternal.RequestManager.CancelRequests(
+                        context,
+                        requestHandle,
+                        out uint cancelCount);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-            return response;
+                    var response = new CancelResponse
+                    {
+                        CancelCount = cancelCount
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return new ValueTask<CancelResponse>(response);
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<BrowseResponse> BrowseAsync(
+        public override ValueTask<BrowseResponse> BrowseAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ViewDescription? view,
@@ -1735,44 +1809,37 @@ namespace Opc.Ua.Server
             ArrayOf<BrowseDescription> nodesToBrowse,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Browse,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
-                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
-
-                (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.BrowseAsync(
-                        context,
-                        view!,
-                        requestedMaxReferencesPerNode,
-                        nodesToBrowse,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-
-                var response = new BrowseResponse
+                requestLifetime,
+                (secureChannelContext, view, requestedMaxReferencesPerNode, nodesToBrowse),
+                static async (server, context, header, lifetime, request) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        request.nodesToBrowse,
+                        server.OperationLimits.MaxNodesPerBrowse);
+                    context.StartResponseBudget(
+                        server.GetResponseByteBudget(request.secureChannelContext));
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.BrowseAsync(
+                            context,
+                            request.view!,
+                            request.requestedMaxReferencesPerNode,
+                            request.nodesToBrowse,
+                            lifetime.CancellationToken)
+                        .ConfigureAwait(false);
+
+                    var response = new BrowseResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                });
         }
 
         /// <summary>
@@ -1789,282 +1856,251 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<BrowseNextResponse> BrowseNextAsync(
+        public override ValueTask<BrowseNextResponse> BrowseNextAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             bool releaseContinuationPoints,
             ArrayOf<ByteString> continuationPoints,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.BrowseNext,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
-                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
-
-                (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.BrowseNextAsync(
-                        context,
-                        releaseContinuationPoints,
-                        continuationPoints,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-
-                var response = new BrowseNextResponse
+                requestLifetime,
+                (secureChannelContext, releaseContinuationPoints, continuationPoints),
+                static async (server, context, header, lifetime, request) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        request.continuationPoints,
+                        server.OperationLimits.MaxNodesPerBrowse);
+                    context.StartResponseBudget(
+                        server.GetResponseByteBudget(request.secureChannelContext));
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.BrowseNextAsync(
+                            context,
+                            request.releaseContinuationPoints,
+                            request.continuationPoints,
+                            lifetime.CancellationToken)
+                        .ConfigureAwait(false);
+
+                    var response = new BrowseNextResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<AddNodesResponse> AddNodesAsync(
+        public override ValueTask<AddNodesResponse> AddNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<AddNodesItem> nodesToAdd,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.AddNodes,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(nodesToAdd, OperationLimits.MaxNodesPerNodeManagement);
-
-                (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.AddNodesAsync(
-                        context,
-                        nodesToAdd,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                StatusCode auditStatus = AggregateStatusCode(results);
-                ServerInternal.ReportAuditAddNodesEvent(
-                    new ServerSystemContext(ServerInternal, context),
-                    nodesToAdd,
-                    "NodeManagement/AddNodes",
-                    auditStatus,
-                    m_logger);
-
-                var response = new AddNodesResponse
+                requestLifetime,
+                nodesToAdd,
+                static async (server, context, header, lifetime, nodesToAdd) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        nodesToAdd,
+                        server.OperationLimits.MaxNodesPerNodeManagement);
 
-                ServerInternal.ReportAuditAddNodesEvent(
-                    new ServerSystemContext(ServerInternal, context),
-                    nodesToAdd,
-                    "NodeManagement/AddNodes",
-                    e.StatusCode,
-                    m_logger);
+                    (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.AddNodesAsync(
+                            context,
+                            nodesToAdd,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    server.ReportAuditAddNodes(context, nodesToAdd, AggregateStatusCode(results));
+
+                    var response = new AddNodesResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                },
+                static (server, context, nodesToAdd, e) =>
+                    server.ReportAuditAddNodes(context, nodesToAdd, e.StatusCode));
+        }
+
+        private void ReportAuditAddNodes(
+            OperationContext context,
+            ArrayOf<AddNodesItem> nodesToAdd,
+            StatusCode statusCode)
+        {
+            ServerInternal.ReportAuditAddNodesEvent(
+                new ServerSystemContext(ServerInternal, context),
+                nodesToAdd,
+                "NodeManagement/AddNodes",
+                statusCode,
+                m_logger);
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<DeleteNodesResponse> DeleteNodesAsync(
+        public override ValueTask<DeleteNodesResponse> DeleteNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<DeleteNodesItem> nodesToDelete,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteNodes,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(nodesToDelete, OperationLimits.MaxNodesPerNodeManagement);
-
-                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.DeleteNodesAsync(
-                        context,
-                        nodesToDelete,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                StatusCode auditStatus = AggregateStatusCode(results);
-                ServerInternal.ReportAuditDeleteNodesEvent(
-                    new ServerSystemContext(ServerInternal, context),
-                    nodesToDelete,
-                    "NodeManagement/DeleteNodes",
-                    auditStatus,
-                    m_logger);
-
-                var response = new DeleteNodesResponse
+                requestLifetime,
+                nodesToDelete,
+                static async (server, context, header, lifetime, nodesToDelete) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        nodesToDelete,
+                        server.OperationLimits.MaxNodesPerNodeManagement);
 
-                ServerInternal.ReportAuditDeleteNodesEvent(
-                    new ServerSystemContext(ServerInternal, context),
-                    nodesToDelete,
-                    "NodeManagement/DeleteNodes",
-                    e.StatusCode,
-                    m_logger);
+                    (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.DeleteNodesAsync(
+                            context,
+                            nodesToDelete,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    server.ReportAuditDeleteNodes(context, nodesToDelete, AggregateStatusCode(results));
+
+                    var response = new DeleteNodesResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                },
+                static (server, context, nodesToDelete, e) =>
+                    server.ReportAuditDeleteNodes(context, nodesToDelete, e.StatusCode));
+        }
+
+        private void ReportAuditDeleteNodes(
+            OperationContext context,
+            ArrayOf<DeleteNodesItem> nodesToDelete,
+            StatusCode statusCode)
+        {
+            ServerInternal.ReportAuditDeleteNodesEvent(
+                new ServerSystemContext(ServerInternal, context),
+                nodesToDelete,
+                "NodeManagement/DeleteNodes",
+                statusCode,
+                m_logger);
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<AddReferencesResponse> AddReferencesAsync(
+        public override ValueTask<AddReferencesResponse> AddReferencesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<AddReferencesItem> referencesToAdd,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.AddReferences,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(referencesToAdd, OperationLimits.MaxNodesPerNodeManagement);
-
-                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.AddReferencesAsync(
-                        context,
-                        referencesToAdd,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                StatusCode auditStatus = AggregateStatusCode(results);
-                ServerInternal.ReportAuditAddReferencesEvent(
-                    new ServerSystemContext(ServerInternal, context),
-                    referencesToAdd,
-                    "NodeManagement/AddReferences",
-                    auditStatus,
-                    m_logger);
-
-                var response = new AddReferencesResponse
+                requestLifetime,
+                referencesToAdd,
+                static async (server, context, header, lifetime, referencesToAdd) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        referencesToAdd,
+                        server.OperationLimits.MaxNodesPerNodeManagement);
 
-                ServerInternal.ReportAuditAddReferencesEvent(
-                    new ServerSystemContext(ServerInternal, context),
-                    referencesToAdd,
-                    "NodeManagement/AddReferences",
-                    e.StatusCode,
-                    m_logger);
+                    (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.AddReferencesAsync(
+                            context,
+                            referencesToAdd,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    server.ReportAuditAddReferences(context, referencesToAdd, AggregateStatusCode(results));
+
+                    var response = new AddReferencesResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                },
+                static (server, context, referencesToAdd, e) =>
+                    server.ReportAuditAddReferences(context, referencesToAdd, e.StatusCode));
+        }
+
+        private void ReportAuditAddReferences(
+            OperationContext context,
+            ArrayOf<AddReferencesItem> referencesToAdd,
+            StatusCode statusCode)
+        {
+            ServerInternal.ReportAuditAddReferencesEvent(
+                new ServerSystemContext(ServerInternal, context),
+                referencesToAdd,
+                "NodeManagement/AddReferences",
+                statusCode,
+                m_logger);
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(
+        public override ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<DeleteReferencesItem> referencesToDelete,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteReferences,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(referencesToDelete, OperationLimits.MaxNodesPerNodeManagement);
-
-                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.DeleteReferencesAsync(
-                        context,
-                        referencesToDelete,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                StatusCode auditStatus = AggregateStatusCode(results);
-                ServerInternal.ReportAuditDeleteReferencesEvent(
-                    new ServerSystemContext(ServerInternal, context),
-                    referencesToDelete,
-                    "NodeManagement/DeleteReferences",
-                    auditStatus,
-                    m_logger);
-
-                var response = new DeleteReferencesResponse
+                requestLifetime,
+                referencesToDelete,
+                static async (server, context, header, lifetime, referencesToDelete) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        referencesToDelete,
+                        server.OperationLimits.MaxNodesPerNodeManagement);
 
-                ServerInternal.ReportAuditDeleteReferencesEvent(
-                    new ServerSystemContext(ServerInternal, context),
-                    referencesToDelete,
-                    "NodeManagement/DeleteReferences",
-                    e.StatusCode,
-                    m_logger);
+                    (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.DeleteReferencesAsync(
+                            context,
+                            referencesToDelete,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    server.ReportAuditDeleteReferences(context, referencesToDelete, AggregateStatusCode(results));
+
+                    var response = new DeleteReferencesResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                },
+                static (server, context, referencesToDelete, e) =>
+                    server.ReportAuditDeleteReferences(context, referencesToDelete, e.StatusCode));
+        }
+
+        private void ReportAuditDeleteReferences(
+            OperationContext context,
+            ArrayOf<DeleteReferencesItem> referencesToDelete,
+            StatusCode statusCode)
+        {
+            ServerInternal.ReportAuditDeleteReferencesEvent(
+                new ServerSystemContext(ServerInternal, context),
+                referencesToDelete,
+                "NodeManagement/DeleteReferences",
+                statusCode,
+                m_logger);
         }
 
         /// <summary>
@@ -2106,132 +2142,103 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<RegisterNodesResponse> RegisterNodesAsync(
+        public override ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<NodeId> nodesToRegister,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.RegisterNodes,
-                requestLifetime).ConfigureAwait(false);
-            RegisterNodesResponse response;
-            try
-            {
-                ValidateOperationLimits(nodesToRegister, OperationLimits.MaxNodesPerRegisterNodes);
-
-                ServerInternal.NodeManager
-                    .RegisterNodes(context, nodesToRegister, out ArrayOf<NodeId> registeredNodeIds);
-
-                response = new RegisterNodesResponse
+                requestLifetime,
+                nodesToRegister,
+                static (server, context, header, _, nodesToRegister) =>
                 {
-                    RegisteredNodeIds = registeredNodeIds
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        nodesToRegister,
+                        server.OperationLimits.MaxNodesPerRegisterNodes);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-            return response;
+                    server.ServerInternal.NodeManager
+                        .RegisterNodes(context, nodesToRegister, out ArrayOf<NodeId> registeredNodeIds);
+
+                    var response = new RegisterNodesResponse
+                    {
+                        RegisteredNodeIds = registeredNodeIds
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return new ValueTask<RegisterNodesResponse>(response);
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
+        public override ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<NodeId> nodesToUnregister,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.UnregisterNodes,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                nodesToUnregister,
+                static (server, context, header, _, nodesToUnregister) =>
+                {
+                    server.ValidateOperationLimits(
+                        nodesToUnregister,
+                        server.OperationLimits.MaxNodesPerRegisterNodes);
 
-            UnregisterNodesResponse response;
-            try
-            {
-                ValidateOperationLimits(
-                    nodesToUnregister,
-                    OperationLimits.MaxNodesPerRegisterNodes);
+                    server.ServerInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
 
-                ServerInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
-
-                response = new UnregisterNodesResponse();
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-            return response;
+                    var response = new UnregisterNodesResponse();
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return new ValueTask<UnregisterNodesResponse>(response);
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+        public override ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<BrowsePath> browsePaths,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.TranslateBrowsePathsToNodeIds,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                // The limit bounds the browsePaths array only (Part 5 6.3.11); the number of
-                // RelativePath elements is capped per operation by the dispatcher.
-                ValidateOperationLimits(
-                    browsePaths,
-                    OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-
-                (ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
-                        context,
-                        browsePaths,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-
-                var response = new TranslateBrowsePathsToNodeIdsResponse
+                requestLifetime,
+                browsePaths,
+                static async (server, context, header, lifetime, browsePaths) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    // The limit bounds the browsePaths array only (Part 5 6.3.11); the number of
+                    // RelativePath elements is capped per operation by the dispatcher.
+                    server.ValidateOperationLimits(
+                        browsePaths,
+                        server.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    (ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
+                            context,
+                            browsePaths,
+                            lifetime.CancellationToken)
+                        .ConfigureAwait(false);
+
+                    var response = new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<ReadResponse> ReadAsync(
+        public override ValueTask<ReadResponse> ReadAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             double maxAge,
@@ -2239,49 +2246,42 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Read,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
-                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
-
-                (ArrayOf<DataValue> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.ReadAsync(
-                        context,
-                        maxAge,
-                        timestampsToReturn,
-                        nodesToRead,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                var response = new ReadResponse
+                requestLifetime,
+                (maxAge, timestampsToReturn, nodesToRead, secureChannelContext),
+                static async (server, context, header, lifetime, request) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        request.nodesToRead,
+                        server.OperationLimits.MaxNodesPerRead);
+                    context.StartResponseBudget(
+                        server.GetResponseByteBudget(request.secureChannelContext));
 
-                ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
+                    (ArrayOf<DataValue> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.ReadAsync(
+                            context,
+                            request.maxAge,
+                            request.timestampsToReturn,
+                            request.nodesToRead,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    var response = new ReadResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                },
+                static (server, context, _, e) =>
+                    server.ServerInternal.ReportAuditEvent(context, "Read", e, server.m_logger));
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<HistoryReadResponse> HistoryReadAsync(
+        public override ValueTask<HistoryReadResponse> HistoryReadAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ExtensionObject historyReadDetails,
@@ -2290,168 +2290,140 @@ namespace Opc.Ua.Server
             ArrayOf<HistoryReadValueId> nodesToRead,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.HistoryRead,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                if (historyReadDetails.TryGetValue(out ReadEventDetails? _))
+                requestLifetime,
+                (historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, secureChannelContext),
+                static async (server, context, header, lifetime, request) =>
                 {
-                    ValidateOperationLimits(
-                        nodesToRead,
-                        OperationLimits.MaxNodesPerHistoryReadEvents);
-                }
-                else
-                {
-                    ValidateOperationLimits(
-                        nodesToRead,
-                        OperationLimits.MaxNodesPerHistoryReadData);
-
-                    // every node is answered with one value per requested time, whatever is stored
-                    if (historyReadDetails.TryGetValue(out ReadAtTimeDetails? atTime) && atTime != null &&
-                        (long)atTime.ReqTimes.Count * nodesToRead.Count >
-                            HistorianDispatcher.kMaxAtTimeRequestedValues)
+                    if (request.historyReadDetails.TryGetValue(out ReadEventDetails? _))
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadTooManyOperations,
-                            "ReadAtTime asks for {0} requested times on {1} nodes; at most {2} values per request.",
-                            atTime.ReqTimes.Count,
-                            nodesToRead.Count,
-                            HistorianDispatcher.kMaxAtTimeRequestedValues);
+                        server.ValidateOperationLimits(
+                            request.nodesToRead,
+                            server.OperationLimits.MaxNodesPerHistoryReadEvents);
                     }
-                }
-                int responseBudget = ResponseSizeEstimator.GetHistoryReadResponseBudget(
-                    GetResponseByteBudget(secureChannelContext),
-                    nodesToRead.Count,
-                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0);
-                if (responseBudget < 0)
-                {
-                    context.StartExhaustedResponseBudget();
-                }
-                else
-                {
-                    context.StartResponseBudget(responseBudget);
-                }
+                    else
+                    {
+                        server.ValidateOperationLimits(
+                            request.nodesToRead,
+                            server.OperationLimits.MaxNodesPerHistoryReadData);
 
-                (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.HistoryReadAsync(
-                        context,
-                        historyReadDetails,
-                        timestampsToReturn,
-                        releaseContinuationPoints,
-                        nodesToRead,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
+                        // every node is answered with one value per requested time, whatever is stored
+                        if (request.historyReadDetails.TryGetValue(out ReadAtTimeDetails? atTime) && atTime != null &&
+                            (long)atTime.ReqTimes.Count * request.nodesToRead.Count >
+                                HistorianDispatcher.kMaxAtTimeRequestedValues)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadTooManyOperations,
+                                "ReadAtTime asks for {0} requested times on {1} nodes; at most {2} values per request.",
+                                atTime.ReqTimes.Count,
+                                request.nodesToRead.Count,
+                                HistorianDispatcher.kMaxAtTimeRequestedValues);
+                        }
+                    }
+                    int responseBudget = ResponseSizeEstimator.GetHistoryReadResponseBudget(
+                        server.GetResponseByteBudget(request.secureChannelContext),
+                        request.nodesToRead.Count,
+                        (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0);
+                    if (responseBudget < 0)
+                    {
+                        context.StartExhaustedResponseBudget();
+                    }
+                    else
+                    {
+                        context.StartResponseBudget(responseBudget);
+                    }
 
-                var response = new HistoryReadResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.HistoryReadAsync(
+                            context,
+                            request.historyReadDetails,
+                            request.timestampsToReturn,
+                            request.releaseContinuationPoints,
+                            request.nodesToRead,
+                            lifetime.CancellationToken)
+                        .ConfigureAwait(false);
 
-                ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    var response = new HistoryReadResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                },
+                static (server, context, _, e) =>
+                    server.ServerInternal.ReportAuditEvent(context, "HistoryRead", e, server.m_logger));
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<WriteResponse> WriteAsync(
+        public override ValueTask<WriteResponse> WriteAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<WriteValue> nodesToWrite,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Write,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
-
-                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager
-                        .WriteAsync(context, nodesToWrite, requestLifetime.CancellationToken)
-                        .ConfigureAwait(false);
-
-                var response = new WriteResponse
+                requestLifetime,
+                nodesToWrite,
+                static async (server, context, header, lifetime, nodesToWrite) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(
+                        nodesToWrite,
+                        server.OperationLimits.MaxNodesPerWrite);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager
+                            .WriteAsync(context, nodesToWrite, lifetime.CancellationToken)
+                            .ConfigureAwait(false);
+
+                    var response = new WriteResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
+        public override ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<ExtensionObject> historyUpdateDetails,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.HistoryUpdate,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(historyUpdateDetails);
-                ValidateHistoryUpdateOperationLimits(historyUpdateDetails);
-
-                (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.HistoryUpdateAsync(
-                        context,
-                        historyUpdateDetails,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                var response = new HistoryUpdateResponse
+                requestLifetime,
+                historyUpdateDetails,
+                static async (server, context, header, lifetime, historyUpdateDetails) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(historyUpdateDetails);
+                    server.ValidateHistoryUpdateOperationLimits(historyUpdateDetails);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.HistoryUpdateAsync(
+                            context,
+                            historyUpdateDetails,
+                            lifetime.CancellationToken).ConfigureAwait(false);
+
+                    var response = new HistoryUpdateResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                });
         }
 
         /// <summary>
@@ -2501,7 +2473,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
+        public override ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             double requestedPublishingInterval,
@@ -2512,209 +2484,164 @@ namespace Opc.Ua.Server
             byte priority,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateSubscription,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                CreateSubscriptionResponse response = await ServerInternal.SubscriptionManager.CreateSubscriptionAsync(
-                    context,
-                    requestedPublishingInterval,
+                requestLifetime,
+                (requestedPublishingInterval,
                     requestedLifetimeCount,
                     requestedMaxKeepAliveCount,
                     maxNotificationsPerPublish,
                     publishingEnabled,
-                    priority,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
+                    priority),
+                static async (server, context, header, lifetime, request) =>
+                {
+                    CreateSubscriptionResponse response =
+                        await server.ServerInternal.SubscriptionManager.CreateSubscriptionAsync(
+                            context,
+                            request.requestedPublishingInterval,
+                            request.requestedLifetimeCount,
+                            request.requestedMaxKeepAliveCount,
+                            request.maxNotificationsPerPublish,
+                            request.publishingEnabled,
+                            request.priority,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context);
-
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    response.ResponseHeader = server.CreateResponse(header, context);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+        public override ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.TransferSubscriptions,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                (subscriptionIds, sendInitialValues),
+                static async (server, context, header, lifetime, request) =>
+                {
+                    server.ValidateOperationLimits(request.subscriptionIds);
 
-            try
-            {
-                ValidateOperationLimits(subscriptionIds);
+                    TransferSubscriptionsResponse response =
+                        await server.ServerInternal.SubscriptionManager.TransferSubscriptionsAsync(
+                            context,
+                            request.subscriptionIds,
+                            request.sendInitialValues,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                TransferSubscriptionsResponse response = await ServerInternal.SubscriptionManager.TransferSubscriptionsAsync(
-                    context,
-                    subscriptionIds,
-                    sendInitialValues,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                response.ResponseHeader = CreateResponse(requestHeader, context);
-
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    response.ResponseHeader = server.CreateResponse(header, context);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+        public override ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteSubscriptions,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                subscriptionIds,
+                static async (server, context, header, lifetime, subscriptionIds) =>
+                {
+                    server.ValidateOperationLimits(subscriptionIds);
 
-            try
-            {
-                ValidateOperationLimits(subscriptionIds);
+                    DeleteSubscriptionsResponse response =
+                        await server.ServerInternal.SubscriptionManager.DeleteSubscriptionsAsync(
+                            context,
+                            subscriptionIds,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                DeleteSubscriptionsResponse response = await ServerInternal.SubscriptionManager.DeleteSubscriptionsAsync(
-                    context,
-                    subscriptionIds,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                response.ResponseHeader = CreateResponse(requestHeader, context);
-
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    response.ResponseHeader = server.CreateResponse(header, context);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<PublishResponse> PublishAsync(
+        public override ValueTask<PublishResponse> PublishAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Publish,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                m_logger.PUBLISHRequestHandleRECEIVEDTIMETimestampHhMm(
-                    context.SessionId,
-                    requestHeader.RequestHandle,
-                    requestHeader.Timestamp);
+                requestLifetime,
+                subscriptionAcknowledgements,
+                static async (server, context, header, lifetime, subscriptionAcknowledgements) =>
+                {
+                    server.m_logger.PUBLISHRequestHandleRECEIVEDTIMETimestampHhMm(
+                        context.SessionId,
+                        header.RequestHandle,
+                        header.Timestamp);
 
 #pragma warning disable CA2025 // awaited below, before the context is disposed
-                Task<PublishResponse> publish = ServerInternal.SubscriptionManager.PublishAsync(
-                    context,
-                    subscriptionAcknowledgements,
-                    requestLifetime.ParkSink,
-                    requestLifetime.CancellationToken);
+                    Task<PublishResponse> publish = server.ServerInternal.SubscriptionManager.PublishAsync(
+                        context,
+                        subscriptionAcknowledgements,
+                        lifetime.ParkSink,
+                        lifetime.CancellationToken);
 #pragma warning restore CA2025
 
-                // The acknowledgements are applied before the request waits: the state
-                // machine does not keep them for the whole wait of a held Publish.
-                subscriptionAcknowledgements = default;
-                PublishResponse response = await publish.ConfigureAwait(false);
+                    // The acknowledgements are applied before the request waits: neither
+                    // this state machine nor the envelope keeps them for the whole wait
+                    // of a held Publish.
+                    subscriptionAcknowledgements = default;
+                    PublishResponse response = await publish.ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context);
-
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    response.ResponseHeader = server.CreateResponse(header, context);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<RepublishResponse> RepublishAsync(
+        public override ValueTask<RepublishResponse> RepublishAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Republish,
-                requestLifetime).ConfigureAwait(false);
-            RepublishResponse response;
-            try
-            {
-                NotificationMessage notificationMessage = ServerInternal.SubscriptionManager.Republish(
-                    context,
-                    subscriptionId,
-                    retransmitSequenceNumber);
-
-                response = new RepublishResponse
+                requestLifetime,
+                (subscriptionId, retransmitSequenceNumber),
+                static (server, context, header, _, request) =>
                 {
-                    NotificationMessage = notificationMessage
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    NotificationMessage notificationMessage = server.ServerInternal.SubscriptionManager.Republish(
+                        context,
+                        request.subscriptionId,
+                        request.retransmitSequenceNumber);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-            return response;
+                    var response = new RepublishResponse
+                    {
+                        NotificationMessage = notificationMessage
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return new ValueTask<RepublishResponse>(response);
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
+        public override ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -2725,96 +2652,79 @@ namespace Opc.Ua.Server
             byte priority,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ModifySubscription,
-                requestLifetime).ConfigureAwait(false);
-
-            ModifySubscriptionResponse response;
-            try
-            {
-                ServerInternal.SubscriptionManager.ModifySubscription(
-                    context,
-                    subscriptionId,
+                requestLifetime,
+                (subscriptionId,
                     requestedPublishingInterval,
                     requestedLifetimeCount,
                     requestedMaxKeepAliveCount,
                     maxNotificationsPerPublish,
-                    priority,
-                    out double revisedPublishingInterval,
-                    out uint revisedLifetimeCount,
-                    out uint revisedMaxKeepAliveCount);
-
-                response = new ModifySubscriptionResponse
+                    priority),
+                static (server, context, header, _, request) =>
                 {
-                    RevisedPublishingInterval = revisedPublishingInterval,
-                    RevisedLifetimeCount = revisedLifetimeCount,
-                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ServerInternal.SubscriptionManager.ModifySubscription(
+                        context,
+                        request.subscriptionId,
+                        request.requestedPublishingInterval,
+                        request.requestedLifetimeCount,
+                        request.requestedMaxKeepAliveCount,
+                        request.maxNotificationsPerPublish,
+                        request.priority,
+                        out double revisedPublishingInterval,
+                        out uint revisedLifetimeCount,
+                        out uint revisedMaxKeepAliveCount);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-            return response;
+                    var response = new ModifySubscriptionResponse
+                    {
+                        RevisedPublishingInterval = revisedPublishingInterval,
+                        RevisedLifetimeCount = revisedLifetimeCount,
+                        RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return new ValueTask<ModifySubscriptionResponse>(response);
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
+        public override ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             bool publishingEnabled,
             ArrayOf<uint> subscriptionIds,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetPublishingMode,
-                requestLifetime).ConfigureAwait(false);
-
-            SetPublishingModeResponse response;
-            try
-            {
-                ValidateOperationLimits(subscriptionIds);
-
-                ServerInternal.SubscriptionManager.SetPublishingMode(
-                    context,
-                    publishingEnabled,
-                    subscriptionIds,
-                    out ArrayOf<StatusCode> results,
-                    out ArrayOf<DiagnosticInfo> diagnosticInfos);
-
-                response = new SetPublishingModeResponse
+                requestLifetime,
+                (publishingEnabled, subscriptionIds),
+                static (server, context, header, _, request) =>
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    server.ValidateOperationLimits(request.subscriptionIds);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-            return response;
+                    server.ServerInternal.SubscriptionManager.SetPublishingMode(
+                        context,
+                        request.publishingEnabled,
+                        request.subscriptionIds,
+                        out ArrayOf<StatusCode> results,
+                        out ArrayOf<DiagnosticInfo> diagnosticInfos);
+
+                    var response = new SetPublishingModeResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return new ValueTask<SetPublishingModeResponse>(response);
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
+        public override ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -2823,61 +2733,51 @@ namespace Opc.Ua.Server
             ArrayOf<uint> linksToRemove,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetTriggering,
-                requestLifetime).ConfigureAwait(false);
-            SetTriggeringResponse response;
-            try
-            {
-                if (linksToAdd.Count == 0 && linksToRemove.Count == 0)
+                requestLifetime,
+                (subscriptionId, triggeringItemId, linksToAdd, linksToRemove),
+                static (server, context, header, _, request) =>
                 {
-                    throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }
+                    if (request.linksToAdd.Count == 0 && request.linksToRemove.Count == 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNothingToDo);
+                    }
 
-                int monitoredItemsCount = 0;
-                monitoredItemsCount += linksToAdd.Count;
-                monitoredItemsCount += linksToRemove.Count;
-                ValidateOperationLimits(
-                    monitoredItemsCount,
-                    OperationLimits.MaxMonitoredItemsPerCall);
+                    int monitoredItemsCount = 0;
+                    monitoredItemsCount += request.linksToAdd.Count;
+                    monitoredItemsCount += request.linksToRemove.Count;
+                    server.ValidateOperationLimits(
+                        monitoredItemsCount,
+                        server.OperationLimits.MaxMonitoredItemsPerCall);
 
-                ServerInternal.SubscriptionManager.SetTriggering(
-                    context,
-                    subscriptionId,
-                    triggeringItemId,
-                    linksToAdd,
-                    linksToRemove,
-                    out ArrayOf<StatusCode> addResults,
-                    out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
-                    out ArrayOf<StatusCode> removeResults,
-                    out ArrayOf<DiagnosticInfo> removeDiagnosticInfos);
+                    server.ServerInternal.SubscriptionManager.SetTriggering(
+                        context,
+                        request.subscriptionId,
+                        request.triggeringItemId,
+                        request.linksToAdd,
+                        request.linksToRemove,
+                        out ArrayOf<StatusCode> addResults,
+                        out ArrayOf<DiagnosticInfo> addDiagnosticInfos,
+                        out ArrayOf<StatusCode> removeResults,
+                        out ArrayOf<DiagnosticInfo> removeDiagnosticInfos);
 
-                response = new SetTriggeringResponse
-                {
-                    AddResults = addResults,
-                    AddDiagnosticInfos = addDiagnosticInfos,
-                    RemoveResults = removeResults,
-                    RemoveDiagnosticInfos = removeDiagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
-            return response;
+                    var response = new SetTriggeringResponse
+                    {
+                        AddResults = addResults,
+                        AddDiagnosticInfos = addDiagnosticInfos,
+                        RemoveResults = removeResults,
+                        RemoveDiagnosticInfos = removeDiagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return new ValueTask<SetTriggeringResponse>(response);
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public override ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -2885,42 +2785,34 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateMonitoredItems,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                (subscriptionId, timestampsToReturn, itemsToCreate),
+                static async (server, context, header, lifetime, request) =>
+                {
+                    server.ValidateOperationLimits(
+                        request.itemsToCreate,
+                        server.OperationLimits.MaxMonitoredItemsPerCall);
+                    ValidateTimestampsToReturn(request.timestampsToReturn);
 
-            try
-            {
-                ValidateOperationLimits(itemsToCreate, OperationLimits.MaxMonitoredItemsPerCall);
-                ValidateTimestampsToReturn(timestampsToReturn);
+                    CreateMonitoredItemsResponse response =
+                        await server.ServerInternal.SubscriptionManager.CreateMonitoredItemsAsync(
+                            context,
+                            request.subscriptionId,
+                            request.timestampsToReturn,
+                            request.itemsToCreate,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                CreateMonitoredItemsResponse result = await ServerInternal.SubscriptionManager.CreateMonitoredItemsAsync(
-                    context,
-                    subscriptionId,
-                    timestampsToReturn,
-                    itemsToCreate,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                result.ResponseHeader = CreateResponse(requestHeader, context);
-
-                return result;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    response.ResponseHeader = server.CreateResponse(header, context);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public override ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -2928,82 +2820,66 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ModifyMonitoredItems,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                (subscriptionId, timestampsToReturn, itemsToModify),
+                static async (server, context, header, lifetime, request) =>
+                {
+                    server.ValidateOperationLimits(
+                        request.itemsToModify,
+                        server.OperationLimits.MaxMonitoredItemsPerCall);
+                    ValidateTimestampsToReturn(request.timestampsToReturn);
 
-            try
-            {
-                ValidateOperationLimits(itemsToModify, OperationLimits.MaxMonitoredItemsPerCall);
-                ValidateTimestampsToReturn(timestampsToReturn);
+                    ModifyMonitoredItemsResponse response =
+                        await server.ServerInternal.SubscriptionManager.ModifyMonitoredItemsAsync(
+                            context,
+                            request.subscriptionId,
+                            request.timestampsToReturn,
+                            request.itemsToModify,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                ModifyMonitoredItemsResponse response = await ServerInternal.SubscriptionManager.ModifyMonitoredItemsAsync(
-                    context,
-                    subscriptionId,
-                    timestampsToReturn,
-                    itemsToModify,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                response.ResponseHeader = CreateResponse(requestHeader, context);
-
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    response.ResponseHeader = server.CreateResponse(header, context);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public override ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             uint subscriptionId,
             ArrayOf<uint> monitoredItemIds,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteMonitoredItems,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                (subscriptionId, monitoredItemIds),
+                static async (server, context, header, lifetime, request) =>
+                {
+                    server.ValidateOperationLimits(
+                        request.monitoredItemIds,
+                        server.OperationLimits.MaxMonitoredItemsPerCall);
 
-            try
-            {
-                ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
+                    DeleteMonitoredItemsResponse response =
+                        await server.ServerInternal.SubscriptionManager.DeleteMonitoredItemsAsync(
+                            context,
+                            request.subscriptionId,
+                            request.monitoredItemIds,
+                            lifetime.CancellationToken).ConfigureAwait(false);
 
-                DeleteMonitoredItemsResponse response = await ServerInternal.SubscriptionManager.DeleteMonitoredItemsAsync(
-                    context,
-                    subscriptionId,
-                    monitoredItemIds,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
-
-                response.ResponseHeader = CreateResponse(requestHeader, context);
-
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    response.ResponseHeader = server.CreateResponse(header, context);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
+        public override ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             uint subscriptionId,
@@ -3011,91 +2887,79 @@ namespace Opc.Ua.Server
             ArrayOf<uint> monitoredItemIds,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetMonitoringMode,
-                requestLifetime).ConfigureAwait(false);
-
-            try
-            {
-                ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
-
-                // Part 4 §5.13.4.3: an unknown monitoring mode is a service fault.
-                if (monitoringMode is < MonitoringMode.Disabled or > MonitoringMode.Reporting)
+                requestLifetime,
+                (subscriptionId, monitoringMode, monitoredItemIds),
+                static async (server, context, header, lifetime, request) =>
                 {
-                    throw new ServiceResultException(StatusCodes.BadMonitoringModeInvalid);
-                }
+                    server.ValidateOperationLimits(
+                        request.monitoredItemIds,
+                        server.OperationLimits.MaxMonitoredItemsPerCall);
 
-                (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.SubscriptionManager.SetMonitoringModeAsync(
-                    context,
-                    subscriptionId,
-                    monitoringMode,
-                    monitoredItemIds,
-                    requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
+                    // Part 4 §5.13.4.3: an unknown monitoring mode is a service fault.
+                    if (request.monitoringMode is < MonitoringMode.Disabled or > MonitoringMode.Reporting)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadMonitoringModeInvalid);
+                    }
 
-                var response = new SetMonitoringModeResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
+                    (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.SubscriptionManager.SetMonitoringModeAsync(
+                            context,
+                            request.subscriptionId,
+                            request.monitoringMode,
+                            request.monitoredItemIds,
+                            lifetime.CancellationToken)
+                        .ConfigureAwait(false);
 
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    var response = new SetMonitoringModeResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<CallResponse> CallAsync(
+        public override ValueTask<CallResponse> CallAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             ArrayOf<CallMethodRequest> methodsToCall,
             RequestLifetime requestLifetime)
         {
-            using OperationContext context = await ValidateRequestAsync(
+            return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Call,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                (secureChannelContext, methodsToCall),
+                static async (server, context, header, lifetime, request) =>
+                {
+                    server.ValidateOperationLimits(
+                        request.methodsToCall,
+                        server.OperationLimits.MaxNodesPerMethodCall);
+                    context.StartResponseBudget(
+                        server.GetResponseByteBudget(request.secureChannelContext));
 
-            try
-            {
-                ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
-                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
-
-                (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
+                    (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
+                        await server.ServerInternal.NodeManager.CallAsync(
+                            context,
+                            request.methodsToCall,
+                            lifetime.CancellationToken)
                         .ConfigureAwait(false);
 
-                var response = new CallResponse
-                {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
-                };
-                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
-                return response;
-            }
-            catch (ServiceResultException e)
-            {
-                CountRejectedServiceRequest(context, e.StatusCode);
-
-                throw TranslateException(context, e);
-            }
-            finally
-            {
-                OnRequestComplete(context);
-            }
+                    var response = new CallResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = diagnosticInfos
+                    };
+                    response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
+                    return response;
+                });
         }
 
         /// <inheritdoc/>
