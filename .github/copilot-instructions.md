@@ -7,7 +7,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ### Key Technologies
 - **SDK**: .net 10 SDK
 - **Language**: C# with LangVersion 14.0
-- **Target Frameworks**: .NET Standard 2.0/2.1, .NET Framework 4.8, .NET 8.0 (LTS), .NET 9.0, .NET 10.0 (LTS)
+- **Target Frameworks**: .NET Standard 2.0/2.1, .NET Framework 4.8, .NET 10.0 (LTS), .NET 11.0
 - **NativeAOT**
 - **Project Type**: Class libraries, console applications, and reference implementations
 - **Architecture**: OPC UA Stack with Client, Server, Configuration, Complex Types, GDS, and PubSub components

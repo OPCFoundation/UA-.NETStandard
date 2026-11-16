@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -374,11 +374,14 @@
       {
         "browseName": "1:MaintenanceLevelEnum",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Level 1 is characterized by simple actions carried out with minimal training"
                 }
               ],
@@ -386,9 +389,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Level 2 is characterized by basic actions which have to be carried out by qualified personnel using detailed procedures "
                 }
               ],
@@ -396,9 +401,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Level 3 is characterized by complex actions carried out by qualified technical personnel using detailed procedures"
                 }
               ],
@@ -406,9 +413,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Level 4 is characterized by actions which imply the know-how of a technique or a technology and carried out by specialized technical personnel"
                 }
               ],
@@ -416,9 +425,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Level 5 is characterized by actions which imply a knowledge held by the manufacturer or a specialized company with industrial logistic support equipment"
                 }
               ],
@@ -430,11 +441,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "defines maintenance levels for the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaintenanceLevelEnum"
           }
         ],
@@ -460,6 +473,7 @@
         "dataType": "EnumValueType",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumValues"
           }
         ],

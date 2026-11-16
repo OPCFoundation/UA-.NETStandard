@@ -133,7 +133,7 @@ namespace Opc.Ua.AMB.Tests
             EventFieldList? received = await WaitForEventAsync(session, subscription.SubscriptionId, typeId)
                 .ConfigureAwait(false);
             Assert.That(received, Is.Not.Null, "the alarm event arrives");
-            ArrayOf<Variant> fields = received!.EventFields;
+            ArrayOf<Variant> fields = received.Value.EventFields;
 
             CallMethodResult acknowledged = (await session.CallAsync(
                 null,
@@ -171,7 +171,7 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(alarm.Retain!.Value, Is.False, "acknowledged and cleared");
                 Assert.That(acknowledgement, Is.Not.Null, "the acknowledgement is reported as an event");
                 Assert.That(
-                    acknowledgement!.EventFields[5],
+                    acknowledgement!.Value.EventFields[5],
                     Is.Not.EqualTo(fields[5]),
                     "the acknowledgement event has an EventId of its own");
                 Assert.That(health.DeviceHealth, Is.EqualTo(DeviceHealthEnumeration.NORMAL));

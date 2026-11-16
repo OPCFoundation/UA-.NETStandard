@@ -162,9 +162,8 @@ namespace UaLens.Samples
             };
             string framework = source.Framework switch
             {
-                RepositorySampleFramework.Net8 => "net8.0",
-                RepositorySampleFramework.Net9 => "net9.0",
                 RepositorySampleFramework.Net10 => "net10.0",
+                RepositorySampleFramework.Net11 => "net11.0",
                 _ => throw new ArgumentOutOfRangeException(nameof(source), "The managed framework is not supported.")
             };
             string path = Path.Combine(Get(sample).ProjectDirectory, "bin", configuration, framework);

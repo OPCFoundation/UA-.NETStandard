@@ -96,6 +96,8 @@ namespace Opc.Ua.Client
             m_endpointResolver = endpointResolver ?? CreateEndpointResolver(effective, null);
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_peerDiscoveryTimeout = effective.PeerDiscoveryTimeout;
+            m_maxRedundantServers = effective.MaxRedundantServers;
+            m_maxConcurrentPeerDiscoveries = effective.MaxConcurrentPeerDiscoveries;
         }
 
         /// <summary>
@@ -187,7 +189,8 @@ namespace Opc.Ua.Client
                     values[2],
                     errors[2],
                     values[3],
-                    errors[3]);
+                    errors[3],
+                    m_maxRedundantServers);
                 currentServerId = mode == RedundancySupport.Transparent
                     ? await ReadCurrentServerIdAsync(session, readStatuses, ct).ConfigureAwait(false)
                     : string.Empty;
@@ -348,20 +351,79 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint? initialEndpoint,
             CancellationToken ct)
         {
-            var tasks = new Task<RedundantServer>[redundantServers.Count];
+            ct.ThrowIfCancellationRequested();
+            var resolved = new RedundantServer[redundantServers.Count];
             string? initialUri = initialEndpoint?.ReverseConnect?.ServerUri ??
                 initialEndpoint?.Description?.Server?.ApplicationUri;
-            for (int ii = 0; ii < redundantServers.Count; ii++)
+
+            // A bounded number of workers resolve the members, each taking the
+            // next member that nobody started yet.
+            int next = -1;
+            async Task ResolveNextAsync()
             {
-                ct.ThrowIfCancellationRequested();
-                RedundantServer server = redundantServers[ii];
-                tasks[ii] = !string.IsNullOrEmpty(initialUri) &&
-                    string.Equals(server.ServerUri, initialUri, StringComparison.Ordinal)
-                    ? Task.FromResult(WithEndpoint(server, initialEndpoint))
-                    : ResolveServerAsync(server, currentEndpoint, ct);
+                int ii;
+                while ((ii = Interlocked.Increment(ref next)) < resolved.Length)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    RedundantServer server = redundantServers[ii];
+                    resolved[ii] = !string.IsNullOrEmpty(initialUri) &&
+                        string.Equals(server.ServerUri, initialUri, StringComparison.Ordinal)
+                        ? WithEndpoint(server, initialEndpoint)
+                        : await ResolveServerAsync(server, currentEndpoint, ct).ConfigureAwait(false);
+                }
             }
 
-            return await Task.WhenAll(tasks).ConfigureAwait(false);
+            var workers = new Task[Math.Min(m_maxConcurrentPeerDiscoveries, resolved.Length)];
+            for (int ii = 0; ii < workers.Length; ii++)
+            {
+                workers[ii] = ResolveNextAsync();
+            }
+
+            try
+            {
+                await Task.WhenAll(workers).ConfigureAwait(false);
+            }
+            finally
+            {
+                EvictStaleEndpoints(redundantServers, currentEndpoint);
+            }
+            return resolved;
+        }
+
+        /// <summary>
+        /// Keeps the resolved endpoints bounded. Drops those of members that
+        /// the latest snapshot for the channel in use no longer lists and,
+        /// once the cache holds more than a few sets of members, those
+        /// resolved over other channels.
+        /// </summary>
+        private void EvictStaleEndpoints(
+            ArrayOf<RedundantServer> redundantServers,
+            ConfiguredEndpoint currentEndpoint)
+        {
+            if (m_resolvedEndpoints.IsEmpty)
+            {
+                return;
+            }
+            var current = new HashSet<string>(StringComparer.Ordinal);
+            for (int ii = 0; ii < redundantServers.Count; ii++)
+            {
+                if (!string.IsNullOrEmpty(redundantServers[ii].ServerUri))
+                {
+                    current.Add(redundantServers[ii].ServerUri);
+                }
+            }
+            ManagedChannelKey channel = ManagedChannelKey.FromEndpoint(currentEndpoint);
+            bool overCapacity = m_resolvedEndpoints.Count > m_maxRedundantServers * kCachedSetsPerHandler;
+            foreach (KeyValuePair<EndpointCacheKey, ConfiguredEndpoint> cached in m_resolvedEndpoints)
+            {
+                bool sameChannel = cached.Key.Channel.Equals(channel);
+                if ((sameChannel && !current.Contains(cached.Key.ServerUri)) ||
+                    (!sameChannel && overCapacity))
+                {
+                    ((ICollection<KeyValuePair<EndpointCacheKey, ConfiguredEndpoint>>)m_resolvedEndpoints)
+                        .Remove(cached);
+                }
+            }
         }
 
         private async Task<RedundantServer> ResolveServerAsync(
@@ -457,8 +519,24 @@ namespace Opc.Ua.Client
                 {
                     return cachedEndpoint;
                 }
-                var proposed = new Lazy<Task<ConfiguredEndpoint?>>(() =>
+                Lazy<Task<ConfiguredEndpoint?>>? proposed = null;
+                proposed = new Lazy<Task<ConfiguredEndpoint?>>(() =>
                 {
+                    if (!TryReserveDiscovery())
+                    {
+                        // A discovery keeps its slot until the resolver
+                        // returns, also after the caller stopped waiting for
+                        // it, so a resolver that does not observe cancellation
+                        // cannot raise the number of discoveries running at
+                        // once. Callers that joined this lookup see the same
+                        // failure; the next lookup tries again.
+                        ((ICollection<KeyValuePair<EndpointCacheKey, Lazy<Task<ConfiguredEndpoint?>>>>)
+                            m_pendingResolutions).Remove(
+                                new KeyValuePair<EndpointCacheKey, Lazy<Task<ConfiguredEndpoint?>>>(key, proposed!));
+                        return Task.FromException<ConfiguredEndpoint?>(new ServiceResultException(
+                            StatusCodes.BadTooManyOperations,
+                            "The maximum number of peer discoveries is still running."));
+                    }
                     Task<ConfiguredEndpoint?> resolution = DiscoverEndpointAsync(key, currentEndpoint, ct);
                     _ = ObserveEndpointResolutionAsync(resolution);
                     return resolution;
@@ -509,7 +587,22 @@ namespace Opc.Ua.Client
             finally
             {
                 m_pendingResolutions.TryRemove(key, out _);
+                Interlocked.Decrement(ref m_discoveriesInFlight);
             }
+        }
+
+        /// <summary>
+        /// Takes one of the <see cref="ServerRedundancyOptions.MaxConcurrentPeerDiscoveries"/>
+        /// discovery slots; <see cref="DiscoverEndpointAsync"/> returns it when the resolver returns.
+        /// </summary>
+        private bool TryReserveDiscovery()
+        {
+            if (Interlocked.Increment(ref m_discoveriesInFlight) <= m_maxConcurrentPeerDiscoveries)
+            {
+                return true;
+            }
+            Interlocked.Decrement(ref m_discoveriesInFlight);
+            return false;
         }
 
         private static EndpointCacheKey CreateCacheKey(string serverUri, ConfiguredEndpoint currentEndpoint)
@@ -533,38 +626,51 @@ namespace Opc.Ua.Client
             }
         }
 
-        private static ArrayOf<RedundantServer> ReadRedundantServers(
+        /// <summary>
+        /// Takes the members of the set from <c>RedundantServerArray</c> and,
+        /// for a non-transparent set, <c>ServerUriArray</c>: each ServerUri
+        /// once and at most <paramref name="maxRedundantServers"/> members.
+        /// </summary>
+        internal static ArrayOf<RedundantServer> ReadRedundantServers(
             RedundancySupport mode,
             DataValue redundantServerArrayValue,
             ServiceResult redundantServerArrayError,
             DataValue serverUriArrayValue,
-            ServiceResult serverUriArrayError)
+            ServiceResult serverUriArrayError,
+            int maxRedundantServers)
         {
-            ArrayOf<RedundantServer> redundantServers = ReadRedundantServerArray(
+            var result = new List<RedundantServer>();
+            var knownServerUris = new HashSet<string>(StringComparer.Ordinal);
+            ReadRedundantServerArray(
                 redundantServerArrayValue,
-                redundantServerArrayError);
+                redundantServerArrayError,
+                result,
+                knownServerUris,
+                maxRedundantServers);
 
             if (mode != RedundancySupport.Transparent)
             {
-                ArrayOf<string> serverUris = ReadServerUriArray(
-                    serverUriArrayValue,
-                    serverUriArrayError);
-                redundantServers = AddMissingServerUris(redundantServers, serverUris);
+                AddMissingServerUris(
+                    ReadServerUriArray(serverUriArrayValue, serverUriArrayError),
+                    result,
+                    knownServerUris,
+                    maxRedundantServers);
             }
 
-            return redundantServers;
+            return new ArrayOf<RedundantServer>(result.ToArray());
         }
 
-        private static ArrayOf<RedundantServer> ReadRedundantServerArray(
+        private static void ReadRedundantServerArray(
             DataValue dataValue,
-            ServiceResult error)
+            ServiceResult error,
+            List<RedundantServer> result,
+            HashSet<string> knownServerUris,
+            int maxRedundantServers)
         {
-            var result = new List<RedundantServer>();
-
             if (StatusCode.IsBad(error.StatusCode) ||
                 StatusCode.IsBad(dataValue.StatusCode))
             {
-                return new ArrayOf<RedundantServer>(result.ToArray());
+                return;
             }
 
             if (dataValue.WrappedValue.TryGetValue(
@@ -572,21 +678,27 @@ namespace Opc.Ua.Client
             {
                 foreach (ExtensionObject extensionObject in extensionObjects)
                 {
+                    if (result.Count >= maxRedundantServers)
+                    {
+                        return;
+                    }
                     if (extensionObject.TryGetValue(
                         out RedundantServerDataType? serverData))
                     {
+                        string serverUri = serverData.ServerId ?? string.Empty;
+                        if (!knownServerUris.Add(serverUri))
+                        {
+                            continue;
+                        }
                         result.Add(new RedundantServer
                         {
-                            ServerUri = serverData.ServerId
-                                ?? string.Empty,
+                            ServerUri = serverUri,
                             ServiceLevel = serverData.ServiceLevel,
                             ServerState = serverData.ServerState
                         });
                     }
                 }
             }
-
-            return new ArrayOf<RedundantServer>(result.ToArray());
         }
 
         private static ArrayOf<string> ReadServerUriArray(
@@ -636,20 +748,16 @@ namespace Opc.Ua.Client
             return string.Empty;
         }
 
-        private static ArrayOf<RedundantServer> AddMissingServerUris(
-            ArrayOf<RedundantServer> redundantServers,
-            ArrayOf<string> serverUris)
+        private static void AddMissingServerUris(
+            ArrayOf<string> serverUris,
+            List<RedundantServer> result,
+            HashSet<string> knownServerUris,
+            int maxRedundantServers)
         {
-            var result = new List<RedundantServer>();
-            for (int ii = 0; ii < redundantServers.Count; ii++)
+            for (int ii = 0; ii < serverUris.Count && result.Count < maxRedundantServers; ii++)
             {
-                result.Add(redundantServers[ii]);
-            }
-
-            for (int ii = 0; ii < serverUris.Count; ii++)
-            {
-                string serverUri = serverUris[ii];
-                if (ContainsServerUri(result, serverUri))
+                string serverUri = serverUris[ii] ?? string.Empty;
+                if (!knownServerUris.Add(serverUri))
                 {
                     continue;
                 }
@@ -662,8 +770,6 @@ namespace Opc.Ua.Client
                     ServiceLevelKnown = false
                 });
             }
-
-            return new ArrayOf<RedundantServer>(result.ToArray());
         }
 
         private RedundantServer? SelectBestPeer(
@@ -686,21 +792,6 @@ namespace Opc.Ua.Client
             }
 
             return best;
-        }
-
-        private static bool ContainsServerUri(
-            List<RedundantServer> redundantServers,
-            string serverUri)
-        {
-            foreach (RedundantServer redundantServer in redundantServers)
-            {
-                if (string.Equals(redundantServer.ServerUri, serverUri, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private ServerFailoverDecision NoFailover(string reason)
@@ -742,6 +833,29 @@ namespace Opc.Ua.Client
         private readonly TimeProvider m_timeProvider;
 
         private readonly TimeSpan m_peerDiscoveryTimeout;
+
+        /// <summary>
+        /// The number of resolved endpoints the handler keeps.
+        /// </summary>
+        internal int ResolvedEndpointCount => m_resolvedEndpoints.Count;
+
+        private readonly int m_maxRedundantServers;
+
+        private readonly int m_maxConcurrentPeerDiscoveries;
+
+        private int m_discoveriesInFlight;
+
+        /// <summary>
+        /// The discoveries whose resolver has not returned yet.
+        /// </summary>
+        internal int DiscoveriesInFlight => Volatile.Read(ref m_discoveriesInFlight);
+
+        /// <summary>
+        /// Resolved endpoints are kept for this many sets of
+        /// <see cref="ServerRedundancyOptions.MaxRedundantServers"/> members
+        /// before those resolved over other channels are dropped.
+        /// </summary>
+        private const int kCachedSetsPerHandler = 4;
 
         private readonly ILogger m_logger =
             AmbientMessageContext.Telemetry.CreateLogger<DefaultServerRedundancyHandler>();

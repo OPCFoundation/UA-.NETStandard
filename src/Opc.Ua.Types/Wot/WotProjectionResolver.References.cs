@@ -326,12 +326,12 @@ namespace Opc.Ua.Wot
                 if (localRoot is not null)
                 {
                     rootPointer = localRoot;
-                    nameStart = rootPointer.LastIndexOf('/') + 1;
+                    nameStart = rootPointer.LastIndexOf('/', StringComparison.Ordinal) + 1;
                 }
                 else
                 {
                     nameStart = replacedVariable ? replacedScope!.Length + 1 : prefix.Length;
-                    int next = pointer.IndexOf('/', nameStart);
+                    int next = pointer.IndexOf('/', nameStart, StringComparison.Ordinal);
                     rootPointer = next < 0 ? pointer : pointer[..next];
                 }
                 if (!WotDocument.TryEvaluatePointer(owner.Document.RootElement, rootPointer, out JsonElement original) ||

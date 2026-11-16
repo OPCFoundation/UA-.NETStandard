@@ -72,7 +72,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
-        void Enqueue(DataValue value, ServiceResult error);
+        void Enqueue(in DataValue value, ServiceResult error);
 
         /// <summary>
         /// Dequeue the oldest value in the queue.
@@ -94,7 +94,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
-        void OverwriteLastValue(DataValue value, ServiceResult error);
+        void OverwriteLastValue(in DataValue value, ServiceResult error);
 
         /// <summary>
         /// Returns the last (newest) value in the queue without dequeuing.

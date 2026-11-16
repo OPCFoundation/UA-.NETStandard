@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -642,6 +643,7 @@
         "browseName": "1:<DocumentFileId>",
         "displayName": [
           {
+            "locale": "",
             "value": "<DocumentFileId>"
           }
         ],
@@ -708,10 +710,12 @@
         "typeDefinition": "i=11575"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Size",
         "dataType": "UInt64",
         "displayName": [
           {
+            "locale": "",
             "value": "Size"
           }
         ],
@@ -737,10 +741,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Writable",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Writable"
           }
         ],
@@ -766,10 +772,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "UserWritable",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "UserWritable"
           }
         ],
@@ -795,10 +803,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "OpenCount",
         "dataType": "UInt16",
         "displayName": [
           {
+            "locale": "",
             "value": "OpenCount"
           }
         ],
@@ -827,6 +837,7 @@
         "browseName": "Open",
         "displayName": [
           {
+            "locale": "",
             "value": "Open"
           }
         ],
@@ -861,6 +872,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -893,6 +905,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -923,6 +936,7 @@
         "browseName": "Close",
         "displayName": [
           {
+            "locale": "",
             "value": "Close"
           }
         ],
@@ -953,6 +967,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -983,6 +998,7 @@
         "browseName": "Read",
         "displayName": [
           {
+            "locale": "",
             "value": "Read"
           }
         ],
@@ -1017,6 +1033,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -1049,6 +1066,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -1079,6 +1097,7 @@
         "browseName": "Write",
         "displayName": [
           {
+            "locale": "",
             "value": "Write"
           }
         ],
@@ -1109,6 +1128,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -1139,6 +1159,7 @@
         "browseName": "GetPosition",
         "displayName": [
           {
+            "locale": "",
             "value": "GetPosition"
           }
         ],
@@ -1173,6 +1194,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -1205,6 +1227,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -1235,6 +1258,7 @@
         "browseName": "SetPosition",
         "displayName": [
           {
+            "locale": "",
             "value": "SetPosition"
           }
         ],
@@ -1265,6 +1289,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],

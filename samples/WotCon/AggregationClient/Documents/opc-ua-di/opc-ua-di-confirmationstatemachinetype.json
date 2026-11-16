@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -94,6 +95,7 @@
       "observable": true,
       "readOnly": true,
       "title": "ConfirmationTimeout",
+      "type": "number",
       "uav:browseName": "ns1:ConfirmationTimeout",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=322",
       "uav:mapToType": "i=290",
@@ -346,6 +348,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ConfirmationStateMachineType"
           }
         ],
@@ -389,6 +392,7 @@
         "browseName": "1:Confirm",
         "displayName": [
           {
+            "locale": "",
             "value": "Confirm"
           }
         ],
@@ -414,10 +418,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ConfirmationTimeout",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "ConfirmationTimeout"
           }
         ],

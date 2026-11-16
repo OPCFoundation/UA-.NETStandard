@@ -134,8 +134,29 @@ namespace Opc.Ua.Bindings
             m_bufferSize = bufferSize;
             m_start = start;
             m_count = count;
+            m_maxBufferCount = 0;
+            BufferLimitExceeded = false;
             ClearBuffers();
         }
+
+        /// <summary>
+        /// The most buffers a writable stream takes from its buffer manager; zero means
+        /// no limit. A write that needs one more buffer fails with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> and sets
+        /// <see cref="BufferLimitExceeded"/>, so a message that exceeds its size limit
+        /// stops being written as soon as it passes the limit.
+        /// </summary>
+        internal int MaxBufferCount
+        {
+            get => m_maxBufferCount;
+            set => m_maxBufferCount = value;
+        }
+
+        /// <summary>
+        /// Whether a write failed because the stream holds <see cref="MaxBufferCount"/>
+        /// buffers.
+        /// </summary>
+        internal bool BufferLimitExceeded { get; private set; }
 
         /// <summary>
         /// Returns the buffers the stream still holds to the buffer manager, as disposing the
@@ -691,6 +712,11 @@ namespace Opc.Ua.Bindings
                     throw new IOException("Attempt to write past end of stream.");
                 }
 
+                if (m_maxBufferCount != 0 && m_buffers.Count >= m_maxBufferCount)
+                {
+                    ThrowBufferLimitExceeded();
+                }
+
                 byte[] newBuffer = m_bufferManager.TakeBuffer(
                     m_bufferSize,
                     "ArraySegmentStream.Write");
@@ -699,6 +725,24 @@ namespace Opc.Ua.Bindings
 
                 SetCurrentBuffer(m_buffers.Count - 1);
             }
+        }
+
+        /// <summary>
+        /// Fails a write that needs more than <see cref="MaxBufferCount"/> buffers.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ThrowBufferLimitExceeded()
+        {
+            // the write moved past the last buffer, so all of it is written.
+            if (m_buffers.Count > 0)
+            {
+                m_endOfLastBuffer = m_buffers[m_buffers.Count - 1].Count;
+            }
+            BufferLimitExceeded = true;
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingLimitsExceeded,
+                "The message exceeds its size limit of {0} buffers.",
+                m_maxBufferCount);
         }
 
         /// <summary>
@@ -717,6 +761,7 @@ namespace Opc.Ua.Bindings
         private int m_currentPosition;
         private BufferCollection m_buffers;
         private BufferManager? m_bufferManager;
+        private int m_maxBufferCount;
         private int m_start;
         private int m_count;
         private int m_bufferSize;

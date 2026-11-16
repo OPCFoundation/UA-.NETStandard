@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -318,6 +319,95 @@ namespace Opc.Ua.Server.Tests
             {
                 await fixture.StopAsync().ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// A held Publish waits up to a keep-alive period. While it waits the server must not keep
+        /// its decoded additional header (which can decode to many times its wire size) nor its
+        /// acknowledgements: neither the request nor the Publish handlers' state may retain them.
+        /// </summary>
+        [Test]
+        public async Task ParkedPublishRetainsNeitherAdditionalHeaderNorAcknowledgementsAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            RequestLifetime? lifetime = null;
+            Task<PublishResponse>? publish = null;
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                (RequestHeader header, SecureChannelContext channel) =
+                    await server.CreateAndActivateSessionAsync("ParkedPublishPayload").ConfigureAwait(false);
+                var services = new ServerTestServices(server, channel);
+                CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
+                    header, 60_000, 1_000, 100, 0, false, 0).ConfigureAwait(false);
+
+                (publish, lifetime, RequestParkSink sink, WeakReference additional, WeakReference acknowledgement) =
+                    StartPublish(server, channel, header.AuthenticationToken, subscription.SubscriptionId);
+                await sink.ParkedTask.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(publish.IsCompleted, Is.False, "the Publish request did not park");
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                Assert.That(additional.IsAlive, Is.False, "the parked Publish keeps its additional header");
+                Assert.That(acknowledgement.IsAlive, Is.False, "the parked Publish keeps its acknowledgements");
+                Assert.That(publish.IsCompleted, Is.False);
+            }
+            finally
+            {
+                lifetime?.TryCancel(StatusCodes.BadRequestCancelledByClient);
+                try
+                {
+                    if (publish is not null)
+                    {
+                        await Assert.ThatAsync(() => publish.WaitAsync(TimeSpan.FromSeconds(10)),
+                            Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    lifetime?.Dispose();
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends a Publish request as the endpoint dispatches a decoded one, keeping only weak
+        /// references to its additional header and acknowledgement.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (Task<PublishResponse>, RequestLifetime, RequestParkSink, WeakReference, WeakReference) StartPublish(
+            StandardServer server,
+            SecureChannelContext channel,
+            NodeId authenticationToken,
+            uint subscriptionId)
+        {
+            var parameters = new AdditionalParametersType();
+            var acknowledgement = new SubscriptionAcknowledgement
+            {
+                SubscriptionId = subscriptionId,
+                SequenceNumber = 1
+            };
+            var request = new PublishRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AuthenticationToken = authenticationToken,
+                    RequestHandle = 7,
+                    AdditionalHeader = new ExtensionObject(parameters)
+                },
+                SubscriptionAcknowledgements = [acknowledgement]
+            };
+            var sink = new RequestParkSink(request);
+            var lifetime = new RequestLifetime { ParkSink = sink };
+            Task<PublishResponse> publish = server.PublishAsync(
+                channel,
+                request.RequestHeader,
+                request.SubscriptionAcknowledgements,
+                lifetime).AsTask();
+            return (publish, lifetime, sink, new WeakReference(parameters), new WeakReference(acknowledgement));
         }
 
         /// <summary>

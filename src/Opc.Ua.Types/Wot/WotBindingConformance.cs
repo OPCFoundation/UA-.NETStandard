@@ -366,7 +366,7 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            int separator = revision!.IndexOf('.', 0);
+            int separator = revision!.IndexOf('.', 0, StringComparison.Ordinal);
             if (separator <= 0 || separator == revision.Length - 1)
             {
                 return false;

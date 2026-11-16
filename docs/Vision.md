@@ -596,8 +596,8 @@ flowchart TD
     Pipeline -.->|Deployment| Deployment["AI deployment NodeId"]
 ```
 
-The libraries multi-target `net8.0;net9.0;net10.0` and `netstandard2.0`
-where applicable; the MCP tool package multi-targets `net8.0;net9.0;net10.0`.
+The libraries multi-target `net10.0;net11.0` and `netstandard2.0`
+where applicable; the MCP tool package multi-targets `net10.0;net11.0`.
 
 ## Two perception paths behind one contract
 

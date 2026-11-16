@@ -94,7 +94,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
 
             ulong nodeId = (ulong)(ordinal + 1);
-            string statefulSet = options.StatefulSetName ?? podName[..podName.LastIndexOf('-')];
+            string statefulSet = options.StatefulSetName ?? podName[..podName.LastIndexOf('-', StringComparison.Ordinal)];
 
             var memberIds = new List<ulong>(options.ReplicaCount);
             for (int ii = 0; ii < options.ReplicaCount; ii++)
@@ -166,7 +166,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
 
         private static int ParseOrdinal(string podName)
         {
-            int dash = podName.LastIndexOf('-');
+            int dash = podName.LastIndexOf('-', StringComparison.Ordinal);
             if (dash < 0 ||
                 dash == podName.Length - 1 ||
                 !int.TryParse(

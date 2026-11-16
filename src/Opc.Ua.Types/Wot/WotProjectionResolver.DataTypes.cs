@@ -466,7 +466,7 @@ namespace Opc.Ua.Wot
                     return definition;
                 }
                 string localPointer = SplitPointer(graphId);
-                if (localPointer.StartsWith('/') &&
+                if (localPointer.StartsWith('/', StringComparison.Ordinal) &&
                     string.Equals(SplitDocumentPart(graphId), owner.Href, StringComparison.Ordinal))
                 {
                     if (IsCanonicalPointer(localPointer) && index.Locations.TryGetValue(localPointer, out definition))

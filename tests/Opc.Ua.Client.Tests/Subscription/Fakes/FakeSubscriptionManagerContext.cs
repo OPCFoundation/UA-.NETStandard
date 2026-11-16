@@ -248,6 +248,46 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// <inheritdoc/>
         public int SessionSubscriptionCount => SessionOwnedSubscriptionIds.Count;
 
+        /// <inheritdoc/>
+        public int OperationTimeout { get; set; }
+
+        /// <summary>
+        /// Whether unresolved subscription identifiers may be deleted on the
+        /// server. Defaults to <c>true</c>.
+        /// </summary>
+        public Func<uint, bool> MayDeleteUnknownSubscriptionHandler { get; set; } = _ => true;
+
+        /// <inheritdoc/>
+        public bool MayDeleteUnknownSubscription(uint subscriptionId)
+        {
+            return MayDeleteUnknownSubscriptionHandler(subscriptionId);
+        }
+
+        /// <summary>
+        /// The acknowledgement scope of a session-owned subscription. Defaults to
+        /// one stable lifetime per session-owned identifier and <c>null</c> for
+        /// any other identifier.
+        /// </summary>
+        public Func<uint, AcknowledgementScope?> SessionSubscriptionScopeHandler { get; set; }
+
+        /// <summary>
+        /// Creates the fake.
+        /// </summary>
+        public FakeSubscriptionManagerContext()
+        {
+            SessionSubscriptionScopeHandler = id => SessionOwnedSubscriptionIds.Contains(id)
+                ? new AcknowledgementScope(m_sessionScopeOwner, 1, id)
+                : null;
+        }
+
+        private readonly object m_sessionScopeOwner = new();
+
+        /// <inheritdoc/>
+        public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+        {
+            return SessionSubscriptionScopeHandler(subscriptionId);
+        }
+
         /// <summary>Recorded dispatches to session-owned subscriptions.</summary>
         public int SessionDispatchCount => Volatile.Read(ref m_sessionDispatchCount);
 
@@ -264,6 +304,21 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             }
             Interlocked.Increment(ref m_sessionDispatchCount);
             return true;
+        }
+
+        /// <summary>
+        /// Optional override of <see cref="WaitForSessionSubscriptionRoomAsync"/>.
+        /// </summary>
+        public Func<uint, IIngressWaitPolicy, CancellationToken, ValueTask<bool>>?
+            SessionSubscriptionRoomHandler { get; set; }
+
+        public ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+            uint subscriptionId,
+            IIngressWaitPolicy waitPolicy,
+            CancellationToken ct)
+        {
+            return SessionSubscriptionRoomHandler?.Invoke(subscriptionId, waitPolicy, ct) ??
+                new ValueTask<bool>(true);
         }
 
         private int m_sessionDispatchCount;

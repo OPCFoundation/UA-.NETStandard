@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -27,21 +28,44 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Opc.Ua.Wot.Exporter
 {
     /// <summary>
-    /// A datachange returned in a NotificationMessage.
+    /// Runs the installed export command.
     /// </summary>
-    public partial class MonitoredItemNotification
+    internal static class Program
     {
         /// <summary>
-        /// The notification message that the item belongs to.
+        /// Exports models and returns the process exit code.
         /// </summary>
-        public NotificationMessage Message { get; set; }
-
-        /// <summary>
-        /// The diagnostic info associated with the notification.
-        /// </summary>
-        public DiagnosticInfo DiagnosticInfo { get; set; }
+        private static async Task<int> Main(string[] args)
+        {
+            using var cancellation = new CancellationTokenSource();
+            void handler(object? _, ConsoleCancelEventArgs e)
+            {
+                e.Cancel = true;
+                cancellation.Cancel();
+            }
+            Console.CancelKeyPress += handler;
+            try
+            {
+                var services = new ServiceCollection();
+                services.AddSingleton<IWotUnitMappingProvider, WotQudtUnitMappingProvider>();
+                services.AddSingleton(sp =>
+                    new ExportCommand(Console.Out, Console.Error, sp.GetRequiredService<IWotUnitMappingProvider>()));
+                using ServiceProvider provider = services.BuildServiceProvider();
+                return await provider.GetRequiredService<ExportCommand>()
+                    .RunAsync(args, cancellation.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                Console.CancelKeyPress -= handler;
+            }
+        }
     }
 }

@@ -603,7 +603,7 @@ namespace Opc.Ua.Wot
             string prefix = "/" + MapName(kind) + "/";
             return pointer.StartsWith(prefix, StringComparison.Ordinal) &&
                 pointer.Length > prefix.Length &&
-                pointer.IndexOf('/', prefix.Length) < 0;
+                pointer.IndexOf('/', prefix.Length, StringComparison.Ordinal) < 0;
         }
 
         private static string MapName(WotAffordanceKind kind)

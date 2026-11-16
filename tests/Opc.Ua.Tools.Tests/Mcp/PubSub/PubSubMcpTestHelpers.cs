@@ -29,7 +29,7 @@
 
 // Opc.Ua.Mcp targets net10.0 only, so the MCP integration fixtures only
 // build and run on net10.0.
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Buffers.Binary;
 using System.Net;

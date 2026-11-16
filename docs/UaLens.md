@@ -56,7 +56,7 @@ $env:CustomTestTarget = 'net10.0'
 dotnet run --project tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0
 ```
 
-The application supports .NET 8, .NET 9 and .NET 10. For managed tool installation
+The application supports .NET 10 and .NET 11. For managed tool installation
 and supported package platforms, see the
 [package README](../tools/Opc.Ua.Lens/NugetREADME.md#install).
 Contributor setup, the optional Aspire AppHost, packaging and artifact
