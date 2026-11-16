@@ -782,6 +782,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// A completed message ends the history of abandoned ones on a channel without a
+        /// session: a later message starts its own assembly deadline instead of
+        /// inheriting the one of a message abandoned before the completed one.
+        /// </summary>
+        [Test]
+        public void CompletedMessageClearsAbandonedAssemblyDeadline()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock, channelLifetime: 1000);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(600));
+            channel.SaveReceivedPartForTest(2, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            channel.ReleaseSavedPartsForTest(2);
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+
+            channel.SaveReceivedPartForTest(3, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            clock.Advance(TimeSpan.FromMilliseconds(999));
+            Assert.That(channel.HasExpiredPartialMessage, Is.False);
+
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(channel.HasExpiredPartialMessage, Is.True);
+            channel.ReleaseSavedPartsForTest(3);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
         /// A channel serving an activated session keeps the per-message deadline: an
         /// abandoned message does not shorten the deadline of the next one.
         /// </summary>

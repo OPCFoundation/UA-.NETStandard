@@ -2511,7 +2511,7 @@ namespace Opc.Ua.Bindings
                 admission,
                 TimeSpan.FromMilliseconds(m_quotas.MessageAssemblyLifetime),
                 TimeProvider,
-                static context => ((HttpContext)context!).Abort(),
+                HttpBodyAdmission.CancelPendingBodyRead,
                 request.HttpContext,
                 ct);
         }

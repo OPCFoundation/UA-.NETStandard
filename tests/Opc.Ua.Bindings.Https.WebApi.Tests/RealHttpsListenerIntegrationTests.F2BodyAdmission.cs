@@ -36,6 +36,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings.WebApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
@@ -153,6 +154,72 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             string status = Encoding.ASCII.GetString(response, 0, read);
 
             Assert.That(status, Does.StartWith("HTTP/1.1 400"));
+        }
+
+        /// <summary>
+        /// A body that does not arrive within the message assembly lifetime is answered
+        /// with 408 on the open connection: the deadline ends the pending body read
+        /// without aborting the connection the answer is written to.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        [TestCase("/", "application/octet-stream")]
+        [TestCase("/", "application/opcua+uajson")]
+        [TestCase("/read", "application/json")]
+        public async Task LateBodyIsAnsweredWithRequestTimeoutAsync(string path, string contentType)
+        {
+            const int kAssemblyLifetimeMs = 1000;
+            IServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(m_telemetry!);
+            var restServer = new WebApiServer(messageContext, "real-rest-api-late-body");
+            var factory = new HttpsTransportListenerFactory();
+            factory.StartupContributors.Add(new WebApiHttpsStartupContributor(restServer));
+            InMemoryCertificateRegistry certificateRegistry = m_certificateRegistry!;
+            (HttpsTransportListener listener, int port) = await OpenListenerOnFreePortAsync(
+                () => (HttpsTransportListener)factory.Create(m_telemetry!),
+                p =>
+                {
+                    TransportListenerSettings settings = CreateListenerSettings(certificateRegistry, p);
+                    settings.Configuration!.ChannelLifetime = kAssemblyLifetimeMs;
+                    return settings;
+                },
+                m_callback!).ConfigureAwait(false);
+            try
+            {
+                await WaitForListenerReadyAsync(port).ConfigureAwait(false);
+
+                using var tcp = new TcpClient();
+                await tcp.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+#pragma warning disable CA5359 // loopback test server uses a self-signed certificate
+                using var ssl = new SslStream(
+                    tcp.GetStream(),
+                    leaveInnerStreamOpen: false,
+                    userCertificateValidationCallback: static (_, _, _, _) => true);
+#pragma warning restore CA5359
+                await ssl.AuthenticateAsClientAsync("localhost").ConfigureAwait(false);
+                byte[] head = Encoding.ASCII.GetBytes(
+                    $"POST {path} HTTP/1.1\r\n" +
+                    "Host: localhost\r\n" +
+                    $"Content-Type: {contentType}\r\n" +
+                    $"Content-Length: {kSmallContentLength}\r\n" +
+                    "\r\n");
+                await ssl.WriteAsync(head).ConfigureAwait(false);
+                await ssl.FlushAsync().ConfigureAwait(false);
+
+                // Only the head is sent. Kestrel's own minimum body data rate allows
+                // 5 s before it ends a stalled body, so an answer within 4 s comes
+                // from the assembly deadline.
+                byte[] response = new byte[64];
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+                int read = await ssl.ReadAsync(response, timeout.Token).ConfigureAwait(false);
+                string status = Encoding.ASCII.GetString(response, 0, read);
+
+                Assert.That(status, Does.StartWith("HTTP/1.1 408"));
+            }
+            finally
+            {
+                await listener.CloseAsync().ConfigureAwait(false);
+                await listener.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         private sealed record BodyAdmissionMeasurement(

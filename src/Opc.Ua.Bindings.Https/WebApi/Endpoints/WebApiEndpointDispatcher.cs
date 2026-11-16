@@ -149,7 +149,7 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                         admission: null,
                         TimeSpan.FromMilliseconds(TcpMessageLimits.DefaultChannelLifetime),
                         TimeProvider.System,
-                        static state => ((HttpContext)state!).Abort(),
+                        HttpBodyAdmission.CancelPendingBodyRead,
                         context,
                         ct).ConfigureAwait(false);
                 }

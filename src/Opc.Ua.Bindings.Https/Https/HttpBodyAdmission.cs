@@ -33,6 +33,7 @@ using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 
 namespace Opc.Ua.Bindings
 {
@@ -175,8 +176,9 @@ namespace Opc.Ua.Bindings
         /// <param name="deadline">How long the whole body may take to arrive.</param>
         /// <param name="timeProvider">The clock of the deadline.</param>
         /// <param name="abort">
-        /// Aborts the pending read when the deadline elapses, for example by aborting
-        /// the connection, so that the read ends with an exception. The deadline timer is
+        /// Ends the pending read when the deadline elapses, for example with
+        /// <see cref="CancelPendingBodyRead"/>, so that the read ends with an exception
+        /// and the caller can still answer. The deadline timer is
         /// only created when a read does not complete at once.
         /// </param>
         /// <param name="abortState">The state passed to <paramref name="abort"/>.</param>
@@ -306,6 +308,24 @@ namespace Opc.Ua.Bindings
             }
             return new byte[size];
         }
+
+        /// <summary>
+        /// The <c>abort</c> callback of <see cref="ReadBodyAsync"/> for the body of an
+        /// <see cref="HttpContext"/> passed as its state. It cancels only the pending
+        /// read of the request body pipe, which Kestrel ends with an
+        /// <see cref="OperationCanceledException"/>, so the connection stays open and the
+        /// handler can still answer the late body with 408. Kestrel 2 on .NET Framework
+        /// has no request body pipe, so there the connection is aborted.
+        /// </summary>
+        public static readonly Action<object?> CancelPendingBodyRead = static state =>
+        {
+            var context = (HttpContext)state!;
+#if NET5_0_OR_GREATER
+            context.Request.BodyReader.CancelPendingRead();
+#else
+            context.Abort();
+#endif
+        };
 
         private static ServiceResultException TooLarge(int maxLength)
         {

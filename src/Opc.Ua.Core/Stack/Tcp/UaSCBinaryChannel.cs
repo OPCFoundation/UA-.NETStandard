@@ -897,6 +897,9 @@ namespace Opc.Ua.Bindings
             {
                 savedChunks = m_partialMessageChunks ?? [];
                 m_partialMessageChunks = null;
+                // A completed message ends the history of abandoned ones: the next
+                // message starts its own assembly deadline.
+                m_abandonedPartialMessageStartedAt = 0;
                 ReleasePartialMessageReservation();
                 leases = DetachIsolationLeases();
             }
