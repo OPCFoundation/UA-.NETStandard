@@ -410,25 +410,32 @@ namespace Opc.Ua.Bindings
         /// Cancels the requests of a channel that lost its transport unless it is reconnected
         /// within <see cref="FaultedRequestGracePeriod"/>. Called with the gate held.
         /// </summary>
-        private void ScheduleFaultedRequestCancellation()
+        internal void ScheduleFaultedRequestCancellation()
         {
             if (Volatile.Read(ref m_requestsCancelled) != 0 || m_faultedRequestTimer != null)
             {
                 return;
             }
+            // a callback of an earlier fault may still wait for the gate after a reconnect:
+            // only the callback of the current fault's timer may cancel
+            long generation = ++m_faultedRequestGeneration;
             ITimer timer = TimeProvider.CreateTimer(
-                static state => ((TcpListenerChannel)state!).OnFaultedRequestGraceElapsed(),
-                this,
+                _ => OnFaultedRequestGraceElapsed(generation),
+                null,
                 FaultedRequestGracePeriod,
                 Timeout.InfiniteTimeSpan);
             Interlocked.Exchange(ref m_faultedRequestTimer, timer)?.Dispose();
         }
 
-        private void OnFaultedRequestGraceElapsed()
+        /// <summary>
+        /// The grace period of the fault numbered <paramref name="generation"/> ended: cancels
+        /// the requests if that is still the current fault and the channel is still faulted.
+        /// </summary>
+        internal void OnFaultedRequestGraceElapsed(long generation)
         {
             using (Gate.Enter())
             {
-                if (State != TcpChannelState.Faulted)
+                if (generation != m_faultedRequestGeneration || State != TcpChannelState.Faulted)
                 {
                     return;
                 }
@@ -437,11 +444,25 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// The number of the current fault's grace timer; a stale timer callback carries an older number.
+        /// </summary>
+        internal long FaultedRequestGeneration
+        {
+            get
+            {
+                using (Gate.Enter())
+                {
+                    return m_faultedRequestGeneration;
+                }
+            }
+        }
+
+        /// <summary>
         /// Keeps the requests of a channel that reconnected running, and gives the reconnected
         /// channel a new request token if the grace period already cancelled the old one.
         /// Called with the gate held, once the channel is open again.
         /// </summary>
-        private protected void OnRequestTransportReconnected()
+        internal void OnRequestTransportReconnected()
         {
             Interlocked.Exchange(ref m_faultedRequestTimer, null)?.Dispose();
             if (Volatile.Read(ref m_requestsCancelled) != 0 && Volatile.Read(ref m_disposed) == 0)
@@ -1497,6 +1518,7 @@ namespace Opc.Ua.Bindings
 #pragma warning restore CA2213 // Disposable fields should be disposed
         private int m_requestsCancelled;
         private ITimer? m_faultedRequestTimer;
+        private long m_faultedRequestGeneration;
         private byte[]? m_peerCertificateChain;
         private int m_messageCleanupPending;
         private volatile TcpChannelRequestEventHandler? m_requestReceived;

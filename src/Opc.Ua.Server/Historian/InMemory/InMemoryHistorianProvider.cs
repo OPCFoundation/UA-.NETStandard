@@ -2796,8 +2796,9 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 get
                 {
-                    foreach (Chunk chunk in m_chunks)
+                    for (int cc = 0; cc < m_chunks.Count; cc++)
                     {
+                        Chunk chunk = m_chunks[cc];
                         for (int ii = 0; ii < chunk.Count; ii++)
                         {
                             yield return chunk.Keys[ii];
@@ -2916,7 +2917,9 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 int chunk;
                 int index;
-                if (inclusive && timestamp.Ticks >= DateTime.MaxValue.Ticks - 1)
+                // keys clamp to the OPC UA maximum: from there on the next tick is the same key,
+                // so an inclusive range at or past it is everything
+                if (inclusive && timestamp.Ticks >= s_maxKeyTicks)
                 {
                     chunk = m_chunks.Count;
                     index = 0;
@@ -3081,7 +3084,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                     new DateTimeUtc(new DateTime(timestamp.Ticks, DateTimeKind.Utc)));
             }
 
-            private readonly List<Chunk> m_chunks = [];
+            private static readonly long s_maxKeyTicks = DateTimeUtc.MaxValue.ToDateTime().Ticks;
+            private readonly ChunkList m_chunks = new();
             private int m_count;
 
             private sealed class Chunk
@@ -3089,6 +3093,81 @@ namespace Opc.Ua.Server.Historian.InMemory
                 public readonly HistoricalValueKey[] Keys = new HistoricalValueKey[kChunkSize];
                 public readonly DataValue[] Values = new DataValue[kChunkSize];
                 public int Count;
+            }
+
+            /// <summary>
+            /// The chunks in key order. Removing the first chunk (retention evicting the oldest
+            /// values, or a delete of the oldest range) only advances a head index instead of
+            /// shifting every other chunk, so removing a long prefix costs one step per chunk;
+            /// the free slots in front are reclaimed when the list grows.
+            /// </summary>
+            private sealed class ChunkList
+            {
+                public int Count => m_count;
+
+                public Chunk this[int index] => m_items[m_head + index]!;
+
+                public void Add(Chunk chunk)
+                {
+                    EnsureTail();
+                    m_items[m_head + m_count++] = chunk;
+                }
+
+                public void Insert(int index, Chunk chunk)
+                {
+                    EnsureTail();
+                    int position = m_head + index;
+                    Array.Copy(m_items, position, m_items, position + 1, m_count - index);
+                    m_items[position] = chunk;
+                    m_count++;
+                }
+
+                public void RemoveAt(int index)
+                {
+                    if (index == 0)
+                    {
+                        m_items[m_head] = null;
+                        m_head++;
+                        m_count--;
+                        if (m_count == 0)
+                        {
+                            m_head = 0;
+                        }
+                        return;
+                    }
+                    int position = m_head + index;
+                    Array.Copy(m_items, position + 1, m_items, position, m_count - index - 1);
+                    m_count--;
+                    m_items[m_head + m_count] = null;
+                }
+
+                /// <summary>
+                /// Makes room for one more chunk at the end: first by moving the chunks over the
+                /// free slots in front when they are at least half the array, else by growing.
+                /// </summary>
+                private void EnsureTail()
+                {
+                    if (m_head + m_count < m_items.Length)
+                    {
+                        return;
+                    }
+                    if (m_head >= m_items.Length / 2)
+                    {
+                        Array.Copy(m_items, m_head, m_items, 0, m_count);
+                        Array.Clear(m_items, m_count, m_head);
+                    }
+                    else
+                    {
+                        var items = new Chunk?[Math.Max(4, m_items.Length * 2)];
+                        Array.Copy(m_items, m_head, items, 0, m_count);
+                        m_items = items;
+                    }
+                    m_head = 0;
+                }
+
+                private Chunk?[] m_items = new Chunk?[4];
+                private int m_head;
+                private int m_count;
             }
 
             /// <summary>
@@ -3191,7 +3270,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 {
                 }
 
-                private readonly List<Chunk> m_chunks;
+                private readonly ChunkList m_chunks;
                 private int m_chunk;
                 private int m_index;
                 private readonly bool m_forward;

@@ -134,17 +134,99 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        [Test]
+        public async Task PrefixDeletesAndLaterAppendsKeepTheOrderAsync()
+        {
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero },
+                new FakeTimeProvider(s_baseTime));
+            var nodeId = new NodeId("prefix", 1);
+            provider.Register(nodeId);
+            HistorianOperationContext context = CreateContext();
+
+            // 64 full chunks appended in order, then the oldest 40 chunks deleted in steps,
+            // then 40 chunks more appended: the free slots in front of the chunk list are
+            // reused for the new chunks
+            await AppendAsync(provider, context, nodeId, 0, 128 * 64);
+            for (int start = 0; start < 128 * 40; start += 128 * 8)
+            {
+                await provider.DeleteRawAsync(
+                    context, nodeId, Time(start), Time(start + (128 * 8)), false, CancellationToken.None);
+            }
+            await AppendAsync(provider, context, nodeId, 128 * 64, 128 * 104);
+
+            List<int> expected = Enumerable.Range(128 * 40, 128 * 64).ToList();
+            Assert.That(await ReadAllAsync(provider, context, nodeId, forward: true, last: 128 * 104), Is.EqualTo(expected));
+            expected.Reverse();
+            Assert.That(await ReadAllAsync(provider, context, nodeId, forward: false, last: 128 * 104), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A reverse read from the OPC UA maximum time returns the values stored at that time.
+        /// </summary>
+        [Test]
+        public async Task ReverseReadFromMaxValueReturnsValuesAtMaxValueAsync()
+        {
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero },
+                new FakeTimeProvider(s_baseTime));
+            var nodeId = new NodeId("max", 1);
+            provider.Register(nodeId);
+            HistorianOperationContext context = CreateContext();
+            DateTime max = DateTimeUtc.MaxValue.ToDateTime();
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [Value(1), Value(2), new DataValue(new Variant(3.0), StatusCodes.Good, max, max)],
+                CancellationToken.None);
+
+            HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = DateTimeUtc.MaxValue,
+                    EndTime = Time(-1),
+                    IsForward = false
+                },
+                default,
+                CancellationToken.None);
+
+            Assert.That(page.Values.Count, Is.EqualTo(3));
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(DateTimeUtc.MaxValue));
+            Assert.That(page.Values[1].Value.SourceTimestamp, Is.EqualTo(Time(2)));
+        }
+
+        private static async Task AppendAsync(
+            InMemoryHistorianProvider provider,
+            HistorianOperationContext context,
+            NodeId nodeId,
+            int from,
+            int to)
+        {
+            for (int ii = from; ii < to; ii += 500)
+            {
+                var batch = new List<DataValue>();
+                for (int jj = ii; jj < Math.Min(to, ii + 500); jj++)
+                {
+                    batch.Add(Value(jj));
+                }
+                await provider.InsertAsync(context, nodeId, batch, CancellationToken.None);
+            }
+        }
+
         private static async Task<List<int>> ReadAllAsync(
             InMemoryHistorianProvider provider,
             HistorianOperationContext context,
             NodeId nodeId,
-            bool forward)
+            bool forward,
+            int last = 5000)
         {
             var request = new HistorianRawReadRequest
             {
                 NodeId = nodeId,
-                StartTime = forward ? Time(-1) : Time(5000),
-                EndTime = forward ? Time(5000) : Time(-1),
+                StartTime = forward ? Time(-1) : Time(last),
+                EndTime = forward ? Time(last) : Time(-1),
                 IsForward = forward,
                 PageLimit = 97
             };

@@ -2090,6 +2090,43 @@ namespace Opc.Ua.Server.Tests
             using IDisposable controlHeld = Acquire(provider, ResourceIsolationStage.RequestExecution, control, 1);
         }
 
+        /// <summary>
+        /// An owner at its ceiling that also holds a reconnect slot still gets its control
+        /// slot for Cancel or CloseSession, and the other way round: the protected floors of
+        /// one owner add up instead of sharing one class floor above the ceiling.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ProtectedSlotsOfOneOwnerDoNotBlockEachOther(bool controlFirst)
+        {
+            var bindings = new TestBindings();
+            SecureChannelContext anonymous = Channel("mixed", mode: MessageSecurityMode.None);
+            bindings.Bindings[new NodeId(7u)] = new SessionBindingContext(
+                new NodeId(7u), "mixed", 1, UserTokenType.Anonymous, null,
+                SecurityPolicies.None, MessageSecurityMode.None);
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxRequestThreadCount = 100;
+            using var provider = new DefaultServerResourceIsolationProvider(
+                new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 }.CreateRuntimePlan(
+                    configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100)),
+                NUnitTelemetryContext.Create(),
+                bindings);
+            const ResourceIsolationStage stage = ResourceIsolationStage.RequestExecution;
+            ResourceIsolationStagePlan execution = provider.Plan.GetStage(stage);
+            Assert.That(execution.ReconnectReserved, Is.GreaterThan(0));
+            Assert.That(execution.ControlReserved, Is.GreaterThan(0));
+            ResourceIsolationOwner ordinary = provider.Classify(anonymous, new NodeId(7u));
+            ResourceIsolationOwner reconnect = provider.Classify(anonymous, new NodeId(7u), sessionEstablishment: true);
+            ResourceIsolationOwner control = provider.Classify(anonymous, new NodeId(7u), controlRequest: true);
+            Assert.That(reconnect.Class, Is.EqualTo(ResourceIsolationClass.Reconnect));
+            Assert.That(control.Class, Is.EqualTo(ResourceIsolationClass.Control));
+
+            using IDisposable held = Acquire(provider, stage, ordinary, execution.OwnerHardLimit);
+            using IDisposable first = Acquire(provider, stage, controlFirst ? control : reconnect, 1);
+            using IDisposable second = Acquire(provider, stage, controlFirst ? reconnect : control, 1);
+            AssertRejected(provider, stage, ordinary, 1, ResourceIsolationFailureReason.OwnerLimit);
+        }
+
         private static IDisposable Acquire(
             DefaultServerResourceIsolationProvider provider,
             ResourceIsolationStage stage,
