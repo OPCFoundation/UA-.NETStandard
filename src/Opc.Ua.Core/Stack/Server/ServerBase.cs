@@ -1381,11 +1381,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns <c>true</c> when the server configures user token policies but none of
-        /// them could be published for <paramref name="description"/> (for example every
-        /// policy is a clear-text secret on a Sign endpoint). Such an endpoint is not
-        /// offered: an empty policy list would otherwise read as "no user authentication
-        /// required" (for example for anonymous Session-less requests).
+        /// Returns <c>true</c> when <paramref name="description"/> publishes no user token
+        /// policy because the clear-text secret policies configured for it were rejected
+        /// (Part 4 §7.40.4 Table 189). Such an endpoint is not offered: the empty policy
+        /// list would otherwise read as "no user authentication required" (for example
+        /// for anonymous Session-less requests). An empty list a server publishes on
+        /// purpose (for example without an anonymous policy in provisioning mode) is kept.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="description">The endpoint with its published user token policies.</param>
@@ -1393,9 +1394,21 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description)
         {
-            return description.UserIdentityTokens.IsEmpty &&
-                configuration.ServerConfiguration != null &&
-                !configuration.ServerConfiguration.UserTokenPolicies.IsEmpty;
+            if (!description.UserIdentityTokens.IsEmpty ||
+                configuration.ServerConfiguration == null)
+            {
+                return false;
+            }
+
+            foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
+            {
+                if (IsCleartextTokenPolicyOnSignChannel(description.SecurityMode, policy))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

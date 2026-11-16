@@ -217,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// <summary>
         /// A Sign endpoint whose only configured policy is a clear-text secret has no
         /// usable policy left and is not offered (fail closed), while a server that
-        /// configures no policies at all keeps the previous behavior.
+        /// configures no policies or filters its own keeps the previous behavior.
         /// </summary>
         [Test]
         public void SignEndpointWithOnlyCleartextPoliciesHasNoUsableUserTokenPolicy()
@@ -244,6 +244,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(ServerBase.HasNoUsableUserTokenPolicy(configuration, endpoint), Is.True);
 
             configuration.ServerConfiguration.UserTokenPolicies = default;
+            Assert.That(ServerBase.HasNoUsableUserTokenPolicy(configuration, endpoint), Is.False);
+
+            // a server that removes its own policies on purpose (provisioning mode drops
+            // Anonymous) keeps the endpoint.
+            configuration.ServerConfiguration.UserTokenPolicies = [new UserTokenPolicy(UserTokenType.Anonymous)];
             Assert.That(ServerBase.HasNoUsableUserTokenPolicy(configuration, endpoint), Is.False);
         }
 
