@@ -55,13 +55,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var channel = CreateChannel(time);
 
             // first fault: its timer callback fires but waits for the gate
-            long first;
             using (channel.Gate.Enter())
             {
                 channel.SetState(TcpChannelState.Faulted);
                 channel.ScheduleFaultedRequestCancellation();
-                first = channel.FaultedRequestGeneration;
             }
+            // the gate is not re-entrant: read the generation after leaving it
+            long first = channel.FaultedRequestGeneration;
 
             // meanwhile the client reconnects and the new transport faults again
             using (channel.Gate.Enter())
