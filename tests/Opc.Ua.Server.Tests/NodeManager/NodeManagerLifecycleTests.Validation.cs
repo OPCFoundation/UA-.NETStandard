@@ -46,6 +46,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 $"The lifecycle operation did not provide the required {typeof(T).Name}.");
         }
 
+        private static EventFieldList RequireLifecycleEvent(EventFieldList? value)
+        {
+            return value ?? throw new AssertionException(
+                "The lifecycle operation did not provide the required EventFieldList.");
+        }
+
         private static void AssertLifecycleValue<T>([NotNull] T? value)
             where T : class
         {

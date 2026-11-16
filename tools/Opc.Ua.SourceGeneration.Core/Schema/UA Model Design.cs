@@ -1839,6 +1839,15 @@ namespace Opc.Ua.Schema.Model {
                 this.noEncodingsField = value;
             }
         }
+
+        /// <summary>
+        /// Generate the structure as a value type (struct) instead of a class.
+        /// Only allowed for a concrete, non-union structure without optional
+        /// fields that derives directly from Structure and has no subtypes.
+        /// </summary>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.ComponentModel.DefaultValueAttribute(false)]
+        public bool IsValueType { get; set; }
     }
     
     /// <remarks/>

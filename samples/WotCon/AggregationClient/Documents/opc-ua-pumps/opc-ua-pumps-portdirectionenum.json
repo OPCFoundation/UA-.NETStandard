@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -350,11 +350,14 @@
       {
         "browseName": "1:PortDirectionEnum",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Ports with the direction “In” can only be connected to ports with the direction “Out” or “InOut”."
                 }
               ],
@@ -362,9 +365,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Ports with the direction “Out” can only be connected to ports with the direction “In” or “InOut”."
                 }
               ],
@@ -372,9 +377,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Ports with the direction “InOut” can be connected to ports with arbitrary directions."
                 }
               ],
@@ -386,11 +393,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "determines whether the port is an inlet and outlet or both"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PortDirectionEnum"
           }
         ],
@@ -416,6 +425,7 @@
         "dataType": "EnumValueType",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumValues"
           }
         ],

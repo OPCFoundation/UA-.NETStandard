@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
             string fullPath = Path.GetFullPath(rooted);
 
             string fullBase = baseFolder;
-            if (!fullBase.EndsWith(Path.DirectorySeparatorChar))
+            if (!fullBase.EndsWith(Path.DirectorySeparatorChar, StringComparison.Ordinal))
             {
                 fullBase += Path.DirectorySeparatorChar;
             }

@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -108,6 +109,7 @@
       "observable": true,
       "readOnly": true,
       "title": "DefaultInstanceBrowseName",
+      "type": "string",
       "uav:browseName": "DefaultInstanceBrowseName",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=134",
       "uav:mapToType": "i=20"
@@ -134,6 +136,7 @@
       "observable": true,
       "readOnly": true,
       "title": "SoftwareClass",
+      "type": "integer",
       "uav:browseName": "ns1:SoftwareClass",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=352",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=408",
@@ -240,6 +243,7 @@
       "observable": true,
       "readOnly": true,
       "title": "UpdateStatus",
+      "type": "string",
       "uav:browseName": "ns1:UpdateStatus",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=133",
       "uav:mapToType": "i=21",
@@ -515,6 +519,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareUpdateType"
           }
         ],
@@ -583,10 +588,12 @@
         "superType": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UpdateStatus",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "UpdateStatus"
           }
         ],
@@ -612,10 +619,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareClass",
         "dataType": "ns=1;i=408",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareClass"
           }
         ],
@@ -641,10 +650,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareSubclass",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareSubclass"
           }
         ],
@@ -670,10 +681,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareName",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareName"
           }
         ],
@@ -699,10 +712,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UnsignedPackageAllowed",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "UnsignedPackageAllowed"
           }
         ],
@@ -728,10 +743,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:VendorErrorCode",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "VendorErrorCode"
           }
         ],
@@ -757,10 +774,12 @@
         "typeDefinition": "i=63"
       },
       {
+        "arrayDimensions": "",
         "browseName": "DefaultInstanceBrowseName",
         "dataType": "QualifiedName",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultInstanceBrowseName"
           }
         ],

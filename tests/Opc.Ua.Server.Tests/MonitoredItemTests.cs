@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
             MonitoredItemNotification publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
+            Assert.That(publishResult.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
                 publishErrorResult!.InnerStatusCode,
@@ -181,14 +181,60 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 1);
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
-            EventFieldList publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.FirstOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
+        }
+
+        /// <summary>
+        /// Modifications of an event item made while events are queued combine into one
+        /// transform per queued event, whatever their number: the published event has the
+        /// client handle and select clauses of the last modification.
+        /// </summary>
+        [Test]
+        public void ModificationsOfAnEventItemCombineIntoOneQueuedEventTransform()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var oneField = new EventFilter();
+            oneField.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            var twoFields = new EventFilter();
+            twoFields.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+            twoFields.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, filter: oneField);
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
+
+            const uint modifications = 1000;
+            for (uint ii = 0; ii < modifications; ii++)
+            {
+                // alternate the select clauses, and change only the client handle in between.
+                EventFilter filter = ii % 4 < 2 ? twoFields : oneField;
+                ServiceResult result = monitoredItem.ModifyAttributes(
+                    DiagnosticsMasks.All,
+                    TimestampsToReturn.Both,
+                    100 + ii,
+                    filter,
+                    filter,
+                    null,
+                    1000,
+                    10,
+                    true)!;
+                Assert.That(ServiceResult.IsBad(result), Is.False);
+            }
+
+            Assert.That(monitoredItem.PendingQueuedEventTransformSteps, Is.EqualTo(1));
+
+            var published = new Queue<QueuedEvent>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), published, 10);
+            QueuedEvent fields = published.Single();
+            Assert.That(fields.ClientHandle, Is.EqualTo(100 + modifications - 1));
+            Assert.That(fields.EventFields.Count, Is.EqualTo(1));
+            Assert.That(fields.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
         /// <summary>
@@ -215,7 +261,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Empty);
             MonitoredItemNotification publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
+            Assert.That(publishResult.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
                 publishErrorResult!.InnerStatusCode,
@@ -1408,13 +1454,12 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(3));
-            EventFieldList publishResult = result.LastOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.LastOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
@@ -1442,17 +1487,16 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             bool moreItems = monitoredItem.Publish(new OperationContext(monitoredItem), result, 2);
 
             Assert.That(moreItems, Is.True);
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(2));
-            EventFieldList publishResult = result.LastOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.LastOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
 
-            var result2 = new Queue<EventFieldList>();
+            var result2 = new Queue<QueuedEvent>();
             bool moreItems2 = monitoredItem.Publish(
                 new OperationContext(monitoredItem),
                 result2,
@@ -1461,8 +1505,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
             Assert.That(result2, Has.Count.EqualTo(1));
-            EventFieldList publishResult2 = result2.FirstOrDefault()!;
-            Assert.That(publishResult2, Is.Not.Null);
+            QueuedEvent publishResult2 = result2.FirstOrDefault();
             Assert.That(publishResult2.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
@@ -1490,13 +1533,12 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(3));
-            EventFieldList publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.FirstOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
@@ -1521,17 +1563,16 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(3));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             bool moreItems = monitoredItem.Publish(new OperationContext(monitoredItem), result, 2);
 
             Assert.That(moreItems, Is.True);
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(2));
-            EventFieldList publishResult = result.LastOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.LastOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
 
-            var result2 = new Queue<EventFieldList>();
+            var result2 = new Queue<QueuedEvent>();
             bool moreItems2 = monitoredItem.Publish(
                 new OperationContext(monitoredItem),
                 result2,
@@ -1540,8 +1581,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
             Assert.That(result2, Has.Count.EqualTo(1));
-            EventFieldList publishResult2 = result2.LastOrDefault()!;
-            Assert.That(publishResult2, Is.Not.Null);
+            QueuedEvent publishResult2 = result2.LastOrDefault();
             Assert.That(publishResult2.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
@@ -1624,9 +1664,10 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry,
             bool events = false,
             uint queueSize = 10,
-            bool discardOldest = false)
+            bool discardOldest = false,
+            MonitoringFilter? filter = null)
         {
-            MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
+            filter ??= events ? new EventFilter() : new MonitoringFilter();
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Telemetry).Returns(telemetry);

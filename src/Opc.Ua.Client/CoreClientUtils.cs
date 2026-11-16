@@ -176,12 +176,18 @@ namespace Opc.Ua.Client
                 throw ServiceResultException.Unexpected("Endpoint missing"));
             ArrayOf<EndpointDescription> endpoints =
                 await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
-            return SelectEndpoint(
+            EndpointDescription? selectedEndpoint = SelectEndpoint(
                 application,
                 url,
                 endpoints,
                 useSecurity,
                 telemetry);
+            if (selectedEndpoint != null)
+            {
+                // compared with the endpoints returned by CreateSession.
+                ConfiguredEndpoint.SetSelectionEndpoints(selectedEndpoint, endpoints);
+            }
+            return selectedEndpoint;
         }
 
         /// <summary>
@@ -263,6 +269,9 @@ namespace Opc.Ua.Client
                     };
                     selectedEndpoint.EndpointUrl = builder.ToString();
                 }
+
+                // compared with the endpoints returned by CreateSession.
+                ConfiguredEndpoint.SetSelectionEndpoints(selectedEndpoint, endpoints);
             }
             return selectedEndpoint;
         }

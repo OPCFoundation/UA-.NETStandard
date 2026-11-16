@@ -3232,7 +3232,7 @@ namespace Opc.Ua.Server.Tests
         {
             var item = new Mock<IEventMonitoredItem>();
             item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
-            var pending = new Queue<EventFieldList>();
+            var pending = new Queue<QueuedEvent>();
             for (int index = 0; index < notificationCount; index++)
             {
                 pending.Enqueue(new EventFieldList { ClientHandle = id, EventFields = [Variant.From(index)] });
@@ -3250,9 +3250,9 @@ namespace Opc.Ua.Server.Tests
             item.Setup(i => i.GetCreateResult(out createResult)).Returns(ServiceResult.Good);
             item.Setup(i => i.Publish(
                     It.IsAny<OperationContext>(),
-                    It.IsAny<Queue<EventFieldList>>(),
+                    It.IsAny<Queue<QueuedEvent>>(),
                     It.IsAny<uint>()))
-                .Returns<OperationContext, Queue<EventFieldList>, uint>(
+                .Returns<OperationContext, Queue<QueuedEvent>, uint>(
                     (_, notifications, maxNotificationsPerPublish) =>
                     {
                         publishLimits.Add(maxNotificationsPerPublish);

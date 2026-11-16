@@ -56,7 +56,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             XDocument server = LoadProject("AggregationServer");
             Assert.That(
                 ReadProperty(server, "TargetFrameworks", "'$(CustomTestTarget)' == ''"),
-                Is.EqualTo("net8.0;net9.0;net10.0"));
+                Is.EqualTo("net10.0;net11.0"));
             Assert.That(
                 ReadProperty(server, "RestrictForLegacyTfm", null),
                 Is.EqualTo("true"));

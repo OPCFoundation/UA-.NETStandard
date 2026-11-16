@@ -156,7 +156,7 @@ namespace Opc.Ua.PubSub.Udp
             }
             else
             {
-                int colon = remainder.LastIndexOf(':');
+                int colon = remainder.LastIndexOf(':', StringComparison.Ordinal);
                 if (colon == 0)
                 {
                     throw new FormatException(

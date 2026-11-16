@@ -38,7 +38,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// User identity backed by a validated JWT issued identity token.
     /// </summary>
-    public sealed class JwtUserIdentity : IUserIdentity, IIdentityClaims
+    public sealed class JwtUserIdentity : IUserIdentity, IIdentityClaims, IIdentityExpiration
     {
         /// <summary>
         /// Creates a JWT user identity.
@@ -50,7 +50,24 @@ namespace Opc.Ua.Server
             IReadOnlyList<string> roles,
             string? issuer,
             string? subject)
+            : this(tokenHandler, claims, groups, roles, issuer, subject, expiresAt: null)
         {
+        }
+
+        /// <summary>
+        /// Creates a JWT user identity whose credentials expire at
+        /// <paramref name="expiresAt"/> (UTC).
+        /// </summary>
+        public JwtUserIdentity(
+            IssuedIdentityTokenHandler tokenHandler,
+            IReadOnlyDictionary<string, object?> claims,
+            IReadOnlyList<string> groups,
+            IReadOnlyList<string> roles,
+            string? issuer,
+            string? subject,
+            DateTime? expiresAt)
+        {
+            ExpiresAt = expiresAt;
             TokenHandler = tokenHandler ?? throw new ArgumentNullException(nameof(tokenHandler));
             Claims = claims ?? throw new ArgumentNullException(nameof(claims));
             Groups = groups ?? throw new ArgumentNullException(nameof(groups));
@@ -73,6 +90,9 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public string? Subject { get; }
+
+        /// <inheritdoc/>
+        public DateTime? ExpiresAt { get; }
 
         /// <inheritdoc/>
         public string DisplayName => Subject ?? TokenHandler.DisplayName;

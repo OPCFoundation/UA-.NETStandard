@@ -150,7 +150,7 @@ namespace Opc.Ua.Client
                     acknowledgements,
                 CancellationToken ct = default)
             {
-                m_session.ApplyDeferNotificationBodies();
+                m_session.ApplyDeferNotificationDecoding();
                 return m_session.PublishAsync(
                     requestHeader,
                     acknowledgements,
@@ -352,12 +352,55 @@ namespace Opc.Ua.Client
 
                 message.MoreNotifications = moreNotifications;
                 message.StringTable = stringTable;
-                target.SaveMessageInCache(availableSequenceNumbers, message);
-
-                OnPublishNotification(
-                    target,
-                    new NotificationEventArgs(target, message, stringTable));
+                // raised only when a handler was attached when the message was saved.
+                if (target.SaveMessageInCache(availableSequenceNumbers, message, null))
+                {
+                    OnPublishNotification(
+                        target,
+                        new NotificationEventArgs(target, message, stringTable));
+                }
                 return true;
+            }
+
+            /// <summary>
+            /// Delivers a message recovered with Republish to the classic
+            /// subscription that holds <paramref name="subscriptionId"/>. A
+            /// Republish response lists no available sequence numbers, so the
+            /// subscription keeps the ones from the last Publish response. The
+            /// subscription must still be in the lifetime the Republish was
+            /// requested for.
+            /// </summary>
+            /// <returns><c>true</c> when a subscription took the message.</returns>
+            internal bool TryDispatchRepublishedToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage message,
+                ArrayOf<string> stringTable,
+                AcknowledgementScope? requiredScope)
+            {
+                if (subscriptionId == 0 || message == null || requiredScope == null)
+                {
+                    return false;
+                }
+                foreach (Subscription subscription in m_session.Subscriptions)
+                {
+                    if (subscription.Id == subscriptionId)
+                    {
+                        message.StringTable = stringTable;
+                        if (!subscription.TrySaveRepublishedMessageInCache(
+                            message, requiredScope, out bool raiseNotification))
+                        {
+                            return false;
+                        }
+                        if (raiseNotification)
+                        {
+                            OnPublishNotification(
+                                subscription,
+                                new NotificationEventArgs(subscription, message, stringTable));
+                        }
+                        return true;
+                    }
+                }
+                return false;
             }
 
             private void RaisePublishNotification(

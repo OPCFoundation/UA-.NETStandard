@@ -198,7 +198,8 @@ namespace Opc.Ua.Server.Historian
         public bool IsForward { get; init; }
 
         /// <summary>
-        /// The event filter from the client request.
+        /// The event filter from the client request. The filter is shared by the operations of the
+        /// request and by their continuation points, so providers must treat it as read-only.
         /// </summary>
         public required EventFilter Filter { get; init; }
     }

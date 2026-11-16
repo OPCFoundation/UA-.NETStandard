@@ -464,7 +464,7 @@ namespace Opc.Ua.History.Tests
             Func<EventFieldList, bool> predicate,
             out EventFieldList eventFields)
         {
-            eventFields = null!;
+            eventFields = default;
             if (!m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList>? queue))
             {
                 return false;

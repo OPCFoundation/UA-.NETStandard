@@ -398,7 +398,7 @@ namespace Opc.Ua.Wot
                     {
                         continue;
                     }
-                    int close = href.IndexOf('}', offset + 1);
+                    int close = href.IndexOf('}', offset + 1, StringComparison.Ordinal);
                     if (close < 0)
                     {
                         return false;
@@ -410,7 +410,7 @@ namespace Opc.Ua.Wot
                     }
                     while (start < close)
                     {
-                        int comma = href.IndexOf(',', start, close - start);
+                        int comma = href.IndexOf(',', start, close - start, StringComparison.Ordinal);
                         int end = comma < 0 ? close : comma;
                         string spec = href[start..end];
                         int modifier = spec.IndexOfAny(s_variableModifiers);

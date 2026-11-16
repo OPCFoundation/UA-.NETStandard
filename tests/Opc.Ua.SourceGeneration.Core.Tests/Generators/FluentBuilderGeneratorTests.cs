@@ -660,7 +660,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(nodeId, Is.GreaterThan(0), "Typed root accessor for Device not found:\n" + fb);
             const string lookup = "__inner.Context.NamespaceUris.GetIndexOrAppend(\"";
             int start = fb.LastIndexOf(lookup, nodeId, StringComparison.Ordinal) + lookup.Length;
-            string ns = fb[start..fb.IndexOf('"', start)];
+            string ns = fb[start..fb.IndexOf('"', start, StringComparison.Ordinal)];
             Assert.That(ns, Is.EqualTo("http://test.org/UA/DeclarationBackedMethod/"),
                 "The root NodeId must use the namespace of the NodeId, not of the BrowseName.");
         }

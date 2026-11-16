@@ -302,7 +302,7 @@ namespace Opc.Ua
             string folder;
             string path;
 
-            int index = input.IndexOf('%', 1);
+            int index = input.IndexOf('%', 1, StringComparison.Ordinal);
 
             if (index == -1)
             {
@@ -589,15 +589,15 @@ namespace Opc.Ua
             }
 
             // keep file name.
-            int end = filePath.LastIndexOf(Path.DirectorySeparatorChar);
+            int end = filePath.LastIndexOf(Path.DirectorySeparatorChar, StringComparison.Ordinal);
 
             while (end > start && filePath.Length - end < maxLength)
             {
-                end = filePath.LastIndexOf(Path.DirectorySeparatorChar, end - 1);
+                end = filePath.LastIndexOf(Path.DirectorySeparatorChar, end - 1, StringComparison.Ordinal);
 
                 if (filePath.Length - end > maxLength)
                 {
-                    end = filePath.IndexOf(Path.DirectorySeparatorChar, end + 1);
+                    end = filePath.IndexOf(Path.DirectorySeparatorChar, end + 1, StringComparison.Ordinal);
                     break;
                 }
             }

@@ -238,7 +238,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// Verifies that counterfeit native event ID owner is rejected.
         /// </summary>
         [Test]
-        public void CounterfeitNativeEventIdOwnerIsRejected()
+        public async Task CounterfeitNativeEventIdOwnerIsRejectedAsync()
         {
             UANodeSet source = NativeGraph();
             source.Items.Required().Single(node => node.NodeId == "i=2041").References = [];
@@ -254,7 +254,16 @@ namespace Opc.Ua.Types.Tests.Wot
                     PreservationMode = WotNodeSetPreservationMode.Always
                 });
 
-            Assert.That(() => new WotDocumentNodeResolver([document]), Throws.TypeOf<FormatException>());
+            var context = new WotDocumentNodeResolver([document]);
+            using WotDocument consumer = Consumer("i=2782", selection: true);
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                consumer, null, QueryResolver(QueryId), null, context).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ConditionEventIdMissing &&
+                diagnostic.Location?.JsonPointer == "/events/alarm/uav:eventSelectClauses"), Is.True, Errors(result));
         }
 
         /// <summary>
@@ -380,7 +389,14 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(document.TryGetNativeProjection(out _), Is.True);
             Assert.That(document.TryGetEnvelope(out _), Is.True);
-            Assert.That(() => new WotDocumentNodeResolver([document]), Throws.TypeOf<FormatException>());
+            JsonObject root = JsonNode.Parse(document.Utf8Json.Span).Required().AsObject();
+            JsonObject native = root["uav:nodes"].Required()["nodes"].Required().AsArray()
+                .Single(node => node.Required()["nodeId"].Required().GetValue<string>() == "ns=2;i=7001")
+                .Required().AsObject();
+            native.Remove("references");
+            using WotDocument conflicting = Parse(root);
+
+            Assert.That(() => new WotDocumentNodeResolver([conflicting]), Throws.TypeOf<FormatException>());
         }
 
         /// <summary>

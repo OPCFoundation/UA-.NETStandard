@@ -830,7 +830,7 @@ namespace Opc.Ua
 
             if (exception.Message != null)
             {
-                if (exception.Message.StartsWith('['))
+                if (exception.Message.StartsWith('[', StringComparison.Ordinal))
                 {
                     return new LocalizedText(exception.Message);
                 }
