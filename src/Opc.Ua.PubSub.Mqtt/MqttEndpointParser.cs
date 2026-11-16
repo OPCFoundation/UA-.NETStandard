@@ -199,7 +199,7 @@ namespace Opc.Ua.PubSub.Mqtt
             }
             else
             {
-                int colon = authority.LastIndexOf(':');
+                int colon = authority.LastIndexOf(':', StringComparison.Ordinal);
                 if (colon >= 0)
                 {
                     host = authority[..colon];

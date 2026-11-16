@@ -71,7 +71,7 @@ route. Alternative forms are not an instruction to invoke multiple sources.
 
 ## Prerequisites
 
-The complete sample requires .NET 8, .NET 9, or .NET 10. `AggregationServer` intentionally targets only `net8.0`, `net9.0`, and `net10.0` because the OPC UA executor required by the checked-in mappings is available only on those frameworks. Legacy `CustomTestTarget` solution builds replace that project with the repository's no-op shell; those matrix builds are not runnable aggregation-server configurations. `FlatTagServer` and `AggregationClient` remain on the shared application target matrix for standalone compatibility, but a runnable end-to-end topology always requires the modern aggregation server.
+The complete sample requires .NET 10 or .NET 11. `AggregationServer` intentionally targets only `net10.0` and `net11.0` because the OPC UA executor required by the checked-in mappings is available only on those frameworks. Legacy `CustomTestTarget` solution builds replace that project with the repository's no-op shell; those matrix builds are not runnable aggregation-server configurations. `FlatTagServer` and `AggregationClient` remain on the shared application target matrix for standalone compatibility, but a runnable end-to-end topology always requires the modern aggregation server.
 
 Run the commands below from the repository root with the .NET 10 SDK. The samples accept unencrypted anonymous OPC UA connections for local demonstration and auto-accept untrusted certificates; do not copy those security settings into a production deployment.
 

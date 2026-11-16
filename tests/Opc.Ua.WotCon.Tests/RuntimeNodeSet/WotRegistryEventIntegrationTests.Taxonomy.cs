@@ -153,7 +153,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                         HasVersionSubject(fields, filter, "bad-taxonomy", "rejected-version"))
                     .ConfigureAwait(false);
                 Assert.That(created, Is.Not.Null);
-                Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId exactVersion), Is.True);
                 Assert.That(exactVersion.IsNull, Is.False);
                 NodeState? version = m_eventManager.Find(exactVersion);
@@ -177,14 +177,14 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     fields => EventTypeOf(fields) == failureType).ConfigureAwait(false);
                 Assert.That(failure, Is.Not.Null);
                 Assert.That(produced, Is.Not.Null);
-                Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId source), Is.True);
                 Assert.That(source, Is.EqualTo(exactVersion),
                     "The concrete failure must originate at the exact failing Version.");
-                Assert.That(AsString(failure!.EventFields[Field.VersionId]), Is.EqualTo("rejected-version"));
-                Assert.That(failure.EventFields[Field.Phase].TryGetValue(out WoTPhaseEnum phase), Is.True);
+                Assert.That(AsString(failure.Value.EventFields[Field.VersionId]), Is.EqualTo("rejected-version"));
+                Assert.That(failure.Value.EventFields[Field.Phase].TryGetValue(out WoTPhaseEnum phase), Is.True);
                 Assert.That(phase, Is.EqualTo(produced!.Phase));
-                Assert.That(AsUInt32(failure.EventFields[Field.Generation]), Is.EqualTo(produced.Generation));
+                Assert.That(AsUInt32(failure.Value.EventFields[Field.Generation]), Is.EqualTo(produced.Generation));
             }
             finally
             {
@@ -238,7 +238,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     fields => EventTypeOf(fields) == createdType &&
                         HasVersionSubject(fields, filter, ResourceId, "rejected")).ConfigureAwait(false);
                 Assert.That(created, Is.Not.Null);
-                Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId rejectedVersion), Is.True);
                 WotResource before = m_registry.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions, ResourceId)!;
@@ -249,10 +249,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 EventFieldList? failure = await CollectEventAsync(services, subscriptionId,
                     fields => EventTypeOf(fields) == failureType).ConfigureAwait(false);
                 Assert.That(failure, Is.Not.Null);
-                Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId source), Is.True);
                 Assert.That(source, Is.EqualTo(rejectedVersion));
-                Assert.That(AsString(failure!.EventFields[Field.VersionId]), Is.EqualTo("rejected"));
+                Assert.That(AsString(failure.Value.EventFields[Field.VersionId]), Is.EqualTo("rejected"));
             }
             finally
             {
@@ -333,7 +333,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                             HasVersionSubject(fields, filter, ResourceId, "rejected"), requestHeader)
                         .ConfigureAwait(false);
                     Assert.That(created, Is.Not.Null);
-                    Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId rejectedVersion), Is.True);
 
                     await m_coordinator.RefreshAsync(
@@ -353,10 +353,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     }, requestHeader).ConfigureAwait(false);
                     Assert.That(completed, Is.Not.Null);
                     Assert.That(failure, Is.Not.Null);
-                    Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId source), Is.True);
                     Assert.That(source, Is.EqualTo(rejectedVersion));
-                    Assert.That(AsString(failure!.EventFields[Field.VersionId]), Is.EqualTo("rejected"));
+                    Assert.That(AsString(failure.Value.EventFields[Field.VersionId]), Is.EqualTo("rejected"));
                     Assert.That(observed, Does.Not.Contain(abstractType));
                 }
                 finally
@@ -432,9 +432,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     Assert.That(barrier, Is.Not.Null, versionId);
                     Assert.That(created, Is.Not.Null, versionId);
                     Assert.That(failure, Is.Not.Null, versionId);
-                    Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId exactVersion), Is.True, versionId);
-                    Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId source), Is.True, versionId);
                     Assert.That(source, Is.EqualTo(exactVersion),
                         "Failure delivery cannot depend on the consumer waiting for VersionCreated: " + versionId);
@@ -508,9 +508,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(failure, Is.Not.Null,
                     "The matching Version and notifier chain must remain until its queued failure is delivered.");
                 Assert.That(order, Is.EqualTo(s_expectedQueuedFailureOrder));
-                Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId exactVersion), Is.True);
-                Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId source), Is.True);
                 Assert.That(source, Is.EqualTo(exactVersion));
             }
@@ -649,7 +649,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                         fields => EventTypeOf(fields) == createdType &&
                             HasVersionSubject(fields, filter, ResourceId, "v1"), header).ConfigureAwait(false);
                     Assert.That(created, Is.Not.Null);
-                    Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId exactVersion), Is.True);
                     var version = (BaseInstanceState)m_eventManager.Find(exactVersion)!;
                     var versions = (BaseInstanceState)version.Parent!;
@@ -695,7 +695,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     Assert.That(barrier, Is.Not.Null);
                     Assert.That(failure, Is.Not.Null,
                         "Native Delete must not remove a Version/notifier ahead of its queued mandatory failure.");
-                    Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId source), Is.True);
                     Assert.That(source, Is.EqualTo(exactVersion));
 

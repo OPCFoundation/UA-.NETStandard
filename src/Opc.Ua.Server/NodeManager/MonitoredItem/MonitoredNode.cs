@@ -1797,7 +1797,7 @@ namespace Opc.Ua.Server
                 generation,
                 defaultsGeneration,
                 restrictions,
-                out NamespaceMetadataState? defaults,
+                out NamespaceMetadataNode? defaults,
                 out EventRestrictionVerdictSlot? slot))
             {
                 return ServiceResult.Good;
@@ -1830,7 +1830,7 @@ namespace Opc.Ua.Server
             long generation,
             long defaultsGeneration,
             AccessRestrictionType? restrictions,
-            out NamespaceMetadataState? defaults,
+            out NamespaceMetadataNode? defaults,
             out EventRestrictionVerdictSlot? slot)
         {
             defaults = null;
@@ -2773,7 +2773,7 @@ namespace Opc.Ua.Server
         private sealed class EventRestrictionVerdict(
             long generation,
             long defaultsGeneration,
-            NamespaceMetadataState? defaults,
+            NamespaceMetadataNode? defaults,
             EndpointDescription endpoint,
             AccessRestrictionType? restrictions)
         {
@@ -2783,7 +2783,7 @@ namespace Opc.Ua.Server
             public bool Matches(
                 long currentGeneration,
                 long currentDefaultsGeneration,
-                NamespaceMetadataState? currentDefaults,
+                NamespaceMetadataNode? currentDefaults,
                 EndpointDescription currentEndpoint,
                 AccessRestrictionType? currentRestrictions)
             {

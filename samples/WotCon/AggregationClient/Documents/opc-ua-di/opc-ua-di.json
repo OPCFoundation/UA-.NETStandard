@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -56,7 +57,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -88,7 +88,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -120,7 +119,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "links": [
         {
           "href": "i=68",
@@ -148,7 +147,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "1.5.0",
+      "default": "1.5.0",
       "links": [
         {
           "href": "i=68",
@@ -204,7 +203,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "http://opcfoundation.org/UA/DI/",
+      "default": "http://opcfoundation.org/UA/DI/",
       "links": [
         {
           "href": "i=68",
@@ -232,7 +231,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "1.05.0",
+      "default": "1.05.0",
       "links": [
         {
           "href": "i=68",
@@ -260,7 +259,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -292,7 +290,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -324,7 +324,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "",
+      "default": "",
       "links": [
         {
           "href": "i=68",
@@ -591,6 +591,7 @@
         "browseName": "1:http://opcfoundation.org/UA/DI/",
         "displayName": [
           {
+            "locale": "",
             "value": "http://opcfoundation.org/UA/DI/"
           }
         ],
@@ -656,10 +657,12 @@
         "typeDefinition": "i=11616"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceUri"
           }
         ],
@@ -681,10 +684,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://opcfoundation.org/UA/DI/</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceVersion",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceVersion"
           }
         ],
@@ -706,10 +711,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">1.05.0</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespacePublicationDate",
         "dataType": "DateTime",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespacePublicationDate"
           }
         ],
@@ -731,10 +738,12 @@
         "valueXml": "<DateTime xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">2025-11-15T00:00:00Z</DateTime>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "IsNamespaceSubset",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "IsNamespaceSubset"
           }
         ],
@@ -761,6 +770,7 @@
         "dataType": "i=256",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticNodeIdTypes"
           }
         ],
@@ -788,6 +798,7 @@
         "dataType": "i=291",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticNumericNodeIdRange"
           }
         ],
@@ -810,10 +821,12 @@
         "valueXml": "<ListOfString xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <String>1:2147483647</String>\n      </ListOfString>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "StaticStringNodeIdPattern",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "StaticStringNodeIdPattern"
           }
         ],
@@ -840,6 +853,7 @@
         "dataType": "i=96",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultRolePermissions"
           }
         ],
@@ -866,6 +880,7 @@
         "dataType": "i=96",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultUserRolePermissions"
           }
         ],
@@ -887,10 +902,12 @@
         "valueRank": 1
       },
       {
+        "arrayDimensions": "",
         "browseName": "DefaultAccessRestrictions",
         "dataType": "i=95",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultAccessRestrictions"
           }
         ],
@@ -911,10 +928,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "ModelVersion",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ModelVersion"
           }
         ],

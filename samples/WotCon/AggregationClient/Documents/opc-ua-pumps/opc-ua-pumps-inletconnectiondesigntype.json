@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -49,6 +50,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "CriticalBackingPressure",
       "type": "number",
@@ -863,6 +870,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Area"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M2"
+      },
       "readOnly": true,
       "title": "InletAreaOfThePump",
       "type": "number",
@@ -893,6 +906,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "MaximumAllowableInletPressure",
       "type": "number",
@@ -923,6 +942,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "MaximumTolerableWaterVaporInletPressure",
       "type": "number",
@@ -953,6 +978,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "MaximumWorkingPressure",
       "type": "number",
@@ -983,6 +1014,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "MinimumAllowableInletPressure",
       "type": "number",
@@ -1013,6 +1050,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "readOnly": true,
       "title": "NetPositiveInletPressureRequired",
       "type": "number",
@@ -1276,6 +1319,7 @@
         "browseName": "1:InletConnectionDesignType",
         "displayName": [
           {
+            "locale": "",
             "value": "InletConnectionDesignType"
           }
         ],
@@ -1324,15 +1368,18 @@
         "superType": "ns=1;i=1040"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:CriticalBackingPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Maximum backing pressure for which the conditions are defined in the instruction manual or in a specific standard for the particular vacuum pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CriticalBackingPressure"
           }
         ],
@@ -1370,10 +1417,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1399,10 +1448,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1429,10 +1480,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1458,15 +1511,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:InletAreaOfThePump",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Free cross-sectional area of the entry opening in the inlet connection of the pump."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InletAreaOfThePump"
           }
         ],
@@ -1504,10 +1560,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1533,10 +1591,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1563,10 +1623,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067851</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>square metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1592,15 +1654,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MaximumAllowableInletPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Highest value of inlet pressure at which the pump or component is capable of functioning on the basis of the materials used."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaximumAllowableInletPressure"
           }
         ],
@@ -1638,10 +1703,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1667,10 +1734,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1697,10 +1766,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1726,15 +1797,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MaximumTolerableWaterVaporInletPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "The highest water vapor inlet pressure at which a gas ballast pump, under normal ambient conditions, can pump and exhaust pure water vapor in continuous Operation."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaximumTolerableWaterVaporInletPressure"
           }
         ],
@@ -1772,10 +1846,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1801,10 +1877,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1831,10 +1909,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1860,15 +1940,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MaximumWorkingPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "instantaneous inlet pressure with adequate margin above the minimum liquid vapor pressure expected."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaximumWorkingPressure"
           }
         ],
@@ -1906,10 +1989,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1935,10 +2020,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1965,10 +2052,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1994,15 +2083,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MinimumAllowableInletPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Lowest value of inlet pressure at which the pump or component is capable of functioning on the basis of the materials used."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MinimumAllowableInletPressure"
           }
         ],
@@ -2040,10 +2132,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2069,10 +2163,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2099,10 +2195,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2128,15 +2226,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NetPositiveInletPressureRequired",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Total inlet pressure required to ensure there is enough margin to maintain the minimum."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NetPositiveInletPressureRequired"
           }
         ],
@@ -2174,10 +2275,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2203,10 +2306,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2233,10 +2338,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2262,15 +2369,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:WaterVaporCapacity",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Mass of water which can be conveyed by the pump without condensation per time."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "WaterVaporCapacity"
           }
         ],
@@ -2308,10 +2418,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2337,10 +2449,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2367,10 +2481,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4600375</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>g/h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>gram per hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],

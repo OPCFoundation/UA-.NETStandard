@@ -3652,11 +3652,12 @@ namespace Opc.Ua.Client.Subscriptions
             public Action? OnAdmissionBackpressure { get; set; }
 
             /// <inheritdoc/>
-            public override ValueTask OnPublishReceivedAsync(
+            public override ValueTask<bool> OnPublishReceivedAsync(
                 NotificationMessage message, IReadOnlyList<uint>? availableSequenceNumbers,
-                IReadOnlyList<string> stringTable)
+                IReadOnlyList<string> stringTable, IIngressWaitPolicy? waitPolicy = null)
             {
-                ValueTask admission = base.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable);
+                ValueTask<bool> admission = base.OnPublishReceivedAsync(
+                    message, availableSequenceNumbers, stringTable, waitPolicy);
                 if (!admission.IsCompleted)
                 {
                     OnAdmissionBackpressure?.Invoke();

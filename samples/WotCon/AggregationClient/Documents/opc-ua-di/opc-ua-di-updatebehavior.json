@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -34,7 +35,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -385,11 +388,14 @@
           "DI SU Software Update"
         ],
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If KeepsParameters is not set, the device will lose its configuration during update. The Client should do a backup of the parameters before the update and restore them afterwards."
                 }
               ],
@@ -397,9 +403,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If WillDisconnect is set, the OPC UA Server will restart during installation. This can be the case if the update is about the firmware of the device that hosts the OPC UA Server."
                 }
               ],
@@ -407,9 +415,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If RequiresPowerCycle is set, the devices require a manual power off / power on for installation."
                 }
               ],
@@ -417,9 +427,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If WillReboot is set, the device will reboot during the update, inclusive of embedded infrastructure elements like an integrated switch. An update Client should take this into account since the devices behind an integrated switch are not reachable for that time."
                 }
               ],
@@ -427,9 +439,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "If NeedsPreparation is not set, the Client can install the update without maintaining the PrepareForUpdateStateMachine. This can be used to support an installation without stopping the software."
                 }
               ],
@@ -442,6 +456,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "UpdateBehavior"
           }
         ],
@@ -467,6 +482,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "OptionSetValues"
           }
         ],

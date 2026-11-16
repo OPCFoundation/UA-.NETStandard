@@ -443,7 +443,7 @@ namespace Opc.Ua.Bindings
 
             using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
-                if (State == TcpChannelState.Closed)
+                if (State is TcpChannelState.Closed or TcpChannelState.Closing)
                 {
                     return false;
                 }
@@ -1649,9 +1649,12 @@ namespace Opc.Ua.Bindings
                     //
                     // Not gated on the saved size: a first chunk with an empty body
                     // would then skip the check entirely and let a non discovery
-                    // request buffer until the size limit.
+                    // request buffer until the size limit. Gated on the request id
+                    // rather than on any saved message: a chunk with a new request
+                    // id abandons the saved message and starts another one, whose
+                    // first chunk must be validated as well.
                     if (DiscoveryOnly &&
-                        !HasPartialMessage &&
+                        !HasPartialMessageFor(requestId) &&
                         !ValidateDiscoveryServiceCall(
                             token,
                             requestId,
@@ -1819,14 +1822,14 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(response));
             }
 
-            if (TrySendResponseWithoutGate(requestId, response))
+            if (TrySendResponseWithoutGate(requestId, response, out ServiceResultException? encodeError))
             {
                 return false;
             }
 
             using (Gate.Enter())
             {
-                return SendResponseCore(requestId, response);
+                return SendResponseCore(requestId, response, encodeError);
             }
         }
 
@@ -1851,14 +1854,14 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(response));
             }
 
-            if (TrySendResponseWithoutGate(requestId, response))
+            if (TrySendResponseWithoutGate(requestId, response, out ServiceResultException? encodeError))
             {
                 return false;
             }
 
             using (await Gate.EnterAsync().ConfigureAwait(false))
             {
-                return SendResponseCore(requestId, response);
+                return SendResponseCore(requestId, response, encodeError);
             }
         }
 
@@ -1868,6 +1871,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="requestId">The request being answered.</param>
         /// <param name="response">The response.</param>
+        /// <param name="encodeError">The failure of an encode that cannot succeed under
+        /// the gate either, such as a response past its size limit: the gate path sends
+        /// the fault without encoding the response again.</param>
         /// <returns><see langword="false"/> when the caller must send the response
         /// under the gate instead: the channel is not open, a renewed token is due
         /// for activation, the transport is gone, or the response cannot be encoded
@@ -1880,8 +1886,10 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private bool TrySendResponseWithoutGate(
             uint requestId,
-            IServiceResponse response)
+            IServiceResponse response,
+            out ServiceResultException? encodeError)
         {
+            encodeError = null;
             if (State != TcpChannelState.Open ||
                 IsRenewedTokenActivationDue ||
                 Transport == null)
@@ -1899,6 +1907,12 @@ namespace Opc.Ua.Bindings
                     response,
                     false,
                     out _);
+            }
+            catch (ServiceResultException e)
+            {
+                // the gate path reports the failure.
+                encodeError = e;
+                return false;
             }
             catch (Exception)
             {
@@ -1940,7 +1954,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Encodes and queues a response while the caller holds the channel gate.
         /// </summary>
-        private bool SendResponseCore(uint requestId, IServiceResponse response)
+        private bool SendResponseCore(
+            uint requestId,
+            IServiceResponse response,
+            ServiceResultException? encodeError = null)
         {
             {
                 // must queue the response if the channel is in the faulted state.
@@ -1967,6 +1984,11 @@ namespace Opc.Ua.Bindings
                 EncodedSymmetricMessage encoded;
                 try
                 {
+                    if (encodeError != null)
+                    {
+                        throw encodeError;
+                    }
+
                     // note that the server does nothing if the message limits are exceeded.
                     encoded = EncodeSymmetricMessage(
                         TcpMessageType.Message,

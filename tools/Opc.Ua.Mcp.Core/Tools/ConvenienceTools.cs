@@ -166,7 +166,8 @@ namespace Opc.Ua.Mcp.Tools
                 await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
                 sessionInfo = operation.Access;
                 ISession session = sessionInfo.Session;
-                JsonElement jsonElement = JsonDocument.Parse(value).RootElement;
+                using JsonDocument document = JsonDocument.Parse(value);
+                JsonElement jsonElement = document.RootElement;
                 Variant variant = OpcUaJsonHelper.JsonElementToVariant(jsonElement, dataType);
 
                 ArrayOf<WriteValue> nodesToWrite =

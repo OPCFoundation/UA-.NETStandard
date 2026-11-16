@@ -892,10 +892,6 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         for (int i = 0; i < total; i++)
         {
             EventFieldList fl = notification.Events[i];
-            if (fl is null)
-            {
-                continue;
-            }
             EventLogEntry entry = BuildEntry(fl);
             if (entry.Severity < Filter.SeverityThreshold)
             {

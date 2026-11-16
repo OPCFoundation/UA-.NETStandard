@@ -111,6 +111,44 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(claims.Roles, Does.Contain("operator"));
         }
 
+        /// <summary>
+        /// The identity carries the token expiration plus the clock skew tolerance,
+        /// so the session can invalidate the credentials when the token expires.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(30)]
+        public async Task AuthenticateAsyncIdentityCarriesTokenExpiration(int clockSkewSeconds)
+        {
+            using var rsa = RSA.Create(2048);
+            using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
+            long expectedExpiry = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 3600;
+            string jwt = CreateJwt(
+                "RS256",
+                "kid-rsa",
+                Issuer,
+                Quote(Audience),
+                expiresInSeconds: 3600,
+                signingInput => rsa.SignData(signingInput, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+            var authenticator = new JwtAuthenticator(
+                new StaticKeyResolver(Issuer, key),
+                Audience,
+                TimeSpan.FromSeconds(clockSkewSeconds));
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    Encoding.UTF8.GetBytes(jwt))))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            var expiration = result.Identity as IIdentityExpiration;
+            Assert.That(expiration, Is.Not.Null);
+            Assert.That(expiration!.ExpiresAt, Is.Not.Null);
+            DateTime expected = DateTimeOffset.FromUnixTimeSeconds(expectedExpiry).UtcDateTime
+                .AddSeconds(clockSkewSeconds);
+            Assert.That(expiration.ExpiresAt!.Value, Is.EqualTo(expected).Within(TimeSpan.FromSeconds(2)));
+        }
+
         [Test]
         public async Task AuthenticateAsyncEs256TokenAccepted()
         {

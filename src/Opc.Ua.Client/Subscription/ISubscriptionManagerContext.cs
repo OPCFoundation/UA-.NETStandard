@@ -73,6 +73,30 @@ namespace Opc.Ua.Client.Subscriptions
         int SessionSubscriptionCount { get; }
 
         /// <summary>
+        /// Gets the operation timeout of the session's channel in milliseconds, after
+        /// which the client abandons a request. Zero or less when not known.
+        /// </summary>
+        int OperationTimeout { get; }
+
+        /// <summary>
+        /// Whether a Publish response for an identifier that resolves to no
+        /// subscription may be taken as an abandoned subscription and deleted on the
+        /// server. It may not while the session transfers or restores subscriptions,
+        /// while a subscription of the session is still waiting for its identifier,
+        /// or when the session keeps its subscriptions on close.
+        /// </summary>
+        /// <param name="subscriptionId">The unresolved identifier.</param>
+        bool MayDeleteUnknownSubscription(uint subscriptionId);
+
+        /// <summary>
+        /// Gets the acknowledgement scope of the current lifetime of the subscription
+        /// with this identifier that the session holds outside this manager's
+        /// registry, or <c>null</c> when the session holds none.
+        /// </summary>
+        /// <param name="subscriptionId">The server-assigned identifier.</param>
+        AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId);
+
+        /// <summary>
         /// Create a managed subscription
         /// </summary>
         /// <param name="handler"></param>
@@ -189,5 +213,23 @@ namespace Opc.Ua.Client.Subscriptions
             ArrayOf<uint> availableSequenceNumbers,
             ArrayOf<string> stringTable,
             bool moreNotifications);
+
+        /// <summary>
+        /// Waits until a subscription the session holds outside this manager has
+        /// room for another message. Such a subscription acknowledges a message
+        /// when it is saved, so a full queue would give up older messages that the
+        /// server can no longer republish.
+        /// </summary>
+        /// <param name="subscriptionId">The identifier from the publish response.</param>
+        /// <param name="waitPolicy">Decides whether the caller may wait.</param>
+        /// <param name="ct">Cancels the wait.</param>
+        /// <returns><c>false</c> when the subscription is full and the caller may
+        /// not wait: the message must then stay unacknowledged on the server.
+        /// <c>true</c> otherwise, also when the session does not hold the
+        /// identifier.</returns>
+        ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+            uint subscriptionId,
+            IIngressWaitPolicy waitPolicy,
+            CancellationToken ct);
     }
 }

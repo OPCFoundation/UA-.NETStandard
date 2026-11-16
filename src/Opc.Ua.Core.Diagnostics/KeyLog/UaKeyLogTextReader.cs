@@ -149,7 +149,7 @@ namespace Opc.Ua.Pcap.KeyLog
                     {
                         yield break;
                     }
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#', StringComparison.Ordinal))
                     {
                         continue;
                     }

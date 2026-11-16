@@ -18,6 +18,8 @@
     <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The content filter evaluator reuses the Like pattern a literal operand parsed when it was validated. -->
+    <InternalsVisibleTo Include="Opc.Ua.Core" />
     <!-- Server builders coordinate transitions through internal revision guards and per-transition callbacks. -->
     <InternalsVisibleTo Include="Opc.Ua.Server" />
     <!-- Scales composes the stock native enum write policy without a public capability API. -->
