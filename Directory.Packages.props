@@ -8,11 +8,14 @@
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
-    <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.9" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.9" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.9" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.9" />
-    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Core" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.3.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.3.14" />
+    <!-- Referenced directly by Opc.Ua.Bindings.Https: the Kestrel 2.3.14 packages
+         still ask for 2.3.13, which is affected by GHSA-6527-9fp8-r4x6. -->
+    <PackageVersion Include="Microsoft.AspNetCore.WebUtilities" Version="2.3.14" />
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.2" />
