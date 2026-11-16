@@ -737,7 +737,8 @@ Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward**
 
 Two things about the `ignore` globs regularly catch people out. `samples/**` is ignored, so a sample can carry
 tests for its own sake — a wrong kinematics solver would make a sample lie — without those lines counting
-toward the patch gate. `tools/**` is **not** ignored, so anything you change under `tools/` is measured like
+toward the patch gate. `fuzzing/**` is ignored too: the fuzz harnesses are never collected, so without the glob a
+patch that touches only `fuzzing/` and `tests/` would fail as a diff/report path mismatch. `tools/**` is **not** ignored, so anything you change under `tools/` is measured like
 product code, and an assembly no test project references contributes changed lines that are counted as
 **uncovered** because no report mentions them. If you add code there, make sure a test project loads the
 assembly, or the patch gate will read far lower than the per-file numbers suggest.

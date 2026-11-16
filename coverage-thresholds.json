@@ -61,6 +61,7 @@
     "tests/**",
     "samples/**",
     "perf/**",
+    "fuzzing/**",
     "**/obj/**",
     "**/bin/**",
     "**/*.g.cs"
