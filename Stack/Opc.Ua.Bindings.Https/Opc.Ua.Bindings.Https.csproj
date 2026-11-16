@@ -23,6 +23,8 @@
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" />
         <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" />
         <PackageReference Include="Microsoft.AspNetCore.Http" />
+        <!-- patched version of a Kestrel dependency (GHSA-6527-9fp8-r4x6) -->
+        <PackageReference Include="Microsoft.AspNetCore.WebUtilities" />
       </ItemGroup>
     </When>
     <Otherwise>
