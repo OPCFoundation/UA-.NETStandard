@@ -2519,11 +2519,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the data change items as an array that add and remove replace rather than change,
-        /// so every change captures them without a copy, a lock or an enumerator allocation.
-        /// Snapshots share the array, so it is never modified.
-        /// </summary>
-        /// <summary>
         /// Returns the items an event is delivered to. Until the items change, the events
         /// share one array, so it must not be modified.
         /// </summary>
@@ -2557,6 +2552,11 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Gets the data change items as an array that add and remove replace rather than change,
+        /// so every change captures them without a copy, a lock or an enumerator allocation.
+        /// Snapshots share the array, so it is never modified.
+        /// </summary>
         private KeyValuePair<uint, IDataChangeMonitoredItem2>[] GetDataChangeItems()
         {
             return GetDataChangeItemSet().Items;
