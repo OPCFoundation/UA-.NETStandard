@@ -356,6 +356,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Checks a weak target without extending its lifetime into a collection cycle.
         /// </summary>
+        /// <typeparam name="T">The weakly referenced target type.</typeparam>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static bool IsRetirementTargetAlive<T>(WeakReference<T> reference)
             where T : class

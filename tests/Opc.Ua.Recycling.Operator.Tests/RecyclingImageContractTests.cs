@@ -337,8 +337,19 @@ namespace Opc.Ua.Recycling.Operator.Tests
         /// <summary>
         /// Finds the checkout that contains these image recipes.
         /// </summary>
+        /// <exception cref="DirectoryNotFoundException">The selected directory does not identify a checkout.</exception>
         private static string FindRepositoryRoot()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                }
+                return root;
+            }
             for (DirectoryInfo? directory = new(AppContext.BaseDirectory);
                 directory != null;
                 directory = directory.Parent)

@@ -204,8 +204,22 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             return Path.Combine(directory, string.Concat(name, "-", suffix, ".usda"));
         }
 
+        /// <summary>
+        /// Resolves the configured checkout before searching work-directory ancestors.
+        /// </summary>
+        /// <exception cref="DirectoryNotFoundException">The selected directory does not identify a checkout.</exception>
         private static string FindRepositoryRoot()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                }
+                return root;
+            }
             DirectoryInfo? directory = new(TestContext.CurrentContext.WorkDirectory);
             while (directory is not null)
             {

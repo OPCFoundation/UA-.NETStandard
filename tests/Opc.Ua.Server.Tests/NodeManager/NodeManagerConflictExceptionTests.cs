@@ -307,6 +307,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Tests weak reachability without keeping a retrieved target in the caller's frame.
         /// </summary>
+        /// <typeparam name="T">The weakly referenced target type.</typeparam>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static bool IsAlive<T>(WeakReference<T> reference)
             where T : class
