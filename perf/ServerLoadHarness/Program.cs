@@ -377,7 +377,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             ProcessStats mark = ProcessStats.Capture();
             using var events = new EventGenerator(server.CurrentInstance);
             string? line;
-            while ((line = await Console.In.ReadLineAsync().ConfigureAwait(false)) != null)
+            // Console.In.ReadLineAsync reads synchronously, and after the awaited start this method runs on a
+            // thread-pool worker: blocking that worker in stdin for the whole run starves timers on a one-CPU server.
+            while ((line = await Task.Factory.StartNew(
+                Console.In.ReadLine,
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default).ConfigureAwait(false)) != null)
             {
                 line = line.Trim();
                 if (line.StartsWith("events ", StringComparison.Ordinal))
