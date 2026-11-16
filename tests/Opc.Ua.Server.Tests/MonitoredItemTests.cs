@@ -263,7 +263,7 @@ namespace Opc.Ua.Server.Tests
                 It.IsAny<NumericRange>())).Returns(field);
 
             monitoredItem.QueueEvent(target.Object, bypassFilter: true);
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 1);
 
             Assert.That(notifications, Has.Count.EqualTo(1));
