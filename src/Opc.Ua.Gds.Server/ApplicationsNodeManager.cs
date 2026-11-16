@@ -264,7 +264,7 @@ namespace Opc.Ua.Gds.Server
 
             m_certTypeMap = s_certificateTypeMap;
             m_database.NamespaceIndex = ApplicationsNamespaceIndex;
-            m_request.NamespaceIndex = ApplicationsNamespaceIndex;
+            CertificateRequestStore.NamespaceIndex = ApplicationsNamespaceIndex;
 
             await InitializeCertificateGroupsAsync(builder).ConfigureAwait(false);
 
@@ -2300,7 +2300,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     try
                     {
-                        m_request.ApproveRequest(requestId, false);
+                        CertificateRequestStore.ApproveRequest(requestId, false);
                     }
                     catch
                     {
@@ -2446,7 +2446,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     try
                     {
-                        m_request.ApproveRequest(result.RequestId, false);
+                        CertificateRequestStore.ApproveRequest(result.RequestId, false);
                     }
                     catch
                     {
@@ -2725,7 +2725,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (generatedCertificate.IsEmpty)
                 {
-                    CertificateRequestState state = m_request.ReadRequest(
+                    CertificateRequestState state = CertificateRequestStore.ReadRequest(
                         applicationId, requestId, out _, out _,
                         out ByteString certificateRequest, out string? subjectName,
                         out string[]? domainNames, out string? privateKeyFormat,

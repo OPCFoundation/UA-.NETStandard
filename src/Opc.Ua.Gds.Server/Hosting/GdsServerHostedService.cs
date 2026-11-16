@@ -205,6 +205,23 @@ namespace Opc.Ua.Gds.Server.Hosting
             }
         }
 
+        /// <summary>
+        /// Selects the registered binding-aware request store, falling back to the legacy request store when possible.
+        /// </summary>
+        /// <param name="registeredRequestStore">The optional separately registered binding-aware store.</param>
+        /// <param name="requestStore">The request store configured through the legacy registration.</param>
+        /// <returns>The selected binding-aware request store, or <c>null</c> when none is available.</returns>
+        internal static IClientCertificateBoundCertificateRequestStore? ResolveClientCertificateBoundRequestStore(
+            IClientCertificateBoundCertificateRequestStore? registeredRequestStore,
+            ICertificateRequest requestStore)
+        {
+            if (requestStore is null)
+            {
+                throw new ArgumentNullException(nameof(requestStore));
+            }
+            return registeredRequestStore ?? requestStore as IClientCertificateBoundCertificateRequestStore;
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             string appName = ResolveApplicationName(m_options);
@@ -730,7 +747,9 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_keyCredentialStore = keyCredentialStore;
                 m_configurationStore = configurationStore;
                 m_autoApprove = autoApprove;
-                ClientCertificateBoundRequestStore = clientCertificateBoundRequestStore;
+                ClientCertificateBoundRequestStore = ResolveClientCertificateBoundRequestStore(
+                    clientCertificateBoundRequestStore,
+                    request);
             }
 
             /// <summary>

@@ -182,6 +182,28 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(configuredWithoutStore, Is.False);
         }
 
+        /// <summary>
+        /// A separate binding-aware store takes precedence, with a cast of the legacy store as fallback.
+        /// </summary>
+        [Test]
+        public void ResolveClientCertificateBoundRequestStorePrefersRegistrationAndFallsBackToLegacyStore()
+        {
+            IClientCertificateBoundCertificateRequestStore registeredStore =
+                new Mock<IClientCertificateBoundCertificateRequestStore>().Object;
+            var legacyStore = new LinqApplicationsDatabase();
+
+            Assert.That(
+                GdsServerHostedService.ResolveClientCertificateBoundRequestStore(registeredStore, legacyStore),
+                Is.SameAs(registeredStore));
+            Assert.That(
+                GdsServerHostedService.ResolveClientCertificateBoundRequestStore(null, legacyStore),
+                Is.SameAs(legacyStore));
+            Assert.That(
+                GdsServerHostedService.ResolveClientCertificateBoundRequestStore(
+                    null, new Mock<ICertificateRequest>().Object),
+                Is.Null);
+        }
+
         [Test]
         public void AddCertificateGroupGenericResolvesStore()
         {

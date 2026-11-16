@@ -263,6 +263,78 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A separately selected bound store owns namespace setup, automatic approval, and completion reads.
+        /// </summary>
+        [Test]
+        public async Task SeparateBoundRequestStoreIsUsedThroughoutRequestLifecycle()
+        {
+            string path = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory, $"SeparateBoundStore-{Guid.NewGuid():N}");
+            var database = new LinqApplicationsDatabase();
+            var legacyRequests = new LinqApplicationsDatabase();
+            using Certificate issued = CertificateBuilder.Create("CN=Separate bound store").SetRSAKeySize(2048)
+                .CreateForRSA();
+            ByteString certificate = ByteString.From(issued.RawData);
+            Mock<ICertificateGroup> group = CreateCertificateGroup(path, certificate);
+            group.Setup(g => g.NewKeyPairRequestAsync(
+                It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string>(),
+                It.IsAny<string[]>(), It.IsAny<string>(), It.IsAny<char[]>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => new X509Certificate2KeyPair(
+                    Certificate.FromRawData(certificate), "PFX", ByteString.From([5, 6, 7])));
+            using ApplicationsNodeManager manager = CreateConfiguredManager(
+                database,
+                group.Object,
+                path,
+                Mock.Of<IDeviceRegistrarCertificateAuthorization>(),
+                null,
+                legacyRequests,
+                database);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+            NodeId applicationId = database.RegisterApplication(
+                CreateTestApplicationRecord("SeparateBoundRequestStore"));
+            ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+
+            StartNewKeyPairRequestMethodStateResult started = await manager.OnStartNewKeyPairRequestAsync(
+                context,
+                new MethodState(null),
+                default,
+                applicationId,
+                default,
+                default,
+                "CN=Separate bound store",
+                default,
+                "PFX",
+                "request-password",
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(started.ServiceResult), Is.True);
+            Assert.That(database.NamespaceIndex, Is.EqualTo(manager.ApplicationsNamespaceIndex));
+            Assert.That(legacyRequests.CertificateRequests, Is.Empty);
+            Assert.That(
+                database.ReadRequest(
+                    applicationId, started.RequestId, out _, out _, out _, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+
+            FinishRequestMethodStateResult finished = await manager.OnFinishRequestAsync(
+                context,
+                new MethodState(null),
+                default,
+                applicationId,
+                started.RequestId,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(finished.ServiceResult), Is.True);
+            Assert.That(finished.Certificate, Is.EqualTo(certificate));
+            Assert.That(
+                database.ReadRequest(
+                    applicationId, started.RequestId, out _, out _, out _, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Accepted));
+            Assert.That(legacyRequests.CertificateRequests, Is.Empty);
+        }
+
+        /// <summary>
         /// A recreated handler reuses published material when pending-state publication failed before acceptance.
         /// </summary>
         [TestCase(false)]
@@ -1296,7 +1368,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ICertificateGroup group,
             string path,
             IDeviceRegistrarCertificateAuthorization authorization,
-            ICertificateRequestIssuanceStore receipts)
+            ICertificateRequestIssuanceStore? receipts,
+            ICertificateRequest? requestStore = null,
+            IClientCertificateBoundCertificateRequestStore? boundRequestStore = null)
         {
             var configuration = new ApplicationConfiguration(Telemetry)
             {
@@ -1311,12 +1385,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 AuthoritiesStorePath = Path.Combine(path, "authorities"),
                 CertificateGroups = [group.Configuration]
             });
-            return new ApplicationsNodeManager(
-                ReferenceServer.CurrentInstance, configuration, database, database, group, autoApprove: true)
+            var manager = new ApplicationsNodeManager(
+                ReferenceServer.CurrentInstance, configuration, database, requestStore ?? database, group,
+                autoApprove: true)
             {
                 DeviceRegistrarCertificateAuthorization = authorization,
                 CertificateRequestIssuanceStore = receipts
             };
+            if (boundRequestStore != null)
+            {
+                manager.ClientCertificateBoundRequestStore = boundRequestStore;
+            }
+            return manager;
         }
 
         /// <summary>

@@ -61,6 +61,12 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Gets the request store selected for all certificate-request lifecycle operations.
+        /// </summary>
+        private ICertificateRequest CertificateRequestStore =>
+            ClientCertificateBoundRequestStore ?? m_request;
+
+        /// <summary>
         /// Reads assigned certificates only after current onboarding ownership or the standard GDS grant is checked.
         /// This enables Part 12 signing recovery without allowing a denied device relation to use an admin fallback.
         /// </summary>
