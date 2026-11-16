@@ -134,7 +134,7 @@ If you reference a `.Debug` package, do one of the following:
 
 ## Target Frameworks (only Opc.Ua.Types changes)
 
-The main library target matrix includes `net48`, `net8.0`, `net9.0`, and `net10.0`. Version 2.0 drops `net472` and `netstandard2.1`: consumers on .NET Framework 4.7.2 must move to .NET Framework 4.8, and `netstandard2.1` consumers to `net8.0` or later. `Opc.Ua.Types` additionally targets
+The main library target matrix includes `net48`, `net10.0`, and `net11.0`. Version 2.0 drops `net472` and `netstandard2.1`: consumers on .NET Framework 4.7.2 must move to .NET Framework 4.8, and `netstandard2.1` consumers to `net10.0` or later. `Opc.Ua.Types` additionally targets
 `netstandard2.0`: its project uses `$(LibCoreTargetFrameworks);netstandard2.0`.
 A Types-only consumer does not need to retarget merely because it uses
 `netstandard2.0`. Higher-level packages can have different requirements; check
@@ -173,7 +173,7 @@ See [platform support](../../DeveloperGuide.md#packages-platform-support-and-ver
 
 ## ASP.NET Core packages are versioned per target framework
 
-`Microsoft.AspNetCore.Authentication.Certificate`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.Mvc.Testing` and `Microsoft.AspNetCore.TestHost` ship one band per .NET major and, unlike the `Microsoft.Extensions.*` packages, carry no `netstandard2.0` asset and do not roll forward across majors - a `net8.0` project cannot consume the `10.0.x` band. `Directory.Packages.props` therefore selects the version from `$(TargetFramework)`: `net8.0` gets `8.0.30`, `net9.0` gets `9.0.19`, and every other TFM (including `net10.0`) gets `10.0.11`.
+`Microsoft.AspNetCore.Authentication.Certificate`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.Mvc.Testing` and `Microsoft.AspNetCore.TestHost` ship one band per .NET major and, unlike the `Microsoft.Extensions.*` packages, carry no `netstandard2.0` asset and do not roll forward across majors. The consuming projects target only `net10.0` and `net11.0`, so `Directory.Packages.props` pins a single `10.0.x` band for both.
 
 Consumers that pin these packages themselves are unaffected. Consumers that inherit them transitively through `Opc.Ua.Bindings.Https` receive the band matching their own target framework.
 

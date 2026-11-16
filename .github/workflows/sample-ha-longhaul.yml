@@ -66,9 +66,9 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET from global.json
-      uses: actions/setup-dotnet@v6
+      uses: ./.github/actions/setup-repository-dotnet
       with:
-        global-json-file: global.json
+        dotnet-version: 10.0.x
 
     - name: Set Cloud Version
       shell: pwsh

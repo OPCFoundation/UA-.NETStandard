@@ -1,7 +1,7 @@
 # Performance tooling
 
 Tools for measuring server and client latency, throughput and GC cost under load. They are not
-part of the product build (not in `UA.slnx`) and target `net10.0` only.
+part of the product build (not in `UA.slnx`) and target `net10.0` and `net11.0` (build one with `CustomTestTarget`). The server child runs on the same runtime as the harness, so the two builds compare the runtimes.
 
 | Path | Purpose |
 |---|---|
@@ -37,6 +37,7 @@ are described in [docs/ServerScalability.md](../docs/ServerScalability.md#runtim
 
 ```bash
 CustomTestTarget=net10.0 dotnet build perf/ServerLoadHarness -c Release
+CustomTestTarget=net11.0 dotnet build perf/ServerLoadHarness -c Release
 dotnet build perf/TraceAnalyzer -c Release
 dotnet tool install -g dotnet-trace
 ```
@@ -49,11 +50,17 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, or `native-read`/`native-counters` (see below). |
+| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `translate` (`--nodes` TranslateBrowsePaths of Server/ServerStatus/CurrentTime per request), `call` (`--nodes` calls of the reference server's `Methods_Void` per request), `churn` (CreateMonitoredItems plus DeleteMonitoredItems of `--nodes` items on one subscription per session), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, `connect` (`--workers` concurrent loops of open channel, CreateSession, ActivateSession, CloseSession; run with `--sessions 1`), `channel` (`--workers` concurrent loops of OpenSecureChannel and close), or `native-read`/`native-counters` (see below). |
+| `--workers` | 8 | Concurrent connection loops (`connect`, `channel`). |
 | `--sessions` | 20 (`counters`: 1) | Concurrent sessions. |
 | `--nodes` | 100 | Values per Read/Write request, or monitored items per subscription. |
 | `--inflight` | 1 | Outstanding requests per session (closed loop). |
 | `--security` | `none` | `none`, `sign` or `encrypt` (Basic256Sha256). |
+| `--security-policy`, `--security-mode` | from `--security` | Any policy the server child offers, by name (`Basic256Sha256`, `Aes256_Sha256_RsaPss`, ...) or URI, and `None`, `Sign` or `SignAndEncrypt` (default `SignAndEncrypt` when only the policy is given). The run lists the offered endpoints if none matches. |
+| `--identity` | `anonymous` | `connect`: the identity of ActivateSession. `username` (user `perfuser`, a password of `--password-length` bytes, default 16) or `issued` (a JWT-shaped issued token of `--token-length` bytes, default 1024, with `iss`/`sub` claims). The server child replaces its UserName and JWT authenticators with ones that compare these credentials byte for byte (no password hash, no signature check), so ActivateSession costs the token decryption and the session work; `authOk`/`authFailed` on the `server:` line count the outcomes. |
+| `--token-encryption` | `auto` | The secret format under RSA policies. `auto`: the client default (UserName: legacy EncryptedData up to 64 bytes, RSAEncryptedSecret above; issued: legacy). `legacy`: EncryptedData with `EncryptionAlgorithm` set. `secret`: RSAEncryptedSecret (UserName only; the stack has no RSAEncryptedSecret path for issued tokens). ECC policies always use the EccEncryptedSecret. |
+| `--wrong-credentials` | 0 | 1: the client sends a wrong password or token, to measure rejected activations; the failures count as `errors`. |
+| `--connection-rate` | `off` | The server's connection rate limiter. `off`: disabled. `server`: the server defaults (500 connections per second, burst 1000). `N`: N per second, burst 2N. With the limiter on, `connect` and `channel` at 8 workers exceed the rate and the server answers every further socket with `Bad_TcpNotEnoughResources`; the client retries at once, so the run measures rejections instead of sessions. |
 | `--client` | `managed` | `managed`: `ManagedSession` with the V2 subscription engine (`DefaultSubscriptionEngineFactory`), used by `sub`, `events` and `counters`. `classic`: `Session` with the classic subscription engine. `shared`: classic sessions on secure channels shared through one `ClientChannelManager`, created one at a time (`--connect-parallel`). |
 | `--pool-notifications` | 0 | 1: the V2 subscription manager recycles notification objects after the handler returns (`ManagedSessionBuilder.WithPoolNotifications`). |
 | `--callback` | `fast` | Classic engine only: data changes through `Subscription.FastDataChangeCallback` (`fast`) or the per-item `MonitoredItem.Notification` event (`item`). |
@@ -66,6 +73,8 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--queue-size` | 1 (`sub`), 10000 (`events`) | Monitored item queue size. |
 | `--publish-requests` | engine default (`counters`: subscriptions + 1, at least 4) | Minimum outstanding Publish requests per session. `counters` also sets the server's `MaxPublishRequestCount` to it. |
 | `--event-rate` | 0 | Events per second the server reports (`events`); 0 reports as fast as one thread can. |
+| `--aggregate`, `--aggregate-interval` | none, 1000 | `sub`: give every monitored item an AggregateFilter with this aggregate (`Average`, `Interpolative`, `Minimum`, `Maximum`, `TimeAverage` or `Count`) and processing interval in ms, so the server calculates the aggregate of the written values. |
+| `--event-where` | 0 | 1: the event filter also has a where clause every load event passes, `OfType(BaseEventType) And Like(Message, "Load event %")` (`events`). |
 | `--duration`, `--warmup` | 20, 10 | Measurement window and warm-up in seconds. |
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
 | `--threads`, `--queue` | 200, 2000 | `MaxRequestThreadCount` and `MaxQueuedRequestCount` of the server; `MinRequestThreadCount` is the smaller of 50 and `--threads`. |
@@ -77,6 +86,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--server-harness <executable>` | this harness | Start another compatible harness executable as the measured server child. This keeps the client executable and assemblies fixed when comparing server builds. The selected child must implement the same READY/MARKED/REPORT control protocol; this is not the native-worker `--server-exe` option. |
 | `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
 | `--client-cores` | all | Windows only. Relaunch the client with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) and affinity to the last N allowed processors. If processors remain, pin the server to them. On Linux the process-affinity API changes only the main thread's affinity; use a cgroup (`docker --cpuset-cpus`) or launch under `taskset` instead. |
+| `--server-affinity`, `--client-affinity` | all | Windows only. Hexadecimal processor masks of the server child and of the client; they override the masks `--client-cores` derives. The server runtime is sized for the processors of its mask (`DOTNET_PROCESSOR_COUNT`). On a processor with cores of different speed, compare runs on the same core type: see [Processors with cores of different speed](#processors-with-cores-of-different-speed). |
 | `--client-memory` | unlimited | Emulated client memory budget in MB. Sets the GC heap hard limit to 75 % of that budget; native memory is not capped. |
 
 Environment variables prefixed `SERVER_` are passed to the server process without the prefix,
@@ -405,10 +415,10 @@ Use the following procedure for comparisons:
 - **CPU per operation** (`per-op: cpuUs`): pin the server when comparing a specific core type. In the
   `native-read` and `native-counters` scenarios use `--server-affinity 0xF` and
   `SERVER_DOTNET_PROCESSOR_COUNT=4` for the child, so that the runtime sizes the thread pool
-  and the GC heaps for the mask. The other scenarios ignore `--server-affinity`: start the
-  harness itself with the affinity (`start /affinity F` on Windows, `taskset -c 0-3` on
-  Linux), which the server child inherits at its start, keeping in mind that the in-process
-  client then shares those processors. On a hybrid CPU, choose a mask
+  and the GC heaps for the mask. The .NET client scenarios take `--server-affinity` and
+  `--client-affinity` on Windows and size the server runtime for its mask themselves; on
+  Linux start the harness under `taskset -c 0-3`, which the server child inherits, keeping in
+  mind that the in-process client then shares those processors. On a hybrid CPU, choose a mask
   of one core type only (all performance or all efficiency cores) to separate that core
   type's cost from scheduling across types. Use the default mixed-core placement for a
   separate deployment comparison. Measure the native scenarios at [steady state](#steady-state-parameters).
@@ -420,6 +430,18 @@ Use the following procedure for comparisons:
   Retain the paired differences as well; overlapping ranges alone do not determine whether
   a difference is statistically significant.
 - Publish every number with its [run record](#run-record) and keep the result files.
+
+### Processors with cores of different speed
+
+On a processor with two core types the CPU time per operation depends on where the server
+threads run. On a Ryzen AI 9 HX 370 (logical processors 0-7: four Zen5 cores, 8-23: eight
+Zen5c cores) the same build cost, for `events --sessions 20 --subs 15 --event-rate 400`,
+2.9 µs per notification on one Zen5 core (`--server-affinity 0x3`) and 6.8 µs on one Zen5c
+core (`0x300`); 3.1 µs on four Zen5 cores (`0xFF`) and 4.9 µs on four Zen5c cores (`0xFF00`);
+unpinned on all 24 logical processors about 6 µs. `--client-cores 22` leaves the server the
+*first* two logical processors, a Zen5 core, so a comparison of that shape with an unpinned run
+compares core types, not core counts. Compare core counts within one core type, and record
+the masks in the run record.
 
 ### Run record
 
@@ -451,7 +473,8 @@ the scenario and all arguments.
 | Latency | `client:` percentiles `p50`/`p90`/`p99`; `write->notify latency` (`sub`), `event->notify latency` (`events`) |
 | CPU and allocation per operation | `per-op:` `cpuUs`, `allocB` per request or notification; `per-op2:` per written value or generated event |
 | GC | `server:` `gen0`/`gen1`/`gen2` collections and `pauseMs` in the window; `client-process:` the same for the client |
-| CPU use | `server:` `cpuTicks`, `cpuMs` and `cpuCores` (average busy cores) |
+| CPU use | `server:`, `client-process:` `cpuTicks`, `cpuMs` and `cpuCores` (average busy cores), `userMs` (user-mode part of `cpuMs`) |
+| Thread-pool hand-offs | `server:`, `client-process:` `workItems` (`ThreadPool.CompletedWorkItemCount` in the window); divide by the operations for the work items per operation. Thread-pool spinning shows as user-mode CPU that grows without more work items, see [Thread-pool spinning on .NET 11](../docs/ServerScalability.md#thread-pool-spinning-on-net-11) |
 
 For `sub`, `expected` is the number of successfully written values multiplied by the number of
 sessions and by the subscriptions per session. For `events`, it is the number of generated

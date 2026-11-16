@@ -2,7 +2,7 @@
 
 This sample models a recycling line with **one durable coordinator and ten OPC UA process
 servers**. The same executable starts either the coordinator or one selected process.
-It targets **.NET 8, 9 and 10** and exposes typed process data, companion-specification
+It targets **.NET 10 and 11** and exposes typed process data, companion-specification
 equipment and material genealogy over OPC UA. It is a synthetic software simulation,
 not a controller for physical equipment.
 
@@ -292,8 +292,8 @@ and restarting it preserves the coordinator's retained state. Host endpoints, ce
 
 ### Build and start the roles
 
-Build with the repository's **.NET 10 SDK**. For managed builds and runs, select `net8.0`,
-`net9.0` or `net10.0` and install the corresponding runtime. The examples select `net10.0`;
+Build with the repository's **.NET 10 SDK**. For managed builds and runs, select `net10.0`
+or `net11.0` and install the corresponding runtime. The examples select `net10.0`;
 substitute your choice in both `-f` and `CustomTestTarget` for the managed commands.
 
 From the repository root:

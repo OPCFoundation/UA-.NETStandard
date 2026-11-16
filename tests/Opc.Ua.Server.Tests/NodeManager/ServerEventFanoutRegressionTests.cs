@@ -295,7 +295,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Is.EqualTo(1),
                     $"Event logs: {string.Join("; ", logs.Records.Select(record =>
                         record.Exception?.ToString() ?? record.Message))}");
-                var notifications = new Queue<EventFieldList>();
+                var notifications = new Queue<QueuedEvent>();
                 _ = item.Publish(context, notifications, 10);
                 Assert.That(notifications, Has.Count.EqualTo(1));
                 Assert.That(notifications.Dequeue().EventFields[0].TryGetValue(out LocalizedText message), Is.True);

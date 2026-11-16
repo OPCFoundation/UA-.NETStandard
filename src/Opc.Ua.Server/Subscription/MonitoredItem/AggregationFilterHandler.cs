@@ -316,13 +316,21 @@ namespace Opc.Ua.Server
 
         private IAggregateCalculator? CreateCalculator(ServerAggregateFilter filter)
         {
-            return m_aggregateManager.CreateCalculator(
+            IAggregateCalculator? calculator = m_aggregateManager.CreateCalculator(
                 filter.AggregateType,
                 (DateTime)filter.StartTime,
                 DateTime.MaxValue,
                 filter.ProcessingInterval,
                 filter.Stepped,
                 filter.AggregateConfiguration);
+
+            // bound the raw values held for the current processing interval.
+            if (calculator is AggregateCalculator standard)
+            {
+                standard.MaxRawValues = m_aggregateManager.MaxMonitoredItemRawValues;
+            }
+
+            return calculator;
         }
 
         private bool IsEquivalentFilter(ServerAggregateFilter filter)

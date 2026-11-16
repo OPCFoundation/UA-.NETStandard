@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -187,6 +188,7 @@
       "observable": true,
       "readOnly": true,
       "title": "DefaultInstanceBrowseName",
+      "type": "string",
       "uav:browseName": "DefaultInstanceBrowseName",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15890",
       "uav:mapToType": "i=20"
@@ -297,6 +299,7 @@
       "observable": true,
       "readOnly": true,
       "title": "RemainingLockTime",
+      "type": "number",
       "uav:browseName": "ns1:RemainingLockTime",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6392",
       "uav:mapToType": "i=290",
@@ -549,6 +552,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "LockingServicesType"
           }
         ],
@@ -601,10 +605,12 @@
         "superType": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "DefaultInstanceBrowseName",
         "dataType": "QualifiedName",
         "displayName": [
           {
+            "locale": "",
             "value": "DefaultInstanceBrowseName"
           }
         ],
@@ -626,10 +632,12 @@
         "valueXml": "<QualifiedName xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <NamespaceIndex>1</NamespaceIndex>\n        <Name>Lock</Name>\n      </QualifiedName>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Locked",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Locked"
           }
         ],
@@ -655,10 +663,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingClient",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingClient"
           }
         ],
@@ -684,10 +694,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:LockingUser",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "LockingUser"
           }
         ],
@@ -713,10 +725,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RemainingLockTime",
         "dataType": "i=290",
         "displayName": [
           {
+            "locale": "",
             "value": "RemainingLockTime"
           }
         ],
@@ -748,6 +762,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "InitLock"
           }
         ],
@@ -782,6 +797,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -814,6 +830,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -847,6 +864,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RenewLock"
           }
         ],
@@ -877,6 +895,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -910,6 +929,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExitLock"
           }
         ],
@@ -940,6 +960,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -973,6 +994,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BreakLock"
           }
         ],
@@ -1003,6 +1025,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],

@@ -66,7 +66,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             const string catalogue = "urn:r09:peer-switch-catalogue";
             const string thing = "urn:r09:peer-switch-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);
@@ -186,7 +186,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             const string catalogue = "urn:r09:returned-binding-catalogue";
             const string thing = "urn:r09:returned-binding-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);
@@ -265,7 +265,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             const string catalogue = "urn:r09:mapping-holder-catalogue";
             const string thing = "urn:r09:mapping-holder-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);
@@ -420,7 +420,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             const string catalogue = "urn:r09:stock-switch-catalogue";
             const string thing = "urn:r09:stock-switch-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);

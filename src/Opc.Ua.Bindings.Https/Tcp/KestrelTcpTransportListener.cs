@@ -714,7 +714,10 @@ namespace Opc.Ua.Bindings
             {
                 foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> _) in channels.Values)
                 {
-                    if (Channel.ElapsedSinceLastActiveTime > quotas.ChannelLifetime)
+                    // a send that waits for a peer that stopped reading also closes a
+                    // channel that a Session keeps active
+                    if (Channel.ElapsedSinceLastActiveTime > quotas.ChannelLifetime ||
+                        Channel.GetWriteStallTime().TotalMilliseconds > quotas.ChannelLifetime)
                     {
                         Logger.KestrelTcpInactiveChannelCleanup(Channel.Id);
                         Channel.IdleCleanup();

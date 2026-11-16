@@ -152,9 +152,9 @@ namespace Opc.Ua.Aot.Tests
             ArgumentNullException.ThrowIfNull(wol.SwitchOffWOL);
             await Assert.That(standby.StandbyManagementStatus.Value)
                 .IsEqualTo((byte)EcmStandbyStatus.ReadyToOperate);
-            await Assert.That(wol.WOLMagicPacket.Value.Length).IsEqualTo(6);
+            await Assert.That(wol.WOLMagicPacket!.Value.Length).IsEqualTo(6);
 
-            var pause = await standby.StartPause.OnCallAsync!(
+            var pause = await standby.StartPause!.OnCallAsync!(
                 context, standby.StartPause, standby.NodeId, 10000, CancellationToken.None).ConfigureAwait(false);
             await Assert.That(pause.ServiceResult.StatusCode).IsEqualTo(StatusCodes.Good);
             await Assert.That(pause.ReturnCode).IsEqualTo((byte)0);
@@ -166,7 +166,7 @@ namespace Opc.Ua.Aot.Tests
                 .IsEqualTo((byte)EcmStandbyStatus.MovingToEnergySavingMode);
             clock.Advance(2000);
             await binding.RefreshAsync().ConfigureAwait(false);
-            var sleep = await wol.SwitchOffWOL.OnCallAsync!(
+            var sleep = await wol.SwitchOffWOL!.OnCallAsync!(
                 context, wol.SwitchOffWOL, wol.NodeId, CancellationToken.None).ConfigureAwait(false);
             await Assert.That(sleep.ServiceResult.StatusCode).IsEqualTo(StatusCodes.Good);
             await Assert.That(sleep.ReturnCode).IsEqualTo((byte)0);
@@ -200,7 +200,7 @@ namespace Opc.Ua.Aot.Tests
                 .IsEqualTo((byte)EcmStandbyStatus.ReadyToOperate);
             await binding.DisposeAsync().ConfigureAwait(false);
             await Assert.That(standby.StartPause.OnCallAsync == null).IsTrue();
-            await Assert.That(standby.PauseTime.OnSimpleWriteValueAsync == null).IsTrue();
+            await Assert.That(standby.PauseTime!.OnSimpleWriteValueAsync == null).IsTrue();
             await Assert.That(wol.SwitchOffWOL.OnCallAsync == null).IsTrue();
 
             EnergyDevicePowerOffState standalone = context.CreateInstanceOfEnergyDevicePowerOffType(

@@ -434,7 +434,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await manager.ReportOwnedEmissionAsync($"usable-{value}", timeout.Token).ConfigureAwait(false);
                     var business = await PublishForModelChangeEventAsync(
                         services, subscriptionId, initial.Acknowledgements).ConfigureAwait(false);
-                    EventFieldList businessFields = RequireLifecycleValue(business.EventFields);
+                    EventFieldList businessFields = RequireLifecycleEvent(business.EventFields);
                     Assert.That(businessFields.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
                     Assert.That(message.Text, Is.EqualTo($"usable-{value}"));
                     initial = (initial.Value, business.Acknowledgements);

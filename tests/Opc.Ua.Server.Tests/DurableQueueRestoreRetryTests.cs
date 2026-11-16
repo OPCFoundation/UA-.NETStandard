@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(restoredValues!.Dequeue(out DataValue first, out _), Is.True);
                 Assert.That(restoredValues.Dequeue(out DataValue second, out _), Is.True);
-                Assert.That(restoredEvents!.Dequeue(out EventFieldList eventFields), Is.True);
+                Assert.That(restoredEvents!.Dequeue(out QueuedEvent eventFields), Is.True);
                 Assert.Multiple(() =>
                 {
                     Assert.That(first.WrappedValue, Is.EqualTo(new Variant(1)));

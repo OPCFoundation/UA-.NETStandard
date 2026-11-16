@@ -474,7 +474,7 @@ namespace Opc.Ua.Types.Tests.Wot
             "Opc.Ua.Server.Tests"
         ];
         private static readonly string[] s_targetSpecificTests = [];
-        private static readonly string[] s_modernFrameworks = ["net8.0", "net9.0", "net10.0"];
+        private static readonly string[] s_modernFrameworks = ["net10.0", "net11.0"];
 
         /// <summary>
         /// The requirements this stack does not yet prove, in ascending order.

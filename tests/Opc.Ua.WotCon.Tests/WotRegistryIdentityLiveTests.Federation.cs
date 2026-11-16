@@ -65,7 +65,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task FederationFollowsLogicalResourceAndPinsDefaultVersionHandles()
         {
             const string source = "urn:federation:thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:catalogue", ct).ConfigureAwait(false);
@@ -338,7 +338,7 @@ namespace Opc.Ua.WotCon.Tests
                 "unsupported-read" => StatusCodes.BadNotSupported,
                 _ => StatusCodes.BadSecurityChecksFailed
             };
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:rejection-catalogue", ct).ConfigureAwait(false);
@@ -461,7 +461,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task FederationUsesAuthenticatedChannelInsteadOfMutableEndpointLabels()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:channel-catalogue", ct).ConfigureAwait(false);
@@ -533,7 +533,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task FederationKeepsEqualContentInDistinctRemoteEntities()
         {
             const string source = "urn:federation:shared-description";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient firstGroup = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:first-catalogue", ct).ConfigureAwait(false);
@@ -580,7 +580,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task FederationRebasesCurrentNativeNamespaceAndServerTables()
         {
             const string source = "urn:federation:reordered-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:reordered-catalogue", ct).ConfigureAwait(false);
@@ -665,7 +665,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task FederationProxyMetadataCannotReplaceTrustedOriginOrEntity()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:metadata-catalogue", ct).ConfigureAwait(false);

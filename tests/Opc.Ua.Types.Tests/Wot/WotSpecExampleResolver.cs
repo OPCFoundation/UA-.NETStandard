@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             cancellationToken.ThrowIfCancellationRequested();
             string name = reference;
-            int slash = name.LastIndexOf('/');
+            int slash = name.LastIndexOf('/', StringComparison.Ordinal);
             if (slash >= 0)
             {
                 name = name.Substring(slash + 1);

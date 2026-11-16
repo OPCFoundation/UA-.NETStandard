@@ -136,9 +136,9 @@ namespace Quickstarts.Servers
         public int ItemsInQueue { get; private set; }
 
         /// <inheritdoc/>
-        public bool Dequeue(out EventFieldList value)
+        public bool Dequeue(out QueuedEvent value)
         {
-            value = null!;
+            value = default;
             if (ItemsInQueue > 0)
             {
                 if (m_dequeueBatch.PersistingInProgress || m_dequeueBatch.IsPersisted)
@@ -165,7 +165,7 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        public void Enqueue(EventFieldList value)
+        public void Enqueue(QueuedEvent value)
         {
             if (QueueSize == 0)
             {
@@ -177,7 +177,7 @@ namespace Quickstarts.Servers
             //Discard oldest
             if (ItemsInQueue == QueueSize)
             {
-                Dequeue(out EventFieldList _);
+                Dequeue(out QueuedEvent _);
             }
 
             m_enqueueBatch.Events.Add(value);
@@ -276,7 +276,7 @@ namespace Quickstarts.Servers
             for (int batch = m_eventBatches.Count - 1; batch >= 0 && remaining > 0; batch--)
             {
                 // older batches are persisted (no events in memory) and hold no recent duplicate.
-                List<EventFieldList>? events = m_eventBatches[batch].Events;
+                List<QueuedEvent>? events = m_eventBatches[batch].Events;
                 if (events == null)
                 {
                     return false;
@@ -297,14 +297,13 @@ namespace Quickstarts.Servers
         /// instance, checking at most <paramref name="remaining"/> events.
         /// </summary>
         private static bool ContainsHandle(
-            List<EventFieldList> events,
+            List<QueuedEvent> events,
             IFilterTarget instance,
             ref int remaining)
         {
             for (int i = events.Count - 1; i >= 0 && remaining > 0; i--, remaining--)
             {
-                if (events[i] is EventFieldList queuedEvent &&
-                    EventMonitoredItemQueue.IsEventRaisedFor(queuedEvent, instance))
+                if (EventMonitoredItemQueue.IsEventRaisedFor(events[i], instance))
                 {
                     return true;
                 }
@@ -496,13 +495,13 @@ namespace Quickstarts.Servers
     /// </summary>
     public class EventBatch : BatchBase
     {
-        public EventBatch(List<EventFieldList> events, uint batchSize, uint monitoredItemId)
+        public EventBatch(List<QueuedEvent> events, uint batchSize, uint monitoredItemId)
             : base(batchSize, monitoredItemId)
         {
             Events = events;
         }
 
-        public List<EventFieldList> Events { get; private set; }
+        public List<QueuedEvent> Events { get; private set; }
 
         public override void SetPersisted()
         {
@@ -511,7 +510,7 @@ namespace Quickstarts.Servers
             PersistingInProgress = false;
         }
 
-        public void Restore(List<EventFieldList>? events)
+        public void Restore(List<QueuedEvent>? events)
         {
             Events = events ?? [];
             IsPersisted = false;

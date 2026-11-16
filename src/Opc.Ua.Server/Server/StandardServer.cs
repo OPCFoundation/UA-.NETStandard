@@ -1053,6 +1053,9 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                // the ephemeral key is not created for a request that was already
+                // cancelled or timed out.
+                requestLifetime.CancellationToken.ThrowIfCancellationRequested();
                 AdditionalParametersType? parameters = CreateSessionProcessAdditionalParameters(
                     session,
                     requestHeader.AdditionalHeader);
@@ -1758,6 +1761,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
+                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
 
                 (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.BrowseAsync(
@@ -1788,6 +1792,18 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// The response byte budget of Browse, BrowseNext and Call: the message size limit
+        /// for a binary encoded request, whose results it bounds from below. Other encodings
+        /// can be smaller than that bound (JSON numbers), so they have no budget.
+        /// </summary>
+        private int GetResponseByteBudget(SecureChannelContext secureChannelContext)
+        {
+            return secureChannelContext?.MessageEncoding == RequestEncoding.Binary
+                ? MessageContext.MaxMessageSize
+                : 0;
+        }
+
         /// <inheritdoc/>
         public override async ValueTask<BrowseNextResponse> BrowseNextAsync(
             SecureChannelContext secureChannelContext,
@@ -1805,6 +1821,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
+                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
 
                 (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.BrowseNextAsync(
@@ -2617,11 +2634,18 @@ namespace Opc.Ua.Server
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
-                PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
+#pragma warning disable CA2025 // awaited below, before the context is disposed
+                Task<PublishResponse> publish = ServerInternal.SubscriptionManager.PublishAsync(
                     context,
                     subscriptionAcknowledgements,
                     requestLifetime.ParkSink,
-                    requestLifetime.CancellationToken).ConfigureAwait(false);
+                    requestLifetime.CancellationToken);
+#pragma warning restore CA2025
+
+                // The acknowledgements are applied before the request waits: the state
+                // machine does not keep them for the whole wait of a held Publish.
+                subscriptionAcknowledgements = default;
+                PublishResponse response = await publish.ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context);
 
@@ -3038,6 +3062,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
+                context.StartResponseBudget(GetResponseByteBudget(secureChannelContext));
 
                 (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
@@ -4600,8 +4625,18 @@ namespace Opc.Ua.Server
 
                 // create the manager responsible for aggregates.
                 m_logger.ServerCreateAggregateManager();
-                m_serverInternal.SetAggregateManager(
-                    await CreateAggregateManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
+                AggregateManager aggregateManager = await CreateAggregateManagerAsync(
+                    m_serverInternal,
+                    configuration,
+                    cancellationToken).ConfigureAwait(false);
+                if (configuration.ServerConfiguration is { } serverConfiguration)
+                {
+                    aggregateManager.MaxMonitoredItemRawValues =
+                        serverConfiguration.MaxMonitoredItemAggregateRawValues;
+                    aggregateManager.MaxProcessedHistoryRawValues =
+                        serverConfiguration.MaxProcessedHistoryRawValues;
+                }
+                m_serverInternal.SetAggregateManager(aggregateManager);
 
                 // create the manager responsible for modelling rules.
                 m_logger.ServerCreateModellingRulesManager();

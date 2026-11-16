@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests
             NamespaceMetadataRegistry registry = CreateRegistry(host);
 
             NamespaceMetadataState? found = await registry.GetAsync("urn:missing").ConfigureAwait(false);
-            NamespaceMetadataState created = await registry.CreateAsync("urn:missing").ConfigureAwait(false);
+            NamespaceMetadataState? created = await registry.CreateAsync("urn:missing").ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -122,9 +122,9 @@ namespace Opc.Ua.Server.Tests
             NamespaceMetadataState existing = host.AddMetadataNode("urn:existing");
             NamespaceMetadataRegistry registry = CreateRegistry(host);
 
-            NamespaceMetadataState found = await registry.CreateAsync("urn:existing").ConfigureAwait(false);
-            NamespaceMetadataState created = await registry.CreateAsync("urn:created").ConfigureAwait(false);
-            NamespaceMetadataState createdAgain = await registry.CreateAsync("urn:created").ConfigureAwait(false);
+            NamespaceMetadataState found = (await registry.CreateAsync("urn:existing").ConfigureAwait(false))!;
+            NamespaceMetadataState created = (await registry.CreateAsync("urn:created").ConfigureAwait(false))!;
+            NamespaceMetadataState createdAgain = (await registry.CreateAsync("urn:created").ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(raised, Is.EqualTo(2));
 
             // A node created through the registry is tracked as well, on both permission properties.
-            NamespaceMetadataState created = await registry.CreateAsync("urn:created").ConfigureAwait(false);
+            NamespaceMetadataState created = (await registry.CreateAsync("urn:created").ConfigureAwait(false))!;
             ChangeDefaultRolePermissions(created, host.SystemContext);
             ChangeDefaultUserRolePermissions(created, host.SystemContext);
             Assert.That(raised, Is.EqualTo(4));
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests
             int raised = 0;
             registry.DefaultPermissionsChanged += (_, _) => raised++;
 
-            NamespaceMetadataState found = await registry.CreateAsync("urn:foreign").ConfigureAwait(false);
+            NamespaceMetadataState found = (await registry.CreateAsync("urn:foreign").ConfigureAwait(false))!;
             Assert.That(found, Is.SameAs(foreign));
 
             ChangeDefaultRolePermissions(foreign, host.SystemContext);
@@ -404,9 +404,926 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [Test]
+        public async Task UntypedMetadataChildIsFoundAndNeverDuplicatedAsync()
+        {
+            // A NamespaceMetadataType object imported without a state factory
+            // is a plain BaseObjectState, here of a NamespaceMetadataType subtype.
+            var host = new FakeHost(withNamespacesNode: true);
+            var subtypeId = new NodeId("NamespaceMetadataSubtype", host.NamespaceIndex);
+            host.SystemContext.Server.TypeTree.AddSubtype(ObjectTypeIds.NamespaceMetadataType, NodeId.Null);
+            host.SystemContext.Server.TypeTree.AddSubtype(subtypeId, ObjectTypeIds.NamespaceMetadataType);
+            (BaseObjectState untyped, PropertyState roles) = host.AddUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri, subtypeId);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+
+            NamespaceMetadataNode? found = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceMetadataState? typed = await registry.GetAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceMetadataState? created = await registry.CreateAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            bool known = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found, Is.Not.Null);
+                Assert.That(found!.Node, Is.SameAs(untyped));
+                Assert.That(found.TypedState, Is.Null);
+                Assert.That(found.NamespaceUri, Is.EqualTo(DeterministicServerMock.TestNamespaceUri));
+                Assert.That(found.DefaultRolePermissions, Is.SameAs(roles));
+                Assert.That(typed, Is.Null, "the untyped object has no typed state");
+                Assert.That(created, Is.Null, "the untyped object is kept instead of a typed duplicate");
+                Assert.That(existing?.Node, Is.SameAs(untyped));
+                Assert.That(known, Is.True);
+                Assert.That(snapshot?.Node, Is.SameAs(untyped));
+                Assert.That(host.RegisteredNodes, Is.Empty, "no duplicate metadata node is created");
+            });
+        }
+
+        [Test]
+        public async Task UntypedForeignMetadataDefaultPermissionsAreHonouredAsync()
+        {
+            // The NodeSet object is owned by another manager and linked through a
+            // reference; its properties are separate nodes linked by HasProperty.
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, PropertyState roles) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            registry.Attach(host.SystemContext);
+            int raised = 0;
+            registry.DefaultPermissionsChanged += (_, _) => raised++;
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager.ConfigurationNodeManager!).As<INamespaceMetadataSnapshot>()
+                .Setup(value => value.TryGetNamespaceMetadataState(index, out It.Ref<NamespaceMetadataNode?>.IsAny))
+                .Returns(new TryGetSnapshotCallback(registry.TryGetSnapshot));
+
+            Assert.That(registry.TryGetSnapshot(index, out _), Is.False, "the reference is not resolved yet");
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(defaults.DefaultRolePermissions, Is.EqualTo(GetRolePermissions(roles)));
+                Assert.That(existing?.Node, Is.SameAs(untyped));
+                Assert.That(host.RegisteredNodes, Is.Empty, "no duplicate metadata node is created");
+            });
+
+            long generation = NamespaceDefaultPermissionReader.Generation;
+            roles.Value = Variant.FromStructure(NextPermissions());
+            roles.ClearChangeMasks(host.SystemContext, false);
+            NamespaceDefaultPermissions changed = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+            Assert.Multiple(() =>
+            {
+                Assert.That(raised, Is.EqualTo(1), "a changed default of the untyped object is observed");
+                Assert.That(NamespaceDefaultPermissionReader.Generation, Is.Not.EqualTo(generation));
+                Assert.That(changed.DefaultRolePermissions, Is.EqualTo(GetRolePermissions(roles)));
+            });
+
+            registry.Detach();
+            roles.Value = Variant.FromStructure(NextPermissions());
+            roles.ClearChangeMasks(host.SystemContext, false);
+            Assert.That(raised, Is.EqualTo(1), "Detach releases the untyped object's properties");
+        }
+
+        [Test]
+        public async Task UntypedMetadataWithoutDefaultValuesLeavesNamespaceUnrestrictedAsync()
+        {
+            // The DI NodeSet declares DefaultRolePermissions, DefaultUserRolePermissions and
+            // DefaultAccessRestrictions without a value: they are not configured, not "deny all".
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, PropertyState roles) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            roles.Value = Variant.Null;
+            roles.StatusCode = StatusCodes.BadWaitingForInitialData;
+            host.AddForeignProperty(untyped, new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType
+            });
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                host.SystemContext.Server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(defaults.HasDefaultRolePermissions, Is.False);
+                Assert.That(defaults.HasDefaultAccessRestrictions, Is.False);
+                Assert.That(defaults.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.None));
+            });
+        }
+
+        [Test]
+        public async Task InvalidateRetiresUntypedReferenceTargetUntilPropertiesAreResolvedAgainAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+            Assert.That(
+                NamespaceDefaultPermissionReader.Read(host.SystemContext.Server, host.SystemContext, index)
+                    .HasDefaultAccessRestrictions,
+                Is.False);
+
+            // The object gains a restrictive default through a reference only.
+            var restrictions = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            };
+            host.AddForeignProperty(untyped, restrictions);
+            registry.Invalidate();
+
+            bool knownBeforeRefresh = registry.TryGetSnapshot(index, out _);
+            NamespaceDefaultPermissions blocked = NamespaceDefaultPermissionReader.Read(
+                host.SystemContext.Server, host.SystemContext, index);
+            await registry.GetNodeAsync("urn:any").ConfigureAwait(false);
+            bool knownAfterRefresh = registry.TryGetSnapshot(index, out NamespaceMetadataNode? refreshed);
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                host.SystemContext.Server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(knownBeforeRefresh, Is.False, "the retired view must not answer synchronously");
+                Assert.That(blocked.Status, Is.EqualTo(StatusCodes.BadWouldBlock));
+                Assert.That(knownAfterRefresh, Is.True, "an asynchronous lookup primes the retired view again");
+                Assert.That(refreshed?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(defaults.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
+            });
+        }
+
+        [Test]
+        public async Task UnresolvedUntypedChildBlocksOnlyItsOwnNamespaceAsync()
+        {
+            // An untyped child whose properties are linked by reference only.
+            var host = new FakeHost(withNamespacesNode: true);
+            host.AddForeignUntypedMetadataNode(DeterministicServerMock.TestNamespaceUri, asChild: true);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+            ushort unrelated = host.SystemContext.Server.NamespaceUris.GetIndexOrAppend("urn:unrelated");
+
+            bool unrelatedBeforePrime = registry.TryGetSnapshot(unrelated, out _);
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+            bool ownAfterPrime = registry.TryGetSnapshot(index, out NamespaceMetadataNode? primed);
+            registry.Invalidate();
+            bool unrelatedAfterInvalidate = registry.TryGetSnapshot(unrelated, out NamespaceMetadataNode? none);
+            bool ownAfterInvalidate = registry.TryGetSnapshot(index, out _);
+
+            // the unrelated namespace's miss is cached by index; the lookup primes nonetheless.
+            await registry.GetNodeAsync(unrelated).ConfigureAwait(false);
+            bool ownAfterRefresh = registry.TryGetSnapshot(index, out NamespaceMetadataNode? refreshed);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(unrelatedBeforePrime, Is.False, "the child's namespace is not known yet");
+                Assert.That(ownAfterPrime, Is.True, "priming resolves untyped children");
+                Assert.That(primed?.NamespaceUri, Is.EqualTo(DeterministicServerMock.TestNamespaceUri));
+                Assert.That(unrelatedAfterInvalidate, Is.True, "a retired child of another namespace does not block");
+                Assert.That(none, Is.Null);
+                Assert.That(ownAfterInvalidate, Is.False, "the retired child is resolved again first");
+                Assert.That(ownAfterRefresh, Is.True, "the next asynchronous lookup primes again");
+                Assert.That(refreshed?.Node, Is.SameAs(primed?.Node));
+            });
+        }
+
+        [Test]
+        public async Task UnresolvedDefaultPropertyFailsClosedUntilResolvedAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            var restrictions = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            };
+            host.AddForeignProperty(untyped, restrictions);
+
+            // the owning node manager of the restrictive default is not available yet.
+            bool available = false;
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(restrictions.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(available ? restrictions : null));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+            ushort unrelated = server.NamespaceUris.GetIndexOrAppend("urn:unrelated");
+            ushort probe = server.NamespaceUris.GetIndexOrAppend("urn:probe");
+
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+            bool knownWhileUnresolved = registry.TryGetSnapshot(index, out _);
+            bool unrelatedKnown = registry.TryGetSnapshot(unrelated, out NamespaceMetadataNode? none);
+            NamespaceDefaultPermissions blocked = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+            NamespaceMetadataNode? incomplete = await registry.GetNodeAsync(index).ConfigureAwait(false);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            Mock.Get(server.NodeManager.ConfigurationNodeManager!).As<INamespaceMetadataSnapshot>()
+                .Setup(value => value.TryGetNamespaceMetadataState(probe, out It.Ref<NamespaceMetadataNode?>.IsAny))
+                .Returns(new TryGetSnapshotCallback((ushort _, out NamespaceMetadataNode? state) =>
+                {
+                    state = incomplete;
+                    return true;
+                }));
+            NamespaceDefaultPermissions failed = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, probe);
+
+            available = true;
+            NamespaceMetadataNode? resolved = await registry.GetNodeAsync(index).ConfigureAwait(false);
+            bool knownAfterResolution = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+            NamespaceDefaultPermissions enforced = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(knownWhileUnresolved, Is.False, "an incomplete view must not answer synchronously");
+                Assert.That(unrelatedKnown, Is.True, "an incomplete view of another namespace does not block");
+                Assert.That(none, Is.Null);
+                Assert.That(blocked.Status, Is.EqualTo(StatusCodes.BadWouldBlock));
+                Assert.That(incomplete, Is.Not.Null);
+                Assert.That(incomplete!.IsIncomplete, Is.True);
+                Assert.That(incomplete.DefaultAccessRestrictions, Is.Null);
+                Assert.That(existing?.Node, Is.SameAs(untyped), "an incomplete object is existing metadata");
+                Assert.That(host.RegisteredNodes, Is.Empty, "no duplicate metadata node is created");
+                Assert.That(failed.Status, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                Assert.That(resolved?.IsIncomplete, Is.False, "the incomplete view was not cached");
+                Assert.That(resolved?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(knownAfterResolution, Is.True);
+                Assert.That(snapshot?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(enforced.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(enforced.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
+            });
+        }
+
+        [Test]
+        public async Task InvalidateDuringSuspendedPropertyLookupResolvesAgainAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, PropertyState roles) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            var lookup = new TaskCompletionSource<NodeState?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(roles.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(lookup.Task));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+
+            Task<NamespaceMetadataNode?> pending = registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .AsTask();
+            Assert.That(pending.IsCompleted, Is.False, "the lookup waits for the property target");
+
+            // a restrictive default is linked while the lookup is suspended.
+            var restrictions = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            };
+            host.AddForeignProperty(untyped, restrictions);
+            registry.Invalidate();
+            lookup.SetResult(roles);
+
+            NamespaceMetadataNode? found = await pending.ConfigureAwait(false);
+            NamespaceMetadataNode? cached = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool known = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found?.DefaultAccessRestrictions, Is.SameAs(restrictions),
+                    "a view resolved before the invalidation is resolved again");
+                Assert.That(cached?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(known, Is.True);
+                Assert.That(snapshot?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(defaults.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
+            });
+        }
+
+        [Test]
+        public async Task OlderResolutionAfterNewerRefreshKeepsLivePropertySubscribedAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, PropertyState replaced) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            var lookup = new TaskCompletionSource<NodeState?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(replaced.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(lookup.Task));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            int raised = 0;
+            registry.DefaultPermissionsChanged += (_, _) => raised++;
+
+            Task<NamespaceMetadataNode?> older = registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .AsTask();
+            Assert.That(older.IsCompleted, Is.False, "the older resolution waits for the property target");
+
+            // the property is replaced and a newer refresh subscribes the live one.
+            untyped.RemoveReference(ReferenceTypeIds.HasProperty, false, replaced.NodeId);
+            var live = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions),
+                DataType = DataTypeIds.RolePermissionType,
+                ValueRank = ValueRanks.OneDimension,
+                Value = Variant.FromStructure(NextPermissions())
+            };
+            host.AddForeignProperty(untyped, live);
+            registry.Invalidate();
+            NamespaceMetadataNode? refreshed = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+
+            lookup.SetResult(replaced);
+            NamespaceMetadataNode? resumed = await older.ConfigureAwait(false);
+
+            long generation = NamespaceDefaultPermissionReader.Generation;
+            live.Value = Variant.FromStructure(NextPermissions());
+            live.ClearChangeMasks(host.SystemContext, false);
+            int raisedByLive = raised;
+            bool generationMoved = NamespaceDefaultPermissionReader.Generation != generation;
+
+            registry.Detach();
+            raised = 0;
+            live.Value = Variant.FromStructure(NextPermissions());
+            live.ClearChangeMasks(host.SystemContext, false);
+            replaced.Value = Variant.FromStructure(NextPermissions());
+            replaced.ClearChangeMasks(host.SystemContext, false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(refreshed?.DefaultRolePermissions, Is.SameAs(live));
+                Assert.That(resumed?.DefaultRolePermissions, Is.SameAs(live), "the older result is resolved again");
+                Assert.That(raisedByLive, Is.EqualTo(1), "the older resolution keeps the live handler");
+                Assert.That(generationMoved, Is.True);
+                Assert.That(raised, Is.Zero, "Detach releases the handlers of both resolutions");
+            });
+        }
+
+        [Test]
+        public async Task PropertyInUnregisteredNamespaceFailsClosedUntilResolvedAsync()
+        {
+            const string pendingUri = "urn:registered-later";
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            untyped.AddReference(
+                ReferenceTypeIds.HasProperty,
+                false,
+                new ExpandedNodeId("Restrictions", 0, pendingUri));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+            IServerInternal server = host.SystemContext.Server;
+
+            NamespaceMetadataNode? unresolved = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool known = registry.TryGetSnapshot(index, out _);
+            NamespaceDefaultPermissions blocked = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+
+            // the namespace of the restrictive default is registered later.
+            var restrictions = new PropertyState(null)
+            {
+                NodeId = new NodeId("Restrictions", server.NamespaceUris.GetIndexOrAppend(pendingUri)),
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            };
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(restrictions.NodeId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(restrictions);
+            NamespaceMetadataNode? resolved = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceDefaultPermissions enforced = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(unresolved?.IsIncomplete, Is.True, "the unconvertible target may be a default");
+                Assert.That(known, Is.False);
+                Assert.That(blocked.Status, Is.EqualTo(StatusCodes.BadWouldBlock));
+                Assert.That(resolved?.IsIncomplete, Is.False);
+                Assert.That(resolved?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(enforced.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(enforced.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
+            });
+        }
+
+        [Test]
+        public async Task UnresolvedNamespaceUriIsIndeterminateUntilResolvedAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            host.AddForeignProperty(untyped, new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            });
+            host.AddForeignProperty(untyped, new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultUserRolePermissions),
+                DataType = DataTypeIds.RolePermissionType,
+                ValueRank = ValueRanks.OneDimension,
+                Value = Variant.FromStructure(NextPermissions())
+            });
+            NamespaceMetadataState own = host.AddMetadataNode("urn:own");
+
+            // every default resolves, but the owner of the NamespaceUri property is not available yet.
+            PropertyState namespaceUri = host.GetForeignProperty(untyped, BrowseNames.NamespaceUri);
+            bool available = false;
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(namespaceUri.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(available ? namespaceUri : null));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+
+            NamespaceMetadataNode? indeterminate = await registry.GetNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            NamespaceMetadataNode? ownMetadata = await registry.GetNodeAsync("urn:own").ConfigureAwait(false);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            NamespaceMetadataState? created = await registry.CreateAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool known = registry.TryGetSnapshot(index, out _);
+            NamespaceDefaultPermissions blocked = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+
+            available = true;
+            NamespaceMetadataNode? resolved = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool knownAfterResolution = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(indeterminate?.Node, Is.SameAs(untyped), "the object may describe the namespace");
+                Assert.That(indeterminate?.IsIncomplete, Is.True);
+                Assert.That(indeterminate?.NamespaceUri, Is.Null);
+                Assert.That(ownMetadata?.TypedState, Is.SameAs(own), "own metadata is an exact match");
+                Assert.That(existing?.Node, Is.SameAs(untyped));
+                Assert.That(created, Is.Null);
+                Assert.That(host.RegisteredNodes, Is.Empty, "no replacement is created");
+                Assert.That(known, Is.False);
+                Assert.That(blocked.Status, Is.EqualTo(StatusCodes.BadWouldBlock));
+                Assert.That(resolved?.Node, Is.SameAs(untyped), "no miss was cached");
+                Assert.That(resolved?.IsIncomplete, Is.False);
+                Assert.That(resolved?.NamespaceUri, Is.EqualTo(DeterministicServerMock.TestNamespaceUri));
+                Assert.That(knownAfterResolution, Is.True);
+                Assert.That(snapshot?.Node, Is.SameAs(untyped));
+            });
+        }
+
+        [Test]
+        public async Task UnresolvedNamespaceUriBlocksOnlyNamespaceNamedByBrowseNameAsync()
+        {
+            // the BrowseName of the object is its namespace URI (OPC 10000-5 §6.3.14).
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            PropertyState namespaceUri = host.GetForeignProperty(untyped, BrowseNames.NamespaceUri);
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(namespaceUri.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>((NodeState?)null));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+            const string unrelatedUri = "urn:unrelated";
+            ushort unrelated = server.NamespaceUris.GetIndexOrAppend(unrelatedUri);
+
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+            NamespaceMetadataNode? named = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool namedKnown = registry.TryGetSnapshot(index, out _);
+            bool unrelatedKnown = registry.TryGetSnapshot(unrelated, out NamespaceMetadataNode? none);
+            NamespaceMetadataNode? missing = await registry.GetNodeAsync(unrelatedUri).ConfigureAwait(false);
+            NamespaceMetadataNode? created = await registry.GetOrCreateNodeAsync(unrelatedUri).ConfigureAwait(false);
+
+            // a BrowseName that names no namespace of the server does not rule any namespace out.
+            untyped.BrowseName = new QualifiedName("NamespaceMetadata", host.NamespaceIndex);
+            registry.Invalidate();
+            NamespaceMetadataNode? unnamed = await registry.GetNodeAsync("urn:other").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(named?.Node, Is.SameAs(untyped), "the named namespace stays indeterminate");
+                Assert.That(named?.IsIncomplete, Is.True);
+                Assert.That(namedKnown, Is.False);
+                Assert.That(unrelatedKnown, Is.True, "another namespace does not wait for the object");
+                Assert.That(none, Is.Null);
+                Assert.That(missing, Is.Null);
+                Assert.That(created?.TypedState, Is.Not.Null, "metadata of another namespace is created");
+                Assert.That(host.RegisteredNodes, Has.Count.EqualTo(1));
+                Assert.That(unnamed?.Node, Is.SameAs(untyped));
+                Assert.That(unnamed?.IsIncomplete, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task RemotePropertyTargetDoesNotMakeViewIncompleteAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, PropertyState roles) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            untyped.AddReference(
+                ReferenceTypeIds.HasProperty,
+                false,
+                new ExpandedNodeId("Remote", 0, null, 1));
+
+            // a remote target whose namespace URI is also registered locally must not be resolved locally.
+            untyped.AddReference(
+                ReferenceTypeIds.HasProperty,
+                false,
+                new ExpandedNodeId("RemoteRegistered", 0, DeterministicServerMock.TestNamespaceUri, 1));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+
+            NamespaceMetadataNode? resolved = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                host.SystemContext.Server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolved?.IsIncomplete, Is.False, "a target on another server is never a property");
+                Assert.That(resolved?.DefaultRolePermissions, Is.SameAs(roles));
+                Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(defaults.DefaultRolePermissions, Is.EqualTo(GetRolePermissions(roles)));
+            });
+        }
+
+        [Test]
+        public async Task IncompleteViewOfPrimeRecoversThroughUnrelatedCachedLookupAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            var restrictions = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            };
+            host.AddForeignProperty(untyped, restrictions);
+            bool available = false;
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(restrictions.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(available ? restrictions : null));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+            ushort unrelated = server.NamespaceUris.GetIndexOrAppend("urn:unrelated");
+
+            await registry.PrimeReferencesAsync().ConfigureAwait(false);
+            NamespaceMetadataNode? missing = await registry.GetNodeAsync(unrelated).ConfigureAwait(false);
+            bool knownWhileUnresolved = registry.TryGetSnapshot(index, out _);
+
+            // the target becomes available; only the unrelated, cached namespace is looked up.
+            available = true;
+            NamespaceMetadataNode? cachedMiss = await registry.GetNodeAsync(unrelated).ConfigureAwait(false);
+            bool knownAfterLookup = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+            NamespaceDefaultPermissions enforced = NamespaceDefaultPermissionReader.Read(
+                server, host.SystemContext, index);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missing, Is.Null);
+                Assert.That(cachedMiss, Is.Null);
+                Assert.That(knownWhileUnresolved, Is.False);
+                Assert.That(knownAfterLookup, Is.True, "an asynchronous lookup resolves incomplete views again");
+                Assert.That(snapshot?.DefaultAccessRestrictions, Is.SameAs(restrictions));
+                Assert.That(enforced.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(enforced.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
+            });
+        }
+
+        [Test]
+        public async Task IncompleteLookupAfterCompleteLookupKeepsLivePropertySubscribedAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (_, PropertyState roles) = host.AddForeignUntypedMetadataNode(DeterministicServerMock.TestNamespaceUri);
+
+            // the first lookup of the property waits and then finds its node manager unavailable.
+            var lookup = new TaskCompletionSource<NodeState?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int lookups = 0;
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(roles.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => ++lookups == 1
+                    ? new ValueTask<NodeState?>(lookup.Task)
+                    : new ValueTask<NodeState?>(roles));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            int raised = 0;
+            registry.DefaultPermissionsChanged += (_, _) => raised++;
+
+            Task<NamespaceMetadataNode?> older = registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .AsTask();
+            Assert.That(older.IsCompleted, Is.False, "the older lookup waits for the property target");
+            NamespaceMetadataNode? complete = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+
+            // the older lookup completes incomplete in the same generation, without an invalidation.
+            lookup.SetResult(null);
+            NamespaceMetadataNode? incomplete = await older.ConfigureAwait(false);
+
+            roles.Value = Variant.FromStructure(NextPermissions());
+            roles.ClearChangeMasks(host.SystemContext, false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(complete?.IsIncomplete, Is.False);
+                Assert.That(complete?.DefaultRolePermissions, Is.SameAs(roles));
+                Assert.That(incomplete?.IsIncomplete, Is.True);
+                Assert.That(raised, Is.EqualTo(1), "the incomplete lookup keeps the live handler");
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NamespaceUriWithoutValueIsIndeterminateUntilInitializedAsync(bool empty)
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri,
+                ObjectTypeIds.NamespaceMetadataType);
+            var namespaceUri = (PropertyState)untyped.FindChildWithQualifiedName(
+                host.SystemContext,
+                new QualifiedName(BrowseNames.NamespaceUri))!;
+            namespaceUri.Value = empty ? new Variant(string.Empty) : Variant.Null;
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = SetupSnapshot(host, registry);
+
+            NamespaceMetadataNode? indeterminate = await registry.GetNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            NamespaceMetadataNode? existing = await registry.GetOrCreateNodeAsync(
+                DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+            bool known = registry.TryGetSnapshot(index, out _);
+            NamespaceDefaultPermissions blocked = NamespaceDefaultPermissionReader.Read(
+                host.SystemContext.Server, host.SystemContext, index);
+
+            // the NamespaceUri is initialized without any event the registry observes.
+            namespaceUri.Value = new Variant(DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataNode? resolved = await registry.GetNodeAsync(DeterministicServerMock.TestNamespaceUri)
+                .ConfigureAwait(false);
+            bool knownAfterInitialization = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(indeterminate?.Node, Is.SameAs(untyped), "the object may describe the namespace");
+                Assert.That(indeterminate?.IsIncomplete, Is.True);
+                Assert.That(existing?.Node, Is.SameAs(untyped));
+                Assert.That(host.RegisteredNodes, Is.Empty, "no replacement is created");
+                Assert.That(known, Is.False, "the synchronous lookup stays indeterminate");
+                Assert.That(blocked.Status, Is.EqualTo(StatusCodes.BadWouldBlock));
+                Assert.That(resolved?.Node, Is.SameAs(untyped), "no miss was cached");
+                Assert.That(resolved?.IsIncomplete, Is.False);
+                Assert.That(knownAfterInitialization, Is.True);
+                Assert.That(snapshot?.Node, Is.SameAs(untyped));
+            });
+        }
+
+        [Test]
+        public async Task UnresolvedChildOfUnknownNamespaceBeforeExactMatchDoesNotBlockSnapshotAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+
+            // an untyped child of unknown namespace whose properties are only linked by reference,
+            // followed by the metadata of the test namespace.
+            (BaseObjectState pending, _) = host.AddForeignUntypedMetadataNode("urn:pending", asChild: true);
+            pending.BrowseName = new QualifiedName("PendingMetadata", host.NamespaceIndex);
+            NamespaceMetadataState own = host.AddMetadataNode(DeterministicServerMock.TestNamespaceUri);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(
+                DeterministicServerMock.TestNamespaceUri);
+            ushort unrelated = host.SystemContext.Server.NamespaceUris.GetIndexOrAppend("urn:unrelated");
+
+            bool known = registry.TryGetSnapshot(index, out NamespaceMetadataNode? snapshot);
+            bool unrelatedKnown = registry.TryGetSnapshot(unrelated, out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(known, Is.True, "an exact match after the unresolved child answers");
+                Assert.That(snapshot?.TypedState, Is.SameAs(own));
+                Assert.That(unrelatedKnown, Is.False, "without an exact match the unresolved child may hold it");
+            });
+        }
+
+        [Test]
+        public async Task CancelledPropertyLookupIsNotRememberedAsAbsenceAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            (BaseObjectState untyped, _) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+            var restrictions = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.EncryptionRequired)
+            };
+            host.AddForeignProperty(untyped, restrictions);
+            IServerInternal server = host.SystemContext.Server;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(restrictions.NodeId, It.IsAny<CancellationToken>()))
+                .Returns((NodeId _, CancellationToken cancellationToken) => cancellationToken.IsCancellationRequested
+                    ? new ValueTask<NodeState?>(Task.FromCanceled<NodeState?>(cancellationToken))
+                    : new ValueTask<NodeState?>(restrictions));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            UseRegistryAsMetadataSource(server, registry);
+            ushort index = (ushort)server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
+            Assert.That(
+                async () => await NamespaceDefaultPermissionReader.ReadAsync(
+                    server, host.SystemContext, index, cancelled.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>(),
+                "a cancelled lookup is no answer");
+            NamespaceDefaultPermissions retried = await NamespaceDefaultPermissionReader.ReadAsync(
+                server, host.SystemContext, index).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(retried.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(retried.DefaultAccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired),
+                    "the cancelled lookup was not remembered as an absence of metadata");
+            });
+        }
+
+        /// <summary>
+        /// An active monitored item whose namespace defaults were unknown recovers once the
+        /// incomplete metadata view is resolved, without any other permission change, also when
+        /// an invalidation retired the incomplete view in between.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ActiveMonitoredItemRecoversWhenIncompleteMetadataResolvesAsync(bool invalidated)
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            IServerInternal server = host.SystemContext.Server;
+            using var queues = (MonitoredItemQueueFactory)server.MonitoredItemQueueFactory;
+            (BaseObjectState untyped, PropertyState roles) = host.AddForeignUntypedMetadataNode(
+                DeterministicServerMock.TestNamespaceUri);
+
+            // no role defaults, and unrestricted access defaults whose owner is not available yet.
+            roles.Value = Variant.Null;
+            var restrictions = new PropertyState(null)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                DataType = DataTypeIds.AccessRestrictionType,
+                Value = new Variant((ushort)AccessRestrictionType.None)
+            };
+            host.AddForeignProperty(untyped, restrictions);
+            bool available = false;
+            Mock.Get(server.NodeManager)
+                .Setup(m => m.FindNodeInAddressSpaceAsync(restrictions.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<NodeState?>(available ? restrictions : null));
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            UseRegistryAsMetadataSource(server, registry);
+            await using var owner = new TestableAsyncCustomNodeManager(
+                server, new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("RecoveringNotification", owner.NamespaceIndex),
+                BrowseName = new QualifiedName("RecoveringNotification", owner.NamespaceIndex),
+                DataType = DataTypeIds.Int32,
+                Value = 42,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            await owner.AddNodeAsync(owner.SystemContext, NodeId.Null, node).ConfigureAwait(false);
+            Mock.Get(server.NodeManager)
+                .Setup(value => value.GetManagerHandleAsync(node.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<(object? Handle, IAsyncNodeManager? Manager)>(
+                    (new NodeHandle(node.NodeId, node), owner)));
+            var values = new ConcurrentQueue<DataValue>();
+            await using var monitored = new MonitoredNode2(owner, server, node);
+            monitored.Add(CreateNamespaceReceiver(1, MessageSecurityMode.SignAndEncrypt, values).Object);
+            try
+            {
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(values, Has.Count.EqualTo(1));
+                Assert.That(StatusCode.IsBad(values.ToArray()[0].StatusCode), Is.True,
+                    "unknown namespace defaults deny the notification");
+
+                // the property resolves through a lookup that is not a permission change.
+                if (invalidated)
+                {
+                    registry.Invalidate();
+                }
+
+                available = true;
+                NamespaceMetadataNode? resolved = await registry.GetNodeAsync(
+                    DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false);
+                Assert.That(resolved?.IsIncomplete, Is.False);
+
+                node.Value = 99;
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(values, Has.Count.EqualTo(2));
+                Assert.That(values.ToArray()[1].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    "the cached denial of the active monitored item is retired");
+                Assert.That(values.ToArray()[1].WrappedValue, Is.EqualTo(new Variant(99)));
+            }
+            finally
+            {
+                registry.Detach();
+            }
+
+            async Task ReportAsync()
+            {
+                await monitored.OnMonitoredNodeChangedAsync(
+                    host.SystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await monitored.WaitForPendingNotificationsAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Lets the server's configuration node manager answer asynchronous metadata reads,
+        /// typed and untyped, and forward default-permission changes from
+        /// <paramref name="registry"/>.
+        /// </summary>
+        private static Mock<IConfigurationNodeManager> UseRegistryAsMetadataSource(
+            IServerInternal server,
+            NamespaceMetadataRegistry registry)
+        {
+            var configuration = new Mock<IConfigurationNodeManager>();
+            configuration.As<INamespaceMetadataSource>()
+                .Setup(value => value.GetNamespaceMetadataNodeAsync(It.IsAny<ushort>(), It.IsAny<CancellationToken>()))
+                .Returns((ushort index, CancellationToken cancellationToken) =>
+                    registry.GetNodeAsync(index, cancellationToken));
+            Mock.Get(server).SetupGet(value => value.ConfigurationNodeManager).Returns(configuration.Object);
+            Mock.Get(server.NodeManager).SetupGet(value => value.ConfigurationNodeManager)
+                .Returns(configuration.Object);
+            registry.DefaultPermissionsChanged += (_, _) =>
+                configuration.Raise(value => value.DefaultPermissionsChanged += null, EventArgs.Empty);
+            return configuration;
+        }
+
+        /// <summary>
+        /// Answers the synchronous metadata lookups of the reader for the test namespace from
+        /// <paramref name="registry"/> and returns the test namespace index.
+        /// </summary>
+        private static ushort SetupSnapshot(FakeHost host, NamespaceMetadataRegistry registry)
+        {
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+            Mock.Get(host.SystemContext.Server.NodeManager.ConfigurationNodeManager!).As<INamespaceMetadataSnapshot>()
+                .Setup(value => value.TryGetNamespaceMetadataState(index, out It.Ref<NamespaceMetadataNode?>.IsAny))
+                .Returns(new TryGetSnapshotCallback(registry.TryGetSnapshot));
+            return index;
+        }
+
+        [Test]
+        public async Task UntypedObjectWithOtherTypeOrNamespaceUriIsIgnoredAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            host.AddUntypedMetadataNode("urn:plain", ObjectTypeIds.BaseObjectType);
+            host.AddUntypedMetadataNode("urn:other", ObjectTypeIds.NamespaceMetadataType);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+
+            NamespaceMetadataNode? plain = await registry.GetNodeAsync("urn:plain").ConfigureAwait(false);
+            NamespaceMetadataNode? missing = await registry.GetNodeAsync("urn:missing").ConfigureAwait(false);
+            NamespaceMetadataState created = (await registry.CreateAsync("urn:plain").ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(plain, Is.Null, "an object of another type is not namespace metadata");
+                Assert.That(missing, Is.Null, "metadata of another namespace does not match");
+                Assert.That(created, Is.Not.Null);
+                Assert.That(host.RegisteredNodes, Is.EqualTo(new[] { created }));
+            });
+        }
+
         private static NamespaceMetadataRegistry CreateRegistry(FakeHost host)
         {
             return new NamespaceMetadataRegistry(host, s_telemetry.CreateLogger<NamespaceMetadataRegistry>());
+        }
+
+        private static ArrayOf<RolePermissionType> GetRolePermissions(PropertyState property)
+        {
+            Assert.That(property.Value.TryGetStructure(out ArrayOf<RolePermissionType> permissions), Is.True);
+            return permissions;
         }
 
         /// <summary>
@@ -588,6 +1505,11 @@ namespace Opc.Ua.Server.Tests
             in DataValue value, ServiceResult? error, bool ignoreFilters);
 
         /// <summary>
+        /// Answers synchronous metadata lookups from the registry under test.
+        /// </summary>
+        private delegate bool TryGetSnapshotCallback(ushort namespaceIndex, out NamespaceMetadataNode? state);
+
+        /// <summary>
         /// Writes a new, distinct permission set so a <c>Value</c> change mask
         /// is raised on every call, then flushes the masks to fire
         /// <c>StateChanged</c>.
@@ -697,6 +1619,125 @@ namespace Opc.Ua.Server.Tests
                 return metadata;
             }
 
+            /// <summary>
+            /// Adds an untyped metadata Object with linked property children as a
+            /// child of <c>Server/Namespaces</c>, the way a NodeSet imported
+            /// without a state factory but with linked children provides it.
+            /// </summary>
+            public (BaseObjectState Node, PropertyState DefaultRolePermissions) AddUntypedMetadataNode(
+                string namespaceUri,
+                NodeId typeDefinitionId)
+            {
+                (BaseObjectState node, PropertyState namespaceUriProperty, PropertyState roles) =
+                    CreateUntypedMetadataNode(namespaceUri, typeDefinitionId);
+                node.AddChild(namespaceUriProperty);
+                node.AddChild(roles);
+                NamespacesNode!.AddChild(node);
+                return (node, roles);
+            }
+
+            /// <summary>
+            /// Adds an untyped metadata Object owned by "another manager", the way
+            /// <c>UANodeSet.Import</c> without a state factory and without linking
+            /// creates it: it is only reachable through a forward reference of
+            /// <c>Server/Namespaces</c> and its properties are separate nodes
+            /// linked through <c>HasProperty</c> references.
+            /// </summary>
+            public (BaseObjectState Node, PropertyState DefaultRolePermissions) AddForeignUntypedMetadataNode(
+                string namespaceUri,
+                bool asChild = false)
+            {
+                (BaseObjectState node, PropertyState namespaceUriProperty, PropertyState roles) =
+                    CreateUntypedMetadataNode(namespaceUri, ObjectTypeIds.NamespaceMetadataType);
+                Mock.Get(SystemContext.Server.NodeManager)
+                    .Setup(m => m.FindNodeInAddressSpaceAsync(node.NodeId, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(node);
+                AddForeignProperty(node, namespaceUriProperty);
+                AddForeignProperty(node, roles);
+                if (asChild)
+                {
+                    NamespacesNode!.AddChild(node);
+                }
+                else
+                {
+                    NamespacesNode!.AddReference(ReferenceTypeIds.HasComponent, false, node.NodeId);
+                }
+
+                return (node, roles);
+            }
+
+            /// <summary>
+            /// Links <paramref name="property"/> to an untyped metadata Object
+            /// through a <c>HasProperty</c> reference only, resolvable through
+            /// the server's master node manager. No change event is raised.
+            /// </summary>
+            public void AddForeignProperty(BaseObjectState node, PropertyState property)
+            {
+                if (property.NodeId.IsNull)
+                {
+                    property.NodeId = New(SystemContext, property);
+                }
+
+                Mock.Get(SystemContext.Server.NodeManager)
+                    .Setup(m => m.FindNodeInAddressSpaceAsync(property.NodeId, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(property);
+                node.AddReference(ReferenceTypeIds.HasProperty, false, property.NodeId);
+                m_foreignProperties[property.NodeId] = property;
+            }
+
+            /// <summary>
+            /// Returns the property linked to <paramref name="node"/> through
+            /// <see cref="AddForeignProperty"/> with the BrowseName <paramref name="browseName"/>.
+            /// </summary>
+            public PropertyState GetForeignProperty(BaseObjectState node, string browseName)
+            {
+                IList<IReference> references = [];
+                node.GetReferences(SystemContext, references);
+                foreach (IReference reference in references)
+                {
+                    if (m_foreignProperties.TryGetValue(
+                            ExpandedNodeId.ToNodeId(reference.TargetId, SystemContext.NamespaceUris),
+                            out PropertyState? property) &&
+                        property.BrowseName == new QualifiedName(browseName))
+                    {
+                        return property;
+                    }
+                }
+
+                throw new InvalidOperationException($"No foreign property {browseName}.");
+            }
+
+            private (BaseObjectState Node, PropertyState NamespaceUri, PropertyState Roles) CreateUntypedMetadataNode(
+                string namespaceUri,
+                NodeId typeDefinitionId)
+            {
+                var node = new BaseObjectState(null)
+                {
+                    BrowseName = new QualifiedName(namespaceUri, NamespaceIndex),
+                    TypeDefinitionId = typeDefinitionId
+                };
+                node.NodeId = New(SystemContext, node);
+                var namespaceUriProperty = new PropertyState(null)
+                {
+                    BrowseName = new QualifiedName(BrowseNames.NamespaceUri),
+                    DataType = DataTypeIds.String,
+                    ValueRank = ValueRanks.Scalar,
+                    Value = new Variant(namespaceUri)
+                };
+                namespaceUriProperty.NodeId = New(SystemContext, namespaceUriProperty);
+                var roles = new PropertyState(null)
+                {
+                    BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions),
+                    DataType = DataTypeIds.RolePermissionType,
+                    ValueRank = ValueRanks.OneDimension,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = Variant.FromStructure(NextPermissions())
+                };
+                roles.NodeId = New(SystemContext, roles);
+                return (node, namespaceUriProperty, roles);
+            }
+
             private NamespaceMetadataState CreateMetadataNode(string namespaceUri)
             {
                 NamespaceMetadataState metadata = SystemContext.CreateInstanceOfNamespaceMetadataType(
@@ -712,6 +1753,8 @@ namespace Opc.Ua.Server.Tests
                 metadata.ClearChangeMasks(SystemContext, true);
                 return metadata;
             }
+
+            private readonly Dictionary<NodeId, PropertyState> m_foreignProperties = [];
         }
 
         /// <summary>

@@ -31,9 +31,9 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj"
-                      Condition="'$(TargetFramework)' == 'net10.0'" />
+                      Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision\Opc.Ua.Vision.csproj"
-                      Condition="'$(TargetFramework)' == 'net10.0'" />
+                      Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -46,25 +46,25 @@
                       Link="BinPicking\BinPickingParts.cs" />
     <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingCellGeometry.cs"
                       Link="BinPicking\BinPickingCellGeometry.cs"
-                      Condition="'$(TargetFramework)' == 'net10.0'" />
+                      Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))" />
     <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingPalletizerGeometry.cs"
                       Link="BinPicking\BinPickingPalletizerGeometry.cs"
-                      Condition="'$(TargetFramework)' == 'net10.0'" />
+                      Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))" />
     <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingPalletizerKinematics.cs"
                       Link="BinPicking\BinPickingPalletizerKinematics.cs"
-                      Condition="'$(TargetFramework)' == 'net10.0'" />
+                      Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))" />
     <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingCellOptions.cs"
                       Link="BinPicking\BinPickingCellOptions.cs"
-                      Condition="'$(TargetFramework)' == 'net10.0'" />
+                      Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))" />
     <Compile Include="..\..\samples\Robotics\BinPickingCell\BinPickingTargetProvider.cs"
                       Link="BinPicking\BinPickingTargetProvider.cs"
-                      Condition="'$(TargetFramework)' == 'net10.0'" />
+                      Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))" />
   </ItemGroup>
   <!-- The simulated-arm tests exercise types from IntentEnabledRobot, which the
        OpenUSD rendering stack pins to net10.0. The reference above is conditional, so
        the tests that consume it have to be excluded on the other target frameworks or
        they would not compile there. -->
-  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
     <Compile Remove="SimulatedArmExecutorTests.cs" />
     <Compile Remove="SimulatedArmKinematicsTests.cs" />
     <Compile Remove="SimulatedCollisionModelTests.cs" />

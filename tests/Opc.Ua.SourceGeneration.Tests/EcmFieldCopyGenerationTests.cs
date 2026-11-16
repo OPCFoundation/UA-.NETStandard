@@ -163,7 +163,7 @@ namespace Opc.Ua.SourceGeneration
                 tree => tree.FilePath.EndsWith("Opc.Ua.ECM.DataTypes.g.cs", StringComparison.Ordinal));
             string changed = types.ToString();
             int start = changed.IndexOf("class AcPeDataType", StringComparison.Ordinal);
-            int opening = changed.IndexOf('{', start);
+            int opening = changed.IndexOf('{', start, StringComparison.Ordinal);
             changed = changed.Insert(opening + 1, "\r\nprivate byte[] m_extra = new byte[1];\r\n");
             Compilation output = result.Output.ReplaceSyntaxTree(types, CSharpSyntaxTree.ParseText(
                 changed, (CSharpParseOptions)types.Options, types.FilePath));

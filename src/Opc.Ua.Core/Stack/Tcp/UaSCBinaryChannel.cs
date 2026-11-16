@@ -1007,7 +1007,59 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public virtual bool ChannelFull => Volatile.Read(ref m_activeWriteRequests) > 100;
+        /// <remarks>
+        /// Full at more than 100 queued writes, or once the queued writes and the batch
+        /// the writer is sending retain more than <see cref="WriteQueueByteLimit"/>
+        /// bytes of buffers: counting messages alone let a peer that stops reading pin
+        /// 100 maximum-size responses per channel.
+        /// </remarks>
+        public virtual bool ChannelFull =>
+            Volatile.Read(ref m_activeWriteRequests) > 100 ||
+            Volatile.Read(ref m_queuedWriteBytes) > WriteQueueByteLimit;
+
+        /// <summary>
+        /// The buffer bytes the queued writes may retain before the channel is full:
+        /// four of the largest messages the channel exchanges, and at least four send
+        /// buffers.
+        /// </summary>
+        internal long WriteQueueByteLimit
+        {
+            get
+            {
+                long largest = Math.Max(MaxRequestMessageSize, MaxResponseMessageSize);
+                if (largest <= 0)
+                {
+                    largest = TcpMessageLimits.DefaultMaxMessageSize;
+                }
+                return 4L * Math.Max(largest, SendBufferSize);
+            }
+        }
+
+        /// <summary>
+        /// The buffer bytes retained by queued writes and by the batch the writer is
+        /// sending, as a snapshot.
+        /// </summary>
+        internal long QueuedWriteBytes => Volatile.Read(ref m_queuedWriteBytes);
+
+        /// <summary>
+        /// How long the writer has been waiting for the transport to accept a send,
+        /// or zero when it is not waiting.
+        /// </summary>
+        /// <remarks>
+        /// A peer that stops reading (a TCP window of zero) keeps a send waiting
+        /// indefinitely, and with it every queued response. The listener closes a
+        /// channel whose send waited longer than the channel lifetime, also when a
+        /// Session keeps the channel active otherwise.
+        /// </remarks>
+        internal TimeSpan GetWriteStallTime()
+        {
+            if (Volatile.Read(ref m_sendWaiting) == 0)
+            {
+                return TimeSpan.Zero;
+            }
+            TimeSpan elapsed = TimeProvider.GetElapsedTime(Volatile.Read(ref m_sendWaitStarted));
+            return elapsed > TimeSpan.Zero ? elapsed : TimeSpan.Zero;
+        }
 
         /// <summary>
         /// Whether the receive loop stops reading while the write queue is full.
@@ -1061,7 +1113,8 @@ namespace Opc.Ua.Bindings
         /// Whether a receive loop paused by a full write queue may read again.
         /// </summary>
         private bool HasWriteCapacityToResume =>
-            !ChannelFull && Volatile.Read(ref m_activeWriteRequests) <= kResumeWriteCount;
+            !ChannelFull && Volatile.Read(ref m_activeWriteRequests) <= kResumeWriteCount &&
+            Volatile.Read(ref m_queuedWriteBytes) <= WriteQueueByteLimit / 2;
 
         /// <summary>
         /// The queued-write count a paused receive loop resumes at (half the full mark).
@@ -1365,62 +1418,87 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Receives and dispatches chunks while the transport remains current, reporting receive and dispatch failures.
         /// </summary>
+        /// <remarks>
+        /// The requests that the received responses complete continue once the loop waits:
+        /// every wait of the loop that goes pending runs them on the loop's thread (see
+        /// <see cref="ResponseContinuationDeferral"/>).
+        /// </remarks>
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
-            while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
+            try
             {
-                ArraySegment<byte> chunk;
-                try
+                while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
                 {
-                    // backpressure: do not read more requests while their responses
-                    // cannot be written; the peer's sends block in TCP flow control.
-                    await WaitForWriteCapacityAsync(ct).ConfigureAwait(false);
-                    chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (ServiceResultException sre)
-                {
-                    OnTransportError(transport, sre.Result, ct);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    OnTransportError(transport, ServiceResult.Create(
-                        ex,
-                        StatusCodes.BadTcpInternalError,
-                        ex.Message), ct);
-                    return;
-                }
+                    ArraySegment<byte> chunk;
+                    try
+                    {
+                        // backpressure: do not read more requests while their responses
+                        // cannot be written; the peer's sends block in TCP flow control.
+                        await ResponseContinuationDeferral.AwaitAndComplete(WaitForWriteCapacityAsync(ct));
+                        chunk = await ResponseContinuationDeferral.AwaitAndComplete(transport.ReceiveChunkAsync(ct));
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        OnTransportError(transport, sre.Result, ct);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        OnTransportError(transport, ServiceResult.Create(
+                            ex,
+                            StatusCodes.BadTcpInternalError,
+                            ex.Message), ct);
+                        return;
+                    }
 
-                if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
-                {
-                    BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
-                    return;
-                }
+                    if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+                    {
+                        BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
+                        return;
+                    }
 
-                try
-                {
-                    await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
+                    try
+                    {
+                        // the responses in the chunk defer the continuations of their requests
+                        ValueTask dispatch;
+                        ResponseContinuationDeferral.Enter();
+                        try
+                        {
+                            dispatch = OnChunkReceivedAsync(chunk, ct);
+                        }
+                        finally
+                        {
+                            ResponseContinuationDeferral.Exit();
+                        }
+                        await ResponseContinuationDeferral.AwaitAndComplete(dispatch);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Dispatching a chunk must never end the loop silently. The
+                        // task this runs on is fire-and-forget, so an escaping
+                        // exception would otherwise stop the channel receiving with no
+                        // report at all, and the peer would simply time out.
+                        OnTransportError(transport, ServiceResult.Create(
+                            ex,
+                            StatusCodes.BadTcpInternalError,
+                            "An error occurred dispatching a received message."), ct);
+                        return;
+                    }
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    // Dispatching a chunk must never end the loop silently. The
-                    // task this runs on is fire-and-forget, so an escaping
-                    // exception would otherwise stop the channel receiving with no
-                    // report at all, and the peer would simply time out.
-                    OnTransportError(transport, ServiceResult.Create(
-                        ex,
-                        StatusCodes.BadTcpInternalError,
-                        "An error occurred dispatching a received message."), ct);
-                    return;
-                }
+            }
+            finally
+            {
+                // A completion deferred by the last chunk goes to the pool. The loop ends
+                // on the thread that dispatched that chunk, which holds the completion.
+                ResponseContinuationDeferral.CompletePending(inline: false);
             }
         }
 
@@ -1483,6 +1561,24 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Queues a message like <see cref="BeginWriteMessage(BufferCollection, object)"/> but
+        /// leaves starting the writer to a caller that holds the gate: it starts the writer
+        /// with <see cref="StartWriterInline"/> after it released the gate.
+        /// </summary>
+        /// <returns>True if the caller must start the writer.</returns>
+        private protected bool BeginWriteMessageDeferred(BufferCollection buffers, object? state)
+        {
+            IUaSCByteTransport? transport = m_transport;
+            if (transport == null)
+            {
+                BeginWriteMessage(buffers, state);
+                return false;
+            }
+            Interlocked.Increment(ref m_activeWriteRequests);
+            return TryQueueWrite(new PendingWrite(transport, buffers, state));
+        }
+
+        /// <summary>
         /// Queues a write so that it runs off the caller's stack but still in
         /// the order the caller issued it.
         /// </summary>
@@ -1500,17 +1596,33 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void QueueWrite(PendingWrite write)
         {
+            if (TryQueueWrite(write))
+            {
+                ScheduleWriter();
+            }
+        }
+
+        /// <summary>
+        /// Queues a write like <see cref="QueueWrite"/> but leaves starting the writer to the
+        /// caller.
+        /// </summary>
+        /// <returns>True if the writer is not running and the caller must start it, with
+        /// <see cref="StartWriterInline"/> once it holds neither the gate nor
+        /// <see cref="SendOrder"/>, or with <see cref="ScheduleWriter"/>.</returns>
+        private bool TryQueueWrite(PendingWrite write)
+        {
+            long retained = write.RetainedBytes;
             lock (m_writeQueueLock)
             {
                 m_writeQueue.Enqueue(write);
+                Volatile.Write(ref m_queuedWriteBytes, m_queuedWriteBytes + retained);
                 if (m_writerRunning)
                 {
-                    return;
+                    return false;
                 }
                 m_writerRunning = true;
+                return true;
             }
-
-            ScheduleWriter();
         }
 
         /// <summary>
@@ -1545,25 +1657,91 @@ namespace Opc.Ua.Bindings
 
             Interlocked.Increment(ref m_activeWriteRequests);
             var write = new PendingWrite(transport, in message, state);
+            long retained = write.RetainedBytes;
 
+            long queued;
+            bool startWriter;
             lock (m_writeQueueLock)
             {
                 m_unsealedWriteQueue.Enqueue(write);
-                if (m_writerRunning)
-                {
-                    return true;
-                }
+                queued = m_queuedWriteBytes + retained;
+                Volatile.Write(ref m_queuedWriteBytes, queued);
+                startWriter = !m_writerRunning;
                 m_writerRunning = true;
             }
 
-            ScheduleWriter();
+            if (startWriter)
+            {
+                ScheduleWriter();
+            }
+            if (AppliesReceiveBackpressure && queued > kWriteQueueHardLimitFactor * WriteQueueByteLimit)
+            {
+                ReportWriteQueueOverflow(transport, queued);
+            }
             return true;
+        }
+
+        /// <summary>
+        /// How many times <see cref="WriteQueueByteLimit"/> the queued responses of a server
+        /// channel may retain before the channel is faulted.
+        /// </summary>
+        /// <remarks>
+        /// Pausing the receive loop stops new requests, but handlers of requests read
+        /// before the pause (held Publish requests, slow reads) still queue their responses.
+        /// A peer that pipelines such requests and stops reading would otherwise grow the
+        /// queue with every response that completes.
+        /// </remarks>
+        private const long kWriteQueueHardLimitFactor = 4;
+
+        /// <summary>
+        /// Faults the channel once its queued responses exceed the hard limit. The fault
+        /// takes the gate, so it runs on the pool, as a failed write is reported.
+        /// </summary>
+        private void ReportWriteQueueOverflow(IUaSCByteTransport transport, long queued)
+        {
+            if (ReferenceEquals(Interlocked.Exchange(ref m_writeQueueOverflowTransport, transport), transport))
+            {
+                return;
+            }
+            m_logger.UaSCChannelWriteQueueOverflow(ChannelId, queued, WriteQueueByteLimit);
+            var failure = ServiceResult.Create(
+                StatusCodes.BadTcpNotEnoughResources,
+                "The peer does not read the responses queued for it.");
+            _ = Task.Run(() => OnTransportError(transport, failure, CancellationToken.None));
+        }
+
+        /// <summary>
+        /// Starts the writer that <see cref="TryQueueWrite"/> left to the caller on the
+        /// calling thread. The caller must hold neither the gate (the write completes
+        /// through <see cref="HandleWriteComplete"/>, which enters it) nor
+        /// <see cref="SendOrder"/>.
+        /// </summary>
+        /// <remarks>
+        /// A work item queued for the writer wakes a pool worker even when the issuing
+        /// thread runs the item itself as it returns to the pool. That woken worker finds no
+        /// work, and since .NET 11 a worker spins much longer before it blocks again
+        /// (UnfairSemaphoreSpinLimit 70 to 1024), which cost 40 to 70 % more CPU per
+        /// request. A caller that holds nothing sends on its own thread before it awaits the
+        /// response, which is where the queued item ran as well.
+        /// </remarks>
+        private protected void StartWriterInline()
+        {
+            // the pool item did not flow the execution context either
+            if (ExecutionContext.IsFlowSuppressed())
+            {
+                _ = RunWritesAsync();
+                return;
+            }
+            using (ExecutionContext.SuppressFlow())
+            {
+                _ = RunWritesAsync();
+            }
         }
 
         /// <summary>
         /// Starts the writer on the thread pool.
         /// </summary>
-        private void ScheduleWriter()
+        private protected void ScheduleWriter()
         {
             // The execution context is not needed by the write and is not flowed.
             // The write goes to the local queue of the issuing thread, which picks
@@ -1593,18 +1771,41 @@ namespace Opc.Ua.Bindings
             while (true)
             {
                 bool numbered;
+                bool idle;
+                long sentBytes;
                 lock (m_writeQueueLock)
                 {
-                    if (m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0)
+                    // the batch sent last no longer retains its buffers
+                    sentBytes = m_writerBatchBytes;
+                    if (sentBytes != 0)
                     {
-                        m_writerRunning = false;
-                        return;
+                        m_writerBatchBytes = 0;
+                        Volatile.Write(ref m_queuedWriteBytes, m_queuedWriteBytes - sentBytes);
                     }
 
-                    // Writes numbered by their producers go out without the send
-                    // order lock: each was queued under it, after the writes numbered
-                    // before it. A client channel only queues such writes.
-                    numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
+                    idle = m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0;
+                    if (idle)
+                    {
+                        m_writerRunning = false;
+                        numbered = false;
+                    }
+                    else
+                    {
+                        // Writes numbered by their producers go out without the send
+                        // order lock: each was queued under it, after the writes numbered
+                        // before it. A client channel only queues such writes.
+                        numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
+                    }
+                }
+
+                if (sentBytes != 0)
+                {
+                    // a receive loop paused on the bytes may resume
+                    SignalWriteCapacity();
+                }
+                if (idle)
+                {
+                    return;
                 }
 
                 if (numbered)
@@ -1660,6 +1861,10 @@ namespace Opc.Ua.Bindings
                     _ = pending.Exception;
                     continue;
                 }
+                // the transport did not take the batch right away: the peer may have
+                // stopped reading, which the listener detects from how long this waits
+                Volatile.Write(ref m_sendWaitStarted, TimeProvider.GetTimestamp());
+                Volatile.Write(ref m_sendWaiting, 1);
                 try
                 {
                     await pending.ConfigureAwait(false);
@@ -1668,6 +1873,7 @@ namespace Opc.Ua.Bindings
                 {
                     // Observed only, as above; the write reported its own result.
                 }
+                Volatile.Write(ref m_sendWaiting, 0);
 
                 // The await resumed on whichever thread completed the write. The
                 // next write must start on the pool, not on that thread, which may
@@ -1730,6 +1936,13 @@ namespace Opc.Ua.Bindings
                 }
             }
 
+            // the batch keeps its bytes counted until it is sent (RunWritesAsync)
+            long retained = 0;
+            for (int ii = 0; ii < batch.Count; ii++)
+            {
+                retained += batch[ii].RetainedBytes;
+            }
+            m_writerBatchBytes = retained;
             return true;
         }
 
@@ -1963,6 +2176,33 @@ namespace Opc.Ua.Bindings
             /// Whether the message still has to be sealed.
             /// </summary>
             public bool IsUnsealed => (m_kind & kUnsealed) != 0;
+
+            /// <summary>
+            /// The bytes of the buffers the write retains until it is sent: the length of
+            /// each array, which is what stays allocated, not the bytes in use.
+            /// </summary>
+            public long RetainedBytes
+            {
+                get
+                {
+                    if (m_kind == kChunk)
+                    {
+                        return ((byte[]?)m_payload)?.Length ?? 0;
+                    }
+                    var buffers = (BufferCollection?)m_payload;
+                    if (buffers == null)
+                    {
+                        return 0;
+                    }
+                    long retained = 0;
+                    for (int ii = 0; ii < buffers.Count; ii++)
+                    {
+                        ArraySegment<byte> buffer = buffers[ii];
+                        retained += buffer.Array?.Length ?? buffer.Count;
+                    }
+                    return retained;
+                }
+            }
 
             /// <summary>
             /// The message still to seal, if any.
@@ -2789,6 +3029,31 @@ namespace Opc.Ua.Bindings
         private bool m_writerRunning;
 
         /// <summary>
+        /// The buffer bytes retained by the queued writes and the batch being sent;
+        /// written under <see cref="m_writeQueueLock"/>, read without it.
+        /// </summary>
+        private long m_queuedWriteBytes;
+
+        /// <summary>
+        /// The share of <see cref="m_queuedWriteBytes"/> of the batch the writer took
+        /// last; returned when the writer comes back for the next batch. Used under
+        /// <see cref="m_writeQueueLock"/>.
+        /// </summary>
+        private long m_writerBatchBytes;
+
+        /// <summary>
+        /// When the writer started waiting for a send, while <see cref="m_sendWaiting"/>
+        /// is 1 (see <see cref="GetWriteStallTime"/>).
+        /// </summary>
+        private long m_sendWaitStarted;
+        private int m_sendWaiting;
+
+        /// <summary>
+        /// The transport on which the queued responses exceeded the hard limit, faulted once.
+        /// </summary>
+        private IUaSCByteTransport? m_writeQueueOverflowTransport;
+
+        /// <summary>
         /// The transport on which a message failed after taking sequence numbers;
         /// nothing more is numbered for it. Changed under <see cref="SendOrder"/>.
         /// </summary>
@@ -3175,5 +3440,14 @@ namespace Opc.Ua.Bindings
             Exception exception,
             uint channelId,
             uint requestId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 19, Level = LogLevel.Warning,
+            Message = "ChannelId {ChannelId}: {QueuedBytes} bytes of responses are queued for a peer that " +
+                "does not read them (limit {LimitBytes} bytes); the channel is closed.")]
+        public static partial void UaSCChannelWriteQueueOverflow(
+            this ILogger logger,
+            uint channelId,
+            long queuedBytes,
+            long limitBytes);
     }
 }

@@ -2377,6 +2377,7 @@ namespace Opc.Ua.Server
                 return (reservation, NodeId.Null);
             }
             bool committed = false;
+            List<NodeId>? reservedChildNodeIds = null;
             try
             {
                 instance.NodeId = newNodeId;
@@ -2385,6 +2386,20 @@ namespace Opc.Ua.Server
                 // carry the declaration NodeIds; mint per-instance ones now that
                 // the identifier of the new node is final.
                 systemContext.AssignInstanceChildNodeIds(instance, NodeId.Null);
+
+                // the child identifiers derive from the root identifier, which the
+                // client may choose. Registration would replace any node that already
+                // holds one of them, so every one must be free and stays reserved
+                // until the add completes, like the root.
+                ServiceResult childReservation = ReserveAddNodesChildNodeIds(
+                    systemContext,
+                    instance,
+                    ref reservedChildNodeIds);
+                if (ServiceResult.IsBad(childReservation))
+                {
+                    return (childReservation, NodeId.Null);
+                }
+
                 if (parentNode != null)
                 {
                     parentNode.AddChild(instance);
@@ -2435,8 +2450,13 @@ namespace Opc.Ua.Server
                         var referencesToRemove = new List<LocalReference>();
                         try
                         {
-                            if (PredefinedNodes.TryGetValue(newNodeId, out NodeState? indexedNode))
+                            // registration may have stopped on an identifier that another
+                            // node took after it was reserved; that node is not this add's
+                            // to remove, so the rollback only covers what this add indexed.
+                            if (PredefinedNodes.TryGetValue(newNodeId, out NodeState? indexedNode) &&
+                                ReferenceEquals(indexedNode, instance))
                             {
+                                DetachChildrenHeldByOtherNodes(systemContext, indexedNode);
                                 List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, indexedNode);
                                 IReadOnlyList<MonitoredItemSourceRelease> detachedItems =
                                     await ReleaseSourcesForNodeDeletionAsync(
@@ -2476,7 +2496,90 @@ namespace Opc.Ua.Server
                 finally
                 {
                     m_addNodesReservations.TryRemove(newNodeId, out _);
+                    if (reservedChildNodeIds != null)
+                    {
+                        foreach (NodeId childNodeId in reservedChildNodeIds)
+                        {
+                            m_addNodesReservations.TryRemove(childNodeId, out _);
+                        }
+                    }
                     m_addNodesBrowseNameReservations.TryRemove(browseNameKey, out _);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reserves the NodeIds of the descendants of a node that AddNodes is about to
+        /// register, refusing the add when one of them is held by an existing node, by
+        /// another add in progress or by another node of the same subtree.
+        /// </summary>
+        /// <param name="systemContext">The system context.</param>
+        /// <param name="root">The root of the new subtree; its own NodeId is already reserved.</param>
+        /// <param name="reserved">The reserved identifiers, which the caller releases.</param>
+        /// <returns><see cref="StatusCodes.Good"/> or <see cref="StatusCodes.BadNodeIdExists"/>.</returns>
+        private ServiceResult ReserveAddNodesChildNodeIds(
+            ServerSystemContext systemContext,
+            NodeState root,
+            ref List<NodeId>? reserved)
+        {
+            var pending = new Stack<NodeState>();
+            pending.Push(root);
+            var children = new List<BaseInstanceState>();
+            while (pending.Count != 0)
+            {
+                children.Clear();
+                pending.Pop().GetChildren(systemContext, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    NodeId childNodeId = child.NodeId;
+                    if (!childNodeId.IsNull)
+                    {
+                        if (childNodeId == root.NodeId ||
+                            !m_addNodesReservations.TryAdd(childNodeId, 0))
+                        {
+                            return StatusCodes.BadNodeIdExists;
+                        }
+                        (reserved ??= []).Add(childNodeId);
+
+                        // checked after reserving, so that a node registered by
+                        // another add between the check and the reservation is seen.
+                        if (PredefinedNodes.ContainsKey(childNodeId))
+                        {
+                            return StatusCodes.BadNodeIdExists;
+                        }
+                    }
+                    pending.Push(child);
+                }
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Detaches from a subtree that a failed AddNodes is about to roll back every child
+        /// whose NodeId is held by a different node, so that removing the subtree and
+        /// releasing its monitored sources never touch that node.
+        /// </summary>
+        /// <param name="systemContext">The system context.</param>
+        /// <param name="root">The root of the subtree, indexed by the failed add.</param>
+        private void DetachChildrenHeldByOtherNodes(ServerSystemContext systemContext, NodeState root)
+        {
+            var pending = new Stack<NodeState>();
+            pending.Push(root);
+            var children = new List<BaseInstanceState>();
+            while (pending.Count != 0)
+            {
+                NodeState node = pending.Pop();
+                children.Clear();
+                node.GetChildren(systemContext, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    if (PredefinedNodes.TryGetValue(child.NodeId, out NodeState? holder) &&
+                        !ReferenceEquals(holder, child))
+                    {
+                        node.RemoveChild(child);
+                        continue;
+                    }
+                    pending.Push(child);
                 }
             }
         }
@@ -3930,9 +4033,14 @@ namespace Opc.Ua.Server
             }
 
             NodeId reservedNodeId = NodeManagerAmbientScope<NodeId>.GetValue(m_addNodesNodeId);
-            if (!reservedNodeId.IsNull && reservedNodeId == activeNode.NodeId)
+            if (!reservedNodeId.IsNull)
             {
-                if (!PredefinedNodes.TryAdd(activeNode.NodeId, activeNode))
+                // a subtree added by AddNodes never replaces a node: its identifiers
+                // derive from a NodeId the client may choose.
+                if (!PredefinedNodes.TryAdd(activeNode.NodeId, activeNode) &&
+                    (reservedNodeId == activeNode.NodeId ||
+                        !PredefinedNodes.TryGetValue(activeNode.NodeId, out NodeState? existing) ||
+                        !ReferenceEquals(existing, activeNode)))
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdExists);
                 }
@@ -7757,6 +7865,12 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
+                // the call fails as a whole once its results exceed the response byte budget.
+                if (context.ResponseBudgetExceeded)
+                {
+                    break;
+                }
+
                 CallMethodRequest methodToCall = methodsToCall[ii];
 
                 // skip items that have already been processed.

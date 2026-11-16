@@ -12,6 +12,9 @@ function Test-PreviewPackageId {
         $baseId -in @(
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics',
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists',
+            'OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning',
+            'OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon',
+            'OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry',
             'OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector',
             'OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer')
 }

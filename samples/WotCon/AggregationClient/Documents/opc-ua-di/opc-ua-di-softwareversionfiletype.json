@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -34,7 +35,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -358,11 +361,14 @@
       {
         "browseName": "1:SoftwareVersionFileType",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The currently used version of the software identified by the CurrentVersion Object."
                 }
               ],
@@ -370,9 +376,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The pending version of the software that could be installed identified by the PendingVersion Object."
                 }
               ],
@@ -380,9 +388,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "The fallback version of the software identified by the FallbackVersion Object."
                 }
               ],
@@ -394,6 +404,7 @@
         },
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareVersionFileType"
           }
         ],
@@ -419,6 +430,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumStrings"
           }
         ],

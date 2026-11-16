@@ -431,7 +431,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             {
                 return false;
             }
-            int close = value.IndexOf('@', 1);
+            int close = value.IndexOf('@', 1, StringComparison.Ordinal);
             if (close <= 1)
             {
                 return false;

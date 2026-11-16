@@ -76,6 +76,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadContentFilterInvalid);
                 }
 
+                m_likeSteps = ContentFilter.MaxLikeMatchSteps;
                 m_results = new Variant[m_filter.Elements.Count];
                 m_evaluated = new bool[m_filter.Elements.Count];
                 m_leftValues = new Variant[m_filter.Elements.Count];
@@ -882,7 +883,33 @@ namespace Opc.Ua
                 return false;
             }
 
-            return LikePattern.IsMatch(lhs, rhs);
+            // a literal pattern is parsed once and kept with its operand; any other pattern
+            // is parsed for this evaluation, which costs one step per pattern character.
+            var literal = operands[1] as LiteralOperand;
+            LikePattern? likePattern = literal?.GetCachedLikePattern(rhs);
+            if (likePattern == null)
+            {
+                if (rhs.Length > m_likeSteps)
+                {
+                    m_likeSteps = 0;
+                    return default;
+                }
+                m_likeSteps -= rhs.Length;
+                if (literal != null
+                    ? !literal.TryGetLikePattern(rhs, out likePattern)
+                    : !LikePattern.TryParse(rhs, out likePattern))
+                {
+                    return false;
+                }
+            }
+
+            // the Like elements of one evaluation share a budget of matching steps; an
+            // element that runs out of it is NULL, like an element that cannot be evaluated.
+            if (!likePattern.TryMatch(lhs, ref m_likeSteps, out bool isMatch))
+            {
+                return default;
+            }
+            return isMatch;
         }
 
         /// <summary>
@@ -1154,6 +1181,7 @@ namespace Opc.Ua
         private Variant[]? m_leftValues;
         private bool[]? m_leftEvaluated;
         private int m_currentIndex;
+        private int m_likeSteps;
     }
 
     /// <summary>
