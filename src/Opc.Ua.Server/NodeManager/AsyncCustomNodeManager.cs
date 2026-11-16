@@ -8268,7 +8268,7 @@ namespace Opc.Ua.Server
                     if (m_monitoredItemManager.MonitoredNodes.TryGetValue(
                         notifier.NodeId, out MonitoredNode2? monitored))
                     {
-                        foreach (IEventMonitoredItem item in monitored.EventMonitoredItems.Values.ToArray())
+                        foreach (IEventMonitoredItem item in monitored.GetEventItems())
                         {
                             if (!item.MonitoringAllEvents)
                             {
@@ -8393,7 +8393,7 @@ namespace Opc.Ua.Server
                 wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
                     source.NodeId,
                     out MonitoredNode2? existingMonitoredNode) &&
-                    existingMonitoredNode.EventMonitoredItems.ContainsKey(
+                    existingMonitoredNode.ContainsEventItem(
                         monitoredItem.Id);
                 (monitoredNode, serviceResult) = m_monitoredItemManager!
                     .SubscribeToEvents(
@@ -8431,7 +8431,7 @@ namespace Opc.Ua.Server
                         await m_monitoredItemSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                         try
                         {
-                            if (monitoredNode.EventMonitoredItems.TryGetValue(
+                            if (monitoredNode.TryGetEventItem(
                                     monitoredItem.Id, out IEventMonitoredItem? registered) &&
                                 ReferenceEquals(registered, monitoredItem))
                             {

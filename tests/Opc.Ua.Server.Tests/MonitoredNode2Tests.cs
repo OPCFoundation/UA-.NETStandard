@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -557,6 +558,123 @@ namespace Opc.Ua.Server.Tests
                 second.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
                 third.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
             }
+        }
+
+        /// <summary>
+        /// Event items added to or removed from the public dictionary directly take effect on the
+        /// next event, also after an earlier event has cached the items.
+        /// </summary>
+        [Test]
+        public async Task EventItemsChangedThroughPublicDictionaryTakeEffectAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<ServiceResult>(ServiceResult.Good));
+
+                var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                Mock<IEventMonitoredItem> removed = CreateEventMonitoredItemMock(1);
+                Mock<IEventMonitoredItem> added = CreateEventMonitoredItemMock(2);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, node);
+                monitored.Add(removed.Object);
+
+                await ReportBaseEventAsync(monitored, server.Object, node).ConfigureAwait(false);
+                Assert.That(CachedEventItems(monitored), Is.Not.Null);
+
+                Assert.That(monitored.EventMonitoredItems.TryAdd(added.Object.Id, added.Object), Is.True);
+                Assert.That(monitored.EventMonitoredItems.TryRemove(removed.Object.Id, out _), Is.True);
+
+                await ReportBaseEventAsync(monitored, server.Object, node).ConfigureAwait(false);
+
+                removed.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
+                added.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
+            }
+        }
+
+        /// <summary>
+        /// Exposing the event dictionary drops the cached array, so it does not keep removed
+        /// items alive, and later events do not cache the items again.
+        /// </summary>
+        [Test]
+        public async Task ExposingEventDictionaryReleasesCachedItemsAsync()
+        {
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            await using var monitored = new MonitoredNode2(
+                Mock.Of<IAsyncNodeManager>(), new Mock<IServerInternal>().Object, node);
+            monitored.Add(CreateEventMonitoredItemMock(1).Object);
+            IEventMonitoredItem[] shared = monitored.GetEventItems();
+            Assert.That(monitored.GetEventItems(), Is.SameAs(shared));
+            Assert.That(CachedEventItems(monitored), Is.Not.Null);
+
+            _ = monitored.EventMonitoredItems;
+            Assert.That(CachedEventItems(monitored), Is.Null);
+
+            IEventMonitoredItem[] copy = monitored.GetEventItems();
+            Assert.That(copy, Is.Not.SameAs(shared));
+            Assert.That(copy, Has.Length.EqualTo(1));
+            Assert.That(copy[0].Id, Is.EqualTo(1u));
+            Assert.That(CachedEventItems(monitored), Is.Null);
+        }
+
+        /// <summary>
+        /// An event item rebuild waiting on the lock while the dictionary is exposed does not
+        /// publish the cache, so an item removed through the dictionary is not delivered to later.
+        /// </summary>
+        [Test]
+        public async Task EventRebuildDuringExposureDoesNotPublishCacheAsync()
+        {
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            await using var monitored = new MonitoredNode2(
+                Mock.Of<IAsyncNodeManager>(), new Mock<IServerInternal>().Object, node);
+            Mock<IEventMonitoredItem> removed = CreateEventMonitoredItemMock(1);
+            monitored.Add(removed.Object);
+            var rebindLock = (Lock)typeof(MonitoredNode2)
+                .GetField("m_rebindLock", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(monitored)!;
+
+            var rebuild = new Thread(() => monitored.GetEventItems()) { IsBackground = true };
+            lock (rebindLock)
+            {
+                rebuild.Start();
+
+                // The rebuild lock is the only thing the thread can wait on, so once it waits
+                // it has passed the check for an exposed dictionary.
+                Assert.That(
+                    SpinWait.SpinUntil(
+                        () => (rebuild.ThreadState & ThreadState.WaitSleepJoin) != 0,
+                        TimeSpan.FromSeconds(30)),
+                    Is.True);
+                _ = monitored.EventMonitoredItems;
+            }
+            Assert.That(rebuild.Join(TimeSpan.FromSeconds(30)), Is.True);
+
+            Assert.That(CachedEventItems(monitored), Is.Null);
+            Assert.That(monitored.EventMonitoredItems.TryRemove(removed.Object.Id, out _), Is.True);
+            Assert.That(monitored.GetEventItems(), Is.Empty);
+        }
+
+        private static async Task ReportBaseEventAsync(
+            MonitoredNode2 monitored,
+            IServerInternal server,
+            NodeState node)
+        {
+            var report = new BaseEventState(null);
+            report.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(report)
+            {
+                Value = ObjectTypeIds.BaseEventType
+            };
+            await monitored.OnReportEventAsync(server.DefaultSystemContext, node, report).ConfigureAwait(false);
+            await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private static IEventMonitoredItem[]? CachedEventItems(MonitoredNode2 monitored)
+        {
+            return (IEventMonitoredItem[]?)typeof(MonitoredNode2)
+                .GetField("m_eventItems", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(monitored);
         }
 
         /// <summary>

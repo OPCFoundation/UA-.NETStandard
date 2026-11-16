@@ -585,7 +585,7 @@ namespace Opc.Ua.Server
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
             // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-            monitoredNode.EventMonitoredItems.TryRemove(monitoredItem.Id, out _);
+            monitoredNode.RemoveEventItem(monitoredItem.Id);
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
@@ -640,7 +640,7 @@ namespace Opc.Ua.Server
                 if (!MonitoredNodes.TryGetValue(
                     sourceId,
                     out MonitoredNode2? monitoredNode) ||
-                    !monitoredNode.EventMonitoredItems.TryGetValue(
+                    !monitoredNode.TryGetEventItem(
                         monitoredItem.Id,
                         out IEventMonitoredItem? eventItem) ||
                     !ReferenceEquals(eventItem, monitoredItem))
@@ -782,7 +782,7 @@ namespace Opc.Ua.Server
                     }
 
                     handle.MonitoredNode = monitoredNode;
-                    if (monitoredNode.EventMonitoredItems.TryGetValue(
+                    if (monitoredNode.TryGetEventItem(
                         monitoredItem.Id,
                         out IEventMonitoredItem? linkedEventItem))
                     {
@@ -878,7 +878,7 @@ namespace Opc.Ua.Server
         {
             foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
             {
-                if (monitoredNode.EventMonitoredItems.ContainsKey(monitoredItemId))
+                if (monitoredNode.ContainsEventItem(monitoredItemId))
                 {
                     return true;
                 }
