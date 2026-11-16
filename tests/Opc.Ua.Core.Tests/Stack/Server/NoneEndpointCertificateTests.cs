@@ -178,6 +178,42 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 .SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None));
         }
 
+        /// <summary>
+        /// Part 4 §7.40.4 Table 189: a UserName or IssuedToken policy with SecurityPolicy
+        /// None on a Sign channel would send the secret in clear text; the configuration
+        /// is rejected, so the policy is not published there. On SignAndEncrypt the
+        /// channel encrypts the secret, so the policy stays.
+        /// </summary>
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.Sign, false)]
+        [TestCase(UserTokenType.IssuedToken, MessageSecurityMode.Sign, false)]
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt, true)]
+        [TestCase(UserTokenType.IssuedToken, MessageSecurityMode.SignAndEncrypt, true)]
+        public void UnencryptedSecretTokenPolicyIsNotPublishedOnSignEndpoint(
+            UserTokenType type, MessageSecurityMode mode, bool expectPublished)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var registry = new CertificateManager(telemetry);
+            using var server = new ServerBase(telemetry);
+            ApplicationConfiguration configuration = CreateConfiguration(
+                registry, type, SecurityPolicies.None);
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = mode,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+
+            ArrayOf<UserTokenPolicy> policies = server.GetUserTokenPolicies(configuration, endpoint);
+
+            Assert.That(
+                policies.ToArray()!.Any(policy => policy.TokenType == type),
+                Is.EqualTo(expectPublished));
+            Assert.That(
+                ServerBase.IsCleartextTokenPolicyOnSignChannel(
+                    mode, new UserTokenPolicy(type) { SecurityPolicyUri = SecurityPolicies.None }),
+                Is.EqualTo(!expectPublished));
+        }
+
         private static EndpointDescription CreateEndpoint()
         {
             return new EndpointDescription

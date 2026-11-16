@@ -2197,7 +2197,8 @@ namespace Opc.Ua.Server
                     return (
                         null,
                         null,
-                        authResult.Error ?? new ServiceResult(StatusCodes.BadIdentityTokenRejected));
+                        ReportRejectedUserCertificate(newIdentity, authResult.Error) ??
+                            new ServiceResult(StatusCodes.BadIdentityTokenRejected));
                 }
 
                 // check if the application has a callback which validates the identity tokens.
@@ -2231,6 +2232,40 @@ namespace Opc.Ua.Server
             {
                 channelCert?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Raises the AuditCertificate event for a rejected X.509 user certificate
+        /// (Part 4 §6.5.6) and returns the rejection without the certificate validation
+        /// detail, which is only meant for the audit trail.
+        /// </summary>
+        private ServiceResult? ReportRejectedUserCertificate(
+            IUserIdentityTokenHandler token,
+            ServiceResult? error)
+        {
+            if (error?.InnerResult is not ServiceResult validationError ||
+                token.Token is not X509IdentityToken x509Token ||
+                x509Token.CertificateData.IsEmpty)
+            {
+                return error;
+            }
+
+            // the authenticator already parsed this certificate to validate it.
+            using Certificate? userCertificate = Certificate.FromRawData(x509Token.CertificateData);
+            if (userCertificate != null)
+            {
+                m_server.ReportAuditCertificateEvent(
+                    userCertificate,
+                    new ServiceResultException(validationError),
+                    m_logger);
+            }
+
+            return new ServiceResult(
+                error.NamespaceUri,
+                error.StatusCode,
+                error.LocalizedText,
+                error.AdditionalInfo,
+                (ServiceResult?)null);
         }
 
         /// <summary>

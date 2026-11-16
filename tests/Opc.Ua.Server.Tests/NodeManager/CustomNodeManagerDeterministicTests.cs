@@ -836,8 +836,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        /// <summary>
+        /// A View may organize nodes of other node managers (Part 4 §5.9.2); the service
+        /// dispatcher checks that the View exists, so a View this node manager does not
+        /// own does not fail the operation here.
+        /// </summary>
         [Test]
-        public void Browse_UnknownView_ThrowsBadViewIdUnknown()
+        public void BrowseWithViewOfAnotherNodeManagerDoesNotFail()
         {
             using Harness h = CreateHarness();
             BaseObjectState node = h.NewObject("BrowseView");
@@ -848,11 +853,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             continuationPoint.View = new ViewDescription { ViewId = new NodeId("NoView", h.NamespaceIndex) };
             var references = new List<ReferenceDescription>();
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references))!;
-
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadViewIdUnknown));
-            continuationPoint.Dispose();
+            Assert.DoesNotThrow(
+                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references));
+            continuationPoint?.Dispose();
         }
 
         [Test]
@@ -1242,7 +1245,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool unknownView = h.Manager.IsNodeInView(
                 h.NewContext(RequestType.Browse), new NodeId("UnknownView", h.NamespaceIndex), handle);
 
-            Assert.That(unknownView, Is.False);
+            // A View owned by another node manager does not filter the nodes of this one.
+            Assert.That(unknownView, Is.True);
         }
 
         [Test]

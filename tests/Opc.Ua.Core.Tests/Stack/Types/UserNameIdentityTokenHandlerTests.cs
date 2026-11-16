@@ -317,7 +317,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
         }
 
-        private static byte[] CreateRsaEncryptedSecret(
+        internal static byte[] CreateRsaEncryptedSecret(
             ServiceMessageContext context,
             Certificate receiverCertificate,
             string securityPolicyUri,

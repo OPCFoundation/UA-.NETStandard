@@ -2071,6 +2071,7 @@ namespace Opc.Ua.Server
 
             // add placeholder for each result.
             bool validItems = false;
+            ServerSystemContext? auditContext = null;
 
             for (int ii = 0; ii < count; ii++)
             {
@@ -2091,6 +2092,18 @@ namespace Opc.Ua.Server
                 {
                     nodesToWrite[ii].Processed = true;
                     result = error!.Code;
+
+                    // Part 4 §6.5.8: a rejected write (for example Bad_UserAccessDenied)
+                    // is a failed invocation and is audited like one.
+                    if (Server.Auditing)
+                    {
+                        Server.ReportAuditWriteUpdateEvent(
+                            auditContext ??= Server.DefaultSystemContext.Copy(context),
+                            nodesToWrite[ii],
+                            default,
+                            result,
+                            m_logger);
+                    }
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -2136,6 +2149,17 @@ namespace Opc.Ua.Server
                     if (!nodesToWrite[ii].Processed)
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
+
+                        // no node manager handled the write, so none audited it.
+                        if (Server.Auditing)
+                        {
+                            Server.ReportAuditWriteUpdateEvent(
+                                auditContext ??= Server.DefaultSystemContext.Copy(context),
+                                nodesToWrite[ii],
+                                default,
+                                StatusCodes.BadNodeIdUnknown,
+                                m_logger);
+                        }
                     }
 
                     if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
@@ -2222,6 +2246,7 @@ namespace Opc.Ua.Server
                 errors.Add(null!);
             }
 
+            ServerSystemContext? historyAuditContext = null;
             for (int ii = 0; ii < nodesToUpdate.Count; ii++)
             {
                 HistoryUpdateResult? result = null;
@@ -2245,6 +2270,16 @@ namespace Opc.Ua.Server
                 {
                     nodesToUpdate[ii].Processed = true;
                     result = new HistoryUpdateResult { StatusCode = error!.Code };
+
+                    // Part 4 §6.5.8: failed HistoryUpdate invocations are audited too.
+                    if (Server.Auditing && inputErrors[ii] == null)
+                    {
+                        Server.ReportAuditHistoryUpdateRejectedEvent(
+                            historyAuditContext ??= Server.DefaultSystemContext.Copy(context),
+                            nodesToUpdate[ii],
+                            error.Code,
+                            m_logger);
+                    }
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -2353,6 +2388,7 @@ namespace Opc.Ua.Server
 
             // add placeholder for each result.
             bool validItems = false;
+            ServerSystemContext? callAuditContext = null;
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
@@ -2394,6 +2430,20 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(errors[ii]))
                 {
                     methodsToCall[ii].Processed = true;
+
+                    // Part 4 §6.5.9: a rejected call (for example Bad_UserAccessDenied)
+                    // is a failed invocation and is audited like one.
+                    if (Server.Auditing)
+                    {
+                        Server.ReportAuditUpdateMethodEvent(
+                            callAuditContext ??= Server.DefaultSystemContext.Copy(context),
+                            methodsToCall[ii].ObjectId,
+                            methodsToCall[ii].MethodId,
+                            methodsToCall[ii].InputArguments,
+                            "Method/Call",
+                            errors[ii].StatusCode,
+                            m_logger);
+                    }
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)

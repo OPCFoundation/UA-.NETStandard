@@ -323,7 +323,7 @@ namespace Opc.Ua.Lds.Server
             try
             {
                 IEnumerable<ServerOnNetworkRecord> source = m_records
-                    .Where(r => r.RecordId >= startingRecordId)
+                    .Where(r => r.RecordId > startingRecordId)
                     .OrderBy(r => r.RecordId);
 
                 if (serverCapabilityFilter is { Count: > 0 })
@@ -412,8 +412,11 @@ namespace Opc.Ua.Lds.Server
             {
                 var staleUris = m_byUri.Values
                     .Where(e =>
-                        nowUtc - e.LastSeenUtc > RegistrationLifetime ||
-                        !SemaphoreExists(e.SemaphoreFilePath))
+                        !SemaphoreExists(e.SemaphoreFilePath) ||
+                        // Part 4 §7.31: a registration backed by a semaphore file lasts as long
+                        // as the file exists, the server is not expected to re-register.
+                        (string.IsNullOrEmpty(e.SemaphoreFilePath) &&
+                            nowUtc - e.LastSeenUtc > RegistrationLifetime))
                     .Select(e => e.ServerUri)
                     .ToList();
 

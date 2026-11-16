@@ -116,9 +116,16 @@ namespace Opc.Ua.Server
                 StatusCode statusCode = validationResult.StatusCode == StatusCodes.BadCertificateUseNotAllowed
                     ? StatusCodes.BadIdentityTokenInvalid
                     : StatusCodes.BadIdentityTokenRejected;
-                return Reject(
+
+                // The validation error travels as the inner result so the session
+                // manager can raise the AuditCertificate event Part 4 §6.5.6 requires;
+                // it is stripped before the result goes back to the client.
+                return AuthenticationResult.Reject(new ServiceResult(
+                    null,
                     statusCode,
-                    $"'{userCertificate.Subject}' is not a trusted user certificate.");
+                    new LocalizedText($"'{userCertificate.Subject}' is not a trusted user certificate."),
+                    null,
+                    new ServiceResult(validationResult.StatusCode)));
             }
 
             return AuthenticationResult.Accept(new X509UserIdentity(x509TokenHandler, userCertificate));
@@ -164,7 +171,12 @@ namespace Opc.Ua.Server
                 new ServiceResult(statusCode, new LocalizedText(message)));
         }
 
-        private sealed class X509UserIdentity : IUserIdentity, IIdentityClaims
+        /// <summary>
+        /// The identity of a validated X.509 user token. It expires with the certificate:
+        /// Part 4 §7.40.5 requires the Session to lose these credentials once the
+        /// certificate is no longer valid.
+        /// </summary>
+        private sealed class X509UserIdentity : IUserIdentity, IIdentityClaims, IIdentityExpiration
         {
             private readonly UserIdentity m_innerIdentity;
 
@@ -173,6 +185,7 @@ namespace Opc.Ua.Server
                 m_innerIdentity = new UserIdentity(tokenHandler);
                 Subject = certificate.Subject;
                 Issuer = certificate.Issuer;
+                ExpiresAt = certificate.NotAfter.ToUniversalTime();
                 Claims = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["sub"] = Subject,
@@ -184,6 +197,8 @@ namespace Opc.Ua.Server
             }
 
             public IReadOnlyDictionary<string, object?> Claims { get; }
+
+            public DateTime? ExpiresAt { get; }
 
             public IReadOnlyList<string> Groups { get; }
 

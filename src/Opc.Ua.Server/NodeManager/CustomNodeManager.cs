@@ -2433,9 +2433,13 @@ namespace Opc.Ua.Server
 
             ViewDescriptionValidator.ValidateParameters(view);
 
-            _ =
-                FindPredefinedNode<ViewState>(view.ViewId)
-                ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
+            // A View may organize nodes of other node managers. The service dispatcher
+            // has already checked that the View exists somewhere in the server, so a
+            // View this node manager does not own is not an error here (Part 4 §5.9.2).
+            if (FindPredefinedNode<ViewState>(view.ViewId) == null)
+            {
+                return;
+            }
 
             if (view.Timestamp != DateTime.MinValue)
             {
@@ -2472,9 +2476,10 @@ namespace Opc.Ua.Server
             NodeId viewId,
             NodeState node)
         {
-            ViewState? view = FindPredefinedNode<ViewState>(viewId);
-
-            return view != null;
+            // The base node manager does not filter by View membership; override to
+            // restrict a View. A View owned by another node manager (a View may organize
+            // nodes of several) must not fail here either.
+            return true;
         }
 
         /// <summary>
@@ -3657,6 +3662,7 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToValidate[ii];
                 NodeState? sourceToNotify = null;
+                PendingWriteAudit? audit = null;
 
                 lock (Lock)
                 {
@@ -3670,6 +3676,18 @@ namespace Opc.Ua.Server
 
                     WriteValue nodeToWrite = nodesToWrite[handle.Index];
 
+                    DataValue oldValue = default;
+                    if (Server?.Auditing == true)
+                    {
+                        // read the old value for the purpose of auditing
+                        source.ReadAttribute(
+                            context,
+                            nodeToWrite.AttributeId,
+                            nodeToWrite.ParsedIndexRange,
+                            default,
+                            ref oldValue);
+                    }
+
                     // write the attribute value.
                     errors[handle.Index] = source.WriteAttribute(
                         context,
@@ -3677,10 +3695,30 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         nodeToWrite.Value);
 
+                    // Part 4 §6.5.8: writes through this path are audited like the others.
+                    if (Server?.Auditing == true)
+                    {
+                        audit = new PendingWriteAudit(
+                            nodeToWrite,
+                            oldValue.WrappedValue,
+                            errors[handle.Index]?.StatusCode ?? StatusCodes.Good,
+                            DateTime.UtcNow);
+                    }
+
                     sourceToNotify = source;
                 }
 
-                // Publish notifications after releasing the node-manager lock.
+                // Publish notifications and the audit event after releasing the node-manager lock.
+                if (audit is PendingWriteAudit pending)
+                {
+                    Server.ReportAuditWriteUpdateEvent(
+                        context,
+                        pending.NodeToWrite,
+                        pending.OldValue,
+                        pending.StatusCode,
+                        pending.ActionTimeStamp,
+                        m_logger);
+                }
                 sourceToNotify?.ClearChangeMasks(context, false);
             }
         }

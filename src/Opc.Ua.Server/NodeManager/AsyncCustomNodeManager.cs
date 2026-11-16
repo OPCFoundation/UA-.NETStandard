@@ -5007,9 +5007,13 @@ namespace Opc.Ua.Server
 
             ViewDescriptionValidator.ValidateParameters(view);
 
-            _ =
-                FindPredefinedNode<ViewState>(view.ViewId)
-                ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
+            // A View may organize nodes of other node managers. The service dispatcher
+            // has already checked that the View exists somewhere in the server, so a
+            // View this node manager does not own is not an error here (Part 4 §5.9.2).
+            if (FindPredefinedNode<ViewState>(view.ViewId) == null)
+            {
+                return;
+            }
 
             if (view.Timestamp != DateTimeUtc.MinValue)
             {
@@ -5046,9 +5050,10 @@ namespace Opc.Ua.Server
             NodeId viewId,
             NodeState node)
         {
-            ViewState view = FindPredefinedNode<ViewState>(viewId);
-
-            return view != null;
+            // The base node manager does not filter by View membership; override to
+            // restrict a View. A View owned by another node manager (a View may organize
+            // nodes of several) must not fail here either.
+            return true;
         }
 
         /// <summary>

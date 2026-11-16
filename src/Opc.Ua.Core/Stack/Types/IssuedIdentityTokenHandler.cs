@@ -322,6 +322,28 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
+                // Part 4 §7.40.6: an encrypted IssuedIdentityToken uses the EncryptedSecret
+                // format and the server ignores encryptionAlgorithm. Clients that still send
+                // the legacy format (Table 191) set encryptionAlgorithm, so try the
+                // RsaEncryptedSecret first only when it is empty. TryDecryptRsa returns false
+                // only when the data is not an RsaEncryptedSecret; any other failure throws.
+                if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm))
+                {
+                    using var encryptedSecret = EncryptedSecret.CreateForRsa(
+                        context,
+                        securityPolicyUri,
+                        certificate,
+                        receiverNonce);
+                    if (encryptedSecret.TryDecryptRsa(
+                        m_token.TokenData.ToArray(),
+                        receiverNonce?.Data,
+                        out byte[]? rsaSecret))
+                    {
+                        m_decryptedTokenData = rsaSecret;
+                        return;
+                    }
+                }
+
                 byte[]? decryptedTokenData = await m_securityPolicies
                     .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
                     .ConfigureAwait(false);

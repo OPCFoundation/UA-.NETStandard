@@ -1344,8 +1344,9 @@ namespace Opc.Ua.Server
                     Volatile.Write(ref m_notificationAuthorization, null);
                 }
 
-                // update local ids.
-                if (UpdateLocaleIds(localeIds))
+                // update local ids. Part 4 §5.7.3.2: a null or empty list keeps
+                // the LocaleIds the Session already has.
+                if (!localeIds.IsEmpty && UpdateLocaleIds(localeIds))
                 {
                     changed = true;
                 }
@@ -1663,6 +1664,17 @@ namespace Opc.Ua.Server
             }
 
             token.UpdatePolicy(policy);
+
+            // Part 4 §7.40.4 Table 189: a clear-text secret over a Sign channel is
+            // an invalid configuration, even when a custom server publishes it.
+            if (ServerBase.IsCleartextTokenPolicyOnSignChannel(
+                EndpointDescription.SecurityMode, policy))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "A {0} token with SecurityPolicy None is not accepted on a Sign channel.",
+                    policy.TokenType);
+            }
 
             // determine the security policy uri.
             string? securityPolicyUri = policy.SecurityPolicyUri;

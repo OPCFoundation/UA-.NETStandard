@@ -167,6 +167,33 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ReactivateWithEmptyLocaleIdsKeepsSessionLocalesAsync()
+        {
+            (RequestHeader requestHeader, SecureChannelContext secureChannelContext) =
+                await m_server.CreateAndActivateSessionAsync(
+                    "ReactivateKeepsLocales",
+                    localeIds: ["de-DE", "en-US"]).ConfigureAwait(false);
+            ISession session = m_server.CurrentInstance.SessionManager
+                .GetSession(requestHeader.AuthenticationToken)!;
+
+            // Part 4 §5.7.3.2: an empty localeIds list keeps the current LocaleIds.
+            ActivateSessionResponse response = await m_server.ActivateSessionAsync(
+                secureChannelContext,
+                requestHeader,
+                null,
+                [],
+                [],
+                default,
+                null,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
+            Assert.That(session.PreferredLocales, Has.Length.EqualTo(2));
+            Assert.That(session.PreferredLocales[0], Is.EqualTo("de-DE"));
+            Assert.That(session.PreferredLocales[1], Is.EqualTo("en-US"));
+        }
+
+        [Test]
         public async Task SaveAndRestoreContinuationPointPreservesThePointAsync()
         {
             (_, _, ISession session) =

@@ -80,6 +80,48 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
+        /// <summary>
+        /// The rejection carries the certificate validation status as its inner result,
+        /// so the session manager can raise the AuditCertificate event (Part 4 §6.5.6).
+        /// </summary>
+        [Test]
+        public async Task AuthenticateAsyncRejectionCarriesValidationStatus()
+        {
+            using Certificate certificate = CreateCertificate("CN=UntrustedAuditUser");
+            var validationResult = new CertificateValidationResult(
+                false,
+                StatusCodes.BadCertificateUntrusted,
+                [],
+                false);
+            var authenticator = new X509Authenticator(new TestCertificateValidator(validationResult));
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(CreateHandler(certificate)))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Error!.InnerResult, Is.Not.Null);
+            Assert.That(result.Error.InnerResult!.Code, Is.EqualTo((uint)StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// Part 4 §7.40.5: the credentials of an X.509 user token expire with the certificate.
+        /// </summary>
+        [Test]
+        public async Task AuthenticateAsyncIdentityExpiresWithCertificate()
+        {
+            using Certificate certificate = CreateCertificate("CN=ExpiringUser");
+            var authenticator = new X509Authenticator(
+                new TestCertificateValidator(CertificateValidationResult.Success));
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(CreateHandler(certificate)))
+                .ConfigureAwait(false);
+
+            var expiration = result.Identity as IIdentityExpiration;
+            Assert.That(expiration, Is.Not.Null);
+            Assert.That(expiration!.ExpiresAt, Is.EqualTo(certificate.NotAfter.ToUniversalTime()));
+        }
+
         [Test]
         public async Task AuthenticateAsyncSubjectExtractedIntoClaims()
         {
