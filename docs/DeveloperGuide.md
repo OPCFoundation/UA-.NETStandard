@@ -101,7 +101,7 @@ Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
 - **Out-of-tree source inputs.** When `--artifacts-path` places source-backed
-  source-backed fixtures outside the checkout, including repository policy,
+  fixtures outside the checkout, including repository policy,
   HTTPS listener, WoT, NodeSet comparer and model/generator tests, set
   `OPCUA_TEST_REPOSITORY_ROOT` to the checkout containing `UA.slnx`. These fixtures read their original
   repository assets there; no asset or assembly copying is needed. An invalid

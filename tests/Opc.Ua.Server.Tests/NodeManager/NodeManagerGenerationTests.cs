@@ -818,7 +818,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void NewConfirmedFailureCanSupersedeSuspendedOffer()
         {
             NodeManagerGeneration generation = CreateGeneration();
-            Guid participantId = Guid.NewGuid();
+            var participantId = Guid.NewGuid();
             var first = new NodeManagerCleanupFailureHandle(generation.CleanupRecoveryId, participantId, Guid.NewGuid());
             var second = new NodeManagerCleanupFailureHandle(generation.CleanupRecoveryId, participantId, Guid.NewGuid());
             Assert.That(generation.TryBeginCleanupRecovery(), Is.True);
@@ -846,7 +846,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void RetainedFailuresKeepSuspendedConfirmationBlocked()
         {
             NodeManagerGeneration generation = CreateGeneration();
-            Guid participantId = Guid.NewGuid();
+            var participantId = Guid.NewGuid();
             var first = new NodeManagerCleanupFailureHandle(generation.CleanupRecoveryId, participantId, Guid.NewGuid());
             var second = new NodeManagerCleanupFailureHandle(generation.CleanupRecoveryId, participantId, Guid.NewGuid());
             var last = new NodeManagerCleanupFailureHandle(generation.CleanupRecoveryId, participantId, Guid.NewGuid());
@@ -904,7 +904,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void FailedCleanupClaimRequiresSeparateReconciliation()
         {
             NodeManagerGeneration generation = CreateGeneration();
-            Guid participantId = Guid.NewGuid();
+            var participantId = Guid.NewGuid();
             var first = new NodeManagerCleanupFailureHandle(generation.CleanupRecoveryId, participantId, Guid.NewGuid());
             var second = new NodeManagerCleanupFailureHandle(generation.CleanupRecoveryId, participantId, Guid.NewGuid());
             Assert.That(generation.TryBeginCleanupRecovery(), Is.True);
@@ -993,7 +993,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void RemainingFailuresKeepCleanupBlockedUntilUncertainEvidenceIsReconciled()
         {
             NodeManagerGeneration generation = CreateGeneration();
-            Guid participantId = Guid.NewGuid();
+            var participantId = Guid.NewGuid();
             var first = new NodeManagerCleanupFailureHandle(generation.CleanupRecoveryId, participantId, Guid.NewGuid());
             var unknown = new NodeManagerCleanupFailureHandle(
                 generation.CleanupRecoveryId, participantId, Guid.NewGuid());
@@ -1079,8 +1079,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 otherSlot, 1, CreateNodeManager().Object, NodeManagerGenerationState.Live);
             NodeManagerGenerationReference reference = original.Reference;
             Guid initialId = slot.Id;
-            Guid registrationId = Guid.Parse("36df9618-23ff-44aa-bdcb-72fcaa291f6e");
-            Guid ignoredId = Guid.Parse("5d539f6b-d940-4db4-b4b2-95e42fc43a45");
+            var registrationId = Guid.Parse("36df9618-23ff-44aa-bdcb-72fcaa291f6e");
+            var ignoredId = Guid.Parse("5d539f6b-d940-4db4-b4b2-95e42fc43a45");
             otherSlot.SetRegistrationId(ignoredId);
 
             Assert.That(reference.SlotId, Is.EqualTo(initialId));

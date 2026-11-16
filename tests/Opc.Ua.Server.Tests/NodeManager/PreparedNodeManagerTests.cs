@@ -304,14 +304,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager manager = Mock.Of<IAsyncNodeManager>();
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.CreateAddition(manager);
             Guid initialId = generation.Slot.Id;
-            Guid rejectedId = Guid.NewGuid();
+            var rejectedId = Guid.NewGuid();
 
             Assert.That(
                 () => new NodeManagerRegistration(rejectedId, generation.Number + 1, manager),
                 Throws.InvalidOperationException);
             Assert.That(generation.Slot.Id, Is.EqualTo(initialId));
 
-            Guid acceptedId = Guid.NewGuid();
+            var acceptedId = Guid.NewGuid();
             var registration = new NodeManagerRegistration(acceptedId, generation.Number, manager);
             Assert.That(registration.Id, Is.EqualTo(acceptedId));
         }

@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void SynchronousResourcePreservesExactReference()
         {
             IDisposable original = Mock.Of<IDisposable>();
-            NodeManagerCleanupResource resource = NodeManagerCleanupResource.FromDisposable(original);
+            var resource = NodeManagerCleanupResource.FromDisposable(original);
 
             Assert.That(resource.TryGetDisposable(out IDisposable? resolved), Is.True);
             Assert.That(resolved, Is.SameAs(original));
@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void AsynchronousResourcePreservesExactReference()
         {
             IAsyncDisposable original = Mock.Of<IAsyncDisposable>();
-            NodeManagerCleanupResource resource = NodeManagerCleanupResource.FromAsyncDisposable(original);
+            var resource = NodeManagerCleanupResource.FromAsyncDisposable(original);
 
             Assert.That(resource.TryGetAsyncDisposable(out IAsyncDisposable? resolved), Is.True);
             Assert.That(resolved, Is.SameAs(original));
@@ -88,8 +88,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var original = new Mock<IDisposable>();
             Mock<IAsyncDisposable> asynchronous = original.As<IAsyncDisposable>();
-            NodeManagerCleanupResource synchronous = NodeManagerCleanupResource.FromDisposable(original.Object);
-            NodeManagerCleanupResource asyncValue =
+            var synchronous = NodeManagerCleanupResource.FromDisposable(original.Object);
+            var asyncValue =
                 NodeManagerCleanupResource.FromAsyncDisposable(asynchronous.Object);
 
             Assert.That(synchronous.TryGetDisposable(out IDisposable? syncReference), Is.True);

@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             slot.Publish(retired.Generation);
             retired.Generation.Gate.Retire();
             slot.Unpublish(retired.Generation);
-            Task retirement = Task.WhenAll([retired.Retirement]);
+            var retirement = Task.WhenAll([retired.Retirement]);
             reclaimer.Enqueue([retired]);
             reclaimer.Activate([retired]);
 
@@ -306,7 +306,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             slot.Publish(retired.Generation);
             retired.Generation.Gate.Retire();
             slot.Unpublish(retired.Generation);
-            Task retirement = Task.WhenAll([retired.Retirement]);
+            var retirement = Task.WhenAll([retired.Retirement]);
             reclaimer.Enqueue([retired]);
             reclaimer.Activate([retired]);
 

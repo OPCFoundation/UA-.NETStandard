@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Callback<ArrayOf<QualifiedName>, ArrayOf<string>, CancellationToken>(
                     (_, profiles, _) => publishedProfiles = profiles)
                 .Returns(default(ValueTask));
-            var server = CreateServer(routing, diagnostics.Object);
+            Mock<IServerInternal> server = CreateServer(routing, diagnostics.Object);
             using var catalog = new ConformanceUnitsManager(server.Object);
 
             await catalog.PublishAsync().ConfigureAwait(false);
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Callback<ArrayOf<QualifiedName>, ArrayOf<string>, CancellationToken>(
                     (_, profiles, _) => publishedProfiles = profiles)
                 .Returns(default(ValueTask));
-            var server = CreateServer(routing, diagnostics.Object);
+            Mock<IServerInternal> server = CreateServer(routing, diagnostics.Object);
             using var catalog = new ConformanceUnitsManager(server.Object);
 
             await catalog.PublishAsync().ConfigureAwait(false);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Callback<ArrayOf<QualifiedName>, ArrayOf<string>, CancellationToken>(
                     (_, profiles, _) => publishedProfiles = profiles)
                 .Returns(default(ValueTask));
-            var server = CreateServer(routing, diagnostics.Object);
+            Mock<IServerInternal> server = CreateServer(routing, diagnostics.Object);
             using var catalog = new ConformanceUnitsManager(server.Object);
 
             await catalog.PublishAsync().ConfigureAwait(false);

@@ -91,6 +91,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Disposing the middle scope severs a grandchild from its active grandparent.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The caller execution context could not be captured.</exception>
         [Test]
         public void DisposedMiddleScopeSeversGrandchildAuthorityFromGrandparent()
         {
@@ -199,6 +200,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Disposing an outer initializer leaves the nested initializer's authority active.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The initializer execution context could not be captured.</exception>
         [TestCase(false)]
         [TestCase(true)]
         public void ParentScopeDisposalDoesNotRevokeActiveNestedScope(bool sharedServer)

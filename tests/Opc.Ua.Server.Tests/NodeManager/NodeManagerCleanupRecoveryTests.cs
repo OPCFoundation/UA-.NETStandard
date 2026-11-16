@@ -122,7 +122,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public void ParticipantSnapshotRejectsInvalidEntries(bool nullEntry)
         {
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             var first = new NodeManagerCleanupFailure(id, "Resource", null, StatusCodes.BadUnexpectedError);
             NodeManagerCleanupFailure[] storage =
             [
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             INodeManagerCleanupParticipant participant = Mock.Of<INodeManagerCleanupParticipant>();
             INodeManagerCleanupParticipant other = Mock.Of<INodeManagerCleanupParticipant>();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             var capability = new NodeManagerCleanupConfirmation(participant, id);
 
             Assert.That(capability.TryConsume(other, out Guid wrongId), Is.False);
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             INodeManagerCleanupParticipant participant = Mock.Of<INodeManagerCleanupParticipant>();
             INodeManagerCleanupParticipant other = Mock.Of<INodeManagerCleanupParticipant>();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             var capability = new NodeManagerCleanupVerification(participant, id);
 
             Assert.That(capability.TryConsume(other, out Guid wrongId), Is.False);
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase("C:\\private\\resource", "Resource")]
         public void FailureDescriptionRemovesUntrustedMetadata(string suppliedKind, string expectedKind)
         {
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             var suppliedStatus = new StatusCode(
                 StatusCodes.BadUnexpectedError.Code | 1u, "untrusted status text");
             var supplied = new NodeManagerCleanupFailure(
@@ -327,6 +327,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Keeps the capability but not its participant on the caller's stack.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="kind"/> is not a supported capability kind.
+        /// </exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static (object Capability, WeakReference Participant) CreateRetainedCapability(
             string kind,

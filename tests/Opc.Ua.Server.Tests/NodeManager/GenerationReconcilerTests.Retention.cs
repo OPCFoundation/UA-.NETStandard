@@ -157,6 +157,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Retires and unpublishes the generation outside the collection scope.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The pending generation has already been collected.</exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void RetireAndUnpublishReconciliationGeneration(
             WeakReference<NodeManagerGeneration> reference)
