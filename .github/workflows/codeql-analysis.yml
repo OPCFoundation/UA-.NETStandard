@@ -52,9 +52,11 @@ jobs:
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
     - name: Set up .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
+      uses: ./.github/actions/setup-repository-dotnet
+    # UA.slnx contains the Aspire AppHost, which needs the Aspire CLI bundle.
+    - name: Install the Aspire CLI bundle
+      shell: pwsh
+      run: ./.github/scripts/install-aspire-bundle.ps1
     # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages#c-compiler-flags-injected-by-codeql-for-manual-builds
     #
     # CustomTestTarget pins the build to a single target framework (see

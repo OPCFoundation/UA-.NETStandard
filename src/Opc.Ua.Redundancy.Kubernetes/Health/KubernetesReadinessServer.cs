@@ -250,8 +250,8 @@ namespace Opc.Ua.Redundancy.Kubernetes
 
         private static string ToPrefix(string host, int port, string path)
         {
-            string normalizedPath = path.StartsWith('/') ? path : "/" + path;
-            if (!normalizedPath.EndsWith('/'))
+            string normalizedPath = path.StartsWith('/', StringComparison.Ordinal) ? path : "/" + path;
+            if (!normalizedPath.EndsWith('/', StringComparison.Ordinal))
             {
                 normalizedPath += "/";
             }

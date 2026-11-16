@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -48,6 +49,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "ActiveMaintenanceTime",
       "type": "number",
@@ -698,6 +705,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "DownTime",
       "type": "number",
@@ -1867,6 +1880,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "ExternalDisabledTime",
       "type": "number",
@@ -1897,6 +1916,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "FailureRate",
       "type": "number",
@@ -1929,6 +1951,7 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=6466"
@@ -1957,6 +1980,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "IdleTime",
       "type": "number",
@@ -1989,6 +2018,7 @@
       "observable": true,
       "readOnly": true,
       "title": "MaintenanceLevel",
+      "type": "integer",
       "uav:browseName": "ns1:MaintenanceLevel",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6450",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3004",
@@ -2014,6 +2044,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "MaintenanceTime",
       "type": "number",
@@ -2044,6 +2080,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "MeanOperatingTimeBetweenFailures",
       "type": "number",
@@ -2074,6 +2116,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "MeanRepairTime",
       "type": "number",
@@ -2104,6 +2152,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "MeanTimeToRestauration",
       "type": "number",
@@ -2162,6 +2216,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "OperatingTime",
       "type": "number",
@@ -2192,6 +2252,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "OperatingTimeBetweenFailures",
       "type": "number",
@@ -2222,6 +2288,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "OperatingTimeToFailure",
       "type": "number",
@@ -2252,6 +2324,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "RepairTime",
       "type": "number",
@@ -2282,6 +2360,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "StandbyTime",
       "type": "number",
@@ -2314,6 +2398,7 @@
       "observable": true,
       "readOnly": true,
       "title": "StateOfTheItem",
+      "type": "integer",
       "uav:browseName": "ns1:StateOfTheItem",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6448",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3003",
@@ -2339,6 +2424,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "TimeBetweenFailures",
       "type": "number",
@@ -2369,6 +2460,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "TimeToRestoration",
       "type": "number",
@@ -2401,6 +2498,7 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
       "uav:componentOf": [
         "nsu=http://opcfoundation.org/UA/Pumps/;i=6466"
@@ -2429,6 +2527,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Time"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HR"
+      },
       "readOnly": true,
       "title": "UpTime",
       "type": "number",
@@ -2662,6 +2766,7 @@
         "browseName": "1:GeneralMaintenanceType",
         "displayName": [
           {
+            "locale": "",
             "value": "GeneralMaintenanceType"
           }
         ],
@@ -2758,15 +2863,18 @@
         "superType": "ns=3;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ActiveMaintenanceTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Part of the maintenance time when active maintenance is carried out on an item."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ActiveMaintenanceTime"
           }
         ],
@@ -2804,10 +2912,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2833,10 +2943,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2863,10 +2975,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2892,15 +3006,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DownTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured time interval throughout which an item is in a down state"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DownTime"
           }
         ],
@@ -2938,10 +3055,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2967,10 +3086,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2997,10 +3118,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3026,15 +3149,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ExternalDisabledTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured time interval throughout which an item is in an external disabled state"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExternalDisabledTime"
           }
         ],
@@ -3072,10 +3198,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3101,10 +3229,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3131,10 +3261,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3160,15 +3292,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:FailureRate",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Number of failures within a population divided by the number of life units used by that population"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FailureRate"
           }
         ],
@@ -3206,10 +3341,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3235,10 +3372,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3265,10 +3404,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3294,15 +3435,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:IdleTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured time interval throughout which an item is in an idle state"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IdleTime"
           }
         ],
@@ -3340,10 +3484,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3369,10 +3515,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3399,10 +3547,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3428,15 +3578,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MaintenanceLevel",
         "dataType": "MaintenanceLevelEnum",
         "description": [
           {
+            "locale": "",
             "value": "Maintenance task categorization by complexity"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaintenanceLevel"
           }
         ],
@@ -3466,10 +3619,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3495,15 +3650,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MaintenanceTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Time interval when maintenance is carried out on an item including technical, logistic and internal administrative delays"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaintenanceTime"
           }
         ],
@@ -3541,10 +3699,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3570,10 +3730,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3600,10 +3762,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3629,15 +3793,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MeanOperatingTimeBetweenFailures",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Average of the operating times between failures"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MeanOperatingTimeBetweenFailures"
           }
         ],
@@ -3675,10 +3842,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3704,10 +3873,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3734,10 +3905,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3763,15 +3936,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MeanRepairTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Average of the repair times"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MeanRepairTime"
           }
         ],
@@ -3809,10 +3985,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3838,10 +4016,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3868,10 +4048,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3897,15 +4079,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MeanTimeToRestauration",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Average of the time to restauration"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MeanTimeToRestauration"
           }
         ],
@@ -3943,10 +4128,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3972,10 +4159,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4002,10 +4191,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4031,15 +4222,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Obsolescence",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "Inability of an item to be maintained due to the unavailability on the market of the necessary resources at acceptable technical and/or economic conditions. A \"True\" status means that the pump is obsolete and a \"False\" status means that the pump is not obsolete."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Obsolescence"
           }
         ],
@@ -4077,10 +4271,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4106,10 +4302,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4135,10 +4333,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4164,15 +4364,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OperatingTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured time interval throughout which an item is in operating state"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OperatingTime"
           }
         ],
@@ -4210,10 +4413,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4239,10 +4444,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4269,10 +4476,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4298,15 +4507,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OperatingTimeBetweenFailures",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Operating time between consecutive failures"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OperatingTimeBetweenFailures"
           }
         ],
@@ -4344,10 +4556,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4373,10 +4587,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4403,10 +4619,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4432,15 +4650,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:OperatingTimeToFailure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Operating time accumulated from the first use, or from restoration, until failure"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OperatingTimeToFailure"
           }
         ],
@@ -4478,10 +4699,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4507,10 +4730,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4537,10 +4762,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4566,15 +4793,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RepairTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Part of corrective maintenance time when repair is carried out on an item."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RepairTime"
           }
         ],
@@ -4612,10 +4842,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4641,10 +4873,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4671,10 +4905,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4700,15 +4936,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:StandbyTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured time interval throughout which an item is in a standby state"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "StandbyTime"
           }
         ],
@@ -4746,10 +4985,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4775,10 +5016,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4805,10 +5048,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4834,15 +5079,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:StateOfTheItem",
         "dataType": "StateOfTheItemEnum",
         "description": [
           {
+            "locale": "",
             "value": "Current state of the item"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "StateOfTheItem"
           }
         ],
@@ -4872,10 +5120,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4901,15 +5151,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TimeBetweenFailures",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Duration between consecutive failures"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TimeBetweenFailures"
           }
         ],
@@ -4947,10 +5200,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4976,10 +5231,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5006,10 +5263,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5035,15 +5294,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TimeToRestoration",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Time interval, from the instant of failure, until restoration"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TimeToRestoration"
           }
         ],
@@ -5081,10 +5343,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5110,10 +5374,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5140,10 +5406,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5169,15 +5437,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:UpTime",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured time interval throughout which an item is in an up state"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "UpTime"
           }
         ],
@@ -5215,10 +5486,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5244,10 +5517,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5274,10 +5549,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740434</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>h</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hour</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],

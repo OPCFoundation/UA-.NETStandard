@@ -121,7 +121,7 @@ namespace Opc.Ua.Pcap.Frame
 
         private static bool IsOpcUaServerEndpoint(string endpoint)
         {
-            int separator = endpoint.LastIndexOf(':');
+            int separator = endpoint.LastIndexOf(':', StringComparison.Ordinal);
             if (separator < 0 || !ushort.TryParse(endpoint[(separator + 1)..], out ushort port))
             {
                 return false;

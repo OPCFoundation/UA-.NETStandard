@@ -160,9 +160,31 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public async Task ReplacementMessageStartsANewDeadlineAsync()
+        public async Task ReplacementMessageKeepsTheFirstDeadlineWithoutSessionAsync()
         {
             using var scope = new DeadlineScope();
+            DeadlineChannel channel = scope.CreateChannel();
+            channel.SavePart(1);
+            scope.Clock.Advance(500);
+            channel.SavePart(2);
+            Assert.That(scope.OutstandingBuffers, Is.EqualTo(1));
+            scope.Clock.Advance(499);
+            Assert.That(channel.HasExpiredPartialMessage, Is.False);
+            scope.Clock.Advance(1);
+            await channel.DrainAsync().ConfigureAwait(false);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            AssertTimeoutError(channel);
+            scope.AssertAllBuffersReturned();
+        }
+
+        [Test]
+        public async Task ReplacementMessageStartsANewDeadlineWithSessionAsync()
+        {
+            using var scope = new DeadlineScope();
+            var sessions = new Mock<IServerSessionBindingProvider>();
+            sessions.Setup(value => value.HasSession(It.IsAny<string>())).Returns(true);
+            scope.Quotas.SessionBindingProvider = sessions.Object;
             DeadlineChannel channel = scope.CreateChannel();
             channel.SavePart(1);
             scope.Clock.Advance(500);

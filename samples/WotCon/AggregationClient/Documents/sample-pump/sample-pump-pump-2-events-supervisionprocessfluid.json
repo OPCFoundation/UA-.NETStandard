@@ -6,6 +6,7 @@
       "ns2": "http://opcfoundation.org/UA/Pumps/",
       "ns3": "http://opcfoundation.org/UA/Machinery/",
       "ns4": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -173,6 +174,7 @@
         "browseName": "2:SupervisionProcessFluid",
         "displayName": [
           {
+            "locale": "",
             "value": "SupervisionProcessFluid"
           }
         ],
@@ -197,10 +199,12 @@
         "typeDefinition": "ns=2;i=1015"
       },
       {
+        "arrayDimensions": "",
         "browseName": "2:Cavitation",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Cavitation"
           }
         ],

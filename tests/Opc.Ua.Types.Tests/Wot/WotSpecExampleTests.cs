@@ -452,7 +452,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 await Task.CompletedTask.ConfigureAwait(false);
                 string name = reference;
-                int slash = name.LastIndexOf('/');
+                int slash = name.LastIndexOf('/', StringComparison.Ordinal);
                 if (slash >= 0)
                 {
                     name = name.Substring(slash + 1);

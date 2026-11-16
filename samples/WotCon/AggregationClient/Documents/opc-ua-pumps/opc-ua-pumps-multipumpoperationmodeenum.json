@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,6 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
       "links": [
         {
           "href": "i=68",
@@ -362,11 +362,14 @@
       {
         "browseName": "1:MultiPumpOperationModeEnum",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Standalone mode"
                 }
               ],
@@ -374,9 +377,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "pump fulfils the process function of another pump"
                 }
               ],
@@ -384,9 +389,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "supplementary fulfilling of the process function"
                 }
               ],
@@ -394,9 +401,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "Redundancy and addition operation mixed"
                 }
               ],
@@ -408,11 +417,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "specifies the actual multi pump operation mode"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MultiPumpOperationModeEnum"
           }
         ],
@@ -438,6 +449,7 @@
         "dataType": "EnumValueType",
         "displayName": [
           {
+            "locale": "",
             "value": "EnumValues"
           }
         ],

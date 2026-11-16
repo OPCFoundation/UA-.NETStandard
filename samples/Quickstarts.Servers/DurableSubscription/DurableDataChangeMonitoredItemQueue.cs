@@ -122,7 +122,7 @@ namespace Quickstarts.Servers
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void Enqueue(DataValue value, ServiceResult error)
+        public void Enqueue(in DataValue value, ServiceResult error)
         {
             if (QueueSize == 0)
             {
@@ -178,7 +178,7 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        public void OverwriteLastValue(DataValue value, ServiceResult error)
+        public void OverwriteLastValue(in DataValue value, ServiceResult error)
         {
             if (ItemsInQueue == 0)
             {

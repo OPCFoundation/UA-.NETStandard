@@ -123,7 +123,7 @@ namespace Opc.Ua
                     nameof(authorityUrl));
             }
 
-            if (!authorityUrl.EndsWith('/'))
+            if (!authorityUrl.EndsWith('/', StringComparison.Ordinal))
             {
                 authorityUrl += "/";
             }
@@ -135,7 +135,7 @@ namespace Opc.Ua
                     System.Net.Dns.GetHostName().ToLowerInvariant(),
                     StringComparison.Ordinal);
 
-                if (!uri.EndsWith('/'))
+                if (!uri.EndsWith('/', StringComparison.Ordinal))
                 {
                     uri += "/";
                 }
