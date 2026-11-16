@@ -1375,6 +1375,60 @@ namespace Opc.Ua.Server.Historian
         internal const int kMaxProcessedBufferedOutputs = 100_000;
 
         /// <summary>
+        /// Maximum number of values one at-time HistoryRead may ask for: requested times per
+        /// node, and requested times times nodes per request (see
+        /// <see cref="StandardServer.HistoryReadAsync"/>). Every requested time is answered
+        /// with a value whatever the archive holds, so without a cap a request of a few hundred
+        /// kilobytes makes the server build millions of values. More is rejected with
+        /// <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        internal const int kMaxAtTimeRequestedValues = kMaxProcessedBufferedOutputs;
+
+        /// <summary>
+        /// Raw values the at-time fallback may read per requested time, on top of
+        /// <see cref="kMaxProcessedBufferedOutputs"/> for the whole operation: enough to find
+        /// the bounds of every requested time in an archive of mostly Good values. A provider
+        /// that returns far more than asked for (or an archive of Bad values that hides the
+        /// bounds) no longer scans its archive once per requested time: once the budget is
+        /// spent the remaining requested times get <see cref="StatusCodes.BadBoundNotSupported"/>,
+        /// as when the search limit of one requested time is reached (Part 11 Table 25).
+        /// </summary>
+        internal const int kAtTimeScanValuesPerRequestedTime = 64;
+
+        /// <summary>
+        /// The raw values one framework at-time read may still scan.
+        /// </summary>
+        private sealed class AtTimeScanBudget
+        {
+            public AtTimeScanBudget(long values)
+            {
+                m_remaining = values;
+            }
+
+            /// <summary>
+            /// Whether more raw values were scanned than the budget allows.
+            /// </summary>
+            public bool Exhausted => m_remaining < 0;
+
+            /// <summary>
+            /// Charges a page of scanned values.
+            /// </summary>
+            /// <exception cref="ServiceResultException">The budget is exhausted.</exception>
+            public void Charge(int count)
+            {
+                m_remaining -= count;
+                if (m_remaining < 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBoundNotSupported,
+                        "The at-time read scanned more raw values than its requested times allow.");
+                }
+            }
+
+            private long m_remaining;
+        }
+
+        /// <summary>
         /// Number of raw values the at-time fallback first reads on each side of a
         /// requested time; the read widens only while Bad values hide the bound.
         /// </summary>
@@ -1459,6 +1513,12 @@ namespace Opc.Ua.Server.Historian
                 HistoryUpdateType.Insert);
 
             ArrayOf<DateTimeUtc> reqTimes = details.ReqTimes;
+            if (reqTimes.Count > kMaxAtTimeRequestedValues)
+            {
+                result.StatusCode = StatusCodes.BadTooManyOperations;
+                result.ContinuationPoint = ByteString.Empty;
+                return StatusCodes.BadTooManyOperations;
+            }
 
             // Provider push-down
             if (provider is IHistorianAtTimeProvider atTime)
@@ -1495,24 +1555,40 @@ namespace Opc.Ua.Server.Historian
             }
 
             var produced = new List<DataValue>(reqTimes.Count);
+            var budget = new AtTimeScanBudget(
+                kMaxProcessedBufferedOutputs + ((long)kAtTimeScanValuesPerRequestedTime * reqTimes.Count));
             for (int i = 0; i < reqTimes.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DateTimeUtc requestedTime = reqTimes[i];
-                List<DataValue>? samples = await CollectAtTimeSamplesAsync(
-                    opContext,
-                    raw,
-                    node.NodeId,
-                    requestedTime,
-                    details.UseSimpleBounds,
-                    capabilities.Stepped,
-                    cancellationToken)
-                    .ConfigureAwait(false);
+                List<DataValue>? samples = null;
+                if (!budget.Exhausted)
+                {
+                    try
+                    {
+                        samples = await CollectAtTimeSamplesAsync(
+                            opContext,
+                            raw,
+                            node.NodeId,
+                            requestedTime,
+                            details.UseSimpleBounds,
+                            capabilities.Stepped,
+                            budget,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException) when (budget.Exhausted)
+                    {
+                        samples = null;
+                    }
+                }
                 if (samples == null)
                 {
                     // Part 11 4.6 / 6.2.2 Table 25: the search limit was reached before a
                     // bound was found, so this requested time gets Bad_BoundNotSupported
-                    // while the other requested times are still answered.
+                    // while the other requested times are still answered. Once the scan
+                    // budget of the operation is spent, every remaining requested time is
+                    // answered so without reading the provider again.
                     produced.Add(new DataValue(
                         Variant.Null,
                         StatusCodes.BadBoundNotSupported,
@@ -3562,6 +3638,7 @@ namespace Opc.Ua.Server.Historian
             DateTimeUtc requestedTime,
             bool useSimpleBounds,
             bool stepped,
+            AtTimeScanBudget budget,
             CancellationToken cancellationToken)
         {
             var samples = new List<DataValue>();
@@ -3571,7 +3648,8 @@ namespace Opc.Ua.Server.Historian
                 raw,
                 nodeId,
                 requestedTime,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                budget).ConfigureAwait(false);
             if (samples.Count > 0)
             {
                 return samples;
@@ -3589,7 +3667,8 @@ namespace Opc.Ua.Server.Historian
                 requestedTime,
                 before: false,
                 requiredAfter,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                budget: budget).ConfigureAwait(false);
             if (foundAfter < 0)
             {
                 return null;
@@ -3606,7 +3685,8 @@ namespace Opc.Ua.Server.Historian
                 requestedTime,
                 before: true,
                 requiredBefore,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                budget: budget).ConfigureAwait(false);
             if (foundBefore < 0)
             {
                 return null;
@@ -3635,7 +3715,8 @@ namespace Opc.Ua.Server.Historian
             bool before,
             int requiredNonBad,
             CancellationToken cancellationToken,
-            Func<DataValue, bool>? isBound = null)
+            Func<DataValue, bool>? isBound = null,
+            AtTimeScanBudget? budget = null)
         {
             var nonBadTimestamps = new HashSet<DateTimeUtc>();
             int added = 0;
@@ -3681,6 +3762,7 @@ namespace Opc.Ua.Server.Historian
                         request,
                         token,
                         cancellationToken).ConfigureAwait(false);
+                    budget?.Charge(page.Values.Count);
                     // Walk the page nearest-first whatever order the provider returned it in.
                     var outside = new List<(DataValue Value, int Index)>();
                     foreach (HistoricalDataValue historicalValue in page.Values)
@@ -3741,7 +3823,8 @@ namespace Opc.Ua.Server.Historian
                 raw,
                 nodeId,
                 extreme,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                budget).ConfigureAwait(false);
             foreach (DataValue value in extremeValues)
             {
                 if (Add(value))
@@ -3757,7 +3840,8 @@ namespace Opc.Ua.Server.Historian
             IHistorianDataProvider raw,
             NodeId nodeId,
             DateTimeUtc timestamp,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            AtTimeScanBudget? budget = null)
         {
             var request = new HistorianRawReadRequest
             {
@@ -3777,6 +3861,7 @@ namespace Opc.Ua.Server.Historian
                         request,
                         token,
                         cancellationToken).ConfigureAwait(false);
+                budget?.Charge(page.Values.Count);
                 foreach (HistoricalDataValue historicalValue in page.Values)
                 {
                     if (historicalValue.Value.SourceTimestamp == timestamp)

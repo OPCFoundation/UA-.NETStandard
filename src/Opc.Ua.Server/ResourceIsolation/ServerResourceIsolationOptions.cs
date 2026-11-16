@@ -80,6 +80,32 @@ namespace Opc.Ua.Server
         public int DefaultWeight { get; set; } = 1;
 
         /// <summary>
+        /// The default share of a decoded-request stage's shared capacity that one ordinary owner
+        /// may hold: <see cref="ResourceIsolationStage.RequestQueue"/>,
+        /// <see cref="ResourceIsolationStage.RequestQueueBytes"/> and
+        /// <see cref="ResourceIsolationStage.RequestExecution"/>. The default is one half.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// An owner is a user identity, a client application certificate or, for anonymous
+        /// SecurityPolicy None callers, a peer address. Without a per-owner ceiling one owner
+        /// (for example one anonymous Session sending a few hundred slow requests) holds every
+        /// worker and queue slot, and every other client times out or gets BadServerTooBusy.
+        /// With the default each owner keeps at most half of the shared workers and queue slots,
+        /// so the other half stays available to every other owner.
+        /// </para>
+        /// <para>
+        /// The ceiling is rounded down to whole requests and is at least one request. It applies
+        /// only where <see cref="ResourceIsolationStageOptions.OwnerHardLimit"/> is not set, and not
+        /// to provisioned trusted owners. Protected (reconnect and control) requests of an owner may
+        /// exceed it by their stage floor, so a saturated owner can still cancel or close.
+        /// Deployments where a single owner drives all traffic (one gateway, a load generator)
+        /// can raise it; one (1.0) lets one owner take the entire shared pool, as before.
+        /// </para>
+        /// </remarks>
+        public double DefaultOwnerShare { get; set; } = 0.5;
+
+        /// <summary>
         /// Maximum lifetime of an admitted, unfinished protocol handshake.
         /// The maximum and default are two minutes; it is independent of renewable channel lifetimes.
         /// A positive value is required in every mode, including when a custom provider is supplied.
@@ -273,6 +299,10 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentException("Owner table, key length and weight limits must be positive.");
             }
+            if (!(DefaultOwnerShare > 0 && DefaultOwnerShare <= 1))
+            {
+                throw new ArgumentException("DefaultOwnerShare must be greater than zero and at most one.");
+            }
             if (TrustedOwners.Count > MaxTrackedOwners)
             {
                 throw new ArgumentException("The owner table cannot hold every provisioned trusted owner.");
@@ -367,8 +397,9 @@ namespace Opc.Ua.Server
                     }
                 }
                 long capacity = item?.Capacity ?? total;
-                long hardLimit = item?.OwnerHardLimit ?? capacity;
-                if (capacity <= 0 || capacity > total || hardLimit < unit || hardLimit > capacity)
+                long? explicitHardLimit = item?.OwnerHardLimit;
+                if (capacity <= 0 || capacity > total ||
+                    explicitHardLimit.HasValue && (explicitHardLimit < unit || explicitHardLimit > capacity))
                 {
                     throw new ArgumentException($"Invalid capacity or owner ceiling for {(ResourceIsolationStage)ii}.");
                 }
@@ -402,6 +433,9 @@ namespace Opc.Ua.Server
                         "bootstrap, reconnect, control and trusted owners. Increase MaxRequestThreadCount or " +
                         "reduce the RequestExecution reservations.");
                 }
+                long hardLimit = explicitHardLimit ?? GetDefaultOwnerHardLimit(
+                    (ResourceIsolationStage)ii, capacity, remaining, unit,
+                    Math.Max(Math.Max(bootstrapFloor, reconnectFloor), controlFloor));
                 if (remaining < unit || hardLimit < Math.Max(Math.Max(bootstrapFloor, reconnectFloor), controlFloor))
                 {
                     throw new ArgumentException($"The {(ResourceIsolationStage)ii} pools cannot hold an operation.");
@@ -473,6 +507,29 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// The ordinary owner's ceiling when the stage sets none: <see cref="DefaultOwnerShare"/>
+        /// of the shared capacity at the decoded-request queue and execution stages, in whole
+        /// requests and at least one request and the largest protected floor; the whole
+        /// capacity elsewhere.
+        /// </summary>
+        private long GetDefaultOwnerHardLimit(
+            ResourceIsolationStage stage,
+            long capacity,
+            long sharedCapacity,
+            long unit,
+            long largestFloor)
+        {
+            if (stage is not (ResourceIsolationStage.RequestQueue or ResourceIsolationStage.RequestQueueBytes or
+                ResourceIsolationStage.RequestExecution) || DefaultOwnerShare >= 1)
+            {
+                return capacity;
+            }
+            long requests = (long)Math.Floor(sharedCapacity / unit * DefaultOwnerShare);
+            long limit = Math.Max(1, requests) * unit;
+            return Math.Min(capacity, Math.Max(limit, largestFloor));
         }
 
         private static void ValidateStage(ResourceIsolationStage stage)

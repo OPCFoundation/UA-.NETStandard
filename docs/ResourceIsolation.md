@@ -58,7 +58,7 @@ These terms describe resource accounting, not permission to access OPC UA data.
 | Owner | The accounting group charged for work: an observed address, a verified application or Session identity, or an explicitly configured group. It is not necessarily one person or one client process. |
 | Stage | One separately counted resource, such as connections, queued requests, or retained bytes. The API names are listed under [Accounting and lifetime](#accounting-and-lifetime). |
 | Floor / reservation | Capacity kept for a particular class of work or configured owner. Other classes cannot borrow it, even when it is unused. Floors are inside the existing total, except at the RequestQueue, RequestQueueBytes and ParkedRequest stages, where the default total adds them on top of the configured queue (see [Configuring request and caller limits](#configuring-request-and-caller-limits)). |
-| Shared capacity / work-conserving | Capacity available to all classes. If only one owner has work, it can use the unused shared capacity up to its hard limit. The server does not divide it into fixed equal shares. Reserved capacity is excluded. |
+| Shared capacity / work-conserving | Capacity available to all classes. If only one owner has work, it can use the unused shared capacity up to its hard limit (by default half of the request queue and workers, see `DefaultOwnerShare`). The server does not divide it into fixed equal shares. Reserved capacity is excluded. |
 | Lease | The provider's record of capacity in use. Disposing the lease releases that charge. It is not a time-limited Session or credential. |
 | Bootstrap / reconnect | Initial startup or recovery of a connection or Session. Protected access requires a trusted ingress mapping or, where applicable, an authoritative live Session binding. A request's name alone is not evidence. |
 | Control work | Recovery or maintenance requests, classified using a verified Session or an explicit trusted mapping rather than the service name alone. |
@@ -102,8 +102,8 @@ reconnect, control work, or trusted owners. All stage capacity is shared.
 Use it for competing applications that need turns at request execution but
 do not need protected reserves. For example, two owners with queued reads take
 turns as workers become available, while a lone active owner can use idle
-shared capacity. Configure a hard limit if one owner should not occupy all
-execution slots:
+shared capacity up to its share (`DefaultOwnerShare`, half by default).
+Configure an explicit hard limit to bound one owner more tightly:
 
 ```csharp
 server.ResourceIsolationOptions = new ServerResourceIsolationOptions
@@ -258,7 +258,7 @@ The binder parses these options explicitly, without reflection-based binding:
 ```
 
 The same section also accepts `MaxOwnerKeyLength`, `DefaultWeight`,
-`MaxRetainedMessageBytes`, `BootstrapReservedBytes`, `ReconnectReservedBytes`,
+`DefaultOwnerShare`, `MaxRetainedMessageBytes`, `BootstrapReservedBytes`, `ReconnectReservedBytes`,
 and `TrustedOwners`. Each trusted owner has `Key`, `Weight`, and `Reservations`.
 Each reservation has `Stage`, `Reserved`, and optional `HardLimit`.
 Using JSON configuration does not allow you to implement or register a
@@ -591,6 +591,14 @@ cancellation and continues running, its capacity remains in use until it exits.
 The server does not take capacity away from an accepted request to make room
 for another caller.
 
+The requests of an opc.tcp SecureChannel are cancelled when the channel closes
+(CloseSecureChannel, a clean socket close, a fault that closes it, or inactivity
+cleanup). A channel that lost its socket is kept so the client can reconnect and
+still receive its responses; if it is not reconnected within 10 seconds, its
+queued requests are dropped and its running requests are cancelled. This keeps a
+client that disappears without CloseSession from holding workers and queue
+slots with requests nobody reads.
+
 ### Configuring request and caller limits
 
 `MaxQueuedRequestCount` is the number of decoded requests that established
@@ -614,6 +622,24 @@ defaults that is 200 + 100 × 20 + 100 = 2,300 slots, so Sessions that hold thei
 Publish quota cannot refuse the Publish requests of other Sessions. A parked
 Publish keeps no decoded payload beyond its request header, so these slots carry
 only the small `RequestQueueBytes` charge of what a parked Publish still retains.
+
+One owner may hold at most `DefaultOwnerShare` (default 0.5) of the shared
+capacity of the RequestQueue, RequestQueueBytes and RequestExecution stages,
+in whole requests and at least one. Without it, one owner, for example one
+anonymous SecurityPolicy None Session that pipelines a few hundred slow
+requests, holds every worker and queue slot, and every other client times out
+or receives `BadServerTooBusy`. With the default limits (100 workers, 200 queued
+requests) one owner keeps 48 requests running and 100 queued; more are refused
+with `BadServerTooBusy` while other owners are still served. Owners are keyed
+by user identity, client application certificate or, for anonymous
+SecurityPolicy None callers, peer address, so anonymous unsecured clients
+behind one NAT address share one ceiling. A stage's explicit `OwnerHardLimit` replaces the default for
+that stage, and provisioned trusted owners keep their own ceilings. A
+protected (reconnect or control) request may exceed the owner's ceiling by its
+class reserve, so a saturated owner can still cancel requests or close its
+Session. Raise `DefaultOwnerShare` (up to 1, the whole shared pool) where one
+owner legitimately drives most of the load, such as a single gateway or a load
+generator running every Session in one process.
 
 `RequestQueueBytes` limits the data retained by decoded requests. The default
 shared capacity is `MaxMessageSize` multiplied by the combined queued, executing,
