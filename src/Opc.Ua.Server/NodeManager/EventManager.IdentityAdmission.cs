@@ -460,7 +460,11 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadNotSupported,
                     "A native occurrence must expose its original EventId and Time for identity admission.");
             }
-            var facts = new List<Variant>(32);
+            // the facts are sized exactly, so the snapshot keeps the array they are read into.
+            bool isCondition = occurrence.IsTypeOf(filter, Ua.ObjectTypeIds.ConditionType);
+            var facts = new Variant[s_identityFields.Count +
+                (isCondition ? 1 + s_conditionIdentityFields.Count : 0)];
+            int count = 0;
             foreach (ArrayOf<QualifiedName> path in s_identityFields)
             {
                 Variant value = ReadIdentityField(occurrence, filter, path);
@@ -472,9 +476,9 @@ namespace Opc.Ua.Server
                     }
                     value = NodeId.ToExpandedNodeId(nodeId, context.NamespaceUris);
                 }
-                facts.Add(value);
+                facts[count++] = value;
             }
-            if (occurrence.IsTypeOf(filter, Ua.ObjectTypeIds.ConditionType))
+            if (isCondition)
             {
                 Variant conditionId = occurrence.GetAttributeValue(
                     filter, NodeId.Null, [], Attributes.NodeId, default);
@@ -482,7 +486,7 @@ namespace Opc.Ua.Server
                 {
                     conditionId = NodeId.ToExpandedNodeId(nodeId, context.NamespaceUris);
                 }
-                facts.Add(conditionId);
+                facts[count++] = conditionId;
                 foreach (ArrayOf<QualifiedName> path in s_conditionIdentityFields)
                 {
                     Variant value = occurrence.GetAttributeValue(
@@ -491,10 +495,10 @@ namespace Opc.Ua.Server
                     {
                         value = NodeId.ToExpandedNodeId(branchId, context.NamespaceUris);
                     }
-                    facts.Add(value);
+                    facts[count++] = value;
                 }
             }
-            return new IdentitySnapshot(eventId, facts.ToArrayOf());
+            return new IdentitySnapshot(eventId, facts);
         }
 
         private static Variant ReadIdentityField(
