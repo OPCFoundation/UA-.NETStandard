@@ -950,6 +950,9 @@ namespace Opc.Ua.Client.Subscriptions
         protected override bool HandlesNotificationMessages => MessageHandler != null;
 
         /// <inheritdoc/>
+        protected override bool IsShuttingDown => m_cts.IsCancellationRequested;
+
+        /// <inheritdoc/>
         protected override async ValueTask OnNotificationMessageAsync(
             NotificationMessage message, PublishState publishStateMask,
             IReadOnlyList<string> stringTable, CancellationToken ct)
