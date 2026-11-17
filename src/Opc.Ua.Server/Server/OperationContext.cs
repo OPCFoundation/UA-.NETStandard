@@ -327,10 +327,44 @@ namespace Opc.Ua.Server
         /// <param name="maxResponseBytes">The response size limit in bytes.</param>
         internal void StartResponseBudget(int maxResponseBytes)
         {
+            // an unused budget is kept negated until the first charge.
             Volatile.Write(
                 ref m_responseBudget,
                 maxResponseBytes <= 0 ? kNoResponseBudget :
-                maxResponseBytes == int.MaxValue ? int.MaxValue : maxResponseBytes + 1);
+                maxResponseBytes == int.MaxValue ? -int.MaxValue : -(maxResponseBytes + 1));
+        }
+
+        /// <summary>
+        /// Starts a response byte budget that has nothing left before any result is
+        /// charged, for a response whose reserved framing alone exceeds the message size
+        /// limit: no result value fits, and the reserved framing that results do not use
+        /// is not returned to it (<see cref="CreditResponse(long)"/>), because the deficit
+        /// of the framing cannot be recorded.
+        /// </summary>
+        internal void StartExhaustedResponseBudget()
+        {
+            Volatile.Write(ref m_responseBudget, kResponseBudgetExhausted);
+        }
+
+        /// <summary>
+        /// Whether the budget was started exhausted
+        /// (<see cref="StartExhaustedResponseBudget"/>) and nothing was charged since:
+        /// results may not use the framing reserved for them for values.
+        /// </summary>
+        internal bool ResponseBudgetExhausted =>
+            Volatile.Read(ref m_responseBudget) == kResponseBudgetExhausted;
+
+        /// <summary>
+        /// Whether the call has a response byte budget that nothing was charged against
+        /// yet: a result that does not fit it cannot fit any response of the call.
+        /// </summary>
+        internal bool ResponseBudgetUnused
+        {
+            get
+            {
+                int current = Volatile.Read(ref m_responseBudget);
+                return current < 0 && current != kResponseBudgetExceeded;
+            }
         }
 
         /// <summary>
@@ -351,12 +385,47 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                long remaining = current - bytes;
+                if (bytes == 0)
+                {
+                    return true;
+                }
+                long remaining = (current < 0 ? -(long)current : current) - bytes;
                 int next = remaining < 1 ? kResponseBudgetExceeded : (int)remaining;
                 int observed = Interlocked.CompareExchange(ref m_responseBudget, next, current);
                 if (observed == current)
                 {
                     return next != kResponseBudgetExceeded;
+                }
+                current = observed;
+            }
+        }
+
+        /// <summary>
+        /// Returns bytes to the response byte budget that it reserved for framing the
+        /// response does not hold (the continuation point of a result that is complete).
+        /// A budget that nothing was charged against stays unused, an exceeded budget
+        /// stays exceeded.
+        /// </summary>
+        /// <param name="bytes">The reserved bytes the response does not hold.</param>
+        internal void CreditResponse(long bytes)
+        {
+            if (bytes <= 0)
+            {
+                return;
+            }
+            int current = Volatile.Read(ref m_responseBudget);
+            while (current != kNoResponseBudget &&
+                current != kResponseBudgetExceeded &&
+                current != kResponseBudgetExhausted)
+            {
+                long next = Math.Min(
+                    (current < 0 ? -(long)current : current) + bytes,
+                    int.MaxValue);
+                int stored = current < 0 ? -(int)next : (int)next;
+                int observed = Interlocked.CompareExchange(ref m_responseBudget, stored, current);
+                if (observed == current)
+                {
+                    return;
                 }
                 current = observed;
             }
@@ -371,7 +440,8 @@ namespace Opc.Ua.Server
             {
                 int current = Volatile.Read(ref m_responseBudget);
                 return current == kNoResponseBudget ? -1 :
-                    current == kResponseBudgetExceeded ? 0 : current - 1L;
+                    current == kResponseBudgetExceeded ? 0 :
+                    current < 0 ? -(long)current - 1L : current - 1L;
             }
         }
 
@@ -1207,11 +1277,18 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// The response byte budget: <see cref="kNoResponseBudget"/>, the bytes left plus
-        /// one, or <see cref="kResponseBudgetExceeded"/>.
+        /// one (negated while nothing was charged), or <see cref="kResponseBudgetExceeded"/>.
         /// </summary>
         private int m_responseBudget;
         private const int kNoResponseBudget = 0;
         private const int kResponseBudgetExceeded = int.MinValue;
+
+        /// <summary>
+        /// An unused budget with no bytes left, which only
+        /// <see cref="StartExhaustedResponseBudget"/> starts: every other unused budget
+        /// has at least one byte left.
+        /// </summary>
+        private const int kResponseBudgetExhausted = -1;
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;

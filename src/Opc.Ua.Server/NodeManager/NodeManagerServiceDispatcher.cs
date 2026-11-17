@@ -1746,20 +1746,74 @@ namespace Opc.Ua.Server
             // call each node manager that serves the namespace of a valid item.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in dispatchOrder)
+                // the values kept for the response are charged against the response byte
+                // budget of the service while they are read: by the node managers that
+                // charge their values themselves, and here for the others.
+                int count = nodesToRead.Count;
+                bool[]? unread = context.ResponseBytesRemaining >= 0
+                    ? System.Buffers.ArrayPool<bool>.Shared.Rent(count)
+                    : null;
+                try
                 {
-                    if (!routes.Includes(nodeManager) || !GetRouting(context).CanDispatchTo(nodeManager))
+                    foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                     {
-                        continue;
-                    }
+                        if (!routes.Includes(nodeManager) || !GetRouting(context).CanDispatchTo(nodeManager))
+                        {
+                            continue;
+                        }
 
-                    await nodeManager.ReadAsync(
-                        context,
-                        maxAge,
-                        nodesToRead,
-                        values,
-                        errors,
-                        cancellationToken).ConfigureAwait(false);
+                        long remaining = 0;
+                        if (unread != null)
+                        {
+                            for (int ii = 0; ii < count; ii++)
+                            {
+                                unread[ii] = !nodesToRead[ii].Processed;
+                            }
+                            remaining = context.ResponseBytesRemaining;
+                        }
+
+                        await nodeManager.ReadAsync(
+                            context,
+                            maxAge,
+                            nodesToRead,
+                            values,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+
+                        if (unread != null)
+                        {
+                            // every charged value counts at least its encoding mask, so a
+                            // node manager whose reads left the budget unchanged charged
+                            // nothing.
+                            if (context.ResponseBytesRemaining == remaining)
+                            {
+                                long responseBytes = 0;
+                                for (int ii = 0; ii < count && responseBytes <= remaining; ii++)
+                                {
+                                    if (unread[ii] && nodesToRead[ii].Processed)
+                                    {
+                                        responseBytes += ResponseSizeEstimator.EstimateValue(values[ii]);
+                                    }
+                                }
+                                context.TryChargeResponse(responseBytes);
+                            }
+
+                            // a response that exceeds the message size limit cannot be sent.
+                            if (context.ResponseBudgetExceeded)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadResponseTooLarge,
+                                    "The values of the Read exceed the response size limit.");
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    if (unread != null)
+                    {
+                        System.Buffers.ArrayPool<bool>.Shared.Return(unread);
+                    }
                 }
             }
 
