@@ -346,7 +346,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(calls, Is.EqualTo(1));
         }
 
-        private sealed class GuardedSystemContext :
+        private sealed class GuardedSystemContext() :
             SystemContext(NUnitTelemetryContext.Create()), INodeStateSnapshotBrowserGuard
         {
             public bool RequiresSnapshotSafeBrowser => true;

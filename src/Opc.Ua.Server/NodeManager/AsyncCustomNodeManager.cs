@@ -4816,6 +4816,7 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
+        /// <param name="defaults">The resolved namespace permission defaults, if available.</param>
         /// <returns>The attribute values used for permission validation.</returns>
         private static Variant[] ReadAndCacheValidationAttributes(
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes,

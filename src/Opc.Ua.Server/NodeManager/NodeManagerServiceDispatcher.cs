@@ -347,11 +347,11 @@ namespace Opc.Ua.Server
             {
                 if (!snapshot.CanDispatchTo(overrideManager))
                 {
-                    return (null, null);
+                    return (null, null, null);
                 }
                 handle = await overrideManager.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
-                return handle is null ? (null, null) : (handle, overrideManager);
+                return handle is null ? (null, null, null) : (handle, overrideManager, null);
             }
 
             // check if node managers are registered - use the core node manager if unknown.
@@ -2586,7 +2586,7 @@ namespace Opc.Ua.Server
                         static item => item.Processed,
                         static (item, processed) => item.Processed = processed,
                         manager => context.ResponseBudgetExceeded
-                            ? ValueTask.CompletedTask
+                            ? default
                             : manager.CallAsync(context, methodsToCall, results, errors, cancellationToken))
                         .ConfigureAwait(false);
                 }
