@@ -296,15 +296,12 @@ namespace Opc.Ua.Server.Tests.Historian
                 : StatusCodes.GoodEntryInserted));
         }
 
+        /// <summary>
+        /// Reads allocations on the measured thread, excluding background server activity.
+        /// </summary>
         private static long ReadAllocatedBytes()
         {
-#if NETFRAMEWORK
-            AppDomain.MonitoringIsEnabled = true;
-            GC.Collect();
-            return AppDomain.CurrentDomain.MonitoringTotalAllocatedMemorySize;
-#else
             return GC.GetAllocatedBytesForCurrentThread();
-#endif
         }
 
         private static async Task<HistorianPage<HistoricalDataValue>> ReadRawAsync(

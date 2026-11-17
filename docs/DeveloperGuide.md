@@ -129,6 +129,12 @@ Conventions and requirements:
   readiness, also observe the hosted service's execution task so startup failures
   surface immediately instead of becoming repeated readiness timeouts. Port
   retries should probe a new free port rather than choose an unchecked number.
+  A fixture teardown watchdog bounds that fixture only; it must not disable
+  cleanup of independent fixtures later in the same test process.
+- **Allocation assertions.** Use `GC.GetAllocatedBytesForCurrentThread()` on
+  every test target, including net48, and verify that the measured operations
+  stay on that thread. AppDomain-wide counters include unrelated server activity
+  and cannot establish the allocation cost of one operation.
 - **OPC UA null values.** Assert `.IsNull` for structs implementing `INullable`,
   rather than relying on NUnit's generic `Is.Default` constraint.
 - **Test output.** Keep successful-test output compact. NUnit and the test runner retain captured output and create additional copies when forwarding and serializing it to TRX; repeated exhaustive dumps can consume gigabytes of memory, inflate results artifacts, and stall the runner's shared socket (issue #4213). For small failure-only diagnostics, buffer the dump and emit it only when the test does not pass; see `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs). Stream large dumps to files and register them with `TestContext.AddTestAttachment` instead of building a large string or writing every line to `TestContext.Out`. `CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(..., outputResult: true)` follows this pattern: the full listing is a test-result attachment, while inline output contains only the reference count. Keep attachment files until the runner has collected them.
