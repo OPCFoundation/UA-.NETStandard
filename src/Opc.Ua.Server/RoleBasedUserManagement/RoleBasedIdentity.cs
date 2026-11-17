@@ -188,7 +188,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The role based identity for a server.
     /// </summary>
-    public class RoleBasedIdentity : IUserIdentity
+    public class RoleBasedIdentity : IUserIdentity, IDecoratedUserIdentity
     {
         /// <summary>
         /// Initialize the role based identity.
@@ -309,6 +309,9 @@ namespace Opc.Ua.Server
         /// parallel accessor.
         /// </remarks>
         protected internal IUserIdentity InnerIdentity { get; }
+
+        /// <inheritdoc/>
+        IUserIdentity IDecoratedUserIdentity.InnerIdentity => InnerIdentity;
 
         /// <inheritdoc/>
         public string DisplayName => InnerIdentity.DisplayName;

@@ -1454,23 +1454,20 @@ namespace Opc.Ua.Server
                             includeChildren: false,
                             CancellationToken.None)).ConfigureAwait(false);
                 }
+            }
 
-                if (serverObject.UrisVersion is not null)
-                {
-                    DateTimeUtc now = DateTimeUtc.Now;
-                    uint version = serverObject.UrisVersion.Value;
-                    serverObject.UrisVersion.Value =
-                        Utils.IncrementIdentifier(ref version);
-                    serverObject.UrisVersion.Timestamp = now;
-                    serverObject.UrisVersion.UpdateChangeMasks(NodeStateChangeMasks.Value);
-                    await reconciliation.RunAsync(
-                        NodeManagerReconciliationStage.Namespaces,
-                        generations,
-                        () => serverObject.UrisVersion.ClearChangeMasksAsync(
-                            server.DefaultSystemContext,
-                            includeChildren: false,
-                            CancellationToken.None)).ConfigureAwait(false);
-                }
+            // raised from the table versions, so a publication that appends only server
+            // uris raises it as well and a reload of the same namespaces does not.
+            PropertyState<uint>? urisVersion = ServerUrisVersion.Advance(server);
+            if (urisVersion is not null)
+            {
+                await reconciliation.RunAsync(
+                    NodeManagerReconciliationStage.Namespaces,
+                    generations,
+                    () => urisVersion.ClearChangeMasksAsync(
+                        server.DefaultSystemContext,
+                        includeChildren: false,
+                        CancellationToken.None)).ConfigureAwait(false);
             }
         }
 

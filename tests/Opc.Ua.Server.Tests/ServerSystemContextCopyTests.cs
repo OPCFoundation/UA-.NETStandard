@@ -350,6 +350,7 @@ namespace Opc.Ua.Server.Tests
                 SystemHandle = new object(),
                 SessionId = new NodeId(42),
                 UserIdentity = new Mock<IUserIdentity>().Object,
+                ClientUserId = "client-user",
                 PreferredLocales = ["en-US"],
                 AuditEntryId = "audit",
                 NodeIdFactory = new Mock<INodeIdFactory>().Object,

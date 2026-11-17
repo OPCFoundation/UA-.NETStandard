@@ -417,6 +417,121 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
+        /// OPC 10000-5 6.4.3: the ClientUserId of a UserName token is the user name,
+        /// not the display name of the identity.
+        /// </summary>
+        [Test]
+        public void ReportAuditWriteUpdateEventUsesUserNameAsClientUserId()
+        {
+            var identity = new UserIdentity("operator", [])
+            {
+                DisplayName = "Operator Display Name"
+            };
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditWriteUpdateEvent(
+                CreateSystemContext(RequestType.Write, identity),
+                CreateWriteValue(),
+                new Variant("old"),
+                StatusCodes.Good,
+                s_logger);
+
+            var auditEvent = (AuditWriteUpdateEventState)server.Events.Single();
+            Assert.That(auditEvent.ClientUserId!.Value, Is.EqualTo("operator"));
+        }
+
+        /// <summary>
+        /// OPC 10000-5 6.4.3: the ClientUserId of an anonymous user is null in the
+        /// audit events reported for its requests and for its Session.
+        /// </summary>
+        [Test]
+        public void AuditEventsOfAnonymousUserHaveNullClientUserId()
+        {
+            var server = new CapturingAuditEventServer(CreateSystemContextWithoutOperation(), true);
+            ISession session = CreateSession(new UserIdentity());
+            var context = new OperationContext(
+                new RequestHeader { AuditEntryId = "op-1", RequestHandle = 1 },
+                null!,
+                RequestType.Cancel,
+                RequestLifetime.None,
+                session);
+
+            server.ReportAuditCancelEvent(context, 1, StatusCodes.Good, s_logger);
+            server.ReportAuditCloseSessionEvent(AuditEntryId, session, s_logger);
+            server.ReportAuditEvent(
+                CreateOperationContext(RequestType.Call, new UserIdentity()),
+                "Call",
+                new ServiceResultException(StatusCodes.BadNothingToDo),
+                s_logger);
+
+            Assert.That(server.Events, Has.Count.EqualTo(3));
+            foreach (AuditEventState auditEvent in server.Events)
+            {
+                Assert.That(auditEvent.ClientUserId?.Value, Is.Null, auditEvent.GetType().Name);
+            }
+        }
+
+        /// <summary>
+        /// OPC 10000-5 6.4.3: the ClientUserId of a JWT is its 'iss' and 'sub'
+        /// claims concatenated.
+        /// </summary>
+        [Test]
+        public void AuditCancelEventOfJwtUserUsesIssuerAndSubject()
+        {
+            var token = new IssuedIdentityTokenHandler(new IssuedIdentityToken
+            {
+                PolicyId = Profiles.JwtUserToken
+            });
+            var identity = new JwtUserIdentity(
+                token,
+                new Dictionary<string, object?>(),
+                [],
+                [],
+                "https://issuer.example/",
+                "subject-7");
+            var server = new CapturingAuditEventServer(CreateSystemContextWithoutOperation(), true);
+            var context = new OperationContext(
+                new RequestHeader { AuditEntryId = "op-2", RequestHandle = 2 },
+                null!,
+                RequestType.Cancel,
+                RequestLifetime.None,
+                CreateSession(identity));
+
+            server.ReportAuditCancelEvent(context, 2, StatusCodes.Good, s_logger);
+
+            var auditEvent = (AuditCancelEventState)server.Events.Single();
+            Assert.That(auditEvent.ClientUserId!.Value, Is.EqualTo("https://issuer.example/subject-7"));
+        }
+
+        /// <summary>
+        /// OPC 10000-5 6.4.3: a failed ActivateSession names the user of the rejected
+        /// token, not the user that activated the Session before.
+        /// </summary>
+        [Test]
+        public void FailedActivateSessionAuditEventUsesTheRejectedTokenUser()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+            ISession session = CreateSession();
+
+            server.ReportAuditActivateSessionEvent(
+                s_logger,
+                AuditEntryId,
+                session,
+                new UserNameIdentityToken { UserName = "intruder", Password = ByteString.Empty },
+                new ServiceResultException(StatusCodes.BadUserAccessDenied));
+            server.ReportAuditActivateSessionEvent(
+                s_logger,
+                AuditEntryId,
+                session,
+                new AnonymousIdentityToken(),
+                new ServiceResultException(StatusCodes.BadIdentityTokenRejected));
+
+            Assert.That(server.Events, Has.Count.EqualTo(2));
+            Assert.That(server.Events[0].ClientUserId!.Value, Is.EqualTo("intruder"));
+            Assert.That(server.Events[1].ClientUserId?.Value, Is.Null);
+        }
+
+        /// <summary>
         /// Verifies that trust-list audit reporting uses a valid system context.
         /// </summary>
         [Test]
@@ -900,7 +1015,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             return new CapturingAuditEventServer(CreateSystemContext(RequestType.Call), auditing);
         }
 
-        private static ServerSystemContext CreateSystemContext(RequestType requestType)
+        private static ServerSystemContext CreateSystemContext(
+            RequestType requestType,
+            IUserIdentity? identity = null)
         {
             NamespaceTable namespaceUris = new();
             StringTable serverUris = new();
@@ -913,7 +1030,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             server.Setup(s => s.Telemetry).Returns(telemetry);
 
-            return new ServerSystemContext(server.Object, CreateOperationContext(requestType));
+            return new ServerSystemContext(server.Object, CreateOperationContext(requestType, identity));
         }
 
         private static ServerSystemContext CreateSystemContextWithoutOperation()
@@ -928,9 +1045,11 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             return new ServerSystemContext(server.Object);
         }
 
-        private static OperationContext CreateOperationContext(RequestType requestType)
+        private static OperationContext CreateOperationContext(
+            RequestType requestType,
+            IUserIdentity? identity = null)
         {
-            var identity = new UserIdentity("audit-user", [])
+            identity ??= new UserIdentity("audit-user", [])
             {
                 DisplayName = UserDisplayName
             };
@@ -949,9 +1068,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 identity);
         }
 
-        private static ISession CreateSession()
+        private static ISession CreateSession(IUserIdentity? identity = null)
         {
-            var identity = new UserIdentity("session-user", [])
+            identity ??= new UserIdentity("session-user", [])
             {
                 DisplayName = SessionUserDisplayName
             };

@@ -425,6 +425,7 @@ namespace Opc.Ua.Server
                 m_dynamicMutationSemaphore.Dispose();
                 m_namespaceRegistrationSemaphore.Dispose();
                 m_deferredReferenceDrainCancellation.Dispose();
+                m_addReferenceSemaphore.Dispose();
             }
             if (errors.Count > 0)
             {
@@ -2736,6 +2737,8 @@ namespace Opc.Ua.Server
             {
                 m_namespaceRegistrationSemaphore.Release();
             }
+
+            ServerUrisVersion.Update(Server);
         }
 
         /// <inheritdoc/>
@@ -3181,6 +3184,11 @@ namespace Opc.Ua.Server
 
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly SemaphoreSlim m_namespaceRegistrationSemaphore = new(1, 1);
+
+        /// <summary>
+        /// Serializes the AddReferences data-model checks with the reference mutations they guard.
+        /// </summary>
+        private readonly SemaphoreSlim m_addReferenceSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
 
         /// <summary>The boundary supplied before the host is bound to the server.</summary>

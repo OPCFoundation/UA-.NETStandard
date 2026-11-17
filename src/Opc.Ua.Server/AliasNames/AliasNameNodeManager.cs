@@ -335,6 +335,13 @@ namespace Opc.Ua.Server.AliasNames
 
         StringTable IAliasNameMaterializerHost.ServerUris => Server.ServerUris;
 
+        ushort IAliasNameMaterializerHost.GetServerIndexOrAppend(string serverUri)
+        {
+            ushort index = Server.ServerUris.GetIndexOrAppend(serverUri);
+            ServerUrisVersion.Update(Server);
+            return index;
+        }
+
         ushort IAliasNameMaterializerHost.MaterializationNamespaceIndex => NamespaceIndex;
 
         AliasNameCategoryState? IAliasNameMaterializerHost.FindCategoryNode(NodeId nodeId)
