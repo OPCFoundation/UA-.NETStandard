@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRegistration original = RequireRegistration(publicationResult1.Registrations[0]);
                 AssertLifecycleValue(originalManager);
                 TrackingLifecycleNodeManager? candidate = null;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter1 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter1.PrepareAsync(
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     server.SessionManager.GetSession(closingHeader.AuthenticationToken));
                 using var beforeContext = new OperationContext(closingSession, DiagnosticsMasks.None);
                 TrackingLifecycleNodeManager? candidate = null;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter2.PrepareAsync(
@@ -356,7 +356,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 services, ObjectIds.Server).ConfigureAwait(false);
             TrackingLifecycleNodeManager? first = null;
             TrackingLifecycleNodeManager? second = null;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync([
                     LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                         kFirstRegistrationValue, manager => first = manager)),
@@ -453,7 +453,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration original = RequireRegistration(publicationResult3.Registrations[0]);
             TrackingLifecycleNodeManager? failing = null;
             TrackingLifecycleNodeManager? succeeding = null;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using ILifecycleWriter exactWriter3 = await Capture(
                 m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter3.PrepareAsync([

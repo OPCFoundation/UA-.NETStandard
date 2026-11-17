@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))), timeout.Token).ConfigureAwait(false);
             NodeManagerRegistration survivor = RequireRegistration(publicationResult1.Registrations[0]);
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
             }
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
@@ -217,7 +217,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 master.RegisterNamespaceManager(conflictingUri, survivor.NodeManager);
             }
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
@@ -328,7 +328,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? candidate = null;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(

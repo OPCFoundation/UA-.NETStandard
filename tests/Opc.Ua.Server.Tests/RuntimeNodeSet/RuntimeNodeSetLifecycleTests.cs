@@ -421,7 +421,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var master = (MasterNodeManager)server.NodeManager;
             ushort ns = server.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri);
             var rootNodeId = new NodeId(kRootNodeId, ns);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             var factory = new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1));
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(

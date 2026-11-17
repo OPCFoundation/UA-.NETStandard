@@ -47,7 +47,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparationDoesNotJoinQuiescentCleanupRetryAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? original = null;
             LifecycleResult publicationResult1 = await CommitChangeAsync(
                 lifecycle, LifecycleChange.Add(
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PublicationReturnsBeforeQuiescentPhysicalDeletionAsync(bool replace)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? original = null;
             LifecycleResult publicationResult2 = await CommitChangeAsync(
                 lifecycle, LifecycleChange.Add(
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             LifecycleResult publicationResult3 = await CommitChangeAsync(
                 lifecycle, LifecycleChange.Add(
                 CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { })), timeout.Token).ConfigureAwait(false);
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? original = null;
             LifecycleResult publicationResult4 = await CommitChangeAsync(
                 lifecycle, LifecycleChange.Add(
@@ -296,7 +296,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 IServerInternal server = m_server.CurrentInstance;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
                 {
                     OperationTimeout = 60000,
@@ -471,7 +471,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 IServerInternal server = m_server.CurrentInstance;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
                 {
                     OperationTimeout = 60000,

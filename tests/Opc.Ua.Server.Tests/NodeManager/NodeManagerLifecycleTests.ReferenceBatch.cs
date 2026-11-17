@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             oldValue.Node.AddReference(ReferenceTypeIds.HasComponent, true, rootId);
             oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
             objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using ILifecycleWriter exactWriter1 = await Capture(
                 m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter1.PrepareAsync([replace
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
             objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             for (int i = 0; i < replacementCount; i++)
             {
                 await using ILifecycleWriter exactWriter2 = await Capture(
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
             try
             {
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter4 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter4.PrepareAsync(
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(replacement.Object);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using ILifecycleWriter exactWriter5 = await Capture(
                 m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter5.PrepareAsync(
@@ -340,7 +340,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     server, configuration!, m_logger, kModelNamespaceUri + ":ReservedCleanupDestroyed");
                 destroyed.GetRemovedExternalReferences().Add(
                     new LocalReference(source, ReferenceTypeIds.HasComponent, false, new NodeId(9903)));
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter6 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter6.PrepareAsync(removeSource
@@ -423,7 +423,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken _) =>
                     new ValueTask<IAsyncNodeManager>(
                         new LazyReferenceSourceNodeManager(server, configuration, targetId, sourceExists)));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using ILifecycleWriter exactWriter7 = await Capture(
                 m_server.NodeManagerLifecycle, target, source).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter7.PrepareAsync(
@@ -486,7 +486,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             ushort ns = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri);
             NodeId root = new(kRootNodeId, ns);
             NodeId concurrent = new(8401, ns);
@@ -564,7 +564,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedBatchDecisionDoesNotHoldDynamicMutationSemaphoreAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], timeout.Token)
@@ -612,7 +612,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ushort targetNamespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
                 targetRegistration.NamespaceUris[0]);
             NodeId addedNodeId = new(8402, targetNamespaceIndex);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(
@@ -1582,7 +1582,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 SecurityPolicies.None).ConfigureAwait(false);
             NodeId addedNodeId = new(8405, targetNamespaceIndex);
             var addNodesEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var batchLifecycle = (INodeManagerLifecycle)lifecycle;
+            INodeManagerLifecycle batchLifecycle = lifecycle;
             await using IPreparedChanges prepared = await batchLifecycle.PrepareAsync(
                 [
                     LifecycleChange.Add(CreateTrackingNodeManagementFactory(
@@ -1717,7 +1717,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 false)).Registrations[0]);
             AssertLifecycleValue(survivor);
             NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             ushort ns = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kSecondModelNamespaceUri);
             NodeId root = new(kRootNodeId, ns);
             NodeId value = new(kValueNodeId,
@@ -1791,7 +1791,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var unique = new LocalReference(ObjectIds.ObjectsFolder, ReferenceTypeIds.Organizes, false, value);
             const string firstUri = kModelNamespaceUri + ":FirstContributor";
             const string secondUri = kModelNamespaceUri + ":SecondContributor";
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             NodeManagerRegistration first;
             NodeManagerRegistration second;
             await using (IPreparedChanges added = await lifecycle.PrepareAsync([
@@ -1858,7 +1858,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task RetiringEqualManagerPreservesOtherManagerReferencesAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             var firstFactory = new CountingNodeManagerFactory(
                 [kModelNamespaceUri],
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
@@ -2065,7 +2065,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         server, configuration, m_logger, kGeneration2Value);
                     return new ValueTask<IAsyncNodeManager>(replacement);
                 });
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             NodeState objects = await GetObjectsReferenceOwnerAsync(CancellationToken.None).ConfigureAwait(false);
             var failure = new IOException("Committed reference callback failed.");
             NodeStateReferenceAdded? previous = objects.OnReferenceAdded;
@@ -2116,7 +2116,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             (Mock<IAsyncNodeManager> manager, BaseObjectState node, IAsyncNodeManagerFactory factory) =
                 CreateUnsupportedReferenceFactory();
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(factory)]).ConfigureAwait(false);
             NodeState objects = await GetObjectsReferenceOwnerAsync(CancellationToken.None).ConfigureAwait(false);
@@ -2171,7 +2171,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(probe.Object);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             ArrayOf<LifecycleChange> changes = removeContributor
                 ? [LifecycleChange.Remove(registration.Slot), LifecycleChange.Add(factory.Object)]
                 : [LifecycleChange.Add(factory.Object)];
@@ -2252,7 +2252,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task PreparedBatchReferenceImagesSurviveOrdinaryRoutingChangesAsync()
         {
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))]).ConfigureAwait(false))
@@ -2291,7 +2291,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration source = RequireRegistration(publicationResult24.Registrations[0]);
             NodeId sourceRoot = new(kRootNodeId,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri))], timeout.Token)
@@ -2367,7 +2367,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ushort candidateNamespace =
                 m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kSecondModelNamespaceUri);
             NodeId root = new(kRootNodeId, candidateNamespace);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(

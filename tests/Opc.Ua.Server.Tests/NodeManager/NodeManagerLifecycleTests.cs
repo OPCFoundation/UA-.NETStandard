@@ -2199,7 +2199,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     subscriptionId,
                     acknowledgements).ConfigureAwait(false);
 
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter5 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(CancellationToken.None).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter5.PrepareAsync([
@@ -6925,7 +6925,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             try
             {
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter6 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(CancellationToken.None).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter6.PrepareAsync(
@@ -7008,7 +7008,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var candidateRootId = new NodeId(kRootNodeId, candidateNamespace);
             NodeState ownerRoot = RequireLifecycleValue(owner.Find(ownerRootId));
             TrackingLifecycleNodeManager? rejected = null;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             var decisionFailure = new SentinelException("Prepared reference publication rejected.");
             int referenceCallbacks = 0;
             NodeStateReferenceAdded? previous = ownerRoot.OnReferenceAdded;

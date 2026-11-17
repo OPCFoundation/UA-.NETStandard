@@ -612,7 +612,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertLifecycleValue(original);
 
                 TrackingLifecycleNodeManager? candidate = null;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter6 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter6.PrepareAsync([
@@ -739,7 +739,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertLifecycleValue(original);
 
                 TrackingLifecycleNodeManager? candidate = null;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter7 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter7.PrepareAsync([
@@ -881,7 +881,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertLifecycleValue(original);
 
                 TrackingLifecycleNodeManager? candidate = null;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter8 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter8.PrepareAsync([
@@ -1028,7 +1028,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertLifecycleValue(original);
 
                 TrackingLifecycleNodeManager? candidate = null;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using ILifecycleWriter exactWriter9 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter9.PrepareAsync([

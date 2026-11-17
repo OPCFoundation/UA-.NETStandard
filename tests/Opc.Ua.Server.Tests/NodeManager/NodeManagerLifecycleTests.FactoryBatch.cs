@@ -345,7 +345,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCount));
                     return candidate;
                 });
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             int namespaceIndex;
             await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(factory.Object)]).ConfigureAwait(false))
@@ -406,7 +406,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             int discoveredIndex;
             int removedIndex;
             await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
@@ -476,7 +476,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             failingFactory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new IOException("Later factory failed."));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await Assert.ThatAsync(
                 () => lifecycle.PrepareAsync(
                 [LifecycleChange.Add(
@@ -731,7 +731,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 LifecycleTestServer second = await fixture.StartAsync(pki).ConfigureAwait(false);
                 Assert.That(second.CurrentInstance.Factory, Is.SameAs(factory));
                 Assert.That(second.CurrentInstance.Factory.TryGetEncodeableType(alias, out _), Is.True);
-                var lifecycle = (INodeManagerLifecycle)second.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = second.NodeManagerLifecycle;
                 await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                     [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateBatchComplexTypeOptions(false)))]).ConfigureAwait(false);
@@ -754,7 +754,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration current = RequireRegistration(publicationResult3.Registrations[0]);
             m_server.LoadComplexTypes = false;
             ExpandedNodeId alias = new(kBatchAliasId, RuntimeNodeSetTestServer.NamespaceUri);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using ILifecycleWriter exactWriter4 = await Capture(
                 m_server.NodeManagerLifecycle, current).BeginAsync(CancellationToken.None).ConfigureAwait(false);
             await using (IPreparedChanges prepared = await exactWriter4.PrepareAsync(
@@ -776,7 +776,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             failed.Setup(factory => factory.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new IOException("Later candidate preparation failed."));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await Assert.ThatAsync(() => lifecycle.PrepareAsync([
                     LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false))),
                     LifecycleChange.Add(failed.Object)
@@ -799,7 +799,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var holder = new ServerDataTypeDefinitionResolver();
             holder.SetResolver(original);
             m_server.ComplexTypeResolverHolder = holder;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             ExpandedNodeId structure = new(RuntimeNodeSetTestServer.TestPointDataType,
                 RuntimeNodeSetTestServer.NamespaceUri);
             await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
@@ -820,7 +820,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task PreparedBatchRejectsChangedFactoryBeforeDecisionAsync()
         {
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
                 .ConfigureAwait(false);
@@ -846,7 +846,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedBatchDoesNotLoseFactoryWritesDuringDecisionAsync(bool rejectDecision)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             IEncodeableFactory factory = m_server.CurrentInstance.Factory;
             Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? type), Is.True);
             AssertLifecycleValue(type);
@@ -908,7 +908,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task PreparedBatchFactoryTypesRemainPrivateUntilPublicationAsync(bool publish)
         {
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             IEncodeableFactory factory = m_server.CurrentInstance.Factory;
             ExpandedNodeId structure = new(RuntimeNodeSetTestServer.TestPointDataType,
                 RuntimeNodeSetTestServer.NamespaceUri);
@@ -967,7 +967,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(factory.TryGetEncodeableType(structure, out IEncodeableType? original), Is.True);
             Assert.That(factory.TryGetEncodeableType(alias, out _), Is.False);
             bool visibleWhilePrepared;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using ILifecycleWriter exactWriter5 = await Capture(
                 m_server.NodeManagerLifecycle, current).BeginAsync(CancellationToken.None).ConfigureAwait(false);
             await using (IPreparedChanges prepared = await exactWriter5.PrepareAsync(

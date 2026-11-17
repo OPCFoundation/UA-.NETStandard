@@ -660,7 +660,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 SessionTimeout = 60000
             };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? original = null;
             TrackingLifecycleNodeManager? candidate = null;
             TrackingLifecycleNodeManager? nested = null;
@@ -972,7 +972,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var nestedCancellation = new CancellationTokenSource();
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
             {
                 OperationTimeout = 60000,

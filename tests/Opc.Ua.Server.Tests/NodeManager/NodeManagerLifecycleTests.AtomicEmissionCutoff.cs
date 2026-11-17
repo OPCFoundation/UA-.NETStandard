@@ -66,7 +66,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? first = null;
             TrackingLifecycleNodeManager? second = null;
             LifecycleResult publicationResult1 = await CommitChangeAsync(
@@ -222,7 +222,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 IServerInternal server = m_server.CurrentInstance;
                 var master = (MasterNodeManager)server.NodeManager;
-                var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 TrackingLifecycleNodeManager? first = null;
                 TrackingLifecycleNodeManager? survivor = null;
                 LifecycleResult publicationResult3 = await CommitChangeAsync(
@@ -373,7 +373,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? first = null;
             TrackingLifecycleNodeManager? second = null;
             TrackingLifecycleNodeManager? survivor = null;

@@ -298,7 +298,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var callbackEntered = new ManualResetEventSlim();
             using var releaseCallback = new ManualResetEventSlim();
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges first = await lifecycle.PrepareAsync(
                 [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                     kFirstRegistrationValue, _ => { }, firstNamespaceUri))], timeout.Token)

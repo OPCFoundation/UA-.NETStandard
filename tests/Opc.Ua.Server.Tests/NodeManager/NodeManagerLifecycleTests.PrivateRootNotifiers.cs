@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task PreparedRootNotifierReferencesRemainPrivateUntilPublicationOrAbortAsync(bool publish)
         {
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             var factory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId);
             LifecycleResult? result = null;
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task FailedRootNotifierReplacementKeepsServingReferenceAsync()
         {
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             var originalFactory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId);
             LifecycleResult original = await CommitRootNotifierAdditionAsync(
                 lifecycle,
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task RetiredSameIdRootNotifierCannotRemoveReplacementReferenceAsync()
         {
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             var originalFactory = new LifecycleRootNotifierFactory(kRootNotifierNamespaceUri, kRootNotifierNodeId);
             LifecycleResult original = await CommitRootNotifierAdditionAsync(
                 lifecycle,

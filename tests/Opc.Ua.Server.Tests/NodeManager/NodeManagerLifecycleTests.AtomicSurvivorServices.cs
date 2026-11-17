@@ -62,7 +62,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? original = null;
             LifecycleResult publicationResult1 = await CommitChangeAsync(
                 lifecycle, LifecycleChange.Add(
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             LifecycleResult publicationResult2 = await CommitChangeAsync(
                 lifecycle, LifecycleChange.Add(
                 CreateNodeManagementFactory(101, range)), timeout.Token).ConfigureAwait(false);
