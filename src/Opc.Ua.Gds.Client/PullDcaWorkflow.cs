@@ -570,7 +570,10 @@ namespace Opc.Ua.Gds.Client
                         "Journaled signing requires a retained key and a channel-bound connection.");
                 }
                 ByteString keyCertificate = await keyEvidence.GetSigningKeyCertificateAsync(
-                    applicationId, profile, csr, ct).ConfigureAwait(false);
+                    PullDcaConnection.SnapshotNodeId(applicationId),
+                    PullDcaConnection.SnapshotProfile(profile),
+                    csr.Copy(),
+                    ct).ConfigureAwait(false);
                 keyCertificate = keyCertificate.Copy();
                 if (keyCertificate.IsEmpty)
                 {

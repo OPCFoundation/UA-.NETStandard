@@ -192,6 +192,55 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId }));
         }
 
+        [Test]
+        public async Task SigningKeyEvidenceProviderCannotMutateDispatchedRequest()
+        {
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 3, 4 }), 1),
+                new NodeId(ByteString.From(new byte[] { 5, 6 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            var binding = new PullDcaSigningBinding(
+                kRegistrar, applicationId, kRequestId, profile, kCsr, kCertificate,
+                default, default, string.Empty, default, Guid.NewGuid());
+            fixture.Connection = new FakeBoundConnection(fixture, binding);
+            fixture.Connection.Selection = fixture.Connection.Selection with { ApplicationId = applicationId };
+            fixture.Host.OnKeyEvidence = (receivedApplication, receivedProfile, csr) =>
+            {
+                MutateOpaqueIdentifier(receivedApplication);
+                MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+                MutateBytes(csr);
+            };
+            var journal = new Mock<IPullDcaSigningJournal>(MockBehavior.Strict);
+            journal.Setup(value => value.GetReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PullDcaCredentials?>((PullDcaCredentials?)null));
+            journal.Setup(value => value.RecordReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<PullDcaCredentials>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            journal.Setup(value => value.RecordInstalledAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            receipts.Setup(store => store.GetOrCreateAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(),
+                    It.IsAny<Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PullDcaRegistrar _, NodeId _, NodeId _, PullDcaCertificateProfile _,
+                    Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>> receive, CancellationToken ct) =>
+                    receive(ct));
+
+            PullDcaResult result = await fixture.Create(receipts: receipts.Object, signingJournal: journal.Object)
+                .RunAsync(kRegistrar, CreateRequest() with { DcaCertificateProfile = profile }).ConfigureAwait(false);
+
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task CredentialInstallerCannotMutateWorkflowIdentity(bool newKeyPair)
@@ -1857,6 +1906,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private static void MutateOpaqueIdentifier(NodeId identifier)
         {
             Assert.That(identifier.TryGetValue(out ByteString bytes), Is.True);
+            MutateBytes(bytes);
+        }
+
+        private static void MutateBytes(ByteString bytes)
+        {
             Assert.That(MemoryMarshal.TryGetArray(bytes.Memory, out ArraySegment<byte> segment), Is.True);
             Assert.That(segment.Array, Is.Not.Null);
             segment.Array![segment.Offset] ^= 0xff;
@@ -1884,7 +1938,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             public List<string> Calls { get; } = [];
-            public FakeConnection Connection { get; }
+            public FakeConnection Connection { get; set; }
             public FakeHost Host { get; }
             public string? FailingOperation { get; set; }
 
@@ -1906,7 +1960,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public PullDcaWorkflow Create(
                 PullDcaOptions? options = null, bool includeSoftware = true, bool includeDiscovery = false,
                 IPullDcaCertificateReceiptStore? receipts = null,
-                IPullDcaSigningRecoveryProvider? signingRecovery = null)
+                IPullDcaSigningRecoveryProvider? signingRecovery = null,
+                IPullDcaSigningJournal? signingJournal = null)
             {
                 return new PullDcaWorkflow(
                     options ?? new PullDcaOptions(),
@@ -1921,7 +1976,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         return Connection;
                     },
                     Host, Host, includeSoftware ? Host : null, includeDiscovery ? Host : null,
-                    receipts, signingRecovery);
+                    receipts, signingRecovery, signingJournal);
             }
 
             public void Record(string operation, CancellationToken ct)
@@ -1935,7 +1990,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
-        private sealed class FakeConnection : IPullDcaConnection
+        private class FakeConnection : IPullDcaConnection
         {
             public FakeConnection(Fixture fixture)
             {
@@ -2117,9 +2172,45 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             private readonly Fixture m_fixture;
         }
 
+        private sealed class FakeBoundConnection : FakeConnection, IPullDcaBoundSigningConnection
+        {
+            public FakeBoundConnection(Fixture fixture, PullDcaSigningBinding binding)
+                : base(fixture)
+            {
+                m_fixture = fixture;
+                m_binding = binding;
+            }
+
+            public ValueTask<NodeId> StartWithEvidenceAsync(
+                NodeId applicationId,
+                PullDcaCertificateProfile profile,
+                ByteString csr,
+                ByteString signingKeyCertificate,
+                CancellationToken ct)
+            {
+                m_fixture.Record("start:" + applicationId.IdentifierAsString, ct);
+                Assert.That(applicationId, Is.EqualTo(m_binding.ApplicationId));
+                Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
+                Assert.That(csr, Is.EqualTo(kCsr));
+                Assert.That(signingKeyCertificate, Is.EqualTo(kCertificate));
+                return new ValueTask<NodeId>(m_binding.RequestId);
+            }
+
+            public ValueTask<PullDcaSigningBinding> GetSigningBindingAsync(
+                NodeId applicationId, NodeId requestId, CancellationToken ct)
+            {
+                Assert.That(applicationId, Is.EqualTo(m_binding.ApplicationId));
+                Assert.That(requestId, Is.EqualTo(m_binding.RequestId));
+                return new ValueTask<PullDcaSigningBinding>(m_binding);
+            }
+
+            private readonly Fixture m_fixture;
+            private readonly PullDcaSigningBinding m_binding;
+        }
+
         private sealed class FakeHost :
             IPullDcaIdentityProvider, IPullDcaCredentialProvider, IPullDcaNewKeyPairCredentialProvider,
-            IPullDcaSoftwareUpdateProvider, IPullDcaRegistrarDiscovery
+            IPullDcaSigningKeyEvidenceProvider, IPullDcaSoftwareUpdateProvider, IPullDcaRegistrarDiscovery
         {
             public FakeHost(Fixture fixture)
             {
@@ -2132,6 +2223,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public PullDcaRegistrar? SoftwareRegistrar { get; private set; }
             public ByteString SigningRequest { get; set; } = kCsr;
             public Action<NodeId, PullDcaCertificateProfile>? OnCreateSigningRequest { get; set; }
+            public Action<NodeId, PullDcaCertificateProfile, ByteString>? OnKeyEvidence { get; set; }
             public Action<NodeId>? OnInstall { get; set; }
             public Action<NodeId, PullDcaCertificateProfile>? OnInstallNewKeyPair { get; set; }
             public List<NodeId> InstalledIds { get; } = [];
@@ -2177,6 +2269,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 InstalledIds.Add(applicationId);
                 OnInstall?.Invoke(applicationId);
                 return default;
+            }
+
+            public ValueTask<ByteString> GetSigningKeyCertificateAsync(
+                NodeId applicationId,
+                PullDcaCertificateProfile profile,
+                ByteString signingRequest,
+                CancellationToken cancellationToken)
+            {
+                m_fixture.Record("evidence:" + applicationId.IdentifierAsString, cancellationToken);
+                OnKeyEvidence?.Invoke(applicationId, profile, signingRequest);
+                return new ValueTask<ByteString>(kCertificate);
             }
 
             public ValueTask InstallNewKeyPairAsync(
