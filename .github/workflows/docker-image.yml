@@ -97,13 +97,26 @@ jobs:
             # A new branch has an all-zero 'before', and a force push can name
             # a commit this clone does not have: build everything in both cases
             # rather than guess what changed.
-            & git cat-file -e "$($env:BEFORE_SHA)^{commit}" 2>$null
-            if ($LASTEXITCODE -eq 0) {
+            $commit = @("$($env:BEFORE_SHA)^{commit}" | & git cat-file '--batch-check=%(objectname) %(objecttype)')
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not inspect previous commit '$($env:BEFORE_SHA)' (git exit code $LASTEXITCODE)."
+            }
+            if ($commit.Count -ne 1) {
+                throw "Could not inspect previous commit '$($env:BEFORE_SHA)': unexpected Git response."
+            }
+            if ($commit[0] -ieq "$($env:BEFORE_SHA) commit") {
                 $range = "$($env:BEFORE_SHA)..HEAD"
+            }
+            elseif ($commit[0] -ieq "$($env:BEFORE_SHA)^{commit} missing") {
+                Write-Host "Could not resolve previous commit '$($env:BEFORE_SHA)'; building all images."
+            }
+            else {
+                throw "Could not inspect previous commit '$($env:BEFORE_SHA)': unexpected Git response '$($commit[0])'."
             }
         }
         if ($range) {
-            $changed = @(& git diff --name-only $range)
+            # Include both paths when a source file moves into docs or tests.
+            $changed = @(& git diff --name-only --no-renames $range)
             if ($LASTEXITCODE -ne 0) {
                 throw (
                     "Could not diff '$range' (git exit code $LASTEXITCODE). " +
@@ -111,7 +124,7 @@ jobs:
             }
             $relevantChanges = $false
             foreach ($file in $changed) {
-                if ($file -like 'docs/*' -or $file -like 'tests/*') {
+                if ($file -clike 'docs/*' -or $file -clike 'tests/*') {
                     continue
                 }
                 $relevantChanges = $true

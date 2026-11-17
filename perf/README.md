@@ -6,6 +6,7 @@ part of the product build (not in `UA.slnx`) and target `net10.0` and `net11.0` 
 | Path | Purpose |
 |---|---|
 | `ServerLoadHarness/` | Starts a reference server in a child process and drives load against it from the parent process, which is also the measured client. |
+| `regression/` | Nightly load floors: delivered %, server bytes per operation and rate ratios checked against fixed bounds; see [regression/README.md](regression/README.md). |
 | `TraceAnalyzer/` | Aggregates the `dotnet-trace` files the harness records (CPU, allocations, lock contention, garbage collections). |
 | `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, and the median summary. |
 | `variants.sh`, `variants-summary.ps1` | Paired runs of one build under several configurations (GC mode, affinity), and the median and range summary. |
@@ -15,8 +16,8 @@ part of the product build (not in `UA.slnx`) and target `net10.0` and `net11.0` 
 The server runs in its own process, so the server-side numbers (CPU, allocated bytes, GC count
 and pause time, `Monitor.LockContentionCount`) exclude the load generator, and the same
 counters taken in the parent process measure the client stack without the server. The NUnit
-`LoadTest` fixture in `tests/Opc.Ua.Sessions.Tests` checks correctness under load; this harness
-measures it.
+`LoadTest` fixture in `tests/Opc.Ua.Sessions.Tests` checks correctness under load and logs its rates (`load-metric:` lines); this
+harness measures it, and [regression/](regression/README.md) checks the measurements nightly.
 
 - [Build](#build)
 - [Run](#run): `ServerLoadHarness run` scenarios and options
@@ -79,11 +80,13 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
 | `--threads`, `--queue` | 200, 2000 | `MaxRequestThreadCount` and `MaxQueuedRequestCount` of the server; `MinRequestThreadCount` is the smaller of 50 and `--threads`. |
 | `--isolation` | `default` | `sharedonly`: run the server with the SharedOnly [resource isolation](../docs/ResourceIsolation.md) mode (no isolation provider, one FIFO request queue) instead of the default profile. |
+| `--owner-share` | 1 | `ServerResourceIsolationOptions.DefaultOwnerShare` of the server. Every workload session (and every native worker) connects from this machine, so the server sees one owner; the harness lets it take the whole request queue and all workers. The library default is 0.5. |
 | `--trace <file>` | | Record the measurement window with `dotnet-trace`. |
 | `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention` or `gc`. |
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
 | `--out <file>` | | Append the result block to a file. |
 | `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
+| `--inject-alloc`, `--inject-spin-us` | 0 | Simulated regression in the server child: bytes allocated and microseconds of CPU per written value and per reported event, for validating the [load floors](regression/README.md#validating-a-floor). |
 | `--client-cores` | all | Windows only. Relaunch the client with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) and affinity to the last N allowed processors. If processors remain, pin the server to them. On Linux the process-affinity API changes only the main thread's affinity; use a cgroup (`docker --cpuset-cpus`) or launch under `taskset` instead. |
 | `--server-affinity`, `--client-affinity` | all | Windows only. Hexadecimal processor masks of the server child and of the client; they override the masks `--client-cores` derives. The server runtime is sized for the processors of its mask (`DOTNET_PROCESSOR_COUNT`). On a processor with cores of different speed, compare runs on the same core type: see [Processors with cores of different speed](#processors-with-cores-of-different-speed). |
 | `--client-memory` | unlimited | Emulated client memory budget in MB. Sets the GC heap hard limit to 75 % of that budget; native memory is not capped. |

@@ -38,11 +38,11 @@ namespace Opc.Ua.Server.Tests
     public partial class AsyncCustomNodeManagerTests
     {
         /// <summary>
-        /// A single-node read through the dispatcher reads the node through the handle the
-        /// permission check resolved, and returns the value a multi-node read returns.
+        /// A single-node read through the dispatcher returns the value a multi-node read
+        /// returns, without a handle for a node manager with the default handle lookup.
         /// </summary>
         [Test]
-        public async Task SingleNodeReadUsesTheHandleOfTheValidationAsync()
+        public async Task SingleNodeReadMatchesAMultiNodeReadAsync()
         {
             (MasterNodeManager dispatcher, ITestNodeManager manager, ISession session) =
                 CreateReadDispatcher();
@@ -70,11 +70,9 @@ namespace Opc.Ua.Server.Tests
             });
             if (m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
-                // routed by the validation, for the node manager that owns the node.
-                Assert.That(single.Handle, Is.InstanceOf<NodeHandle>());
-                var handle = (NodeHandle)single.Handle;
-                Assert.That(handle.Node, Is.SameAs(manager.PredefinedNodes[nodeId]));
-                Assert.That(handle.RoutedBy, Is.SameAs(manager));
+                // the default handle lookup finds the node again without a handle; a node
+                // manager that overrides it gets the handle routed (see WriteRouting).
+                Assert.That(single.Handle, Is.Null);
             }
         }
 
@@ -153,13 +151,58 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// A read of several attributes of a node one after another reads the permission
+        /// attributes of the node once; the node is read again after another node.
+        /// </summary>
+        [Test]
+        public async Task ConsecutiveReadsOfANodeReadItsPermissionsOnceAsync()
+        {
+            (MasterNodeManager dispatcher, ITestNodeManager manager, ISession session) =
+                CreateReadDispatcher();
+            await using MasterNodeManager disposable = dispatcher;
+            NodeId counted = await AddPermissionVariableAsync(
+                manager, "CountedPermissions", 3, PermissionType.Browse | PermissionType.Read).ConfigureAwait(false);
+            NodeId other = await AddPermissionVariableAsync(
+                manager, "OtherPermissions", 4, PermissionType.Browse | PermissionType.Read).ConfigureAwait(false);
+            int permissionReads = 0;
+            manager.PredefinedNodes[counted].OnReadRolePermissions =
+                (ISystemContext context, NodeState node, ref ArrayOf<RolePermissionType> value) =>
+            {
+                permissionReads++;
+                return ServiceResult.Good;
+            };
+
+            (ArrayOf<DataValue> values, _) = await ReadManyAsync(
+                dispatcher,
+                session,
+                DiagnosticsMasks.None,
+                new ReadValueId { NodeId = counted, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = counted, AttributeId = Attributes.BrowseName },
+                new ReadValueId { NodeId = counted, AttributeId = Attributes.DisplayName },
+                new ReadValueId { NodeId = other, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = counted, AttributeId = Attributes.Value }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(values.Count, Is.EqualTo(5));
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    Assert.That(values[ii].StatusCode, Is.EqualTo(StatusCodes.Good), $"value {ii}");
+                }
+                Assert.That((int)values[0].WrappedValue, Is.EqualTo(3));
+                Assert.That((int)values[3].WrappedValue, Is.EqualTo(4));
+                Assert.That(permissionReads, Is.EqualTo(2));
+            });
+        }
+
         private (MasterNodeManager Dispatcher, ITestNodeManager Manager, ISession Session)
-            CreateReadDispatcher()
+            CreateReadDispatcher(ITestNodeManager? manager = null)
         {
             m_mockServer.Setup(server => server.Telemetry).Returns(NUnitTelemetryContext.Create());
             var resources = new ResourceManager(m_configuration);
             m_mockServer.Setup(server => server.ResourceManager).Returns(resources);
-            ITestNodeManager manager = CreateManager();
+            manager ??= CreateManager();
             var core = new Mock<ICoreNodeManager>();
             core.Setup(value => value.SyncNodeManager).Returns(Mock.Of<INodeManager>());
             var factory = new Mock<IMainNodeManagerFactory>();

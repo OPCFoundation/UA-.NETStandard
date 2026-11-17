@@ -1971,6 +1971,162 @@ namespace Opc.Ua.Server.Tests
             AssertRejected(provider, stage, owners[3], 1, ResourceIsolationFailureReason.Capacity);
         }
 
+        /// <summary>
+        /// Without a stage override one owner holds at most half of the shared request queue,
+        /// queue bytes and workers, so one Session pipelining slow requests leaves the other
+        /// half to every other owner. Other stages keep the whole pool as the ceiling.
+        /// </summary>
+        [Test]
+        public void DefaultOwnerCeilingIsHalfOfTheSharedRequestStages()
+        {
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 };
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = 200;
+            configuration.ServerConfiguration.MaxRequestThreadCount = 100;
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+
+            ResourceIsolationStagePlan queue = plan.GetStage(ResourceIsolationStage.RequestQueue);
+            ResourceIsolationStagePlan execution = plan.GetStage(ResourceIsolationStage.RequestExecution);
+            ResourceIsolationStagePlan bytes = plan.GetStage(ResourceIsolationStage.RequestQueueBytes);
+            Assert.That(options.DefaultOwnerShare, Is.EqualTo(0.5));
+            Assert.That(queue.OwnerHardLimit, Is.EqualTo(queue.SharedCapacity / 2));
+            Assert.That(execution.SharedCapacity, Is.EqualTo(97));
+            Assert.That(execution.OwnerHardLimit, Is.EqualTo(48));
+            // whole requests of the maximum message size
+            Assert.That(bytes.OwnerHardLimit, Is.EqualTo(bytes.SharedCapacity / 10 / 2 * 10));
+            foreach (ResourceIsolationStage stage in new[]
+            {
+                ResourceIsolationStage.Connection,
+                ResourceIsolationStage.Handshake,
+                ResourceIsolationStage.ReassemblyBytes,
+                ResourceIsolationStage.SessionEstablishment,
+                ResourceIsolationStage.ParkedRequest
+            })
+            {
+                Assert.That(plan.GetStage(stage).OwnerHardLimit, Is.EqualTo(plan.GetStage(stage).Capacity), stage.ToString());
+            }
+        }
+
+        [Test]
+        public void DefaultOwnerShareOfOneLetsOneOwnerTakeTheWholePool()
+        {
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10, DefaultOwnerShare = 1 };
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                Configuration(), new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+            for (int ii = 0; ii <= (int)ResourceIsolationStage.ParkedRequest; ii++)
+            {
+                ResourceIsolationStagePlan stage = plan.GetStage((ResourceIsolationStage)ii);
+                Assert.That(stage.OwnerHardLimit, Is.EqualTo(stage.Capacity), stage.Stage.ToString());
+            }
+        }
+
+        [Test]
+        public void ExplicitOwnerHardLimitOverridesTheDefaultShare()
+        {
+            var options = new ServerResourceIsolationOptions
+            {
+                MaxRetainedMessageBytes = 10,
+                DefaultOwnerShare = 0.1,
+                Stages =
+                [
+                    new ResourceIsolationStageOptions { Stage = ResourceIsolationStage.RequestExecution, OwnerHardLimit = 90 }
+                ]
+            };
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxRequestThreadCount = 100;
+            ServerResourceIsolationPlan plan = options.CreateRuntimePlan(
+                configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100));
+            Assert.That(plan.GetStage(ResourceIsolationStage.RequestExecution).OwnerHardLimit, Is.EqualTo(90));
+            ResourceIsolationStagePlan queue = plan.GetStage(ResourceIsolationStage.RequestQueue);
+            Assert.That(queue.OwnerHardLimit, Is.EqualTo((long)(queue.SharedCapacity * 0.1)));
+        }
+
+        [TestCase(0.0)]
+        [TestCase(-0.5)]
+        [TestCase(1.5)]
+        [TestCase(double.NaN)]
+        public void InvalidDefaultOwnerShareIsRejected(double share)
+        {
+            var options = new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10, DefaultOwnerShare = share };
+            Assert.That(
+                () => options.CreateRuntimePlan(Configuration(), new ServerRateLimitOptions(), new ChunkReassemblyBudget(100)),
+                Throws.ArgumentException);
+        }
+
+        /// <summary>
+        /// One anonymous SecurityPolicy None owner cannot hold every worker: past its share it is
+        /// rejected with OwnerLimit, while another owner still gets workers, and a control request
+        /// (Cancel, CloseSession) of the saturated owner still gets its reserved worker.
+        /// </summary>
+        [Test]
+        public void OneOwnerCannotHoldEveryRequestWorker()
+        {
+            var bindings = new TestBindings();
+            SecureChannelContext anonymous = Channel("flood", mode: MessageSecurityMode.None);
+            bindings.Bindings[new NodeId(7u)] = new SessionBindingContext(
+                new NodeId(7u), "flood", 1, UserTokenType.Anonymous, null,
+                SecurityPolicies.None, MessageSecurityMode.None);
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxRequestThreadCount = 100;
+            using var provider = new DefaultServerResourceIsolationProvider(
+                new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 }.CreateRuntimePlan(
+                    configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100)),
+                NUnitTelemetryContext.Create(),
+                bindings);
+            ResourceIsolationOwner flooding = provider.Classify(anonymous, new NodeId(7u));
+            ResourceIsolationOwner other = provider.Classify(Channel("other", [1, 2, 3]));
+            ResourceIsolationStagePlan execution = provider.Plan.GetStage(ResourceIsolationStage.RequestExecution);
+            Assert.That(flooding.Key, Is.Not.EqualTo(other.Key));
+
+            using IDisposable held = Acquire(
+                provider, ResourceIsolationStage.RequestExecution, flooding, execution.OwnerHardLimit);
+            AssertRejected(provider, ResourceIsolationStage.RequestExecution, flooding, 1,
+                ResourceIsolationFailureReason.OwnerLimit);
+            using IDisposable otherHeld = Acquire(
+                provider, ResourceIsolationStage.RequestExecution, other, execution.OwnerHardLimit);
+            ResourceIsolationOwner control = provider.Classify(anonymous, new NodeId(7u), controlRequest: true);
+            Assert.That(control.Class, Is.EqualTo(ResourceIsolationClass.Control));
+            using IDisposable controlHeld = Acquire(provider, ResourceIsolationStage.RequestExecution, control, 1);
+        }
+
+        /// <summary>
+        /// An owner at its ceiling that also holds a reconnect slot still gets its control
+        /// slot for Cancel or CloseSession, and the other way round: the protected floors of
+        /// one owner add up instead of sharing one class floor above the ceiling.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ProtectedSlotsOfOneOwnerDoNotBlockEachOther(bool controlFirst)
+        {
+            var bindings = new TestBindings();
+            SecureChannelContext anonymous = Channel("mixed", mode: MessageSecurityMode.None);
+            bindings.Bindings[new NodeId(7u)] = new SessionBindingContext(
+                new NodeId(7u), "mixed", 1, UserTokenType.Anonymous, null,
+                SecurityPolicies.None, MessageSecurityMode.None);
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration!.MaxRequestThreadCount = 100;
+            using var provider = new DefaultServerResourceIsolationProvider(
+                new ServerResourceIsolationOptions { MaxRetainedMessageBytes = 10 }.CreateRuntimePlan(
+                    configuration, new ServerRateLimitOptions(), new ChunkReassemblyBudget(100)),
+                NUnitTelemetryContext.Create(),
+                bindings);
+            const ResourceIsolationStage stage = ResourceIsolationStage.RequestExecution;
+            ResourceIsolationStagePlan execution = provider.Plan.GetStage(stage);
+            Assert.That(execution.ReconnectReserved, Is.GreaterThan(0));
+            Assert.That(execution.ControlReserved, Is.GreaterThan(0));
+            ResourceIsolationOwner ordinary = provider.Classify(anonymous, new NodeId(7u));
+            ResourceIsolationOwner reconnect = provider.Classify(anonymous, new NodeId(7u), sessionEstablishment: true);
+            ResourceIsolationOwner control = provider.Classify(anonymous, new NodeId(7u), controlRequest: true);
+            Assert.That(reconnect.Class, Is.EqualTo(ResourceIsolationClass.Reconnect));
+            Assert.That(control.Class, Is.EqualTo(ResourceIsolationClass.Control));
+
+            using IDisposable held = Acquire(provider, stage, ordinary, execution.OwnerHardLimit);
+            using IDisposable first = Acquire(provider, stage, controlFirst ? control : reconnect, 1);
+            using IDisposable second = Acquire(provider, stage, controlFirst ? reconnect : control, 1);
+            AssertRejected(provider, stage, ordinary, 1, ResourceIsolationFailureReason.OwnerLimit);
+        }
+
         private static IDisposable Acquire(
             DefaultServerResourceIsolationProvider provider,
             ResourceIsolationStage stage,

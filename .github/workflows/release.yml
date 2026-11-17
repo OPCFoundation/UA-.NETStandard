@@ -146,7 +146,7 @@ jobs:
         # built supply the promotion logic. Binding to the candidate's own SHA
         # makes the validator, the policy scripts and the package bytes all
         # describe the same source.
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.source.outputs.commit }}
 

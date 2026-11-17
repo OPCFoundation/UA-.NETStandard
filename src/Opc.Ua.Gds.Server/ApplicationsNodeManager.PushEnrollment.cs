@@ -88,7 +88,7 @@ namespace Opc.Ua.Gds.Server
                 .ConfigureAwait(false);
             if (!requestId.IsNull)
             {
-                CertificateRequestState state = m_request.ReadRequest(
+                CertificateRequestState state = CertificateRequestStore.ReadRequest(
                     applicationId, requestId, out string? requestedGroup, out string? requestedType,
                     out ByteString requestedCsr, out _, out _, out _, out _);
                 if (state is not (CertificateRequestState.New or CertificateRequestState.Approved) ||
@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds.Server
             {
                 await group.VerifySigningRequestAsync(application, certificateTypeId, certificateRequest, ct)
                     .ConfigureAwait(false);
-                NodeId requestId = m_request.StartSigningRequest(
+                NodeId requestId = CertificateRequestStore.StartSigningRequest(
                     applicationId, group.Configuration.Id!, m_certTypeMap[certificateTypeId],
                     certificateRequest, "OnboardingRegistrarPush");
                 return requestId;
@@ -171,13 +171,13 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(StatusCodes.BadNotFound);
                 await group.VerifySigningRequestAsync(application, certificateTypeId, certificateRequest, ct)
                     .ConfigureAwait(false);
-                CertificateRequestState state = m_request.ReadRequest(
+                CertificateRequestState state = CertificateRequestStore.ReadRequest(
                     applicationId, requestId, out string? requestedGroup, out string? requestedType,
                     out ByteString requestedCsr, out _, out _, out _, out _);
                 if (state == CertificateRequestState.New && m_autoApprove)
                 {
-                    m_request.ApproveRequest(requestId, false);
-                    state = m_request.ReadRequest(
+                    CertificateRequestStore.ApproveRequest(requestId, false);
+                    state = CertificateRequestStore.ReadRequest(
                         applicationId, requestId, out requestedGroup, out requestedType,
                         out requestedCsr, out _, out _, out _, out _);
                 }
@@ -305,7 +305,7 @@ namespace Opc.Ua.Gds.Server
             m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateTypeId], encodedCertificate);
             m_database.SetApplicationTrustLists(
                 applicationId, m_certTypeMap[certificateTypeId], certificateGroup.Configuration.TrustedListPath);
-            m_request.AcceptRequest(requestId, encodedCertificate);
+            CertificateRequestStore.AcceptRequest(requestId, encodedCertificate);
         }
 
         /// <summary>

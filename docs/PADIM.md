@@ -168,6 +168,49 @@ a custom server host must use its own conformance manager.
 The generated family accessors retain the specification's spelling, including
 `Ph` and `OpticalFluorescenseQuenching`.
 
+## Engineering metadata ownership and notifications
+
+`WithEngineeringUnits` copies the supplied `EUInformation` and `Range`,
+including localized translation dictionaries and formatting arguments. Mutating
+the caller's objects does not change the published properties. Call the method
+again to apply revised metadata, and prevent concurrent mutation of its arguments
+while the copy is made. Unsupported translation dictionaries or mutable formatting
+arguments cause `BadNotSupported` before either property is replaced.
+
+After the analog variable is registered, changes to `EngineeringUnits` or
+`EURange` use the node manager's semantic-change reporting. Clients subscribed to
+semantic-change events receive the affected variable's NodeId; its next monitored
+value carries `SemanticsChanged` without changing the acquired value or source
+timestamp. Initial configuration does not report a runtime semantic change.
+Configure metadata separately from concurrent acquisition or remote writes.
+
+Changes to retained translations or fallback formatting also report a semantic
+change, even when the selected text stays the same. Replacing metadata with equal
+translation entries, fallback information, and formatting arguments does not
+report a change. Reordering translation entries reports a change when it changes
+the first available locale, the first case-insensitive locale match, or the first
+locale for a language. For example, an
+`en-AU` client can receive a different translation when `en-US` and `en-GB`
+exchange positions. Reorders that preserve those choices and retained fallback
+information do not report a change. Encoded `mul` values can also change the
+fallback derived from their first entry.
+
+The server's resource manager selects `EUInformation.DisplayName` and
+`EUInformation.Description` using the session's preferred locales when returning
+read results, data-change notifications, or event fields. Selection creates a new
+structure without modifying the published metadata. The same selection applies
+to `EUInformation` elements in `ExtensionObject` arrays and multidimensional
+matrices, preserving their dimensions.
+Translated copies retain each original `ExtensionObject.TypeId`. Envelopes with
+no type identifier or an unsupported encoded body remain unchanged.
+The shared extension-object clone path also preserves envelope identifiers when
+copying decoded bodies into array and matrix variants.
+Other structure types, including derived types with additional fields, remain
+unchanged. This is not a general traversal of arbitrary nested structures.
+Read and notification routing invokes a custom `ResourceManager.TranslateValue`
+override only for previously supported `LocalizedText` values or supported
+`EUInformation` envelopes. Unrelated structures do not newly reach the override.
+
 ## Calibration and condition members
 
 Select condition and calibration fields from the actual device or signal

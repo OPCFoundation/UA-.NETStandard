@@ -415,7 +415,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         FormattableString.Invariant(
                         $"--counter-lock {Program.Arg("counter-lock", "1")} --async-node-manager {Program.Arg("async-node-manager", "1")} ") +
                         FormattableString.Invariant(
-                        $"--isolation {Program.Arg("isolation", "default")}"),
+                        $"--isolation {Program.Arg("isolation", "default")} --owner-share {Program.Arg("owner-share", "1")}"),
                         // the benchmark's .NET workers run with Server GC; SERVER_DOTNET_gcServer=0 overrides it
                         new Dictionary<string, string>(StringComparer.Ordinal) { ["DOTNET_gcServer"] = "1" });
                     string ready = handle.m_lines.Take();

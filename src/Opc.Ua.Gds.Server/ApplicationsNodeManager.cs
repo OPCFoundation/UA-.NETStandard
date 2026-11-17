@@ -180,6 +180,7 @@ namespace Opc.Ua.Gds.Server
             m_autoApprove = autoApprove;
             m_database = database;
             m_request = request;
+            ClientCertificateBoundRequestStore = request as IClientCertificateBoundCertificateRequestStore;
             m_certificateGroupFactory = certificateGroupFactory;
             m_ownedCertificateGroups = [];
             m_certificateGroups = [];
@@ -263,7 +264,7 @@ namespace Opc.Ua.Gds.Server
 
             m_certTypeMap = s_certificateTypeMap;
             m_database.NamespaceIndex = ApplicationsNamespaceIndex;
-            m_request.NamespaceIndex = ApplicationsNamespaceIndex;
+            CertificateRequestStore.NamespaceIndex = ApplicationsNamespaceIndex;
 
             await InitializeCertificateGroupsAsync(builder).ConfigureAwait(false);
 
@@ -2282,7 +2283,9 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-                requestId = m_request.StartNewKeyPairRequest(
+                ByteString clientCertificateFingerprint =
+                    AuthorizationHelper.GetClientCertificateFingerprint(context);
+                requestId = RequireClientCertificateBoundRequestStore().StartBoundNewKeyPairRequest(
                     applicationId,
                     certificateGroup.Configuration.Id!,
                     certificateTypeNameId,
@@ -2290,13 +2293,14 @@ namespace Opc.Ua.Gds.Server
                     domainNames,
                     privateKeyFormat,
                     privateKeyPassword?.ToCharArray()!,
+                    clientCertificateFingerprint,
                     userIdentity?.DisplayName!);
 
                 if (m_autoApprove)
                 {
                     try
                     {
-                        m_request.ApproveRequest(requestId, false);
+                        CertificateRequestStore.ApproveRequest(requestId, false);
                     }
                     catch
                     {
@@ -2428,18 +2432,21 @@ namespace Opc.Ua.Gds.Server
 
                 // store request in the queue for approval
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-                result.RequestId = m_request.StartSigningRequest(
+                ByteString clientCertificateFingerprint =
+                    AuthorizationHelper.GetClientCertificateFingerprint(context);
+                result.RequestId = RequireClientCertificateBoundRequestStore().StartBoundSigningRequest(
                     applicationId,
                     certificateGroup.Configuration.Id!,
                     certificateTypeNameId,
                     certificateRequest,
+                    clientCertificateFingerprint,
                     userIdentity?.DisplayName!);
 
                 if (m_autoApprove)
                 {
                     try
                     {
-                        m_request.ApproveRequest(result.RequestId, false);
+                        CertificateRequestStore.ApproveRequest(result.RequestId, false);
                     }
                     catch
                     {
@@ -2576,9 +2583,11 @@ namespace Opc.Ua.Gds.Server
                 return result;
             }
 
-            CertificateRequestState state = m_request.FinishRequest(
+            ByteString clientCertificateFingerprint = AuthorizationHelper.GetClientCertificateFingerprint(context);
+            CertificateRequestState state = RequireClientCertificateBoundRequestStore().FinishBoundRequest(
                 applicationId,
                 requestId,
+                clientCertificateFingerprint,
                 out string? certificateGroupId,
                 out string? certificateTypeId,
                 out ByteString generatedCertificate,
@@ -2716,7 +2725,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (generatedCertificate.IsEmpty)
                 {
-                    CertificateRequestState state = m_request.ReadRequest(
+                    CertificateRequestState state = CertificateRequestStore.ReadRequest(
                         applicationId, requestId, out _, out _,
                         out ByteString certificateRequest, out string? subjectName,
                         out string[]? domainNames, out string? privateKeyFormat,

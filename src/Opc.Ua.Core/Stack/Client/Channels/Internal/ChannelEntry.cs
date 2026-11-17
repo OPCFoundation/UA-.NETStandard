@@ -48,12 +48,17 @@ namespace Opc.Ua
             IChannelEntryHost host,
             ManagedChannelKey key,
             ConfiguredEndpoint endpoint,
-            ITransportWaitingConnection? reverseConnection)
+            ITransportWaitingConnection? reverseConnection,
+            IServiceMessageContext? messageContext = null)
         {
             OwnerManager = host;
             Key = key;
             Endpoint = endpoint;
-            MessageContext = host.Configuration.CreateMessageContext();
+            // A replacement entry must keep the encoding tables of the entry it
+            // replaces: participants (sessions) adopt them when they attach and
+            // keep refreshing them in place, so a fresh context would leave the
+            // replacement transport with namespace 0 and the default factory only.
+            MessageContext = messageContext ?? host.Configuration.CreateMessageContext();
             m_reverseConnection = reverseConnection;
             m_lastStateChange = host.TimeProvider.GetUtcNow();
             m_readyGate = new TaskCompletionSource<bool>(

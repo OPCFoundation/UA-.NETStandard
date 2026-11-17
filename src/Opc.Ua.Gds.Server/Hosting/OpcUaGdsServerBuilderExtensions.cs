@@ -828,6 +828,58 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        /// <summary>
+        /// Gets the final configured request store through the binding-aware contract.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider.</param>
+        /// <returns>The configured binding-aware request store.</returns>
+        private static IClientCertificateBoundCertificateRequestStore GetBoundCertificateRequestStore(
+            IServiceProvider serviceProvider)
+        {
+            return (IClientCertificateBoundCertificateRequestStore)serviceProvider
+                .GetRequiredService<ICertificateRequest>();
+        }
+
+        /// <summary>
+        /// Updates the automatically registered binding-aware request store without changing explicit registrations.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="isBindingAware">Whether the final request-store registration supports certificate binding.</param>
+        private static void UpdateBoundCertificateRequestStoreRegistration(
+            IServiceCollection services,
+            bool isBindingAware)
+        {
+            bool hasExplicitRegistration = false;
+            for (int i = services.Count - 1; i >= 0; i--)
+            {
+                ServiceDescriptor descriptor = services[i];
+                if (descriptor.ServiceType != typeof(IClientCertificateBoundCertificateRequestStore))
+                {
+                    continue;
+                }
+
+                if (descriptor.ImplementationFactory == s_boundCertificateRequestStoreFactory)
+                {
+                    services.RemoveAt(i);
+                }
+                else
+                {
+                    hasExplicitRegistration = true;
+                }
+            }
+
+            if (isBindingAware && !hasExplicitRegistration)
+            {
+                services.AddSingleton(s_boundCertificateRequestStoreFactory);
+            }
+        }
+
+        /// <summary>
+        /// Factory used to keep the binding-aware service aligned with the final request-store registration.
+        /// </summary>
+        private static readonly Func<IServiceProvider, IClientCertificateBoundCertificateRequestStore>
+            s_boundCertificateRequestStoreFactory = GetBoundCertificateRequestStore;
+
         private sealed class GdsServerBuilder : IGdsServerBuilder
         {
             public GdsServerBuilder(IServiceCollection services)
@@ -908,6 +960,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 Services.AddSingleton<T>();
                 Services.AddSingleton<ICertificateRequest>(
                     sp => sp.GetRequiredService<T>());
+                UpdateBoundCertificateRequestStoreRegistration(
+                    Services,
+                    typeof(IClientCertificateBoundCertificateRequestStore).IsAssignableFrom(typeof(T)));
                 return this;
             }
 

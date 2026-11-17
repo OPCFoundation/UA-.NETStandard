@@ -66,6 +66,15 @@ namespace Opc.Ua
         public static readonly ExtensionObject Null;
 
         /// <summary>
+        /// Copies the decoded body without normalizing the original envelope identifier.
+        /// </summary>
+        internal ExtensionObject(ExtensionObject source)
+        {
+            TypeId = source.TypeId;
+            m_rawBody = source.TryGetValue(out IEncodeable? body) ? body!.Clone() : source.m_rawBody;
+        }
+
+        /// <summary>
         /// Create an extension object whose binary body is decoded on first use.
         /// </summary>
         internal ExtensionObject(ExpandedNodeId typeId, DeferredExtensionObjectBody body)

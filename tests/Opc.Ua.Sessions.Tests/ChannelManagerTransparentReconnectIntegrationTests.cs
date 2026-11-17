@@ -354,6 +354,176 @@ namespace Opc.Ua.Sessions.Tests
             }
         }
 
+        /// <summary>
+        /// A swap onto a replacement channel entry (server down past the reconnect
+        /// budget, then back) must keep encoding with the session's namespace table,
+        /// server table and encodeable factory. A replacement entry with a fresh
+        /// message context knows namespace 0 only: server structures are written
+        /// with an empty type id (the write still reports Good) and read back as
+        /// raw bodies.
+        /// </summary>
+        [Test]
+        [CancelAfter(180_000)]
+        [DependsOnTest(nameof(ChannelManagerExhaustionEscalatesAndRecoversWhenServerReturns), AllowFailure = true)]
+        public async Task ChannelSwapKeepsSessionMessageContextAsync(CancellationToken ct)
+        {
+            await using ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.Zero,
+                    MaxDelay = TimeSpan.Zero,
+                    MaxAttempts = 1
+                });
+            ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None)
+                .ConfigureAwait(false);
+            ManagedSessionType? session = null;
+            int serverPort = ServerFixture.Port;
+            bool serverStopped = false;
+
+            try
+            {
+                session = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(ChannelSwapKeepsSessionMessageContextAsync),
+                    ct).ConfigureAwait(false);
+
+                session.KeepAliveInterval = 60_000;
+                IManagedTransportChannel channel = GetManagedChannel(session);
+                var channelStates = new ConcurrentQueue<ChannelState>();
+                session.ChannelStateChanged += (_, e) => channelStates.Enqueue(e.NewState);
+
+                // Stands in for the complex type system: a server (ns > 0) structure
+                // registered in the session's factory.
+                string serverNamespace = Quickstarts.ReferenceServer.Namespaces.ReferenceServer;
+                var encodingId = new ExpandedNodeId("SwapStructure_Encoding_DefaultBinary", serverNamespace);
+                session.InnerSession.Factory.Builder.AddType(encodingId, typeof(Argument)).Commit();
+
+                IServiceMessageContext contextBefore = session.InnerSession.TransportChannel.MessageContext;
+                AssertSessionTablesUsedByChannel(session, "before the swap");
+                await AssertStructureRoundTripAsync(session, encodingId, "before the swap", ct)
+                    .ConfigureAwait(false);
+
+                await ServerFixture.StopAsync().ConfigureAwait(false);
+                serverStopped = true;
+                try
+                {
+                    await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+                }
+                catch (SocketException)
+                {
+                }
+                catch (ServiceResultException)
+                {
+                }
+                Assert.That(
+                    await WaitForAsync(
+                        () => channelStates.Contains(ChannelState.Faulted),
+                        DefaultWait,
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The exhausted reconnect cycle should fault the entry.");
+
+                ReferenceServer = await ServerFixture.StartAsync(PkiRoot, serverPort).ConfigureAwait(false);
+                ReferenceServer.TokenValidator = TokenValidator;
+                serverStopped = false;
+
+                Assert.That(
+                    await ReconnectUntilReadyAsync(manager, channel, DefaultWait, ct).ConfigureAwait(false),
+                    Is.True,
+                    "The lease should swap onto a replacement entry once the server is back.");
+                Assert.That(
+                    await WaitForAsync(() => TryReadServerStatus(session), DefaultWait, ct)
+                        .ConfigureAwait(false),
+                    Is.True,
+                    "The session should serve reads after the swap.");
+                Assert.That(
+                    await WaitForStateAsync(session, ConnectionState.Connected, DefaultWait, ct)
+                        .ConfigureAwait(false),
+                    Is.True);
+
+                Assert.That(
+                    session.InnerSession.TransportChannel.MessageContext,
+                    Is.Not.SameAs(contextBefore),
+                    "Precondition: the lease must be on a replacement transport.");
+                AssertSessionTablesUsedByChannel(session, "after the swap");
+                await AssertStructureRoundTripAsync(session, encodingId, "after the swap", ct)
+                    .ConfigureAwait(false);
+
+                ISessionClient binding = await session.CreateBindingAsync(ct).ConfigureAwait(false);
+                (binding as IDisposable)?.Dispose();
+            }
+            finally
+            {
+                if (serverStopped)
+                {
+                    ReferenceServer = await ServerFixture.StartAsync(PkiRoot, serverPort)
+                        .ConfigureAwait(false);
+                    ReferenceServer.TokenValidator = TokenValidator;
+                }
+
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
+        }
+
+        private static void AssertSessionTablesUsedByChannel(ManagedSessionType session, string when)
+        {
+            Session inner = session.InnerSession;
+            IServiceMessageContext channelContext = inner.TransportChannel.MessageContext;
+            Assert.Multiple(() =>
+            {
+                Assert.That(inner.NamespaceUris.Count, Is.GreaterThan(1), when);
+                Assert.That(channelContext.NamespaceUris, Is.SameAs(inner.NamespaceUris),
+                    $"The channel must encode with the session's namespace table {when}.");
+                Assert.That(channelContext.ServerUris, Is.SameAs(inner.ServerUris),
+                    $"The channel must encode with the session's server table {when}.");
+                Assert.That(channelContext.Factory, Is.SameAs(inner.Factory),
+                    $"The channel must decode with the session's encodeable factory {when}.");
+            });
+        }
+
+        private static async Task AssertStructureRoundTripAsync(
+            ManagedSessionType session,
+            ExpandedNodeId encodingId,
+            string when,
+            CancellationToken ct)
+        {
+            ushort serverIndex = (ushort)session.InnerSession.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var variable = new NodeId("Scalar_Static_Variant", serverIndex);
+
+            // Binary body of Argument { Name = "sw", DataType = i=0, ValueRank = -1 },
+            // sent as a raw body under the absolute (nsu=) encoding id.
+            var body = ByteString.From(
+                2, 0, 0, 0, 0x73, 0x77, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0);
+            var nodesToWrite = new WriteValue[]
+            {
+                new()
+                {
+                    NodeId = variable,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(Variant.From(new ExtensionObject(encodingId, body)))
+                }
+            };
+            WriteResponse response = await session.WriteAsync(null, nodesToWrite, ct).ConfigureAwait(false);
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good), when);
+
+            DataValue value = await session.ReadValueAsync(variable, ct).ConfigureAwait(false);
+            Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True, when);
+            NodeId expectedTypeId = ExpandedNodeId.ToNodeId(encodingId, session.InnerSession.NamespaceUris);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ExpandedNodeId.ToNodeId(extension.TypeId, session.InnerSession.NamespaceUris),
+                    Is.EqualTo(expectedTypeId),
+                    $"The structure type id must survive the round trip {when}.");
+                Assert.That(extension.TryGetValue(out IEncodeable? decoded), Is.True,
+                    $"The structure must decode with the session's factory {when}.");
+                Assert.That(decoded, Is.TypeOf<Argument>(), when);
+                Assert.That(((Argument?)decoded)?.Name, Is.EqualTo("sw"), when);
+            });
+        }
+
         private static bool TryReadServerStatus(ManagedSessionType session)
         {
             try

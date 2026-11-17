@@ -244,7 +244,9 @@ canonical URI string before claiming a facet):
   `Opc.Ua.PADIM.Client` discovers them and accesses their methods through
   generated proxies. The runtime supports configured signal and analyser
   families; applications select optional capabilities per device and supply
-  acquisition or operation providers. See [PA-DIM](PADIM.md).
+  acquisition or operation providers. Analog bindings retain copied engineering
+  metadata and report registered property changes through semantic notifications.
+  See [PA-DIM](PADIM.md).
 - **Energy Consumption Management** (OPC 34100), **Full** — `Opc.Ua.ECM`,
   `Opc.Ua.ECM.Server` and `Opc.Ua.ECM.Client` provide provider-backed
   measurement, standby and WOL bindings with typed client access.
@@ -918,7 +920,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-9: Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9) | 1.05.06 | Full | - |
 | [OPC 10000-10: Programs](https://reference.opcfoundation.org/specs/OPC-10000-10) | 1.05.00 | Full | - |
 | [OPC 10000-11: Historical Access](https://reference.opcfoundation.org/specs/OPC-10000-11) | 1.05.04 | Full | - |
-| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | `ConfigurationFile` transfer and open-handle behavior are incomplete. Shorter replacement semantics are unresolved, and `AuthorizationServices` is absent. [Details](GDS.md#remaining-optional--unsupported-part-12-items) |
+| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | Pull `FinishRequest` checks the SecureChannel client certificate against the fingerprint stored at request start. `ConfigurationFile` transfer and open-handle behavior are incomplete. Shorter replacement semantics are unresolved, and `AuthorizationServices` is absent. [Details](GDS.md#remaining-optional--unsupported-part-12-items) |
 | [OPC 10000-13: Aggregates](https://reference.opcfoundation.org/specs/OPC-10000-13) | 1.05.07 | Full | - |
 | [OPC 10000-14: PubSub](https://reference.opcfoundation.org/specs/OPC-10000-14) | 1.05.06 | Partial | Curve25519/Curve448 DTLS profiles unavailable; other DTLS profiles depend on platform probes |
 | [OPC 10000-15: Safety](https://reference.opcfoundation.org/specs/OPC-10000-15) | 1.05.04 | No | - |
@@ -1009,7 +1011,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
 | [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
-| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Notification metadata, statistical equations and immediate GiveAway refresh after nominal writes are implemented. Ordinary notification reentry permits writes from overlapping callbacks. Existing mixed-category reporting and measured-only totals are preserved; Weighed does not represent fixed category participation |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Mixed-category `Weighed` does not represent fixed category participation; ordinary notification reentry permits writes from overlapping callbacks |
 | [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
 | [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Full | Pump Base and Advanced profiles follow verified configured capabilities; Table 155's dependency uses the Table 153 Pump Base URI, while the CAS Base link remains a publication discrepancy |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |

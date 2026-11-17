@@ -146,6 +146,9 @@ namespace Opc.Ua.IA.Server
                 case BuiltInType.ExtensionObject:
                 case BuiltInType.DataValue:
                 case BuiltInType.LocalizedText:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
                     throw Unsupported(value);
                 default:
                     return value;

@@ -11138,7 +11138,7 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// Exposes asynchronous node-manager state and lifecycle hooks for shared behavior and failure-injection scenarios.
     /// </summary>
-    public sealed class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
+    public class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
     {
         /// <summary>
         /// Gets or sets the predefined nodes supplied when the address space is loaded.
