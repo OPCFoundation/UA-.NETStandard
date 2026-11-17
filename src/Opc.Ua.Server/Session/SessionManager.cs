@@ -2085,8 +2085,9 @@ namespace Opc.Ua.Server
             }
 
             // Anonymous only where an anonymous Session would be possible: the
-            // check of ActivateSession for an anonymous user identity token.
-            if (!endpoint.UserIdentityTokens.IsEmpty && !OffersAnonymousUserTokenPolicy(endpoint))
+            // check of ActivateSession for an anonymous user identity token. An
+            // empty list accepts no token type (Part 4 7.14), anonymous included.
+            if (!OffersAnonymousUserTokenPolicy(endpoint))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
