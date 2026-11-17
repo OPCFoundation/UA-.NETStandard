@@ -42,6 +42,16 @@ the `.TM.json` suffix alone is not a type claim.
 An Object instance can need a Thing Description instead of a Thing Model.
 The tool reports these support files with a warning.
 
+Thing Models receive a stable `id` using the baseline catalogue convention:
+reverse the hostname labels of the type node's namespace URI, append its
+dot-separated URI path and local BrowseName, and prefix the result with `urn:`.
+For example, ADI's `AccessorySlotStateMachineType` receives
+`urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType`.
+Duplicate names within a namespace receive `_1`, `_2`, and subsequent suffixes
+in NodeSet source order, including names used by instance nodes.
+Existing document IDs are preserved. Titles remain the source DisplayNames;
+`uav:id` remains the namespace-qualified native node identity.
+
 The command uses the asynchronous document-set export API.
 That API checks that the result can preserve the source facts.
 It can add a native projection or a preservation envelope when the readable

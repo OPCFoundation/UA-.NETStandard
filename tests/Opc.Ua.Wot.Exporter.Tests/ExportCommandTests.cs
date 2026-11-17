@@ -33,10 +33,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot.Exporter.Tests
 {
@@ -141,6 +143,146 @@ namespace Opc.Ua.Wot.Exporter.Tests
         }
 
         /// <summary>
+        /// Matches catalogue URNs without deriving identity from display text or the BrowseName namespace.
+        /// </summary>
+        [TestCase("http://opcfoundation.org/UA/ADI/", "1:PumpType", "urn:org.opcfoundation.UA.ADI.PumpType")]
+        [TestCase("http://opcfoundation.org/UA/ADI/", "PumpType", "urn:org.opcfoundation.UA.ADI.PumpType")]
+        [TestCase("http://opcfoundation.org/UA/ADI/", "1:AccessorySlotStateMachineType",
+            "urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType")]
+        [TestCase("http://opcfoundation.org/UA/", "PumpType", "urn:org.opcfoundation.UA.PumpType")]
+        [TestCase("https://opcfoundation.org/UA/MTConnect/v2/", "1:PumpType",
+            "urn:org.opcfoundation.UA.MTConnect.v2.PumpType")]
+        [TestCase("http://www.opcfoundation.org/UA/2013/01/ISA95", "1:PumpType",
+            "urn:org.opcfoundation.www.UA.2013.01.ISA95.PumpType")]
+        [TestCase("http://fdi-cooperation.com/OPCUA/FDI5/", "1:PumpType",
+            "urn:com.fdi-cooperation.OPCUA.FDI5.PumpType")]
+        [TestCase("urn:export:test", "1:PumpType", "urn:export:test.PumpType")]
+        public async Task ExportGeneratesBaselineModelIdsAsync(
+            string namespaceUri, string browseName, string expectedId)
+        {
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            string xml = k_nodeSet.Replace("urn:export:test", namespaceUri, StringComparison.Ordinal)
+                .Replace("BrowseName=\"1:PumpType\"", $"BrowseName=\"{browseName}\"", StringComparison.Ordinal)
+                .Replace("<DisplayName>PumpType</DisplayName>", "<DisplayName>A pump</DisplayName>",
+                    StringComparison.Ordinal);
+            if (namespaceUri == Types.Namespaces.OpcUa)
+            {
+                xml = xml.Replace("ns=1;i=", "i=100000", StringComparison.Ordinal)
+                    .Replace("BrowseName=\"1:", "BrowseName=\"0:", StringComparison.Ordinal);
+            }
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
+            Assert.That(document.RootElement.GetProperty("id").GetString(), Is.EqualTo(expectedId));
+            Assert.That(document.RootElement.GetProperty("title").GetString(), Is.EqualTo("A pump"));
+            string nativeId = namespaceUri == Types.Namespaces.OpcUa ? "i=1000001" : $"nsu={namespaceUri};i=1";
+            Assert.That(document.RootElement.GetProperty("uav:id").GetString(), Is.EqualTo(nativeId));
+        }
+
+        /// <summary>
+        /// Gives every supported type-root kind its own document identity.
+        /// </summary>
+        [TestCase("UAVariableType", "i=62")]
+        [TestCase("UADataType", "i=12")]
+        [TestCase("UAReferenceType", "i=31")]
+        public async Task ExportGeneratesIdsForOtherTypeKindsAsync(string nodeClass, string parentId)
+        {
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            string xml = k_nodeSet.Replace("UAObjectType", nodeClass, StringComparison.Ordinal)
+                .Replace(">i=58<", $">{parentId}<", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
+            Assert.That(document.RootElement.GetProperty("id").GetString(),
+                Is.EqualTo("urn:export:test.PumpType"));
+        }
+
+        /// <summary>
+        /// Disambiguates duplicate native names in source order, including instance names.
+        /// </summary>
+        [Test]
+        public async Task DuplicateNamesReceiveBaselineSuffixesAsync()
+        {
+            const string xml = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>http://opcfoundation.org/UA/AMLLibs/</Uri></NamespaceUris>
+              <UAObject NodeId="ns=1;i=100" BrowseName="Communication">
+                <DisplayName>Communication</DisplayName>
+                <References><Reference ReferenceType="i=40">i=58</Reference></References>
+              </UAObject>
+              <UAObjectType NodeId="ns=1;i=40" BrowseName="Communication">
+                <DisplayName>Communication</DisplayName>
+                <References><Reference ReferenceType="i=45" IsForward="false">i=58</Reference></References>
+              </UAObjectType>
+              <UAObjectType NodeId="ns=1;i=179" BrowseName="Communication">
+                <DisplayName>Communication</DisplayName>
+                <References><Reference ReferenceType="i=45" IsForward="false">i=58</Reference></References>
+              </UAObjectType>
+            </UANodeSet>
+            """;
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            var ids = new Dictionary<string, string?>(StringComparer.Ordinal);
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml");
+            foreach (string path in Directory.GetFiles(target))
+            {
+                using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path).ConfigureAwait(false));
+                JsonElement root = document.RootElement;
+                if (root.TryGetProperty("id", out JsonElement id))
+                {
+                    ids.Add(root.GetProperty("uav:id").GetString()!, id.GetString());
+                }
+            }
+            Assert.That(ids, Has.Count.EqualTo(2));
+            Assert.That(ids["nsu=http://opcfoundation.org/UA/AMLLibs/;i=40"],
+                Is.EqualTo("urn:org.opcfoundation.UA.AMLLibs.Communication_2"));
+            Assert.That(ids["nsu=http://opcfoundation.org/UA/AMLLibs/;i=179"],
+                Is.EqualTo("urn:org.opcfoundation.UA.AMLLibs.Communication_3"));
+        }
+
+        /// <summary>
+        /// Keeps an authored document identity carried through native residue.
+        /// </summary>
+        [Test]
+        public async Task ExportPreservesAuthoredModelIdAsync()
+        {
+            using var original = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                /*lang=json,strict*/
+                """
+            {
+              "@context": ["https://www.w3.org/2022/wot/td/v1.1"],
+              "@type": ["tm:ThingModel", "uav:objectType"],
+              "id": "urn:catalogue:authored:pump",
+              "title": "Pump",
+              "uav:id": "nsu=urn:export:test;i=1",
+              "uav:browseName": "nsu=urn:export:test;PumpType"
+            }
+            """));
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            using (var buffer = new MemoryStream())
+            {
+                nodeSet.Write(buffer);
+                await File.WriteAllBytesAsync(source, buffer.ToArray()).ConfigureAwait(false);
+            }
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
+            Assert.That(document.RootElement.GetProperty("id").GetString(), Is.EqualTo(original.Id));
+        }
+
+        /// <summary>
         /// Keeps processing after a malformed source and returns a failing exit code.
         /// </summary>
         [Test]
@@ -204,11 +346,13 @@ namespace Opc.Ua.Wot.Exporter.Tests
 
             await cancellation.CancelAsync().ConfigureAwait(false);
 
-            Assert.That(() => files.MoveNext(), Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(files.MoveNext, Throws.InstanceOf<OperationCanceledException>());
             Assert.That(Directory.Exists(Path.Combine(m_folder, "out")), Is.False);
         }
 
-        /// <summary>Contains two independent type roots.</summary>
+        /// <summary>
+        /// Contains two independent type roots.
+        /// </summary>
         private const string k_nodeSet = """
         <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
           <NamespaceUris><Uri>urn:export:test</Uri></NamespaceUris>

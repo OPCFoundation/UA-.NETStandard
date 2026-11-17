@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -188,6 +189,7 @@ namespace Opc.Ua.Wot.Exporter
             {
                 throw new FormatException("The converter could not preserve this NodeSet. No documents were written.");
             }
+            Dictionary<ExpandedNodeId, string> modelIds = CreateModelIds(nodeSet, cancellationToken);
             int models = 0;
             for (int i = 0; i < documents.Entries.Count; i++)
             {
@@ -210,7 +212,8 @@ namespace Opc.Ua.Wot.Exporter
                 string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try
                 {
-                    await File.WriteAllBytesAsync(temporary, entry.Document.Utf8Json, cancellationToken)
+                    ReadOnlyMemory<byte> json = AddModelId(entry.Document, modelIds);
+                    await File.WriteAllBytesAsync(temporary, json, cancellationToken)
                         .ConfigureAwait(false);
                     File.Move(temporary, path, overwrite: true);
                 }
@@ -235,6 +238,106 @@ namespace Opc.Ua.Wot.Exporter
                 $"  Wrote {models} Thing Models and {documents.Entries.Count - models} support files.")
                 .ConfigureAwait(false);
             return documents.Entries.Count;
+        }
+
+        /// <summary>
+        /// Allocates catalogue identifiers from native namespaces and BrowseNames.
+        /// Duplicate names retain the source-order suffixes used by the baseline catalogue.
+        /// </summary>
+        private static Dictionary<ExpandedNodeId, string> CreateModelIds(
+            UANodeSet nodeSet, CancellationToken cancellationToken)
+        {
+            var nodes = new List<(UANode Node, ExpandedNodeId Identity, string Id)>();
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.IsNullOrEmpty(node.NodeId) || string.IsNullOrEmpty(node.BrowseName))
+                {
+                    continue;
+                }
+                var nativeId = NodeId.Parse(node.NodeId);
+                string namespaceUri = nativeId.NamespaceIndex == 0
+                    ? Types.Namespaces.OpcUa
+                    : nodeSet.NamespaceUris[nativeId.NamespaceIndex - 1];
+                string name = QualifiedName.Parse(node.BrowseName).Name!;
+                string prefix;
+                if (Uri.TryCreate(namespaceUri, UriKind.Absolute, out Uri? uri) && uri.Host.Length > 0)
+                {
+                    prefix = "urn:" + string.Join('.', uri.Host.Split('.').Reverse());
+                    string path = uri.AbsolutePath.Trim('/').Replace('/', '.');
+                    if (path.Length > 0)
+                    {
+                        prefix += "." + path;
+                    }
+                }
+                else
+                {
+                    prefix = namespaceUri.StartsWith("urn:", StringComparison.Ordinal)
+                        ? namespaceUri.TrimEnd(':')
+                        : "urn:" + Uri.EscapeDataString(namespaceUri);
+                }
+                string id = prefix + "." + Uri.EscapeDataString(name);
+                nodes.Add((node, new ExpandedNodeId(nativeId.WithNamespaceIndex(0), namespaceUri), id));
+                counts.TryGetValue(id, out int count);
+                counts[id] = count + 1;
+            }
+            var used = new HashSet<string>(counts.Keys, StringComparer.Ordinal);
+            var ordinals = new Dictionary<string, int>(StringComparer.Ordinal);
+            var result = new Dictionary<ExpandedNodeId, string>();
+            foreach ((UANode node, ExpandedNodeId identity, string baseId) in nodes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string id = baseId;
+                if (counts[baseId] > 1)
+                {
+                    ordinals.TryGetValue(baseId, out int ordinal);
+                    do
+                    {
+                        ordinal++;
+                        id = baseId + "_" + ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                    while (!used.Add(id));
+                    ordinals[baseId] = ordinal;
+                }
+                if (node is UAType)
+                {
+                    result.Add(identity, id);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Adds a missing WoT model identifier without replacing authored identifiers or native identities.
+        /// </summary>
+        private static ReadOnlyMemory<byte> AddModelId(
+            WotDocument document, Dictionary<ExpandedNodeId, string> modelIds)
+        {
+            JsonElement root = document.RootElement;
+            if (document.Kind != WotDocumentKind.ThingModel ||
+                root.TryGetProperty("id", out _) ||
+                !root.TryGetProperty("uav:id", out JsonElement nativeId) ||
+                !ExpandedNodeId.TryParse(nativeId.GetString(), out ExpandedNodeId identity) ||
+                !modelIds.TryGetValue(
+                    new ExpandedNodeId(
+                        identity.InnerNodeId.WithNamespaceIndex(0), identity.NamespaceUri ?? Types.Namespaces.OpcUa),
+                    out string? id))
+            {
+                return document.Utf8Json;
+            }
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = true }))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("id", id);
+                foreach (JsonProperty property in root.EnumerateObject())
+                {
+                    property.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+            }
+            return output.ToArray();
         }
 
         /// <summary>
