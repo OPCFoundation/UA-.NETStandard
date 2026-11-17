@@ -403,7 +403,7 @@ namespace Opc.Ua.Gds.Client
                 }
 
                 Report(progress, PullDcaStage.ActivatingIdentity, identity.ApplicationId);
-                await m_identityProvider.ActivateAsync(identity.SelectedIdentity, ct).ConfigureAwait(false);
+                await m_identityProvider.ActivateAsync(identity.SelectedIdentity.Copy(), ct).ConfigureAwait(false);
                 await connection.ReloadAndReconnectAsync(ct).ConfigureAwait(false);
 
                 if (identity.SoftwareUpdateManager is { } manager)
@@ -415,7 +415,13 @@ namespace Opc.Ua.Gds.Client
                             StatusCodes.BadConfigurationError, "A real software-update provider is required.");
                     }
                     await m_softwareUpdateProvider.CompleteAsync(
-                        registrar, identity, manager, ct).ConfigureAwait(false);
+                        PullDcaConnection.SnapshotRegistrar(registrar),
+                        identity with
+                        {
+                            SelectedIdentity = identity.SelectedIdentity.Copy(),
+                            ApplicationId = PullDcaConnection.SnapshotNodeId(identity.ApplicationId)
+                        },
+                        manager, ct).ConfigureAwait(false);
                 }
 
                 (PullDcaCredentials dcaCredentials, PullDcaSigningBinding? binding) = await ProvisionAsync(

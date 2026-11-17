@@ -118,7 +118,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(fixture.Calls, Is.EqualTo(s_fullWorkflowCalls));
             Assert.That(fixture.Host.ActivatedIdentity, Is.EqualTo(kIdentity));
-            Assert.That(fixture.Host.SoftwareIdentity, Is.SameAs(result.Identity));
+            Assert.That(fixture.Host.SoftwareIdentity, Is.Not.SameAs(result.Identity));
+            Assert.That(fixture.Host.SoftwareIdentity!.ApplicationId, Is.EqualTo(result.Identity.ApplicationId));
+            Assert.That(fixture.Host.SoftwareIdentity.SelectedIdentity, Is.EqualTo(result.Identity.SelectedIdentity));
             Assert.That(fixture.Host.SoftwareManager, Is.SameAs(manager));
             Assert.That(fixture.Host.SoftwareRegistrar, Is.EqualTo(kRegistrar));
             Assert.That(fixture.Connection.Offer, Is.Not.SameAs(request.IdentityOffer));
@@ -165,6 +167,48 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(mutations, Is.EqualTo(1));
             Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { requestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
+        [Test]
+        public async Task IdentityProviderCannotMutateSelectedIdentity()
+        {
+            var fixture = new Fixture();
+            fixture.Host.OnActivate = MutateBytes;
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            Assert.That(result.Identity.SelectedIdentity, Is.EqualTo(kIdentity));
+        }
+
+        [Test]
+        public async Task SoftwareUpdateProviderCannotMutateActiveRegistrarOrIdentity()
+        {
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(new byte[] { 5, 6 }), 1);
+            var fixture = new Fixture();
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                ApplicationId = applicationId,
+                SoftwareUpdateManager = new ManagerDescription()
+            };
+            fixture.Host.OnSoftwareUpdate = (receivedRegistrar, identity) =>
+            {
+                MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
+                MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
+                MutateOpaqueIdentifier(identity.ApplicationId);
+                MutateBytes(identity.SelectedIdentity);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(registrar, CreateRequest()).ConfigureAwait(false);
+
+            Assert.That(fixture.ConnectedRegistrar, Is.EqualTo(registrar));
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+            Assert.That(result.Identity.SelectedIdentity, Is.EqualTo(kIdentity));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
         }
 
@@ -2446,6 +2490,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public ManagerDescription? SoftwareManager { get; private set; }
             public PullDcaRegistrar? SoftwareRegistrar { get; private set; }
             public ByteString SigningRequest { get; set; } = kCsr;
+            /// <summary>
+            /// Gets or sets an action invoked with the identity selected for activation.
+            /// </summary>
+            public Action<ByteString>? OnActivate { get; set; }
+
+            /// <summary>
+            /// Gets or sets an action invoked with the software-update binding.
+            /// </summary>
+            public Action<PullDcaRegistrar, PullDcaIdentitySelection>? OnSoftwareUpdate { get; set; }
             public Action<NodeId, PullDcaCertificateProfile>? OnCreateSigningRequest { get; set; }
             public Action<NodeId, PullDcaCertificateProfile, ByteString>? OnKeyEvidence { get; set; }
             public Action<NodeId>? OnInstall { get; set; }
@@ -2464,6 +2517,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 m_fixture.Record("identity", cancellationToken);
                 ActivatedIdentity = selectedIdentity;
+                OnActivate?.Invoke(selectedIdentity);
                 return default;
             }
 
@@ -2475,6 +2529,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 SoftwareIdentity = identity;
                 SoftwareManager = manager;
                 SoftwareRegistrar = registrar;
+                OnSoftwareUpdate?.Invoke(registrar, identity);
                 return default;
             }
 
