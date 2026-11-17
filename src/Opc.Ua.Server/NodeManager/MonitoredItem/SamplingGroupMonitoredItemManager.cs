@@ -489,7 +489,7 @@ namespace Opc.Ua.Server
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }
 
-                if (monitoredNode.EventMonitoredItems.TryGetValue(
+                if (monitoredNode.TryGetEventItem(
                     monitoredItem.Id, out IEventMonitoredItem? registeredEvent) &&
                     !ReferenceEquals(registeredEvent, monitoredItem))
                 {
@@ -535,7 +535,7 @@ namespace Opc.Ua.Server
                         IsMultiConsumerNode(source.NodeId));
             }
 
-            bool linked = monitoredNode.EventMonitoredItems.TryGetValue(
+            bool linked = monitoredNode.TryGetEventItem(
                 monitoredItem.Id, out IEventMonitoredItem? existingEvent);
             if (linked && !ReferenceEquals(existingEvent, monitoredItem))
             {
@@ -609,7 +609,7 @@ namespace Opc.Ua.Server
                 if (!MonitoredNodes.TryGetValue(
                     sourceId,
                     out MonitoredNode2? monitoredNode) ||
-                    !monitoredNode.EventMonitoredItems.TryGetValue(
+                    !monitoredNode.TryGetEventItem(
                         monitoredItem.Id,
                         out IEventMonitoredItem? eventItem) ||
                     !ReferenceEquals(eventItem, monitoredItem))
@@ -755,7 +755,7 @@ namespace Opc.Ua.Server
                     }
 
                     handle.MonitoredNode = monitoredNode;
-                    if (monitoredNode.EventMonitoredItems.TryGetValue(
+                    if (monitoredNode.TryGetEventItem(
                         monitoredItem.Id,
                         out IEventMonitoredItem? linkedEventItem))
                     {
@@ -844,7 +844,7 @@ namespace Opc.Ua.Server
         {
             foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
             {
-                if (monitoredNode.EventMonitoredItems.ContainsKey(monitoredItemId))
+                if (monitoredNode.ContainsEventItem(monitoredItemId))
                 {
                     return true;
                 }

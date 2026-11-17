@@ -1,0 +1,44 @@
+{
+  "rounds": 3,
+  "commonArgs": "--security encrypt --duration 10 --warmup 6",
+  "scenarios": [
+    { "name": "calibration", "args": "--scenario read --sessions 8 --nodes 100" },
+    { "name": "write", "args": "--scenario write --sessions 8 --nodes 100" },
+    { "name": "lt-sub", "args": "--scenario sub --sessions 10 --subs 15 --nodes 100 --node-type all --pub 100 --write-interval 150 --client classic --queue-size 2" },
+    { "name": "lt-events", "args": "--scenario events --sessions 50 --subs 15 --pub 100" }
+  ],
+  "checks": [
+    {
+      "scenario": "lt-sub", "metric": "delivered", "min": 0.90,
+      "catches": "per-notification cost or contention that saturates the server (#4757/#4834: 21-26 %)"
+    },
+    {
+      "scenario": "lt-sub", "metric": "allocB", "max": 140,
+      "catches": "server bytes per delivered notification (master 2026-11-15: 103-117)"
+    },
+    {
+      "scenario": "lt-sub", "metric": "allocB2", "max": 21000,
+      "catches": "server bytes per written value incl. its fan-out to 150 items (master: 15.7-17.6 K)"
+    },
+    {
+      "scenario": "lt-events", "metric": "delivered", "min": 0.90,
+      "catches": "events dropped or delivered late"
+    },
+    {
+      "scenario": "lt-events", "metric": "generatedPerSec", "per": { "scenario": "calibration", "metric": "reqPerSec" }, "min": 0.01,
+      "catches": "event fan-out cost (#4757 per-item lock: ~4000 -> ~125 events/s); master 0.085, collapsed G1 round 0.018"
+    },
+    {
+      "scenario": "lt-events", "metric": "allocB2", "max": 150000,
+      "catches": "server bytes per event for 750 subscriptions (E6 +50 %, #4757 ~5 MB); master 88-97 K, G1 collapse rounds 145-163 K"
+    },
+    {
+      "scenario": "write", "metric": "valuesPerSec", "per": { "scenario": "calibration", "metric": "valuesPerSec" }, "min": 0.2,
+      "catches": "write path throughput at 2.5x below master (0.54-0.62)"
+    },
+    {
+      "scenario": "write", "metric": "allocB", "max": 98000,
+      "catches": "server bytes per 100-value Write (X1/#4999 +13.5 K); master incl. X1 85.3-85.8 K, lower to ~82 K once X1 is fixed"
+    }
+  ]
+}

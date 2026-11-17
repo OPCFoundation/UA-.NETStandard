@@ -49,6 +49,7 @@ register `IUserTokenAuthenticator` instances directly.
   - [Claims surface — wiring `IdentityCriteriaType.GroupId` and `Role`](#claims-surface--wiring-identitycriteriatypegroupid-and-role)
   - [`ITokenIssuer` — server-side JWT issuance](#itokenissuer--server-side-jwt-issuance)
   - [`IIssuerKeyResolver` + `IssuerVerificationKey` — JWT validation](#iissuerkeyresolver--issuerverificationkey--jwt-validation)
+  - [Encrypted token secret size limits](#encrypted-token-secret-size-limits)
 - [How-to: server-side authentication](#how-to-server-side-authentication)
 - [How-to: client-side provider selection](#how-to-client-side-provider-selection)
 - [How-to: migrate from `SessionManager.ImpersonateUser`](#how-to-migrate-from-sessionmanagerimpersonateuser)
@@ -777,6 +778,36 @@ using RSA rsa = LoadRsaPublicKey();
 using var key = new IssuerVerificationKey("kid-1", rsa, "RS256");
 bool isValid = key.VerifySignature(signingInputBytes, signatureBytes);
 ```
+
+### Encrypted token secret size limits
+
+The server decrypts a `UserName` password or an `IssuedIdentityToken`'s token
+data before any authenticator runs, so it bounds both:
+
+| Token | Longest secret accepted |
+|---|---|
+| `UserNameIdentityToken` password | 1 024 bytes |
+| `IssuedIdentityToken` token data (JWT, SAML, ...) | 16 384 bytes (16 KiB) |
+
+The limits apply to every encryption format: the legacy RSA format
+(`EncryptionAlgorithm` set, OPC 10000-4 §7.41.2.2), `RSAEncryptedSecret` and
+the ECC `EncryptedSecret`. A longer secret fails `ActivateSession` with
+`Bad_IdentityTokenInvalid` ("Could not decrypt identity token.") and never
+reaches an `IUserTokenAuthenticator`. For the legacy RSA format the server
+counts the RSA blocks before it touches the private key: a ciphertext with
+more blocks than the longest legitimate secret needs is rejected without any
+private-key operation, so an oversized token cannot make the server spend
+seconds of CPU per request.
+
+The limits are fixed; there is no setting to raise them. They are far above
+real passwords, and 16 KiB fits JWT access tokens and SAML assertions that an
+identity provider keeps small enough for an HTTP header. A bearer token longer
+than 1 024 bytes belongs in an `IssuedIdentityToken`, not in a password. If an
+identity provider issues larger tokens, reduce the claims it includes or switch
+it to reference tokens.
+
+The public `SecurityPolicies.Decrypt` and `DecryptAsync` methods apply the
+issued-token limit plus a 128-byte server nonce to every caller.
 
 ## How-to: server-side authentication
 

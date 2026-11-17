@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.WebApi
                 MaxEncodingNestingLevels = settings.Configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = settings.Configuration.MaxDecoderRecoveries,
                 NamespaceUris = settings.NamespaceUris!,
-                ServerUris = new StringTable()
+                ServerUris = settings.ServerUris ?? new StringTable()
             })
             {
                 MaxBufferSize = settings.Configuration.MaxBufferSize,

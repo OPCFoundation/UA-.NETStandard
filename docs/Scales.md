@@ -615,20 +615,22 @@ and [§7.20.3](https://reference.opcfoundation.org/specs/OPC-40200/7.20.3)
 define `Weighed` as a category's participation in `TotalPackagesWeighed`.
 [§7.19.3](https://reference.opcfoundation.org/specs/OPC-40200/7.19.3) also
 allows rejected packages from processes before or after weighing. The recorder
-accepts both measured and unmeasured reports in the same rejection category.
-Its current `Weighed` value is true when all items in that category were weighed;
-an entirely unweighed category publishes false, and a mixed category publishes
-false with `UncertainSubNormal`. `TotalPackages` remains false because it counts
-packages without requiring a measurement.
+accepts measured and unmeasured reports within the same category, including
+rejection categories. When a category counter exposes `Weighed`, it is true
+only when every item has a measurement. Mixed categories report false with
+`UncertainSubNormal`; categories with only unmeasured items report false with
+Good quality. `TotalPackages` always reports `Weighed=false` because it counts
+every item. `TotalPackagesWeighed` counts every measured item, even within a
+mixed category; unmeasured items do not increase it.
 
-This dynamic value describes measurement completeness, not fixed category
-participation. A Boolean cannot identify the measured subset of a mixed
-category. Existing reporting and measured-only `TotalPackagesWeighed` totals
-remain unchanged, and support remains Partial until that representation is
-clarified. Making category membership fixed would require rejecting reports
-that differ from a category's measurement policy or introducing separate
-measured and unmeasured categories; neither behavior is imposed on existing
-applications.
+The dynamic `Weighed` value describes measurement completeness, not fixed
+category participation. It cannot identify which items in a mixed category
+contribute to `TotalPackagesWeighed`. The support rating remains Partial pending
+clarification of how OPC 40200 represents mixed-category participation.
+Implementing fixed category membership would require rejecting reports that
+differ from a category's measurement policy or introducing separate measured
+and unmeasured categories. Existing applications are not required to adopt
+either behavior.
 
 Recorder reset includes zone counters previously recorded through that same
 recorder, even though those counters are outside the statistic's child nodes.

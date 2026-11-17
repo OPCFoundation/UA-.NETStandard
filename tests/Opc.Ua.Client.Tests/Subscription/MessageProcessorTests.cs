@@ -2438,10 +2438,14 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1 }));
                 VerifyNoRepublish();
 
-                // The worker may arm its timer after the advance above, so keep
-                // stepping rather than rely on one exact advance.
+                // The worker may read the elapsed time before the advance above
+                // and arm its timer after it, so the timer can still be a full
+                // grace away. Step by the grace: 1 ms steps would need ~100
+                // iterations then, which outlasts the timeout on slow runners.
+                // Overshooting is safe, the reorder grace is handled before
+                // the gap recovery timeout.
                 await AdvanceUntilAsync(timeProvider, () => sut.LastDataSequenceNumberProcessed == 3,
-                    TimeSpan.FromMilliseconds(1)).ConfigureAwait(false);
+                    TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
                 await WaitForDataSeqNumberAsync(sut, 3).ConfigureAwait(false);
 
                 Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3 }));

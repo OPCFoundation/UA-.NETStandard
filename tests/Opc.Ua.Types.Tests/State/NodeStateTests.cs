@@ -1097,6 +1097,29 @@ namespace Opc.Ua.Types.Tests.State
                 "A change made while the sinks were awaited must still be pending.");
         }
 
+        /// <summary>
+        /// A node without a bound write executor must not pay for the executor's closure: the
+        /// compiler allocates a closure at the entry of the method whose parameters it captures,
+        /// so the executor call lives in a helper that only bound nodes reach.
+        /// </summary>
+        [Test]
+        public async Task UnboundClearChangeMasksAsyncDoesNotAllocateAsync()
+        {
+#if DEBUG
+            Assert.Ignore("Debug builds compile async state machines as classes, which allocate.");
+#endif
+            BaseObjectState node = CreateObjectNode();
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            ValueTask clear = node.ClearChangeMasksAsync(m_context, false);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(clear.IsCompleted, Is.True);
+            await clear.ConfigureAwait(false);
+            Assert.That(allocated, Is.Zero, $"{allocated} bytes allocated by a clear with nothing pending.");
+        }
+
         [Test]
         public void ClearChangeMasksDoesNotLoseBitsSetConcurrently()
         {

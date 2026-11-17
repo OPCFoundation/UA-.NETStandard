@@ -934,7 +934,7 @@ On Linux hosts intentionally using Mesa llvmpipe, `ualens --allow-software-gl`
 permits that software OpenGL driver instead of Avalonia's default blacklist.
 This opt-in does not enable other blacklisted drivers, change normal startup
 defaults, or promise hardware acceleration. Vulkan rendering requires a working
-Vulkan device. OpenUSD 0.16.6-alpha prefers shared GPU surfaces; when Avalonia cannot
+Vulkan device. OpenUSD 0.17.0-alpha prefers shared GPU surfaces; when Avalonia cannot
 import external images or semaphores, it reads completed Vulkan frames into host
 memory and presents them through an Avalonia bitmap. This adds a frame copy,
 not a replacement renderer or a placeholder surface.

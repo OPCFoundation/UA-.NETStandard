@@ -8,6 +8,7 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Migrating legacy GDS certificate requests](#migrating-legacy-gds-certificate-requests)
 - [Migrating custom node write overrides](#migrating-custom-node-write-overrides)
 - [Correcting preview onboarding ticket APIs](#correcting-preview-onboarding-ticket-apis)
 - [Migrating confirmation-enabled ConfigurationFile providers](#migrating-confirmation-enabled-configurationfile-providers)
@@ -37,6 +38,7 @@ covers cross-cutting changes.
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
 - [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
 - [Transport resource limits](#transport-resource-limits)
+- [Identity token secret size limits](#identity-token-secret-size-limits)
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
@@ -74,6 +76,43 @@ for use in any repository:
 copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
+
+## Migrating legacy GDS certificate requests
+
+**Upgrade impact:** Legacy Global Discovery Server (GDS) pull certificate requests have no persisted
+binding to the initiating client certificate and require a fresh certificate-bound
+request. This affects both `StartSigningRequest` and `StartNewKeyPairRequest`
+records carried over from a 1.5.x deployment. The pull `FinishRequest` method
+rejects an unbound record with `Bad_UserAccessDenied` in the `New`, `Approved`,
+or `Accepted` state. Prior approval or acceptance does not establish the missing
+certificate binding.
+
+Start a fresh request through the GDS OPC UA method and retain its new `RequestId`.
+Obtain approval for that request according to the configured approval process.
+Then call `FinishRequest` with the same client certificate used to start it.
+A different Session or SecureChannel is permitted; a different client certificate
+is not. Updating the client to retry `FinishRequest` with the old identifier does
+not repair the missing binding.
+
+Server-side callers that complete requests through `ICertificateRequest` must
+use `IClientCertificateBoundCertificateRequestStore.FinishBoundRequest` and
+provide the initiating client certificate fingerprint for bound requests.
+Calling `ICertificateRequest.FinishRequest` for a bound request returns
+`Bad_UserAccessDenied`.
+
+The built-in persisted request fields and Start audit event do not establish
+which SecureChannel client certificate initiated an unbound legacy request.
+The application certificate being issued, its certificate signing request, and
+the recorded user display name are not substitutes for that evidence. Do not
+populate a missing fingerprint from the certificate of a later caller.
+Custom stores or external audit systems may retain authenticated evidence that
+the built-in store does not. This procedure does not retroactively bind an
+existing request.
+
+Custom request stores must implement
+`IClientCertificateBoundCertificateRequestStore` and persist the binding with the
+request. See [GDS extension points](GDS.md#extension-points) for the provider
+contract and registration behavior.
 
 ## Migrating custom node write overrides
 
@@ -1022,6 +1061,27 @@ for legitimate large transfers without relying on continuation chunks to
 extend it indefinitely. A zero or negative value uses the 30-second default
 for message assembly. It does not disable assembly cleanup. See
 [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+
+## Identity token secret size limits
+
+Servers now reject an encrypted `UserName` password longer than **1 024 bytes**
+and `IssuedIdentityToken` token data longer than **16 384 bytes** with
+`Bad_IdentityTokenInvalid`, before any authenticator runs. In 1.5.x the server
+decrypted a legacy RSA token secret of any length one RSA block at a time, so a
+1 MB secret cost about 2 s of CPU per `ActivateSession`. The limits apply to
+the legacy RSA format, `RSAEncryptedSecret` and the ECC `EncryptedSecret`.
+
+The limits are fixed and cannot be configured. A deployment affected by them:
+
+- moves bearer tokens longer than 1 024 bytes from the password field to an
+  `IssuedIdentityToken`;
+- keeps issued tokens under 16 KiB by trimming the claims the identity provider
+  adds, or by switching it to reference tokens;
+- that calls `SecurityPolicies.Decrypt` or `DecryptAsync` for its own data
+  larger than 16 KiB plus a 128-byte nonce, decrypts with `RsaUtils` or its own
+  RSA code instead.
+
+See [encrypted token secret size limits](IdentityProviders.md#encrypted-token-secret-size-limits).
 
 ## Migrating channel subclasses that override HandleIncomingMessage
 

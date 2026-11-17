@@ -208,7 +208,59 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current list of event MonitoredItems.
         /// </summary>
-        public ConcurrentDictionary<uint, IEventMonitoredItem> EventMonitoredItems { get; } = new();
+        /// <remarks>
+        /// Whoever holds the dictionary can change it without <see cref="Add(IEventMonitoredItem)"/>
+        /// or <see cref="Remove(IEventMonitoredItem)"/>, so after the first access every event copies
+        /// the items instead of sharing the cached array.
+        /// </remarks>
+        public ConcurrentDictionary<uint, IEventMonitoredItem> EventMonitoredItems
+        {
+            get
+            {
+                if (!Volatile.Read(ref m_eventItemsExposed))
+                {
+                    // Under the rebuild lock, so a rebuild in progress cannot publish the cache again
+                    // and keep items alive that are removed through the dictionary.
+                    lock (m_rebindLock)
+                    {
+                        Volatile.Write(ref m_eventItemsExposed, true);
+                        m_eventItems = null;
+                    }
+                }
+                return m_eventMonitoredItems;
+            }
+        }
+
+        /// <summary>
+        /// Gets an event item without exposing the dictionary.
+        /// </summary>
+        internal bool TryGetEventItem(uint id, [NotNullWhen(true)] out IEventMonitoredItem? item)
+        {
+            return m_eventMonitoredItems.TryGetValue(id, out item);
+        }
+
+        /// <summary>
+        /// Whether an event item with the id is linked, without exposing the dictionary.
+        /// </summary>
+        internal bool ContainsEventItem(uint id)
+        {
+            return m_eventMonitoredItems.ContainsKey(id);
+        }
+
+        /// <summary>
+        /// Unlinks the event item with the id without exposing the dictionary. Unlike
+        /// <see cref="Remove(IEventMonitoredItem)"/> it keeps the node's event handler.
+        /// </summary>
+        internal void RemoveEventItem(uint id)
+        {
+            lock (m_rebindLock)
+            {
+                if (m_eventMonitoredItems.TryRemove(id, out _))
+                {
+                    m_eventItems = null;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets a value indicating whether this instance has monitored items.
@@ -225,7 +277,7 @@ namespace Opc.Ua.Server
                     return true;
                 }
 
-                if (EventMonitoredItems != null && !EventMonitoredItems.IsEmpty)
+                if (m_eventMonitoredItems != null && !m_eventMonitoredItems.IsEmpty)
                 {
                     return true;
                 }
@@ -281,7 +333,7 @@ namespace Opc.Ua.Server
                     Node.OnStateChangedAsync = null;
 
                     // Unsubscribe from namespace default permission changes when the last item is removed.
-                    if (EventMonitoredItems.IsEmpty)
+                    if (m_eventMonitoredItems.IsEmpty)
                     {
                         m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
                     }
@@ -340,7 +392,8 @@ namespace Opc.Ua.Server
                     throw new ObjectDisposedException(nameof(MonitoredNode2));
                 }
                 bool wasEmpty = !HasMonitoredItems;
-                EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
+                m_eventMonitoredItems.TryAdd(eventItem.Id, eventItem);
+                m_eventItems = null;
 
                 Node.OnReportEventAsync = OnReportEventAsync;
                 if (wasEmpty && m_server.ConfigurationNodeManager != null)
@@ -358,11 +411,14 @@ namespace Opc.Ua.Server
         {
             lock (m_rebindLock)
             {
-                EventMonitoredItems.TryRemove(eventItem.Id, out _);
+                if (m_eventMonitoredItems.TryRemove(eventItem.Id, out _))
+                {
+                    m_eventItems = null;
+                }
                 Interlocked.Increment(ref m_permissionGeneration);
                 DropEventPermissionCacheEntries(eventItem.Id);
 
-                if (EventMonitoredItems.IsEmpty)
+                if (m_eventMonitoredItems.IsEmpty)
                 {
                     Node.OnReportEventAsync = null;
                     if (m_dataChangeMonitoredItems.IsEmpty)
@@ -417,7 +473,7 @@ namespace Opc.Ua.Server
                     Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
                 }
 
-                if (!EventMonitoredItems.IsEmpty)
+                if (!m_eventMonitoredItems.IsEmpty)
                 {
                     Node.OnReportEventAsync = OnReportEventAsync;
                 }
@@ -471,7 +527,7 @@ namespace Opc.Ua.Server
                 {
                     Context = context,
                     EventTargetSnapshot = eventTarget,
-                    MonitoredItems = [.. EventMonitoredItems.Values],
+                    MonitoredItems = GetEventItems(),
                     SourceEmission = emission
                 };
                 await m_channel.Writer.WriteAsync(notification, cancellationToken).ConfigureAwait(false);
@@ -548,7 +604,7 @@ namespace Opc.Ua.Server
                             binding.Invalidate(terminal: false);
                         }
                     }
-                    foreach (IEventMonitoredItem monitoredItem in EventMonitoredItems.Values)
+                    foreach (IEventMonitoredItem monitoredItem in m_eventMonitoredItems.Values)
                     {
                         if (IsInCurrentGeneration(monitoredItem) &&
                             monitoredItem is IMonitoredItemGenerationBinding binding)
@@ -2135,7 +2191,83 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves current subscriber permissions and reuses only an unchanged exact-source grant.
         /// </summary>
-        private async ValueTask<(ServiceResult Result, ServerSystemContext Context)> GetDataChangePermissionAsync(
+        private ValueTask<(ServiceResult Result, ServerSystemContext Context)> GetDataChangePermissionAsync(
+            DataChangeSnapshot snapshot,
+            IDataChangeMonitoredItem2 monitoredItem,
+            PermissionType permission,
+            CancellationToken ct)
+        {
+            return TryGetCachedDataChangePermission(
+                monitoredItem,
+                ct,
+                out ServiceResult? result,
+                out ServerSystemContext? context)
+                ? new ValueTask<(ServiceResult, ServerSystemContext)>((result!, context!))
+                : ValidateDataChangePermissionAsync(snapshot, monitoredItem, permission, ct);
+        }
+
+        /// <summary>
+        /// Returns a current cached verdict without suspending, so a data change fan-out keeps
+        /// the permission context and read inputs of each item on the stack instead of copying
+        /// them into a state machine through the GC write barrier. It answers a cached bad
+        /// role verdict, or a cached good one whose exact-source read verdict may be reused;
+        /// anything else is left to <see cref="ValidateDataChangePermissionAsync"/>. No input is
+        /// awaited here, so one recapture of the context and inputs covers the whole path.
+        /// </summary>
+        private bool TryGetCachedDataChangePermission(
+            IDataChangeMonitoredItem2 monitoredItem,
+            CancellationToken ct,
+            out ServiceResult? result,
+            out ServerSystemContext? context)
+        {
+            result = null;
+            context = null;
+            if (ct.IsCancellationRequested)
+            {
+                return false;
+            }
+            _ = MonitoredReadAuthorization.TryRefreshIdentity(m_server, monitoredItem.Session);
+            MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
+            if (authorization.Session?.IsIdentityStale == true ||
+                !m_permissionCache.TryGetValue(monitoredItem.Id, out CachedDataChangePermission? cached))
+            {
+                return false;
+            }
+            long generation = authorization.Generation +
+                authorization.RolePermissionsVersion +
+                authorization.IdentityGeneration;
+            var inputs = MonitoredReadInputs.Capture(monitoredItem.Session, Node);
+            ServerSystemContext cachedContext = GetSubscriberContext(GetSubscriberContextTemplate(), monitoredItem);
+            if (!cached.Matches(generation, cachedContext.OperationContext!.Session, cachedContext))
+            {
+                return false;
+            }
+            ServiceResult verdict = cached.Result;
+            if (!ServiceResult.IsBad(verdict))
+            {
+                if (!MonitoredReadVerdict.TryReuse(
+                    cached.Read, m_server, NodeManager, Node, monitoredItem.AttributeId, inputs,
+                    out ServiceResult? reused))
+                {
+                    return false;
+                }
+                verdict = reused;
+            }
+            if (!authorization.Matches(CapturePermissionContext(monitoredItem)) ||
+                !inputs.IsCurrent(monitoredItem.Session, Node))
+            {
+                return false;
+            }
+            result = verdict;
+            context = cachedContext;
+            return true;
+        }
+
+        /// <summary>
+        /// Validates the data change permission of an item, for every case that
+        /// <see cref="TryGetCachedDataChangePermission"/> does not answer.
+        /// </summary>
+        private async ValueTask<(ServiceResult Result, ServerSystemContext Context)> ValidateDataChangePermissionAsync(
             DataChangeSnapshot snapshot,
             IDataChangeMonitoredItem2 monitoredItem,
             PermissionType permission,
@@ -2161,13 +2293,8 @@ namespace Opc.Ua.Server
                     return (new ServiceResult(StatusCodes.BadUserAccessDenied), cachedContext);
                 }
                 MonitoredReadVerdict? readVerdict = null;
-                if (m_permissionCache.TryGetValue(
-                    monitoredItem.Id,
-                    out (long Generation, ISession? Session,
-                        ServerSystemContext? Context, ServiceResult Result, MonitoredReadVerdict? Read) cached) &&
-                    cached.Generation == generation &&
-                    ReferenceEquals(cached.Session, operationContext.Session) &&
-                    ReferenceEquals(cached.Context, cachedContext))
+                if (m_permissionCache.TryGetValue(monitoredItem.Id, out CachedDataChangePermission? cached) &&
+                    cached.Matches(generation, operationContext.Session, cachedContext))
                 {
                     result = cached.Result;
                     readVerdict = cached.Read;
@@ -2177,7 +2304,7 @@ namespace Opc.Ua.Server
                     result = await NodeManager.ValidateRolePermissionsAsync(
                         operationContext, snapshot.NodeId, permission, ct).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
-                    m_permissionCache[monitoredItem.Id] = (
+                    m_permissionCache[monitoredItem.Id] = new CachedDataChangePermission(
                         generation, operationContext.Session, cachedContext, result, null);
                 }
                 if (!ServiceResult.IsBad(result))
@@ -2199,7 +2326,7 @@ namespace Opc.Ua.Server
                         ct.ThrowIfCancellationRequested();
                         if (readVerdict != null)
                         {
-                            m_permissionCache[monitoredItem.Id] = (
+                            m_permissionCache[monitoredItem.Id] = new CachedDataChangePermission(
                                 generation, operationContext.Session, cachedContext, roleResult, readVerdict);
                         }
                     }
@@ -2381,7 +2508,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            foreach (KeyValuePair<uint, IEventMonitoredItem> kvp in EventMonitoredItems)
+            foreach (KeyValuePair<uint, IEventMonitoredItem> kvp in m_eventMonitoredItems)
             {
                 IEventMonitoredItem monitoredItem = kvp.Value;
                 if (monitoredItem?.Session?.Id.Equals(sessionId) == true)
@@ -2440,10 +2567,7 @@ namespace Opc.Ua.Server
         }
 
 
-        private readonly ConcurrentDictionary<
-            uint, (long Generation, ISession? Session, ServerSystemContext? Context, ServiceResult Result,
-                MonitoredReadVerdict? Read)>
-            m_permissionCache = new();
+        private readonly ConcurrentDictionary<uint, CachedDataChangePermission> m_permissionCache = new();
 
         private readonly ConcurrentDictionary<EventPermissionCacheKey, CachedEventPermission>
             m_eventPermissionCache = new();
@@ -2467,6 +2591,40 @@ namespace Opc.Ua.Server
                 LazyInitializer.EnsureInitialized(
                     ref m_subscriberContextTemplate,
                     () => new ServerSystemContext(m_server))!;
+        }
+
+        /// <summary>
+        /// Returns the items an event is delivered to. Until the items change, the events
+        /// share one array, so it must not be modified.
+        /// </summary>
+        internal IEventMonitoredItem[] GetEventItems()
+        {
+            if (Volatile.Read(ref m_eventItemsExposed))
+            {
+                return [.. m_eventMonitoredItems.Values];
+            }
+
+            IEventMonitoredItem[]? items = Volatile.Read(ref m_eventItems);
+            if (items != null)
+            {
+                return items;
+            }
+
+            // Add, Remove and Dispose change the dictionary under the same lock, so the copy
+            // cannot miss a concurrent registration.
+            lock (m_rebindLock)
+            {
+                items = m_eventItems;
+                if (items == null)
+                {
+                    items = [.. m_eventMonitoredItems.Values];
+                    if (!m_eventItemsExposed)
+                    {
+                        Volatile.Write(ref m_eventItems, items);
+                    }
+                }
+                return items;
+            }
         }
 
         /// <summary>
@@ -2600,6 +2758,9 @@ namespace Opc.Ua.Server
         private readonly ConcurrentDictionary<uint, IDataChangeMonitoredItem2> m_dataChangeMonitoredItems = new();
         private DataChangeItemSet? m_dataChangeItems;
         private bool m_dataChangeItemsExposed;
+        private readonly ConcurrentDictionary<uint, IEventMonitoredItem> m_eventMonitoredItems = new();
+        private IEventMonitoredItem[]? m_eventItems;
+        private bool m_eventItemsExposed;
 
         /// <summary>
         /// Delivered snapshots kept for reuse: as many as the channel holds plus the one the
@@ -2700,7 +2861,8 @@ namespace Opc.Ua.Server
 
                     m_dataChangeMonitoredItems.Clear();
                     m_dataChangeItems = null;
-                    EventMonitoredItems.Clear();
+                    m_eventMonitoredItems.Clear();
+                    m_eventItems = null;
                 }
             }
 
@@ -2816,6 +2978,44 @@ namespace Opc.Ua.Server
             public readonly MonitoredItemPermissionContext Context;
             public readonly WeakReference<NodeState> SourceNode;
             public readonly ServiceResult Result;
+        }
+
+        /// <summary>
+        /// A cached data change permission verdict of one item. It is a class, and a changed
+        /// verdict replaces the entry, because every node change reads one per item, and copying
+        /// a value tuple out of the cache takes the GC write barrier.
+        /// </summary>
+        private sealed class CachedDataChangePermission(
+            long generation,
+            ISession? session,
+            ServerSystemContext context,
+            ServiceResult result,
+            MonitoredReadVerdict? read)
+        {
+            /// <summary>The sum of the permission, role-permission and identity generations.</summary>
+            public readonly long Generation = generation;
+
+            /// <summary>The session the verdict was computed for.</summary>
+            public readonly ISession? Session = session;
+
+            /// <summary>The subscriber context the verdict was computed with.</summary>
+            public readonly ServerSystemContext Context = context;
+
+            /// <summary>The role-permission verdict.</summary>
+            public readonly ServiceResult Result = result;
+
+            /// <summary>The good exact-source read verdict, if one may be reused.</summary>
+            public readonly MonitoredReadVerdict? Read = read;
+
+            /// <summary>
+            /// Returns whether the verdict was computed for the generation, session and context.
+            /// </summary>
+            public bool Matches(long currentGeneration, ISession? currentSession, ServerSystemContext currentContext)
+            {
+                return Generation == currentGeneration &&
+                    ReferenceEquals(Session, currentSession) &&
+                    ReferenceEquals(Context, currentContext);
+            }
         }
 
         /// <summary>

@@ -442,7 +442,7 @@ namespace Opc.Ua.Server
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }
 
-                if (monitoredNode.EventMonitoredItems.TryGetValue(
+                if (monitoredNode.TryGetEventItem(
                     monitoredItem.Id, out IEventMonitoredItem? registeredEvent) &&
                     !ReferenceEquals(registeredEvent, monitoredItem))
                 {
@@ -485,7 +485,7 @@ namespace Opc.Ua.Server
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
             // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-            if (monitoredNode.EventMonitoredItems.TryGetValue(
+            if (monitoredNode.TryGetEventItem(
                 monitoredItem.Id, out IEventMonitoredItem? existingEvent) &&
                 !ReferenceEquals(existingEvent, monitoredItem))
             {
@@ -572,7 +572,7 @@ namespace Opc.Ua.Server
             bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
             if (isEvent)
             {
-                if (!monitoredNode.EventMonitoredItems.TryGetValue(
+                if (!monitoredNode.TryGetEventItem(
                     monitoredItem.Id,
                     out IEventMonitoredItem? eventItem) ||
                     !ReferenceEquals(eventItem, monitoredItem))
@@ -711,7 +711,7 @@ namespace Opc.Ua.Server
                 handle.MonitoredNode = monitoredNode;
                 if (isEvent)
                 {
-                    if (monitoredNode.EventMonitoredItems.TryGetValue(
+                    if (monitoredNode.TryGetEventItem(
                         monitoredItem.Id,
                         out IEventMonitoredItem? linkedEventItem))
                     {
@@ -787,9 +787,9 @@ namespace Opc.Ua.Server
 
         private void AddEventLink(MonitoredNode2 monitoredNode, IEventMonitoredItem eventItem)
         {
-            bool linked = monitoredNode.EventMonitoredItems.ContainsKey(eventItem.Id);
+            bool linked = monitoredNode.ContainsEventItem(eventItem.Id);
             monitoredNode.Add(eventItem);
-            if (!linked && monitoredNode.EventMonitoredItems.ContainsKey(eventItem.Id))
+            if (!linked && monitoredNode.ContainsEventItem(eventItem.Id))
             {
                 m_eventLinkCounts.AddOrUpdate(eventItem.Id, 1, static (_, count) => count + 1);
             }
@@ -797,9 +797,9 @@ namespace Opc.Ua.Server
 
         private void RemoveEventLink(MonitoredNode2 monitoredNode, IEventMonitoredItem eventItem)
         {
-            bool linked = monitoredNode.EventMonitoredItems.ContainsKey(eventItem.Id);
+            bool linked = monitoredNode.ContainsEventItem(eventItem.Id);
             monitoredNode.Remove(eventItem);
-            if (!linked || monitoredNode.EventMonitoredItems.ContainsKey(eventItem.Id))
+            if (!linked || monitoredNode.ContainsEventItem(eventItem.Id))
             {
                 return;
             }
