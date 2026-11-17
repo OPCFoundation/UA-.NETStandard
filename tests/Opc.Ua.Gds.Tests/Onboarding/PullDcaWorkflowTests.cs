@@ -168,6 +168,26 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         [Test]
+        public async Task InstalledManagerOperationRejectsDcaKeyPairBeforeConnecting()
+        {
+            var fixture = new Fixture();
+            var managerOperation = new Mock<IPullDcaInstalledManagerOperation>(MockBehavior.Strict);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, request, null, managerOperation.Object)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.Calls, Is.Empty);
+            Assert.That(fixture.Host.KeyPairInstalledIds, Is.Empty);
+            managerOperation.VerifyNoOtherCalls();
+        }
+
+        [Test]
         public async Task ManagedApplicationCanSelectNewKeyPairWithoutChangingDcaSigningPath()
         {
             var fixture = new Fixture();

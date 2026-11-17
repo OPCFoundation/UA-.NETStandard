@@ -205,6 +205,10 @@ namespace Opc.Ua.Gds.Client
         /// Runs the workflow with a host-owned operation for the installed DCA's manager request.
         /// Capture the operation for the intended deployment before starting admission or reading its journal.
         /// </summary>
+        /// <remarks>
+        /// The DCA must use a signing request because this operation requires a retained signing binding.
+        /// Managed applications may still use new key-pair requests.
+        /// </remarks>
         public ValueTask<PullDcaResult> RunAsync(
             PullDcaRegistrar registrar,
             PullDcaRequest request,
@@ -363,6 +367,13 @@ namespace Opc.Ua.Gds.Client
             registrar = PullDcaConnection.SnapshotRegistrar(registrar);
             request = SnapshotRequest(request);
             ValidateKeyPairSupport(request.DcaCertificateRequestMode, request.ManagedApplications);
+            if (managerOperation != null &&
+                request.DcaCertificateRequestMode == PullDcaCertificateRequestMode.NewKeyPairRequest)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The installed manager operation requires a DCA signing request.");
+            }
             cancellationToken.ThrowIfCancellationRequested();
             if (Interlocked.CompareExchange(ref m_running, 1, 0) != 0)
             {
