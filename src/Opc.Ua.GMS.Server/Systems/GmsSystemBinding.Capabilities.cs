@@ -56,9 +56,10 @@ namespace Opc.Ua.GMS.Server
             MachineToolRuntime<GMSState> runtime, GmsResultBindingOptions results)
         {
             ArrayOf<string> limitations = Has(GmsFeatures.Production)
-                ? ["OPC 40210 section 12.3.2.7 requires GMS GMS_ProductionStatisticsType, but section 12.2 and the " +
-                    "released normative NodeSet define no such type or NodeId. Only the complete GMS Production " +
-                    "facet is withheld; inherited production statistics and defined GMS jobs/parts remain supported."]
+                ? ["OPC 40210 Table 63 names GMS GMS_ProductionStatisticsType as a mandatory Production conformance " +
+                    "unit, but Table 56 does not define that unit. The released normative NodeSet contains no node " +
+                    "named GMS_ProductionStatisticsType. Only the complete GMS Production facet is withheld; " +
+                    "inherited production statistics and defined GMS jobs/parts remain supported."]
                 : [];
             GmsSystemSnapshot? snapshot = Observation;
             if (m_disposed || snapshot == null ||
