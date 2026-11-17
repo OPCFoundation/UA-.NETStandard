@@ -567,6 +567,26 @@ namespace Opc.Ua.PackML.Tests
         [Test]
         public async Task WireMachineSpeedExposesEngineeringUnitsAndRange()
         {
+            int packMLNamespaceIndex = m_session.NamespaceUris.GetIndex(Namespaces.PackML);
+            Assert.That(packMLNamespaceIndex, Is.GreaterThanOrEqualTo(0));
+            var machineSpeed = new QualifiedName("PackML Machine Speed", checked((ushort)packMLNamespaceIndex));
+            Assert.That(m_unit.ConformanceUnits.ToList(), Does.Contain(machineSpeed));
+            Assert.That(m_manager.ConformanceUnits.ToList(), Does.Contain(machineSpeed));
+            DataValue conformance = await m_session.ReadValueAsync(
+                Ua.VariableIds.Server_ServerCapabilities_ConformanceUnits, CancellationToken.None);
+            Assert.That(conformance.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(
+                conformance.WrappedValue.TryGetValue(out ArrayOf<QualifiedName> advertisedUnits), Is.True);
+            Assert.That(advertisedUnits.ToList(), Does.Contain(machineSpeed));
+
+            await m_client.SetMachSpeedAsync(m_unit.Node.NodeId, 75f);
+            await m_unit.RefreshAsync();
+            PackMLStatusSnapshot speeds = await m_client.ReadStatusAsync(m_unit.Node.NodeId);
+            Assert.That(speeds.MachSpeed.IsGood, Is.True);
+            Assert.That(speeds.MachSpeed.Value, Is.EqualTo(75f));
+            Assert.That(speeds.CurMachSpeed.IsGood, Is.True);
+            Assert.That(speeds.CurMachSpeed.Value, Is.EqualTo(m_equipment.Snapshot.CurrentMachineSpeed));
+
             var browser = new Browser(m_session, new BrowserOptions
             {
                 BrowseDirection = BrowseDirection.Forward,
@@ -686,12 +706,48 @@ namespace Opc.Ua.PackML.Tests
         [Test]
         public async Task MissingOptionalMethodsReturnNotSupportedWithoutProviderExecution()
         {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            ArrayOf<BrowsePathResult> translations =
+                await TranslateOptionalCommandsAsync(m_unit.Node.NodeId, ct);
+            Assert.That(translations[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoMatch));
+            Assert.That(translations[1].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoMatch));
             ServiceResultException remote = (await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client.RemoteCommandAsync(m_unit.Node.NodeId, [])))!;
+                async () => await m_client.RemoteCommandAsync(m_unit.Node.NodeId, [], ct)))!;
             ServiceResultException interlock = (await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client.SetInterlockAsync(m_unit.Node.NodeId, 0, true)))!;
+                async () => await m_client.SetInterlockAsync(m_unit.Node.NodeId, 0, true, ct)))!;
             Assert.That(remote.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
             Assert.That(interlock.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+            Assert.That(m_equipment.Executed, Is.Empty);
+        }
+
+        /// <summary>
+        /// Checks that an unknown unit returns the server's status for optional commands.
+        /// </summary>
+        /// <param name="interlock">Whether to call SetInterlock instead of RemoteCommand.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnknownUnitReturnsNodeIdUnknownForOptionalCommand(bool interlock)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            var unknown = new NodeId("UnknownPackMLUnit", m_manager.InstanceNamespaceIndex);
+            ArrayOf<BrowsePathResult> translations = await TranslateOptionalCommandsAsync(unknown, ct);
+            Assert.That(translations[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+            Assert.That(translations[1].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                if (interlock)
+                {
+                    await m_client.SetInterlockAsync(unknown, 0, true, ct);
+                }
+                else
+                {
+                    await m_client.RemoteCommandAsync(unknown, [], ct);
+                }
+            }))!;
+            Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
             Assert.That(m_equipment.Executed, Is.Empty);
         }
 
@@ -875,7 +931,7 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
-        /// Keeps folder references synchronized when one of several units is deleted and recreated.
+        /// Keeps other units available while one runtime shuts down and a replacement recreates its unit.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -885,42 +941,271 @@ namespace Opc.Ua.PackML.Tests
             CancellationToken ct = deadline.Token;
             AsyncCustomNodeManager owner = externalFolder ? m_composed : m_manager;
             ushort namespaceIndex = owner.NamespaceIndexes[0];
-            await using var runtime = new PackMLRuntime(owner);
             var firstName = new QualifiedName("FirstDynamicUnit", namespaceIndex);
-            Unit first = await runtime.AddUnitAsync(firstName, new EquipmentProvider(), cancellationToken: ct)
+            var firstEquipment = new EquipmentProvider();
+            var firstProvider = new Mock<IPackMLEquipmentProvider>(MockBehavior.Strict);
+            Mock<IAsyncDisposable> asyncProvider = firstProvider.As<IAsyncDisposable>();
+            asyncProvider.Setup(provider => provider.DisposeAsync()).Returns(default(ValueTask));
+            Mock<IDisposable> syncProvider = firstProvider.As<IDisposable>();
+            syncProvider.Setup(provider => provider.Dispose());
+            firstProvider.Setup(provider => provider.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) => firstEquipment.ReadAsync(token));
+            var secondEquipment = new EquipmentProvider();
+            await using var firstRuntime = new PackMLRuntime(owner);
+            await using var secondRuntime = new PackMLRuntime(owner);
+            Unit first = await firstRuntime.AddUnitAsync(firstName, firstProvider.Object, cancellationToken: ct)
                 .ConfigureAwait(false);
-            Unit second = await runtime.AddUnitAsync(
-                new QualifiedName("SecondDynamicUnit", namespaceIndex), new EquipmentProvider(), cancellationToken: ct)
+            Unit second = await secondRuntime.AddUnitAsync(
+                new QualifiedName("SecondDynamicUnit", namespaceIndex), secondEquipment, cancellationToken: ct)
                 .ConfigureAwait(false);
             NodeId folder = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
             Assert.That(folder.IsNull, Is.False);
             NodeId firstId = first.Node.NodeId;
             NodeId secondId = second.Node.NodeId;
+            Assert.That(firstRuntime.ConformanceUnits.ToList(),
+                Is.EquivalentTo(m_manager.Runtime.ConformanceUnits.ToList()));
+            Assert.That(secondRuntime.ConformanceUnits.ToList(),
+                Is.EquivalentTo(m_manager.Runtime.ConformanceUnits.ToList()));
 
             NodeId[] initial = await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct)
                 .ConfigureAwait(false);
             Assert.That(initial, Does.Contain(firstId));
             Assert.That(initial, Does.Contain(secondId));
 
-            await first.DisposeAsync().ConfigureAwait(false);
+            await firstRuntime.DisposeAsync().ConfigureAwait(false);
+            asyncProvider.Verify(provider => provider.DisposeAsync(), Times.Never);
+            syncProvider.Verify(provider => provider.Dispose(), Times.Never);
+            Assert.That(owner.Find(firstId), Is.SameAs(first.Node));
+            Assert.That(owner.Find(first.ModeDataType.NodeId), Is.SameAs(first.ModeDataType));
+            await Assert.ThatAsync(async () => await first.RefreshAsync(ct), Throws.TypeOf<ObjectDisposedException>());
             Assert.That(await owner.DeleteNodeAsync(owner.SystemContext, firstId, ct).ConfigureAwait(false), Is.True);
             Assert.That(
                 await owner.DeleteNodeAsync(owner.SystemContext, first.ModeDataType.NodeId, ct).ConfigureAwait(false),
                 Is.True);
+            await Assert.ThatAsync(async () =>
+            {
+                await firstRuntime.AddUnitAsync(firstName, firstProvider.Object, cancellationToken: ct);
+            }, Throws.TypeOf<ObjectDisposedException>());
 
             NodeId[] afterDeletion = await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct)
                 .ConfigureAwait(false);
             Assert.That(afterDeletion, Does.Not.Contain(firstId));
             Assert.That(afterDeletion, Does.Contain(secondId));
 
+            secondEquipment.Snapshot = secondEquipment.Snapshot with { CurrentMachineSpeed = 47.5f };
+            await second.RefreshAsync(ct).ConfigureAwait(false);
+            DataValue speed = await m_session.ReadValueAsync(
+                second.Node.Status.Required().CurMachSpeed.Required().NodeId, ct).ConfigureAwait(false);
+            Assert.That(speed.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(speed.WrappedValue.TryGetValue(out float currentSpeed), Is.True);
+            Assert.That(currentSpeed, Is.EqualTo(47.5f));
+
             await using var replacementRuntime = new PackMLRuntime(owner);
             Unit replacement = await replacementRuntime.AddUnitAsync(
-                firstName, new EquipmentProvider(), cancellationToken: ct).ConfigureAwait(false);
+                firstName, firstProvider.Object, cancellationToken: ct).ConfigureAwait(false);
             Assert.That(replacement.Node.NodeId, Is.EqualTo(firstId));
             NodeId[] afterReplacement = await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct)
                 .ConfigureAwait(false);
             Assert.That(afterReplacement.Count(id => id == firstId), Is.EqualTo(1));
             Assert.That(afterReplacement.Count(id => id == secondId), Is.EqualTo(1));
+
+            await replacementRuntime.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await owner.DeleteNodeAsync(owner.SystemContext, firstId, ct).ConfigureAwait(false), Is.True);
+            Assert.That(
+                await owner.DeleteNodeAsync(owner.SystemContext, replacement.ModeDataType.NodeId, ct)
+                    .ConfigureAwait(false),
+                Is.True);
+            await secondRuntime.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await owner.DeleteNodeAsync(owner.SystemContext, secondId, ct).ConfigureAwait(false), Is.True);
+            Assert.That(
+                await owner.DeleteNodeAsync(owner.SystemContext, second.ModeDataType.NodeId, ct).ConfigureAwait(false),
+                Is.True);
+            asyncProvider.Verify(provider => provider.DisposeAsync(), Times.Never);
+            syncProvider.Verify(provider => provider.Dispose(), Times.Never);
+            await asyncProvider.Object.DisposeAsync().ConfigureAwait(false);
+            asyncProvider.Verify(provider => provider.DisposeAsync(), Times.Once);
+        }
+
+        /// <summary>
+        /// Rejects a same-name unit from another runtime on the same owner until the original nodes are deleted.
+        /// </summary>
+        [Test]
+        public async Task OverlappingRuntimeCannotClaimLiveOrUndeletedUnitNameAsync()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            AsyncCustomNodeManager owner = m_manager;
+            var name = new QualifiedName("OverlappingUnit", owner.NamespaceIndexes[0]);
+            var conflicting = new Mock<IPackMLEquipmentProvider>(MockBehavior.Strict);
+            await using var originalRuntime = new PackMLRuntime(owner);
+            await using var overlappingRuntime = new PackMLRuntime(owner);
+            Unit original = await originalRuntime.AddUnitAsync(name, new EquipmentProvider(), cancellationToken: ct)
+                .ConfigureAwait(false);
+            NodeId unitId = original.Node.NodeId;
+            NodeId modeId = original.ModeDataType.NodeId;
+            NodeId folder = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
+            Assert.That(folder.IsNull, Is.False);
+            bool configured = false;
+
+            ServiceResultException overlapping = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await overlappingRuntime.AddUnitAsync(
+                    name, conflicting.Object, _ => configured = true, cancellationToken: ct)))!;
+            Assert.That(overlapping.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(configured, Is.False);
+            conflicting.VerifyNoOtherCalls();
+            Assert.That(overlappingRuntime.Units.Count, Is.Zero);
+            Assert.That(owner.Find(unitId), Is.SameAs(original.Node));
+            Assert.That(owner.Find(modeId), Is.SameAs(original.ModeDataType));
+            await original.RefreshAsync(ct).ConfigureAwait(false);
+            NodeId[] live = await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct)
+                .ConfigureAwait(false);
+            Assert.That(live.Count(id => id == unitId), Is.EqualTo(1));
+
+            // Shutdown alone does not retire the address-space publication.
+            await originalRuntime.DisposeAsync().ConfigureAwait(false);
+            ServiceResultException undeleted = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await overlappingRuntime.AddUnitAsync(
+                    name, conflicting.Object, _ => configured = true, cancellationToken: ct)))!;
+            Assert.That(undeleted.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(configured, Is.False);
+            conflicting.VerifyNoOtherCalls();
+            Assert.That(owner.Find(unitId), Is.SameAs(original.Node));
+            Assert.That(owner.Find(modeId), Is.SameAs(original.ModeDataType));
+
+            Assert.That(await owner.DeleteNodeAsync(owner.SystemContext, unitId, ct).ConfigureAwait(false), Is.True);
+            Assert.That(await owner.DeleteNodeAsync(owner.SystemContext, modeId, ct).ConfigureAwait(false), Is.True);
+            Unit reused = await overlappingRuntime.AddUnitAsync(name, new EquipmentProvider(), cancellationToken: ct)
+                .ConfigureAwait(false);
+            Assert.That(reused.Node, Is.Not.SameAs(original.Node));
+            Assert.That(reused.Node.NodeId, Is.EqualTo(unitId));
+            Assert.That(owner.Find(unitId), Is.SameAs(reused.Node));
+            NodeId[] afterReuse = await BrowseObjectReferencesAsync(folder, Ua.ReferenceTypeIds.Organizes, ct)
+                .ConfigureAwait(false);
+            Assert.That(afterReuse.Count(id => id == unitId), Is.EqualTo(1));
+
+            await overlappingRuntime.DisposeAsync().ConfigureAwait(false);
+            Assert.That(await owner.DeleteNodeAsync(owner.SystemContext, unitId, ct).ConfigureAwait(false), Is.True);
+            Assert.That(
+                await owner.DeleteNodeAsync(owner.SystemContext, reused.ModeDataType.NodeId, ct).ConfigureAwait(false),
+                Is.True);
+            conflicting.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Withdraws independent contributions after runtime shutdown while retaining other capabilities.
+        /// </summary>
+        [Test]
+        public async Task LiveServerWithdrawsStoppedRuntimeConformanceOnlyAfterPublicationAsync()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            Assert.That(m_manager.Server, Is.InstanceOf<IConformanceUnitsManagerProvider>());
+            var provider = (IConformanceUnitsManagerProvider)m_manager.Server;
+            ConformanceUnitsManager catalog = provider.ConformanceUnitsManager
+                ?? throw new InvalidOperationException("The conformance catalog is unavailable.");
+            await using var stoppedRuntime = new PackMLRuntime(m_composed);
+            Unit stoppedUnit = await stoppedRuntime.AddUnitAsync(
+                new QualifiedName("IndependentContributor", m_composed.NamespaceIndexes[0]),
+                new EquipmentProvider(),
+                cancellationToken: ct).ConfigureAwait(false);
+            var composedContribution = new Mock<IConformanceContributor>(MockBehavior.Strict);
+            bool includeRuntime = true;
+            var retiringUnit = new QualifiedName("RetiringTestCapability", m_manager.InstanceNamespaceIndex);
+            var retainedUnit = new QualifiedName("RetainedTestCapability", m_manager.InstanceNamespaceIndex);
+            const string retiringProfile = "urn:packml:test:retiring-profile";
+            const string retainedProfile = "urn:packml:test:retained-profile";
+            ArrayOf<QualifiedName> retainedUnits = [retainedUnit];
+            ArrayOf<string> activeProfiles = [retiringProfile, ConfiguredTestProfile, retainedProfile];
+            ArrayOf<string> retainedProfiles = [retainedProfile];
+            composedContribution.SetupGet(contributor => contributor.ConformanceUnits).Returns(() =>
+            {
+                if (!includeRuntime)
+                {
+                    return retainedUnits;
+                }
+                List<QualifiedName> units = stoppedRuntime.ConformanceUnits.ToList();
+                units.Add(retiringUnit);
+                units.Add(retainedUnit);
+                return units.ToArrayOf();
+            });
+            composedContribution.SetupGet(contributor => contributor.ServerProfiles)
+                .Returns(() => includeRuntime ? activeProfiles : retainedProfiles);
+            catalog.Register(stoppedRuntime);
+            catalog.Register(composedContribution.Object);
+            await catalog.PublishAsync(ct).ConfigureAwait(false);
+
+            ushort packMLNamespace = checked((ushort)m_session.NamespaceUris.GetIndex(Namespaces.PackML));
+            QualifiedName[] expected = m_manager.Runtime.ConformanceUnits.ToList().ToArray();
+            Assert.That(expected, Is.Not.Empty);
+            Assert.That(stoppedRuntime.ConformanceUnits.ToList(), Is.EquivalentTo(expected));
+            ArrayOf<QualifiedName> before = await ReadConformanceUnitsAsync().ConfigureAwait(false);
+            Assert.That(before.ToList().Where(unit => unit.NamespaceIndex == packMLNamespace),
+                Is.EquivalentTo(expected));
+            Assert.That(before.ToList(), Does.Contain(retiringUnit));
+            Assert.That(before.ToList(), Does.Contain(retainedUnit));
+            DataValue profilesBefore = await m_session.ReadValueAsync(
+                Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray, ct).ConfigureAwait(false);
+            Assert.That(profilesBefore.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(profilesBefore.WrappedValue.TryGetValue(out ArrayOf<string> initialProfiles), Is.True);
+            Assert.That(initialProfiles.ToList(), Does.Contain(ConfiguredTestProfile));
+            Assert.That(initialProfiles.ToList(), Does.Contain(retiringProfile));
+            Assert.That(initialProfiles.ToList(), Does.Contain(retainedProfile));
+
+            await stoppedRuntime.DisposeAsync().ConfigureAwait(false);
+            Assert.That(stoppedRuntime.Units.ToList(), Is.EqualTo(new[] { stoppedUnit }));
+            Assert.That(stoppedRuntime.ConformanceUnits.ToList(), Is.EquivalentTo(expected));
+            Assert.That(m_composed.Find(stoppedUnit.Node.NodeId), Is.SameAs(stoppedUnit.Node));
+            Assert.That(
+                await m_composed.DeleteNodeAsync(m_composed.SystemContext, stoppedUnit.Node.NodeId, ct)
+                    .ConfigureAwait(false),
+                Is.True);
+            Assert.That(
+                await m_composed.DeleteNodeAsync(m_composed.SystemContext, stoppedUnit.ModeDataType.NodeId, ct)
+                    .ConfigureAwait(false),
+                Is.True);
+            includeRuntime = false;
+            Assert.That(catalog.Unregister(stoppedRuntime), Is.True);
+            Assert.That(catalog.IsSupported(retiringUnit), Is.False);
+            Assert.That(catalog.IsSupported(retainedUnit), Is.True);
+            foreach (QualifiedName unit in expected)
+            {
+                Assert.That(catalog.IsSupported(unit), Is.True);
+            }
+            ArrayOf<QualifiedName> pending = await ReadConformanceUnitsAsync().ConfigureAwait(false);
+            Assert.That(pending.ToList(), Is.EquivalentTo(before.ToList()));
+            DataValue pendingProfiles = await m_session.ReadValueAsync(
+                Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray, ct).ConfigureAwait(false);
+            Assert.That(pendingProfiles.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(pendingProfiles.WrappedValue.TryGetValue(out ArrayOf<string> profilesBeforePublication),
+                Is.True);
+            Assert.That(profilesBeforePublication.ToList(), Is.EquivalentTo(initialProfiles.ToList()));
+
+            await catalog.PublishAsync(ct).ConfigureAwait(false);
+            ArrayOf<QualifiedName> after = await ReadConformanceUnitsAsync().ConfigureAwait(false);
+            Assert.That(after.ToList().Where(unit => unit.NamespaceIndex == packMLNamespace),
+                Is.EquivalentTo(expected));
+            Assert.That(after.ToList(),
+                Is.EquivalentTo(before.ToList().Where(unit => !unit.Equals(retiringUnit))));
+            Assert.That(after.ToList(), Does.Not.Contain(retiringUnit));
+            Assert.That(after.ToList(), Does.Contain(retainedUnit));
+            DataValue profilesAfter = await m_session.ReadValueAsync(
+                Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray, ct).ConfigureAwait(false);
+            Assert.That(profilesAfter.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(profilesAfter.WrappedValue.TryGetValue(out ArrayOf<string> remainingProfiles), Is.True);
+            Assert.That(remainingProfiles.ToList(),
+                Is.EquivalentTo(initialProfiles.ToList().Where(profile => profile != retiringProfile)));
+            Assert.That(remainingProfiles.ToList(), Does.Not.Contain(retiringProfile));
+            Assert.That(remainingProfiles.ToList(), Does.Contain(ConfiguredTestProfile));
+            Assert.That(remainingProfiles.ToList(), Does.Contain(retainedProfile));
+
+            async ValueTask<ArrayOf<QualifiedName>> ReadConformanceUnitsAsync()
+            {
+                DataValue value = await m_session.ReadValueAsync(
+                    Ua.VariableIds.Server_ServerCapabilities_ConformanceUnits, ct).ConfigureAwait(false);
+                Assert.That(value.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(value.WrappedValue.TryGetValue(out ArrayOf<QualifiedName> units), Is.True);
+                return units;
+            }
         }
 
         [Test]
@@ -2328,7 +2613,7 @@ namespace Opc.Ua.PackML.Tests
                     ?? throw new InvalidOperationException("The candidate folder is unavailable.");
                 Assert.That(localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.True);
 
-                await candidate.CreatedUnit.DisposeAsync().ConfigureAwait(false);
+                await candidate.Runtime.DisposeAsync().ConfigureAwait(false);
                 Assert.That(
                     await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
                     Is.True);
@@ -2352,6 +2637,7 @@ namespace Opc.Ua.PackML.Tests
                 folderContents = await BrowseObjectReferencesAsync(
                     folderId, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
                 Assert.That(folderContents.Count(id => id == unitId), Is.EqualTo(1));
+                await replacementRuntime.DisposeAsync().ConfigureAwait(false);
                 await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);
                 folderContents = await BrowseObjectReferencesAsync(
                     folderId, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
@@ -2402,7 +2688,7 @@ namespace Opc.Ua.PackML.Tests
                 Assert.That(folder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, secondUnitId), Is.True);
             }
 
-            await firstManager.CreatedUnit.DisposeAsync().ConfigureAwait(false);
+            await firstManager.Runtime.DisposeAsync().ConfigureAwait(false);
             Assert.That(
                 await firstManager.DeleteNodeAsync(firstManager.SystemContext, firstUnitId, ct).ConfigureAwait(false),
                 Is.True);
@@ -2449,6 +2735,133 @@ namespace Opc.Ua.PackML.Tests
             }
             await RetirePackMLManagerAsync(lifecycle, second, ct).ConfigureAwait(false);
             await RetirePackMLManagerAsync(lifecycle, third, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Retires a whole PackML manager and later recreates it with a fresh runtime and the same unit names.
+        /// </summary>
+        /// <remarks>
+        /// The steps are strictly sequential. The test makes no claim about concurrent replacement and does
+        /// not reuse the retired runtime. It does not read the server conformance catalog, whose withdrawal
+        /// for retired managers is tracked separately.
+        /// </remarks>
+        /// <param name="duplicateFolder">Whether each generation indexes its own PackMLObjects node.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredPackMLManagerIsRecreatedWithFreshRuntimeAsync(bool duplicateFolder)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = deadline.Token;
+            INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
+            var core = m_manager.Server.NodeManager.CoreNodeManager as CoreNodeManager
+                ?? throw new InvalidOperationException("The core node manager is unavailable.");
+            NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
+                ?? throw new InvalidOperationException("Objects folder is unavailable.");
+            NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
+                ?? throw new InvalidOperationException("Enumeration type is unavailable.");
+            ServerObjectState serverObject = m_manager.Server.ServerObject;
+            NodeId folderId = ExpandedNodeId.ToNodeId(ObjectIds.PackMLObjects, m_session.NamespaceUris);
+            NodeState servingFolder = m_manager.Find(folderId)
+                ?? throw new InvalidOperationException("The serving folder is unavailable.");
+            NodeId servingUnitId = m_unit.Node.NodeId;
+
+            async Task AssertGenerationAsync(NodeId unitId, NodeId modeId, bool expected)
+            {
+                AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected);
+                Assert.That(
+                    servingFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId),
+                    Is.EqualTo(expected));
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, unitId),
+                    Is.EqualTo(expected));
+                Assert.That(m_manager.Find(folderId), Is.SameAs(servingFolder));
+                Assert.That(
+                    servingFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, servingUnitId),
+                    Is.True);
+                NodeId[] roots = await BrowseObjectReferencesAsync(
+                    Ua.ObjectIds.ObjectsFolder, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
+                Assert.That(roots.Count(id => id == unitId), Is.EqualTo(expected ? 1 : 0));
+                Assert.That(roots.Count(id => id == folderId), Is.EqualTo(1));
+                if (!duplicateFolder)
+                {
+                    NodeId[] contents = await BrowseObjectReferencesAsync(
+                        folderId, Ua.ReferenceTypeIds.Organizes, ct).ConfigureAwait(false);
+                    Assert.That(contents.Count(id => id == unitId), Is.EqualTo(expected ? 1 : 0));
+                    Assert.That(contents.Count(id => id == servingUnitId), Is.EqualTo(1));
+                }
+            }
+
+            var firstFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false, duplicateFolder: duplicateFolder);
+            await using IPreparedNodeManagerBatch firstPreparation = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult first = await firstPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            Assert.That(first.CleanupFailure, Is.Null);
+            PreparedPackMLManager firstManager = firstFactory.Manager
+                ?? throw new InvalidOperationException("The first manager was not created.");
+            Unit firstUnit = firstManager.CreatedUnit;
+            NodeId unitId = firstUnit.Node.NodeId;
+            NodeId modeId = firstUnit.ModeDataType.NodeId;
+            await AssertGenerationAsync(unitId, modeId, expected: true).ConfigureAwait(false);
+            if (duplicateFolder)
+            {
+                NodeState firstFolder = firstManager.Find(folderId)
+                    ?? throw new InvalidOperationException("The first manager's folder is unavailable.");
+                Assert.That(firstFolder, Is.Not.SameAs(servingFolder));
+                Assert.That(firstFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.True);
+            }
+
+            await RetirePackMLManagerAsync(lifecycle, first, ct).ConfigureAwait(false);
+            await AssertGenerationAsync(unitId, modeId, expected: false).ConfigureAwait(false);
+            Assert.That(firstManager.Find(unitId), Is.Null);
+            Assert.That(firstManager.Find(modeId), Is.Null);
+            await Assert.ThatAsync(
+                async () => await firstUnit.RefreshAsync(ct),
+                Throws.TypeOf<ObjectDisposedException>());
+            await Assert.ThatAsync(async () =>
+            {
+                await firstManager.Runtime.AddUnitAsync(
+                    firstUnit.Node.BrowseName, new EquipmentProvider(), cancellationToken: ct);
+            }, Throws.TypeOf<ObjectDisposedException>());
+
+            var secondFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false, duplicateFolder: duplicateFolder);
+            await using IPreparedNodeManagerBatch secondPreparation = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(secondFactory)], ct).ConfigureAwait(false);
+            NodeManagerBatchResult second = await secondPreparation.CommitAsync(_ => default, ct)
+                .ConfigureAwait(false);
+            Assert.That(second.CleanupFailure, Is.Null);
+            PreparedPackMLManager secondManager = secondFactory.Manager
+                ?? throw new InvalidOperationException("The recreated manager was not created.");
+            Unit recreated = secondManager.CreatedUnit;
+            Assert.That(secondManager, Is.Not.SameAs(firstManager));
+            Assert.That(secondManager.Runtime, Is.Not.SameAs(firstManager.Runtime));
+            Assert.That(secondManager.NamespaceIndexes[0], Is.EqualTo(firstManager.NamespaceIndexes[0]));
+            Assert.That(recreated.Node, Is.Not.SameAs(firstUnit.Node));
+            Assert.That(recreated.Node.BrowseName, Is.EqualTo(firstUnit.Node.BrowseName));
+            Assert.That(recreated.Node.NodeId, Is.EqualTo(unitId));
+            Assert.That(recreated.ModeDataType.NodeId, Is.EqualTo(modeId));
+            Assert.That(secondManager.Find(unitId), Is.SameAs(recreated.Node));
+            await AssertGenerationAsync(unitId, modeId, expected: true).ConfigureAwait(false);
+            if (duplicateFolder)
+            {
+                NodeState secondFolder = secondManager.Find(folderId)
+                    ?? throw new InvalidOperationException("The recreated manager's folder is unavailable.");
+                Assert.That(secondFolder, Is.Not.SameAs(servingFolder));
+                Assert.That(secondFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.True);
+            }
+            await recreated.RefreshAsync(ct).ConfigureAwait(false);
+            DataValue speed = await m_session.ReadValueAsync(
+                recreated.Node.Status.Required().CurMachSpeed.Required().NodeId, ct).ConfigureAwait(false);
+            Assert.That(speed.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            PackMLStatusSnapshot status = await m_client.ReadStatusAsync(unitId, ct).ConfigureAwait(false);
+            Assert.That(status.CurMachSpeed.IsGood, Is.True);
+            Assert.That(status.CurMachSpeed.Value, Is.EqualTo(12.5f));
+
+            await RetirePackMLManagerAsync(lifecycle, second, ct).ConfigureAwait(false);
+            await AssertGenerationAsync(unitId, modeId, expected: false).ConfigureAwait(false);
+            Assert.That(secondManager.Find(unitId), Is.Null);
+            Assert.That(secondManager.Find(modeId), Is.Null);
         }
 
         /// <summary>
@@ -2788,6 +3201,7 @@ namespace Opc.Ua.PackML.Tests
             NodeId unitId = candidate.CreatedUnit.Node.NodeId;
             NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
 
+            await candidate.Runtime.DisposeAsync().ConfigureAwait(false);
             Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
                 Is.True);
             Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, ct).ConfigureAwait(false),
@@ -3021,8 +3435,9 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(factory.RegisteredManager is AsyncNodeManagerAdapter,
                 Is.EqualTo(facade == ManagerFacadeKind.Adapted));
             Assert.That(factory.RegisteredManager!.SyncNodeManager, Is.SameAs(candidate.SyncNodeManager));
+            await using var addedRuntime = new PackMLRuntime(candidate);
             Unit unit = addedAfterPublication
-                ? await candidate.Runtime.AddUnitAsync(
+                ? await addedRuntime.AddUnitAsync(
                     new QualifiedName("LiveDeletion", candidate.NamespaceIndexes[0]),
                     new EquipmentProvider(),
                     cancellationToken: ct).ConfigureAwait(false)
@@ -3034,6 +3449,7 @@ namespace Opc.Ua.PackML.Tests
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
             Assert.That(unit.Node.OnReportEventAsync, Is.Not.Null);
 
+            await (addedAfterPublication ? addedRuntime : candidate.Runtime).DisposeAsync().ConfigureAwait(false);
             Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, unitId, ct).ConfigureAwait(false),
                 Is.True);
             Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, ct).ConfigureAwait(false),
@@ -3090,6 +3506,7 @@ namespace Opc.Ua.PackML.Tests
 
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
+            await candidate.Runtime.DisposeAsync().ConfigureAwait(false);
             if (removeRootFirst)
             {
                 candidate.Server.ServerObject.RemoveReference(Ua.ReferenceTypeIds.HasNotifier, false, unitId);
@@ -3181,6 +3598,7 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.True);
 
+            await candidate.Runtime.DisposeAsync().ConfigureAwait(false);
             var decidingFactory = new ComposedNodeManagerFactory(
                 _ => { },
                 "urn:opcfoundation:tests:packml:deciding");
@@ -3313,6 +3731,7 @@ namespace Opc.Ua.PackML.Tests
                 Assert.That(localFolder.ReferenceExists(Ua.ReferenceTypeIds.Organizes, false, unitId), Is.True);
             }
 
+            await candidate.Runtime.DisposeAsync().ConfigureAwait(false);
             // The deciding candidate reserves all copies of the reference sources.
             var decidingFactory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false,
@@ -4221,6 +4640,42 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
+        /// Reads the server's translation results for both optional commands.
+        /// </summary>
+        private async ValueTask<ArrayOf<BrowsePathResult>> TranslateOptionalCommandsAsync(
+            NodeId startingNode,
+            CancellationToken cancellationToken)
+        {
+            ushort namespaceIndex = checked((ushort)m_session.NamespaceUris.GetIndex(Namespaces.PackML));
+            string[] names = ["RemoteCommand", "SetInterlock"];
+            var paths = new BrowsePath[names.Length];
+            for (int i = 0; i < names.Length; i++)
+            {
+                paths[i] = new BrowsePath
+                {
+                    StartingNode = startingNode,
+                    RelativePath = new RelativePath
+                    {
+                        Elements =
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = Ua.ReferenceTypeIds.HierarchicalReferences,
+                                IncludeSubtypes = true,
+                                TargetName = new QualifiedName(names[i], namespaceIndex)
+                            }
+                        ]
+                    }
+                };
+            }
+            TranslateBrowsePathsToNodeIdsResponse response = await m_session.TranslateBrowsePathsToNodeIdsAsync(
+                null, paths.ToArrayOf(), cancellationToken).ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(response.Results.Count, Is.EqualTo(names.Length));
+            return response.Results;
+        }
+
+        /// <summary>
         /// Checks the serving Objects-folder and Enumeration references for one unit.
         /// </summary>
         private static void AssertPackMLExternalReferences(
@@ -4420,6 +4875,20 @@ namespace Opc.Ua.PackML.Tests
                     serverConfiguration.MaxNotificationQueueSize = 5;
                 };
             }
+            else if (TestContext.CurrentContext.Test.MethodName ==
+                nameof(LiveServerWithdrawsStoppedRuntimeConformanceOnlyAfterPublicationAsync))
+            {
+                options.ConfigureBuilder = builder =>
+                {
+                    if (builder is not ApplicationConfigurationBuilder configuration)
+                    {
+                        throw new InvalidOperationException("The test requires the application configuration builder.");
+                    }
+                    ServerConfiguration serverConfiguration =
+                        configuration.ApplicationConfiguration.ServerConfiguration ??= new ServerConfiguration();
+                    serverConfiguration.ServerProfileArray += ConfiguredTestProfile;
+                };
+            }
             options.ApplicationName = nameof(PackMLClientServerTests);
             options.ApplicationUri = "urn:localhost:packml-tests";
             options.ProductUri = "urn:localhost:packml-tests:product";
@@ -4442,6 +4911,9 @@ namespace Opc.Ua.PackML.Tests
             m_endpoint = "opc.tcp://localhost:" + port.ToString(CultureInfo.InvariantCulture) + "/PackML";
             options.EndpointUrls.Add(m_endpoint);
         }
+
+        /// <summary>The profile configured before the conformance test starts.</summary>
+        private const string ConfiguredTestProfile = "urn:packml:test:configured-profile";
 
         private static readonly bool[] s_materialReadiness = [true, false];
         private static readonly int[] s_stateDimensions = [2, 20];

@@ -415,9 +415,7 @@ namespace Opc.Ua.PackML.Client
                         }
                     }
                 }
-                else if (result.StatusCode != StatusCodes.BadNoMatch &&
-                    result.StatusCode != StatusCodes.BadNodeIdUnknown &&
-                    result.StatusCode != StatusCodes.BadBrowseNameInvalid)
+                else if (result.StatusCode != StatusCodes.BadNoMatch)
                 {
                     throw new ServiceResultException(result.StatusCode);
                 }

@@ -89,9 +89,38 @@ name and the chosen parent. The runtime adds an `Organizes` reference from
 A null parent also places the unit directly under Objects. A non-null parent
 must be an indexed node owned by the runtime's node manager. `AddUnitAsync`
 rejects a parent from another manager before invoking configuration or
-creating the unit. Keep the runtime until the owner shuts down, then await
-`DisposeAsync` before deleting its nodes. This path does not require Machinery,
-DI, or Scales.
+creating the unit. The host must keep a runtime-owned unit active until its
+runtime shuts down. Disposing or deleting an individual unit while its runtime
+is active is not supported. The node manager can delete nodes directly, but
+the runtime does not remove a deleted unit from `Units`; its name can remain
+reserved and its capabilities can remain in the runtime's contribution.
+
+Await `PackMLRuntime.DisposeAsync` before the owner deletes its units. Shutdown
+cancels and drains work on every unit, but does not delete their nodes or
+dispose the application-owned equipment providers. The node manager then
+deletes each unit and its `ModeDataType`, or deletes its entire address space.
+To recreate a whole manager with a fresh runtime and the same unit names,
+retire the old manager and wait for successful physical cleanup before adding
+the replacement. Disposing a runtime or observing that its nodes are no longer
+indexed does not establish that manager retirement completed successfully.
+Retiring or deleting an individual unit while its manager remains active and
+then reusing its name is not supported. Other runtimes can continue to serve
+their own units. This path does not require Machinery, DI, or Scales.
+
+For runtimes borrowing the same node manager, a matching parent and qualified
+browse name is rejected with `BadBrowseNameDuplicated` before the configuration
+callback or equipment provider is invoked if another runtime is composing the
+unit or its published unit or `ModeDataType` node is still indexed. This check
+covers PackML runtime claims. A NodeId conflict with another node in the same
+manager is rejected with `BadNodeIdExists` after unit creation, so
+configuration or provider access may already have happened.
+
+A conflicting NodeId owned by another node manager must be rejected with
+`BadNodeIdExists` before side effects while that manager is live or its
+physical cleanup is pending or has failed. Reuse is allowed only after physical
+cleanup succeeds. This requires shared server-wide NodeId admission, which is
+not yet available, so early rejection of arbitrary and cross-manager conflicts
+is not yet guaranteed.
 
 During lifecycle preparation, the references from Objects, `PackMLObjects`,
 and the Enumeration DataType remain private until publication. A failed unit
@@ -169,8 +198,9 @@ This is the runtime's concurrency policy, not an OPC 30050 requirement;
 describes `BadInvalidState` for an object in an invalid state, rather than a
 general prohibition on concurrent calls.
 
-Direct `DisposeAsync` throws `InvalidOperationException` while an application
-callback is active; it does not report successful disposal or close admission.
+For a directly created unit, `DisposeAsync` throws `InvalidOperationException`
+while an application callback is active; it does not report successful disposal
+or close admission. A runtime-owned unit is shut down through its runtime.
 The host-owned runtime has a separate internal shutdown path that cancels active
 and admitted work and waits for it to finish before address-space deletion.
 Runtime disposal from its own composition callback or a unit's equipment,
@@ -413,6 +443,9 @@ Discovery retains qualified instance names and follows namespace URIs instead
 of fixed indexes. `ReadStatusAsync` and `ReadAdminAsync` batch reads but do not
 promise an atomic equipment snapshot. `IsPresent`, `HasValue` and `IsGood`
 distinguish an omitted field, a decode failure and bad quality.
+The client treats a `BadNoMatch` browse-path result as an absent field or
+method. Other translation failures, including `BadNodeIdUnknown` and
+`BadBrowseNameInvalid`, reach the caller as `ServiceResultException`.
 `ObserveAsync` uses the caller's shared streaming subscription, or a managed
 session's default subscription, and removes only its own monitored item when
 enumeration ends. `WaitForAsync` requires a finite timeout and does not send
@@ -458,6 +491,39 @@ its units, and contributes none when it has no units. Neither surface adds a
 server profile URI. A configured capability describes the SDK path available
 to the equipment integration; it does not establish that the provider or
 installed equipment meets the corresponding specification requirement.
+
+`StandardServer` registers node managers that implement `IConformanceContributor`
+at startup, but node-manager retirement and replacement do not update those
+registrations. The host must keep them aligned with the serving managers.
+The server does not automatically register a runtime composed into another
+node manager. The host can include that runtime in the owner's contribution
+or register the runtime with `ConformanceUnitsManager`. Adding units or
+disposing the runtime does not publish an updated contribution.
+
+Disposing a runtime does not clear `Units` or unregister its contribution. If
+the server remains running, unregister a stopped `PackMLNodeManager` or a
+directly registered runtime. If the owner continues to serve other features,
+update its contribution to omit the stopped runtime instead of unregistering
+the owner. Keep its unrelated capabilities and register any replacement
+contributor. Then await `ConformanceUnitsManager.PublishAsync` to write the
+aggregate to the live server. Registration changes update the in-memory
+aggregate but do not write the server variables. An aggregation failure can
+leave a registration changed, and a publication failure can leave the
+variables partly updated. Report the failure, reconcile the registration, and
+retry publication after correcting its cause. Another contributor can continue
+to report the same capability.
+
+The manager unions its contributors, while each runtime intersects only its
+own units' capabilities. To advertise only capabilities shared by all PackML
+units, the host must compute the intersection across runtimes in a contributor.
+Registering the runtimes separately does not compute it.
+
+Configured `ServerProfileArray` entries are retained on each publication.
+Unregistering a contributor does not remove a profile configured at startup.
+If the last PackML unit is removed, the server no longer meets the instance
+requirement in [§6.2](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/6.2).
+If a configured PackML profile is no longer valid, stop the server and remove
+that profile from its configuration before restarting.
 
 | OPC 30050 capability | Configuration and implementation | Equipment or deployment responsibility |
 |---|---|---|

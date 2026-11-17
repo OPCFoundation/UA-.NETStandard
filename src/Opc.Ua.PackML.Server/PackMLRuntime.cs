@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -41,10 +42,11 @@ namespace Opc.Ua.PackML.Server
         public PackMLRuntime(AsyncCustomNodeManager manager)
         {
             m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
+            m_claims = s_ownerClaims.GetValue(manager, static _ => new OwnerClaims());
         }
 
         /// <summary>
-        /// Gets the committed units in creation order.
+        /// Gets the committed units in creation order, including after shutdown.
         /// </summary>
         public ArrayOf<PackMLUnit> Units
         {
@@ -91,9 +93,24 @@ namespace Opc.Ua.PackML.Server
         /// <remarks>
         /// A non-null parent must be the indexed node owned by this runtime's node manager.
         /// A parent owned by another node manager is rejected before configuration or node creation.
+        /// The owner must not dispose or delete an individual unit while this runtime is active.
+        /// Shut down the runtime before deleting its unit and mode DataType nodes.
+        /// The equipment provider remains application-owned.
+        /// A matching parent and qualified browse name claimed by another runtime borrowing the same owner
+        /// is rejected with BadBrowseNameDuplicated before configuration or provider access while composition
+        /// is pending or either published node is still indexed.
+        /// Other NodeId conflicts in the owner are rejected with BadNodeIdExists after unit creation, so
+        /// configuration or provider access may already have occurred. Rejecting conflicts with other node
+        /// managers before side effects requires shared server-wide admission, which is not yet available.
         /// </remarks>
         /// <exception cref="ArgumentException">
         /// <paramref name="parent"/> is not an indexed node owned by this runtime's node manager.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">
+        /// The runtime has started shutting down.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The name is already used under the parent, or another runtime borrowing the owner still owns it.
         /// </exception>
         public ValueTask<PackMLUnit> AddUnitAsync(
             QualifiedName browseName,
@@ -122,8 +139,6 @@ namespace Opc.Ua.PackML.Server
                 throw new ArgumentException(
                     "The parent must be an indexed node owned by this runtime's node manager.", nameof(parent));
             }
-            var options = new PackMLUnitOptions();
-            configure?.Invoke(options);
             var children = new List<BaseInstanceState>();
             parent?.GetChildren(m_manager.SystemContext, children);
             lock (m_unitsLock)
@@ -134,11 +149,35 @@ namespace Opc.Ua.PackML.Server
                     throw new ServiceResultException(StatusCodes.BadBrowseNameDuplicated);
                 }
             }
-            PackMLUnit unit = await PackMLUnit.CreateAsync(
-                m_manager.SystemContext, parent, browseName, provider, options, cancellationToken)
-                .ConfigureAwait(false);
+            UnitClaim? claim = m_claims.TryClaim(m_manager, parent, browseName)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadBrowseNameDuplicated,
+                    "Another PackML runtime still owns a unit with this name under the same parent.");
+            PackMLUnit unit;
             try
             {
+                var options = new PackMLUnitOptions();
+                configure?.Invoke(options);
+                unit = await PackMLUnit.CreateAsync(
+                    m_manager.SystemContext, parent, browseName, provider, options, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                m_claims.Release(claim);
+                throw;
+            }
+            bool ownsNodeIds = false;
+            try
+            {
+                if (m_manager.Find(unit.Node.NodeId) is not null ||
+                    m_manager.Find(unit.ModeDataType.NodeId) is not null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdExists,
+                        "The owner still indexes a node with this unit's NodeId.");
+                }
+                ownsNodeIds = true;
                 lock (m_unitsLock)
                 {
                     m_pendingUnits.Add(unit);
@@ -206,6 +245,8 @@ namespace Opc.Ua.PackML.Server
                     m_units.Add(unit);
                     m_pendingUnits.Remove(unit);
                 }
+                m_claims.Commit(claim, unit.Node, unit.ModeDataType);
+                claim = null;
                 return unit;
             }
             catch (Exception creationError)
@@ -228,13 +269,18 @@ namespace Opc.Ua.PackML.Server
                 {
                     errors.Add(cleanupError);
                 }
-                NodeId[] registeredNodes = [unit.Node.NodeId, unit.ModeDataType.NodeId];
-                foreach (NodeId registeredNode in registeredNodes)
+                NodeState[] registeredNodes = ownsNodeIds ? [unit.Node, unit.ModeDataType] : [];
+                foreach (NodeState registeredNode in registeredNodes)
                 {
                     try
                     {
-                        await m_manager.DeleteNodeAsync(
-                            m_manager.SystemContext, registeredNode, CancellationToken.None).ConfigureAwait(false);
+                        // Never delete a node that another owner indexed under the same NodeId.
+                        if (ReferenceEquals(m_manager.Find(registeredNode.NodeId), registeredNode))
+                        {
+                            await m_manager.DeleteNodeAsync(
+                                m_manager.SystemContext, registeredNode.NodeId, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
                     }
                     catch (Exception cleanupError)
                     {
@@ -253,12 +299,18 @@ namespace Opc.Ua.PackML.Server
                 {
                     m_pendingUnits.Remove(unit);
                 }
+                if (claim is not null)
+                {
+                    m_claims.Release(claim);
+                }
             }
         }
 
         /// <summary>
         /// Stops creation and provider operations before the owning address space
         /// is deleted. Providers are borrowed, not disposed here.
+        /// The owner deletes the unit and mode DataType nodes after shutdown.
+        /// Shutdown does not clear <see cref="Units"/> or update a server's conformance publication.
         /// </summary>
         public ValueTask DisposeAsync()
         {
@@ -325,5 +377,115 @@ namespace Opc.Ua.PackML.Server
 
         /// <summary>Serializes composition and drains it during shutdown.</summary>
         private readonly PackMLLifetime m_lifetime = new();
+
+        /// <summary>Unit-name claims shared by every runtime borrowing the same owner.</summary>
+        private readonly OwnerClaims m_claims;
+
+        /// <summary>Claims keyed by borrowed owner without extending the owner's lifetime.</summary>
+        private static readonly ConditionalWeakTable<AsyncCustomNodeManager, OwnerClaims> s_ownerClaims = new();
+
+        /// <summary>
+        /// Records one unit name that a runtime is composing or has published.
+        /// </summary>
+        private sealed class UnitClaim
+        {
+            /// <summary>
+            /// Creates a pending claim.
+            /// </summary>
+            public UnitClaim(NodeState? parent, QualifiedName browseName)
+            {
+                Parent = parent;
+                BrowseName = browseName;
+            }
+
+            /// <summary>
+            /// Gets the parent, or null for a parentless unit.
+            /// </summary>
+            public NodeState? Parent { get; }
+
+            /// <summary>
+            /// Gets the claimed browse name.
+            /// </summary>
+            public QualifiedName BrowseName { get; }
+
+            /// <summary>
+            /// Gets or sets the published unit node; null while composition is pending.
+            /// </summary>
+            public NodeState? UnitNode { get; set; }
+
+            /// <summary>
+            /// Gets or sets the published mode DataType node.
+            /// </summary>
+            public NodeState? ModeDataType { get; set; }
+        }
+
+        /// <summary>
+        /// Tracks unit-name ownership across runtimes that borrow one owner.
+        /// </summary>
+        private sealed class OwnerClaims
+        {
+            /// <summary>
+            /// Claims a name unless a pending or still-indexed unit owns it.
+            /// </summary>
+            /// <returns>The claim, or null when the name is still owned.</returns>
+            public UnitClaim? TryClaim(AsyncCustomNodeManager manager, NodeState? parent, QualifiedName browseName)
+            {
+                lock (m_lock)
+                {
+                    for (int index = m_claims.Count - 1; index >= 0; index--)
+                    {
+                        UnitClaim existing = m_claims[index];
+                        if (!ReferenceEquals(existing.Parent, parent) || existing.BrowseName != browseName)
+                        {
+                            continue;
+                        }
+                        if (existing.UnitNode is null || IsIndexed(manager, existing.UnitNode) ||
+                            (existing.ModeDataType is not null && IsIndexed(manager, existing.ModeDataType)))
+                        {
+                            return null;
+                        }
+                        // Neither published node instance is currently indexed by this owner.
+                        m_claims.RemoveAt(index);
+                    }
+                    var claim = new UnitClaim(parent, browseName);
+                    m_claims.Add(claim);
+                    return claim;
+                }
+            }
+
+            /// <summary>
+            /// Marks a pending claim as published by the given nodes.
+            /// </summary>
+            public void Commit(UnitClaim claim, NodeState unitNode, NodeState modeDataType)
+            {
+                lock (m_lock)
+                {
+                    claim.UnitNode = unitNode;
+                    claim.ModeDataType = modeDataType;
+                }
+            }
+
+            /// <summary>
+            /// Releases a claim whose composition did not publish.
+            /// </summary>
+            public void Release(UnitClaim claim)
+            {
+                lock (m_lock)
+                {
+                    m_claims.Remove(claim);
+                }
+            }
+
+            /// <summary>
+            /// Determines whether the owner still indexes this exact node instance.
+            /// </summary>
+            private static bool IsIndexed(AsyncCustomNodeManager manager, NodeState node)
+            {
+                return ReferenceEquals(manager.Find(node.NodeId), node);
+            }
+
+            private readonly System.Threading.Lock m_lock = new();
+            private readonly List<UnitClaim> m_claims = [];
+        }
     }
 }

@@ -177,6 +177,9 @@ namespace Opc.Ua.Scales.Tests
                     .ConfigureAwait(false);
                 ArrayOf<NodeId> oldIds = [first.Node.NodeId, late.Node.NodeId];
                 await AssertStandaloneRootsAsync(session, packMLClient, ns, oldIds, ct).ConfigureAwait(false);
+                // Captured while the owner is live. The predefined Server node belongs to the
+                // configuration manager, not to the PackML owner.
+                ServerObjectState serverObject = owner.Server.ServerObject;
 
                 INodeManagerLifecycle lifecycle = provider.GetRequiredService<INodeManagerLifecycle>();
                 NodeManagerRegistration registration = lifecycle.Registrations.ToList()
@@ -186,6 +189,12 @@ namespace Opc.Ua.Scales.Tests
                     .Single(entry => entry != null &&
                         entry.NamespacesUris.ToList().Contains(s_standaloneNamespace))
                     ?? throw new AssertionException("The AddPackML factory was not registered.");
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, first.Node.NodeId),
+                    Is.True);
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, late.Node.NodeId),
+                    Is.True);
                 await using (IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
                     [NodeManagerBatchChange.Remove(registration)], ct).ConfigureAwait(false))
                 {
@@ -195,6 +204,15 @@ namespace Opc.Ua.Scales.Tests
                     Assert.That(removed.CleanupFailure, Is.Null);
                     await removed.Retirement.WaitAsync(ct).ConfigureAwait(false);
                 }
+                // Reads raw Server node state once, only after the sequential await of old retirement.
+                // Browse hides an edge whose target has no serving owner, so it cannot show this.
+                // This is not a concurrency or manager-recreation-policy claim.
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, first.Node.NodeId),
+                    Is.False);
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, late.Node.NodeId),
+                    Is.False);
                 await AssertStandaloneRootsAsync(session, packMLClient, ns, [], ct).ConfigureAwait(false);
                 ReadResponse deleted = await session.ReadAsync(null, 0, TimestampsToReturn.Neither,
                     [
@@ -207,26 +225,52 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(deleted.Results[1].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
                 await AssertEmbeddedControlAsync(scalesClient, embedded.NodeId, ct).ConfigureAwait(false);
 
+                NodeManagerBatchResult recreatedRegistration;
                 await using (IPreparedNodeManagerBatch addition = await lifecycle.PrepareAsync(
                     [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult added = await addition.CommitAsync(_ => default, ct).ConfigureAwait(false);
-                    Assert.That(added.Issues.Count, Is.Zero);
-                    Assert.That(added.CleanupFailure, Is.Null);
+                    recreatedRegistration = await addition.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    Assert.That(recreatedRegistration.Issues.Count, Is.Zero);
+                    Assert.That(recreatedRegistration.CleanupFailure, Is.Null);
                 }
                 PackMLNodeManager replacement = packMLManager
                     ?? throw new AssertionException("The replacement configuration did not run.");
                 StandaloneUnit recreated = initial
                     ?? throw new AssertionException("The initial unit was not recreated.");
                 Assert.That(replacement, Is.Not.SameAs(owner));
+                Assert.That(replacement.Runtime, Is.Not.SameAs(owner.Runtime));
                 Assert.That(replacement.InstanceNamespaceIndex, Is.EqualTo(ns));
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, recreated.Node.NodeId),
+                    Is.True);
                 await AssertStandaloneRootsAsync(session, packMLClient, ns, [recreated.Node.NodeId], ct)
                     .ConfigureAwait(false);
                 StandaloneUnit recreatedLate = await replacement.Runtime.AddUnitAsync(
                     new QualifiedName("StandaloneLate", ns), new EquipmentProvider(), cancellationToken: ct)
                     .ConfigureAwait(false);
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, recreatedLate.Node.NodeId),
+                    Is.True);
                 await AssertStandaloneRootsAsync(session, packMLClient, ns,
                     [recreated.Node.NodeId, recreatedLate.Node.NodeId], ct).ConfigureAwait(false);
+                await AssertEmbeddedControlAsync(scalesClient, embedded.NodeId, ct).ConfigureAwait(false);
+
+                await using (IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(recreatedRegistration.Registrations[0])], ct).ConfigureAwait(false))
+                {
+                    NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, ct)
+                        .ConfigureAwait(false);
+                    Assert.That(removed.Issues.Count, Is.Zero);
+                    Assert.That(removed.CleanupFailure, Is.Null);
+                    await removed.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                }
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, recreated.Node.NodeId),
+                    Is.False);
+                Assert.That(
+                    serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, recreatedLate.Node.NodeId),
+                    Is.False);
+                await AssertStandaloneRootsAsync(session, packMLClient, ns, [], ct).ConfigureAwait(false);
                 await AssertEmbeddedControlAsync(scalesClient, embedded.NodeId, ct).ConfigureAwait(false);
             }
             finally

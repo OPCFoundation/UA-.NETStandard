@@ -493,6 +493,7 @@ namespace Opc.Ua.PackML.Server
         /// Drains the unit when no application callback is active.
         /// Active callbacks require host-owned shutdown or caller cancellation before disposal.
         /// Does not dispose the application-owned equipment provider.
+        /// A runtime-owned unit must be shut down through its owning runtime.
         /// </summary>
         public async ValueTask DisposeAsync()
         {
