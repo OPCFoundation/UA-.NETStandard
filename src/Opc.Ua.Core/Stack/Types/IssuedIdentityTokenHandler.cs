@@ -322,6 +322,32 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
+                // Part 4 §7.40.6: an encrypted IssuedIdentityToken uses the EncryptedSecret
+                // format and the server ignores encryptionAlgorithm. The envelope is
+                // recognized by its RsaEncryptedSecret type id, so the legacy format
+                // (Table 191, raw RSA blocks) still falls back below. TryDecryptRsa throws
+                // the specific cause for any malformed RsaEncryptedSecret.
+                byte[] tokenData = m_token.TokenData.ToArray();
+                if (StartsWithRsaEncryptedSecretTypeId(context, tokenData))
+                {
+                    using var encryptedSecret = EncryptedSecret.CreateForRsa(
+                        context,
+                        securityPolicyUri,
+                        certificate,
+                        receiverNonce);
+                    if (encryptedSecret.TryDecryptRsa(
+                        tokenData,
+                        receiverNonce?.Data,
+                        out byte[]? rsaSecret))
+                    {
+                        IdentityTokenLimits.ThrowIfSecretTooLong(
+                            rsaSecret,
+                            IdentityTokenLimits.MaxIssuedTokenDataLength);
+                        m_decryptedTokenData = rsaSecret;
+                        return;
+                    }
+                }
+
                 // the legacy format decrypts every RSA block of the token data, so
                 // the blocks are bounded to what the longest issued token needs
                 // before the first private-key operation (OPC 10000-4 7.41.2.2).
@@ -437,6 +463,34 @@ namespace Opc.Ua
         }
 
         private byte[]? m_decryptedTokenData;
+
+        /// <summary>
+        /// Returns <c>true</c> when the token data starts with a binary encoded
+        /// RsaEncryptedSecret type id, i.e. it is an EncryptedSecret envelope and not
+        /// legacy RSA blocks (whose random leading bytes match with negligible probability).
+        /// </summary>
+        private static bool StartsWithRsaEncryptedSecretTypeId(
+            IServiceMessageContext context,
+            byte[] tokenData)
+        {
+            // decode the type id so every valid NodeId encoding is recognized; data that
+            // does not decode is not an EncryptedSecret and stays on the legacy path.
+            if (tokenData.Length < 8)
+            {
+                return false;
+            }
+
+            try
+            {
+                using var decoder = new BinaryDecoder(tokenData, context);
+                return decoder.ReadNodeId(null) == DataTypeIds.RsaEncryptedSecret;
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+        }
+
         private readonly IssuedIdentityToken m_token;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
         private readonly Func<SecurityPolicyInfo, Nonce> m_nonceFactory = Nonce.CreateNonce;

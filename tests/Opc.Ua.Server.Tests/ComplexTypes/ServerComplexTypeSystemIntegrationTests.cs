@@ -234,6 +234,41 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Part 4 §5.11.4.4: writing a value that is not defined by the Enumeration
+        /// returns Bad_OutOfRange, also for an Enumeration that exists only in the
+        /// address space (loaded from a NodeSet with no compiled type).
+        /// </summary>
+        [Test]
+        [DependsOnTest(nameof(ServerRegistersRuntimeStandInTypes), AllowFailure = true)]
+        public async Task ClientWriteOutsideRuntimeEnumValuesIsRejected()
+        {
+            NodeId nodeId = ClientNodeId(ServerComplexTypesTestNodeManager.ColorValueVariable);
+
+            WriteResponse response = await m_session.WriteAsync(
+                null,
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(99))
+                    },
+                    new WriteValue
+                    {
+                        // TestColor.Green == 1, the current value
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(1))
+                    }
+                ],
+                default).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(2));
+            Assert.That(response.Results[0], Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+            Assert.That(StatusCode.IsGood(response.Results[1]), Is.True);
+        }
+
+        /// <summary>
         /// A client writes a modified runtime structure value; the server
         /// decodes it via its stand-in, stores it, and returns the updated value
         /// on the next read.

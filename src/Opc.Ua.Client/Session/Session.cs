@@ -1583,9 +1583,12 @@ namespace Opc.Ua.Client
                         throw new ServiceResultException(result.StatusCode);
                     }
 
-                    if (checkDomain && serverCertificateChain.Count > 0)
+                    // a disabled host name check reports a mismatch instead of
+                    // skipping it silently (Part 4 §6.1.3).
+                    if (serverCertificateChain.Count > 0)
                     {
-                        validator.ValidateDomains(serverCertificateChain[0], m_endpoint);
+                        validator.CheckServerDomain(
+                            serverCertificateChain[0], m_endpoint, checkDomain, m_logger);
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
