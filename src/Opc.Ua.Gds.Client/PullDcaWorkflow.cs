@@ -758,7 +758,10 @@ namespace Opc.Ua.Gds.Client
                     ? await ReceiveCertificateAsync(
                         registrar, connection, applicationId, requestId, profile, progress, ct).ConfigureAwait(false)
                     : await m_receipts.GetOrCreateAsync(
-                        registrar, applicationId, requestId, profile,
+                        PullDcaConnection.SnapshotRegistrar(registrar),
+                        PullDcaConnection.SnapshotNodeId(applicationId),
+                        PullDcaConnection.SnapshotNodeId(requestId),
+                        PullDcaConnection.SnapshotProfile(profile),
                         token => ReceiveCertificateAsync(
                             registrar, connection, applicationId, requestId, profile, progress, token), ct)
                         .ConfigureAwait(false);

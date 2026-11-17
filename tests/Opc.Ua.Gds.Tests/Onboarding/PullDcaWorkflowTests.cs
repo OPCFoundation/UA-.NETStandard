@@ -1238,6 +1238,51 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
+        [Test]
+        public async Task ReceiptStoreCannotMutateActiveRequestBinding()
+        {
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(new byte[] { 5, 6 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 7, 8 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 9, 10 }), 1),
+                new NodeId(ByteString.From(new byte[] { 11, 12 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            receipts.Setup(store => store.GetOrCreateAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(),
+                    It.IsAny<Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PullDcaRegistrar receivedRegistrar,
+                    NodeId receivedApplication,
+                    NodeId receivedRequest,
+                    PullDcaCertificateProfile receivedProfile,
+                    Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>> receive,
+                    CancellationToken ct) =>
+                {
+                    MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
+                    MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
+                    MutateOpaqueIdentifier(receivedApplication);
+                    MutateOpaqueIdentifier(receivedRequest);
+                    MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                    MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+                    return receive(ct);
+                });
+
+            await fixture.Create(receipts: receipts.Object).CompleteCertificateRequestAsync(
+                registrar, applicationId, requestId, profile).ConfigureAwait(false);
+
+            Assert.That(fixture.ConnectedRegistrar, Is.EqualTo(registrar));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { requestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
         /// <summary>
         /// Failure to retain output stops the workflow before trust download or installation.
         /// </summary>
