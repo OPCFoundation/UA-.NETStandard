@@ -31,13 +31,13 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
-using Quickstarts.ReferenceServer;
 using Opc.Ua.Server.Tests.NodeManager;
+using Quickstarts.ReferenceServer;
 using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
@@ -102,13 +102,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public async Task DerivedStructureInAnotherNamespaceStartsWithTheBaseFieldsAsync()
         {
-            LifecycleInspection.Registration(
+            Registration(
                 (await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(
                 kBaseNamespaceUri, BuildBaseXml()))), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
-            LifecycleInspection.Registration(
+            Registration(
                 (await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(

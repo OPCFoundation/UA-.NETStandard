@@ -423,7 +423,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
         private async Task AddSourcesAsync(bool useSamplingGroups, params ControlledEventSource[] sources)
         {
-            LifecycleInspection.Registration(
+            Registration(
                 (await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new EventNodeManagerFactory(

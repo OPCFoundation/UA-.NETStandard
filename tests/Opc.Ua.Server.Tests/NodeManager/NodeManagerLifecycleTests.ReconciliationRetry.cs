@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             new ValueTask(Task.FromException(new InvalidOperationException("Readiness failed.")));
                     }))]).ConfigureAwait(false);
             LifecycleResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
-            await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter1 = await Capture(
                 m_server.NodeManagerLifecycle, result.Registrations[0]).BeginAsync(
                 CancellationToken.None).ConfigureAwait(false);
             await using IPreparedChanges next =
@@ -461,7 +461,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleResult result;
             try
             {
-                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(CancellationToken.None).ConfigureAwait(false);
                 await using IPreparedChanges prepared =
                     await exactWriter2.PrepareAsync(

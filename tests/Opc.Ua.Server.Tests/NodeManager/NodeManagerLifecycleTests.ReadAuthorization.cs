@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
@@ -81,11 +81,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_requestHeader, subscriptionId, MonitoringMode.Disabled, [itemId]).ConfigureAwait(false);
             Assert.That(disabled.Results[0], Is.EqualTo(StatusCodes.Good));
             LifecycleResult publicationResult2 = await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, original), LifecycleChange.Replace(
                 original.Slot, new RuntimeNodeSetNodeManagerFactory(
                 CreateGenerationOptions(2))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration replacement = LifecycleInspection.Registration(publicationResult2.Registrations[0]);
+            NodeManagerRegistration replacement = Registration(publicationResult2.Registrations[0]);
             Assert.That(replacement.NodeManager, Is.Not.SameAs(owner));
             var replacementOwner = (AsyncCustomNodeManager)replacement.NodeManager;
             var replacementHandle = (NodeHandle)(await replacementOwner.GetManagerHandleAsync(nodeId)

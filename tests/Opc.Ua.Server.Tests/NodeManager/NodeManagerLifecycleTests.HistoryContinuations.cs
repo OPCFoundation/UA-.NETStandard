@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TrackingLifecycleNodeManager? replacement = null;
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
                 LifecycleResult retired;
-                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter1 = await Capture(
                     m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using (IPreparedChanges prepared = await exactWriter1.PrepareAsync([
                         replace
@@ -514,7 +514,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     session, owner.NodeId, ByteString.Empty, 1, false, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, owner.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using (IPreparedChanges prepared = await exactWriter2.PrepareAsync([
                         replace
@@ -829,7 +829,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                     .ConfigureAwait(false);
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter3 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter3 = await Capture(
                     m_server.NodeManagerLifecycle, owner.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter3.PrepareAsync(
                     [LifecycleChange.Remove(owner.Registration.Slot)], timeout.Token)
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(ReadEventIds(first), Is.EqualTo(new[] { firstId }));
                 Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter4 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter4 = await Capture(
                     m_server.NodeManagerLifecycle, owner.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using (IPreparedChanges prepared = await exactWriter4.PrepareAsync([
                         LifecycleChange.Replace(

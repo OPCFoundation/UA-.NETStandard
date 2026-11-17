@@ -38,9 +38,9 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Opc.Ua.Server.Tests.NodeManager;
 using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
@@ -315,12 +315,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 expectedPeer: true);
 
             LifecycleResult publicationResult1 = await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, primary), LifecycleChange.Replace(
                 primary.Slot, new RuntimeNodeSetNodeManagerFactory(
                 StartupRuntimeNodeSetServer.CreatePrimaryOptions(
                 generation: 2))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration reloaded = LifecycleInspection.Registration(publicationResult1.Registrations[0]);
+            NodeManagerRegistration reloaded = Registration(publicationResult1.Registrations[0]);
 
             Assert.Multiple(() =>
             {
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(await ReadPrimaryValueAsync().ConfigureAwait(false), Is.EqualTo(2));
 
             await CommitChangeAsync(
-                LifecycleInspection.Capture(
+                Capture(
                 m_server.NodeManagerLifecycle, reloaded), LifecycleChange.Remove(reloaded.Slot), CancellationToken.None)
                 .ConfigureAwait(false);
 

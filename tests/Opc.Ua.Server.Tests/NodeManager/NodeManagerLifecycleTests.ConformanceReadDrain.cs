@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 aggregate = aggregateTask;
                 await gate.Entered.WaitAsync(timeout.Token).ConfigureAwait(false);
                 removal = CommitChangeAsync(
-                    LifecycleInspection.Capture(
+                    Capture(
                     m_server.NodeManagerLifecycle, registration), LifecycleChange.Remove(
                     registration.Slot), timeout.Token);
 

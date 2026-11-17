@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateOptions()))], ct)
                     .ConfigureAwait(false);
                 Assert.That(added.Issues, Is.Empty);
-                NodeManagerRegistration registration = LifecycleInspection.Registration(added.Registrations[0]);
+                NodeManagerRegistration registration = Registration(added.Registrations[0]);
 
                 ModelChangedEventArgs observed = await refreshed.Task
                     .WaitAsync(TimeSpan.FromSeconds(60), ct)
@@ -174,9 +174,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(resolved.NamespaceIndex, Is.EqualTo((ushort)liveIndex));
 
                 // A same-uri reload must not grow the table any further.
-                LifecycleInspection.Registration(
+                Registration(
                     (await CommitChangeAsync(
-                    LifecycleInspection.Capture(
+                    Capture(
                     m_server.NodeManagerLifecycle, registration), LifecycleChange.Replace(
                     registration.Slot, new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions())), ct).ConfigureAwait(false)).Registrations[0]);

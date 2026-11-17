@@ -3575,8 +3575,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             target.Slot, new RuntimeNodeSetNodeManagerFactory(
                             replacementOptions)), timeout.Token).ConfigureAwait(
                             false)).Registrations[0])).ConfigureAwait(false) ??
-                        throw new InvalidOperationException(
-                            "Reload unexpectedly accepted a registration removed during retired cleanup.");
+                    throw new InvalidOperationException(
+                        "Reload unexpectedly accepted a registration removed during retired cleanup.");
                 Assert.That(
                     exception.Message,
                     Is.EqualTo(

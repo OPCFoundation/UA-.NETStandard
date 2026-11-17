@@ -286,7 +286,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerRegistration registration = RequireRegistration(publicationResult1.Registrations[0]);
                     generation = registration.Identity;
                     removed = await CommitChangeAsync(
-                        LifecycleInspection.Capture(
+                        Capture(
                         lifecycle, registration), LifecycleChange.Remove(
                         registration.Slot), timeout.Token).ConfigureAwait(false);
                     while ((initialFailure = lifecycle.GetRetirementFailure(generation)) is null)

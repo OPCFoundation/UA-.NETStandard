@@ -30,9 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -1156,7 +1156,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 InvalidOperationException removeFailure =
                     await ExpectReadinessExceptionAsync<InvalidOperationException>(
                         CommitChangeAsync(
-                            LifecycleInspection.Capture(
+                            Capture(
                             m_server.NodeManagerLifecycle, RequireRegistration(
                             failure.Registrations[0])), LifecycleChange.Remove(
                             RequireRegistration(failure.Registrations[0]).Slot), timeout.Token)).ConfigureAwait(false);
@@ -1508,7 +1508,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 InvalidOperationException removeFailure =
                     await ExpectReadinessExceptionAsync<InvalidOperationException>(
                         CommitChangeAsync(
-                            LifecycleInspection.Capture(
+                            Capture(
                             lifecycle, observed), LifecycleChange.Remove(
                             observed.Slot), timeout.Token)).ConfigureAwait(false);
                 Assert.That(removeFailure.Message, Does.Contain("completing readiness"));
@@ -1685,7 +1685,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 reloadTask = RunWithoutExecutionContext(async () =>
                 {
-                    await using ILifecycleWriter writer = await LifecycleInspection.Capture(lifecycle, original)
+                    await using ILifecycleWriter writer = await Capture(lifecycle, original)
                         .BeginAsync(timeout.Token).ConfigureAwait(false);
                     LifecycleChange change = cleanup == ReadinessCleanup.Remove
                         ? LifecycleChange.Remove(original.Slot)
@@ -1860,7 +1860,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             ILifecycleCapture capture = change == ReadinessChange.Add
                 ? lifecycle.CaptureChanges()
-                : LifecycleInspection.Capture(lifecycle, RequireLifecycleValue(original));
+                : Capture(lifecycle, RequireLifecycleValue(original));
             LifecycleChange unit = change switch
             {
                 ReadinessChange.Add => LifecycleChange.Add(factory),
@@ -2252,8 +2252,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             /// <summary>The provider staged during address-space creation.</summary>
             private readonly IHistorianProvider m_provider;
+
             /// <summary>The number of historian registrations made during creation.</summary>
             private int m_addressSpaceRegistrationCount;
+
             /// <summary>The number of completed disposal callbacks.</summary>
             private int m_disposeCount;
         }

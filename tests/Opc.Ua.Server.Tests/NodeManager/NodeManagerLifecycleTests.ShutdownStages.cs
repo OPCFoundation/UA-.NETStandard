@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(manager.Object);
-                LifecycleInspection.Registration(
+                Registration(
                     (await CommitChangeAsync(
                     testServer.NodeManagerLifecycle, LifecycleChange.Add(
                     factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);

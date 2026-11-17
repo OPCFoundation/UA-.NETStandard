@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 null, subscriptionId, TimestampsToReturn.Both, [request], timeout.Token).ConfigureAwait(false);
             Assert.That(created.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             uint itemId = created.Results[0].MonitoredItemId;
-            await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+            await using ILifecycleWriter exactWriter1 = await Capture(
                 m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await exactWriter1.PrepareAsync([
                     replace
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await CheckFiltersAsync().ConfigureAwait(false);
-                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter2.PrepareAsync(
                     [LifecycleChange.Remove(registration.Slot)], timeout.Token)

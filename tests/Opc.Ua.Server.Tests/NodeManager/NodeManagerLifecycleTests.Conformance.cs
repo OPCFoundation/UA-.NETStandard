@@ -240,8 +240,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             /// <summary>Whether disposal has completed.</summary>
             private int m_disposed;
+
             /// <summary>The total contribution getter count.</summary>
             private int m_conformanceReadCount;
+
             /// <summary>The contribution getter count after disposal.</summary>
             private int m_postDisposalReadCount;
         }

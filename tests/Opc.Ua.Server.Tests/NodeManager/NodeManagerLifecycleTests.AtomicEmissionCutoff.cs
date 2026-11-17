@@ -279,7 +279,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(token).ConfigureAwait(false);
                 };
-                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter1 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter1.PrepareAsync(
                     [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);

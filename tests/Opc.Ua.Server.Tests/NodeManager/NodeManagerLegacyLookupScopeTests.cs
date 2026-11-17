@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 m_entered.TrySetResult(
                     ExecutionContext.Capture()
-                        ?? throw new InvalidOperationException("Execution context is unavailable."));
+                    ?? throw new InvalidOperationException("Execution context is unavailable."));
                 return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>(m_result.Task);
             }
 

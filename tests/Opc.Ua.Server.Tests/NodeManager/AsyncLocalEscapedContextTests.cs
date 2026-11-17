@@ -312,12 +312,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(2)]
         public async Task ReadinessScopeUsesOnlyActiveInitializerAncestorsAsync(int scopeState)
         {
-            IServerInternal parentServer = Moq.Mock.Of<IServerInternal>();
-            IServerInternal innerServer = Moq.Mock.Of<IServerInternal>();
+            IServerInternal parentServer = Mock.Of<IServerInternal>();
+            IServerInternal innerServer = Mock.Of<IServerInternal>();
             NodeManagerGeneration parentGeneration = NodeManagerGenerationRegistry.GetOrCreate(
-                Moq.Mock.Of<IAsyncNodeManager>());
+                Mock.Of<IAsyncNodeManager>());
             NodeManagerGeneration innerGeneration = NodeManagerGenerationRegistry.GetOrCreate(
-                Moq.Mock.Of<IAsyncNodeManager>());
+                Mock.Of<IAsyncNodeManager>());
             using var parent = new NodeManagerReadinessScope(parentServer, parentGeneration);
             await using var work = new CapturedWork<(
                 bool ParentGeneration, bool InnerGeneration, bool ParentServer, bool InnerServer)>();

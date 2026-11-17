@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     kGeneration2Value,
                     manager => current = manager,
                     replace ? kModelNamespaceUri : kModelNamespaceUri + ":AllEventsAddition");
-                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter1 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter1.PrepareAsync([replace
                         ? LifecycleChange.Replace(registration.Slot, factory)
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     await bindEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                     TrackingLifecycleNodeManager? latest = null;
-                    await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                    await using ILifecycleWriter exactWriter2 = await Capture(
                         m_server.NodeManagerLifecycle, target).BeginAsync(timeout.Token).ConfigureAwait(false);
                     await using IPreparedChanges second = await exactWriter2.PrepareAsync(
                         [LifecycleChange.Replace(target.Slot, CreateTrackingNodeManagementFactory(
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await exactWriter2.DisposeAsync().ConfigureAwait(false);
                     Assert.That(secondPublication.Retired.IsCompleted, Is.False);
                     Assert.That(intermediate.DisposeCount, Is.Zero);
-                    target = LifecycleInspection.Registration(second.Registrations[0]);
+                    target = Registration(second.Registrations[0]);
                     destination = RequireLifecycleValue(latest);
                     releaseBind.SetResult(true);
                 }
@@ -259,7 +259,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 modifying = ModifyEventMonitoredItemAsync(services, subscriptionId, itemId);
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 TrackingLifecycleNodeManager? replacement = null;
-                await using ILifecycleWriter exactWriter3 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter3 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter3.PrepareAsync(
                     [LifecycleChange.Replace(
@@ -389,7 +389,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else
                 {
-                    registration = LifecycleInspection.Registration(previous.Registrations[0]);
+                    registration = Registration(previous.Registrations[0]);
                     Assert.That(registration.Identity.Slot, Is.SameAs(previousSlot));
                     Assert.That(previousSlot.LateMigrationRevision, Is.EqualTo(1));
                 }
@@ -418,7 +418,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(registration.Identity.MonitoredItems, Is.Empty,
                     "The real request must pause before its item is bound, not after transition discovery.");
-                await using ILifecycleWriter exactWriter4 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter4 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges replacement = await exactWriter4.PrepareAsync(
                     [LifecycleChange.Replace(
@@ -437,7 +437,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     if (subsequentChange >= 7)
                     {
                         long policyRevision = target.Identity.Slot.LateMigrationRevision;
-                        await using ILifecycleWriter exactWriter5 = await LifecycleInspection.Capture(
+                        await using ILifecycleWriter exactWriter5 = await Capture(
                             m_server.NodeManagerLifecycle, target).BeginAsync(timeout.Token).ConfigureAwait(false);
                         await using (IPreparedChanges abandoned =
                             await exactWriter5.PrepareAsync(
@@ -530,7 +530,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(intermediate.DisposeCount, Is.EqualTo(1));
                     if (!removes)
                     {
-                        target = LifecycleInspection.Registration(nextReplacement.Registrations[0]);
+                        target = Registration(nextReplacement.Registrations[0]);
                     }
                 }
                 release.TrySetResult(true);
@@ -613,7 +613,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 TrackingLifecycleNodeManager? candidate = null;
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter6 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter6 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter6.PrepareAsync([
                         LifecycleChange.Replace(
@@ -740,7 +740,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 TrackingLifecycleNodeManager? candidate = null;
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter7 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter7 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter7.PrepareAsync([
                         LifecycleChange.Replace(
@@ -882,7 +882,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 TrackingLifecycleNodeManager? candidate = null;
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter8 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter8 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter8.PrepareAsync([
                         LifecycleChange.Replace(
@@ -1029,7 +1029,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 TrackingLifecycleNodeManager? candidate = null;
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter9 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter9 = await Capture(
                     m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges prepared = await exactWriter9.PrepareAsync([
                         LifecycleChange.Replace(
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                     // A subsequent publication is a public probe for a stale binding record:
                     // a deleted item must not be replayed to the next generation.
-                    await using ILifecycleWriter exactWriter10 = await LifecycleInspection.Capture(
+                    await using ILifecycleWriter exactWriter10 = await Capture(
                         m_server.NodeManagerLifecycle, GetBranchRegistration(
                         lifecycle, registration.Id)).BeginAsync(timeout.Token).ConfigureAwait(false);
                     await using IPreparedChanges second = await exactWriter10.PrepareAsync([

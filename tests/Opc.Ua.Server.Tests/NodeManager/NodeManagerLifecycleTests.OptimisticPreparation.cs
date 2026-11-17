@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                     CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], timeout.Token)
                 .ConfigureAwait(false)).Registrations[0]);
-            await using ILifecycleWriter writer = await LifecycleInspection.Capture(lifecycle, original)
+            await using ILifecycleWriter writer = await Capture(lifecycle, original)
                 .BeginAsync(timeout.Token).ConfigureAwait(false);
             await using IPreparedChanges prepared = await writer.PrepareAsync(
                 [LifecycleChange.Remove(original.Slot)], timeout.Token).ConfigureAwait(false);
@@ -361,7 +361,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         IEncodeableFactory servingFactory = m_server.CurrentInstance.Factory;
                         if (!servingFactory.TryGetEncodeableType(
-                            DataTypeIds.Range, out IEncodeableType? rangeType) || rangeType is null)
+                            DataTypeIds.Range, out IEncodeableType? rangeType) ||
+                            rangeType is null)
                         {
                             throw new InvalidOperationException("The Range encodeable type is not registered.");
                         }
@@ -680,7 +681,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateAsync(
                     It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(replacement.Object);
-                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter1 = await Capture(
                     m_server.NodeManagerLifecycle, initial.Registrations[0]).BeginAsync(
                     timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges reload = await exactWriter1.PrepareAsync(
@@ -818,7 +819,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await using ILifecycleWriter exactWriter2 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter2 = await Capture(
                     m_server.NodeManagerLifecycle, current).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using IPreparedChanges removal = await exactWriter2.PrepareAsync(
                     [LifecycleChange.Remove(current.Slot)], timeout.Token).ConfigureAwait(false);

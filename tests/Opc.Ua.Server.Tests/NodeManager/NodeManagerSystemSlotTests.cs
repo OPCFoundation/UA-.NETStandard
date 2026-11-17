@@ -391,7 +391,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                         It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
-                LifecycleInspection.Registration(
+                Registration(
                     (await CommitChangeAsync(
                     server.NodeManagerLifecycle, LifecycleChange.Add(
                     factory.Object), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
@@ -638,7 +638,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .ReturnsAsync(manager.Object);
                     LifecycleResult publicationResult1 = await CommitChangeAsync(
                         server.NodeManagerLifecycle, LifecycleChange.Add(factory.Object), ct).ConfigureAwait(false);
-                    child = LifecycleInspection.Registration(publicationResult1.Registrations[0]);
+                    child = Registration(publicationResult1.Registrations[0]);
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                     server.ValidateInitializerRequest();
@@ -741,7 +741,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task EmptyShutdownDoesNotRequireDynamicHostAsync()
         {
-            using var server = new StandardServer(Opc.Ua.Tests.NUnitTelemetryContext.Create());
+            using var server = new StandardServer(Ua.Tests.NUnitTelemetryContext.Create());
             var lifecycle = (NodeManagerLifecycle)server.NodeManagerLifecycle;
             var instance = new Mock<IServerInternal>();
             await lifecycle.CompleteShutdownAsync(instance.Object, retireSystems: true).ConfigureAwait(false);

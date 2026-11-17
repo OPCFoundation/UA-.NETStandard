@@ -40,9 +40,9 @@ using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Opc.Ua.Server.Tests.NodeManager;
 using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new RuntimeNodeSetNodeManagerFactory(
                 StartupRuntimeNodeSetServer.CreatePrimaryOptions(
                 1, includeParentHints, useNamespaceUriTargets))), CancellationToken.None).ConfigureAwait(false);
-            NodeManagerRegistration registration = LifecycleInspection.Registration(
+            NodeManagerRegistration registration = Registration(
                 publicationResult1.Registrations[0]);
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
                 StartupRuntimeNodeSetServer.PrimaryNamespaceUri);
@@ -347,6 +347,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     registration.Slot), CancellationToken.None).ConfigureAwait(false);
             }
         }
+
         /// <summary>
         /// Simulations must not start before the NotifyNodeAdded replay, so a
         /// simulated value change can never precede the OnNodeAdded handler of

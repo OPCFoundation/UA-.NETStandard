@@ -32,14 +32,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
-using Opc.Ua.Server.Tests.NodeManager;
 using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 </UANodeSet>
                 """;
 
-            LifecycleInspection.Registration(
+            Registration(
                 (await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                   </UAVariable>
                 </UANodeSet>
                 """;
-            LifecycleInspection.Registration(
+            Registration(
                 (await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
@@ -323,7 +323,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
         private async Task AddTargetAsync()
         {
-            LifecycleInspection.Registration(
+            Registration(
                 (await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(
@@ -334,7 +334,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
         private async Task AddSourceAsync()
         {
-            LifecycleInspection.Registration(
+            Registration(
                 (await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, LifecycleChange.Add(
                 new RuntimeNodeSetNodeManagerFactory(

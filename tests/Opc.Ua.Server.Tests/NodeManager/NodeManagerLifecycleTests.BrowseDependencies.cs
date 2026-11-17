@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TrackingLifecycleNodeManager? newTarget = null;
                 LifecycleResult retired;
                 var lifecycle = (INodeManagerLifecycle)m_server.NodeManagerLifecycle;
-                await using ILifecycleWriter exactWriter1 = await LifecycleInspection.Capture(
+                await using ILifecycleWriter exactWriter1 = await Capture(
                     m_server.NodeManagerLifecycle, source.Registration, target.Registration,
                     unrelated.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
                 await using (IPreparedChanges prepared = await exactWriter1.PrepareAsync([
