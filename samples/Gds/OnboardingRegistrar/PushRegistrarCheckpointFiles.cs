@@ -170,7 +170,7 @@ namespace OnboardingRegistrar
         private string GetPath(string key)
         {
             byte[] digest = SHA256.HashData(Encoding.UTF8.GetBytes(key));
-            return Path.Combine(m_directory, Convert.ToHexString(digest) + ".bin");
+            return Path.Combine(m_directory, CoreUtils.ToHexString(digest) + ".bin");
         }
 
         private async ValueTask<byte[]?> ReadCoreAsync(string key, CancellationToken ct)
@@ -188,13 +188,21 @@ namespace OnboardingRegistrar
             using var buffer = new MemoryStream();
             byte[] chunk = new byte[81920];
             int count;
+#if NETFRAMEWORK
+            while ((count = await input.ReadAsync(chunk, 0, chunk.Length, ct).ConfigureAwait(false)) != 0)
+#else
             while ((count = await input.ReadAsync(chunk.AsMemory(), ct).ConfigureAwait(false)) != 0)
+#endif
             {
                 if (buffer.Length + count > MaximumBytes)
                 {
                     throw new InvalidDataException("A public push checkpoint exceeds its size limit.");
                 }
+#if NETFRAMEWORK
+                await buffer.WriteAsync(chunk, 0, count, ct).ConfigureAwait(false);
+#else
                 await buffer.WriteAsync(chunk.AsMemory(0, count), ct).ConfigureAwait(false);
+#endif
             }
             return buffer.ToArray();
         }
@@ -208,7 +216,11 @@ namespace OnboardingRegistrar
             {
                 using (Stream output = m_fileSystem.OpenWrite(staging))
                 {
+#if NETFRAMEWORK
+                    await output.WriteAsync(bytes, 0, bytes.Length, ct).ConfigureAwait(false);
+#else
                     await output.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
+#endif
                     await output.FlushAsync(ct).ConfigureAwait(false);
                     if (output is FileStream file)
                     {
