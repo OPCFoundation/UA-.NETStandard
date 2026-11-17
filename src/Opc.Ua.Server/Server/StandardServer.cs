@@ -43,6 +43,7 @@ using Opc.Ua.Identity;
 using Opc.Ua.Redaction;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server
 {
@@ -2324,6 +2325,19 @@ namespace Opc.Ua.Server
                     ValidateOperationLimits(
                         nodesToRead,
                         OperationLimits.MaxNodesPerHistoryReadData);
+
+                    // every node is answered with one value per requested time, whatever is stored
+                    if (historyReadDetails.TryGetValue(out ReadAtTimeDetails? atTime) && atTime != null &&
+                        (long)atTime.ReqTimes.Count * nodesToRead.Count >
+                            HistorianDispatcher.kMaxAtTimeRequestedValues)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadTooManyOperations,
+                            "ReadAtTime asks for {0} requested times on {1} nodes; at most {2} values per request.",
+                            atTime.ReqTimes.Count,
+                            nodesToRead.Count,
+                            HistorianDispatcher.kMaxAtTimeRequestedValues);
+                    }
                 }
 
                 (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =

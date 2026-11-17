@@ -955,7 +955,14 @@ marks the result Uncertain when Bad samples were skipped. Providers without
 this interface use the same calculation through the raw-read fallback. When the
 fallback scans 100,000 raw values without finding a bound for a requested time,
 that time returns `Bad_BoundNotSupported` (Part 11 §4.6) and the other requested
-times are still answered.
+times are still answered. The whole operation may scan 100,000 raw values plus
+64 per requested time; once that is spent, the remaining requested times return
+`Bad_BoundNotSupported` without reading the provider again.
+
+Because every requested time is answered whatever the archive holds, one
+HistoryRead may ask for at most 100,000 values: an operation with more requested
+times returns `Bad_TooManyOperations`, and a request whose requested times
+multiplied by its nodes exceed that limit fails with `Bad_TooManyOperations`.
 
 ### Annotations
 

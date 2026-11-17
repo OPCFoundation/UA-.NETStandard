@@ -276,7 +276,7 @@ On macOS, run the NUnit command from a logged-in desktop.
 CI selects these cases for both the NativeAOT artifact and installed managed tool.
 The ordinary startup check remains separate and does not activate OpenUSD.
 
-OpenUSD 0.16.6-alpha prefers shared GPU surfaces for Linux Vulkan presentation. When
+OpenUSD 0.17.0-alpha prefers shared GPU surfaces for Linux Vulkan presentation. When
 Avalonia cannot import external images or semaphores, it reads completed Vulkan
 frames into host memory and presents them through an Avalonia bitmap. This path
 adds a frame copy but retains the same scene renderer and acceptance checks.

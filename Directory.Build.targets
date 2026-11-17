@@ -7,8 +7,8 @@
   <ItemGroup Condition="'@(PackageReference->WithMetadataValue('Identity', 'NUnit3TestAdapter'))' != ''
                      OR '@(PackageReference->WithMetadataValue('Identity', 'BenchmarkDotNet'))' != ''
                      OR '@(PackageReference->WithMetadataValue('Identity', 'Microsoft.Diagnostics.Tracing.TraceEvent'))' != ''">
-    <PackageVersion Update="System.Collections.Immutable" Version="10.0.13" />
-    <PackageVersion Update="System.Reflection.Metadata" Version="10.0.13" />
+    <PackageVersion Update="System.Collections.Immutable" Version="11.0.0" />
+    <PackageVersion Update="System.Reflection.Metadata" Version="11.0.0" />
   </ItemGroup>
 
   <!--

@@ -313,6 +313,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 authenticator = new HarnessAuthenticator(ArgInt("password-length", 16), ArgInt("token-length", 1024));
             }
             int counters = ArgInt("counters", 0);
+            // simulated regressions for validating the load floors (perf/regression)
+            FaultInjection.AllocBytes = ArgInt("inject-alloc", 0);
+            FaultInjection.SpinMicroseconds = ArgInt("inject-spin-us", 0);
             int sampling = ArgInt("sampling", 10);
             if (counters > 0)
             {
@@ -343,11 +346,18 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ArgInt("async-node-manager", contract ? 1 : 0) != 0)
                 : contract
                 ? new BenchmarkContractServer(telemetry, ArgInt("async-node-manager", 1) != 0)
+                : FaultInjection.Enabled
+                ? new FaultInjectingReferenceServer(telemetry)
                 : new ReferenceServer(telemetry);
             if (Arg("isolation", "default") == "sharedonly")
             {
                 server.ResourceIsolationOptions.Mode = Opc.Ua.Server.ServerResourceIsolationMode.SharedOnly;
             }
+            // Every workload session runs in one client process on loopback, so the server sees
+            // one owner; a real deployment spreads this load over many clients. Let that owner
+            // take the whole request queue and all workers unless asked otherwise.
+            server.ResourceIsolationOptions.DefaultOwnerShare = double.Parse(
+                Arg("owner-share", "1"), CultureInfo.InvariantCulture);
             // The default connection rate limit (500 per second, burst 1000) caps the connect
             // and channel scenarios: past it every accepted socket is answered with
             // Bad_TcpNotEnoughResources, which the measurement would count as server work.
@@ -372,7 +382,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             ProcessStats mark = ProcessStats.Capture();
             using var events = new EventGenerator(server.CurrentInstance);
             string? line;
-            while ((line = await Console.In.ReadLineAsync().ConfigureAwait(false)) != null)
+            // Console.In.ReadLineAsync reads synchronously, and after the awaited start this method runs on a
+            // thread-pool worker: blocking that worker in stdin for the whole run starves timers on a one-CPU server.
+            while ((line = await Task.Factory.StartNew(
+                Console.In.ReadLine,
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default).ConfigureAwait(false)) != null)
             {
                 line = line.Trim();
                 if (line.StartsWith("events ", StringComparison.Ordinal))
@@ -474,10 +490,15 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} ") +
                 FormattableString.Invariant(
                     $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
+                FormattableString.Invariant($"--owner-share {Arg("owner-share", "1")} ") +
                 FormattableString.Invariant(
                     $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} ") +
                 FormattableString.Invariant(
-                    $"--counter-lock {Arg("counter-lock", "0")} --connection-rate {Arg("connection-rate", "off")} --password-length {passwordLength} --token-length {tokenLength}"),
+                    $"--counter-lock {Arg("counter-lock", "0")} --connection-rate {Arg("connection-rate", "off")} ") +
+                FormattableString.Invariant(
+                    $"--password-length {passwordLength} --token-length {tokenLength} ") +
+                FormattableString.Invariant(
+                    $"--inject-alloc {Arg("inject-alloc", "0")} --inject-spin-us {Arg("inject-spin-us", "0")}"),
                 serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
@@ -1261,12 +1282,21 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 long start = Stopwatch.GetTimestamp();
                 int epoch = Volatile.Read(ref m_epoch);
+                bool succeeded = true;
                 try
                 {
                     switch (m_kind)
                     {
                         case "write":
-                            await session.WriteAsync(null, m_write, ct).ConfigureAwait(false);
+                            WriteResponse written = await session.WriteAsync(null, m_write, ct).ConfigureAwait(false);
+                            foreach (StatusCode result in written.Results)
+                            {
+                                if (!CheckOperation(result))
+                                {
+                                    succeeded = false;
+                                    break;
+                                }
+                            }
                             break;
                         case "churn":
                             await ChurnAsync(session, ct).ConfigureAwait(false);
@@ -1282,6 +1312,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                             {
                                 if (!CheckOperation(result.StatusCode))
                                 {
+                                    succeeded = false;
                                     break;
                                 }
                             }
@@ -1293,12 +1324,22 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                             {
                                 if (!CheckOperation(result.StatusCode))
                                 {
+                                    succeeded = false;
                                     break;
                                 }
                             }
                             break;
                         default:
-                            await session.ReadAsync(null, 0, TimestampsToReturn.Both, m_read, ct).ConfigureAwait(false);
+                            ReadResponse read = await session.ReadAsync(null, 0, TimestampsToReturn.Both, m_read, ct)
+                                .ConfigureAwait(false);
+                            foreach (DataValue result in read.Results)
+                            {
+                                if (!CheckOperation(result.StatusCode))
+                                {
+                                    succeeded = false;
+                                    break;
+                                }
+                            }
                             break;
                     }
                 }
@@ -1320,7 +1361,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     }
                     continue;
                 }
-                if (epoch == Volatile.Read(ref m_epoch))
+                // a request with a rejected operation is an error, not throughput
+                if (succeeded && epoch == Volatile.Read(ref m_epoch))
                 {
                     m_latency.Record(Stopwatch.GetTimestamp() - start);
                     Interlocked.Increment(ref m_requests);

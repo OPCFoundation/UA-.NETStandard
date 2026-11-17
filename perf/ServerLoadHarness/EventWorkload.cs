@@ -109,6 +109,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     EventSeverity.Medium,
                     new LocalizedText(string.Create(CultureInfo.InvariantCulture, $"Load event {sent}")));
                 m_server.ReportEvent(context, e);
+                FaultInjection.Apply(1);
                 sent++;
                 Interlocked.Increment(ref m_generated);
             }

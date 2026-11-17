@@ -1325,7 +1325,7 @@ namespace Opc.Ua.Tools.Tests
                         "No repository script may run before the candidate checkout.");
                     Assert.That(
                         workflow[checkout..],
-                        Does.StartWith("uses: actions/checkout@v6"),
+                        Does.StartWith("uses: actions/checkout@v7"),
                         "The candidate checkout must be the first checkout in the job.");
                     Assert.That(
                         workflow.Substring(checkout, Math.Min(200, workflow.Length - checkout)),
@@ -1431,7 +1431,7 @@ namespace Opc.Ua.Tools.Tests
                 () =>
                 {
                     Assert.That(versions, Has.Length.EqualTo(8));
-                    Assert.That(versions, Is.All.EqualTo("0.16.6-alpha"));
+                    Assert.That(versions, Is.All.EqualTo("0.17.0-alpha"));
                 });
         }
 
