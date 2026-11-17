@@ -3446,12 +3446,25 @@ namespace Opc.Ua
             if (m_writeOperationExecutor is { } executor &&
                 Volatile.Read(ref m_asynchronousChangeMaskNotifications) != 0)
             {
-                return executor.ExecuteNotificationsAsync(
-                    ct => ClearChangeMasksCoreAsync(context, includeChildren, ct),
-                    cancellationToken);
+                return ClearChangeMasksThroughExecutorAsync(executor, context, includeChildren, cancellationToken);
             }
 
             return ClearChangeMasksCoreAsync(context, includeChildren, cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs the change-mask clear through the bound executor. A separate method, so the closure
+        /// over the arguments is only allocated when an executor is bound, not on every clear.
+        /// </summary>
+        private ValueTask ClearChangeMasksThroughExecutorAsync(
+            NodeWriteOperationExecutor executor,
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken)
+        {
+            return executor.ExecuteNotificationsAsync(
+                ct => ClearChangeMasksCoreAsync(context, includeChildren, ct),
+                cancellationToken);
         }
 
         /// <summary>
@@ -4951,10 +4964,23 @@ namespace Opc.Ua
         {
             if (attributeId == Attributes.Value && m_writeOperationExecutor is { } executor)
             {
-                return executor.ExecuteSynchronously(
-                    () => WriteAttributeCore(context, attributeId, indexRange, value));
+                return WriteValueThroughExecutor(executor, context, indexRange, value);
             }
             return WriteAttributeCore(context, attributeId, indexRange, value);
+        }
+
+        /// <summary>
+        /// Runs a synchronous Value write through the bound executor. A separate method, so the
+        /// closure over the arguments is only allocated when an executor is bound, not on every write.
+        /// </summary>
+        private ServiceResult WriteValueThroughExecutor(
+            NodeWriteOperationExecutor executor,
+            ISystemContext context,
+            NumericRange indexRange,
+            DataValue value)
+        {
+            return executor.ExecuteSynchronously(
+                () => WriteAttributeCore(context, Attributes.Value, indexRange, value));
         }
 
         /// <summary>
@@ -5187,8 +5213,24 @@ namespace Opc.Ua
                 return WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
             }
 
+            return WriteValueThroughExecutorAsync(executor, context, indexRange, value, cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs an asynchronous Value write through the bound executor. A separate method, so the
+        /// closure over the arguments is only allocated when an executor is bound: the compiler
+        /// creates the closure at the entry of the method whose parameters it captures, which
+        /// would charge every unbound write for it.
+        /// </summary>
+        private ValueTask<ServiceResult> WriteValueThroughExecutorAsync(
+            NodeWriteOperationExecutor executor,
+            ISystemContext context,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken)
+        {
             return executor.ExecuteAsynchronouslyAsync(
-                ct => WriteAttributeCoreAsync(context, attributeId, indexRange, value, ct),
+                ct => WriteAttributeCoreAsync(context, Attributes.Value, indexRange, value, ct),
                 cancellationToken);
         }
 

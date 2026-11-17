@@ -4816,26 +4816,55 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
-        /// <param name="values">The array to store the values of the attributes</param>
-        /// <param name="defaults">The namespace permissions captured for this operation.</param>
-        private static void ReadAndCacheValidationAttributes(
+        /// <returns>The attribute values used for permission validation.</returns>
+        private static Variant[] ReadAndCacheValidationAttributes(
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes,
             ServerSystemContext systemContext,
             NodeState target,
             NodeId key,
-            ref Variant[] values,
             NamespaceDefaultPermissions? defaults = null)
         {
-            ReadValidationAttributes(systemContext, target, ref values, defaults);
             if (RequiresDynamicPermissionReads(target))
             {
+                var values = new Variant[3];
+                ReadValidationAttributes(systemContext, target, ref values, defaults);
                 uniqueNodesServiceAttributes.Remove(key);
+                return values;
+            }
+
+            Variant[] scratch = t_validationValues ?? new Variant[3];
+            t_validationValues = null;
+            Variant[] cachedValues = scratch;
+            ReadValidationAttributes(systemContext, target, ref cachedValues, defaults);
+            bool cacheable = !RequiresDynamicPermissionReads(target);
+            if (cacheable &&
+                cachedValues.Length == 3 &&
+                cachedValues[0].IsNull &&
+                cachedValues[1].IsNull &&
+                cachedValues[2].IsNull)
+            {
+                cachedValues = s_noValidationAttributes;
+            }
+            if (!ReferenceEquals(cachedValues, scratch))
+            {
+                Array.Clear(scratch, 0, scratch.Length);
+                t_validationValues = scratch;
+            }
+            if (cacheable)
+            {
+                uniqueNodesServiceAttributes[key] = cachedValues;
             }
             else
             {
-                uniqueNodesServiceAttributes[key] = values;
+                uniqueNodesServiceAttributes.Remove(key);
             }
+            return cachedValues;
         }
+
+        /// <summary>
+        /// The cached validation attributes of a node that has none of them; never written.
+        /// </summary>
+        private static readonly Variant[] s_noValidationAttributes = new Variant[3];
 
         /// <summary>
         /// Reads the Attributes used by the AccessRestrictions and RolePermission validation process
@@ -5365,9 +5394,8 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // The cache shares the nodes resolved for one operation with the others of the
-            // request, so a request with one node only needs it for a node to validate.
-            IDictionary<NodeId, NodeState>? operationCache =
-                nodesToRead.Count > 1 ? new Dictionary<NodeId, NodeState>() : null;
+            // request and with their validation; created by the first handle lookup.
+            IDictionary<NodeId, NodeState>? operationCache = null;
             List<NodeHandle>? nodesToValidate = null;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -5380,16 +5408,14 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // check for valid handle: the handle of an in-memory node this node manager
-                // already returned while the request was validated, or a new one.
-                NodeHandle handle = GetRoutedHandle(nodeToRead.Handle, nodeToRead.NodeId) ??
-                    await GetManagerHandleAsync(
-                        systemContext,
-                        nodeToRead.NodeId,
-                        operationCache!,
-                        cancellationToken).ConfigureAwait(false);
+                (NodeState? node, NodeHandle? handle, operationCache) = await FindOperationNodeAsync(
+                    systemContext,
+                    nodeToRead.NodeId,
+                    nodeToRead.Handle,
+                    operationCache,
+                    cancellationToken).ConfigureAwait(false);
 
-                if (handle == null)
+                if (node == null && handle == null)
                 {
                     continue;
                 }
@@ -5403,12 +5429,12 @@ namespace Opc.Ua.Server
                 DataValue value = values[ii] = new DataValue();
 
                 // check if the node is a area in memory.
-                if (handle.Node == null)
+                if (node == null)
                 {
                     errors[ii] = StatusCodes.BadNodeIdUnknown;
 
                     // must validate node in a separate operation
-                    handle.Index = ii;
+                    handle!.Index = ii;
                     (nodesToValidate ??= []).Add(handle);
 
                     continue;
@@ -5423,7 +5449,7 @@ namespace Opc.Ua.Server
                 // read the attribute value.
                 (errors[ii], value) = await ReadConfigurationPermissionAttributeAsync(
                     Server,
-                    handle.Node,
+                    node,
                     systemContext,
                     nodeToRead.AttributeId,
                     nodeToRead.ParsedIndexRange,
@@ -5481,6 +5507,44 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Finds the node of one Read or Write operation: an in-memory node found without a
+        /// handle (see <see cref="FindNodeWithDefaultLookup"/>), the handle the request
+        /// validation routed (see <see cref="GetRoutedHandle"/>), or a new handle whose node
+        /// may still have to be validated. Both are <c>null</c> when the node is not one of
+        /// this node manager.
+        /// </summary>
+        /// <returns>
+        /// The node, the handle, and the operation cache: created for the first handle lookup
+        /// of the request, and kept by the caller for the other lookups and for the
+        /// validation of the nodes, which may depend on what the lookup cached.
+        /// </returns>
+        private async ValueTask<(NodeState? Node, NodeHandle? Handle, IDictionary<NodeId, NodeState>? OperationCache)> FindOperationNodeAsync(
+            ServerSystemContext systemContext,
+            NodeId nodeId,
+            object? routed,
+            IDictionary<NodeId, NodeState>? operationCache,
+            CancellationToken cancellationToken)
+        {
+            NodeState? node = FindNodeWithDefaultLookup(nodeId);
+            if (node != null)
+            {
+                return (node, null, operationCache);
+            }
+
+            NodeHandle? handle = GetRoutedHandle(routed, nodeId);
+            if (handle == null)
+            {
+                operationCache ??= new Dictionary<NodeId, NodeState>();
+                handle = await GetManagerHandleAsync(
+                    systemContext,
+                    nodeId,
+                    operationCache,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            return (handle?.Node, handle, operationCache);
+        }
+
+        /// <summary>
         /// Returns the handle of an in-memory node of this node manager that the request
         /// validation already resolved for <paramref name="nodeId"/>, or <c>null</c>.
         /// </summary>
@@ -5502,6 +5566,75 @@ namespace Opc.Ua.Server
                 ? handle
                 : null;
         }
+
+        /// <summary>
+        /// Returns the in-memory node <paramref name="nodeId"/> of this node manager without
+        /// allocating a <see cref="NodeHandle"/>, or <c>null</c> when it is not one of the
+        /// <see cref="PredefinedNodes"/> or the node manager resolves its handles itself.
+        /// </summary>
+        /// <remarks>
+        /// For a node of <see cref="PredefinedNodes"/>, the
+        /// <see cref="GetManagerHandleAsync(ServerSystemContext, NodeId, IDictionary{NodeId, NodeState}, CancellationToken)"/>
+        /// of this class and of <see cref="Fluent.FluentNodeManagerBase"/> returns a validated handle
+        /// of the node, which <see cref="ValidateNodeAsync"/> resolves to that node again. A
+        /// node manager that overrides a member of that lookup gets <c>null</c>, so its callers
+        /// take the handle path.
+        /// </remarks>
+        internal NodeState? FindNodeWithDefaultLookup(NodeId nodeId)
+        {
+            if (!UsesDefaultHandleLookup() || !IsNodeIdInNamespace(nodeId))
+            {
+                return null;
+            }
+
+            return PredefinedNodes.TryGetValue(nodeId, out NodeState? node) ? node : null;
+        }
+
+        /// <summary>
+        /// Whether the node manager resolves handles with the members of this class and of
+        /// <see cref="Fluent.FluentNodeManagerBase"/> only (see <see cref="FindNodeWithDefaultLookup"/>).
+        /// </summary>
+        private bool UsesDefaultHandleLookup()
+        {
+            int state = Volatile.Read(ref m_defaultHandleLookup);
+            if (state == 0)
+            {
+                // the delegates bind to the overrides of the type.
+                state = IsDefaultLookupMember(new Func<NodeId, CancellationToken, ValueTask<object>>(
+                        GetManagerHandleAsync).Method) &&
+                    IsDefaultLookupMember(new Func<NodeId, CancellationToken, ValueTask<object>>(
+                        ((IAsyncNodeManager)this).GetManagerHandleAsync).Method) &&
+                    IsDefaultLookupMember(new Func<ServerSystemContext, NodeId, IDictionary<NodeId, NodeState>, CancellationToken, ValueTask<NodeHandle>>(
+                        GetManagerHandleAsync).Method) &&
+                    IsDefaultLookupMember(new Func<NodeId, bool>(IsNodeIdInNamespace).Method) &&
+                    IsDefaultLookupMember(new Func<object?, NodeHandle?>(IsHandleInNamespace).Method) &&
+                    IsDefaultLookupMember(new Func<ServerSystemContext, NodeHandle, IDictionary<NodeId, NodeState>, CancellationToken, ValueTask<NodeState>>(
+                        ValidateNodeAsync).Method) &&
+                    IsDefaultLookupMember(new Func<ServerSystemContext, NodeHandle, IDictionary<NodeId, NodeState>, CancellationToken, ValueTask<NodeState>>(
+                        FindNodeInCacheAsync).Method)
+                    ? 1
+                    : 2;
+                Volatile.Write(ref m_defaultHandleLookup, state);
+            }
+            return state == 1;
+        }
+
+        /// <summary>
+        /// Whether a member of the handle lookup is the implementation of this class or of
+        /// <see cref="Fluent.FluentNodeManagerBase"/>.
+        /// </summary>
+        private static bool IsDefaultLookupMember(MethodInfo method)
+        {
+            Type? declaringType = method.DeclaringType;
+            return declaringType == typeof(AsyncCustomNodeManager) ||
+                declaringType == typeof(Fluent.FluentNodeManagerBase);
+        }
+
+        /// <summary>
+        /// 0 until <see cref="UsesDefaultHandleLookup"/> checked the type, then 1 for the
+        /// default lookup and 2 for an overridden one.
+        /// </summary>
+        private int m_defaultHandleLookup;
 
         /// <summary>
         /// Finds a node in the dynamic cache.
@@ -5667,8 +5800,11 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = GetOperationSystemContext(context);
-            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
-            var nodesToValidate = new List<NodeHandle>();
+
+            // The cache shares the nodes resolved for one operation with the others of the
+            // request and with their validation; created by the first handle lookup.
+            IDictionary<NodeId, NodeState>? operationCache = null;
+            List<NodeHandle>? nodesToValidate = null;
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             using (await AcquireSemaphoreAsync(m_writeSemaphore, cancellationToken).ConfigureAwait(false))
@@ -5683,14 +5819,14 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // check for valid handle.
-                    NodeHandle handle = await GetManagerHandleAsync(
+                    (NodeState? node, NodeHandle? handle, operationCache) = await FindOperationNodeAsync(
                         systemContext,
                         nodeToWrite.NodeId,
+                        routed: null,
                         operationCache,
                         cancellationToken).ConfigureAwait(false);
 
-                    if (handle == null)
+                    if (node == null && handle == null)
                     {
                         continue;
                     }
@@ -5707,20 +5843,20 @@ namespace Opc.Ua.Server
                     }
 
                     // check if the node is a area in memory.
-                    if (handle.Node == null)
+                    if (node == null)
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
                         // must validate node in a separate operation.
-                        handle.Index = ii;
-                        nodesToValidate.Add(handle);
+                        handle!.Index = ii;
+                        (nodesToValidate ??= []).Add(handle);
 
                         continue;
                     }
 
                     // check if the node is AnalogItem and the values are outside the InstrumentRange.
                     if (nodeToWrite.AttributeId == Attributes.Value &&
-                        handle.Node is AnalogItemState analogItemState &&
+                        node is AnalogItemState analogItemState &&
                         analogItemState.InstrumentRange != null)
                     {
                         try
@@ -5766,7 +5902,7 @@ namespace Opc.Ua.Server
                     // an OptionSet write is validated and merged with the stored bits (Part 3 8.40).
                     DataValue valueToWrite = nodeToWrite.Value;
                     if (nodeToWrite.AttributeId == Attributes.Value &&
-                        handle.Node is BaseVariableState variableToWrite)
+                        node is BaseVariableState variableToWrite)
                     {
                         ServiceResult? optionSetResult = OptionSetWriteMerge.Apply(
                             systemContext,
@@ -5784,7 +5920,7 @@ namespace Opc.Ua.Server
 #if DEBUG
                     m_logger.Write(nodeToWrite.NodeId, nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
 #endif
-                    var propertyState = handle.Node as PropertyState;
+                    var propertyState = node as PropertyState;
                     Variant previousPropertyValue = propertyState?.Value ?? default;
                     Variant oldValue = default;
 
@@ -5793,7 +5929,7 @@ namespace Opc.Ua.Server
                         //current server supports auditing
                         // read the old value for the purpose of auditing
                         var oldDataValue = new DataValue();
-                        (_, oldDataValue) = await handle.Node.ReadAttributeAsync(
+                        (_, oldDataValue) = await node.ReadAttributeAsync(
                             systemContext,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
@@ -5804,7 +5940,7 @@ namespace Opc.Ua.Server
                     }
 
                     // write the attribute value.
-                    errors[ii] = await handle.Node.WriteAttributeAsync(
+                    errors[ii] = await node.WriteAttributeAsync(
                         systemContext,
                         nodeToWrite.AttributeId,
                         nodeToWrite.ParsedIndexRange,
@@ -5839,13 +5975,13 @@ namespace Opc.Ua.Server
                     if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
                     {
                         // updates to source finished - report changes to monitored items.
-                        await handle.Node.ClearChangeMasksAsync(systemContext, true, cancellationToken)
+                        await node.ClearChangeMasksAsync(systemContext, true, cancellationToken)
                             .ConfigureAwait(false);
                     }
                 }
 
                 // check for nothing to do.
-                if (nodesToValidate.Count == 0)
+                if (nodesToValidate == null)
                 {
                     return;
                 }
@@ -5857,7 +5993,7 @@ namespace Opc.Ua.Server
                 nodesToWrite,
                 errors,
                 nodesToValidate,
-                operationCache,
+                operationCache ?? new Dictionary<NodeId, NodeState>(),
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -8345,7 +8481,7 @@ namespace Opc.Ua.Server
                     if (m_monitoredItemManager.MonitoredNodes.TryGetValue(
                         notifier.NodeId, out MonitoredNode2? monitored))
                     {
-                        foreach (IEventMonitoredItem item in monitored.EventMonitoredItems.Values.ToArray())
+                        foreach (IEventMonitoredItem item in monitored.GetEventItems())
                         {
                             if (!item.MonitoringAllEvents)
                             {
@@ -8470,7 +8606,7 @@ namespace Opc.Ua.Server
                 wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
                     source.NodeId,
                     out MonitoredNode2? existingMonitoredNode) &&
-                    existingMonitoredNode.EventMonitoredItems.ContainsKey(
+                    existingMonitoredNode.ContainsEventItem(
                         monitoredItem.Id);
                 (monitoredNode, serviceResult) = m_monitoredItemManager!
                     .SubscribeToEvents(
@@ -8508,7 +8644,7 @@ namespace Opc.Ua.Server
                         await m_monitoredItemSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                         try
                         {
-                            if (monitoredNode.EventMonitoredItems.TryGetValue(
+                            if (monitoredNode.TryGetEventItem(
                                     monitoredItem.Id, out IEventMonitoredItem? registered) &&
                                 ReferenceEquals(registered, monitoredItem))
                             {
@@ -10887,13 +11023,11 @@ namespace Opc.Ua.Server
                 if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out Variant[]? values) ||
                     values.Length != 3 || RequiresDynamicPermissionReads(target))
                 {
-                    values = new Variant[3];
-                    ReadAndCacheValidationAttributes(
+                    values = ReadAndCacheValidationAttributes(
                         uniqueNodesServiceAttributesCache,
                         systemContext,
                         target,
                         key,
-                        ref values,
                         permissionDefaults);
                 }
 
@@ -11494,6 +11628,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Validates the role permissions and access restrictions of a node that
+        /// <see cref="FindNodeWithDefaultLookup"/> returned, like
+        /// <see cref="TryValidatePermissionsAsync(OperationContext, object, PermissionType, Dictionary{NodeId, Variant[]}?, bool, ILogger?, bool, CancellationToken)"/>
+        /// with the handle the lookup would have returned for it. A
+        /// <see cref="ServiceResultException"/> becomes the result, as in the dispatcher's
+        /// validation of a handle.
+        /// </summary>
+        internal async ValueTask<ServiceResult> ValidatePermissionsAsync(
+            OperationContext context,
+            NodeId nodeId,
+            NodeState target,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            ILogger? logger,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await ValidateNodePermissionsAsync(
+                        context, GetOperationSystemContext(context), nodeId, target, requestedPermission,
+                        uniqueNodesServiceAttributesCache, permissionsOnly, logger, validateAccessRestrictions: true,
+                        validateRolePermissions: true, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                return new ServiceResult(exception);
+            }
+        }
+
+        /// <summary>
         /// Validates permissions, optionally against a retained source rather than current address-space routing.
         /// </summary>
         private async ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsCoreAsync(
@@ -11524,29 +11690,50 @@ namespace Opc.Ua.Server
                 return (false, null);
             }
 
+            return (true, await ValidateNodePermissionsAsync(
+                    context, systemContext, handle.NodeId, target, requestedPermission,
+                    uniqueNodesServiceAttributesCache, permissionsOnly, logger, validateAccessRestrictions,
+                    validateRolePermissions, cancellationToken)
+                .ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Validates the permissions of a resolved node; <paramref name="key"/> is the node id
+        /// of the request, which keys the attribute cache.
+        /// </summary>
+        private async ValueTask<ServiceResult> ValidateNodePermissionsAsync(
+            OperationContext context,
+            ServerSystemContext systemContext,
+            NodeId key,
+            NodeState target,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            ILogger? logger,
+            bool validateAccessRestrictions,
+            bool validateRolePermissions,
+            CancellationToken cancellationToken)
+        {
             NamespaceDefaultPermissions? permissionDefaults = RequiresDynamicPermissionReads(target)
                 ? await NamespaceDefaultPermissionReader.ReadAsync(
                     Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false)
                 : null;
             if (permissionDefaults.HasValue && !StatusCode.IsGood(permissionDefaults.Value.Status))
             {
-                return (true, new ServiceResult(permissionDefaults.Value.Status));
+                return new ServiceResult(permissionDefaults.Value.Status);
             }
 
             Variant[]? values = null;
             if (uniqueNodesServiceAttributesCache != null)
             {
-                NodeId key = handle.NodeId;
                 if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out values) ||
                     values.Length != 3 || RequiresDynamicPermissionReads(target))
                 {
-                    values = new Variant[3];
-                    ReadAndCacheValidationAttributes(
+                    values = ReadAndCacheValidationAttributes(
                         uniqueNodesServiceAttributesCache,
                         systemContext,
                         target,
                         key,
-                        ref values,
                         permissionDefaults);
                 }
             }
@@ -11593,7 +11780,7 @@ namespace Opc.Ua.Server
                     Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
             if (!StatusCode.IsGood(defaults.Status))
             {
-                return (true, new ServiceResult(defaults.Status));
+                return new ServiceResult(defaults.Status);
             }
 
             var permissions = new PermissionMetadata(
@@ -11610,9 +11797,9 @@ namespace Opc.Ua.Server
             ServiceResult result = validateRolePermissions
                 ? MasterNodeManager.ValidateRolePermissions(context, permissions, requestedPermission, logger)
                 : ServiceResult.Good;
-            return (true, validateAccessRestrictions && ServiceResult.IsGood(result)
+            return validateAccessRestrictions && ServiceResult.IsGood(result)
                 ? MasterNodeManager.ValidateAccessRestrictions(context, permissions, requestedPermission)
-                : result);
+                : result;
         }
 
         /// <summary>

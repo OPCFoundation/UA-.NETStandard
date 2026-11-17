@@ -102,6 +102,19 @@ namespace Opc.Ua
         public NamespaceTable? NamespaceUris { get; set; }
 
         /// <summary>
+        /// Gets or sets the table of server uris used to map the server indexes
+        /// of expanded node ids.
+        /// </summary>
+        /// <remarks>
+        /// When set, the channel shares this table with its owner (for example the
+        /// session), so updates the owner makes after the channel opened, and
+        /// replacement channels opened with the same table, keep one mapping.
+        /// When null the channel creates an empty table of its own.
+        /// </remarks>
+        /// <seealso cref="NamespaceUris" />
+        public StringTable? ServerUris { get; set; }
+
+        /// <summary>
         /// Gets or sets the table of known encodeable objects.
         /// </summary>
         /// <remarks>

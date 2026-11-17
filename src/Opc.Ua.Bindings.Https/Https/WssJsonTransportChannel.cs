@@ -282,7 +282,7 @@ namespace Opc.Ua.Bindings
                 MaxEncodingNestingLevels = settings.Configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = settings.Configuration.MaxDecoderRecoveries,
                 NamespaceUris = settings.NamespaceUris!,
-                ServerUris = new StringTable()
+                ServerUris = settings.ServerUris ?? new StringTable()
             };
         }
 

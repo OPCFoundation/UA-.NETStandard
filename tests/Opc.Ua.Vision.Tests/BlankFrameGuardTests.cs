@@ -222,14 +222,18 @@ namespace Opc.Ua.Vision.Tests
                     typeof(uint),
                     typeof(RenderDiagnosticsState),
                     typeof(SilkDepthCaptureResult),
-                    typeof(SilkHdrColorCaptureResult)
+                    typeof(SilkHdrColorCaptureResult),
+                    typeof(SilkPrimIdCaptureResult),
+                    typeof(SilkInstanceIdCaptureResult),
+                    typeof(SilkNormalCaptureResult),
+                    typeof(SilkElementIdCaptureResult)
                 ],
                 modifiers: null);
             Assert.That(ctor, Is.Not.Null,
                 "SilkFrameCaptureResult's internal capture constructor must exist " +
                 "for BlankFrameGuard tests to construct fixtures.");
             return (SilkFrameCaptureResult)ctor!.Invoke(
-                [width, height, rgba, render, 0UL, 0U, RenderDiagnosticsState.Empty, null, null]);
+                [width, height, rgba, render, 0UL, 0U, RenderDiagnosticsState.Empty, null, null, null, null, null, null]);
         }
     }
 }

@@ -556,6 +556,161 @@ namespace Opc.Ua.Server.Tests
             Assert.That(value.Locale, Is.EqualTo("en-US"));
         }
 
+        /// <summary>
+        /// Selects both nested texts without modifying the engineering metadata stored in the node.
+        /// </summary>
+        [TestCase("de-DE", "Hallo", "de-DE")]
+        [TestCase("en-US", "Hello", "en-US")]
+        [TestCase("fr-FR", "Hello", "en-US")]
+        public void TranslateValueSelectsEngineeringUnitTexts(
+            string requestedLocale, string expectedText, string expectedLocale)
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            var stored = new EUInformation
+            {
+                NamespaceUri = "urn:units",
+                UnitId = 42,
+                DisplayName = CreateHelloText(),
+                Description = CreateHelloText()
+            };
+
+            var alternativeTypeId = new ExpandedNodeId("units", "urn:alternative");
+            Variant result = resourceManager.TranslateValue(
+                [requestedLocale], Variant.From(new ExtensionObject(alternativeTypeId, stored)));
+
+            Assert.That(result.TryGetValue(out ExtensionObject envelope), Is.True);
+            Assert.That(envelope.TypeId, Is.EqualTo(alternativeTypeId));
+            Assert.That(result.TryGetStructure<EUInformation>(out EUInformation? translated), Is.True);
+            Assert.That(translated, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(translated, Is.Not.SameAs(stored));
+                Assert.That(translated!.NamespaceUri, Is.EqualTo(stored.NamespaceUri));
+                Assert.That(translated.UnitId, Is.EqualTo(stored.UnitId));
+                Assert.That(translated.DisplayName.Text, Is.EqualTo(expectedText));
+                Assert.That(translated.DisplayName.Locale, Is.EqualTo(expectedLocale));
+                Assert.That(translated.Description.Text, Is.EqualTo(expectedText));
+                Assert.That(translated.Description.Locale, Is.EqualTo(expectedLocale));
+                Assert.That(stored.DisplayName.Locale, Is.EqualTo("en-US"));
+                Assert.That(stored.DisplayName.Translations, Has.Count.EqualTo(2));
+                Assert.That(stored.Description.Locale, Is.EqualTo("en-US"));
+                Assert.That(stored.Description.Translations, Has.Count.EqualTo(2));
+            });
+        }
+
+        /// <summary>
+        /// Translates mixed arrays and matrices while preserving shape, envelope identity and source values.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public void TranslateValueSelectsEngineeringUnitsInMixedArray(int rank)
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            var units = new EUInformation { DisplayName = CreateHelloText(), Description = CreateHelloText() };
+            var range = new Range { Low = 1, High = 2 };
+            var alternativeTypeId = new ExpandedNodeId("units", "urn:alternative");
+            ExtensionObject[] stored =
+            [
+                new(alternativeTypeId, units),
+                ExtensionObject.Null,
+                new(range),
+                new(ExpandedNodeId.Null, (object)units),
+                new(alternativeTypeId, "unsupported encoded body"),
+                new(new ExpandedNodeId("other-units", "urn:alternative"), units)
+            ];
+            int[] dimensions = rank == 2 ? [2, 3] : [1, 2, 3];
+            Variant source = rank == 1
+                ? Variant.From(stored.ToArrayOf())
+                : Variant.From(stored.ToArrayOf().ToMatrix(dimensions));
+
+            Variant result = resourceManager.TranslateValue(
+                ["fr-FR", "de-DE"], source);
+
+            ArrayOf<ExtensionObject> translated;
+            if (rank == 1)
+            {
+                Assert.That(result.TryGetValue(out translated), Is.True);
+            }
+            else
+            {
+                Assert.That(result.TryGetValue(out MatrixOf<ExtensionObject> matrix), Is.True);
+                Assert.That(matrix.Dimensions, Is.EqualTo(dimensions));
+                Assert.That(source.TryGetValue(out MatrixOf<ExtensionObject> originalMatrix), Is.True);
+                Assert.That(originalMatrix.Dimensions, Is.EqualTo(dimensions));
+                translated = matrix.Span.ToArray().ToArrayOf();
+            }
+            Assert.That(ResourceManager.CanTranslateValue(source), Is.True);
+            Assert.That(translated.Count, Is.EqualTo(6));
+            Assert.That(translated[0].TryGetValue(out EUInformation? selected), Is.True);
+            Assert.That(selected, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(selected!.DisplayName.Text, Is.EqualTo("Hallo"));
+                Assert.That(selected.Description.Locale, Is.EqualTo("de-DE"));
+                Assert.That(translated[0].TypeId, Is.EqualTo(alternativeTypeId));
+                Assert.That(translated[1].IsNull, Is.True);
+                Assert.That(translated[2], Is.EqualTo(stored[2]));
+                Assert.That(translated[3], Is.EqualTo(stored[3]));
+                Assert.That(translated[4], Is.EqualTo(stored[4]));
+                Assert.That(translated[5].TypeId, Is.EqualTo(stored[5].TypeId));
+                Assert.That(translated[5].TryGetValue(out EUInformation? second), Is.True);
+                Assert.That(second!.Description.Text, Is.EqualTo("Hallo"));
+                Assert.That(units.DisplayName.Locale, Is.EqualTo("en-US"));
+                Assert.That(units.Description.Locale, Is.EqualTo("en-US"));
+                Assert.That(stored[0].TryGetValue(out EUInformation? original), Is.True);
+                Assert.That(original, Is.SameAs(units));
+            });
+        }
+
+        /// <summary>
+        /// Keeps the original structure when no locales are requested and ignores unrelated structures.
+        /// </summary>
+        [Test]
+        public void TranslateValuePreservesUnrequestedAndUnrelatedStructures()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            var units = new EUInformation { DisplayName = CreateHelloText() };
+            Variant stored = Variant.FromStructure(units);
+            Variant derived = Variant.FromStructure(new DerivedEngineeringUnits { DisplayName = CreateHelloText() });
+            Variant range = Variant.FromStructure(new Range { Low = 1, High = 2 });
+            Variant nullArray = Variant.From(default(ArrayOf<ExtensionObject>));
+            Variant emptyArray = Variant.From(ArrayOf.Empty<ExtensionObject>());
+            // The compatibility constructor can retain a null envelope ID with an encodeable body.
+            Variant unidentified = Variant.From(new ExtensionObject(ExpandedNodeId.Null, (object)units));
+            Variant encoded = Variant.From(new ExtensionObject(
+                new ExpandedNodeId("units", "urn:alternative"), "unsupported encoded body"));
+            Variant nullMatrix = Variant.From(default(MatrixOf<ExtensionObject>));
+            ExtensionObject[] unrelated = [new(new Range { Low = 1, High = 2 }), ExtensionObject.Null];
+            Variant unrelatedMatrix = Variant.From(unrelated.ToArrayOf().ToMatrix(1, 2));
+            Variant emptyMatrix = Variant.From(ArrayOf.Empty<ExtensionObject>().ToMatrix(0, 2));
+
+            Assert.That(resourceManager.TranslateValue([], stored), Is.EqualTo(stored));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], range), Is.EqualTo(range));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], nullArray), Is.EqualTo(nullArray));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], emptyArray), Is.EqualTo(emptyArray));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], unidentified), Is.EqualTo(unidentified));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], encoded), Is.EqualTo(encoded));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], nullMatrix), Is.EqualTo(nullMatrix));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], emptyMatrix), Is.EqualTo(emptyMatrix));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], unrelatedMatrix), Is.EqualTo(unrelatedMatrix));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], derived), Is.EqualTo(derived));
+            Assert.That(ResourceManager.CanTranslateValue(range), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(unidentified), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(encoded), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(nullArray), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(emptyArray), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(nullMatrix), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(emptyMatrix), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(unrelatedMatrix), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(derived), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(Variant.From(42)), Is.False);
+            Assert.That(ResourceManager.CanTranslateValue(Variant.From(CreateHelloText())), Is.True);
+        }
+
         private static LocalizedText CreateHelloText()
         {
             return new LocalizedText(new Dictionary<string, string>
@@ -563,6 +718,13 @@ namespace Opc.Ua.Server.Tests
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" }
             });
+        }
+
+        /// <summary>
+        /// Represents a unit subtype that the translator must not replace with the base structure.
+        /// </summary>
+        private sealed class DerivedEngineeringUnits : EUInformation
+        {
         }
     }
 }

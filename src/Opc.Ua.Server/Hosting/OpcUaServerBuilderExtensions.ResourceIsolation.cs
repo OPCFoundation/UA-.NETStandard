@@ -109,6 +109,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 options.MaxOwnerKeyLength));
             options.DefaultWeight = checked((int)(ReadIsolationLong(section, nameof(options.DefaultWeight)) ??
                 options.DefaultWeight));
+            if (section[nameof(options.DefaultOwnerShare)] is { } share)
+            {
+                if (!double.TryParse(share, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+                {
+                    throw new ArgumentException("Resource isolation option DefaultOwnerShare must be a number.");
+                }
+                options.DefaultOwnerShare = value;
+            }
             options.BootstrapReservedBytes = ReadIsolationLong(section, nameof(options.BootstrapReservedBytes));
             options.ReconnectReservedBytes = ReadIsolationLong(section, nameof(options.ReconnectReservedBytes));
             options.MaxRetainedMessageBytes = ReadIsolationLong(section, nameof(options.MaxRetainedMessageBytes));

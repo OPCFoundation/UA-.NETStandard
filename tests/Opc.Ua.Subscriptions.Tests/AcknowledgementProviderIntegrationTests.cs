@@ -161,90 +161,185 @@ namespace Opc.Ua.Subscriptions.Tests
             await using ManagedSessionType session = await ConnectAsync(
                 nameof(NativeSplitPublishMetadataSurvivesPartitionForwardingAsync), observer, classic: false, ct)
                 .ConfigureAwait(false);
-            var handler = new MessageCollectingHandler();
-            var options = new OptionsMonitor<Client.Subscriptions.SubscriptionOptions>(
-                new Client.Subscriptions.SubscriptionOptions
-                {
-                    PublishingEnabled = false,
-                    PublishingInterval = TimeSpan.FromMilliseconds(100),
-                    KeepAliveCount = 1,
-                    MaxNotificationsPerPublish = 1,
-                    MaxMonitoredItemsPerPartition = 3,
-                    DisableUnboundedItemMode = !partitioned
-                });
-            Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
-            // Concurrent publish workers can deliver the responses out of order. A message overtaken
-            // that way is republished, and a Republish response has no MoreNotifications to preserve.
-            manager!.MinPublishWorkerCount = 1;
-            manager.MaxPublishWorkerCount = 1;
-            await using ISubscription subscription = manager.Add(handler, options);
-            var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
-            int expected = partitioned ? 6 : 3;
-            for (int i = 0; i < expected; i++)
+            PublishResponseObserver? responseObserver = null;
+            IServiceResponseMutator? originalResponseMutator = null;
+            if (ReferenceServer is not null)
             {
-                Assert.That(subscription.TryAddMonitoredItem(
-                    $"state-{i}",
-                    VariableIds.Server_ServerStatus_State,
-                    value => value with { QueueSize = 1, SamplingInterval = TimeSpan.FromMilliseconds(100) },
-                    out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
-                items.Add(item!);
+                originalResponseMutator = ReferenceServer.ResponseMutator;
+                responseObserver = new PublishResponseObserver();
+                ReferenceServer.ResponseMutator = responseObserver;
             }
-            await WaitForAsync(() => items.All(item => item.Created), ct).ConfigureAwait(false);
-            await WaitForAsync(() => manager.PublishWorkerCount == 1, ct).ConfigureAwait(false);
-            Assert.That(ReferenceServer, Is.InstanceOf<BurstReferenceServer>());
-            var server = (BurstReferenceServer)ReferenceServer;
-            await WaitForAsync(() => server.InitialSamplesReady(session.SessionId, expected), ct).ConfigureAwait(false);
-            uint initialRepublishCount = GetServerRepublishCount(session);
-            options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
-            int expectedGroups = partitioned ? 2 : 1;
-            // A terminal marker closes each subscription's Publish burst. The server diagnostic
-            // check below confirms that Republish did not supply any collected messages.
-            await WaitForAsync(() =>
+            try
             {
-                SubscriptionNotificationMessage[] observed = [.. handler.Messages];
-                if (observed.Length < expected)
+                var handler = new MessageCollectingHandler();
+                var options = new OptionsMonitor<Client.Subscriptions.SubscriptionOptions>(
+                    new Client.Subscriptions.SubscriptionOptions
+                    {
+                        PublishingEnabled = false,
+                        PublishingInterval = TimeSpan.FromMilliseconds(100),
+                        KeepAliveCount = 1,
+                        MaxNotificationsPerPublish = 1,
+                        MaxMonitoredItemsPerPartition = 3,
+                        DisableUnboundedItemMode = !partitioned
+                    });
+                Assert.That(session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
+                // Concurrent publish workers can deliver the responses out of order. A message overtaken
+                // that way is republished, and a Republish response has no MoreNotifications to preserve.
+                manager!.MinPublishWorkerCount = 1;
+                manager.MaxPublishWorkerCount = 1;
+                await using ISubscription subscription = manager.Add(handler, options);
+                var items = new List<Client.Subscriptions.MonitoredItems.IMonitoredItem>();
+                int expected = partitioned ? 6 : 3;
+                for (int i = 0; i < expected; i++)
                 {
-                    return false;
+                    Assert.That(subscription.TryAddMonitoredItem(
+                        $"state-{i}",
+                        VariableIds.Server_ServerStatus_State,
+                        value => value with { QueueSize = 1, SamplingInterval = TimeSpan.FromMilliseconds(100) },
+                        out Client.Subscriptions.MonitoredItems.IMonitoredItem? item), Is.True);
+                    items.Add(item!);
                 }
-                IGrouping<uint, SubscriptionNotificationMessage>[] observedGroups =
-                    [.. observed.GroupBy(message => message.Acknowledgement.SubscriptionId)];
-                return observedGroups.Length == expectedGroups &&
-                    observedGroups.All(group => group.Any(message => message.MoreNotifications == false));
-            }, ct).ConfigureAwait(false);
+                await WaitForAsync(() => items.All(item => item.Created), ct).ConfigureAwait(false);
+                await WaitForAsync(() => manager.PublishWorkerCount == 1, ct).ConfigureAwait(false);
+                BurstReferenceServer? server = ReferenceServer as BurstReferenceServer;
+                uint initialRepublishCount = 0;
+                if (server is not null)
+                {
+                    await WaitForAsync(() => server.InitialSamplesReady(session.SessionId, expected), ct)
+                        .ConfigureAwait(false);
+                    initialRepublishCount = GetServerRepublishCount(session);
+                }
+                options.CurrentValue = options.CurrentValue with { PublishingEnabled = true };
+                int expectedGroups = partitioned ? 2 : 1;
+                if (server is not null)
+                {
+                    // A terminal marker closes each subscription's Publish burst. The server diagnostic
+                    // check below confirms that Republish did not supply any collected messages.
+                    await WaitForAsync(() =>
+                    {
+                        SubscriptionNotificationMessage[] observed = [.. handler.Messages];
+                        if (observed.Length < expected)
+                        {
+                            return false;
+                        }
+                        IGrouping<uint, SubscriptionNotificationMessage>[] observedGroups =
+                            [.. observed.GroupBy(message => message.Acknowledgement.SubscriptionId)];
+                        return observedGroups.Length == expectedGroups &&
+                            observedGroups.All(group => group.Any(message => message.MoreNotifications == false));
+                    }, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    await WaitForAsync(() => handler.Messages.Count >= expected, ct).ConfigureAwait(false);
+                }
 
-            SubscriptionNotificationMessage[] messages = [.. handler.Messages];
-            Assert.That(GetServerRepublishCount(session), Is.EqualTo(initialRepublishCount));
-            Assert.That(messages, Has.Length.EqualTo(expected));
-            Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
-            IGrouping<uint, SubscriptionNotificationMessage>[] groups =
-                [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
-            Assert.That(groups, Has.Length.EqualTo(expectedGroups));
-            Assert.That(server.RepublishRequests.Any(id => groups.Any(group => group.Key == id)), Is.False);
-            Assert.That(manager.RepublishMessageCount, Is.Zero);
-            foreach (IGrouping<uint, SubscriptionNotificationMessage> group in groups)
-            {
-                SubscriptionNotificationMessage[] ordered =
-                    [.. group.OrderBy(message => message.Acknowledgement.SequenceNumber)];
-                Assert.That(ordered.Select(message => message.MoreNotifications),
-                    Is.EqualTo(new bool?[] { true, true, false }));
-                Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
+                SubscriptionNotificationMessage[] messages = server is null
+                    ? [.. handler.Messages.Take(expected)]
+                    : [.. handler.Messages];
+                if (server is not null)
+                {
+                    Assert.That(GetServerRepublishCount(session), Is.EqualTo(initialRepublishCount));
+                }
+                Assert.That(messages, Has.Length.EqualTo(expected));
+                Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
+                IGrouping<uint, SubscriptionNotificationMessage>[] groups =
+                    [.. messages.GroupBy(message => message.Acknowledgement.SubscriptionId)];
+                Assert.That(groups, Has.Length.EqualTo(expectedGroups));
+                if (server is not null)
+                {
+                    Assert.That(server.RepublishRequests.Any(id => groups.Any(group => group.Key == id)), Is.False);
+                    Assert.That(manager.RepublishMessageCount, Is.Zero);
+                }
+                PublishObservation[] responses = responseObserver?.Snapshot() ?? [];
+                foreach (IGrouping<uint, SubscriptionNotificationMessage> group in groups)
+                {
+                    SubscriptionNotificationMessage[] ordered =
+                        [.. group.OrderBy(message => message.Acknowledgement.SequenceNumber)];
+                    if (server is not null)
+                    {
+                        Assert.That(ordered.Select(message => message.MoreNotifications),
+                            Is.EqualTo(new bool?[] { true, true, false }));
+                    }
+                    else
+                    {
+                        // External initial samples can span several publishing cycles. Without a wire
+                        // observer, the delivered order does not determine the server's response marker.
+                        Assert.That(ordered.Any(message => message.MoreNotifications.HasValue), Is.True);
+                    }
+                    for (int i = 0; i < ordered.Length; i++)
+                    {
+                        SubscriptionNotificationMessage message = ordered[i];
+                        bool expectedMoreNotifications = i < ordered.Length - 1;
+                        if (responseObserver is not null)
+                        {
+                            PublishObservation[] publishResponses =
+                            [
+                                .. responses.Where(response =>
+                                    !response.Republished &&
+                                    response.SubscriptionId == group.Key &&
+                                    response.SequenceNumber == message.Acknowledgement.SequenceNumber)
+                            ];
+                            Assert.That(publishResponses, Has.Length.EqualTo(1),
+                                $"Missing or duplicate Publish response marker for {group.Key}-" +
+                                $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
+                                responseObserver.GetDiagnostics());
+                            Assert.That(publishResponses[0].MoreNotifications, Is.EqualTo(expectedMoreNotifications),
+                                $"Unexpected server Publish response marker for {group.Key}-" +
+                                $"{message.Acknowledgement.SequenceNumber}. Observed responses: " +
+                                responseObserver.GetDiagnostics());
+                        }
+                        if (responseObserver is not null && message.MoreNotifications is bool moreNotifications)
+                        {
+                            Assert.That(moreNotifications, Is.EqualTo(expectedMoreNotifications));
+                        }
+                        else if (responseObserver is not null)
+                        {
+                            Assert.That(responses.Any(response =>
+                                response.Republished &&
+                                response.SubscriptionId == group.Key &&
+                                response.SequenceNumber == message.Acknowledgement.SequenceNumber),
+                                Is.True,
+                                $"A null marker is valid only for a delivered Republish response. " +
+                                $"Observed responses: {responseObserver.GetDiagnostics()}");
+                        }
+                    }
+                    Assert.That(ordered.All(message => message.Notifications[0].DataChanges.Count == 1), Is.True);
+                }
+                var acknowledgements = new HashSet<AcknowledgementHandle>();
+                foreach (SubscriptionNotificationMessage message in messages)
+                {
+                    acknowledgements.Add(message.Acknowledgement);
+                }
+                Assert.That(acknowledgements, Has.Count.EqualTo(expected));
+                foreach (AcknowledgementHandle acknowledgement in acknowledgements)
+                {
+                    Assert.That(observer.WasAcknowledged(acknowledgement), Is.False);
+                    session.Confirm(acknowledgement);
+                }
+                await WaitForAsync(
+                    () => acknowledgements.All(observer.WasAcknowledged),
+                    ct).ConfigureAwait(false);
+                if (server is not null)
+                {
+                    Assert.That(handler.Messages, Has.Count.EqualTo(expected));
+                    Assert.That(server.RepublishRequests.Any(id => groups.Any(group => group.Key == id)), Is.False);
+                }
             }
-            var acknowledgements = new HashSet<AcknowledgementHandle>();
-            foreach (SubscriptionNotificationMessage message in messages)
+            catch
             {
-                acknowledgements.Add(message.Acknowledgement);
+                if (responseObserver is not null)
+                {
+                    TestContext.Progress.WriteLine(responseObserver.GetDiagnostics());
+                }
+                throw;
             }
-            Assert.That(acknowledgements, Has.Count.EqualTo(expected));
-            foreach (AcknowledgementHandle acknowledgement in acknowledgements)
+            finally
             {
-                Assert.That(observer.WasAcknowledged(acknowledgement), Is.False);
-                session.Confirm(acknowledgement);
+                if (ReferenceServer is not null)
+                {
+                    ReferenceServer.ResponseMutator = originalResponseMutator;
+                }
             }
-            await WaitForAsync(
-                () => acknowledgements.All(observer.WasAcknowledged),
-                ct).ConfigureAwait(false);
-            Assert.That(handler.Messages, Has.Count.EqualTo(expected));
-            Assert.That(server.RepublishRequests.Any(id => groups.Any(group => group.Key == id)), Is.False);
         }
 
         /// <inheritdoc/>
@@ -354,13 +449,28 @@ namespace Opc.Ua.Subscriptions.Tests
             }
             Assert.That(session.AddSubscription(subscription), Is.True);
             await subscription.CreateAsync(ct).ConfigureAwait(false);
+            BurstReferenceServer? server = ReferenceServer as BurstReferenceServer;
+            if (server is not null)
+            {
+                await WaitForAsync(() => server.InitialSamplesReady(session.SessionId, 3), ct)
+                    .ConfigureAwait(false);
+            }
             await subscription.SetPublishingModeAsync(true, ct).ConfigureAwait(false);
             await WaitForAsync(() => handler.Messages.Count >= 3, ct).ConfigureAwait(false);
 
             SubscriptionNotificationMessage[] messages =
                 [.. handler.Messages.Take(3).OrderBy(message => message.Acknowledgement.SequenceNumber)];
-            Assert.That(messages.Select(message => message.MoreNotifications),
-                Is.EqualTo(new bool?[] { true, true, false }));
+            if (server is not null)
+            {
+                Assert.That(messages.Select(message => message.MoreNotifications),
+                    Is.EqualTo(new bool?[] { true, true, false }));
+            }
+            else
+            {
+                // Only the delivered markers are observable for an external server; initial samples
+                // need not form the single burst established by the local readiness barrier.
+                Assert.That(messages.Any(message => message.MoreNotifications.HasValue), Is.True);
+            }
             foreach (SubscriptionNotificationMessage message in messages)
             {
                 Assert.That(message.Acknowledgement.SubscriptionId, Is.EqualTo(subscription.Id));
@@ -560,6 +670,55 @@ namespace Opc.Ua.Subscriptions.Tests
                 throw new InvalidOperationException("The reference server did not create the client session.");
             return serverSession.ReadDiagnostics(diagnostics => diagnostics.RepublishCount.TotalCount);
         }
+
+        private sealed class PublishResponseObserver : IServiceResponseMutator
+        {
+            public ValueTask<IServiceResponse> MutateResponseAsync(
+                IServiceRequest request,
+                IServiceResponse response,
+                CancellationToken cancellationToken = default)
+            {
+                if (request is PublishRequest &&
+                    response is PublishResponse publishResponse &&
+                    publishResponse.NotificationMessage.NotificationData.Count > 0)
+                {
+                    m_observations.Enqueue(new PublishObservation(
+                        publishResponse.SubscriptionId,
+                        publishResponse.NotificationMessage.SequenceNumber,
+                        publishResponse.MoreNotifications,
+                        Republished: false));
+                }
+                else if (request is RepublishRequest republishRequest &&
+                    response is RepublishResponse republishResponse &&
+                    republishResponse.NotificationMessage.NotificationData.Count > 0)
+                {
+                    m_observations.Enqueue(new PublishObservation(
+                        republishRequest.SubscriptionId,
+                        republishResponse.NotificationMessage.SequenceNumber,
+                        MoreNotifications: null,
+                        Republished: true));
+                }
+                return new ValueTask<IServiceResponse>(response);
+            }
+
+            public PublishObservation[] Snapshot()
+            {
+                return [.. m_observations];
+            }
+
+            public string GetDiagnostics()
+            {
+                return string.Join(Environment.NewLine, Snapshot());
+            }
+
+            private readonly ConcurrentQueue<PublishObservation> m_observations = new();
+        }
+
+        private readonly record struct PublishObservation(
+            uint SubscriptionId,
+            uint SequenceNumber,
+            bool? MoreNotifications,
+            bool Republished);
 
         private sealed class RecordingObserver : ISubscriptionAcknowledgementObserver
         {

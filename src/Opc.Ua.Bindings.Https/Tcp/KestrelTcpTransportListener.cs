@@ -933,7 +933,7 @@ namespace Opc.Ua.Bindings
                     channel.ChannelThumbprint,
                     (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
                 IServiceResponse response = await m_callback
-                    .ProcessRequestAsync(context, request)
+                    .ProcessRequestAsync(context, request, channel.RequestCancellationToken)
                     .ConfigureAwait(false);
                 if (!await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false))
                 {

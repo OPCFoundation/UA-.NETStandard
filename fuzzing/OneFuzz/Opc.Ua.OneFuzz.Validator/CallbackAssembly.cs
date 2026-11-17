@@ -161,7 +161,7 @@ namespace Opc.Ua.OneFuzz
                             $"Service drops must not contain SharpFuzz runners or preinstrumentation: {relative}");
                     }
 
-                    if (!DropLoadContext.IsFramework(reference))
+                    if (!m_context.IsFramework(reference))
                     {
                         pending.Enqueue(m_context.LoadFromAssemblyName(reference));
                     }
@@ -246,11 +246,23 @@ namespace Opc.Ua.OneFuzz
             {
                 m_root = Path.GetDirectoryName(assemblyPath)!;
                 m_resolver = new AssemblyDependencyResolver(assemblyPath);
+                m_appLocalOverrides = ReadAppLocalOverrides(m_root);
             }
 
-            internal static bool IsFramework(AssemblyName name)
+            /// <summary>
+            /// Whether a reference binds to the shared framework. A drop may carry a newer
+            /// out-of-band package than the runtime (e.g. System.Text.Json 11.0 on a
+            /// net10.0 runtime). The .NET host resolves such a name once per process, to
+            /// the higher app-local asset, whatever version an individual reference asks
+            /// for. The replay must do the same per name: binding references compiled
+            /// against the framework version to the framework copy and the rest to the
+            /// drop copy would load two identities of one assembly.
+            /// </summary>
+            internal bool IsFramework(AssemblyName name)
             {
-                return name.Name is not null && s_frameworkNames.Contains(name.Name);
+                return name.Name is not null &&
+                    s_frameworkVersions.ContainsKey(name.Name) &&
+                    !m_appLocalOverrides.Contains(name.Name);
             }
 
             protected override Assembly? Load(AssemblyName assemblyName)
@@ -278,11 +290,56 @@ namespace Opc.Ua.OneFuzz
                 return LoadUnmanagedDllFromPath(ContractPaths.Resolve(m_root, relative));
             }
 
-            private static readonly HashSet<string> s_frameworkNames = new(
-                Directory.EnumerateFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll")
-                    .Select(static path => Path.GetFileNameWithoutExtension(path)),
-                StringComparer.OrdinalIgnoreCase);
+            private static readonly Dictionary<string, Version> s_frameworkVersions = ReadFrameworkVersions();
 
+            private static Dictionary<string, Version> ReadFrameworkVersions()
+            {
+                var versions = new Dictionary<string, Version>(StringComparer.OrdinalIgnoreCase);
+                foreach (string path in Directory.EnumerateFiles(RuntimeEnvironment.GetRuntimeDirectory(), "*.dll"))
+                {
+                    try
+                    {
+                        AssemblyName name = AssemblyName.GetAssemblyName(path);
+                        versions[Path.GetFileNameWithoutExtension(path)] = name.Version ?? new Version(0, 0);
+                    }
+                    catch (BadImageFormatException)
+                    {
+                        // Native runtime binaries (coreclr, clrjit, ...) are not managed references.
+                    }
+                }
+
+                return versions;
+            }
+
+            private static HashSet<string> ReadAppLocalOverrides(string root)
+            {
+                var overrides = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (KeyValuePair<string, Version> framework in s_frameworkVersions)
+                {
+                    string path = Path.Combine(root, framework.Key + ".dll");
+                    if (!File.Exists(path))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        Version? local = AssemblyName.GetAssemblyName(path).Version;
+                        if (local is not null && local > framework.Value)
+                        {
+                            overrides.Add(framework.Key);
+                        }
+                    }
+                    catch (BadImageFormatException)
+                    {
+                        // Not a managed assembly; the framework copy stays authoritative.
+                    }
+                }
+
+                return overrides;
+            }
+
+            private readonly HashSet<string> m_appLocalOverrides;
             private readonly string m_root;
             private readonly AssemblyDependencyResolver m_resolver;
         }
