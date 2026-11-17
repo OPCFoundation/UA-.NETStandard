@@ -413,6 +413,7 @@ namespace Opc.Ua.Server
                 m_startupShutdownSemaphoreSlim.Dispose();
                 m_dynamicMutationSemaphore.Dispose();
                 m_namespaceRegistrationSemaphore.Dispose();
+                m_addReferenceSemaphore.Dispose();
             }
             if (errors.Count > 0)
             {
@@ -1285,6 +1286,8 @@ namespace Opc.Ua.Server
             ChangeNamespaceRegistration(
                 namespaceUri, preparingNodeManager ?? nodeManager,
                 register: true, visible: preparingNodeManager is null);
+
+            ServerUrisVersion.Update(Server);
         }
 
         /// <inheritdoc/>
@@ -1845,6 +1848,11 @@ namespace Opc.Ua.Server
 
         /// <summary>The exact reservation accepting unrelated aliases while its durable decision is pending.</summary>
         private NamespacePublication? m_namespacePublication;
+
+        /// <summary>
+        /// Serializes the AddReferences data-model checks with the reference mutations they guard.
+        /// </summary>
+        private readonly SemaphoreSlim m_addReferenceSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
 
         /// <summary>The boundary supplied before the host is bound to the server.</summary>

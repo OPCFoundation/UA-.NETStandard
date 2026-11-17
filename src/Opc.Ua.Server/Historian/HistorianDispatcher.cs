@@ -3102,23 +3102,97 @@ namespace Opc.Ua.Server.Historian
                 token = default;
             }
 
-            HistorianPage<HistoricalDataValue> page = await data.ReadRawAsync(
-                opContext, request, token, cancellationToken).ConfigureAwait(false);
+            // the values kept for the response are charged against the response byte
+            // budget of the service: a page holds at most the values that fit it.
+            OperationContext? operationContext = systemContext.OperationContext;
+            long responseBytes = operationContext?.ResponseBytesRemaining ?? -1;
+            HistorianRawReadRequest pageRequest = responseBytes < 0
+                ? request
+                : LimitPageByResponseBudget(request, request.PageLimit, responseBytes);
 
-            var values = new List<DataValue>(page.Values.Count);
-            foreach (HistoricalDataValue v in page.Values)
+            HistorianPage<HistoricalDataValue> page = await data.ReadRawAsync(
+                opContext, pageRequest, token, cancellationToken).ConfigureAwait(false);
+
+            List<DataValue> filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+
+            bool resumeAtStart = false;
+            if (responseBytes >= 0)
             {
-                values.Add(v.Value);
+                // the values are measured with the binary encoder: a page that is sent must
+                // fit, a lower bound of its size does not show that.
+                using var meter = new EncodedSizeMeter(systemContext);
+                bool fits = false;
+                bool someFit = false;
+                for (int reads = 1; ; reads++)
+                {
+                    // every page read is checked, the last re-read as well. The last page
+                    // of the read is sent without a continuation point, so it may use the
+                    // continuation point bytes the budget reserves for its result.
+                    // Not when the reserved framing alone exceeds the limit: then the
+                    // reserve covers part of the deficit.
+                    long reserve = page.NextToken.IsEmpty && !operationContext!.ResponseBudgetExhausted
+                        ? ResponseSizeEstimator.HistoryContinuationPointSize
+                        : 0;
+                    (int count, long bytes) = meter.CountValuesThatFit(
+                        filled,
+                        operationContext!.ResponseBytesRemaining + reserve);
+                    someFit |= count > 0;
+                    if (count == filled.Count)
+                    {
+                        // the continuation point bytes the values do not use stay in the
+                        // budget for the other results of the request.
+                        if (bytes >= reserve)
+                        {
+                            fits = operationContext.TryChargeResponse(bytes - reserve);
+                        }
+                        else
+                        {
+                            operationContext.CreditResponse(reserve - bytes);
+                            fits = true;
+                        }
+                        break;
+                    }
+                    if (count == 0 || reads > kMaxResponseBudgetPageRereads)
+                    {
+                        break;
+                    }
+
+                    // read the page again with the values that fit, so the provider hands
+                    // back the position after the last of them.
+                    page = await data.ReadRawAsync(
+                        opContext,
+                        LimitPageByResponseBudget(request, (uint)count, long.MaxValue),
+                        token,
+                        cancellationToken).ConfigureAwait(false);
+                    filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+                }
+
+                if (!fits)
+                {
+                    // no page that fits was read. When nothing else was charged, no later
+                    // request can hold this page either.
+                    if (operationContext!.ResponseBudgetUnused)
+                    {
+                        operationContext.TryChargeResponse(long.MaxValue);
+                        throw new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            someFit
+                                ? "The history provider returned more values than the response size limit holds."
+                                : "A value of the HistoryRead exceeds the response size limit.");
+                    }
+                    // Part 11 6.3: fewer values than requested, here none, with a
+                    // continuation point that resumes where this page started.
+                    page = new HistorianPage<HistoricalDataValue>([], token);
+                    filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+                    resumeAtStart = true;
+                }
             }
-            FillHistoryData(
-                systemContext,
-                result,
-                values,
-                nodeToRead,
-                timestampsToReturn);
+
+            List<DataValue> values = filled;
+            bool hasMore = resumeAtStart || !page.NextToken.IsEmpty;
 
             HistorianContinuationState? initialState = null;
-            if (claim == null && !page.NextToken.IsEmpty)
+            if (claim == null && hasMore)
             {
                 initialState = new HistorianContinuationState
                 {
@@ -3139,7 +3213,7 @@ namespace Opc.Ua.Server.Historian
                 systemContext,
                 result,
                 claim,
-                hasMore: !page.NextToken.IsEmpty,
+                hasMore,
                 page.NextToken,
                 initialState,
                 bufferedProcessedOffset: null,
@@ -3147,7 +3221,7 @@ namespace Opc.Ua.Server.Historian
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists (and no
             // Bounding Values were requested/returned) is reported with Good_NoData.
-            if (values.Count == 0 && page.NextToken.IsEmpty)
+            if (values.Count == 0 && !hasMore)
             {
                 result.StatusCode = StatusCodes.GoodNoData;
             }
@@ -3155,6 +3229,239 @@ namespace Opc.Ua.Server.Historian
             return ServiceResult.Good;
         }
 #pragma warning restore CA2000
+
+        /// <summary>
+        /// The smallest encoded size of a raw history value that a page is limited by: its
+        /// encoding mask and one timestamp, which a raw value is returned with. The limit
+        /// only shortens a page, the values of the page are charged with their own size.
+        /// </summary>
+        private const int kMinHistoryDataValueSize = 1 + 8;
+
+        /// <summary>
+        /// How often a raw page is read again with fewer values before it is returned
+        /// without values: a provider that does not honor the page limit, or whose values
+        /// grow between the reads, does not hold the read in a loop.
+        /// </summary>
+        private const int kMaxResponseBudgetPageRereads = 3;
+
+        /// <summary>
+        /// Limits the values of a raw page to <paramref name="pageLimit"/> and to the
+        /// values the rest of the response byte budget can hold at the smallest size.
+        /// </summary>
+        private static HistorianRawReadRequest LimitPageByResponseBudget(
+            HistorianRawReadRequest request,
+            uint pageLimit,
+            long responseBytes)
+        {
+            uint limit = pageLimit == 0 ? uint.MaxValue : pageLimit;
+            long byBudget = Math.Max(1, responseBytes / kMinHistoryDataValueSize);
+            if (byBudget < limit)
+            {
+                limit = (uint)byBudget;
+            }
+            return limit == request.PageLimit ? request : request with { PageLimit = limit };
+        }
+
+        /// <summary>
+        /// Measures the binary encoded size of history values, without storing the bytes.
+        /// </summary>
+        /// <remarks>
+        /// The length limits of the server's message context do not apply: the measurement
+        /// only sizes the values, the encoder of the response still enforces them. The
+        /// lengths and the written bytes are limited by the rest of the budget instead. The
+        /// nesting limit is the server's, the one the response is encoded with, which also
+        /// bounds the recursion of the measurement. A value that fails to encode does not
+        /// fit.
+        /// </remarks>
+        private sealed class EncodedSizeMeter : IDisposable
+        {
+            public EncodedSizeMeter(ServerSystemContext context)
+            {
+                m_context = new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
+                {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris,
+                    MaxStringLength = 0,
+                    MaxByteStringLength = 0,
+                    MaxArrayLength = 0,
+                    MaxMessageSize = 0,
+                    MaxEncodingNestingLevels = context.Server.MessageContext?.MaxEncodingNestingLevels ??
+                        DefaultEncodingLimits.MaxEncodingNestingLevels
+                };
+            }
+
+            /// <summary>
+            /// Counts the leading values whose encoded size fits
+            /// <paramref name="responseBytes"/> and returns their size.
+            /// </summary>
+            public (int Count, long Bytes) CountValuesThatFit(List<DataValue> values, long responseBytes)
+            {
+                long bytes = 0;
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    // a value whose lower bound does not fit is not encoded: encoding a
+                    // large string buffers all of its UTF-8 bytes.
+                    if (ResponseSizeEstimator.Estimate(values[ii]) > responseBytes - bytes)
+                    {
+                        return (ii, bytes);
+                    }
+                    long size = Measure(values[ii], responseBytes - bytes);
+                    if (size > responseBytes - bytes)
+                    {
+                        return (ii, bytes);
+                    }
+                    bytes += size;
+                }
+                return (values.Count, bytes);
+            }
+
+            public void Dispose()
+            {
+                DisposeEncoder();
+                m_stream.Dispose();
+            }
+
+            private void DisposeEncoder()
+            {
+                m_encoder?.Dispose();
+                m_encoder = null;
+            }
+
+            /// <summary>
+            /// Measures a value that is encoded only as far as <paramref name="limit"/>
+            /// bytes: a string, byte string or array that alone is longer (also nested in
+            /// variants), or any write past the limit, stops the encoding, so a value that
+            /// does not fit is not buffered or encoded in full.
+            /// </summary>
+            private long Measure(in DataValue value, long limit)
+            {
+                // each element of an array and each byte of a string is at least one byte.
+                int lengthLimit = (int)Math.Min(Math.Max(limit, 1), int.MaxValue);
+                m_context.MaxStringLength = lengthLimit;
+                m_context.MaxByteStringLength = lengthLimit;
+                m_context.MaxArrayLength = lengthLimit;
+                m_encoder ??= new BinaryEncoder(m_stream, m_context, true);
+                m_stream.Position = 0;
+                m_stream.Limit = limit;
+                try
+                {
+                    m_encoder.WriteDataValue(null, value);
+                    return m_stream.Position;
+                }
+                catch (ServiceResultException)
+                {
+                    // the encoder is not used after a failure.
+                    DisposeEncoder();
+                    return long.MaxValue;
+                }
+            }
+
+            private readonly ServiceMessageContext m_context;
+            private readonly ByteCountingStream m_stream = new();
+            private BinaryEncoder? m_encoder;
+        }
+
+        /// <summary>
+        /// A stream that counts the bytes written to it and discards them.
+        /// </summary>
+        private sealed class ByteCountingStream : Stream
+        {
+            public override bool CanRead => false;
+            public override bool CanSeek => true;
+            public override bool CanWrite => true;
+            public override long Length => m_length;
+
+            public override long Position
+            {
+                get => m_position;
+                set => m_position = value;
+            }
+
+            public override void Flush()
+            {
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                m_position = origin switch
+                {
+                    SeekOrigin.Begin => offset,
+                    SeekOrigin.Current => m_position + offset,
+                    _ => m_length + offset
+                };
+                return m_position;
+            }
+
+            public override void SetLength(long value)
+            {
+                m_length = value;
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                Advance(count);
+            }
+
+#if NET
+            public override void Write(ReadOnlySpan<byte> buffer)
+            {
+                Advance(buffer.Length);
+            }
+#endif
+
+            public override void WriteByte(byte value)
+            {
+                Advance(1);
+            }
+
+            /// <summary>
+            /// The position writes may not pass.
+            /// </summary>
+            public long Limit { get; set; } = long.MaxValue;
+
+            private void Advance(int count)
+            {
+                if (count > Limit - m_position)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "The value exceeds the response size limit.");
+                }
+                m_position += count;
+                if (m_position > m_length)
+                {
+                    m_length = m_position;
+                }
+            }
+
+            private long m_length;
+            private long m_position;
+        }
+
+        private static List<DataValue> FillRawPage(
+            ServerSystemContext systemContext,
+            HistoryReadResult result,
+            HistorianPage<HistoricalDataValue> page,
+            HistoryReadValueId nodeToRead,
+            TimestampsToReturn timestampsToReturn)
+        {
+            var values = new List<DataValue>(page.Values.Count);
+            foreach (HistoricalDataValue v in page.Values)
+            {
+                values.Add(v.Value);
+            }
+            return FillHistoryData(
+                systemContext,
+                result,
+                values,
+                nodeToRead,
+                timestampsToReturn);
+        }
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
 #pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
@@ -3584,7 +3891,7 @@ namespace Opc.Ua.Server.Historian
             };
         }
 
-        private static void FillHistoryData(
+        private static List<DataValue> FillHistoryData(
             ISystemContext systemContext,
             HistoryReadResult result,
             ArrayOf<DataValue> values,
@@ -3604,6 +3911,7 @@ namespace Opc.Ua.Server.Historian
             }
             var data = new HistoryData { DataValues = filtered };
             result.HistoryData = new ExtensionObject(data);
+            return filtered;
         }
 
         private static void FillHistoryModifiedData(

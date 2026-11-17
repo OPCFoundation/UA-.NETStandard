@@ -70,7 +70,11 @@ namespace Opc.Ua.Server
         public ServerSystemContext(IServerInternal server, ISession session)
              : this(server, (OperationContext)null!)
         {
-            SetSessionValues(session.Id, session.Identity, session.PreferredLocales);
+            SetSessionValues(
+                session.Id,
+                session.Identity,
+                ClientUserIdResolver.ResolveSession(session),
+                session.PreferredLocales);
         }
 
         /// <summary>
@@ -163,11 +167,15 @@ namespace Opc.Ua.Server
 
             if (session != null)
             {
-                copy.SetSessionValues(session.Id, session.Identity, session.PreferredLocales);
+                copy.SetSessionValues(
+                    session.Id,
+                    session.Identity,
+                    ClientUserIdResolver.ResolveSession(session),
+                    session.PreferredLocales);
             }
             else
             {
-                copy.SetSessionValues(default, null, default);
+                copy.SetSessionValues(default, null, null, default);
             }
 
             return copy;

@@ -127,7 +127,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    operationContext?.UserIdentity?.DisplayName!,
+                    operationContext?.ClientUserId!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -229,7 +229,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    session.UserIdentity.DisplayName,
+                    session.UserId!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -1043,7 +1043,7 @@ namespace Opc.Ua.Server
                 server,
                 context.SessionId,
                 context.AuditEntryId,
-                context.Session?.Identity?.DisplayName ?? context.UserIdentity?.DisplayName,
+                context.ClientUserId,
                 requestHandle,
                 statusCode,
                 logger);
@@ -1414,6 +1414,16 @@ namespace Opc.Ua.Server
                     session!,
                     auditEntryId);
 
+                // a failed activation names the user of the rejected token, not the
+                // user that activated the Session before (OPC 10000-5 6.4.3).
+                if (exception != null)
+                {
+                    e.SetChildValue(
+                        systemContext,
+                        BrowseNames.ClientUserId,
+                        ClientUserIdResolver.ResolveRequested(userIdentityToken)!,
+                        false);
+                }
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.SourceName,
@@ -2402,7 +2412,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName!,
+                    systemContext.UserId!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -2656,7 +2666,7 @@ namespace Opc.Ua.Server
             e.SetChildValue(
                 systemContext,
                 BrowseNames.ClientUserId,
-                (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName!,
+                systemContext.UserId!,
                 false);
             e.SetChildValue(
                 systemContext,
@@ -2699,7 +2709,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    session.Identity?.DisplayName!,
+                    ClientUserIdResolver.ResolveSession(session)!,
                     false);
                 // set AuditCreateSessionEventType & AuditActivateSessionsEventType properties
                 e.SetChildValue(

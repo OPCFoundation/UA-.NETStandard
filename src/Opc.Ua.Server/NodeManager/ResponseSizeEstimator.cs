@@ -60,6 +60,58 @@ namespace Opc.Ua.Server
         public const int MinCallMethodResultSize = 4 + 4 + 4 + 4;
 
         /// <summary>
+        /// The encoded size of a HistoryRead response without its results: the four-byte
+        /// type id, the ResponseHeader (timestamp, handle, result, empty diagnostic info,
+        /// empty string table, null additional header) and the lengths of the results and
+        /// diagnostic infos arrays.
+        /// </summary>
+        public const int HistoryReadResponseFramingSize = 4 + (8 + 4 + 4 + 1 + 4 + 3) + 4 + 4;
+
+        /// <summary>
+        /// The bytes a history continuation point (a Guid) adds to a result over the null
+        /// continuation point of a result that is complete.
+        /// </summary>
+        public const int HistoryContinuationPointSize = 16;
+
+        /// <summary>
+        /// The encoded size of one HistoryRead result without its values, as a history page
+        /// is sent: StatusCode, a 16 byte continuation point, the extension object header
+        /// of the history data (four-byte type id, encoding, length) and the length of its
+        /// values array. The last page of a read uses the continuation point bytes for its
+        /// values.
+        /// </summary>
+        public const int HistoryReadResultFramingSize =
+            4 + (4 + HistoryContinuationPointSize) + (4 + 1 + 4) + 4;
+
+        /// <summary>
+        /// The response byte budget of a HistoryRead: the message size limit less the
+        /// framing of the response and of each of its results, so that history pages that
+        /// fit the budget are sent with their continuation points. Zero (no budget) when
+        /// <paramref name="maxMessageSize"/> is zero, and -1 when the framing alone
+        /// exceeds the limit (<see cref="OperationContext.StartExhaustedResponseBudget"/>).
+        /// </summary>
+        /// <remarks>
+        /// When the client asks for operation diagnostics, an empty diagnostic info is
+        /// reserved per result; the content of diagnostics is not reserved.
+        /// </remarks>
+        public static int GetHistoryReadResponseBudget(
+            int maxMessageSize,
+            int resultCount,
+            bool returnsOperationDiagnostics = false)
+        {
+            if (maxMessageSize <= 0)
+            {
+                return 0;
+            }
+            int resultFraming = HistoryReadResultFramingSize + (returnsOperationDiagnostics ? 1 : 0);
+            long budget = maxMessageSize - HistoryReadResponseFramingSize -
+                ((long)resultCount * resultFraming);
+            // the deficit is not clamped away: the continuation point bytes that complete
+            // results return to the budget would otherwise cover it.
+            return budget < 1 ? -1 : (int)budget;
+        }
+
+        /// <summary>
         /// A lower bound of the encoded size of a reference description.
         /// </summary>
         public static long Estimate(ReferenceDescription? reference)
@@ -106,6 +158,47 @@ namespace Opc.Ua.Server
                 size += Estimate(outputs[ii]);
             }
             return size;
+        }
+
+        /// <summary>
+        /// A lower bound of the encoded size of a data value: its encoding mask and the
+        /// fields the mask selects.
+        /// </summary>
+        public static long Estimate(in DataValue value)
+        {
+            if (value.IsNull)
+            {
+                return 1;
+            }
+            long size = EstimateValue(value);
+            if (value.StatusCodeValue != 0)
+            {
+                size += 4;
+            }
+            if (value.SourceTimestamp != DateTimeUtc.MinValue)
+            {
+                size += value.SourcePicoseconds != 0 ? 8 + 2 : 8;
+            }
+            if (value.ServerTimestamp != DateTimeUtc.MinValue)
+            {
+                size += value.ServerPicoseconds != 0 ? 8 + 2 : 8;
+            }
+            return size;
+        }
+
+        /// <summary>
+        /// A lower bound of the encoded size of a data value that counts its encoding
+        /// mask and its value only, for a data value whose status and timestamps can
+        /// still be removed before it is sent (the timestamp filters of Read).
+        /// </summary>
+        public static long EstimateValue(in DataValue value)
+        {
+            if (value.IsNull)
+            {
+                return 1;
+            }
+            Variant wrappedValue = value.WrappedValue;
+            return wrappedValue.IsNull ? 1 : 1 + Estimate(wrappedValue);
         }
 
         /// <summary>

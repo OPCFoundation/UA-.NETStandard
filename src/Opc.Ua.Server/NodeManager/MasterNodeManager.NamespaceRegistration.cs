@@ -171,6 +171,8 @@ namespace Opc.Ua.Server
         {
             await ChangeNamespaceRegistrationAsync(
                 namespaceUri, nodeManager, register: true, visible, cancellationToken).ConfigureAwait(false);
+
+            ServerUrisVersion.Update(Server);
         }
 
         /// <summary>

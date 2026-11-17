@@ -1138,6 +1138,16 @@ namespace Opc.Ua
                 return StatusCodes.BadTypeMismatch;
             }
 
+            // a TrimmedString argument must not have leading or trailing white space
+            // (Part 5 12.43).
+            if (BaseVariableState.HasUntrimmedTrimmedStringValue(
+                context,
+                expectedArgument.DataType,
+                inputArgument))
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
             return ServiceResult.Good;
         }
 

@@ -417,17 +417,33 @@ response, `BadRequestTooLarge` for a request); a response past only the
 encoder's `MaxMessageSize` is answered with a `BadEncodingLimitsExceeded`
 ServiceFault, without encoding the response a second time.
 
-On the server, the Browse, BrowseNext and Call services of a binary encoded
-request also charge the results they keep for the response against the
-server's `MaxMessageSize`
+On the server, the Browse, BrowseNext, Call, Read and HistoryRead services of a
+binary encoded request also charge the results they keep for the response
+against the server's `MaxMessageSize`
 while the node managers build them, using a lower bound of the encoded size.
 A request whose results cannot fit fails with `BadResponseTooLarge` once the
 bound passes the limit, instead of after all results are built. Browse fetches
 at most one reference more per node than the rest of that budget holds at the
 smallest reference size, also when the client asks for no limit
-(`requestedMaxReferencesPerNode` 0). Requests in other encodings, which can
-encode below the binary bound, and in-process callers of the node managers
-have no budget.
+(`requestedMaxReferencesPerNode` 0). A Read stops reading further nodes once
+its values pass the limit; node managers derived from `AsyncCustomNodeManager`
+charge each value as they read it, other node managers are charged by the
+dispatcher after they return. A raw HistoryRead returns at most the values that
+fit the rest of the budget and a continuation point for the others, also when
+the client asks for no limit (`NumValuesPerNode` 0 or a huge value). If none of
+its values fits what other operations of the request left, it returns no values
+and a continuation point that resumes at the first one; only a value that
+alone exceeds the limit fails the request with `BadResponseTooLarge`. Because a
+history page must be sent, not refused, its values are measured with the binary
+encoder rather than bounded from below, and the HistoryRead budget leaves room
+for the response header and for each result's status, continuation point and
+history data header. The last page of a read has no continuation point and may
+use that room. When the client asks for operation diagnostics, an empty
+diagnostic info is reserved per result; their content is not. When the reserved
+framing alone exceeds the limit (very many results for a small limit), the
+budget starts with nothing left and no value fits. Requests
+in other encodings, which can encode below the binary bound, and in-process
+callers of the node managers have no budget.
 
 HTTPS binary, JSON, and OpenAPI clients obtain response headers before
 buffering the body. A positive `MaxMessageSize` limits the actual body bytes, including

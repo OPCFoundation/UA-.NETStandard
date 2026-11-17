@@ -47,6 +47,14 @@ namespace Opc.Ua
         IUserIdentity UserIdentity { get; }
 
         /// <summary>
+        /// The ClientUserId of the user (OPC 10000-5 6.4.3): the user name of a
+        /// UserName token, the subject of an X.509 token, the issuer and subject of
+        /// an issued token, or <c>null</c> for an anonymous user.
+        /// </summary>
+        /// <value>The ClientUserId.</value>
+        string? ClientUserId { get; }
+
+        /// <summary>
         /// The lifetime of the request
         /// </summary>
         RequestLifetime RequestLifetime { get; }
