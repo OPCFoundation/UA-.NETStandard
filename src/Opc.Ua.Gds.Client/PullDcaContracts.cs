@@ -90,6 +90,11 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// The registrar's native identity selection.
     /// </summary>
+    /// <remarks>
+    /// The pull workflow copies standard device and composite tickets and their authorities.
+    /// It rejects derived ticket or authority types with <see cref="StatusCodes.BadNotSupported"/>
+    /// before activating the selected identity.
+    /// </remarks>
     public sealed record PullDcaIdentitySelection(
         ByteString SelectedIdentity,
         BaseTicketType MatchingTicket,

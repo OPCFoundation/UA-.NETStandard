@@ -393,6 +393,9 @@ namespace Opc.Ua.Gds.Client
                     {
                         SelectedIdentity = identity.SelectedIdentity.Copy(),
                         ApplicationId = PullDcaConnection.SnapshotNodeId(identity.ApplicationId),
+                        MatchingTicket = identity.MatchingTicket is { } selectedTicket
+                            ? SnapshotTicket(selectedTicket)
+                            : null!,
                         SoftwareUpdateManager = identity.SoftwareUpdateManager is { } selectedManager
                             ? SnapshotManager(selectedManager)
                             : null
@@ -424,6 +427,7 @@ namespace Opc.Ua.Gds.Client
                         {
                             SelectedIdentity = identity.SelectedIdentity.Copy(),
                             ApplicationId = PullDcaConnection.SnapshotNodeId(identity.ApplicationId),
+                            MatchingTicket = SnapshotTicket(identity.MatchingTicket),
                             SoftwareUpdateManager = providerManager
                         },
                         providerManager, ct).ConfigureAwait(false);
@@ -1153,6 +1157,71 @@ namespace Opc.Ua.Gds.Client
                 detached[i] = values[i].Copy();
             }
             return detached;
+        }
+
+        /// <summary>
+        /// Detaches a standard ticket without relying on overridable clone implementations.
+        /// </summary>
+        private static BaseTicketType SnapshotTicket(BaseTicketType ticket)
+        {
+            BaseTicketType snapshot;
+            if (ticket.GetType() == typeof(DeviceIdentityTicketType))
+            {
+                var device = (DeviceIdentityTicketType)ticket;
+                snapshot = new DeviceIdentityTicketType { ProductInstanceUri = device.ProductInstanceUri };
+            }
+            else if (ticket.GetType() == typeof(CompositeIdentityTicketType))
+            {
+                var composite = (CompositeIdentityTicketType)ticket;
+                snapshot = new CompositeIdentityTicketType
+                {
+                    CompositeInstanceUri = composite.CompositeInstanceUri,
+                    Devices = composite.Devices.ToArray().ToArrayOf(),
+                    Composites = composite.Composites.ToArray().ToArrayOf()
+                };
+            }
+            else
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The selected ticket type cannot be copied safely.");
+            }
+
+            snapshot.ManufacturerName = ticket.ManufacturerName;
+            snapshot.ModelName = ticket.ModelName;
+            snapshot.ModelVersion = ticket.ModelVersion;
+            snapshot.HardwareRevision = ticket.HardwareRevision;
+            snapshot.SoftwareRevision = ticket.SoftwareRevision;
+            snapshot.SerialNumber = ticket.SerialNumber;
+            snapshot.ManufactureDate = ticket.ManufactureDate;
+            if (!ticket.Authorities.IsNull)
+            {
+                var authorities = new CertificateAuthorityType[ticket.Authorities.Count];
+                for (int i = 0; i < authorities.Length; i++)
+                {
+                    CertificateAuthorityType authority = ticket.Authorities[i];
+                    if (authority == null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed, "The selected ticket has a null authority.");
+                    }
+                    if (authority.GetType() != typeof(CertificateAuthorityType))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported, "The selected ticket authority cannot be copied safely.");
+                    }
+                    authorities[i] = new CertificateAuthorityType
+                    {
+                        AuthorityCertificate = authority.AuthorityCertificate.Copy(),
+                        IssuerCertificates = SnapshotBytes(authority.IssuerCertificates)
+                    };
+                }
+                snapshot.Authorities = authorities;
+            }
+            else
+            {
+                snapshot.Authorities = default;
+            }
+            return snapshot;
         }
 
         /// <summary>

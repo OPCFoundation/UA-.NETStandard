@@ -283,6 +283,217 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Calls, Is.EqualTo(s_connectProvideCalls));
         }
 
+        /// <summary>
+        /// The connection and software-update provider cannot mutate the retained ticket or its nested data.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MatchingTicketIsDetachedFromConnectionAndProvider(bool composite)
+        {
+            var fixture = new Fixture();
+            byte[] authorityBytes = [1, 2];
+            byte[] issuerBytes = [3, 4];
+            string[] devices = ["urn:device"];
+            string[] composites = ["urn:composite"];
+            BaseTicketType ticket = composite
+                ? new CompositeIdentityTicketType
+                {
+                    CompositeInstanceUri = "urn:original",
+                    Devices = devices,
+                    Composites = composites
+                }
+                : new DeviceIdentityTicketType { ProductInstanceUri = "urn:original" };
+            ticket.ManufacturerName = "manufacturer";
+            ticket.ModelName = "model";
+            ticket.ModelVersion = "model version";
+            ticket.HardwareRevision = "hardware";
+            ticket.SoftwareRevision = "software";
+            ticket.SerialNumber = "original";
+            ticket.ManufactureDate = new DateTime(2020, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+            ticket.Authorities = [new CertificateAuthorityType
+            {
+                AuthorityCertificate = ByteString.From(authorityBytes),
+                IssuerCertificates = [ByteString.From(issuerBytes)]
+            }];
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                MatchingTicket = ticket,
+                SoftwareUpdateManager = new ManagerDescription()
+            };
+            fixture.Host.OnActivate = _ =>
+            {
+                ticket.SerialNumber = "connection changed";
+                authorityBytes[0] = 9;
+                issuerBytes[0] = 9;
+                devices[0] = "urn:connection";
+                composites[0] = "urn:connection";
+            };
+            fixture.Host.OnSoftwareUpdate = (_, identity, _) =>
+            {
+                BaseTicketType received = identity.MatchingTicket;
+                Assert.That(received.SerialNumber, Is.EqualTo("original"));
+                Assert.That(received.Authorities[0].AuthorityCertificate,
+                    Is.EqualTo(ByteString.From(new byte[] { 1, 2 })));
+                Assert.That(received.Authorities[0].IssuerCertificates[0],
+                    Is.EqualTo(ByteString.From(new byte[] { 3, 4 })));
+                if (received is CompositeIdentityTicketType receivedComposite)
+                {
+                    Assert.That(receivedComposite.Devices[0], Is.EqualTo("urn:device"));
+                    Assert.That(receivedComposite.Composites[0], Is.EqualTo("urn:composite"));
+                    receivedComposite.Devices = ["urn:provider"];
+                }
+                received.SerialNumber = "provider changed";
+                MutateBytes(received.Authorities[0].AuthorityCertificate);
+                MutateBytes(received.Authorities[0].IssuerCertificates[0]);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            BaseTicketType selected = result.Identity.MatchingTicket;
+            Assert.That(selected.SerialNumber, Is.EqualTo("original"));
+            Assert.That(selected.ManufacturerName, Is.EqualTo("manufacturer"));
+            Assert.That(selected.ModelName, Is.EqualTo("model"));
+            Assert.That(selected.ModelVersion, Is.EqualTo("model version"));
+            Assert.That(selected.HardwareRevision, Is.EqualTo("hardware"));
+            Assert.That(selected.SoftwareRevision, Is.EqualTo("software"));
+            Assert.That(selected.ManufactureDate, Is.EqualTo(new DateTime(2020, 1, 2, 0, 0, 0, DateTimeKind.Utc)));
+            Assert.That(selected.Authorities[0].AuthorityCertificate,
+                Is.EqualTo(ByteString.From(new byte[] { 1, 2 })));
+            Assert.That(selected.Authorities[0].IssuerCertificates[0],
+                Is.EqualTo(ByteString.From(new byte[] { 3, 4 })));
+            if (composite)
+            {
+                Assert.That(selected, Is.TypeOf<CompositeIdentityTicketType>());
+                var selectedComposite = (CompositeIdentityTicketType)selected;
+                Assert.That(selectedComposite.CompositeInstanceUri, Is.EqualTo("urn:original"));
+                Assert.That(selectedComposite.Devices[0], Is.EqualTo("urn:device"));
+                Assert.That(selectedComposite.Composites[0], Is.EqualTo("urn:composite"));
+            }
+            else
+            {
+                Assert.That(selected, Is.TypeOf<DeviceIdentityTicketType>());
+                Assert.That(((DeviceIdentityTicketType)selected).ProductInstanceUri, Is.EqualTo("urn:original"));
+            }
+        }
+
+        /// <summary>
+        /// Ticket and authority extensions must not be silently truncated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DerivedTicketOrAuthorityIsRejectedBeforeActivation(bool derivedAuthority)
+        {
+            var fixture = new Fixture();
+            BaseTicketType ticket = derivedAuthority
+                ? new DeviceIdentityTicketType { Authorities = [new DerivedCertificateAuthority()] }
+                : new DerivedDeviceIdentityTicket();
+            fixture.Connection.Selection = fixture.Connection.Selection with { MatchingTicket = ticket };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.Calls, Is.EqualTo(s_connectProvideCalls));
+        }
+
+        /// <summary>
+        /// An invalid null ticket authority is rejected before identity activation.
+        /// </summary>
+        [Test]
+        public async Task NullTicketAuthorityIsRejectedBeforeActivation()
+        {
+            var fixture = new Fixture();
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                MatchingTicket = new DeviceIdentityTicketType { Authorities = [null!] }
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fixture.Calls, Is.EqualTo(s_connectProvideCalls));
+        }
+
+        /// <summary>
+        /// Ticket array snapshots preserve the values exposed by generated setters.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MatchingTicketPreservesGeneratedArrayValues(bool isNull)
+        {
+            var fixture = new Fixture();
+            var ticket = new CompositeIdentityTicketType
+            {
+                Authorities = isNull ? default : ArrayOf<CertificateAuthorityType>.Empty,
+                Devices = isNull ? default : ArrayOf<string>.Empty,
+                Composites = isNull ? default : ArrayOf<string>.Empty
+            };
+            bool authoritiesAreNull = ticket.Authorities.IsNull;
+            bool devicesAreNull = ticket.Devices.IsNull;
+            bool compositesAreNull = ticket.Composites.IsNull;
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                MatchingTicket = ticket,
+                SoftwareUpdateManager = new ManagerDescription()
+            };
+            fixture.Host.OnSoftwareUpdate = (_, identity, _) =>
+            {
+                var received = (CompositeIdentityTicketType)identity.MatchingTicket;
+                Assert.That(received.Authorities.IsNull, Is.EqualTo(authoritiesAreNull));
+                Assert.That(received.Devices.IsNull, Is.EqualTo(devicesAreNull));
+                Assert.That(received.Composites.IsNull, Is.EqualTo(compositesAreNull));
+                Assert.That(received.Authorities.Count, Is.Zero);
+                Assert.That(received.Devices.Count, Is.Zero);
+                Assert.That(received.Composites.Count, Is.Zero);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            var selected = (CompositeIdentityTicketType)result.Identity.MatchingTicket;
+            Assert.That(selected.Authorities.IsNull, Is.EqualTo(authoritiesAreNull));
+            Assert.That(selected.Devices.IsNull, Is.EqualTo(devicesAreNull));
+            Assert.That(selected.Composites.IsNull, Is.EqualTo(compositesAreNull));
+            Assert.That(selected.Authorities.Count, Is.Zero);
+            Assert.That(selected.Devices.Count, Is.Zero);
+            Assert.That(selected.Composites.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Issuer array snapshots preserve the values exposed by generated setters.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MatchingTicketPreservesGeneratedAuthorityIssuers(bool isNull)
+        {
+            var fixture = new Fixture();
+            var authority = new CertificateAuthorityType
+            {
+                IssuerCertificates = isNull ? default : ArrayOf<ByteString>.Empty
+            };
+            bool issuersAreNull = authority.IssuerCertificates.IsNull;
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                MatchingTicket = new DeviceIdentityTicketType
+                {
+                    Authorities = [authority]
+                },
+                SoftwareUpdateManager = new ManagerDescription()
+            };
+            fixture.Host.OnSoftwareUpdate = (_, identity, _) =>
+            {
+                ArrayOf<ByteString> issuers = identity.MatchingTicket.Authorities[0].IssuerCertificates;
+                Assert.That(issuers.IsNull, Is.EqualTo(issuersAreNull));
+                Assert.That(issuers.Count, Is.Zero);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            Assert.That(
+                result.Identity.MatchingTicket.Authorities[0].IssuerCertificates.IsNull, Is.EqualTo(issuersAreNull));
+            Assert.That(result.Identity.MatchingTicket.Authorities[0].IssuerCertificates.Count, Is.Zero);
+        }
+
         [Test]
         public async Task SigningRequestProviderCannotMutateActiveApplicationOrProfile()
         {
@@ -2328,6 +2539,20 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// Represents an extended manager description that cannot be safely snapshotted.
         /// </summary>
         private sealed class DerivedManagerDescription : ManagerDescription
+        {
+        }
+
+        /// <summary>
+        /// Represents a ticket extension whose fields cannot be safely snapshotted.
+        /// </summary>
+        private sealed class DerivedDeviceIdentityTicket : DeviceIdentityTicketType
+        {
+        }
+
+        /// <summary>
+        /// Represents an authority extension whose fields cannot be safely snapshotted.
+        /// </summary>
+        private sealed class DerivedCertificateAuthority : CertificateAuthorityType
         {
         }
 
