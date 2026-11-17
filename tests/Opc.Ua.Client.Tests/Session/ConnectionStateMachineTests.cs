@@ -258,6 +258,35 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             }
         }
 
+        /// <summary>
+        /// Records the level of every log entry; entries arrive from the worker thread.
+        /// </summary>
+        private sealed class RecordingLogger : ILogger
+        {
+            public ConcurrentQueue<LogLevel> Levels { get; } = new();
+
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull
+            {
+                return null;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                Levels.Enqueue(logLevel);
+            }
+        }
+
         [Test]
         public void InitialStateIsDisconnected()
         {
@@ -1052,6 +1081,96 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(sm.IsConnected, Is.False);
         }
 
+        /// <summary>
+        /// Without a failover operation an exhausted reconnect goes straight to
+        /// Disconnected with the reconnect error, and logs no error about a
+        /// failover that could not run.
+        /// </summary>
+        [Test]
+        public async Task ExhaustedReconnectWithoutFailoverSkipsFailoverStateAsync()
+        {
+            var logger = new RecordingLogger();
+            await using var sm = new ConnectionStateMachine(
+                new ReconnectPolicy
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(5),
+                    MaxRetries = 1,
+                    JitterFactor = 0.0
+                },
+                logger);
+            sm.ConnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadUserAccessDenied));
+            sm.ReconnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadUserAccessDenied));
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+
+            sm.Start();
+            sm.RequestConnect();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await sm.WaitForConnectedAsync(cts.Token).ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(sm.State, Is.EqualTo(ConnectionState.Disconnected));
+            Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.False);
+            ConnectionStateChangedEventArgs disconnected = recorder.GetTransitions()
+                .Last(t => t.NewState == ConnectionState.Disconnected);
+            Assert.That(disconnected.Error?.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(logger.Levels, Has.None.GreaterThanOrEqualTo(LogLevel.Error));
+        }
+
+        /// <summary>
+        /// A failover that finds no redundant server is an expected outcome and is
+        /// not logged as an error.
+        /// </summary>
+        [TestCaseSource(nameof(s_noRedundantServerStatuses))]
+        public async Task FailoverWithoutRedundantServerIsNotLoggedAsErrorAsync(StatusCode status)
+        {
+            RecordingLogger logger = await RunFailedFailoverAsync(status).ConfigureAwait(false);
+
+            Assert.That(logger.Levels, Has.None.GreaterThanOrEqualTo(LogLevel.Error));
+            Assert.That(logger.Levels, Has.Member(LogLevel.Information));
+        }
+
+        /// <summary>
+        /// A failover that was attempted and failed is still logged as an error.
+        /// </summary>
+        [Test]
+        public async Task FailedFailoverIsLoggedAsErrorAsync()
+        {
+            RecordingLogger logger = await RunFailedFailoverAsync(StatusCodes.BadServerHalted).ConfigureAwait(false);
+
+            Assert.That(logger.Levels.Count(level => level == LogLevel.Error), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Exhausts the reconnect policy so the failover operation runs and fails
+        /// with <paramref name="status"/>, then waits for Disconnected.
+        /// </summary>
+        private static async Task<RecordingLogger> RunFailedFailoverAsync(StatusCode status)
+        {
+            var logger = new RecordingLogger();
+            await using var sm = new ConnectionStateMachine(
+                new ReconnectPolicy
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(5),
+                    MaxRetries = 1,
+                    JitterFactor = 0.0
+                },
+                logger);
+            sm.ConnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            sm.ReconnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            sm.FailoverAsync = _ => Task.FromResult(new ServiceResult(status));
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+
+            sm.Start();
+            sm.RequestConnect();
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected, 5000).ConfigureAwait(false);
+
+            Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.True);
+            return logger;
+        }
+
         [Test]
         public async Task WaitForConnectedAsyncThrowsWhenClosedWhileConnecting()
         {
@@ -1529,5 +1648,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(sm.IsConnected, Is.True);
         }
+
+        private static readonly StatusCode[] s_noRedundantServerStatuses =
+        [
+            StatusCodes.BadNothingToDo,
+            StatusCodes.BadNotSupported
+        ];
     }
 }
