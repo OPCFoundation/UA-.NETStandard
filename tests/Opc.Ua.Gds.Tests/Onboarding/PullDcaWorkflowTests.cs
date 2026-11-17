@@ -1080,6 +1080,47 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             recovery.VerifyNoOtherCalls();
         }
 
+        [Test]
+        public async Task SigningRequestObserverCannotMutateActiveRequestBinding()
+        {
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(new byte[] { 5, 6 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 7, 8 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 9, 10 }), 1),
+                new NodeId(ByteString.From(new byte[] { 11, 12 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            fixture.Connection.Selection = fixture.Connection.Selection with { ApplicationId = applicationId };
+            fixture.Connection.SigningRequestId = requestId;
+            var recovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            recovery.As<IPullDcaSigningRequestObserver>().Setup(observer => observer.OnSigningRequestStartedAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Callback<PullDcaRegistrar, NodeId, NodeId, PullDcaCertificateProfile, ByteString, CancellationToken>(
+                    (receivedRegistrar, receivedApplication, receivedRequest, receivedProfile, _, _) =>
+                    {
+                        MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
+                        MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
+                        MutateOpaqueIdentifier(receivedApplication);
+                        MutateOpaqueIdentifier(receivedRequest);
+                        MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                        MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+                    })
+                .Returns(default(ValueTask));
+
+            PullDcaResult result = await fixture.Create(signingRecovery: recovery.Object).RunAsync(
+                registrar, CreateRequest() with { DcaCertificateProfile = profile }).ConfigureAwait(false);
+
+            Assert.That(fixture.ConnectedRegistrar, Is.EqualTo(registrar));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { requestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+        }
+
         /// <summary>
         /// A request that could not be journaled is never finished, so its certificate is never left unrecoverable.
         /// </summary>
@@ -1913,6 +1954,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public StatusCode CertificateError { get; set; } = StatusCodes.Good;
             public Queue<Exception> FinishFailures { get; } = new();
             public List<NodeId> FinishedRequestIds { get; } = [];
+            public NodeId SigningRequestId { get; set; } = kRequestId;
 
             /// <summary>
             /// Gets the number of new key-pair requests started by the workflow.
@@ -1991,7 +2033,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_fixture.Record("start:" + applicationId.IdentifierAsString, ct);
                 Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
                 Assert.That(csr, Is.EqualTo(kCsr));
-                return new ValueTask<NodeId>(kRequestId);
+                return new ValueTask<NodeId>(SigningRequestId);
             }
 
             public ValueTask<NodeId> StartNewKeyPairAsync(

@@ -592,8 +592,13 @@ namespace Opc.Ua.Gds.Client
             if (m_signingRecovery is IPullDcaSigningRequestObserver observer &&
                 !ReferenceEquals(m_signingRecovery, m_signingJournal))
             {
-                await observer.OnSigningRequestStartedAsync(registrar, applicationId, requestId, profile, csr, ct)
-                    .ConfigureAwait(false);
+                await observer.OnSigningRequestStartedAsync(
+                    PullDcaConnection.SnapshotRegistrar(registrar),
+                    PullDcaConnection.SnapshotNodeId(applicationId),
+                    PullDcaConnection.SnapshotNodeId(requestId),
+                    PullDcaConnection.SnapshotProfile(profile),
+                    csr.Copy(),
+                    ct).ConfigureAwait(false);
             }
             return await FinishAndInstallAsync(
                 registrar, connection, applicationId, requestId, profile, null, progress, ct).ConfigureAwait(false);
