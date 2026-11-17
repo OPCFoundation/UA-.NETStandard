@@ -368,8 +368,18 @@ namespace Opc.Ua.Wot
                     keepCandidate = true;
                     return candidate;
                 }
-                return await PreserveDocumentPartitionsAsync(
+                WotConversionResult<WotDocumentSet> preserved = await PreserveDocumentPartitionsAsync(
                     nodeSet, readable, resolved, nodeResolver, cancellationToken).ConfigureAwait(false);
+                foreach (WotDiagnostic diagnostic in candidate.Diagnostics)
+                {
+                    if (diagnostic.Code is WotDiagnosticCode.QuantityKindEnriched or
+                        WotDiagnosticCode.EngineeringUnitSemanticConflict)
+                    {
+                        diagnostics.Add(diagnostic);
+                    }
+                }
+                diagnostics.AddRange(preserved.Diagnostics);
+                return new WotConversionResult<WotDocumentSet>(preserved.Value, diagnostics);
             }
             finally
             {

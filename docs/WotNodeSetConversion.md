@@ -702,8 +702,8 @@ residue. Strict authoring reports either as an unknown term.
 
 The default `WotQudtUnitMappingProvider` maps an explicit allowlist of UN/CEFACT
 Recommendation 20 codes to `qudt:hasUnit` IRIs and conventional
-`qudt:hasQuantityKind` IRIs. The unit identities follow the connector's verified
-QUDT 3.1 table. Quantity kinds are explicitly selected defaults, not deductions
+`qudt:hasQuantityKind` IRIs. The unit identities follow published QUDT
+UN/CEFACT common-code annotations. Quantity kinds are explicitly selected defaults, not deductions
 from display text; percent has no default quantity kind. Unknown codes and
 other unit authorities receive neither annotation. Existing authored quantity
 kinds remain authoritative and survive round trips.
@@ -715,6 +715,52 @@ Set `WotNodeSetConverterOptions.UnitMappingProvider` to an
 `IWotUnitMappingProvider` for process-specific semantics or additional unit
 authorities. Registry hosting and the export command register the default
 provider in DI; direct converter calls use the same default without a container.
+
+When the unit provider supplies no quantity kind, the injectable
+`IWotQuantityKindMappingProvider` can resolve one from a declaration's portable
+NodeId and its engineering-unit authority and identifier. The default
+`WotCompanionQuantityKindMappingProvider` contains a bounded allowlist of verified
+Pumps, Machinery/Energy, PNEM, ECM and PlasticsRubber/TCD declarations. Namespace
+indexes and display text never select a mapping. An inherited declaration with
+the same identity uses the same mapping; a different declaration or instance
+does not acquire it merely by sharing a BrowseName or VariableType.
+
+The additional unit mappings are:
+
+| UN/CEFACT code | QUDT unit local name |
+|---|---|
+| `2N` | `DeciB` |
+| `C16` | `MilliM-PER-SEC` |
+| `C65` | `PA-SEC` |
+| `C94` | `PER-MIN` |
+| `C97` | `PER-SEC` |
+| `D44` | `V-A_Reactive` |
+| `F27` | `GM-PER-HR` |
+| `G01` | `PA-M3-PER-SEC` |
+| `KGS` | `KiloGM-PER-SEC` |
+| `S4` | `M2-PER-SEC` |
+
+These units have no global default quantity kind. Verified declarations can
+receive linear velocity, frequency, dynamic or kinematic viscosity, sound power
+or pressure level, mass flow rate, or reactive power annotations. Sound energy
+level, pump specific speed and vacuum throughput remain unit-only rather than
+receiving a kind from their dimensions. Reciprocal-time units are not rewritten
+as revolutions or radians per time.
+
+Each contextual mapping cites its evidence in the `QuantityKindEnriched`
+informational diagnostic. The allowlist is grounded in
+[official NodeSets at revision `928a9f4`](https://github.com/OPCFoundation/UA-Nodeset/tree/928a9f4b7378dd2f6cd1a3c88690d5c03857a7b4)
+and the unit identities in [QUDT](https://qudt.org/vocab/unit/).
+The Pumps declarations `i=12649` and `i=12663` have inconsistent viscosity
+metadata. They retain their source units, receive no inferred quantity kind,
+and report `EngineeringUnitSemanticConflict` warnings with source provenance.
+No new JSON-LD terms are introduced for these diagnostics.
+
+Set `WotNodeSetConverterOptions.QuantityKindMappingProvider` to replace the
+companion allowlist. Registry hosting and the exporter register the default
+provider in DI; direct converter calls have the same fallback. A quantity kind
+returned by `UnitMappingProvider` takes precedence over contextual enrichment;
+an authored QUDT annotation takes precedence over either provider.
 
 `unit`, `uav:unitProperty`, `uav:engineeringUnits`, `minimum`/`maximum` and
 `uav:instrumentRange` are **mapped**, not carried: each names a Property Node

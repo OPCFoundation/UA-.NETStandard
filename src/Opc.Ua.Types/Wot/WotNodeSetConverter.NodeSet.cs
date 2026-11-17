@@ -52,6 +52,10 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static readonly IWotUnitMappingProvider s_unitMappingProvider = new WotQudtUnitMappingProvider();
 
+        /// <summary>Verified declaration-specific quantity kinds used outside dependency injection.</summary>
+        private static readonly IWotQuantityKindMappingProvider s_quantityKindMappingProvider =
+            new WotCompanionQuantityKindMappingProvider();
+
         private static readonly Dictionary<string, string> s_dataTypeToJsonType =
             new(StringComparer.Ordinal)
             {
@@ -1058,9 +1062,22 @@ namespace Opc.Ua.Wot
                     nestedParents.TryGetValue(variable.NodeId ?? string.Empty, out string? owner);
                     analogFacets.TryGetValue(
                         variable.NodeId ?? string.Empty, out WotAnalogFacets? facets);
+                    if (facets?.Units is { } units)
+                    {
+                        ResolveQudtMapping(
+                            units, ToPortableNodeId(variable.NodeId, namespaceUris),
+                            options.UnitMappingProvider, options.QuantityKindMappingProvider,
+                            out string? unitIri, out string? quantityKindIri, out WotQuantityKindMapping? mapping);
+                        facets.UnitIri = unitIri;
+                        facets.QuantityKindIri = quantityKindIri;
+                        if (mapping is not null)
+                        {
+                            ReportQuantityKindMapping(mapping, variable.NodeId, diagnostics);
+                        }
+                    }
                     WriteVariableAffordance(
                         writer, variable, namespaceUris, nodeSet, defaultLocale,
-                        facets, owner, referenceTypeNames, documentLocale, options.UnitMappingProvider, scalarContext);
+                        facets, owner, referenceTypeNames, documentLocale, scalarContext);
                 }
                 writer.WriteEndObject();
             }
@@ -1550,7 +1567,6 @@ namespace Opc.Ua.Wot
             string? componentOf = null,
             WotReferenceTypeNames? referenceTypeNames = null,
             string? documentLocale = null,
-            IWotUnitMappingProvider? unitMappingProvider = null,
             ReadableScalarContext? scalarContext = null)
         {
             writer.WriteStartObject();
@@ -1612,7 +1628,7 @@ namespace Opc.Ua.Wot
 
             // Sections 6.4 and 6.4.1: the engineering unit, its authority and
             // identity, and the two ranges that say what the value means.
-            WriteAnalogFacets(writer, analogFacets, defaultLocale, unitMappingProvider);
+            WriteAnalogFacets(writer, analogFacets, defaultLocale);
             WriteEngineeringUnits(writer, variable, defaultLocale, documentLocale);
 
             bool readable = (variable.AccessLevel & AccessLevelCurrentRead) != 0;

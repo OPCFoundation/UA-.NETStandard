@@ -579,7 +579,7 @@ namespace Opc.Ua.Wot
                         CaptureAffordanceMap(
                             document, root, property.Value, pointer, property.Name, entries,
                             resolvedDefinitionBinding ?? ResolveDefinitionBinding, ResolveLocalizedContext,
-                            options.UnitMappingProvider, scalarContext);
+                            options.UnitMappingProvider, options.QuantityKindMappingProvider, scalarContext);
                         break;
                     case "links":
                         CaptureLinks(property.Value, pointer, entries);
@@ -867,6 +867,7 @@ namespace Opc.Ua.Wot
             Func<JsonElement, string?> resolveDefinitionBinding,
             Func<JsonElement, string?> resolveLocalizedContext,
             IWotUnitMappingProvider? unitMappingProvider,
+            IWotQuantityKindMappingProvider? quantityKindMappingProvider,
             WotNodeSetConverter.ReadableScalarContext scalarContext)
         {
             if (map.ValueKind != JsonValueKind.Object)
@@ -902,7 +903,8 @@ namespace Opc.Ua.Wot
                     foreach (string member in new[] { "qudt:hasUnit", WotUnitMigration.QuantityKindTerm })
                     {
                         if (isProperty &&
-                            WotNodeSetConverter.MapsQudtAnnotation(document, affordance.Value, member, unitMappingProvider))
+                            WotNodeSetConverter.MapsQudtAnnotation(
+                                document, affordance.Value, member, unitMappingProvider, quantityKindMappingProvider))
                         {
                             mappedMembers.Add(member);
                         }
@@ -942,7 +944,8 @@ namespace Opc.Ua.Wot
                         case WotUnitMigration.QuantityKindTerm:
                             if (!isProperty ||
                                 !WotNodeSetConverter.MapsQudtAnnotation(
-                                    document, affordance.Value, property.Name, unitMappingProvider))
+                                    document, affordance.Value, property.Name,
+                                    unitMappingProvider, quantityKindMappingProvider))
                             {
                                 Add(entries, affordancePointer + "/" + Escape(property.Name), property.Value);
                             }
