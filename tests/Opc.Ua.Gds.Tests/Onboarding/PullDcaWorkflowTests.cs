@@ -129,7 +129,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(application.Application.ApplicationUri));
             Assert.That(fixture.Connection.RegisteredApplication.ProtocolUri, Is.EqualTo(application.ProtocolUri));
             Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
-            Assert.That(result.DcaCredentials.TrustList, Is.SameAs(fixture.Connection.TrustList));
+            Assert.That(result.DcaCredentials.TrustList, Is.Not.SameAs(fixture.Connection.TrustList));
             Assert.That(result.Managers, Is.EqualTo(fixture.Connection.Managers));
             Assert.That(result.ManagedApplications.Count, Is.EqualTo(1));
             Assert.That(result.ManagedApplications[0].ApplicationId, Is.EqualTo(kManagedId));
@@ -260,6 +260,164 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, request).ConfigureAwait(false);
 
             Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CredentialInstallerCannotMutateWorkflowCredentials(bool newKeyPair)
+        {
+            var fixture = new Fixture();
+            fixture.Connection.NewKeyPairCertificate = kCertificate.Copy();
+            fixture.Connection.TrustList.TrustedCertificates = [ByteString.From(new byte[] { 1 })];
+            fixture.Connection.TrustList.TrustedCrls = [ByteString.From(new byte[] { 2 })];
+            fixture.Connection.TrustList.IssuerCertificates = [ByteString.From(new byte[] { 3 })];
+            fixture.Connection.TrustList.IssuerCrls = [ByteString.From(new byte[] { 4 })];
+            fixture.Host.OnCredentialsInstalled = credentials =>
+            {
+                MutateBytes(credentials.Certificate);
+                MutateBytes(credentials.IssuerCertificates[0]);
+                MutateBytes(credentials.TrustList.TrustedCertificates[0]);
+                MutateBytes(credentials.TrustList.TrustedCrls[0]);
+                MutateBytes(credentials.TrustList.IssuerCertificates[0]);
+                MutateBytes(credentials.TrustList.IssuerCrls[0]);
+            };
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = newKeyPair
+                    ? PullDcaCertificateRequestMode.NewKeyPairRequest
+                    : PullDcaCertificateRequestMode.SigningRequest
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(fixture.Connection.InstalledChannelCertificate, Is.EqualTo(kCertificate));
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(result.DcaCredentials.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(result.DcaCredentials.TrustList.TrustedCertificates[0],
+                Is.EqualTo(ByteString.From(new byte[] { 1 })));
+            Assert.That(result.DcaCredentials.TrustList.TrustedCrls[0], Is.EqualTo(ByteString.From(new byte[] { 2 })));
+            Assert.That(result.DcaCredentials.TrustList.IssuerCertificates[0],
+                Is.EqualTo(ByteString.From(new byte[] { 3 })));
+            Assert.That(result.DcaCredentials.TrustList.IssuerCrls[0], Is.EqualTo(ByteString.From(new byte[] { 4 })));
+        }
+
+        [Test]
+        public async Task NewKeyPairCertificateIsDetachedBeforeTrustDownload()
+        {
+            var fixture = new Fixture();
+            byte[] certificate = kCertificate.ToArray();
+            fixture.Connection.NewKeyPairCertificate = ByteString.From(certificate);
+            fixture.Connection.TrustWait = _ =>
+            {
+                certificate[0] ^= 0xff;
+                return Task.CompletedTask;
+            };
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(fixture.Connection.InstalledChannelCertificate, Is.EqualTo(kCertificate));
+        }
+
+        [Test]
+        public async Task SigningJournalCannotMutateActiveBindingOrCredentials()
+        {
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1);
+            var fixture = new Fixture();
+            var binding = new PullDcaSigningBinding(
+                kRegistrar, applicationId, requestId, kProfile, kCsr, kCertificate,
+                default, default, string.Empty, default, Guid.NewGuid());
+            fixture.Connection = new FakeBoundConnection(fixture, binding);
+            fixture.Connection.TrustList.TrustedCertificates = [ByteString.From(new byte[] { 5 })];
+            var journal = new Mock<IPullDcaSigningJournal>(MockBehavior.Strict);
+            journal.Setup(value => value.GetReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns((PullDcaSigningBinding received, CancellationToken _) =>
+                {
+                    MutateOpaqueIdentifier(received.ApplicationId);
+                    return new ValueTask<PullDcaCredentials?>((PullDcaCredentials?)null);
+                });
+            journal.Setup(value => value.RecordReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<PullDcaCredentials>(), It.IsAny<CancellationToken>()))
+                .Returns((PullDcaSigningBinding received, PullDcaCredentials credentials, CancellationToken _) =>
+                {
+                    Assert.That(received.ApplicationId, Is.EqualTo(applicationId));
+                    MutateOpaqueIdentifier(received.RequestId);
+                    MutateBytes(credentials.Certificate);
+                    MutateBytes(credentials.IssuerCertificates[0]);
+                    MutateBytes(credentials.TrustList.TrustedCertificates[0]);
+                    return default;
+                });
+            journal.Setup(value => value.RecordInstalledAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns((PullDcaSigningBinding received, CancellationToken _) =>
+                {
+                    Assert.That(received.RequestId, Is.EqualTo(requestId));
+                    MutateOpaqueIdentifier(received.RequestId);
+                    return default;
+                });
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            receipts.Setup(store => store.GetOrCreateAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(),
+                    It.IsAny<Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PullDcaRegistrar _, NodeId _, NodeId _, PullDcaCertificateProfile _,
+                    Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>> receive, CancellationToken ct) =>
+                    receive(ct));
+
+            PullDcaCredentials result = await fixture.Create(receipts: receipts.Object, signingJournal: journal.Object)
+                .CompleteCertificateRequestAsync(kRegistrar, applicationId, requestId, kProfile)
+                .ConfigureAwait(false);
+
+            Assert.That(result.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(result.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(result.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 5 })));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+            journal.VerifyAll();
+        }
+
+        [Test]
+        public async Task ResumedCredentialsAreDetachedFromInstallerAndJournal()
+        {
+            var fixture = new Fixture();
+            var binding = new PullDcaSigningBinding(
+                kRegistrar, kDcaId, kRequestId, kProfile, kCsr, kCertificate,
+                default, default, string.Empty, default, Guid.NewGuid());
+            fixture.Connection = new FakeBoundConnection(fixture, binding);
+            var retained = new PullDcaCredentials(
+                kCertificate.Copy(), [kIssuer.Copy()],
+                new TrustListDataType { TrustedCertificates = [ByteString.From(new byte[] { 5 })] });
+            fixture.Host.OnCredentialsInstalled = credentials =>
+            {
+                MutateBytes(credentials.Certificate);
+                MutateBytes(credentials.IssuerCertificates[0]);
+                MutateBytes(credentials.TrustList.TrustedCertificates[0]);
+            };
+            var journal = new Mock<IPullDcaSigningJournal>(MockBehavior.Strict);
+            journal.Setup(value => value.GetReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PullDcaCredentials?>(retained));
+            journal.Setup(value => value.RecordInstalledAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+
+            PullDcaCredentials result = await fixture.Create(signingJournal: journal.Object)
+                .CompleteCertificateRequestAsync(kRegistrar, kDcaId, kRequestId, kProfile).ConfigureAwait(false);
+
+            Assert.That(result.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(result.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(result.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 5 })));
+            Assert.That(retained.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(retained.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(retained.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 5 })));
+            journal.VerifyAll();
         }
 
         [Test]
@@ -2065,6 +2223,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public TrustListDataType TrustList { get; } = new();
             public ArrayOf<ManagerDescription> Managers { get; } =
                 [new ManagerDescription { Name = new LocalizedText("manager") }];
+            /// <summary>
+            /// Gets the certificate supplied for the installed channel.
+            /// </summary>
+            public ByteString InstalledChannelCertificate { get; private set; }
             public int PendingResponses { get; set; }
             public bool EmptyPendingResponse { get; set; }
             public StatusCode CertificateError { get; set; } = StatusCodes.Good;
@@ -2133,6 +2295,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 CancellationToken ct)
             {
                 m_fixture.Record("managers", ct);
+                InstalledChannelCertificate = installedCertificate.Copy();
                 return new ValueTask<ArrayOf<ManagerDescription>>(Managers);
             }
 
@@ -2206,7 +2369,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 }
                 LastReturnedPrivateKeyPfx = NewKeyPairPrivateKeyPfx.Copy();
                 return new ValueTask<(ByteString, ByteString, ArrayOf<ByteString>)>(
-                    (NewKeyPairCertificate, LastReturnedPrivateKeyPfx, new[] { kIssuer }.ToArrayOf()));
+                    (NewKeyPairCertificate, LastReturnedPrivateKeyPfx, new[] { kIssuer.Copy() }.ToArrayOf()));
             }
 
             public async ValueTask<TrustListDataType> ReadTrustListAsync(
@@ -2287,6 +2450,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public Action<NodeId, PullDcaCertificateProfile, ByteString>? OnKeyEvidence { get; set; }
             public Action<NodeId>? OnInstall { get; set; }
             public Action<NodeId, PullDcaCertificateProfile>? OnInstallNewKeyPair { get; set; }
+            /// <summary>
+            /// Gets or sets an action invoked with credentials passed to the installer.
+            /// </summary>
+            public Action<PullDcaCredentials>? OnCredentialsInstalled { get; set; }
             public List<NodeId> InstalledIds { get; } = [];
             public List<NodeId> KeyPairInstalledIds { get; } = [];
             public ByteString ReceivedPrivateKeyPfx { get; private set; }
@@ -2326,9 +2493,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_fixture.Record("install:" + applicationId.IdentifierAsString, cancellationToken);
                 Assert.That(credentials.Certificate, Is.EqualTo(kCertificate));
                 Assert.That(credentials.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
-                Assert.That(credentials.TrustList, Is.SameAs(m_fixture.Connection.TrustList));
+                Assert.That(credentials.TrustList.SpecifiedLists,
+                    Is.EqualTo(m_fixture.Connection.TrustList.SpecifiedLists));
                 InstalledIds.Add(applicationId);
                 OnInstall?.Invoke(applicationId);
+                OnCredentialsInstalled?.Invoke(credentials);
                 return default;
             }
 
@@ -2354,10 +2523,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
                 Assert.That(credentials.Certificate, Is.EqualTo(kCertificate));
                 Assert.That(credentials.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
-                Assert.That(credentials.TrustList, Is.SameAs(m_fixture.Connection.TrustList));
+                Assert.That(credentials.TrustList.SpecifiedLists,
+                    Is.EqualTo(m_fixture.Connection.TrustList.SpecifiedLists));
                 KeyPairInstalledIds.Add(applicationId);
                 ReceivedPrivateKeyPfx = privateKeyPfx.Copy();
                 OnInstallNewKeyPair?.Invoke(applicationId, profile);
+                OnCredentialsInstalled?.Invoke(credentials);
                 return default;
             }
 

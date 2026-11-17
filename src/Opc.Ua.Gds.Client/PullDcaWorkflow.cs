@@ -689,6 +689,8 @@ namespace Opc.Ua.Gds.Client
                                         "The key-pair request returned an empty issuer certificate.");
                                 }
                             }
+                            certificate = certificate.Copy();
+                            issuers = SnapshotBytes(issuers);
                             ct.ThrowIfCancellationRequested();
                             Report(progress, PullDcaStage.ReadingTrustList, applicationId, requestId);
                             TrustListDataType trustList = await connection.ReadTrustListAsync(
@@ -697,12 +699,12 @@ namespace Opc.Ua.Gds.Client
                             {
                                 throw new ServiceResultException(StatusCodes.BadUnexpectedError);
                             }
-                            var credentials = new PullDcaCredentials(certificate, issuers, trustList);
+                            var credentials = new PullDcaCredentials(certificate, issuers, SnapshotTrustList(trustList));
                             Report(progress, PullDcaStage.InstallingCredentials, applicationId, requestId);
                             await m_newKeyPairCredentialProvider!.InstallNewKeyPairAsync(
                                 PullDcaConnection.SnapshotNodeId(applicationId),
                                 PullDcaConnection.SnapshotProfile(profile),
-                                credentials, privateKeyPfx, ct).ConfigureAwait(false);
+                                SnapshotCredentials(credentials), privateKeyPfx, ct).ConfigureAwait(false);
                             return credentials;
                         }
 
@@ -744,6 +746,7 @@ namespace Opc.Ua.Gds.Client
             {
                 binding = await boundConnection.GetSigningBindingAsync(applicationId, requestId, ct)
                     .ConfigureAwait(false);
+                binding = PullDcaConnection.SnapshotBinding(binding);
                 if (binding.Profile != profile ||
                     (expectedAttemptId.HasValue && binding.AttemptId != expectedAttemptId.Value))
                 {
@@ -758,7 +761,12 @@ namespace Opc.Ua.Gds.Client
             }
             PullDcaCredentials? credentials = m_signingJournal == null
                 ? null
-                : await m_signingJournal.GetReceivedAsync(binding!, ct).ConfigureAwait(false);
+                : await m_signingJournal.GetReceivedAsync(
+                    PullDcaConnection.SnapshotBinding(binding!), ct).ConfigureAwait(false);
+            if (credentials != null)
+            {
+                credentials = SnapshotCredentials(credentials);
+            }
             if (credentials == null)
             {
                 if (m_signingJournal != null && m_receipts == null)
@@ -792,26 +800,32 @@ namespace Opc.Ua.Gds.Client
                 {
                     throw new ServiceResultException(StatusCodes.BadUnexpectedError);
                 }
-                credentials = new PullDcaCredentials(receipt.Certificate, receipt.IssuerCertificates, trustList);
+                credentials = new PullDcaCredentials(
+                    receipt.Certificate, receipt.IssuerCertificates, SnapshotTrustList(trustList));
                 if (m_signingJournal != null)
                 {
-                    await m_signingJournal.RecordReceivedAsync(binding!, credentials, ct).ConfigureAwait(false);
+                    await m_signingJournal.RecordReceivedAsync(
+                        PullDcaConnection.SnapshotBinding(binding!), SnapshotCredentials(credentials), ct)
+                        .ConfigureAwait(false);
                 }
             }
             Report(progress, PullDcaStage.InstallingCredentials, applicationId, requestId);
             if (binding != null && m_credentialProvider is IPullDcaBoundCredentialProvider boundCredentials)
             {
                 await boundCredentials.InstallAsync(
-                    PullDcaConnection.SnapshotBinding(binding), credentials, ct).ConfigureAwait(false);
+                    PullDcaConnection.SnapshotBinding(binding), SnapshotCredentials(credentials), ct)
+                    .ConfigureAwait(false);
             }
             else
             {
                 await m_credentialProvider.InstallAsync(
-                    PullDcaConnection.SnapshotNodeId(applicationId), credentials, ct).ConfigureAwait(false);
+                    PullDcaConnection.SnapshotNodeId(applicationId), SnapshotCredentials(credentials), ct)
+                    .ConfigureAwait(false);
             }
             if (m_signingJournal != null)
             {
-                await m_signingJournal.RecordInstalledAsync(binding!, ct).ConfigureAwait(false);
+                await m_signingJournal.RecordInstalledAsync(PullDcaConnection.SnapshotBinding(binding!), ct)
+                    .ConfigureAwait(false);
             }
             return (credentials, binding);
         }
@@ -929,16 +943,7 @@ namespace Opc.Ua.Gds.Client
             }
             ArrayOf<ByteString> issuers = SnapshotBytes(trust.IssuerCertificates);
             var credentials = new PullDcaCredentials(
-                selected.Copy(),
-                SnapshotBytes(issuers),
-                new TrustListDataType
-                {
-                    SpecifiedLists = trust.SpecifiedLists,
-                    TrustedCertificates = SnapshotBytes(trust.TrustedCertificates),
-                    TrustedCrls = SnapshotBytes(trust.TrustedCrls),
-                    IssuerCertificates = SnapshotBytes(trust.IssuerCertificates),
-                    IssuerCrls = SnapshotBytes(trust.IssuerCrls)
-                });
+                selected.Copy(), SnapshotBytes(issuers), SnapshotTrustList(trust));
             await m_signingRecovery!.ValidateAsync(
                 PullDcaConnection.SnapshotRegistrar(registrar),
                 PullDcaConnection.SnapshotNodeId(applicationId),
@@ -1137,6 +1142,32 @@ namespace Opc.Ua.Gds.Client
                 detached[i] = values[i].Copy();
             }
             return detached;
+        }
+
+        /// <summary>
+        /// Detaches public credential data before passing it across a host boundary.
+        /// </summary>
+        private static PullDcaCredentials SnapshotCredentials(PullDcaCredentials credentials)
+        {
+            return new PullDcaCredentials(
+                credentials.Certificate.Copy(),
+                SnapshotBytes(credentials.IssuerCertificates),
+                SnapshotTrustList(credentials.TrustList));
+        }
+
+        /// <summary>
+        /// Detaches the complete or partial trust-list payload without changing its list mask.
+        /// </summary>
+        private static TrustListDataType SnapshotTrustList(TrustListDataType trust)
+        {
+            return new TrustListDataType
+            {
+                SpecifiedLists = trust.SpecifiedLists,
+                TrustedCertificates = SnapshotBytes(trust.TrustedCertificates),
+                TrustedCrls = SnapshotBytes(trust.TrustedCrls),
+                IssuerCertificates = SnapshotBytes(trust.IssuerCertificates),
+                IssuerCrls = SnapshotBytes(trust.IssuerCrls)
+            };
         }
 
         private static void ValidateProfile(PullDcaCertificateProfile profile)
