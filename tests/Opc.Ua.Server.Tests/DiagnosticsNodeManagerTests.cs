@@ -691,6 +691,78 @@ ObjectIds.Server,
             Assert.That(manager.FindPredefinedNode<NodeState>(liveSessionId), Is.Null);
         }
 
+        /// <summary>
+        /// Part 5 §6.3.3: enabling the collection again restores an entry per subscription, also
+        /// for the subscriptions created while the collection was disabled.
+        /// </summary>
+        [Test]
+        public async Task SubscriptionCreatedWhileDisabledGetsDiagnosticsWhenEnabledAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            var externalRefs = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
+
+            static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
+
+            NodeId sessionId = await manager.CreateSessionDiagnosticsAsync(
+                manager.SystemContext,
+                new SessionDiagnosticsDataType { SessionName = "Session" },
+                UpdateCallback,
+                new SessionSecurityDiagnosticsDataType(),
+                UpdateCallback).ConfigureAwait(false);
+
+            await manager.SetDiagnosticsEnabledAsync(manager.SystemContext, false).ConfigureAwait(false);
+
+            // created while disabled: the id is assigned, the node is not in the address space.
+            NodeId subscriptionId = await manager.CreateSubscriptionDiagnosticsAsync(
+                manager.SystemContext,
+                new SubscriptionDiagnosticsDataType { SubscriptionId = 43, SessionId = sessionId },
+                UpdateCallback).ConfigureAwait(false);
+            NodeId deletedSubscriptionId = await manager.CreateSubscriptionDiagnosticsAsync(
+                manager.SystemContext,
+                new SubscriptionDiagnosticsDataType { SubscriptionId = 44, SessionId = sessionId },
+                UpdateCallback).ConfigureAwait(false);
+            Assert.That(subscriptionId.IsNull, Is.False);
+            Assert.That(deletedSubscriptionId.IsNull, Is.False);
+            Assert.That(subscriptionId, Is.Not.EqualTo(deletedSubscriptionId));
+            Assert.That(manager.FindPredefinedNode<NodeState>(subscriptionId), Is.Null);
+
+            // deleted while disabled: the registration is removed.
+            await manager.DeleteSubscriptionDiagnosticsAsync(manager.SystemContext, deletedSubscriptionId)
+                .ConfigureAwait(false);
+
+            await manager.SetDiagnosticsEnabledAsync(manager.SystemContext, true).ConfigureAwait(false);
+
+            SubscriptionDiagnosticsState subscriptionNode =
+                manager.FindPredefinedNode<SubscriptionDiagnosticsState>(subscriptionId);
+            Assert.That(subscriptionNode, Is.Not.Null, "The subscription created while disabled gets its node.");
+            Assert.That(manager.FindPredefinedNode<NodeState>(deletedSubscriptionId), Is.Null);
+
+            SubscriptionDiagnosticsArrayState serverArray = manager.FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
+                VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
+            var references = new List<IReference>();
+            serverArray.GetReferences(manager.SystemContext, references, ReferenceTypeIds.HasComponent, false);
+            Assert.That(references.Select(r => (NodeId)r.TargetId), Has.Member(subscriptionId));
+            Assert.That(references.Select(r => (NodeId)r.TargetId), Has.No.Member(deletedSubscriptionId));
+
+            SessionDiagnosticsObjectState sessionNode = manager.FindPredefinedNode<SessionDiagnosticsObjectState>(sessionId);
+            Assert.That(sessionNode, Is.Not.Null);
+            var sessionArray = (BaseVariableState?)sessionNode.FindChild(
+                manager.SystemContext,
+                QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray));
+            Assert.That(sessionArray, Is.Not.Null);
+            references.Clear();
+            sessionArray!.GetReferences(manager.SystemContext, references, ReferenceTypeIds.HasComponent, false);
+            Assert.That(references.Select(r => (NodeId)r.TargetId), Has.Member(subscriptionId));
+
+            // deleting the node restored from the registration still works.
+            await manager.DeleteSubscriptionDiagnosticsAsync(manager.SystemContext, subscriptionId).ConfigureAwait(false);
+            Assert.That(manager.FindPredefinedNode<NodeState>(subscriptionId), Is.Null);
+        }
+
         [Test]
         public async Task SetDiagnosticsEnabledAsync_EnableDuringDisable_KeepsRestoredNodesAsync()
         {

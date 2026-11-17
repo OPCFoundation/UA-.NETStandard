@@ -175,6 +175,8 @@ namespace Opc.Ua.Server
             {
                 m_namespaceRegistrationSemaphore.Release();
             }
+
+            ServerUrisVersion.Update(Server);
         }
 
         private async ValueTask<bool> UnregisterNamespaceManagerCoreAsync(

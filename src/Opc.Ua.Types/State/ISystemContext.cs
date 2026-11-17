@@ -44,8 +44,8 @@ namespace Opc.Ua
         object? SystemHandle { get; }
 
         /// <summary>
-        /// Returns the display name of the user associated
-        /// with the context.
+        /// Returns the id of the user associated with the context. A
+        /// session context returns the ClientUserId (OPC 10000-5 6.4.3).
         /// </summary>
         /// <value>The id of the current user.</value>
         string? UserId { get; }

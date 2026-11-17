@@ -825,13 +825,13 @@ namespace Opc.Ua.Server
 
             IAsyncNodeManager? targetOwner = null;
             NodeMetadata? targetMetadata = null;
+            object? targetHandle = null;
 
             if (TryGetExplicitLocalTargetNodeId(
                 item.TargetServerUri,
                 item.TargetNodeId,
                 out NodeId targetNodeId))
             {
-                object? targetHandle;
                 (targetHandle, targetOwner) = await m_serviceDispatch.GetManagerHandleAsync(
                     context,
                     targetNodeId,
@@ -877,6 +877,58 @@ namespace Opc.Ua.Server
                 (targetMetadata == null || targetMetadata.NodeClass == NodeClass.Unspecified))
             {
                 return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
+            }
+
+            // The data-model checks read the References the mutation changes, so concurrent
+            // requests must not both pass a check (e.g. two HasTypeDefinition targets).
+            await m_addReferenceSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await AddCheckedReferenceAsync(
+                    context,
+                    item,
+                    sourceOwner,
+                    sourceHandle,
+                    sourceMetadata,
+                    localTarget ? targetOwner : null,
+                    targetHandle,
+                    targetMetadata,
+                    targetNodeId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_addReferenceSemaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// Validates the data-model constraints of a reference and adds it with its mirrored
+        /// inverse. Must be called with <c>m_addReferenceSemaphore</c> held.
+        /// </summary>
+        private async ValueTask<ServiceResult> AddCheckedReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            IAsyncNodeManager sourceOwner,
+            object sourceHandle,
+            NodeMetadata? sourceMetadata,
+            IAsyncNodeManager? targetOwner,
+            object? targetHandle,
+            NodeMetadata? targetMetadata,
+            NodeId targetNodeId,
+            CancellationToken cancellationToken)
+        {
+            bool localTarget = targetOwner != null;
+            ServiceResult constraintResult = ValidateAddReferenceConstraints(
+                item,
+                sourceMetadata?.NodeClass ?? NodeClass.Unspecified,
+                GetNodeState(sourceHandle),
+                localTarget ? targetNodeId : NodeId.Null,
+                localTarget ? targetMetadata!.NodeClass : NodeClass.Unspecified,
+                GetNodeState(targetHandle));
+            if (ServiceResult.IsBad(constraintResult))
+            {
+                return constraintResult;
             }
 
             ServiceResult sourceResult;
@@ -1352,6 +1404,286 @@ namespace Opc.Ua.Server
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Checks the data-model rules of OPC UA Part 3 a new Reference must not
+        /// break: Bad_NodeClassInvalid when the TargetNodeClass of the request does
+        /// not match the local TargetNode and Bad_ReferenceNotAllowed for a data-model
+        /// violation (Part 4 5.8.4).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The rules are evaluated on the forward direction of the Reference, so a
+        /// request with IsForward=false is checked with SourceNode and TargetNode
+        /// swapped. The rules are:
+        /// </para>
+        /// <list type="bullet">
+        /// <item>HasSubtype only between two types of the same NodeClass. The server
+        /// TypeTree is not updated by AddReferences, so subtype queries keep the type
+        /// hierarchy that was loaded.</item>
+        /// <item>HasTypeDefinition only from an Object to an ObjectType or from a
+        /// Variable to a VariableType, never to an abstract type or an Interface
+        /// (Part 3 4.10.2), and only when the Node has no other TypeDefinition
+        /// (Part 3 5.5.1 and 5.6.2).</item>
+        /// <item>HasModellingRule only from an Object, Variable or Method to an Object,
+        /// and only when the Node has no other ModellingRule.</item>
+        /// <item>A Property is never the SourceNode of a hierarchical Reference (Part 3
+        /// 5.6.3) and the NodeClass constraints of Organizes, HasComponent and
+        /// HasProperty (Part 3 7.6 - 7.9) apply to their subtypes as well.</item>
+        /// </list>
+        /// <para>
+        /// Rules that need the existing References of a Node are only evaluated when
+        /// its NodeManager exposes it as a <see cref="NodeState"/>; rules that need the
+        /// NodeClass of a remote TargetNode use the TargetNodeClass of the request.
+        /// </para>
+        /// </remarks>
+        private ServiceResult ValidateAddReferenceConstraints(
+            AddReferencesItem item,
+            NodeClass sourceNodeClass,
+            NodeState? sourceNode,
+            NodeId localTargetNodeId,
+            NodeClass localTargetNodeClass,
+            NodeState? targetNode)
+        {
+            NodeClass targetNodeClass = localTargetNodeClass;
+            if (item.TargetNodeClass != NodeClass.Unspecified)
+            {
+                if (targetNodeClass == NodeClass.Unspecified)
+                {
+                    targetNodeClass = item.TargetNodeClass;
+                }
+                else if (item.TargetNodeClass != targetNodeClass)
+                {
+                    return new ServiceResult(StatusCodes.BadNodeClassInvalid);
+                }
+            }
+
+            bool isForward = item.IsForward;
+            NodeClass fromNodeClass = isForward ? sourceNodeClass : targetNodeClass;
+            NodeClass toNodeClass = isForward ? targetNodeClass : sourceNodeClass;
+            NodeState? fromNode = isForward ? sourceNode : targetNode;
+            NodeState? toNode = isForward ? targetNode : sourceNode;
+            NodeId toNodeId = isForward ? localTargetNodeId : item.SourceNodeId;
+            NodeId referenceTypeId = item.ReferenceTypeId;
+            TypeTable types = Server.TypeTree;
+
+            if (types.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasSubtype))
+            {
+                return fromNodeClass == toNodeClass &&
+                    fromNodeClass is NodeClass.ObjectType or
+                        NodeClass.VariableType or
+                        NodeClass.DataType or
+                        NodeClass.ReferenceType
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadReferenceNotAllowed);
+            }
+
+            if (types.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasTypeDefinition))
+            {
+                bool allowed = fromNodeClass switch
+                {
+                    NodeClass.Object => toNodeClass is NodeClass.Unspecified or NodeClass.ObjectType,
+                    NodeClass.Variable => toNodeClass is NodeClass.Unspecified or NodeClass.VariableType,
+                    NodeClass.Unspecified =>
+                        toNodeClass is NodeClass.Unspecified or NodeClass.ObjectType or NodeClass.VariableType,
+                    _ => false
+                };
+                if (!allowed ||
+                    types.IsTypeOf(toNodeId, ObjectTypeIds.BaseInterfaceType) ||
+                    toNode is BaseTypeState { IsAbstract: true } ||
+                    HasOtherForwardTarget(fromNode, ReferenceTypeIds.HasTypeDefinition, toNodeId))
+                {
+                    return new ServiceResult(StatusCodes.BadReferenceNotAllowed);
+                }
+                return ServiceResult.Good;
+            }
+
+            if (types.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasModellingRule))
+            {
+                if (fromNodeClass is not (NodeClass.Unspecified or
+                        NodeClass.Object or
+                        NodeClass.Variable or
+                        NodeClass.Method) ||
+                    toNodeClass is not (NodeClass.Unspecified or NodeClass.Object) ||
+                    HasOtherForwardTarget(fromNode, ReferenceTypeIds.HasModellingRule, toNodeId))
+                {
+                    return new ServiceResult(StatusCodes.BadReferenceNotAllowed);
+                }
+                return ServiceResult.Good;
+            }
+
+            if (!types.IsTypeOf(referenceTypeId, ReferenceTypeIds.HierarchicalReferences))
+            {
+                return ServiceResult.Good;
+            }
+
+            if (IsProperty(fromNode))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceNotAllowed);
+            }
+
+            NodeId constrainedReferenceTypeId;
+            if (types.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
+            {
+                constrainedReferenceTypeId = ReferenceTypeIds.HasProperty;
+            }
+            else if (types.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasComponent))
+            {
+                constrainedReferenceTypeId = ReferenceTypeIds.HasComponent;
+            }
+            else if (types.IsTypeOf(referenceTypeId, ReferenceTypeIds.Organizes))
+            {
+                constrainedReferenceTypeId = ReferenceTypeIds.Organizes;
+            }
+            else
+            {
+                return ServiceResult.Good;
+            }
+
+            if (fromNodeClass != NodeClass.Unspecified &&
+                !IsReferenceAllowedForNodeClasses(constrainedReferenceTypeId, fromNodeClass, toNodeClass))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceNotAllowed);
+            }
+
+            // HasProperty makes the TargetNode a Property, which must not already be the
+            // SourceNode of a hierarchical Reference (Part 3 5.6.3).
+            if (constrainedReferenceTypeId == ReferenceTypeIds.HasProperty &&
+                HasForwardHierarchicalReference(toNode))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceNotAllowed);
+            }
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns true when the node is the SourceNode of a hierarchical Reference: it has
+        /// a child, or a forward hierarchical Reference added through AddReferences.
+        /// </summary>
+        private bool HasForwardHierarchicalReference(NodeState? node)
+        {
+            if (node == null)
+            {
+                return false;
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(Server.DefaultSystemContext, children);
+            if (children.Count > 0)
+            {
+                return true;
+            }
+
+            var references = new List<IReference>();
+            node.GetReferences(Server.DefaultSystemContext, references);
+            foreach (IReference reference in references)
+            {
+                if (!reference.IsInverse &&
+                    Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HierarchicalReferences))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns the in-memory node behind a NodeManager handle, if any.
+        /// </summary>
+        private static NodeState? GetNodeState(object? handle)
+        {
+            return handle is NodeHandle { Node: { } node } ? node : null;
+        }
+
+        /// <summary>
+        /// Returns true when the node already has a forward Reference of the given
+        /// ReferenceType (or a subtype) to a node other than <paramref name="targetId"/>.
+        /// HasTypeDefinition and HasModellingRule of an instance are intrinsic, so the
+        /// TypeDefinitionId and ModellingRuleId are checked as well.
+        /// </summary>
+        private bool HasOtherForwardTarget(NodeState? node, NodeId referenceTypeId, NodeId targetId)
+        {
+            if (node == null)
+            {
+                return false;
+            }
+
+            if (node is BaseInstanceState instance)
+            {
+                NodeId intrinsicTargetId = referenceTypeId == ReferenceTypeIds.HasTypeDefinition
+                    ? instance.TypeDefinitionId
+                    : instance.ModellingRuleId;
+                if (!intrinsicTargetId.IsNull && intrinsicTargetId != targetId)
+                {
+                    return true;
+                }
+            }
+
+            var references = new List<IReference>();
+            node.GetReferences(Server.DefaultSystemContext, references);
+            foreach (IReference reference in references)
+            {
+                if (reference.IsInverse ||
+                    !Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, referenceTypeId))
+                {
+                    continue;
+                }
+
+                NodeId existingTargetId = ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
+                if (existingTargetId.IsNull || existingTargetId != targetId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true when the node is a Property: a Variable of PropertyType or one
+        /// referenced by HasProperty (Part 3 5.6.3).
+        /// </summary>
+        private bool IsProperty(NodeState? node)
+        {
+            if (node is not BaseVariableState variable)
+            {
+                return false;
+            }
+
+            if (variable is PropertyState ||
+                Server.TypeTree.IsTypeOf(variable.TypeDefinitionId, VariableTypeIds.PropertyType) ||
+                (variable.Parent != null &&
+                    Server.TypeTree.IsTypeOf(variable.ReferenceTypeId, ReferenceTypeIds.HasProperty)))
+            {
+                return true;
+            }
+
+            var references = new List<IReference>();
+            variable.GetReferences(Server.DefaultSystemContext, references);
+            foreach (IReference reference in references)
+            {
+                if (reference.IsInverse &&
+                    Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HasProperty))
+                {
+                    return true;
+                }
+
+                // a type definition added through AddReferences is stored as a reference
+                // rather than in TypeDefinitionId.
+                if (!reference.IsInverse &&
+                    Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HasTypeDefinition) &&
+                    Server.TypeTree.IsTypeOf(
+                        ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris),
+                        VariableTypeIds.PropertyType))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

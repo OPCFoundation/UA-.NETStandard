@@ -383,6 +383,7 @@ namespace Opc.Ua.Di.Tests
         {
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(value => value.DisplayName).Returns(user);
+            identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
             return new ServerSystemContext(Mock.Of<IServerInternal>())
             {
                 SessionId = new NodeId(sessionId, 1),

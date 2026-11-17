@@ -756,9 +756,10 @@ namespace Opc.Ua.Server
         /// Bad_NotReadable and the dynamic Session and Subscription diagnostic Nodes are
         /// removed from the AddressSpace. The Server keeps track of the live Sessions and
         /// Subscriptions, so enabling the collection again restores their diagnostic Nodes
-        /// with the same NodeIds. Subscriptions created while the collection is disabled
-        /// get no diagnostic Nodes. The server-wide counters are cumulative and are not
-        /// reset by either transition.
+        /// with the same NodeIds. Sessions and Subscriptions created while the collection is
+        /// disabled get their NodeIds assigned and their diagnostic Nodes are added when the
+        /// collection is enabled. The server-wide counters are cumulative and are not reset
+        /// by either transition.
         /// </remarks>
         public async ValueTask SetDiagnosticsEnabledAsync(
             ServerSystemContext context,
@@ -1332,31 +1333,44 @@ namespace Opc.Ua.Server
             SubscriptionDiagnosticsState? tempDiagnosticsNode = null;
             try
             {
-                // check if diagnostics have been enabled.
-                if (!DiagnosticsEnabled)
-                {
-                    return default;
-                }
-
                 tempDiagnosticsNode = new SubscriptionDiagnosticsState(null);
                 SubscriptionDiagnosticsState diagnosticsNode = tempDiagnosticsNode;
+                var browseName = QualifiedName.From(
+                    diagnostics.SubscriptionId.ToString(CultureInfo.InvariantCulture));
 
-                // create a new instance and assign ids.
-                nodeId = await CreateNodeAsync(
-                    SystemContext,
-                    default,
-                    ReferenceTypeIds.HasComponent,
-                    QualifiedName.From(
-                        diagnostics.SubscriptionId.ToString(CultureInfo.InvariantCulture)),
-                    diagnosticsNode,
-                    cancellationToken).ConfigureAwait(false);
-                tempDiagnosticsNode = null; // ownership transferred to address space
+                if (DiagnosticsEnabled)
+                {
+                    // create a new instance and assign ids.
+                    nodeId = await CreateNodeAsync(
+                        SystemContext,
+                        default,
+                        ReferenceTypeIds.HasComponent,
+                        browseName,
+                        diagnosticsNode,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    // like the session nodes, the subscription node is not part of the
+                    // address space while the collection is disabled; assign the ids so
+                    // that the node can be added when the collection is enabled.
+                    diagnosticsNode.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+                    diagnosticsNode.Create(SystemContext, default, browseName, default, true);
+                    SystemContext.AssignInstanceNodeId(diagnosticsNode);
+                    nodeId = diagnosticsNode.NodeId;
+                }
+                tempDiagnosticsNode = null; // ownership transferred to the subscription registration
 
                 SubscriptionDiagnosticsData subscriptionData = CreateSubscriptionDiagnosticsData(
                     diagnosticsNode, diagnostics, updateCallback);
                 lock (m_diagnosticsCollectionLock)
                 {
                     m_subscriptions.Add(subscriptionData);
+                }
+
+                if (!DiagnosticsEnabled)
+                {
+                    return nodeId;
                 }
 
                 LinkSubscriptionDiagnostics(diagnosticsNode, diagnostics);

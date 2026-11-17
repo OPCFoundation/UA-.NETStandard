@@ -69,6 +69,14 @@ namespace Opc.Ua.Server.AliasNames
         StringTable ServerUris { get; }
 
         /// <summary>
+        /// Returns the index of a remote server URI in <see cref="ServerUris"/>,
+        /// appending it and raising the server's <c>UrisVersion</c> when it is new.
+        /// </summary>
+        /// <param name="serverUri">The URI of the server hosting the target.</param>
+        /// <returns>The server index of the URI.</returns>
+        ushort GetServerIndexOrAppend(string serverUri);
+
+        /// <summary>
         /// The single namespace the materializer may mint NodeIds and
         /// BrowseNames into. Descriptors whose category NodeId lies in any
         /// other namespace resolve to predefined nodes or are skipped.
@@ -1081,7 +1089,7 @@ namespace Opc.Ua.Server.AliasNames
             }
             if (!string.IsNullOrEmpty(serverUri))
             {
-                return target.WithServerIndex(m_host.ServerUris.GetIndexOrAppend(serverUri!));
+                return target.WithServerIndex(m_host.GetServerIndexOrAppend(serverUri!));
             }
             if (target.ServerIndex != 0)
             {
