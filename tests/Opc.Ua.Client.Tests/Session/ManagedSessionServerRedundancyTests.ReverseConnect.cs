@@ -352,7 +352,7 @@ namespace Opc.Ua.Client.Tests
                 policy, timeout.Token, memberSource, primarySource, initialManager, initialDialed)
                 .ConfigureAwait(false);
             ServerRedundancyInfo info = await WaitForMemberAsync(
-                session, set.Backup, server => server.Endpoint != null, timeout.Token)
+                session, set.Backup, server => server.Endpoint != null, timeout.Token, memberSource)
                 .ConfigureAwait(false);
             int requests = memberSource.RequestCount(set.Backup.ApplicationUri);
 
@@ -405,11 +405,15 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// Waits for the requested member state and reports the last snapshot if the wait is canceled.
+        /// </summary>
         private static async Task<ServerRedundancyInfo> WaitForMemberAsync(
             UaManagedSession session,
             RedundantMember member,
             Func<RedundantServer, bool> condition,
-            CancellationToken ct)
+            CancellationToken ct,
+            RecordingMemberConnections? memberSource = null)
         {
             while (true)
             {
@@ -419,7 +423,26 @@ namespace Opc.Ua.Client.Tests
                 {
                     return info;
                 }
-                await Task.Delay(50, ct).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(50, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    ServerRedundancyInfo? latest = session.RedundancyInfo;
+                    string members = latest is null
+                        ? "No redundancy snapshot is available."
+                        : string.Join(Environment.NewLine, latest.RedundantServers.ToList().Select(server =>
+                            $"Member={server.ServerUri}; Endpoint={server.Endpoint?.EndpointUrl}; " +
+                            $"ServiceLevelKnown={server.ServiceLevelKnown}; Error={server.ResolutionError}"));
+                    await TestContext.Error.WriteLineAsync(
+                        $"Canceled waiting for member {member.ApplicationUri}; " +
+                        $"State={session.StateMachine.State}; Mode={latest?.Mode}; " +
+                        $"MemberSourceWaits={memberSource?.RequestCount(member.ApplicationUri)}." +
+                        Environment.NewLine +
+                        members).ConfigureAwait(false);
+                    throw;
+                }
             }
         }
 
