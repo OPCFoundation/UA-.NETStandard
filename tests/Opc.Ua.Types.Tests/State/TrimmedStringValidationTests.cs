@@ -204,6 +204,39 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
+        /// <summary>
+        /// A Variant array or matrix whose elements are Strings is accepted for a String
+        /// DataType, so its elements are trim-validated as well.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void WriteVariantCollectionIsTrimValidated(bool matrix, bool untrimmed)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(
+                s_trimmedStringTypeId,
+                matrix ? ValueRanks.TwoDimensions : ValueRanks.OneDimension);
+            Variant[] elements =
+            [
+                Variant.From("a"),
+                Variant.From("b"),
+                Variant.From("c"),
+                Variant.From(untrimmed ? " padded " : "d")
+            ];
+            Variant value = matrix
+                ? Variant.From(elements.ToMatrixOf(2, 2))
+                : Variant.From(elements.ToArrayOf());
+
+            ServiceResult result = Write(context, variable, value);
+
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo(untrimmed ? StatusCodes.BadTypeMismatch : StatusCodes.Good),
+                result.ToString());
+        }
+
         [Test]
         public void WriteTrimmedValuesIsAccepted()
         {
@@ -373,6 +406,53 @@ namespace Opc.Ua.Types.Tests.State
             {
                 Assert.That(invoked, Is.EqualTo(1));
                 Assert.That(errors, Has.All.Matches<ServiceResult>(e => ServiceResult.IsGood(e)));
+            }
+            else
+            {
+                Assert.That(invoked, Is.Zero);
+                Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            }
+        }
+
+        [TestCase(" padded ", false)]
+        [TestCase("clean", true)]
+        public async Task CallWithTrimmedStringVariantArrayArgumentValidatesWhiteSpaceAsync(
+            string element,
+            bool expectGood)
+        {
+            SystemContext context = CreateSystemContext();
+            var method = new MethodState(null);
+            method.CreateOrReplaceInputArguments(context, null).Value =
+            [
+                new Argument
+                {
+                    Name = "Ids",
+                    DataType = s_trimmedStringTypeId,
+                    ValueRank = ValueRanks.OneDimension
+                }
+            ];
+            method.Executable = true;
+            method.UserExecutable = true;
+            int invoked = 0;
+            method.OnCallMethod2Async = (_, _, _, _, _, _) =>
+            {
+                invoked++;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            };
+            Variant[] elements = [Variant.From("a"), Variant.From(element)];
+
+            var errors = new List<ServiceResult>();
+            ServiceResult result = await method.CallAsync(
+                context,
+                new NodeId(123u),
+                [Variant.From(elements.ToArrayOf())],
+                errors,
+                []).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            if (expectGood)
+            {
+                Assert.That(invoked, Is.EqualTo(1));
             }
             else
             {

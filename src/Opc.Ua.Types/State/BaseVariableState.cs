@@ -2001,7 +2001,7 @@ namespace Opc.Ua
             in Variant value)
         {
             if (indexRange.IsNull ||
-                value.TypeInfo.BuiltInType != BuiltInType.String ||
+                !MayContainString(value) ||
                 WritesWholeStringElements(indexRange, value))
             {
                 return false;
@@ -2028,18 +2028,17 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns <c>true</c> if <paramref name="dataType"/> is TrimmedString or a subtype
-        /// of it and the String value (or one element of the String array or matrix) has
-        /// leading or trailing white space (Unicode White_Space, Part 5 12.43). Returns
-        /// <c>false</c> for any value that is not a String without consulting the type
-        /// table.
+        /// of it and the String value (or one element of the String array or matrix, or
+        /// one String element of a Variant array or matrix) has leading or trailing white
+        /// space (Unicode White_Space, Part 5 12.43). Returns <c>false</c> for any value
+        /// that cannot hold a String without consulting the type table.
         /// </summary>
         internal static bool HasUntrimmedTrimmedStringValue(
             ISystemContext context,
             NodeId dataType,
             in Variant value)
         {
-            if (value.TypeInfo.BuiltInType != BuiltInType.String ||
-                value.IsNull ||
+            if (!MayContainString(value) ||
                 dataType.IsNull ||
                 dataType == DataTypeIds.String ||
                 dataType == DataTypeIds.BaseDataType)
@@ -2051,6 +2050,54 @@ namespace Opc.Ua
                 (context.TypeTable == null ||
                     !context.TypeTable.IsTypeOf(dataType, TrimmedStringDataTypeId)))
             {
+                return false;
+            }
+
+            return ContainsOuterWhiteSpace(value);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> for a non-null String value and for a Variant array or
+        /// matrix, whose elements are accepted for a String DataType when each one is a
+        /// String.
+        /// </summary>
+        private static bool MayContainString(in Variant value)
+        {
+            if (value.IsNull)
+            {
+                return false;
+            }
+
+            BuiltInType builtInType = value.TypeInfo.BuiltInType;
+            return builtInType == BuiltInType.String ||
+                (builtInType == BuiltInType.Variant && !value.TypeInfo.IsScalar);
+        }
+
+        private static bool ContainsOuterWhiteSpace(in Variant value)
+        {
+            if (value.TypeInfo.BuiltInType == BuiltInType.Variant)
+            {
+                if (value.TypeInfo.IsArray && value.TryGetValue(out ArrayOf<Variant> variants))
+                {
+                    foreach (Variant element in variants)
+                    {
+                        if (MayContainString(element) && ContainsOuterWhiteSpace(element))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                else if (value.TypeInfo.IsMatrix && value.TryGetValue(out MatrixOf<Variant> variantMatrix))
+                {
+                    foreach (Variant element in variantMatrix)
+                    {
+                        if (MayContainString(element) && ContainsOuterWhiteSpace(element))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
                 return false;
             }
 

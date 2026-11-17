@@ -133,6 +133,16 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ReadUrisVersion(), Is.EqualTo(after), "UrisVersion does not change without a table change.");
         }
 
+        /// <summary>
+        /// Monitored items of UrisVersion are sampled like NamespaceArray and ServerArray,
+        /// so a table change no caller reported reaches them without a client Read.
+        /// </summary>
+        [Test]
+        public void UrisVersionIsSampled()
+        {
+            Assert.That(GetUrisVersion().MinimumSamplingInterval, Is.GreaterThan(0));
+        }
+
         [Test]
         public void UrisVersionIsRaisedWhileServerIsSuspended()
         {

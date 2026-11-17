@@ -1554,9 +1554,12 @@ namespace Opc.Ua.Server
 
             // UrisVersion starts at the startup time (Part 5 §6.3.1, Part 4 §7.43) and is raised
             // on every change of the tables; a read catches up with a change no caller reported.
+            // Like NamespaceArray and ServerArray it is sampled, so monitored items see a table
+            // change no caller reported as well.
             if (serverObject.UrisVersion is { } urisVersion)
             {
                 urisVersion.OnSimpleReadValue = OnReadUrisVersion;
+                urisVersion.MinimumSamplingInterval = 1000;
                 ServerUrisVersion.Update(this);
             }
 

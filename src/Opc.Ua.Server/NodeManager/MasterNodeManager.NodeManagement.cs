@@ -1547,7 +1547,47 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadReferenceNotAllowed);
             }
 
+            // HasProperty makes the TargetNode a Property, which must not already be the
+            // SourceNode of a hierarchical Reference (Part 3 5.6.3).
+            if (constrainedReferenceTypeId == ReferenceTypeIds.HasProperty &&
+                HasForwardHierarchicalReference(toNode))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceNotAllowed);
+            }
+
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns true when the node is the SourceNode of a hierarchical Reference: it has
+        /// a child, or a forward hierarchical Reference added through AddReferences.
+        /// </summary>
+        private bool HasForwardHierarchicalReference(NodeState? node)
+        {
+            if (node == null)
+            {
+                return false;
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(Server.DefaultSystemContext, children);
+            if (children.Count > 0)
+            {
+                return true;
+            }
+
+            var references = new List<IReference>();
+            node.GetReferences(Server.DefaultSystemContext, references);
+            foreach (IReference reference in references)
+            {
+                if (!reference.IsInverse &&
+                    Server.TypeTree.IsTypeOf(reference.ReferenceTypeId, ReferenceTypeIds.HierarchicalReferences))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

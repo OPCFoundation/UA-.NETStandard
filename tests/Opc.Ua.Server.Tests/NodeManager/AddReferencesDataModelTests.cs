@@ -246,6 +246,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// HasProperty cannot make a Node a Property while it is the SourceNode of a
+        /// hierarchical Reference (Part 3 5.6.3), whether the child was added through
+        /// AddReferences or is an intrinsic child of the Node.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task HasPropertyToNodeWithHierarchicalChildIsRejectedAsync(bool inverse, bool intrinsicChild)
+        {
+            await using var harness = new Harness();
+            if (intrinsicChild)
+            {
+                ushort ns = harness.Owner.NamespaceIndex;
+                harness.UntypedVariable.AddChild(new PropertyState(harness.UntypedVariable)
+                {
+                    NodeId = new NodeId("UntypedVariable_Child", ns),
+                    BrowseName = new QualifiedName("Child", ns),
+                    ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                    TypeDefinitionId = VariableTypeIds.PropertyType
+                });
+            }
+            await harness.InitializeAsync().ConfigureAwait(false);
+            if (!intrinsicChild)
+            {
+                StatusCode component = await harness.AddReferenceAsync(
+                    harness.UntypedVariable.NodeId,
+                    ReferenceTypeIds.HasComponent,
+                    harness.DataVariable.NodeId).ConfigureAwait(false);
+                Assert.That(component, Is.EqualTo(StatusCodes.Good));
+            }
+
+            StatusCode result = await harness.AddReferenceAsync(
+                harness.Folder.NodeId,
+                ReferenceTypeIds.HasProperty,
+                harness.UntypedVariable.NodeId,
+                inverse).ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
+            Assert.That(harness.Folder.ReferenceExists(
+                ReferenceTypeIds.HasProperty, false, harness.UntypedVariable.NodeId), Is.False);
+        }
+
+        /// <summary>
         /// Concurrent requests cannot both give a Node a HasTypeDefinition.
         /// </summary>
         [Test]
