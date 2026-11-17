@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -593,6 +594,7 @@ namespace Opc.Ua.Gds.Client
                 applicationId, requestId, ct).ConfigureAwait(false);
             if (!privateKey.IsEmpty)
             {
+                ClearPrivateKeyMaterial(privateKey);
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed, "A signing request unexpectedly returned a private key.");
             }
@@ -773,6 +775,17 @@ namespace Opc.Ua.Gds.Client
             return id.TryGetValue(out ByteString bytes)
                 ? new NodeId(CopyByteString(bytes), id.NamespaceIndex)
                 : id;
+        }
+
+        /// <summary>
+        /// Clears array-backed private-key material returned by a certificate request.
+        /// </summary>
+        internal static void ClearPrivateKeyMaterial(ByteString privateKey)
+        {
+            if (MemoryMarshal.TryGetArray(privateKey.Memory, out ArraySegment<byte> bytes) && bytes.Array != null)
+            {
+                Array.Clear(bytes.Array, bytes.Offset, bytes.Count);
+            }
         }
 
         /// <summary>

@@ -2547,12 +2547,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var applicationId = new NodeId("app", 2);
             var requestId = new NodeId("request", 2);
             ByteString certificate = ByteString.From(new byte[] { 1 });
+            byte[] privateKey = [2, 3, 4];
             NodeId startSigningRequestMethodId = NodeId.Null;
             await using var session = CreateConfidentialSession(request =>
                 request.ObjectId == kRegistrar.CertificateDirectoryId
                     ? request.MethodId == startSigningRequestMethodId
                         ? Good(requestId)
-                        : Good(certificate, certificate, Variant.From(ArrayOf<ByteString>.Null))
+                        : Good(certificate, ByteString.From(privateKey), Variant.From(ArrayOf<ByteString>.Null))
                     : throw new AssertionException("Unexpected certificate-directory object."));
             startSigningRequestMethodId = Resolve(
                 Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartSigningRequest,
@@ -2566,6 +2567,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await adapter.FinishAsync(applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(privateKey, Is.EqualTo(new byte[3]));
         }
 
         [Test]

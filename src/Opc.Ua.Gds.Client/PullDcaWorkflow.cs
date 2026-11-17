@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -702,7 +701,7 @@ namespace Opc.Ua.Gds.Client
                     }
                     finally
                     {
-                        ClearPrivateKeyPfx(privateKeyPfx);
+                        PullDcaConnection.ClearPrivateKeyMaterial(privateKeyPfx);
                     }
                 }
 
@@ -713,14 +712,6 @@ namespace Opc.Ua.Gds.Client
                 throw new PullDcaCertificatePendingException(applicationId, requestId);
             }
             throw new ServiceResultException(StatusCodes.BadInvalidState);
-        }
-
-        private static void ClearPrivateKeyPfx(ByteString privateKeyPfx)
-        {
-            if (MemoryMarshal.TryGetArray(privateKeyPfx.Memory, out ArraySegment<byte> bytes) && bytes.Array != null)
-            {
-                Array.Clear(bytes.Array, bytes.Offset, bytes.Count);
-            }
         }
 
         /// <summary>
