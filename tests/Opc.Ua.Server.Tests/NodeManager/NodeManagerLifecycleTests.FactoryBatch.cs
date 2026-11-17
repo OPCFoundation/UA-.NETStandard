@@ -729,9 +729,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(reused);
 
-                await Assert.ThatAsync(() => lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Replace(current, reuseFactory.Object)], timeout.Token).AsTask(),
-                    Throws.TypeOf<NodeManagerAlreadyRegisteredException>()).ConfigureAwait(false);
+                if (synchronous || roundtrip)
+                {
+                    await Assert.ThatAsync(() => lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Replace(current, reuseFactory.Object)], timeout.Token).AsTask(),
+                        Throws.TypeOf<NodeManagerBorrowedResourceException>()).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Assert.ThatAsync(() => lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Replace(current, reuseFactory.Object)], timeout.Token).AsTask(),
+                        Throws.TypeOf<NodeManagerAlreadyRegisteredException>()).ConfigureAwait(false);
+                }
 
                 reuseFactory.Verify(value => value.CreateAsync(
                     It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()),

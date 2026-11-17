@@ -335,13 +335,6 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                if (!rawResource &&
-                    ((boundGeneration is null && (identityAlias || privateAlias)) ||
-                        ReferenceEquals(candidate, boundGeneration) || privateAlias))
-                {
-                    generation = candidate;
-                    return true;
-                }
                 visibleRoutes++;
                 routed = candidate;
                 routedAllowed = boundGeneration is null

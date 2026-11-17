@@ -5714,9 +5714,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerBatchResult removal = await CommitChangeAsync(
                     m_server.NodeManagerLifecycle, NodeManagerBatchChange.Remove(registration))
                     .ConfigureAwait(false);
-                await Assert.ThatAsync(
-                    () => removal.Retirement.WaitAsync(TimeSpan.FromSeconds(30)),
-                    Throws.TypeOf<SentinelException>().With.Message.EqualTo("Dispose failed.")).ConfigureAwait(false);
+                AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(async () =>
+                    await removal.Retirement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
+                Assert.That(
+                    failure.InnerExceptions,
+                    Has.Some.TypeOf<SentinelException>().With.Message.EqualTo("Dispose failed."));
+                Assert.That(
+                    failure.InnerExceptions,
+                    Has.Some.TypeOf<InvalidOperationException>().With.Message.EqualTo(
+                        "The node manager did not start its base resource disposal."));
 
                 // Retirement reports the first failure only after the automatic retry disposed the manager.
                 Assert.That(manager.DisposalCompleted.IsCompleted, Is.True);

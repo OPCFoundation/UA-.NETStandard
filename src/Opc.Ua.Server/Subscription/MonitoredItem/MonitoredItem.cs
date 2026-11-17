@@ -774,6 +774,37 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        void IMonitoredItemGenerationBinding.DeferDisposal()
+        {
+            lock (m_lock)
+            {
+                if (!m_isDisposed)
+                {
+                    m_deferredDisposalCount++;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        void IMonitoredItemGenerationBinding.CompleteDeferredDisposal()
+        {
+            bool dispose;
+            lock (m_lock)
+            {
+                if (m_deferredDisposalCount == 0)
+                {
+                    return;
+                }
+                m_deferredDisposalCount--;
+                dispose = m_deferredDisposalCount == 0 && m_disposalRequested;
+            }
+            if (dispose)
+            {
+                Dispose();
+            }
+        }
+
+        /// <inheritdoc/>
         bool IMonitoredItemGenerationBinding.IsRemoved
         {
             get
@@ -3840,6 +3871,11 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
+                if (m_deferredDisposalCount > 0)
+                {
+                    m_disposalRequested = true;
+                    return;
+                }
 
                 m_isDisposed = true;
                 m_subscriptionOwnership = SubscriptionOwnership.Released;
@@ -3978,6 +4014,8 @@ namespace Opc.Ua.Server
         };
         private readonly ILogger m_logger;
         private bool m_isDisposed;
+        private int m_deferredDisposalCount;
+        private bool m_disposalRequested;
 
         /// <summary>The subscription's ownership of this item's generation binding.</summary>
         private SubscriptionOwnership m_subscriptionOwnership;

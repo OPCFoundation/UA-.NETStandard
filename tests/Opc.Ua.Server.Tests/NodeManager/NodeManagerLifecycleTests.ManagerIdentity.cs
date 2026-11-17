@@ -920,9 +920,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
 
                 var reference = new LocalReference(
-                    currentSource.Source.NodeId, ReferenceTypeIds.Organizes, false, target.NodeId, target);
+                    currentSource.Source.NodeId, ReferenceTypeIds.Organizes, false, target.NodeId);
                 ChangePreparer.StagingServer staging = ChangePreparer.GetServer(targetOwner)
                     ?? throw new InvalidOperationException("The target owner has no staging server.");
+                Assert.That(
+                    ((MasterNodeManager)m_server.CurrentInstance.NodeManager)
+                        .GetPublishedRootNotifierOwner(targetOwner),
+                    Is.Not.Null);
                 var cleanup = new List<LocalReference> { reference };
                 staging.ExcludePreparedReferences(cleanup);
                 Assert.That(cleanup, Is.Empty);
@@ -946,6 +950,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     NodeManagerBatchResult result = await deciding.CommitAsync(async token =>
                     {
+                        Assert.That(
+                            ((MasterNodeManager)m_server.CurrentInstance.NodeManager)
+                                .GetPublishedRootNotifierOwner(targetOwner),
+                            Is.Not.Null);
                         Task removal;
                         using (ExecutionContext.SuppressFlow())
                         {

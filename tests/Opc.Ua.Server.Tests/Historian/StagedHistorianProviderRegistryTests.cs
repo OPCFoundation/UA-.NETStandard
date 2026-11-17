@@ -611,7 +611,6 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(abortedCandidate.Providers, Has.Count.EqualTo(2));
 
             publishedCandidate.Publish();
-            publishedCandidate.Dispose();
             abortedCandidate.Dispose();
 
             Assert.That(serving.Resolve(originalNode), Is.SameAs(original));
@@ -619,6 +618,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(serving.Providers, Has.Count.EqualTo(2));
             Assert.That(shared.DisposeCount, Is.Zero);
 
+            Assert.That(publishedCandidate.Retire(), Is.True);
             serving.Dispose();
 
             Assert.That(original.DisposeCount, Is.EqualTo(1));

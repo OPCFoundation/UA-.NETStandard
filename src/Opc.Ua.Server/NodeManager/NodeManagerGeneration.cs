@@ -1367,6 +1367,11 @@ namespace Opc.Ua.Server
         internal bool RemovalRequested { get; set; }
 
         /// <summary>
+        /// Gets or sets whether this binding holds a monitored item disposal lease.
+        /// </summary>
+        internal bool RetainsDisposal { get; set; }
+
+        /// <summary>
         /// Gets or sets completion for the active transition.
         /// </summary>
         internal TaskCompletionSource<bool>? Completion { get; set; }

@@ -640,6 +640,7 @@ namespace Opc.Ua.Server
                         record.RemovalRequested = true;
                         record.Completion = null;
                     }
+                    RetainItemForRetry(record, monitoredItem);
                     owner!.TrySetResult(true);
                     if (failure is not null)
                     {
@@ -727,6 +728,7 @@ namespace Opc.Ua.Server
                         record.RemovalRequested = true;
                         record.Completion = null;
                     }
+                    RetainItemForRetry(record, monitoredItem);
                     owner!.TrySetResult(true);
                     return result;
                 }
@@ -749,8 +751,28 @@ namespace Opc.Ua.Server
                     record.RemovalRequested = true;
                     record.Completion = null;
                 }
+                RetainItemForRetry(record, monitoredItem);
                 owner!.TrySetResult(true);
                 throw;
+            }
+        }
+
+        private static void RetainItemForRetry(
+            GenerationEventBindingRecord record,
+            IEventMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is not IMonitoredItemGenerationBinding binding)
+            {
+                return;
+            }
+            lock (record.Sync)
+            {
+                if (record.RetainsDisposal)
+                {
+                    return;
+                }
+                record.RetainsDisposal = true;
+                binding.DeferDisposal();
             }
         }
 
@@ -766,10 +788,18 @@ namespace Opc.Ua.Server
                     generation.EventBindings).Remove(
                     new KeyValuePair<IEventMonitoredItem, GenerationEventBindingRecord>(monitoredItem, record));
             }
+            bool completeDeferredDisposal;
             lock (record.Sync)
             {
+                completeDeferredDisposal = record.RetainsDisposal;
+                record.RetainsDisposal = false;
                 record.State = GenerationEventBindingState.Removed;
                 record.Completion = null;
+            }
+            if (completeDeferredDisposal &&
+                monitoredItem is IMonitoredItemGenerationBinding binding)
+            {
+                binding.CompleteDeferredDisposal();
             }
         }
 
