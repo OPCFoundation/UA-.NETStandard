@@ -209,6 +209,43 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             int starts = 0;
             session.Handler = (request, _) =>
             {
+                if (request is TranslateBrowsePathsToNodeIdsRequest translate)
+                {
+                    var results = new BrowsePathResult[translate.BrowsePaths.Count];
+                    for (int i = 0; i < results.Length; i++)
+                    {
+                        ArrayOf<RelativePathElement> elements = translate.BrowsePaths[i].RelativePath.Elements;
+                        NodeId methodId = elements[0].TargetName.Name switch
+                        {
+                            "GetCertificates" => ExpandedNodeId.ToNodeId(
+                                Opc.Ua.Gds.MethodIds.CertificateDirectoryType_GetCertificates,
+                                session.MessageContext.NamespaceUris),
+                            "StartSigningRequest" => ExpandedNodeId.ToNodeId(
+                                Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartSigningRequest,
+                                session.MessageContext.NamespaceUris),
+                            _ => NodeId.Null
+                        };
+                        results[i] = methodId.IsNull
+                            ? new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch, Targets = [] }
+                            : new BrowsePathResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                Targets =
+                                [
+                                    new BrowsePathTarget
+                                    {
+                                        TargetId = new ExpandedNodeId(methodId),
+                                        RemainingPathIndex = uint.MaxValue
+                                    }
+                                ]
+                            };
+                    }
+                    return new ValueTask<IServiceResponse>(new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = results
+                    });
+                }
                 var method = ((CallRequest)request).MethodsToCall[0];
                 if (method.MethodId == start)
                 {
@@ -469,23 +506,36 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             PullDcaSigningBinding resolved = await ResolveAsync(journal, binding, session).ConfigureAwait(false);
             PullDcaCredentials candidate = Issue(binding.SigningRequest, kApplicationUri, "CN=Renamed");
             var recovery = new DevicePullSigningRecovery(journal, keys, _ => Task.FromResult(session.ManagedSession));
-            var connection = new Mock<IPullDcaConnection>(MockBehavior.Strict);
-            connection.As<IPullDcaBoundSigningConnection>()
-                .Setup(value => value.GetSigningBindingAsync(
-                    resolved.ApplicationId, resolved.RequestId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(resolved);
-            connection.Setup(value => value.FinishAsync(
-                    resolved.ApplicationId, resolved.RequestId, It.IsAny<CancellationToken>()))
-                .Returns(() => ValueTask.FromException<(ByteString, ArrayOf<ByteString>)>(
-                    new ServiceResultException(StatusCodes.BadInvalidArgument)));
+            var connection = new FakePullDcaBoundSigningConnection(
+                (applicationId, requestId, _) =>
+                {
+                    Assert.That(applicationId, Is.EqualTo(resolved.ApplicationId));
+                    Assert.That(requestId, Is.EqualTo(resolved.RequestId));
+                    return new ValueTask<PullDcaSigningBinding>(resolved);
+                })
+            {
+                Finish = (applicationId, requestId, _) =>
+                {
+                    Assert.That(applicationId, Is.EqualTo(resolved.ApplicationId));
+                    Assert.That(requestId, Is.EqualTo(resolved.RequestId));
+                    return ValueTask.FromException<(ByteString, ArrayOf<ByteString>)>(
+                        new ServiceResultException(StatusCodes.BadInvalidArgument));
+                }
+            };
             ArrayOf<NodeId> types = [resolved.Profile.CertificateTypeId];
             ArrayOf<ByteString> certificates = [candidate.Certificate];
-            connection.Setup(value => value.GetCertificatesAsync(
-                    resolved.ApplicationId, resolved.Profile.CertificateGroupId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync((types, certificates));
-            connection.Setup(value => value.ReadTrustListAsync(
-                    resolved.ApplicationId, resolved.Profile.CertificateGroupId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(candidate.TrustList);
+            connection.GetCertificates = (applicationId, certificateGroupId, _) =>
+            {
+                Assert.That(applicationId, Is.EqualTo(resolved.ApplicationId));
+                Assert.That(certificateGroupId, Is.EqualTo(resolved.Profile.CertificateGroupId));
+                return new ValueTask<(ArrayOf<NodeId>, ArrayOf<ByteString>)>((types, certificates));
+            };
+            connection.ReadTrustList = (applicationId, certificateGroupId, _) =>
+            {
+                Assert.That(applicationId, Is.EqualTo(resolved.ApplicationId));
+                Assert.That(certificateGroupId, Is.EqualTo(resolved.Profile.CertificateGroupId));
+                return new ValueTask<TrustListDataType>(candidate.TrustList);
+            };
             var credentials = new Mock<IPullDcaCredentialProvider>(MockBehavior.Strict);
             credentials.As<IPullDcaBoundCredentialProvider>()
                 .Setup(value => value.InstallAsync(
@@ -503,7 +553,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 });
             var workflow = new PullDcaWorkflow(
                 new PullDcaOptions(),
-                (_, _) => new ValueTask<IPullDcaConnection>(connection.Object),
+                (_, _) => new ValueTask<IPullDcaConnection>(connection),
                 Mock.Of<IPullDcaIdentityProvider>(),
                 credentials.Object,
                 receipts: journal,
@@ -516,14 +566,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(installed.Certificate, Is.EqualTo(candidate.Certificate));
             Assert.That((await journal.ReadAsync().ConfigureAwait(false))!.Stage,
                 Is.EqualTo(DevicePullJournalStage.Installed));
-            connection.Verify(value => value.FinishAsync(
-                resolved.ApplicationId, resolved.RequestId, It.IsAny<CancellationToken>()), Times.Once);
-            connection.Verify(value => value.GetCertificatesAsync(
-                resolved.ApplicationId, resolved.Profile.CertificateGroupId, It.IsAny<CancellationToken>()),
-                Times.Once);
-            connection.Verify(value => value.ReadTrustListAsync(
-                resolved.ApplicationId, resolved.Profile.CertificateGroupId, It.IsAny<CancellationToken>()),
-                Times.Exactly(2));
+            Assert.That(connection.FinishCalls, Is.EqualTo(1));
+            Assert.That(connection.GetCertificatesCalls, Is.EqualTo(1));
+            Assert.That(connection.ReadTrustListCalls, Is.EqualTo(2));
             credentials.As<IPullDcaBoundCredentialProvider>().Verify(value => value.InstallAsync(
                 It.Is<PullDcaSigningBinding>(actual => actual.AttemptId == binding.AttemptId),
                 It.Is<PullDcaCredentials>(actual => actual.Certificate == candidate.Certificate),

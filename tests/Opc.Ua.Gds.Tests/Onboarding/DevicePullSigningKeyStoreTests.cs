@@ -892,22 +892,23 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .Returns(default(ValueTask));
             var credentials = new DevicePullCredentials(
                 identity.Object, keys, security.Object, sessions.GetCurrentAsync, kRegistrarUri);
-            var connection = new Mock<IPullDcaConnection>(MockBehavior.Strict);
-            Mock<IPullDcaBoundSigningConnection> bound = connection.As<IPullDcaBoundSigningConnection>();
-            bound.Setup(value => value.GetSigningBindingAsync(
-                    It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
-                .Returns(async (NodeId application, NodeId request, CancellationToken ct) =>
+            var connection = new FakePullDcaBoundSigningConnection(
+                async (NodeId application, NodeId request, CancellationToken ct) =>
                 {
                     DevicePullJournalCheckpoint resolved = await journal.ReadForSessionAsync(
                         session.ManagedSession.NamespaceUris.ToArrayOf(), ct).ConfigureAwait(false);
                     Assert.That(application, Is.EqualTo(resolved.Binding.ApplicationId));
                     Assert.That(request, Is.EqualTo(resolved.Binding.RequestId));
                     return resolved.Binding;
-                });
-            connection.Setup(value => value.GetManagersOnInstalledChannelAsync(
-                    It.Is<PullDcaSigningBinding>(retained => retained.AttemptId == binding.AttemptId),
-                    issued.Certificate, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ArrayOf<ManagerDescription>>(ArrayOf<ManagerDescription>.Empty));
+                })
+            {
+                GetManagersOnInstalledChannel = (retained, installedCertificate, _) =>
+                {
+                    Assert.That(retained?.AttemptId, Is.EqualTo(binding.AttemptId));
+                    Assert.That(installedCertificate, Is.EqualTo(issued.Certificate));
+                    return new ValueTask<ArrayOf<ManagerDescription>>(ArrayOf<ManagerDescription>.Empty);
+                }
+            };
             int connectionFactories = 0;
             var workflow = new PullDcaWorkflow(
                 new PullDcaOptions(),
@@ -918,7 +919,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         Is.SameAs(session.ManagedSession));
                     Assert.That(registrar.RegistrarId.NamespaceIndex,
                         Is.EqualTo(session.ManagedSession.NamespaceUris.GetIndex("urn:pull-key-test")));
-                    return connection.Object;
+                    return connection;
                 },
                 credentials, credentials, receipts: journal, signingJournal: journal);
             var registrars = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
@@ -966,18 +967,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             if (mismatch == null)
             {
                 await task.OnServerStartedAsync(Mock.Of<IServerContext>()).ConfigureAwait(false);
-                connection.Verify(value => value.GetManagersOnInstalledChannelAsync(
-                        It.Is<PullDcaSigningBinding>(retained => retained.AttemptId == binding.AttemptId),
-                        issued.Certificate, It.IsAny<CancellationToken>()), Times.Once);
+                Assert.That(connection.GetManagersOnInstalledChannelCalls, Is.EqualTo(1));
                 Assert.That(connectionFactories, Is.EqualTo(alreadyInstalled ? 1 : 2));
             }
             else
             {
                 await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await task.OnServerStartedAsync(Mock.Of<IServerContext>()).ConfigureAwait(false));
-                connection.Verify(value => value.GetManagersOnInstalledChannelAsync(
-                        It.IsAny<PullDcaSigningBinding>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()),
-                    Times.Never);
+                Assert.That(connection.GetManagersOnInstalledChannelCalls, Is.Zero);
                 Assert.That(connectionFactories, Is.EqualTo(alreadyInstalled ? 0 : 1));
             }
             identity.Verify(value => value.ActivateAsync(
