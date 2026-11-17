@@ -454,6 +454,12 @@ namespace Opc.Ua
         /// <summary>
         /// Reserves an unchanged namespace prefix and preallocates additions before the decision callback.
         /// </summary>
+        /// <exception cref="OptimisticPublicationConflictException">
+        /// The serving namespace prefix changed after preparation.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// Another publication already reserves the namespace prefix.
+        /// </exception>
         internal Publication BeginPublication(StringTable additions, long revision)
         {
             string[] proposed = additions.ToArray();
@@ -478,6 +484,9 @@ namespace Opc.Ua
         /// <summary>
         /// Rejects changes while a lifecycle decision reserves the namespace prefix.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// A publication reserves the namespace prefix.
+        /// </exception>
         private void EnsureMutable()
         {
             if (m_storage.PublicationPending is not null)
@@ -510,6 +519,15 @@ namespace Opc.Ua
             /// Appends an unrelated URI under this exact reservation, preserving every staged index.
             /// Reserved URI entries become permanent if needed to reach the unrelated entry's index.
             /// </summary>
+            /// <exception cref="ArgumentNullException">
+            /// <paramref name="value"/> is null or empty.
+            /// </exception>
+            /// <exception cref="InvalidOperationException">
+            /// This publication no longer owns the reservation.
+            /// </exception>
+            /// <exception cref="ServiceResultException">
+            /// Appending the URI would exceed the namespace index limit.
+            /// </exception>
             internal ushort GetIndexOrAppend(string value)
             {
                 if (string.IsNullOrEmpty(value))

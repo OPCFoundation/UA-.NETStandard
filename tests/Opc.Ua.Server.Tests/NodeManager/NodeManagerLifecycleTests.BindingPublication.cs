@@ -455,7 +455,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                     await abandoned.CommitAsync(_ => default, cancelled.Token).ConfigureAwait(false),
                                     Throws.InstanceOf<OperationCanceledException>())
                                     .ConfigureAwait(false);
-                                    await exactWriter5.DisposeAsync().ConfigureAwait(false);
+                                await exactWriter5.DisposeAsync().ConfigureAwait(false);
                             }
                             else if (subsequentChange == 9)
                             {

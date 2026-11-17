@@ -3430,8 +3430,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets or sets an optional asynchronous verification used by the test.
             /// </summary>
-            internal Func<RetainedNodeManagerCleanupFailure, NodeManagerCleanupResource, CancellationToken,
-                ValueTask<bool>>? VerifyResourceAsync { get; set; }
+            internal Func<
+                RetainedNodeManagerCleanupFailure,
+                NodeManagerCleanupResource,
+                CancellationToken,
+                ValueTask<bool>>? VerifyResourceAsync
+            { get; set; }
 
             /// <summary>
             /// Gets the most recent sanitized description passed to the verifier.

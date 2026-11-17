@@ -1795,7 +1795,7 @@ Releasing a point, cache eviction, cancellation, or Session close also disposes 
 state. The reclaimer does not notify custom `ISessionContinuationPoints` implementations, and
 custom history continuations use the NodeManager's history dispatch path instead of the built-in
 saved-generation path. Their retirement behavior needs separate validation; see
-[Retained lifecycle API](#retained-lifecycle-api).
+[lifecycle migration limitations](MigrationGuide.md#migrating-the-2x-nodemanager-lifecycle).
 
 Paged Browse does not require pre-enumerating targets or declaring dependencies; the file-system
 `DirectoryBrowser` uses ordinary cursor pagination. With the built-in Session store, history
