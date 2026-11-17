@@ -78,6 +78,9 @@ namespace Opc.Ua.Server.Tests
 
             public void InvokeOnReverseConnect(long version)
             {
+                // A started server accepts connections before its reverse
+                // connect timer runs; this one is driven without a start.
+                StartAcceptingConnectionsAsync().AsTask().GetAwaiter().GetResult();
                 MethodInfo method = typeof(ReverseConnectServer).GetMethod(
                     "OnReverseConnect",
                     BindingFlags.Instance | BindingFlags.NonPublic)!;

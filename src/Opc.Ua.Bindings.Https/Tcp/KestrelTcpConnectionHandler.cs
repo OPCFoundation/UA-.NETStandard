@@ -56,6 +56,13 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public override async Task OnConnectedAsync(ConnectionContext connection)
         {
+            // A server that is still starting holds the connection here.
+            if (!await m_owner.WaitUntilAcceptingAsync(connection.ConnectionClosed).ConfigureAwait(false))
+            {
+                connection.Abort();
+                return;
+            }
+
             bool admitted = m_owner.TryAdmitConnection(
                 connection.RemoteEndPoint, out UaScConnectionAdmission.Lease? lease);
             using (lease)

@@ -491,6 +491,12 @@ namespace Opc.Ua
             try
             {
                 await OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
+
+                // the listeners were bound but took no connection so far.
+                if (AcceptConnectionsOnStart)
+                {
+                    await StartAcceptingConnectionsAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (Exception startupException) when (
                 startupException is not OutOfMemoryException)
@@ -762,6 +768,12 @@ namespace Opc.Ua
             // covers both contracts; DisposeAsync is idempotent on
             // already-disposed listeners.
             List<ITransportListener>? listeners = TransportListeners;
+
+            // a restart binds the listeners again before it takes connections.
+            lock (m_acceptLock)
+            {
+                m_acceptingConnections = false;
+            }
 
             if (listeners != null)
             {
@@ -1098,6 +1110,67 @@ namespace Opc.Ua
         protected List<ITransportListener> TransportListeners { get; } = [];
 
         /// <summary>
+        /// Whether <c>StartAsync</c> lets the transport listeners take
+        /// connections once the server is started. Defaults to <c>true</c>.
+        /// </summary>
+        /// <remarks>
+        /// The listeners are bound while the server starts, so a taken port
+        /// fails the start, but take no connection until the application is
+        /// started and <see cref="OnServerStartedAsync"/> has completed. A
+        /// client that connects earlier waits and is served afterwards. Set
+        /// this to <c>false</c> when the host has more post-start work that
+        /// must finish before clients are served, and call
+        /// <see cref="StartAcceptingConnectionsAsync"/> when that work is done.
+        /// Listeners that do not implement
+        /// <see cref="ITransportListenerAcceptControl"/> take connections as
+        /// soon as they are opened.
+        /// </remarks>
+        public bool AcceptConnectionsOnStart { get; set; } = true;
+
+        /// <summary>
+        /// Whether the transport listeners take connections.
+        /// </summary>
+        public bool IsAcceptingConnections
+        {
+            get
+            {
+                lock (m_acceptLock)
+                {
+                    return m_acceptingConnections;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Lets the transport listeners take connections. <c>StartAsync</c>
+        /// calls this unless <see cref="AcceptConnectionsOnStart"/> is
+        /// <c>false</c>. Listeners opened later take connections at once.
+        /// Calling it again does nothing.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask StartAcceptingConnectionsAsync(CancellationToken cancellationToken = default)
+        {
+            ITransportListener[] listeners;
+            lock (m_acceptLock)
+            {
+                if (m_acceptingConnections)
+                {
+                    return;
+                }
+                m_acceptingConnections = true;
+                listeners = [.. TransportListeners];
+            }
+
+            foreach (ITransportListener listener in listeners)
+            {
+                if (listener is ITransportListenerAcceptControl acceptControl)
+                {
+                    await acceptControl.StartAcceptingAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// List of all server wide supported token policies
         /// </summary>
         protected IList<UserTokenPolicy> UserTokenPolicys { get; } = [];
@@ -1228,13 +1301,28 @@ namespace Opc.Ua
                 // (listener backlog + connection rate limiter) into the settings.
                 ConfigureTransportListenerSettings(settings, endpointUri);
 
+                // bind now but take no connection before the server is started.
+                var acceptControl = listener as ITransportListenerAcceptControl;
+                settings.DeferAccept = acceptControl != null;
+
                 await listener.OpenAsync(endpointUri, settings, GetEndpointInstance(this)!, ct)
                     .ConfigureAwait(false);
 
-                TransportListeners.Add(listener);
+                bool accepting;
+                lock (m_acceptLock)
+                {
+                    TransportListeners.Add(listener);
+                    accepting = m_acceptingConnections;
+                }
                 tracked = true;
 
                 listener.ConnectionStatusChanged += OnConnectionStatusChanged;
+
+                // a listener opened after the start takes connections at once.
+                if (accepting && acceptControl != null)
+                {
+                    await acceptControl.StartAcceptingAsync(ct).ConfigureAwait(false);
+                }
             }
             catch (Exception e)
             {
@@ -2235,6 +2323,8 @@ namespace Opc.Ua
         private bool m_ownsCertificateManager;
         private readonly Lock m_stopLock = new();
         private Task? m_stopTask;
+        private readonly Lock m_acceptLock = new();
+        private bool m_acceptingConnections;
     }
 
     /// <summary>

@@ -58,6 +58,11 @@ namespace Opc.Ua
         /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
+        /// <remarks>
+        /// A listener that implements <see cref="ITransportListenerAcceptControl"/>
+        /// only binds its address when
+        /// <see cref="TransportListenerSettings.DeferAccept"/> is set.
+        /// </remarks>
         /// <param name="baseAddress">The base address.</param>
         /// <param name="settings">The settings to use when creating the listener.</param>
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
@@ -113,6 +118,37 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="globalChannelId">The global channel id</param>
         void UpdateChannelLastActiveTime(string globalChannelId);
+    }
+
+    /// <summary>
+    /// A transport listener that can be opened (bound to its address) without
+    /// taking connections yet.
+    /// </summary>
+    /// <remarks>
+    /// When <see cref="TransportListenerSettings.DeferAccept"/> is set, the
+    /// listener reserves its address in
+    /// <see cref="ITransportListener.OpenAsync"/>, so a taken port still fails
+    /// the server start, but serves no client until
+    /// <see cref="StartAcceptingAsync"/> is called. A server uses this to keep
+    /// clients out until it is fully started. Connections that arrive before
+    /// wait (for example in the socket backlog) and are served afterwards.
+    /// A listener that does not implement this interface accepts connections
+    /// as soon as it is opened.
+    /// </remarks>
+    public interface ITransportListenerAcceptControl
+    {
+        /// <summary>
+        /// Whether the listener serves connections.
+        /// </summary>
+        bool IsAccepting { get; }
+
+        /// <summary>
+        /// Starts serving connections on a listener opened with
+        /// <see cref="TransportListenerSettings.DeferAccept"/>. Does nothing
+        /// when the listener already serves connections.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask StartAcceptingAsync(CancellationToken ct = default);
     }
 
     /// <summary>
