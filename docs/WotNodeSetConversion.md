@@ -132,6 +132,19 @@ ModellingRule Object at all. The four rules therefore map as:
 Both conversion directions derive these identifiers from one pair of constants,
 so a round trip preserves the modelling rule it started with.
 
+Generated Thing Models also list affordances with `Optional` or
+`OptionalPlaceholder` modelling rules in the top-level `tm:optional` array.
+The entries are JSON Pointers to the emitted affordance names, with `/` and
+`~` escaped according to RFC 6901. Required members and members without a
+modelling rule are not added. Thing Descriptions do not receive this array.
+
+`tm:optional` lets standard W3C Thing Model processors recognize optional
+interactions. It does not replace `uav:modellingRule` or implement UA
+placeholder expansion. The UA annotation retains the distinction between an
+optional declaration and a placeholder template. Lists derived from these
+annotations do not add preservation residue when converted back to NodeSet2;
+authored lists that differ from the derived list remain preserved as residue.
+
 ## WoT to NodeSet defaults
 
 The table below lists the defaults the current WoT-to-NodeSet

@@ -1041,6 +1041,7 @@ namespace Opc.Ua.Wot
             }
             Dictionary<string, WotAnalogFacets> analogFacets =
                 CollectAnalogFacets(properties, index, propertyNames);
+            List<string>? optionalAffordances = root is UAObject or UAVariable ? null : [];
 
             if (properties.Count > 0)
             {
@@ -1078,6 +1079,7 @@ namespace Opc.Ua.Wot
                     WriteVariableAffordance(
                         writer, variable, namespaceUris, nodeSet, defaultLocale,
                         facets, owner, referenceTypeNames, documentLocale, scalarContext);
+                    AddOptionalAffordance(optionalAffordances, "properties", propertyKeys[ii], variable, nodeSet);
                 }
                 writer.WriteEndObject();
             }
@@ -1112,6 +1114,7 @@ namespace Opc.Ua.Wot
                     WriteMethodAffordance(
                         writer, method, namespaceUris, nodeSet, defaultLocale, arguments,
                         condition, referenceTypeNames, scalarContext);
+                    AddOptionalAffordance(optionalAffordances, "actions", key, method, nodeSet);
                 }
                 writer.WriteEndObject();
             }
@@ -1136,12 +1139,34 @@ namespace Opc.Ua.Wot
                         writer, events[ii], namespaceUris, nodeSet, index, defaultLocale,
                         eventProjections[ii],
                         ResolveEventTypeHref(events[ii], eventTypeHrefs, documentHref), scalarContext);
+                    AddOptionalAffordance(optionalAffordances, "events", eventKeys[ii], events[ii], nodeSet);
                 }
                 writer.WriteEndObject();
             }
 
+            if (optionalAffordances is not null)
+            {
+                WriteComponentArray(writer, "tm:optional", optionalAffordances);
+            }
             WriteTypedComponentLinks(
                 writer, typedComponentLinks, parentHref, typeDefinitionHref);
+        }
+
+        /// <summary>
+        /// Records the W3C optionality of an emitted Thing Model affordance without replacing its UA modelling rule.
+        /// </summary>
+        private static void AddOptionalAffordance(
+            List<string>? optionalAffordances,
+            string collection,
+            string key,
+            UANode node,
+            UANodeSet nodeSet)
+        {
+            if (optionalAffordances is not null &&
+                GetBaselineModellingRule(node, nodeSet) is "Optional" or "OptionalPlaceholder")
+            {
+                optionalAffordances.Add("/" + collection + "/" + EscapePointerToken(key));
+            }
         }
 
         /// <summary>

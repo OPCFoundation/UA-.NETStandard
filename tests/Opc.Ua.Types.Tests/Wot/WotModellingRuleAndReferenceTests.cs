@@ -344,6 +344,146 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(rule));
         }
 
+        /// <summary>
+        /// Exports optional property and action pointers only for optional UA modelling rules.
+        /// </summary>
+        /// <param name="nodeId">The modelling-rule NodeId, or null when no rule is declared.</param>
+        /// <param name="optional">Whether the affordances are optional.</param>
+        [TestCase("i=78", false)]
+        [TestCase("i=80", true)]
+        [TestCase("i=11508", true)]
+        [TestCase("i=11510", false)]
+        [TestCase(null, false)]
+        public void ExportedOptionalAffordancesFollowModellingRules(string? nodeId, bool optional)
+        {
+            UANodeSet source = NodeSetWithModellingRule(nodeId ?? "i=78");
+            UAVariable variable = source.Items!.OfType<UAVariable>().Single();
+            if (nodeId is null)
+            {
+                variable.References =
+                [
+                    .. variable.References!.Where(r => r.ReferenceType != "HasModellingRule")
+                ];
+            }
+            var method = new UAMethod
+            {
+                NodeId = "ns=1;i=7001",
+                BrowseName = "1:Reset",
+                References = [.. variable.References!.Where(r => r.ReferenceType == "HasModellingRule")]
+            };
+            source.Items = [.. source.Items!, method];
+            source.Items[0].References =
+            [
+                .. source.Items[0].References!,
+                new Reference { ReferenceType = "HasComponent", Value = method.NodeId }
+            ];
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.RootElement.TryGetProperty("tm:optional", out JsonElement pointers),
+                Is.EqualTo(optional));
+            if (optional)
+            {
+                string[] expected = ["/properties/Speed", "/actions/Reset"];
+                Assert.That(pointers.EnumerateArray().Select(p => p.GetString()),
+                    Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// Uses escaped, collision-resolved names and does not reference affordances omitted by the budget.
+        /// </summary>
+        /// <param name="limit">The maximum number of exported affordances.</param>
+        [TestCase(1)]
+        [TestCase(2)]
+        public void OptionalPointersUseEmittedAffordanceNames(int limit)
+        {
+            UANodeSet source = NodeSetWithModellingRule("i=80");
+            UAVariable variable = source.Items!.OfType<UAVariable>().Single();
+            variable.BrowseName = "1:A~/B";
+            var second = new UAVariable
+            {
+                NodeId = "ns=1;i=6002",
+                BrowseName = variable.BrowseName,
+                DataType = variable.DataType,
+                References = variable.References
+            };
+            source.Items = [.. source.Items!, second];
+            source.Items[0].References =
+            [
+                .. source.Items[0].References!,
+                new Reference { ReferenceType = "HasComponent", Value = second.NodeId }
+            ];
+            var options = new WotNodeSetConverterOptions { MaxAffordanceCount = limit };
+
+            WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(source, options: options);
+            using WotDocument document = result.Value!;
+
+            Assert.That(document, Is.Not.Null);
+            string[] expected = ["/properties/A~0~1B", "/properties/A~0~1B_2"];
+            Assert.That(document.RootElement.GetProperty("tm:optional").EnumerateArray().Select(p => p.GetString()),
+                Is.EqualTo(expected.Take(limit)));
+            Assert.That(document.Properties, Has.Count.EqualTo(limit));
+        }
+
+        /// <summary>
+        /// Does not add Thing Model optionality to a concrete Thing Description.
+        /// </summary>
+        [Test]
+        public void ThingDescriptionDoesNotEmitOptionalPointers()
+        {
+            UANodeSet source = NodeSetWithModellingRule("i=80");
+            source.Items![0] = new UAObject
+            {
+                NodeId = source.Items[0].NodeId,
+                BrowseName = "1:Pump",
+                References = [.. source.Items[0].References!.Where(r => r.ReferenceType == "HasComponent")]
+            };
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Kind, Is.EqualTo(WotDocumentKind.ThingDescription));
+            Assert.That(document.RootElement.TryGetProperty("tm:optional", out _), Is.False);
+        }
+
+        /// <summary>
+        /// Regenerates derived optionality without adding preservation residue to the NodeSet.
+        /// </summary>
+        /// <param name="nodeId">The optional modelling-rule NodeId.</param>
+        [TestCase("i=80")]
+        [TestCase("i=11508")]
+        public void GeneratedOptionalPointersDoNotAddResidue(string nodeId)
+        {
+            UANodeSet source = NodeSetWithModellingRule(nodeId);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
+
+            Assert.That(document.RootElement.TryGetProperty("tm:optional", out _), Is.True);
+            Assert.That(NodeSetComparer.CompareEquivalent(source, restored).AreEquivalent, Is.True);
+        }
+
+        /// <summary>
+        /// Retains an authored optionality list that cannot be regenerated from UA modelling rules.
+        /// </summary>
+        [Test]
+        public void AuthoredOptionalPointersRemainPreserved()
+        {
+            UANodeSet source = NodeSetWithModellingRule("i=78");
+            using WotDocument generated = WotNodeSetConverter.FromNodeSet(source);
+            JsonObject json = JsonNode.Parse(generated.Utf8Json.Span)!.AsObject();
+            json["tm:optional"] = new JsonArray("/properties/Speed");
+            using var authored = WotDocument.Parse(WotTestData.Utf8(json.ToJsonString()));
+
+            UANodeSet imported = WotNodeSetConverter.ToNodeSet(authored);
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(imported);
+
+            Assert.That(restored.RootElement.GetProperty("tm:optional")[0].GetString(),
+                Is.EqualTo("/properties/Speed"));
+            Assert.That(restored.Properties["Speed"].GetProperty("uav:modellingRule").GetString(),
+                Is.EqualTo("Mandatory"));
+        }
+
         [TestCase("Mandatory")]
         [TestCase("Optional")]
         [TestCase("OptionalPlaceholder")]

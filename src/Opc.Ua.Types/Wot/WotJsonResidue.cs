@@ -584,6 +584,8 @@ namespace Opc.Ua.Wot
                     case "links":
                         CaptureLinks(property.Value, pointer, entries);
                         break;
+                    case "tm:optional" when IsRegeneratedOptionalAffordances(document, property.Value):
+                        break;
                     case "@type":
                         CaptureTypeAnnotations(root, pointer, entries);
                         break;
@@ -855,6 +857,50 @@ namespace Opc.Ua.Wot
                 }
             }
             return property.Value.ValueKind == JsonValueKind.String;
+        }
+
+        /// <summary>
+        /// Recognizes optionality that the exporter regenerates from the affordances' UA modelling rules.
+        /// </summary>
+        private static bool IsRegeneratedOptionalAffordances(WotDocument document, JsonElement optional)
+        {
+            if (document.Kind != WotDocumentKind.ThingModel ||
+                optional.ValueKind != JsonValueKind.Array ||
+                optional.GetArrayLength() == 0)
+            {
+                return false;
+            }
+            var expected = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string collection in new[] { "properties", "actions", "events" })
+            {
+                if (!document.RootElement.TryGetProperty(collection, out JsonElement map) ||
+                    map.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                var used = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonProperty affordance in map.EnumerateObject())
+                {
+                    string projectedName = WotPortableIdentity.AllocateName(
+                        WotPortableIdentity.AffordanceName(affordance.Value, affordance.Name), used);
+                    if (GetString(affordance.Value, "uav:modellingRule") is "Optional" or "OptionalPlaceholder")
+                    {
+                        expected.Add("/" + collection + "/" + Escape(projectedName));
+                    }
+                }
+            }
+            if (expected.Count != optional.GetArrayLength())
+            {
+                return false;
+            }
+            foreach (JsonElement pointer in optional.EnumerateArray())
+            {
+                if (pointer.ValueKind != JsonValueKind.String || !expected.Remove(pointer.GetString()!))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static void CaptureAffordanceMap(
