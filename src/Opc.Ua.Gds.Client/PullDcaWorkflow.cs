@@ -927,11 +927,27 @@ namespace Opc.Ua.Gds.Client
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed, "Signing recovery requires a complete trust list.");
             }
-            var credentials = new PullDcaCredentials(selected, trust.IssuerCertificates, trust);
+            ArrayOf<ByteString> issuers = SnapshotBytes(trust.IssuerCertificates);
+            var credentials = new PullDcaCredentials(
+                selected.Copy(),
+                SnapshotBytes(issuers),
+                new TrustListDataType
+                {
+                    SpecifiedLists = trust.SpecifiedLists,
+                    TrustedCertificates = SnapshotBytes(trust.TrustedCertificates),
+                    TrustedCrls = SnapshotBytes(trust.TrustedCrls),
+                    IssuerCertificates = SnapshotBytes(trust.IssuerCertificates),
+                    IssuerCrls = SnapshotBytes(trust.IssuerCrls)
+                });
             await m_signingRecovery!.ValidateAsync(
-                registrar, applicationId, requestId, profile, credentials, ct).ConfigureAwait(false);
+                PullDcaConnection.SnapshotRegistrar(registrar),
+                PullDcaConnection.SnapshotNodeId(applicationId),
+                PullDcaConnection.SnapshotNodeId(requestId),
+                PullDcaConnection.SnapshotProfile(profile),
+                credentials,
+                ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
-            return new PullDcaCertificateReceipt(selected, credentials.IssuerCertificates);
+            return new PullDcaCertificateReceipt(selected, issuers);
         }
 
         private CancellationTokenSource CreateDeadline(CancellationToken ct)

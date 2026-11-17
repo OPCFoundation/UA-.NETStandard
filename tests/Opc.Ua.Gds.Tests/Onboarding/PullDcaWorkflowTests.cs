@@ -1531,7 +1531,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     fixture.Record("validate-recovery", ct);
                     Assert.That(credentials.Certificate, Is.EqualTo(kCertificate));
                     Assert.That(credentials.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
-                    Assert.That(credentials.TrustList, Is.SameAs(fixture.Connection.TrustList));
+                    Assert.That(credentials.TrustList, Is.Not.SameAs(fixture.Connection.TrustList));
+                    Assert.That(credentials.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
                     Assert.That(fixture.Host.InstalledIds, Is.Empty);
                 })
                 .Returns(default(ValueTask));
@@ -1543,6 +1544,66 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Calls, Is.EqualTo(s_recoveryCalls));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
             recovery.VerifyAll();
+        }
+
+        [Test]
+        public async Task SigningRecoveryValidatorCannotMutateActiveBindingOrRecoveredCredentials()
+        {
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(new byte[] { 5, 6 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 7, 8 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 9, 10 }), 1),
+                new NodeId(ByteString.From(new byte[] { 11, 12 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            fixture.Connection.CertificateError = StatusCodes.BadInvalidArgument;
+            fixture.Connection.AssignedTypes = [profile.CertificateTypeId];
+            fixture.Connection.TrustList.SpecifiedLists = (uint)TrustListMasks.All;
+            fixture.Connection.TrustList.TrustedCertificates = [ByteString.From(new byte[] { 13, 14 })];
+            fixture.Connection.TrustList.TrustedCrls = [ByteString.From(new byte[] { 15, 16 })];
+            fixture.Connection.TrustList.IssuerCertificates = [kIssuer.Copy()];
+            fixture.Connection.TrustList.IssuerCrls = [ByteString.From(new byte[] { 17, 18 })];
+            var recovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            recovery.Setup(value => value.ValidateAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(), It.IsAny<PullDcaCredentials>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<PullDcaRegistrar, NodeId, NodeId, PullDcaCertificateProfile,
+                    PullDcaCredentials, CancellationToken>(
+                    (receivedRegistrar, receivedApplication, receivedRequest, receivedProfile, credentials, _) =>
+                    {
+                        MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
+                        MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
+                        MutateOpaqueIdentifier(receivedApplication);
+                        MutateOpaqueIdentifier(receivedRequest);
+                        MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                        MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+                        MutateBytes(credentials.Certificate);
+                        MutateBytes(credentials.IssuerCertificates[0]);
+                        MutateBytes(credentials.TrustList.TrustedCertificates[0]);
+                        MutateBytes(credentials.TrustList.TrustedCrls[0]);
+                        MutateBytes(credentials.TrustList.IssuerCertificates[0]);
+                        MutateBytes(credentials.TrustList.IssuerCrls[0]);
+                        credentials.TrustList.SpecifiedLists = 0;
+                    })
+                .Returns(default(ValueTask));
+
+            PullDcaCredentials result = await fixture.Create(signingRecovery: recovery.Object)
+                .CompleteCertificateRequestAsync(registrar, applicationId, requestId, profile).ConfigureAwait(false);
+
+            Assert.That(fixture.ConnectedRegistrar, Is.EqualTo(registrar));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+            Assert.That(result.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(result.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
+            Assert.That(result.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
+            Assert.That(result.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 13, 14 })));
+            Assert.That(result.TrustList.TrustedCrls[0], Is.EqualTo(ByteString.From(new byte[] { 15, 16 })));
+            Assert.That(result.TrustList.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(result.TrustList.IssuerCrls[0], Is.EqualTo(ByteString.From(new byte[] { 17, 18 })));
         }
 
         /// <summary>
