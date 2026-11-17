@@ -169,6 +169,51 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         [Test]
+        public async Task SigningRequestProviderCannotMutateActiveApplicationOrProfile()
+        {
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 3, 4 }), 1),
+                new NodeId(ByteString.From(new byte[] { 5, 6 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            fixture.Connection.Selection = fixture.Connection.Selection with { ApplicationId = applicationId };
+            fixture.Host.OnCreateSigningRequest = (receivedApplication, receivedProfile) =>
+            {
+                MutateOpaqueIdentifier(receivedApplication);
+                MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(
+                kRegistrar, CreateRequest() with { DcaCertificateProfile = profile }).ConfigureAwait(false);
+
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId }));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CredentialInstallerCannotMutateWorkflowIdentity(bool newKeyPair)
+        {
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var fixture = new Fixture();
+            fixture.Connection.Selection = fixture.Connection.Selection with { ApplicationId = applicationId };
+            fixture.Host.OnInstall = MutateOpaqueIdentifier;
+            fixture.Host.OnInstallNewKeyPair = (receivedApplication, _) => MutateOpaqueIdentifier(receivedApplication);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = newKeyPair
+                    ? PullDcaCertificateRequestMode.NewKeyPairRequest
+                    : PullDcaCertificateRequestMode.SigningRequest
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+        }
+
+        [Test]
         public async Task InitialPullCanInstallANewKeyPairWithoutPublishingItToSigningReceipts()
         {
             var fixture = new Fixture();
@@ -2044,6 +2089,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public ManagerDescription? SoftwareManager { get; private set; }
             public PullDcaRegistrar? SoftwareRegistrar { get; private set; }
             public ByteString SigningRequest { get; set; } = kCsr;
+            public Action<NodeId, PullDcaCertificateProfile>? OnCreateSigningRequest { get; set; }
+            public Action<NodeId>? OnInstall { get; set; }
+            public Action<NodeId, PullDcaCertificateProfile>? OnInstallNewKeyPair { get; set; }
             public List<NodeId> InstalledIds { get; } = [];
             public List<NodeId> KeyPairInstalledIds { get; } = [];
             public ByteString ReceivedPrivateKeyPfx { get; private set; }
@@ -2073,6 +2121,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 m_fixture.Record("csr:" + applicationId.IdentifierAsString, cancellationToken);
                 Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
+                OnCreateSigningRequest?.Invoke(applicationId, profile);
                 return new ValueTask<ByteString>(SigningRequest);
             }
 
@@ -2084,6 +2133,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(credentials.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
                 Assert.That(credentials.TrustList, Is.SameAs(m_fixture.Connection.TrustList));
                 InstalledIds.Add(applicationId);
+                OnInstall?.Invoke(applicationId);
                 return default;
             }
 
@@ -2101,6 +2151,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(credentials.TrustList, Is.SameAs(m_fixture.Connection.TrustList));
                 KeyPairInstalledIds.Add(applicationId);
                 ReceivedPrivateKeyPfx = privateKeyPfx.Copy();
+                OnInstallNewKeyPair?.Invoke(applicationId, profile);
                 return default;
             }
 

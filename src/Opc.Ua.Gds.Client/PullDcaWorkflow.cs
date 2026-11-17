@@ -549,8 +549,10 @@ namespace Opc.Ua.Gds.Client
                 return (keyPairCredentials, null);
             }
             Report(progress, PullDcaStage.RequestingCertificate, applicationId);
-            ByteString csr = await m_credentialProvider.CreateSigningRequestAsync(applicationId, profile, ct)
-                .ConfigureAwait(false);
+            ByteString csr = await m_credentialProvider.CreateSigningRequestAsync(
+                PullDcaConnection.SnapshotNodeId(applicationId),
+                PullDcaConnection.SnapshotProfile(profile),
+                ct).ConfigureAwait(false);
             csr = csr.Copy();
             if (csr.IsEmpty)
             {
@@ -690,7 +692,9 @@ namespace Opc.Ua.Gds.Client
                             var credentials = new PullDcaCredentials(certificate, issuers, trustList);
                             Report(progress, PullDcaStage.InstallingCredentials, applicationId, requestId);
                             await m_newKeyPairCredentialProvider!.InstallNewKeyPairAsync(
-                                applicationId, profile, credentials, privateKeyPfx, ct).ConfigureAwait(false);
+                                PullDcaConnection.SnapshotNodeId(applicationId),
+                                PullDcaConnection.SnapshotProfile(profile),
+                                credentials, privateKeyPfx, ct).ConfigureAwait(false);
                             return credentials;
                         }
 
@@ -794,7 +798,8 @@ namespace Opc.Ua.Gds.Client
             }
             else
             {
-                await m_credentialProvider.InstallAsync(applicationId, credentials, ct).ConfigureAwait(false);
+                await m_credentialProvider.InstallAsync(
+                    PullDcaConnection.SnapshotNodeId(applicationId), credentials, ct).ConfigureAwait(false);
             }
             if (m_signingJournal != null)
             {
