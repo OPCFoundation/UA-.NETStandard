@@ -752,6 +752,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(audit.Status!.Value, Is.True);
         }
 
+        /// <summary>
+        /// Part 4 §6.5.8: a write whose node the deferred validation cannot resolve is
+        /// already marked processed, so the node manager audits the failure itself.
+        /// </summary>
+        [Test]
+        public void WriteOfDeferredUnknownNodeIsAuditedAsFailure()
+        {
+            using Harness h = CreatePlaceholderHarness(out PlaceholderNodeManager manager);
+            var audits = new List<AuditEventState>();
+            h.MockServer.SetupGet(s => s.Auditing).Returns(true);
+            h.MockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback((ISystemContext _, AuditEventState e) => audits.Add(e));
+            manager.PlaceholderNodeId = new NodeId("Ghost", h.NamespaceIndex);
+
+            var nodesToWrite = new List<WriteValue>
+            {
+                new() {
+                    NodeId = manager.PlaceholderNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new Variant(1))
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None,
+                new Mock<IUserIdentity>().Object);
+            manager.Write(context, nodesToWrite, errors);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            AuditWriteUpdateEventState audit = audits.OfType<AuditWriteUpdateEventState>().Single();
+            Assert.That(audit.Status!.Value, Is.False);
+        }
+
         [Test]
         public void Browse_ReturnsChildReferences()
         {

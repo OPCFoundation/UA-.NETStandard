@@ -3665,44 +3665,54 @@ namespace Opc.Ua.Server
                 {
                     // validate node.
                     NodeState? source = ValidateNode(context, handle, cache);
+                    WriteValue nodeToWrite = nodesToWrite[handle.Index];
 
                     if (source == null)
                     {
-                        continue;
+                        // Part 4 §6.5.8: the item is already marked processed with
+                        // BadNodeIdUnknown, so the dispatcher cannot audit it; do it here.
+                        if (Server?.Auditing == true)
+                        {
+                            audit = new PendingWriteAudit(
+                                nodeToWrite,
+                                Variant.Null,
+                                errors[handle.Index]?.StatusCode ?? StatusCodes.BadNodeIdUnknown,
+                                DateTime.UtcNow);
+                        }
                     }
-
-                    WriteValue nodeToWrite = nodesToWrite[handle.Index];
-
-                    DataValue oldValue = default;
-                    if (Server?.Auditing == true)
+                    else
                     {
-                        // read the old value for the purpose of auditing
-                        source.ReadAttribute(
+                        DataValue oldValue = default;
+                        if (Server?.Auditing == true)
+                        {
+                            // read the old value for the purpose of auditing
+                            source.ReadAttribute(
+                                context,
+                                nodeToWrite.AttributeId,
+                                nodeToWrite.ParsedIndexRange,
+                                default,
+                                ref oldValue);
+                        }
+
+                        // write the attribute value.
+                        errors[handle.Index] = source.WriteAttribute(
                             context,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
-                            default,
-                            ref oldValue);
+                            nodeToWrite.Value);
+
+                        // Part 4 §6.5.8: writes through this path are audited like the others.
+                        if (Server?.Auditing == true)
+                        {
+                            audit = new PendingWriteAudit(
+                                nodeToWrite,
+                                oldValue.WrappedValue,
+                                errors[handle.Index]?.StatusCode ?? StatusCodes.Good,
+                                DateTime.UtcNow);
+                        }
+
+                        sourceToNotify = source;
                     }
-
-                    // write the attribute value.
-                    errors[handle.Index] = source.WriteAttribute(
-                        context,
-                        nodeToWrite.AttributeId,
-                        nodeToWrite.ParsedIndexRange,
-                        nodeToWrite.Value);
-
-                    // Part 4 §6.5.8: writes through this path are audited like the others.
-                    if (Server?.Auditing == true)
-                    {
-                        audit = new PendingWriteAudit(
-                            nodeToWrite,
-                            oldValue.WrappedValue,
-                            errors[handle.Index]?.StatusCode ?? StatusCodes.Good,
-                            DateTime.UtcNow);
-                    }
-
-                    sourceToNotify = source;
                 }
 
                 // Publish notifications and the audit event after releasing the node-manager lock.

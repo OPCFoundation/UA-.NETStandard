@@ -167,6 +167,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task FirstActivationWithoutLocaleIdsInitializesPreferredLocalesAsync()
+        {
+            (RequestHeader requestHeader, _) =
+                await m_server.CreateAndActivateSessionAsync(
+                    "FirstActivationNoLocales",
+                    localeIds: []).ConfigureAwait(false);
+            ISession session = m_server.CurrentInstance.SessionManager
+                .GetSession(requestHeader.AuthenticationToken)!;
+
+            Assert.That(session.PreferredLocales, Is.Not.Null.And.Empty);
+        }
+        [Test]
         public async Task ReactivateWithEmptyLocaleIdsKeepsSessionLocalesAsync()
         {
             (RequestHeader requestHeader, SecureChannelContext secureChannelContext) =

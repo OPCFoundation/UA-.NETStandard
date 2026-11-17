@@ -1345,8 +1345,10 @@ namespace Opc.Ua.Server
                 }
 
                 // update local ids. Part 4 §5.7.3.2: a null or empty list keeps
-                // the LocaleIds the Session already has.
-                if (!localeIds.IsEmpty && UpdateLocaleIds(localeIds))
+                // the LocaleIds the Session already has; the first activation
+                // always initializes them.
+                if ((!localeIds.IsEmpty || PreferredLocales == null) &&
+                    UpdateLocaleIds(localeIds))
                 {
                     changed = true;
                 }
