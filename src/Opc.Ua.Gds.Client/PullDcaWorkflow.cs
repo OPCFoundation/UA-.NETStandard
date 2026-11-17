@@ -1121,7 +1121,10 @@ namespace Opc.Ua.Gds.Client
             NodeId applicationId = default,
             NodeId requestId = default)
         {
-            progress?.Report(new PullDcaProgress(stage, applicationId, requestId));
+            progress?.Report(new PullDcaProgress(
+                stage,
+                PullDcaConnection.SnapshotNodeId(applicationId),
+                PullDcaConnection.SnapshotNodeId(requestId)));
         }
 
         /// <summary>

@@ -141,6 +141,34 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         [Test]
+        public async Task ProgressCannotMutateOpaqueIdentifiersUsedForCertificateCompletion()
+        {
+            var fixture = new Fixture();
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1);
+            int mutations = 0;
+            var progress = new ProgressRecorder
+            {
+                OnReport = value =>
+                {
+                    if (value.Stage == PullDcaStage.FinishingCertificate)
+                    {
+                        MutateOpaqueIdentifier(value.ApplicationId);
+                        MutateOpaqueIdentifier(value.RequestId);
+                        mutations++;
+                    }
+                }
+            };
+
+            await fixture.Create().CompleteCertificateRequestAsync(
+                kRegistrar, applicationId, requestId, kProfile, progress).ConfigureAwait(false);
+
+            Assert.That(mutations, Is.EqualTo(1));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { requestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
+        [Test]
         public async Task InitialPullCanInstallANewKeyPairWithoutPublishingItToSigningReceipts()
         {
             var fixture = new Fixture();
@@ -1695,13 +1723,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 new ApplicationRecordDataType { ApplicationUri = "urn:managed:application" }, "urn:opcua", kProfile);
         }
 
+        private static void MutateOpaqueIdentifier(NodeId identifier)
+        {
+            Assert.That(identifier.TryGetValue(out ByteString bytes), Is.True);
+            Assert.That(MemoryMarshal.TryGetArray(bytes.Memory, out ArraySegment<byte> segment), Is.True);
+            Assert.That(segment.Array, Is.Not.Null);
+            segment.Array![segment.Offset] ^= 0xff;
+        }
+
         private sealed class ProgressRecorder : IProgress<PullDcaProgress>
         {
             public List<PullDcaProgress> Items { get; } = [];
 
+            public Action<PullDcaProgress>? OnReport { get; init; }
+
             public void Report(PullDcaProgress value)
             {
                 Items.Add(value);
+                OnReport?.Invoke(value);
             }
         }
 
