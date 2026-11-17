@@ -320,6 +320,7 @@ namespace Opc.Ua.Gds.Client
                 m_selectedRegistrar.CertificateDirectoryId, applicationId,
                 profile.CertificateGroupId, profile.CertificateTypeId);
             ITransportChannel channel = context.Session.TransportChannel;
+            RequireSelectedIdentityChannel(applicationId, channel);
             ByteString clientCertificate = ByteString.From(channel.ClientChannelCertificate.AsSpan());
             var binding = new KeyPairRequestBinding(
                 applicationId,
@@ -386,13 +387,7 @@ namespace Opc.Ua.Gds.Client
                 m_selectedRegistrar.CertificateDirectoryId, applicationId,
                 profile.CertificateGroupId, profile.CertificateTypeId);
             ITransportChannel channel = context.Session.TransportChannel;
-            if (!m_selectedIdentity.IsEmpty && applicationId == m_identityApplicationId &&
-                !m_selectedIdentity.Span.SequenceEqual(channel.ClientChannelCertificate))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "The signing channel does not use the identity selected by the registrar.");
-            }
+            RequireSelectedIdentityChannel(applicationId, channel);
             var binding = new PullDcaSigningBinding(
                 m_selectedRegistrar,
                 applicationId,
@@ -803,6 +798,20 @@ namespace Opc.Ua.Gds.Client
                 result[i] = CopyByteString(values[i]);
             }
             return result;
+        }
+
+        /// <summary>
+        /// Requires the registrar-selected identity for the DCA's certificate request.
+        /// </summary>
+        private void RequireSelectedIdentityChannel(NodeId applicationId, ITransportChannel channel)
+        {
+            if (!m_selectedIdentity.IsEmpty && applicationId == m_identityApplicationId &&
+                !m_selectedIdentity.Span.SequenceEqual(channel.ClientChannelCertificate))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The certificate request channel does not use the identity selected by the registrar.");
+            }
         }
 
         private static void RequireChannel(SessionRequestContext context, PullDcaSigningBinding binding)

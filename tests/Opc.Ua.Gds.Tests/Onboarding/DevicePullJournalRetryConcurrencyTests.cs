@@ -492,10 +492,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
-        /// The DCA signs on the selected identity while later managed applications use the installed DCA channel.
+        /// The DCA uses the selected identity while later managed applications use the installed DCA channel.
         /// </summary>
-        [Test]
-        public async Task SelectedIdentityMustMatchDcaStartChannelButNotLaterManagedStart()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SelectedIdentityMustMatchDcaStartChannelButNotLaterManagedStart(bool newKeyPair)
         {
             await using var session = CreateSession();
             session.MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding);
@@ -503,7 +504,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Opc.Ua.Onboarding.MethodIds.DeviceRegistrarType_ProvideIdentities,
                 session.MessageContext.NamespaceUris);
             NodeId startMethod = ExpandedNodeId.ToNodeId(
-                Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartSigningRequest,
+                newKeyPair
+                    ? Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest
+                    : Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartSigningRequest,
                 session.MessageContext.NamespaceUris);
             ByteString selected = m_binding.ClientChannelCertificate;
             var ticket = new DeviceIdentityTicketType { ProductInstanceUri = "urn:device" };
@@ -525,27 +528,28 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             };
             var connection = new PullDcaConnection(
                 session.InnerSession, m_binding.Registrar, m_telemetry, 1024, _ => default);
+            ValueTask<NodeId> StartAsync(NodeId applicationId)
+            {
+                return newKeyPair
+                    ? connection.StartNewKeyPairAsync(applicationId, m_binding.Profile, CancellationToken.None)
+                    : connection.StartAsync(
+                        applicationId, m_binding.Profile, m_binding.SigningRequest, CancellationToken.None);
+            }
             await connection.ProvideIdentitiesAsync(
                 new PullDcaIdentityOffer([selected], [], ["ticket"]), CancellationToken.None).ConfigureAwait(false);
             session.Channel.SetupGet(channel => channel.ClientChannelCertificate)
                 .Returns(m_binding.RegistrarChannelCertificate.ToArray());
 
             ServiceResultException? wrongChannel = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await connection.StartAsync(
-                    m_binding.ApplicationId, m_binding.Profile, m_binding.SigningRequest, CancellationToken.None)
-                    .ConfigureAwait(false));
+                await StartAsync(m_binding.ApplicationId).ConfigureAwait(false));
             Assert.That(wrongChannel!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(starts, Is.Zero);
 
             session.Channel.SetupGet(channel => channel.ClientChannelCertificate).Returns(selected.ToArray());
-            await connection.StartAsync(
-                m_binding.ApplicationId, m_binding.Profile, m_binding.SigningRequest, CancellationToken.None)
-                .ConfigureAwait(false);
+            await StartAsync(m_binding.ApplicationId).ConfigureAwait(false);
             session.Channel.SetupGet(channel => channel.ClientChannelCertificate)
                 .Returns(m_binding.RegistrarChannelCertificate.ToArray());
-            await connection.StartAsync(
-                new NodeId("managed", 1), m_binding.Profile, m_binding.SigningRequest, CancellationToken.None)
-                .ConfigureAwait(false);
+            await StartAsync(new NodeId("managed", 1)).ConfigureAwait(false);
 
             Assert.That(starts, Is.EqualTo(2));
         }
