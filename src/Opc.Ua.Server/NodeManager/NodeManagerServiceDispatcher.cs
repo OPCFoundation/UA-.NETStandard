@@ -2134,7 +2134,7 @@ namespace Opc.Ua.Server
                             auditContext ??= Server.DefaultSystemContext.Copy(context),
                             nodesToWrite[ii],
                             default,
-                            result,
+                            error!.StatusCode,
                             m_logger);
                     }
 
