@@ -287,17 +287,47 @@ namespace Opc.Ua.Server
         /// <param name="snapshot">The explicit routing view, or null for live routing.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The handle and owning manager, if found.</returns>
-        private async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> ResolveManagerHandleAsync(
+        private ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> ResolveManagerHandleAsync(
             NodeId nodeId,
             NodeManagerRoutingTable.RoutingSnapshot? snapshot,
             CancellationToken cancellationToken)
         {
+            ValueTask<(object? Handle, IAsyncNodeManager? NodeManager, NodeState? Node)> pending =
+                ResolveNodeOrHandleAsync(nodeId, snapshot, findNode: false, cancellationToken);
+            if (pending.IsCompletedSuccessfully)
+            {
+                (object? handle, IAsyncNodeManager? nodeManager, _) = pending.Result;
+                return new ValueTask<(object?, IAsyncNodeManager?)>((handle, nodeManager));
+            }
+            return AwaitHandleAsync(pending);
+
+            static async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> AwaitHandleAsync(
+                ValueTask<(object? Handle, IAsyncNodeManager? NodeManager, NodeState? Node)> pending)
+            {
+                (object? handle, IAsyncNodeManager? nodeManager, _) = await pending.ConfigureAwait(false);
+                return (handle, nodeManager);
+            }
+        }
+
+        /// <summary>
+        /// Resolves a node like <see cref="ResolveManagerHandleAsync"/>; with
+        /// <paramref name="findNode"/>, an <see cref="AsyncCustomNodeManager"/> with the default
+        /// handle lookup returns its in-memory node instead of a new handle (see
+        /// <see cref="AsyncCustomNodeManager.FindNodeWithDefaultLookup"/>).
+        /// </summary>
+        private async ValueTask<(object? Handle, IAsyncNodeManager? NodeManager, NodeState? Node)> ResolveNodeOrHandleAsync(
+            NodeId nodeId,
+            NodeManagerRoutingTable.RoutingSnapshot? snapshot,
+            bool findNode,
+            CancellationToken cancellationToken)
+        {
             object? handle;
+            NodeState? node;
 
             // null node ids have no manager.
             if (nodeId.IsNull)
             {
-                return (null, null);
+                return (null, null, null);
             }
 
             // use the namespace index to select the node manager.
@@ -310,21 +340,25 @@ namespace Opc.Ua.Server
             {
                 if (routing.NodeManagers.Length < 2)
                 {
-                    return (null, null);
+                    return (null, null, null);
                 }
                 IAsyncNodeManager core = routing.NodeManagers[1];
                 if (!snapshot.CanDispatchTo(core))
                 {
-                    return (null, null);
+                    return (null, null, null);
+                }
+                if ((node = FindNode(core, nodeId, findNode)) != null)
+                {
+                    return (null, core, node);
                 }
                 handle = await core.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (handle != null)
                 {
-                    return (handle, core);
+                    return (handle, core, null);
                 }
-                return (null, null);
+                return (null, null, null);
             }
 
             // index the list: an enumerator through the interface is allocated per node.
@@ -335,17 +369,28 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
+                if ((node = FindNode(asyncNodeManager, nodeId, findNode)) != null)
+                {
+                    return (null, asyncNodeManager, node);
+                }
                 handle = await asyncNodeManager.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (handle != null)
                 {
-                    return (handle, asyncNodeManager);
+                    return (handle, asyncNodeManager, null);
                 }
             }
 
             // node not recognized.
-            return (null, null);
+            return (null, null, null);
+
+            static NodeState? FindNode(IAsyncNodeManager nodeManager, NodeId nodeId, bool findNode)
+            {
+                return findNode && nodeManager is AsyncCustomNodeManager custom
+                    ? custom.FindNodeWithDefaultLookup(nodeId)
+                    : null;
+            }
         }
 
         /// <summary>
@@ -1057,25 +1102,6 @@ namespace Opc.Ua.Server
                 : new AggregateException("Browse and continuation cleanup failed.", cleanupFailures);
         }
 
-        /// <summary>
-        /// Creates the attribute cache for a request with more than one node, and returns
-        /// <c>null</c> for a request with one node: its permission attributes are read once
-        /// either way, so the caller validates with <c>permissionsOnly</c> instead of
-        /// allocating a cache it never hits.
-        /// </summary>
-        /// <typeparam name="T">One of the types used in the service calls (ReadValueId, WriteValue).</typeparam>
-        /// <param name="nodesList">The collection of nodes on which the service operates upon</param>
-        /// <returns>The cache, or <c>null</c> for a request with at most one node.</returns>
-        private static Dictionary<NodeId, Variant[]>? PrepareValidationCacheForMany<T>(ArrayOf<T> nodesList)
-        {
-            if (nodesList.Count <= 1)
-            {
-                return null;
-            }
-
-            PrepareValidationCache(nodesList, out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes);
-            return uniqueNodesServiceAttributes;
-        }
 
         /// <summary>
         /// Prepares a cache per NodeManager and unique NodeId that holds the attributes needed to validate AccessRestrictions and RolePermissions.
@@ -1674,7 +1700,11 @@ namespace Opc.Ua.Server
 
             m_logger.MasterNodeManagerReadCountCount(nodesToRead.Count);
 
-            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = PrepareValidationCacheForMany(nodesToRead);
+            // a request with more than one node caches the permission attributes of the node
+            // of the previous value: clients read the attributes of a node one after another,
+            // and a cache of every node of the request costs a dictionary sized for it.
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes =
+                nodesToRead.Count > 1 ? new Dictionary<NodeId, Variant[]>(1) : null;
 
             (IAsyncNodeManager[] dispatchOrder,
                 IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
@@ -1683,6 +1713,12 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
+                if (uniqueNodesReadAttributes != null &&
+                    !uniqueNodesReadAttributes.ContainsKey(nodesToRead[ii].NodeId))
+                {
+                    uniqueNodesReadAttributes.Clear();
+                }
+
                 // pre-validate and pre-parse parameter.
                 errors[ii] = (await ValidateReadRequestAsync(
                     context,
@@ -2059,10 +2095,8 @@ namespace Opc.Ua.Server
             int count = nodesToWrite.Count;
 
             bool diagnosticsExist = false;
-            var results = new List<StatusCode>(count);
-            var diagnosticInfos = new List<DiagnosticInfo>(count);
-
-            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = PrepareValidationCacheForMany(nodesToWrite);
+            var results = new StatusCode[count];
+            DiagnosticInfo[]? diagnosticInfos = null;
 
             (IAsyncNodeManager[] dispatchOrder,
                 IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
@@ -2074,15 +2108,14 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < count; ii++)
             {
-                StatusCode result = StatusCodes.Good;
-                DiagnosticInfo? diagnosticInfo = null;
-
                 // pre-validate and pre-parse parameter. Validate also access rights and role permissions
+                // without an attribute cache: a Write mostly writes each node once, so the
+                // permission attributes are read into the array of the thread, as for one value.
                 ServiceResult? error = await ValidateWriteRequestAsync(
                     context,
                     nodesToWrite[ii],
-                    uniqueNodesReadAttributes,
-                    permissionsOnly: uniqueNodesReadAttributes == null,
+                    uniqueNodesServiceAttributes: null,
+                    permissionsOnly: true,
                     cancellationToken)
                     .ConfigureAwait(false);
 
@@ -2090,12 +2123,13 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(error))
                 {
                     nodesToWrite[ii].Processed = true;
-                    result = error!.Code;
+                    results[ii] = error!.Code;
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
+                        (diagnosticInfos ??= new DiagnosticInfo[count])[ii] =
+                            ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger)!;
                         diagnosticsExist = true;
                     }
                 }
@@ -2106,16 +2140,12 @@ namespace Opc.Ua.Server
                     validItems = true;
                     routes.Include(namespaceManagers, nodesToWrite[ii].NodeId);
                 }
-
-                results.Add(result);
-                diagnosticInfos.Add(diagnosticInfo!);
             }
 
             // call each node manager.
             if (validItems)
             {
-                var errors = new List<ServiceResult>(count);
-                errors.AddRange(new ServiceResult[count]);
+                var errors = new ServiceResult[count];
 
                 foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
@@ -2145,7 +2175,7 @@ namespace Opc.Ua.Server
                         // add diagnostics if requested.
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
+                            (diagnosticInfos ??= new DiagnosticInfo[count])[ii] = ServerUtils.CreateDiagnosticInfo(
                                 Server,
                                 context,
                                 errors[ii],
@@ -2164,7 +2194,12 @@ namespace Opc.Ua.Server
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
-            return (results, diagnosticInfos);
+            ArrayOf<DiagnosticInfo> diagnostics = default;
+            if (diagnosticInfos != null)
+            {
+                diagnostics = diagnosticInfos;
+            }
+            return (results, diagnostics);
         }
 
         /// <summary>
@@ -4520,11 +4555,9 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            (object? nodeHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
-                    context,
-                    readValueId.NodeId,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            (object? nodeHandle, IAsyncNodeManager? nodeManager, NodeState? node) =
+                await ResolveNodeForValidationAsync(context, readValueId.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
 
             if (nodeManager is AsyncCustomNodeManager owner &&
                 nodeHandle is NodeHandle { Validated: true, Node: not null } resolved &&
@@ -4536,8 +4569,10 @@ namespace Opc.Ua.Server
 
             return await ValidatePermissionsAsync(
                     context,
+                    readValueId.NodeId,
                     nodeManager,
                     nodeHandle,
+                    node,
                     requestedPermission,
                     uniqueNodesReadAttributes,
                     permissionsOnly,
@@ -4651,14 +4686,16 @@ namespace Opc.Ua.Server
         {
             if (context.Session != null || context.UserIdentity != null || context.ChannelContext != null)
             {
-                (object? nodeHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
-                    context, nodeId, cancellationToken)
-                    .ConfigureAwait(false);
+                (object? nodeHandle, IAsyncNodeManager? nodeManager, NodeState? node) =
+                    await ResolveNodeForValidationAsync(context, nodeId, cancellationToken)
+                        .ConfigureAwait(false);
 
                 return await ValidatePermissionsAsync(
                         context,
+                        nodeId,
                         nodeManager,
                         nodeHandle,
+                        node,
                         requestedPermision,
                         uniqueNodesServiceAttributes,
                         permissionsOnly,
@@ -4666,6 +4703,67 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
             }
             return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Resolves a node for a permission check like
+        /// <see cref="GetManagerHandleAsync(OperationContext, NodeId, CancellationToken)"/>, but
+        /// returns the in-memory node of an <see cref="AsyncCustomNodeManager"/> with the default
+        /// handle lookup without allocating a handle.
+        /// </summary>
+        private async ValueTask<(object? Handle, IAsyncNodeManager? NodeManager, NodeState? Node)> ResolveNodeForValidationAsync(
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
+            if (m_handleLookupOverride is null)
+            {
+                return await ResolveNodeOrHandleAsync(nodeId, snapshot, findNode: true, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            (object? handle, IAsyncNodeManager? nodeManager) =
+                await GetOverriddenManagerHandleAsync(nodeId, snapshot, cancellationToken).ConfigureAwait(false);
+            return (handle, nodeManager, null);
+        }
+
+        /// <summary>
+        /// Validates the permissions of a node that
+        /// <see cref="ResolveNodeForValidationAsync"/> resolved: the in-memory node, or the handle.
+        /// </summary>
+        private ValueTask<ServiceResult> ValidatePermissionsAsync(
+            OperationContext context,
+            NodeId nodeId,
+            IAsyncNodeManager? nodeManager,
+            object? nodeHandle,
+            NodeState? node,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes,
+            bool permissionsOnly,
+            CancellationToken cancellationToken)
+        {
+            if (node != null)
+            {
+                return ((AsyncCustomNodeManager)nodeManager!).ValidatePermissionsAsync(
+                    context,
+                    nodeId,
+                    node,
+                    requestedPermission,
+                    uniqueNodesServiceAttributes,
+                    permissionsOnly,
+                    m_logger,
+                    cancellationToken);
+            }
+
+            return ValidatePermissionsAsync(
+                context,
+                nodeManager,
+                nodeHandle,
+                requestedPermission,
+                uniqueNodesServiceAttributes,
+                permissionsOnly,
+                cancellationToken);
         }
 
         /// <summary>
