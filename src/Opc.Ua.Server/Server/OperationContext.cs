@@ -335,6 +335,26 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Starts a response byte budget that has nothing left before any result is
+        /// charged, for a response whose reserved framing alone exceeds the message size
+        /// limit: no result value fits, and the reserved framing that results do not use
+        /// is not returned to it (<see cref="CreditResponse(long)"/>), because the deficit
+        /// of the framing cannot be recorded.
+        /// </summary>
+        internal void StartExhaustedResponseBudget()
+        {
+            Volatile.Write(ref m_responseBudget, kResponseBudgetExhausted);
+        }
+
+        /// <summary>
+        /// Whether the budget was started exhausted
+        /// (<see cref="StartExhaustedResponseBudget"/>) and nothing was charged since:
+        /// results may not use the framing reserved for them for values.
+        /// </summary>
+        internal bool ResponseBudgetExhausted =>
+            Volatile.Read(ref m_responseBudget) == kResponseBudgetExhausted;
+
+        /// <summary>
         /// Whether the call has a response byte budget that nothing was charged against
         /// yet: a result that does not fit it cannot fit any response of the call.
         /// </summary>
@@ -394,7 +414,9 @@ namespace Opc.Ua.Server
                 return;
             }
             int current = Volatile.Read(ref m_responseBudget);
-            while (current != kNoResponseBudget && current != kResponseBudgetExceeded)
+            while (current != kNoResponseBudget &&
+                current != kResponseBudgetExceeded &&
+                current != kResponseBudgetExhausted)
             {
                 long next = Math.Min(
                     (current < 0 ? -(long)current : current) + bytes,
@@ -1247,6 +1269,13 @@ namespace Opc.Ua.Server
         private int m_responseBudget;
         private const int kNoResponseBudget = 0;
         private const int kResponseBudgetExceeded = int.MinValue;
+
+        /// <summary>
+        /// An unused budget with no bytes left, which only
+        /// <see cref="StartExhaustedResponseBudget"/> starts: every other unused budget
+        /// has at least one byte left.
+        /// </summary>
+        private const int kResponseBudgetExhausted = -1;
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;

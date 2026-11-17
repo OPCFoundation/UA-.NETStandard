@@ -439,7 +439,9 @@ encoder rather than bounded from below, and the HistoryRead budget leaves room
 for the response header and for each result's status, continuation point and
 history data header. The last page of a read has no continuation point and may
 use that room. When the client asks for operation diagnostics, an empty
-diagnostic info is reserved per result; their content is not. Requests
+diagnostic info is reserved per result; their content is not. When the reserved
+framing alone exceeds the limit (very many results for a small limit), the
+budget starts with nothing left and no value fits. Requests
 in other encodings, which can encode below the binary bound, and in-process
 callers of the node managers have no budget.
 

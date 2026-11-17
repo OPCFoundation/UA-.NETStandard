@@ -3047,7 +3047,9 @@ namespace Opc.Ua.Server.Historian
                     // every page read is checked, the last re-read as well. The last page
                     // of the read is sent without a continuation point, so it may use the
                     // continuation point bytes the budget reserves for its result.
-                    long reserve = page.NextToken.IsEmpty
+                    // Not when the reserved framing alone exceeds the limit: then the
+                    // reserve covers part of the deficit.
+                    long reserve = page.NextToken.IsEmpty && !operationContext!.ResponseBudgetExhausted
                         ? ResponseSizeEstimator.HistoryContinuationPointSize
                         : 0;
                     (int count, long bytes) = meter.CountValuesThatFit(

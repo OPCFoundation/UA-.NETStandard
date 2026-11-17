@@ -429,7 +429,98 @@ namespace Opc.Ua.Server.Tests.Historian
                 ResponseSizeEstimator.GetHistoryReadResponseBudget(65536, 2, returnsOperationDiagnostics: true),
                 Is.EqualTo(65536 - ResponseSizeEstimator.HistoryReadResponseFramingSize -
                     (2 * (ResponseSizeEstimator.HistoryReadResultFramingSize + 1))));
-            Assert.That(ResponseSizeEstimator.GetHistoryReadResponseBudget(100, 1000), Is.EqualTo(1));
+            // the framing alone exceeds the limit: the deficit is not clamped away.
+            Assert.That(ResponseSizeEstimator.GetHistoryReadResponseBudget(100, 1000), Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// When the framing reserved for many results exceeds the message size limit, the
+        /// continuation point bytes that complete results leave unused do not cover a
+        /// value: after 999 empty results, a value that would make the 1000-result
+        /// response exceed the limit fails the read instead of being returned.
+        /// </summary>
+        [Test]
+        public async Task RawReadWhoseReservedFramingExceedsTheLimitReturnsNoValueAsync()
+        {
+            const int maxMessageSize = 32 * 1024;
+            const int resultCount = 1000;
+            var h = new Harness();
+            NodeId emptyNodeId = h.SeedValues(0, _ => default);
+            // 14986 bytes with the source timestamp are a 15000 byte value.
+            NodeId nodeId = h.SeedValues(1, _ => new Variant(ByteString.From(new byte[14986])));
+            BaseDataVariableState emptyVariable = CreateVariable(emptyNodeId);
+
+            OperationContext operation = h.SystemContext.OperationContext!;
+            StartHistoryReadBudget(operation, maxMessageSize, resultCount);
+            var results = new List<HistoryReadResult>();
+            for (int ii = 0; ii < resultCount - 1; ii++)
+            {
+                var empty = new HistoryReadResult();
+                ServiceResult error = await ReadAsync(
+                    h, emptyVariable, emptyNodeId, ByteString.Empty, CreateDetails(uint.MaxValue), empty);
+                Assert.That(ServiceResult.IsGood(error), Is.True);
+                Assert.That(empty.ContinuationPoint.IsEmpty, Is.True);
+                results.Add(empty);
+            }
+
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(
+                    h, CreateVariable(nodeId), nodeId, ByteString.Empty, CreateDetails(uint.MaxValue),
+                    new HistoryReadResult())))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+
+            // the response with the value would not encode within the limit.
+            var withValue = new HistoryReadResult
+            {
+                StatusCode = StatusCodes.Good,
+                HistoryData = new ExtensionObject(new HistoryData
+                {
+                    DataValues =
+                    [
+                        new DataValue(
+                            new Variant(ByteString.From(new byte[14986])),
+                            StatusCodes.Good,
+                            sourceTimestamp: Harness.BaseTime)
+                    ]
+                })
+            };
+            results.Add(withValue);
+            var response = new HistoryReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 1,
+                    ServiceResult = StatusCodes.Good
+                },
+                Results = results.ToArray(),
+                DiagnosticInfos = []
+            };
+            var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create())
+            {
+                MaxMessageSize = maxMessageSize
+            };
+            using var encoder = new BinaryEncoder(messageContext);
+            Assert.That(
+                () => encoder.EncodeMessage(response),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// Starts the response budget of a HistoryRead as the server does.
+        /// </summary>
+        private static void StartHistoryReadBudget(OperationContext operation, int maxMessageSize, int resultCount)
+        {
+            int budget = ResponseSizeEstimator.GetHistoryReadResponseBudget(maxMessageSize, resultCount);
+            if (budget < 0)
+            {
+                operation.StartExhaustedResponseBudget();
+            }
+            else
+            {
+                operation.StartResponseBudget(budget);
+            }
         }
 
         private static ValueTask<ServiceResult> ReadAsync(

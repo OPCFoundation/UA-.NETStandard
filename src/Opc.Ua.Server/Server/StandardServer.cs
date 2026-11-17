@@ -2309,10 +2309,18 @@ namespace Opc.Ua.Server
                         nodesToRead,
                         OperationLimits.MaxNodesPerHistoryReadData);
                 }
-                context.StartResponseBudget(ResponseSizeEstimator.GetHistoryReadResponseBudget(
+                int responseBudget = ResponseSizeEstimator.GetHistoryReadResponseBudget(
                     GetResponseByteBudget(secureChannelContext),
                     nodesToRead.Count,
-                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0));
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0);
+                if (responseBudget < 0)
+                {
+                    context.StartExhaustedResponseBudget();
+                }
+                else
+                {
+                    context.StartResponseBudget(responseBudget);
+                }
 
                 (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.HistoryReadAsync(

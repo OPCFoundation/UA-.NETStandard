@@ -87,7 +87,8 @@ namespace Opc.Ua.Server
         /// The response byte budget of a HistoryRead: the message size limit less the
         /// framing of the response and of each of its results, so that history pages that
         /// fit the budget are sent with their continuation points. Zero (no budget) when
-        /// <paramref name="maxMessageSize"/> is zero.
+        /// <paramref name="maxMessageSize"/> is zero, and -1 when the framing alone
+        /// exceeds the limit (<see cref="OperationContext.StartExhaustedResponseBudget"/>).
         /// </summary>
         /// <remarks>
         /// When the client asks for operation diagnostics, an empty diagnostic info is
@@ -105,7 +106,9 @@ namespace Opc.Ua.Server
             int resultFraming = HistoryReadResultFramingSize + (returnsOperationDiagnostics ? 1 : 0);
             long budget = maxMessageSize - HistoryReadResponseFramingSize -
                 ((long)resultCount * resultFraming);
-            return (int)System.Math.Max(1, budget);
+            // the deficit is not clamped away: the continuation point bytes that complete
+            // results return to the budget would otherwise cover it.
+            return budget < 1 ? -1 : (int)budget;
         }
 
         /// <summary>
