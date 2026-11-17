@@ -313,7 +313,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await source.ReportEventAsync(raw.SystemContext, occurrence).ConfigureAwait(false);
                     await raw.MonitoredNodes[source.NodeId].WaitForPendingNotificationsAsync(CancellationToken.None)
                         .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                    var notifications = new Queue<EventFieldList>();
+                    var notifications = new Queue<QueuedEvent>();
                     _ = native.Publish(context, notifications, 10);
                     Assert.That(notifications, Has.Count.EqualTo(1));
                     Assert.That(notifications.Dequeue().EventFields[0].TryGetValue(out LocalizedText actual), Is.True);

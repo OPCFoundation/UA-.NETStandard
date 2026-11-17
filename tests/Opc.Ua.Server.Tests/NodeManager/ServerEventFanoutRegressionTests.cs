@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
                 Assert.That(item.ItemsInQueue, Is.EqualTo(1));
-                var notifications = new Queue<EventFieldList>();
+                var notifications = new Queue<QueuedEvent>();
                 _ = item.Publish(context, notifications, 10);
                 Assert.That(notifications, Has.Count.EqualTo(1));
                 Assert.That(notifications.Dequeue().EventFields[0].TryGetValue(out LocalizedText message), Is.True);

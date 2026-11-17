@@ -760,6 +760,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A hidden custom facade prevents its raw emitter from using a live legacy generation.
+        /// </summary>
+        [Test]
+        public void HiddenCustomFacadeDoesNotAdmitBoundEmitterThroughLegacyFallback()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var source = new Mock<IAsyncNodeManager>();
+                source.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                source.SetupGet(manager => manager.SyncNodeManager)
+                    .Returns(new SyncNodeManagerAdapter(source.Object));
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(source.Object);
+
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(manager => manager.NamespaceUris).Returns(Array.Empty<string>());
+                facade.SetupGet(manager => manager.SyncNodeManager)
+                    .Returns(new SyncNodeManagerAdapter(source.Object));
+                NodeManagerRoutingTable routing = CreateRoutedMaster(server, out MasterNodeManager master);
+                using (master)
+                {
+                    routing.Add(facade.Object, [], visible: false);
+
+                    bool accepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, source.Object, out var admission, generation.Reference);
+
+                    try
+                    {
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(accepted, Is.False);
+                            Assert.That(admission, Is.Null);
+                            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                        });
+                    }
+                    finally
+                    {
+                        admission?.Dispose();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// A hidden stack adapter cannot borrow a visible sibling's route, while an unregistered alias uses
         /// the first visible stack adapter and the raw resource still needs a unique visible facade.
         /// </summary>

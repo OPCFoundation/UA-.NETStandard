@@ -306,7 +306,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            IAsyncNodeManager resource = NodeManagerGenerationRegistry.GetIdentity(nodeManager);
+            IAsyncNodeManager resource = GetReferenceOwnerIdentity(nodeManager);
             bool rawResource = ReferenceEquals(resource, nodeManager);
             if (!rawResource && nodeManager is not AsyncNodeManagerAdapter)
             {
@@ -323,11 +323,10 @@ namespace Opc.Ua.Server
                 NodeManagerGeneration? privateSource = boundGeneration ?? candidate.PrivateSourceGeneration;
                 bool privateAlias = privateSource is not null &&
                     IsPrivateForwardedSource(candidate, privateSource, nodeManager);
-                bool identityAlias = ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(facade), resource);
+                bool identityAlias = ReferenceEquals(GetReferenceOwnerIdentity(facade), resource);
                 bool legacyAlias = boundGeneration is not null &&
                     IsLegacyForwardedSource(candidate, boundGeneration, nodeManager);
-                if (!identityAlias && !privateAlias &&
-                    !ReferenceEquals(GetReferenceOwnerIdentity(facade), resource))
+                if (!identityAlias && !privateAlias)
                 {
                     continue;
                 }
@@ -443,8 +442,8 @@ namespace Opc.Ua.Server
             {
                 return true;
             }
-            IAsyncNodeManager resource = NodeManagerGenerationRegistry.GetIdentity(nodeManager);
-            if (!ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager), resource))
+            IAsyncNodeManager resource = GetReferenceOwnerIdentity(nodeManager);
+            if (!ReferenceEquals(GetReferenceOwnerIdentity(generation.NodeManager), resource))
             {
                 return false;
             }
