@@ -121,7 +121,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Host.SoftwareIdentity, Is.Not.SameAs(result.Identity));
             Assert.That(fixture.Host.SoftwareIdentity!.ApplicationId, Is.EqualTo(result.Identity.ApplicationId));
             Assert.That(fixture.Host.SoftwareIdentity.SelectedIdentity, Is.EqualTo(result.Identity.SelectedIdentity));
-            Assert.That(fixture.Host.SoftwareManager, Is.SameAs(manager));
+            Assert.That(fixture.Host.SoftwareManager, Is.Not.SameAs(manager));
+            Assert.That(fixture.Host.SoftwareManager!.PurposeUri, Is.EqualTo(manager.PurposeUri));
             Assert.That(fixture.Host.SoftwareRegistrar, Is.EqualTo(kRegistrar));
             Assert.That(fixture.Connection.Offer, Is.Not.SameAs(request.IdentityOffer));
             Assert.That(fixture.Connection.Offer, Is.EqualTo(request.IdentityOffer));
@@ -196,7 +197,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 ApplicationId = applicationId,
                 SoftwareUpdateManager = new ManagerDescription()
             };
-            fixture.Host.OnSoftwareUpdate = (receivedRegistrar, identity) =>
+            fixture.Host.OnSoftwareUpdate = (receivedRegistrar, identity, _) =>
             {
                 MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
                 MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
@@ -210,6 +211,76 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
             Assert.That(result.Identity.SelectedIdentity, Is.EqualTo(kIdentity));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
+        /// <summary>
+        /// Connection and provider mutations do not alter the selected software-update manager.
+        /// </summary>
+        [Test]
+        public async Task SoftwareUpdateManagerIsDetachedFromConnectionAndProvider()
+        {
+            var fixture = new Fixture();
+            var translations = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["en"] = "Manager {0}"
+            };
+            object[] arguments = ["original"];
+            string[] endpoints = ["opc.tcp://original:4840"];
+            var manager = new ManagerDescription
+            {
+                Name = new LocalizedText(translations, new TranslationInfo("manager", "en", "Manager {0}", arguments)),
+                IsRequired = true,
+                PurposeUri = "urn:original:purpose",
+                ProtocolUri = "urn:original:protocol",
+                EndpointUrls = endpoints
+            };
+            fixture.Connection.Selection = fixture.Connection.Selection with { SoftwareUpdateManager = manager };
+            fixture.Host.OnActivate = _ =>
+            {
+                translations["en"] = "Changed {0}";
+                arguments[0] = "changed";
+                endpoints[0] = "opc.tcp://changed:4840";
+                manager.PurposeUri = "urn:changed:purpose";
+            };
+            fixture.Host.OnSoftwareUpdate = (_, identity, receivedManager) =>
+            {
+                Assert.That(identity.SoftwareUpdateManager, Is.SameAs(receivedManager));
+                Assert.That(receivedManager.Name.FilterByPreferredLocales(["en"]).Text,
+                    Is.EqualTo("Manager original"));
+                Assert.That(receivedManager.EndpointUrls[0], Is.EqualTo("opc.tcp://original:4840"));
+                Assert.That(receivedManager.PurposeUri, Is.EqualTo("urn:original:purpose"));
+                receivedManager.Name = new LocalizedText("Provider changed");
+                receivedManager.EndpointUrls = ["opc.tcp://provider:4840"];
+                receivedManager.PurposeUri = "urn:provider:purpose";
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            ManagerDescription selected = result.Identity.SoftwareUpdateManager!;
+            Assert.That(selected.Name.FilterByPreferredLocales(["en"]).Text, Is.EqualTo("Manager original"));
+            Assert.That(selected.EndpointUrls[0], Is.EqualTo("opc.tcp://original:4840"));
+            Assert.That(selected.PurposeUri, Is.EqualTo("urn:original:purpose"));
+            Assert.That(selected.ProtocolUri, Is.EqualTo("urn:original:protocol"));
+            Assert.That(selected.IsRequired, Is.True);
+        }
+
+        /// <summary>
+        /// Extended manager descriptions are not silently truncated during snapshotting.
+        /// </summary>
+        [Test]
+        public async Task DerivedSoftwareUpdateManagerIsRejectedBeforeActivation()
+        {
+            var fixture = new Fixture();
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                SoftwareUpdateManager = new DerivedManagerDescription()
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.Calls, Is.EqualTo(s_connectProvideCalls));
         }
 
         [Test]
@@ -2253,6 +2324,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
+        /// <summary>
+        /// Represents an extended manager description that cannot be safely snapshotted.
+        /// </summary>
+        private sealed class DerivedManagerDescription : ManagerDescription
+        {
+        }
+
         private class FakeConnection : IPullDcaConnection
         {
             public FakeConnection(Fixture fixture)
@@ -2498,7 +2576,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>
             /// Gets or sets an action invoked with the software-update binding.
             /// </summary>
-            public Action<PullDcaRegistrar, PullDcaIdentitySelection>? OnSoftwareUpdate { get; set; }
+            public Action<PullDcaRegistrar, PullDcaIdentitySelection,             ManagerDescription>? OnSoftwareUpdate { get; set; }
             public Action<NodeId, PullDcaCertificateProfile>? OnCreateSigningRequest { get; set; }
             public Action<NodeId, PullDcaCertificateProfile, ByteString>? OnKeyEvidence { get; set; }
             public Action<NodeId>? OnInstall { get; set; }
@@ -2529,7 +2607,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 SoftwareIdentity = identity;
                 SoftwareManager = manager;
                 SoftwareRegistrar = registrar;
-                OnSoftwareUpdate?.Invoke(registrar, identity);
+                OnSoftwareUpdate?.Invoke(registrar, identity, manager);
                 return default;
             }
 
@@ -2613,6 +2691,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private static readonly string[] s_finishCalls = ["connect", "finish:dca"];
         private static readonly string[] s_connectCalls = ["connect"];
         private static readonly string[] s_connectManagersCalls = ["connect", "managers"];
+        private static readonly string[] s_connectProvideCalls = ["connect", "provide"];
         private static readonly string[] s_recoveryCalls =
         [
             "connect", "finish:dca", "certificates:dca", "trust:dca", "validate-recovery",

@@ -392,7 +392,10 @@ namespace Opc.Ua.Gds.Client
                     identity = identity with
                     {
                         SelectedIdentity = identity.SelectedIdentity.Copy(),
-                        ApplicationId = PullDcaConnection.SnapshotNodeId(identity.ApplicationId)
+                        ApplicationId = PullDcaConnection.SnapshotNodeId(identity.ApplicationId),
+                        SoftwareUpdateManager = identity.SoftwareUpdateManager is { } selectedManager
+                            ? SnapshotManager(selectedManager)
+                            : null
                     };
                 }
                 if (identity == null || identity.SelectedIdentity.IsEmpty ||
@@ -414,14 +417,16 @@ namespace Opc.Ua.Gds.Client
                         throw new ServiceResultException(
                             StatusCodes.BadConfigurationError, "A real software-update provider is required.");
                     }
+                    ManagerDescription providerManager = SnapshotManager(manager);
                     await m_softwareUpdateProvider.CompleteAsync(
                         PullDcaConnection.SnapshotRegistrar(registrar),
                         identity with
                         {
                             SelectedIdentity = identity.SelectedIdentity.Copy(),
-                            ApplicationId = PullDcaConnection.SnapshotNodeId(identity.ApplicationId)
+                            ApplicationId = PullDcaConnection.SnapshotNodeId(identity.ApplicationId),
+                            SoftwareUpdateManager = providerManager
                         },
-                        manager, ct).ConfigureAwait(false);
+                        providerManager, ct).ConfigureAwait(false);
                 }
 
                 (PullDcaCredentials dcaCredentials, PullDcaSigningBinding? binding) = await ProvisionAsync(
@@ -1148,6 +1153,27 @@ namespace Opc.Ua.Gds.Client
                 detached[i] = values[i].Copy();
             }
             return detached;
+        }
+
+        /// <summary>
+        /// Detaches the selected manager from the connection and software-update provider.
+        /// </summary>
+        private static ManagerDescription SnapshotManager(ManagerDescription manager)
+        {
+            if (manager.GetType() != typeof(ManagerDescription))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "A derived software-update manager cannot be copied safely.");
+            }
+            return new ManagerDescription
+            {
+                Name = manager.Name.Copy(),
+                IsRequired = manager.IsRequired,
+                PurposeUri = manager.PurposeUri,
+                ProtocolUri = manager.ProtocolUri,
+                EndpointUrls = manager.EndpointUrls.ToArray().ToArrayOf()
+            };
         }
 
         /// <summary>
