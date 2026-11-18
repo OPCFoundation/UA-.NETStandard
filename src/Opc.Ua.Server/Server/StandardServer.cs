@@ -116,6 +116,7 @@ namespace Opc.Ua.Server
                 registrationWorkerFactory);
             m_admission = new SessionAdmission(this, TimeProvider);
             m_discoveryServices = new DiscoveryServices(this);
+            m_configurationReload = new ConfigurationReload(this);
             m_nodeManagerLifecycle = new NodeManagerLifecycle(this, TimeProvider, lifecycleWriterFactory);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
@@ -402,14 +403,12 @@ namespace Opc.Ua.Server
 
         private void DisposeConfigurationWatcher()
         {
-            m_configurationWatcher?.Dispose();
-            m_configurationWatcher = null;
+            m_configurationReload.DisposeConfigurationWatcher();
         }
 
         private void DisposeCertificateManagerSubscription()
         {
-            m_certManagerSubscription?.Dispose();
-            m_certManagerSubscription = null;
+            m_configurationReload.DisposeCertificateManagerSubscription();
         }
 
         private void DisposeOwnedRateLimiterProvider()
@@ -3295,73 +3294,19 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
-        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
-            Justification = "Configuration.GetType() returns a concrete type whose constructor is preserved at the call site.")]
         protected virtual async void OnConfigurationChangedAsync(
             object? sender,
             ConfigurationWatcherEventArgs args)
         {
-            try
-            {
-                ApplicationConfiguration configuration = await ApplicationConfiguration
-                    .LoadAsync(
-                        new FileInfo(args.FilePath),
-                        Configuration!.ApplicationType,
-                        Configuration!.GetType(),
-                        MessageContext.Telemetry)
-                    .ConfigureAwait(false);
-
-                await OnUpdateConfigurationAsync(configuration)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                m_logger.NotLoadUpdatedConfigurationFileFromFilePath(e, args.FilePath);
-            }
+            await m_configurationReload.ReloadAsync(args).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask OnUpdateConfigurationAsync(
+        protected override ValueTask OnUpdateConfigurationAsync(
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
-            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                // update security configuration.
-                configuration.SecurityConfiguration.Validate(MessageContext.Telemetry);
-
-                ApplicationConfiguration currentConfiguration = Configuration!;
-                SecurityConfiguration currentSecurityConfiguration = currentConfiguration
-                    .SecurityConfiguration;
-
-                currentSecurityConfiguration.TrustedIssuerCertificates = configuration
-                    .SecurityConfiguration
-                    .TrustedIssuerCertificates;
-                currentSecurityConfiguration.TrustedPeerCertificates = configuration
-                    .SecurityConfiguration
-                    .TrustedPeerCertificates;
-                currentSecurityConfiguration.RejectedCertificateStore = configuration
-                    .SecurityConfiguration
-                    .RejectedCertificateStore;
-
-                if (CertificateManager != null)
-                {
-                    await CertificateManager.UpdateAsync(
-                            Configuration!.SecurityConfiguration,
-                            Configuration.ApplicationUri,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                }
-            }
-            catch (Exception e)
-            {
-                m_logger.FailedToUpdateConfiguration(e);
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
+            return m_configurationReload.ApplyAsync(configuration, cancellationToken);
         }
 
         /// <summary>
@@ -3938,25 +3883,7 @@ namespace Opc.Ua.Server
             m_serverInternal.ConfigurationNodeManager?
                 .StartAlarmMonitoring(kCertificateAlarmMonitoringInterval);
 
-            // monitor the configuration file.
-            if (!string.IsNullOrEmpty(configuration.SourceFilePath))
-            {
-                m_logger.ServerConfigurationWatcherStarted();
-                m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
-                m_configurationWatcher!.Changed += OnConfigurationChangedAsync;
-            }
-
-            // Log availability of the new CertificateManager
-            if (CertificateManager != null)
-            {
-                m_logger.CertificateManagerInitializedWithCountTrustLists(CertificateManager.TrustLists.Count);
-
-                // Subscribe to CertificateManager change notifications and
-                // fan-out to OnCertificateUpdateAsync so endpoint descriptions
-                // and transport listeners pick up cert hot-updates.
-                m_certManagerSubscription = CertificateManager.CertificateChanges
-                    .Subscribe(new CertificateManagerChangeObserver(this, m_logger));
-            }
+            m_configurationReload.Start(configuration);
         }
 
         /// <summary>
@@ -4106,14 +4033,12 @@ namespace Opc.Ua.Server
                 progress, ShutdownStage.Registration, failures, m_discoveryRegistration.StopAsync).ConfigureAwait(false);
             await RunShutdownStageOnceAsync(progress, ShutdownStage.ConfigurationWatcher, failures, () =>
             {
-                m_configurationWatcher?.Dispose();
-                m_configurationWatcher = null;
+                m_configurationReload.DisposeConfigurationWatcher();
                 return default;
             }).ConfigureAwait(false);
             await RunShutdownStageOnceAsync(progress, ShutdownStage.CertificateSubscription, failures, () =>
             {
-                m_certManagerSubscription?.Dispose();
-                m_certManagerSubscription = null;
+                m_configurationReload.DisposeCertificateManagerSubscription();
                 return default;
             }).ConfigureAwait(false);
             if ((progress.CompletedStages & ShutdownStage.Registration) != 0)
@@ -5105,7 +5030,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private ConfigurationWatcher? m_configurationWatcher;
+        private readonly ConfigurationReload m_configurationReload;
         private readonly DiscoveryRegistration m_discoveryRegistration;
 
         /// <summary>
@@ -5123,7 +5048,6 @@ namespace Opc.Ua.Server
         private readonly List<IUserTokenAuthenticator> m_preStartAuthenticators = [];
         private readonly List<IIdentityAugmenter> m_preStartIdentityAugmenters = [];
 
-        private IDisposable? m_certManagerSubscription;
         private ServerRateLimitOptions? m_rateLimitOptions;
         private readonly SessionAdmission m_admission;
         private readonly DiscoveryServices m_discoveryServices;
