@@ -359,11 +359,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures a request's effective identity and notification epoch together.
         /// </summary>
-        internal (IUserIdentity Identity, NotificationAuthorization? Authorization) CaptureNotificationContext()
+        internal (IUserIdentity Identity, NotificationAuthorization? Authorization, string? ClientUserId)
+            CaptureNotificationContext()
         {
             lock (m_lock)
             {
-                return (EffectiveIdentity, m_notificationAuthorization);
+                return (EffectiveIdentity, m_notificationAuthorization, m_clientUserId);
             }
         }
 
@@ -549,6 +550,12 @@ namespace Opc.Ua.Server
         /// The user identity token provided by the client.
         /// </summary>
         public IUserIdentityTokenHandler IdentityToken { get; private set; } = null!;
+
+        /// <summary>
+        /// The ClientUserId of the activated user (OPC 10000-5 6.4.3), or <c>null</c>
+        /// for an anonymous user.
+        /// </summary>
+        internal string? ClientUserId => Volatile.Read(ref m_clientUserId);
 
         /// <summary>
         /// Applies an update to the session diagnostics while holding the session's
@@ -1344,8 +1351,11 @@ namespace Opc.Ua.Server
                     Volatile.Write(ref m_notificationAuthorization, null);
                 }
 
-                // update local ids.
-                if (UpdateLocaleIds(localeIds))
+                // update local ids. Part 4 §5.7.3.2: a null or empty list keeps
+                // the LocaleIds the Session already has; the first activation
+                // always initializes them.
+                if ((!localeIds.IsEmpty || PreferredLocales == null) &&
+                    UpdateLocaleIds(localeIds))
                 {
                     changed = true;
                 }
@@ -1515,54 +1525,53 @@ namespace Opc.Ua.Server
                 identityToken.TryGetValue(out anonymousToken))
             {
                 // check if an anonymous login is permitted.
-                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
-                {
-                    bool found = false;
+                // Part 4 7.14: the endpoint accepts only the listed token types, so an
+                // empty list accepts none, anonymous included.
+                bool found = false;
 
+                for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
+                {
+                    if (EndpointDescription.UserIdentityTokens[ii]
+                        .TokenType == UserTokenType.Anonymous)
+                    {
+                        found = true;
+                        policy = EndpointDescription.UserIdentityTokens[ii];
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadIdentityTokenRejected,
+                        "Anonymous user token policy not supported.");
+                }
+
+                // a token that names its policy must conform to that policy
+                // (Part 4 7.40.3); only an omitted token or PolicyId falls back
+                // to the first anonymous policy of the endpoint.
+                if (!string.IsNullOrEmpty(anonymousToken?.PolicyId))
+                {
+                    policy = null;
                     for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
                     {
-                        if (EndpointDescription.UserIdentityTokens[ii]
-                            .TokenType == UserTokenType.Anonymous)
+                        UserTokenPolicy candidate = EndpointDescription.UserIdentityTokens[ii];
+                        if (candidate.TokenType == UserTokenType.Anonymous &&
+                            string.Equals(
+                                candidate.PolicyId,
+                                anonymousToken!.PolicyId,
+                                StringComparison.Ordinal))
                         {
-                            found = true;
-                            policy = EndpointDescription.UserIdentityTokens[ii];
+                            policy = candidate;
                             break;
                         }
                     }
 
-                    if (!found)
+                    if (policy == null)
                     {
                         throw ServiceResultException.Create(
-                            StatusCodes.BadIdentityTokenRejected,
-                            "Anonymous user token policy not supported.");
-                    }
-
-                    // a token that names its policy must conform to that policy
-                    // (Part 4 7.40.3); only an omitted token or PolicyId falls back
-                    // to the first anonymous policy of the endpoint.
-                    if (!string.IsNullOrEmpty(anonymousToken?.PolicyId))
-                    {
-                        policy = null;
-                        for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
-                        {
-                            UserTokenPolicy candidate = EndpointDescription.UserIdentityTokens[ii];
-                            if (candidate.TokenType == UserTokenType.Anonymous &&
-                                string.Equals(
-                                    candidate.PolicyId,
-                                    anonymousToken!.PolicyId,
-                                    StringComparison.Ordinal))
-                            {
-                                policy = candidate;
-                                break;
-                            }
-                        }
-
-                        if (policy == null)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadIdentityTokenInvalid,
-                                "The anonymous identity token does not match an anonymous user token policy.");
-                        }
+                            StatusCodes.BadIdentityTokenInvalid,
+                            "The anonymous identity token does not match an anonymous user token policy.");
                     }
                 }
 
@@ -1663,6 +1672,17 @@ namespace Opc.Ua.Server
             }
 
             token.UpdatePolicy(policy);
+
+            // Part 4 §7.40.4 Table 189: a clear-text secret over a Sign channel is
+            // an invalid configuration, even when a custom server publishes it.
+            if (ServerBase.IsCleartextTokenPolicyOnSignChannel(
+                EndpointDescription.SecurityMode, policy))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "A {0} token with SecurityPolicy None is not accepted on a Sign channel.",
+                    policy.TokenType);
+            }
 
             // determine the security policy uri.
             string? securityPolicyUri = policy.SecurityPolicyUri;
@@ -1993,6 +2013,7 @@ namespace Opc.Ua.Server
                     string? clientUserId = ClientUserIdResolver.Resolve(
                         identityToken,
                         identity);
+                    Volatile.Write(ref m_clientUserId, clientUserId);
                     ArrayOf<string> history = m_securityDiagnostics.ClientUserIdHistory;
 
                     // ClientUserIdOfSession names the user authenticated when the session
@@ -2206,6 +2227,44 @@ namespace Opc.Ua.Server
             bool error,
             bool authorizationError)
         {
+            AddPendingRequestCounts(
+                requestType,
+                !error
+                    ? 1L
+                    : authorizationError
+                        ? 1L + (1L << kErrorShift) + (1L << kUnauthorizedShift)
+                        : 1L + (1L << kErrorShift));
+        }
+
+        /// <summary>
+        /// Counts a request that passed <see cref="ValidateRequest"/> but that its service
+        /// rejected. <see cref="ValidateRequest"/> counted the request already, so only its
+        /// error is added to the service and total counters (OPC 10000-5 12.13), and to
+        /// UnauthorizedRequestCount when the rejection denied access (OPC 10000-5 12.11).
+        /// </summary>
+        /// <param name="requestType">The type of the rejected request.</param>
+        /// <param name="statusCode">The status code the service rejected the request with.</param>
+        internal void UpdateRejectedRequestCounters(RequestType requestType, StatusCode statusCode)
+        {
+            bool authorizationError =
+                statusCode == StatusCodes.BadUserAccessDenied ||
+                statusCode == StatusCodes.BadIdentityTokenInvalid ||
+                statusCode == StatusCodes.BadIdentityTokenRejected ||
+                statusCode == StatusCodes.BadSecurityModeInsufficient;
+
+            AddPendingRequestCounts(
+                requestType,
+                authorizationError
+                    ? (1L << kErrorShift) + (1L << kUnauthorizedShift)
+                    : 1L << kErrorShift);
+        }
+
+        /// <summary>
+        /// Adds a packed request count delta to the pending slot of a request type.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void AddPendingRequestCounts(RequestType requestType, long delta)
+        {
             int slot = (int)requestType;
             if ((uint)slot >= (uint)kRequestTypeCount)
             {
@@ -2213,11 +2272,6 @@ namespace Opc.Ua.Server
                     $"Unexpected RequestType {requestType}");
             }
 
-            long delta = !error
-                ? 1L
-                : authorizationError
-                    ? 1L + (1L << kErrorShift) + (1L << kUnauthorizedShift)
-                    : 1L + (1L << kErrorShift);
             ulong pending = unchecked((ulong)Interlocked.Add(ref m_pendingRequestCounts[slot], delta));
 
             // Without a diagnostics reader nothing folds the slots; fold before a field can
@@ -2365,6 +2419,7 @@ namespace Opc.Ua.Server
         private long m_lastContactUtcTicks;
         private long m_sessionTimeoutMs;
         private long m_foldedContactUtcTicks;
+        private string? m_clientUserId;
 
         /// <summary>
         /// Request counts not yet applied to <see cref="SessionDiagnostics"/>, one packed

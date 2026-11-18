@@ -1800,41 +1800,95 @@ namespace Opc.Ua.Server
             if (validItems)
             {
                 NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
-                if (snapshot.NodeOverrides.Count != 0)
+                // the values kept for the response are charged against the response byte
+                // budget of the service while they are read: by the node managers that
+                // charge their values themselves, and here for the others.
+                int count = nodesToRead.Count;
+                bool[]? unread = context.ResponseBytesRemaining >= 0
+                    ? System.Buffers.ArrayPool<bool>.Shared.Rent(count)
+                    : null;
+                try
                 {
-                    await DispatchOverridesAsync(
-                        snapshot,
-                        nodesToRead,
-                        static item => item.NodeId,
-                        static item => item.Processed,
-                        static (item, processed) => item.Processed = processed,
-                        manager => manager.ReadAsync(
-                            context, maxAge, nodesToRead, values, errors, cancellationToken))
-                        .ConfigureAwait(false);
-                }
-                foreach (IAsyncNodeManager nodeManager in dispatchOrder)
-                {
-                    if (!routes.Includes(nodeManager) || !GetRouting(context).CanDispatchTo(nodeManager))
+                    if (snapshot.NodeOverrides.Count != 0)
                     {
-                        continue;
-                    }
-
-                    if (snapshot.NodeOverrides.Count == 0)
-                    {
-                        await nodeManager.ReadAsync(
-                            context, maxAge, nodesToRead, values, errors, cancellationToken).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        await DispatchWithoutOverridesAsync(
+                        await DispatchOverridesAsync(
                             snapshot,
                             nodesToRead,
                             static item => item.NodeId,
                             static item => item.Processed,
                             static (item, processed) => item.Processed = processed,
-                            () => nodeManager.ReadAsync(
-                                context, maxAge, nodesToRead, values, errors, cancellationToken))
-                            .ConfigureAwait(false);
+                            ReadWithBudgetAsync).ConfigureAwait(false);
+                    }
+                    foreach (IAsyncNodeManager nodeManager in dispatchOrder)
+                    {
+                        if (!routes.Includes(nodeManager) || !snapshot.CanDispatchTo(nodeManager))
+                        {
+                            continue;
+                        }
+
+                        if (snapshot.NodeOverrides.Count == 0)
+                        {
+                            await ReadWithBudgetAsync(nodeManager).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await DispatchWithoutOverridesAsync(
+                                snapshot,
+                                nodesToRead,
+                                static item => item.NodeId,
+                                static item => item.Processed,
+                                static (item, processed) => item.Processed = processed,
+                                () => ReadWithBudgetAsync(nodeManager)).ConfigureAwait(false);
+                        }
+                    }
+                }
+                finally
+                {
+                    if (unread != null)
+                    {
+                        System.Buffers.ArrayPool<bool>.Shared.Return(unread);
+                    }
+                }
+
+                async ValueTask ReadWithBudgetAsync(IAsyncNodeManager nodeManager)
+                {
+                    long remaining = 0;
+                    if (unread != null)
+                    {
+                        // Snapshot after routing masks are applied, so masked items are never charged.
+                        for (int ii = 0; ii < count; ii++)
+                        {
+                            unread[ii] = !nodesToRead[ii].Processed;
+                        }
+                        remaining = context.ResponseBytesRemaining;
+                    }
+
+                    await nodeManager.ReadAsync(
+                        context, maxAge, nodesToRead, values, errors, cancellationToken).ConfigureAwait(false);
+
+                    if (unread == null)
+                    {
+                        return;
+                    }
+
+                    // A manager that left the budget unchanged did not charge its own results.
+                    if (context.ResponseBytesRemaining == remaining)
+                    {
+                        long responseBytes = 0;
+                        for (int ii = 0; ii < count && responseBytes <= remaining; ii++)
+                        {
+                            if (unread[ii] && nodesToRead[ii].Processed)
+                            {
+                                responseBytes += ResponseSizeEstimator.EstimateValue(values[ii]);
+                            }
+                        }
+                        context.TryChargeResponse(responseBytes);
+                    }
+                    if (context.ResponseBudgetExceeded)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            "The values of the Read exceed the response size limit.");
                     }
                 }
             }
@@ -2197,6 +2251,7 @@ namespace Opc.Ua.Server
 
             // add placeholder for each result.
             bool validItems = false;
+            ServerSystemContext? auditContext = null;
 
             for (int ii = 0; ii < count; ii++)
             {
@@ -2216,6 +2271,18 @@ namespace Opc.Ua.Server
                 {
                     nodesToWrite[ii].Processed = true;
                     results[ii] = error!.Code;
+
+                    // Part 4 §6.5.8: a rejected write (for example Bad_UserAccessDenied)
+                    // is a failed invocation and is audited like one.
+                    if (Server.Auditing)
+                    {
+                        Server.ReportAuditWriteUpdateEvent(
+                            auditContext ??= Server.DefaultSystemContext.Copy(context),
+                            nodesToWrite[ii],
+                            default,
+                            error!.StatusCode,
+                            m_logger);
+                    }
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -2281,6 +2348,17 @@ namespace Opc.Ua.Server
                     if (!nodesToWrite[ii].Processed)
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
+
+                        // no node manager handled the write, so none audited it.
+                        if (Server.Auditing)
+                        {
+                            Server.ReportAuditWriteUpdateEvent(
+                                auditContext ??= Server.DefaultSystemContext.Copy(context),
+                                nodesToWrite[ii],
+                                default,
+                                StatusCodes.BadNodeIdUnknown,
+                                m_logger);
+                        }
                     }
 
                     if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
@@ -2372,6 +2450,7 @@ namespace Opc.Ua.Server
                 errors.Add(null!);
             }
 
+            ServerSystemContext? historyAuditContext = null;
             for (int ii = 0; ii < nodesToUpdate.Count; ii++)
             {
                 HistoryUpdateResult? result = null;
@@ -2395,6 +2474,22 @@ namespace Opc.Ua.Server
                 {
                     nodesToUpdate[ii].Processed = true;
                     result = new HistoryUpdateResult { StatusCode = error!.Code };
+
+                    // Part 4 §6.5.8: failed HistoryUpdate invocations are audited too.
+                    if (Server.Auditing && inputErrors[ii] == null)
+                    {
+                        // annotations are updated with UpdateStructureDataDetails on the
+                        // Annotations property and audited as annotation updates.
+                        bool isAnnotationUpdate = nodesToUpdate[ii] is UpdateStructureDataDetails &&
+                            Historian.HistorianDispatcher.IsAnnotationsProperty(await FindNodeInAddressSpaceAsync(
+                                nodesToUpdate[ii].NodeId, cancellationToken).ConfigureAwait(false));
+                        Server.ReportAuditHistoryUpdateRejectedEvent(
+                            historyAuditContext ??= Server.DefaultSystemContext.Copy(context),
+                            nodesToUpdate[ii],
+                            error.Code,
+                            m_logger,
+                            isAnnotationUpdate);
+                    }
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -2512,6 +2607,7 @@ namespace Opc.Ua.Server
 
             // add placeholder for each result.
             bool validItems = false;
+            ServerSystemContext? callAuditContext = null;
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
@@ -2553,6 +2649,23 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(errors[ii]))
                 {
                     methodsToCall[ii].Processed = true;
+
+                    // Part 4 §6.5.9: a rejected call (for example Bad_UserAccessDenied)
+                    // is a failed invocation and is audited like one. The call never
+                    // reached the method, which owns the knowledge of which arguments are
+                    // secret (private keys, passwords, credential secrets; Part 12 §7.10.3),
+                    // so the input arguments are not copied into the audit event.
+                    if (Server.Auditing)
+                    {
+                        Server.ReportAuditUpdateMethodEvent(
+                            callAuditContext ??= Server.DefaultSystemContext.Copy(context),
+                            methodsToCall[ii].ObjectId,
+                            methodsToCall[ii].MethodId,
+                            default,
+                            "Method/Call",
+                            errors[ii].StatusCode,
+                            m_logger);
+                    }
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)

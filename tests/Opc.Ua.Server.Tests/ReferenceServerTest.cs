@@ -1502,6 +1502,69 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A binary encoded Read whose values cannot fit the message size limit of the
+        /// server fails with BadResponseTooLarge. A JSON encoded request has no response
+        /// byte budget.
+        /// </summary>
+        [Test]
+        public async Task ReadWhoseValuesExceedTheMessageSizeLimitFailsAsync()
+        {
+            if (m_operationLimits == null)
+            {
+                await GetOperationLimitsAsync().ConfigureAwait(false);
+            }
+            var nodeToRead = new ReadValueId
+            {
+                NodeId = VariableIds.OpcUa_BinarySchema,
+                AttributeId = Attributes.Value
+            };
+
+            // the smallest encoded size of the value of the node.
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse single = await m_server.ReadAsync(
+                m_secureChannelContext, m_requestHeader, 0, TimestampsToReturn.Neither,
+                [nodeToRead], RequestLifetime.None).ConfigureAwait(false);
+            Assert.That(single.Results.Count, Is.EqualTo(1));
+            Assert.That(single.Results[0].WrappedValue.TryGetValue(out ByteString schema), Is.True);
+            long perNode = 1 + 1 + 4 + schema.Length;
+            int maxMessageSize = m_server.MessageContext.MaxMessageSize;
+            Assert.That(maxMessageSize, Is.GreaterThan(0));
+            long count = (maxMessageSize / perNode) + 1;
+            if (m_operationLimits!.MaxNodesPerRead > 0 && count > m_operationLimits.MaxNodesPerRead)
+            {
+                Assert.Ignore("MaxNodesPerRead is below the node count that exceeds the message size limit.");
+            }
+            // one ReadValueId per operation: the server marks each one it processed.
+            var nodes = new ReadValueId[count];
+            for (int ii = 0; ii < nodes.Length; ii++)
+            {
+                nodes[ii] = new ReadValueId { NodeId = nodeToRead.NodeId, AttributeId = Attributes.Value };
+            }
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_server.ReadAsync(
+                    m_secureChannelContext, m_requestHeader, 0, TimestampsToReturn.Neither,
+                    nodes, RequestLifetime.None).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+
+            var jsonChannel = new SecureChannelContext(
+                m_secureChannelContext.SecureChannelId,
+                m_secureChannelContext.EndpointDescription,
+                RequestEncoding.Json,
+                m_secureChannelContext.ClientChannelCertificate.ToArray(),
+                m_secureChannelContext.ServerChannelCertificate.ToArray(),
+                m_secureChannelContext.ChannelThumbprint.ToArray(),
+                m_secureChannelContext.PeerAddress);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse json = await m_server.ReadAsync(
+                jsonChannel, m_requestHeader, 0, TimestampsToReturn.Neither,
+                nodes, RequestLifetime.None).ConfigureAwait(false);
+            Assert.That(json.Results.Count, Is.EqualTo(nodes.Length));
+        }
+
+        /// <summary>
         /// Translate references.
         /// </summary>
         [Test]

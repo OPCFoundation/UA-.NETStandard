@@ -251,6 +251,43 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A request its service rejects after the session admitted it is an error of the
+        /// session (OPC 10000-5 12.13), and an unauthorized request when access was denied
+        /// (OPC 10000-5 12.11); the request itself is counted once.
+        /// </summary>
+        [Test]
+        public async Task RejectedServiceRequestsCountAsSessionErrorsAsync()
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            var session = (ServerSession)created.Session;
+            var channel = new SecureChannelContext(kChannelId, harness.Endpoint, RequestEncoding.Binary);
+            var header = new RequestHeader { AuthenticationToken = created.AuthenticationToken };
+            (uint Total, uint Errors, uint Unauthorized, uint Read) baseline = session.ReadDiagnostics(d => (
+                d.TotalRequestCount.TotalCount,
+                d.TotalRequestCount.ErrorCount,
+                d.UnauthorizedRequestCount,
+                d.ReadCount.TotalCount));
+
+            session.ValidateRequest(header, channel, RequestType.Read);
+            session.UpdateRejectedRequestCounters(RequestType.Read, StatusCodes.BadNothingToDo);
+            session.ValidateRequest(header, channel, RequestType.Write);
+            session.UpdateRejectedRequestCounters(RequestType.Write, StatusCodes.BadUserAccessDenied);
+
+            session.ReadDiagnostics(d =>
+            {
+                Assert.That(d.TotalRequestCount.TotalCount - baseline.Total, Is.EqualTo(2u));
+                Assert.That(d.TotalRequestCount.ErrorCount - baseline.Errors, Is.EqualTo(2u));
+                Assert.That(d.UnauthorizedRequestCount - baseline.Unauthorized, Is.EqualTo(1u));
+                Assert.That(d.ReadCount.TotalCount - baseline.Read, Is.EqualTo(1u));
+                Assert.That(d.ReadCount.ErrorCount, Is.EqualTo(1u));
+                Assert.That(d.WriteCount.TotalCount, Is.EqualTo(1u));
+                Assert.That(d.WriteCount.ErrorCount, Is.EqualTo(1u));
+                return true;
+            });
+        }
+
+        /// <summary>
         /// The expiry checks read the session timeout without the diagnostics lock; a
         /// timeout changed through UpdateDiagnostics must still take effect for them.
         /// </summary>

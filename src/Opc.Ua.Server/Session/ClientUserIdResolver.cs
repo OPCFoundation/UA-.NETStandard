@@ -30,10 +30,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Text;
-using System.Text.Json;
-using Opc.Ua.Identity;
-using Opc.Ua.Security.Certificates;
+using System.Security.Cryptography;
 
 namespace Opc.Ua.Server
 {
@@ -124,6 +121,90 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves the ClientUserId of the user that activated a Session, as
+        /// reported in audit events (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <param name="session">The Session, or <c>null</c>.</param>
+        /// <returns>
+        /// The ClientUserId, or <c>null</c> for an anonymous, unknown or invalid identity.
+        /// </returns>
+        public static string? ResolveSession(ISession? session)
+        {
+            if (session is Session serverSession)
+            {
+                return serverSession.ClientUserId;
+            }
+            if (session?.IdentityToken == null || session.Identity == null)
+            {
+                return null;
+            }
+            TryResolve(session.IdentityToken, session.Identity, out string? clientUserId);
+            return clientUserId;
+        }
+
+        /// <summary>
+        /// Resolves the ClientUserId of an authenticated identity from the token
+        /// handler it holds, as reported in audit events (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <param name="identity">The authenticated identity, or <c>null</c>.</param>
+        /// <returns>
+        /// The ClientUserId, or <c>null</c> for an anonymous, unknown or invalid identity.
+        /// </returns>
+        public static string? ResolveIdentity(IUserIdentity? identity)
+        {
+            if (identity?.TokenHandler is not IUserIdentityTokenHandler identityToken)
+            {
+                return null;
+            }
+            TryResolve(identityToken, identity, out string? clientUserId);
+            return clientUserId;
+        }
+
+        /// <summary>
+        /// Resolves the ClientUserId of the token a Client supplied in an
+        /// ActivateSession request that was not authenticated, as reported in the
+        /// failed AuditActivateSessionEvent (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <remarks>
+        /// An issued token resolves only when it was sent unencrypted as a JWT; the
+        /// token is not validated, so the result names the claimed user.
+        /// </remarks>
+        /// <param name="identityToken">The requested token; <c>null</c> requests an anonymous user.</param>
+        /// <returns>
+        /// The ClientUserId, or <c>null</c> for an anonymous token or one without a
+        /// readable user.
+        /// </returns>
+        public static string? ResolveRequested(UserIdentityToken? identityToken)
+        {
+            try
+            {
+                switch (identityToken)
+                {
+                    case UserNameIdentityToken userNameToken:
+                        return userNameToken.UserName;
+                    case X509IdentityToken x509Token:
+                        return GetX509Subject(x509Token);
+                    case IssuedIdentityToken issuedToken
+                        when string.IsNullOrEmpty(issuedToken.EncryptionAlgorithm) &&
+                            !issuedToken.TokenData.IsEmpty:
+                        return TryGetJwtOwner(
+                            issuedToken.TokenData.ToArray(),
+                            out string? issuer,
+                            out string? subject)
+                            ? issuer == null ? subject : string.Concat(issuer, subject)
+                            : null;
+                    default:
+                        return null;
+                }
+            }
+            catch (Exception exception) when (
+                exception is ServiceResultException or CryptographicException or FormatException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Resolves the key used to verify that a Session keeps the same
         /// ClientUserId across a SecureChannel or Subscription transfer
         /// (OPC 10000-4 5.7.3.1).
@@ -200,8 +281,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Resolves the token type and the issuer and subject components that
-        /// identify the authenticated owner. A <c>null</c> subject denotes an
-        /// anonymous identity.
+        /// identify the authenticated owner, looking through Role decorations to
+        /// the authenticated identity. A <c>null</c> subject denotes an anonymous identity.
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="identityToken"/> or <paramref name="authenticatedIdentity"/> is <c>null</c>.
@@ -216,42 +297,12 @@ namespace Opc.Ua.Server
             out string? issuer,
             out string? subject)
         {
-            if (identityToken == null)
-            {
-                throw new ArgumentNullException(nameof(identityToken));
-            }
-            if (authenticatedIdentity == null)
-            {
-                throw new ArgumentNullException(nameof(authenticatedIdentity));
-            }
-
-            issuer = null;
-            switch (identityToken.Token)
-            {
-                case AnonymousIdentityToken:
-                    tokenType = UserTokenType.Anonymous;
-                    subject = null;
-                    return;
-                case UserNameIdentityToken userNameToken:
-                    tokenType = UserTokenType.UserName;
-                    subject = userNameToken.UserName;
-                    return;
-                case X509IdentityToken x509Token:
-                    tokenType = UserTokenType.Certificate;
-                    subject = GetX509Subject(x509Token);
-                    return;
-                case IssuedIdentityToken:
-                    tokenType = UserTokenType.IssuedToken;
-                    subject = GetIssuedTokenOwner(
-                        identityToken,
-                        authenticatedIdentity,
-                        out issuer);
-                    return;
-                default:
-                    throw new ServiceResultException(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        "The UserIdentityToken type does not define a ClientUserId.");
-            }
+            ClientUserIdRules.ResolveParts(
+                identityToken,
+                authenticatedIdentity,
+                out tokenType,
+                out issuer,
+                out subject);
         }
 
         /// <summary>
@@ -259,187 +310,19 @@ namespace Opc.Ua.Server
         /// </summary>
         private static string GetX509Subject(X509IdentityToken token)
         {
-            using Certificate? certificate = token.CertificateData.IsEmpty
-                ? null
-                : Certificate.FromRawData(token.CertificateData);
-            return certificate?.Subject ??
-                throw new ServiceResultException(
-                    StatusCodes.BadIdentityTokenInvalid,
-                    "The X509IdentityToken does not contain a valid Certificate.");
+            return ClientUserIdRules.GetX509Subject(token);
         }
 
         /// <summary>
-        /// Resolves a stable issued-token owner from authenticated claims or
-        /// validated JWT data, returning the issuer and subject separately so the
-        /// caller can encode them without ambiguity.
-        /// </summary>
-        private static string GetIssuedTokenOwner(
-            IUserIdentityTokenHandler identityToken,
-            IUserIdentity authenticatedIdentity,
-            out string? issuer)
-        {
-            while (authenticatedIdentity is RoleBasedIdentity roleBasedIdentity)
-            {
-                authenticatedIdentity = roleBasedIdentity.InnerIdentity;
-            }
-
-            if (authenticatedIdentity is IIdentityClaims claims &&
-                TryGetClaimsOwner(claims, out issuer, out string? subject))
-            {
-                return subject;
-            }
-
-            if (identityToken is IssuedIdentityTokenHandler issuedToken &&
-                issuedToken.IssuedTokenType == IssuedTokenType.JWT &&
-                TryGetJwtOwner(issuedToken, out issuer, out subject))
-            {
-                return subject;
-            }
-
-            throw new ServiceResultException(
-                StatusCodes.BadIdentityTokenInvalid,
-                "The authenticated IssuedIdentityToken does not expose a stable owner.");
-        }
-
-        /// <summary>
-        /// Attempts to read the issued-token issuer and subject from authenticated claims.
-        /// </summary>
-        private static bool TryGetClaimsOwner(
-            IIdentityClaims claims,
-            out string? issuer,
-            [NotNullWhen(true)] out string? subject)
-        {
-            issuer = claims.Issuer;
-            subject = claims.Subject;
-
-            if (string.IsNullOrEmpty(subject) &&
-                claims.Claims.TryGetValue("sub", out object? subjectClaim))
-            {
-                subject = subjectClaim as string;
-            }
-            if (issuer == null &&
-                claims.Claims.TryGetValue("iss", out object? issuerClaim))
-            {
-                issuer = issuerClaim as string;
-            }
-
-            return !string.IsNullOrEmpty(subject);
-        }
-
-        /// <summary>
-        /// Attempts to read the issuer and subject from a validated JWT token payload.
+        /// Attempts to read the issuer and subject from a JWT token payload. The
+        /// token data is owned by the method and cleared before it returns.
         /// </summary>
         private static bool TryGetJwtOwner(
-            IssuedIdentityTokenHandler token,
+            byte[]? tokenData,
             out string? issuer,
             [NotNullWhen(true)] out string? subject)
         {
-            issuer = null;
-            subject = null;
-            byte[]? tokenData = token.DecryptedTokenData;
-            byte[]? payloadData = null;
-
-            try
-            {
-                if (tokenData == null || tokenData.Length == 0)
-                {
-                    return false;
-                }
-
-                string jwt = Encoding.UTF8.GetString(tokenData);
-                int firstSeparator = -1;
-                int secondSeparator = -1;
-                for (int index = 0; index < jwt.Length; index++)
-                {
-                    if (jwt[index] != '.')
-                    {
-                        continue;
-                    }
-                    if (firstSeparator < 0)
-                    {
-                        firstSeparator = index;
-                    }
-                    else
-                    {
-                        secondSeparator = index;
-                        break;
-                    }
-                }
-                if (firstSeparator <= 0 ||
-                    secondSeparator <= firstSeparator + 1 ||
-                    secondSeparator == jwt.Length - 1)
-                {
-                    return false;
-                }
-
-                payloadData = Base64UrlDecode(
-                    jwt.Substring(
-                        firstSeparator + 1,
-                        secondSeparator - firstSeparator - 1));
-                using JsonDocument document = JsonDocument.Parse(payloadData);
-                JsonElement payload = document.RootElement;
-                if (payload.ValueKind != JsonValueKind.Object ||
-                    !payload.TryGetProperty("sub", out JsonElement subjectProperty) ||
-                    subjectProperty.ValueKind != JsonValueKind.String)
-                {
-                    return false;
-                }
-
-                subject = subjectProperty.GetString();
-                if (string.IsNullOrEmpty(subject))
-                {
-                    return false;
-                }
-
-                if (payload.TryGetProperty("iss", out JsonElement issuerProperty))
-                {
-                    if (issuerProperty.ValueKind != JsonValueKind.String)
-                    {
-                        return false;
-                    }
-                    issuer = issuerProperty.GetString();
-                }
-
-                return true;
-            }
-            catch (FormatException)
-            {
-                return false;
-            }
-            catch (JsonException)
-            {
-                return false;
-            }
-            finally
-            {
-                if (tokenData != null)
-                {
-                    Array.Clear(tokenData, 0, tokenData.Length);
-                }
-                if (payloadData != null)
-                {
-                    Array.Clear(payloadData, 0, payloadData.Length);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Decodes an unpadded Base64Url value.
-        /// </summary>
-        private static byte[] Base64UrlDecode(string value)
-        {
-            string padded = value.Replace('-', '+').Replace('_', '/');
-            switch (padded.Length % 4)
-            {
-                case 2:
-                    padded += "==";
-                    break;
-                case 3:
-                    padded += "=";
-                    break;
-            }
-
-            return Convert.FromBase64String(padded);
+            return ClientUserIdRules.TryGetJwtOwner(tokenData, out issuer, out subject);
         }
     }
 }

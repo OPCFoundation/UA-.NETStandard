@@ -1324,6 +1324,16 @@ namespace Opc.Ua
                     }
                 }
 
+                // Part 4 §7.40.4 Table 189: a secret token whose policy is None on a
+                // Sign (not encrypted) channel would travel in clear text; that
+                // configuration shall be rejected.
+                if (IsCleartextTokenPolicyOnSignChannel(description.SecurityMode, clone))
+                {
+                    m_logger.CleartextTokenPolicyOnSignEndpoint(
+                        clone.TokenType, description.EndpointUrl);
+                    continue;
+                }
+
                 if (description.SecurityMode == MessageSecurityMode.None &&
                     clone.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken &&
                     clone.SecurityPolicyUri != SecurityPolicies.None)
@@ -1368,6 +1378,59 @@ namespace Opc.Ua
             }
 
             return policies;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="description"/> publishes no user token
+        /// policy because the clear-text secret policies configured for it were rejected
+        /// (Part 4 §7.40.4 Table 189). Such an endpoint is not offered: the empty policy
+        /// list would otherwise read as "no user authentication required" (for example
+        /// for anonymous Session-less requests). An empty list a server publishes on
+        /// purpose (for example without an anonymous policy in provisioning mode) is kept.
+        /// </summary>
+        /// <param name="configuration">The configuration.</param>
+        /// <param name="description">The endpoint with its published user token policies.</param>
+        public static bool HasNoUsableUserTokenPolicy(
+            ApplicationConfiguration configuration,
+            EndpointDescription description)
+        {
+            if (!description.UserIdentityTokens.IsEmpty ||
+                configuration.ServerConfiguration == null)
+            {
+                return false;
+            }
+
+            foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
+            {
+                if (IsCleartextTokenPolicyOnSignChannel(description.SecurityMode, policy))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when a UserName or IssuedToken policy uses SecurityPolicy
+        /// None on a Sign channel, so the secret would be sent unencrypted
+        /// (Part 4 §7.40.4 Table 189: an invalid configuration that shall be rejected).
+        /// </summary>
+        /// <param name="channelSecurityMode">The security mode of the endpoint or channel.</param>
+        /// <param name="policy">The user token policy.</param>
+        public static bool IsCleartextTokenPolicyOnSignChannel(
+            MessageSecurityMode channelSecurityMode,
+            UserTokenPolicy policy)
+        {
+            return channelSecurityMode == MessageSecurityMode.Sign &&
+                policy.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken &&
+                // an empty policy inherits the channel policy; a policy may be given by
+                // its short name, so compare the canonical URI of the resolved policy.
+                !string.IsNullOrEmpty(policy.SecurityPolicyUri) &&
+                string.Equals(
+                    SecurityPolicies.Default.GetInfoIgnoringPlatformSupport(policy.SecurityPolicyUri)?.Uri,
+                    SecurityPolicies.None,
+                    StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -2247,6 +2310,21 @@ namespace Opc.Ua
                 "a compatible RSA application certificate and non-key-agreement token policy are required.")]
         public static partial void IncompatibleNoneEndpointTokenPolicy(
             this ILogger logger, UserTokenType tokenType, string? securityPolicy, [NetworkAddress] string? endpointUrl);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 13, Level = LogLevel.Error,
+            Message = "Omitting {TokenType} token policy with SecurityPolicy None on Sign endpoint {EndpointUrl}: " +
+                "the secret would be sent unencrypted (OPC 10000-4 Table 189).")]
+        public static partial void CleartextTokenPolicyOnSignEndpoint(
+            this ILogger logger, UserTokenType tokenType, [NetworkAddress] string? endpointUrl);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 14, Level = LogLevel.Error,
+            Message = "Omitting {SecurityMode} endpoint {EndpointUrl} with SecurityPolicy {SecurityPolicyUri}: " +
+                "none of the configured user token policies can be offered on it.")]
+        public static partial void EndpointWithoutUsableUserTokenPolicy(
+            this ILogger logger,
+            MessageSecurityMode securityMode,
+            [NetworkAddress] string? endpointUrl,
+            string? securityPolicyUri);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 0, Level = LogLevel.Error,
             Message = "Unexpected error disposing transport listener {Name}.")]

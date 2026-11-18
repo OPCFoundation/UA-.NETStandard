@@ -161,7 +161,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal template,
             ApplicationConfiguration configuration,
             ArrayOf<INodeManager> additionalManagers = default,
-            ArrayOf<IAsyncNodeManager> additionalAsyncManagers = default)
+            ArrayOf<IAsyncNodeManager> additionalAsyncManagers = default,
+            Action<Mock<IServerInternal>>? configure = null)
         {
             _ = template ?? throw new ArgumentNullException(nameof(template));
             _ = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -242,6 +243,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             server.Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
                 .Callback((ISystemContext context, AuditEventState notification) =>
                     template.ReportAuditEvent(context, notification));
+            configure?.Invoke(server);
 
             manager = new MasterNodeManager(
                 server.Object, configuration, null,

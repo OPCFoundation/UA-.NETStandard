@@ -54,5 +54,14 @@ namespace Opc.Ua.Redundancy.Server
         /// <c>ServiceLevel</c>.
         /// </summary>
         public Func<ServerState, byte>? ServiceLevelSelector { get; set; }
+
+        /// <summary>
+        /// Gets or sets the time provider that drives the <c>SecondsTillShutdown</c>
+        /// countdown published after a <see cref="ServerState.Shutdown"/> request.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to <see cref="TimeProvider.System"/>.
+        /// </remarks>
+        public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
     }
 }

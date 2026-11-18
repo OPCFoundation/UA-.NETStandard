@@ -33,6 +33,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -712,6 +713,80 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        /// <summary>
+        /// Part 4 §6.5.8: a write of a node validated in the deferred operation is
+        /// audited like any other write.
+        /// </summary>
+        [Test]
+        public void WriteOfDeferredValidatedNodeIsAudited()
+        {
+            using Harness h = CreatePlaceholderHarness(out PlaceholderNodeManager manager);
+            var audits = new List<AuditEventState>();
+            h.MockServer.SetupGet(s => s.Auditing).Returns(true);
+            h.MockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback((ISystemContext _, AuditEventState e) => audits.Add(e));
+            BaseDataVariableState variable = h.NewWritableVariable("DeferredVar", 1);
+            manager.PlaceholderNodeId = variable.NodeId;
+            manager.ValidatedNode = variable;
+
+            var nodesToWrite = new List<WriteValue>
+            {
+                new() {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new Variant(42))
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            // the audit names the user, so the write carries an identity.
+            var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None,
+                new Mock<IUserIdentity>().Object);
+            manager.Write(context, nodesToWrite, errors);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(variable.Value, Is.EqualTo(42));
+            AuditWriteUpdateEventState audit = audits.OfType<AuditWriteUpdateEventState>().Single();
+            Assert.That(audit.Status!.Value, Is.True);
+        }
+
+        /// <summary>
+        /// Part 4 §6.5.8: a write whose node the deferred validation cannot resolve is
+        /// already marked processed, so the node manager audits the failure itself.
+        /// </summary>
+        [Test]
+        public void WriteOfDeferredUnknownNodeIsAuditedAsFailure()
+        {
+            using Harness h = CreatePlaceholderHarness(out PlaceholderNodeManager manager);
+            var audits = new List<AuditEventState>();
+            h.MockServer.SetupGet(s => s.Auditing).Returns(true);
+            h.MockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback((ISystemContext _, AuditEventState e) => audits.Add(e));
+            manager.PlaceholderNodeId = new NodeId("Ghost", h.NamespaceIndex);
+
+            var nodesToWrite = new List<WriteValue>
+            {
+                new() {
+                    NodeId = manager.PlaceholderNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new Variant(1))
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None,
+                new Mock<IUserIdentity>().Object);
+            manager.Write(context, nodesToWrite, errors);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            AuditWriteUpdateEventState audit = audits.OfType<AuditWriteUpdateEventState>().Single();
+            Assert.That(audit.Status!.Value, Is.False);
+        }
+
         [Test]
         public void Browse_ReturnsChildReferences()
         {
@@ -836,8 +911,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        /// <summary>
+        /// A View may organize nodes of other node managers (Part 4 §5.9.2); the service
+        /// dispatcher checks that the View exists, so a View this node manager does not
+        /// own does not fail the operation here.
+        /// </summary>
         [Test]
-        public void Browse_UnknownView_ThrowsBadViewIdUnknown()
+        public void BrowseWithViewOfAnotherNodeManagerDoesNotFail()
         {
             using Harness h = CreateHarness();
             BaseObjectState node = h.NewObject("BrowseView");
@@ -848,11 +928,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
             continuationPoint.View = new ViewDescription { ViewId = new NodeId("NoView", h.NamespaceIndex) };
             var references = new List<ReferenceDescription>();
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references))!;
+            Assert.DoesNotThrow(
+                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references));
+            continuationPoint?.Dispose();
+        }
 
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadViewIdUnknown));
-            continuationPoint.Dispose();
+        /// <summary>
+        /// The node manager returns only current references, so a View version is
+        /// rejected even when another node manager owns the View.
+        /// </summary>
+        [Test]
+        public void BrowseWithVersionOfAnotherNodeManagersViewIsRejected()
+        {
+            using Harness h = CreateHarness();
+            BaseObjectState node = h.NewObject("BrowseViewVersion");
+            h.Manager.AddPredefinedNodePublic(h.Context, node);
+            object handle = h.Manager.GetManagerHandle(node.NodeId)!;
+
+            ContinuationPoint continuationPoint = h.NewContinuationPoint(handle);
+            continuationPoint.View = new ViewDescription
+            {
+                ViewId = new NodeId("NoView", h.NamespaceIndex),
+                ViewVersion = 7
+            };
+            var references = new List<ReferenceDescription>();
+
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
+                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadViewVersionInvalid));
+            continuationPoint?.Dispose();
         }
 
         [Test]
@@ -1242,7 +1346,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool unknownView = h.Manager.IsNodeInView(
                 h.NewContext(RequestType.Browse), new NodeId("UnknownView", h.NamespaceIndex), handle);
 
-            Assert.That(unknownView, Is.False);
+            // A View owned by another node manager does not filter the nodes of this one.
+            Assert.That(unknownView, Is.True);
         }
 
         [Test]
@@ -1441,6 +1546,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             public NodeId PlaceholderNodeId { get; set; } = NodeId.Null;
+
+            /// <summary>
+            /// The node the deferred validation resolves the placeholder to, or
+            /// <c>null</c> when the placeholder stays unknown.
+            /// </summary>
+            public NodeState? ValidatedNode { get; set; }
+
+            protected override NodeState? ValidateNode(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache)
+            {
+                if (ValidatedNode != null && handle.NodeId == PlaceholderNodeId)
+                {
+                    handle.Node = ValidatedNode;
+                    handle.Validated = true;
+                    return ValidatedNode;
+                }
+
+                return base.ValidateNode(context, handle, cache);
+            }
 
             protected override NodeHandle? GetManagerHandle(
                 ServerSystemContext context,

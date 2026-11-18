@@ -547,6 +547,26 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo((uint)DiagnosticsMasks.AdditionalInfo));
         }
 
+        /// <summary>
+        /// Part 4 7.14: an endpoint accepts only the token types it lists, so an
+        /// endpoint without user token policies rejects an anonymous activation.
+        /// </summary>
+        [Test]
+        public async Task ValidateBeforeActivateRejectsAnonymousWhenTheEndpointListsNoTokenPolicyAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(tokens: []);
+            using ServerSession session = CreateSession(endpoint, channelId: "channel-1");
+            OperationContext context = CreateContext(endpoint, channelId: "channel-1");
+
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
+                    context,
+                    new SignatureData(),
+                    default,
+                    new SignatureData(),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
         [Test]
         public async Task ValidateBeforeActivateWithClientCertificateAndEmptySignatureThrows()
         {
