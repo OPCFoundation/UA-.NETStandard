@@ -1153,15 +1153,36 @@ namespace Opc.Ua
         public async ValueTask StartAcceptingConnectionsAsync(CancellationToken cancellationToken = default)
         {
             Task activation;
+            TaskCompletionSource<bool>? owner = null;
+            ITransportListener[] listeners = [];
             lock (m_acceptLock)
             {
                 if (m_acceptTask == null || m_acceptTask.IsFaulted || m_acceptTask.IsCanceled)
                 {
-                    // the shared activation is not bound to one caller's token.
-                    ITransportListener[] listeners = [.. TransportListeners];
-                    m_acceptTask = StartListenersAcceptingAsync(listeners, CancellationToken.None);
+                    owner = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_acceptTask = owner.Task;
+                    listeners = [.. TransportListeners];
                 }
                 activation = m_acceptTask;
+            }
+
+            if (owner != null)
+            {
+                // The caller that starts the activation runs it outside the
+                // lock and to completion: it is not bound to one caller's
+                // token, and a listener that starts at once completes it
+                // synchronously.
+                try
+                {
+                    await StartListenersAcceptingAsync(listeners, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    owner.TrySetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    owner.TrySetException(ex);
+                }
             }
 
             // each caller can stop waiting on its own.
@@ -1172,8 +1193,6 @@ namespace Opc.Ua
             ITransportListener[] listeners,
             CancellationToken cancellationToken)
         {
-            // run outside the caller's lock scope.
-            await Task.Yield();
             foreach (ITransportListener listener in listeners)
             {
                 if (listener is ITransportListenerAcceptControl acceptControl)
