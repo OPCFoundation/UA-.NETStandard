@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
+    public partial class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
         IRequestParkingPolicySource, IServerApplicationCertificateActivator
     {
         /// <inheritdoc/>
@@ -115,6 +115,7 @@ namespace Opc.Ua.Server
                 m_logger,
                 registrationWorkerFactory);
             m_admission = new SessionAdmission(this, TimeProvider);
+            m_discoveryServices = new DiscoveryServices(this);
             m_nodeManagerLifecycle = new NodeManagerLifecycle(this, TimeProvider, lifecycleWriterFactory);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
@@ -446,7 +447,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<FindServersResponse> FindServersAsync(
+        public override ValueTask<FindServersResponse> FindServersAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             string? endpointUrl,
@@ -454,117 +455,12 @@ namespace Opc.Ua.Server
             ArrayOf<string> serverUris,
             RequestLifetime requestLifetime)
         {
-            List<ApplicationDescription> servers = [];
-
-            ValidateRequest(requestHeader);
-
-            await m_semaphoreSlim.WaitAsync(requestLifetime.CancellationToken).ConfigureAwait(false);
-            try
-            {
-                // parse the url provided by the client.
-                IList<BaseAddress> baseAddresses = BaseAddresses;
-
-                Uri? parsedEndpointUrl = Utils.ParseUri(endpointUrl);
-
-                if (parsedEndpointUrl != null)
-                {
-                    baseAddresses = FilterByEndpointUrl(parsedEndpointUrl, baseAddresses);
-                }
-
-                // check if nothing to do.
-                if (baseAddresses.Count == 0)
-                {
-                    return new FindServersResponse
-                    {
-                        ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
-                        Servers = servers
-                    };
-                }
-
-                // build list of unique servers.
-                var uniqueServers = new Dictionary<string, ApplicationDescription>();
-
-                foreach (EndpointDescription description in GetEndpoints())
-                {
-                    ApplicationDescription server = description.Server;
-
-                    // skip servers that have been processed.
-                    if (uniqueServers.ContainsKey(server.ApplicationUri!))
-                    {
-                        continue;
-                    }
-
-                    // check client is filtering by server uri.
-                    if (serverUris.Count > 0 &&
-                        !serverUris.Contains(f => f == server.ApplicationUri))
-                    {
-                        continue;
-                    }
-
-                    // localize the application name if requested.
-                    LocalizedText applicationName = server.ApplicationName;
-
-                    if (localeIds.Count > 0)
-                    {
-                        applicationName = ServerInternal.ResourceManager
-                            .Translate(localeIds, applicationName);
-                    }
-
-                    // get the application description.
-                    ApplicationDescription application = TranslateApplicationDescription(
-                        parsedEndpointUrl!,
-                        server,
-                        baseAddresses,
-                        applicationName);
-
-                    uniqueServers.Add(server.ApplicationUri!, application);
-
-                    // add to list of servers to return.
-                    servers.Add(application);
-                }
-
-                AddRedundantServerSetDescriptions(serverUris, uniqueServers, servers);
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
-
-            return new FindServersResponse
-            {
-                ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
-                Servers = servers
-            };
-        }
-
-        private void AddRedundantServerSetDescriptions(
-            ArrayOf<string> serverUris,
-            Dictionary<string, ApplicationDescription> uniqueServers,
-            List<ApplicationDescription> servers)
-        {
-            IRedundantServerSetProvider? provider = RedundantServerSetProvider;
-            if (provider == null)
-            {
-                return;
-            }
-
-            foreach (ApplicationDescription peer in provider.GetRedundantServerSet())
-            {
-                string? applicationUri = peer.ApplicationUri;
-                if (string.IsNullOrEmpty(applicationUri) ||
-                    uniqueServers.ContainsKey(applicationUri) ||
-                    (serverUris.Count > 0 && !serverUris.Contains(uri => uri == applicationUri)))
-                {
-                    continue;
-                }
-
-                uniqueServers.Add(applicationUri, peer);
-                servers.Add(peer);
-            }
+            return m_discoveryServices.FindServersAsync(
+                requestHeader, endpointUrl, localeIds, serverUris, requestLifetime);
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<GetEndpointsResponse> GetEndpointsAsync(
+        public override ValueTask<GetEndpointsResponse> GetEndpointsAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             string? endpointUrl,
@@ -572,44 +468,8 @@ namespace Opc.Ua.Server
             ArrayOf<string> profileUris,
             RequestLifetime requestLifetime)
         {
-            ArrayOf<EndpointDescription> endpoints = default;
-
-            ValidateRequest(requestHeader);
-
-            await m_semaphoreSlim.WaitAsync(requestLifetime.CancellationToken).ConfigureAwait(false);
-            try
-            {
-                // filter by profile.
-                IList<BaseAddress> baseAddresses = FilterByProfile(profileUris, BaseAddresses);
-
-                // get the descriptions.
-                endpoints = GetEndpointDescriptions(endpointUrl, baseAddresses, localeIds);
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
-
-            // consult the optional load-direction seam; when it directs the
-            // Client to a peer it replaces the local endpoints (extension
-            // beyond OPC 10000-4 §6.6; opt-in and gated).
-            IGetEndpointsDirector? director = GetEndpointsDirector;
-            if (director != null)
-            {
-                (bool redirect, ArrayOf<EndpointDescription> directed) = await director
-                    .TryGetDirectedEndpointsAsync(endpointUrl, endpoints, requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-                if (redirect)
-                {
-                    endpoints = directed;
-                }
-            }
-
-            return new GetEndpointsResponse
-            {
-                ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
-                Endpoints = endpoints
-            };
+            return m_discoveryServices.GetEndpointsAsync(
+                requestHeader, endpointUrl, localeIds, profileUris, requestLifetime);
         }
 
         /// <summary>
@@ -620,44 +480,7 @@ namespace Opc.Ua.Server
             IList<BaseAddress> baseAddresses,
             ArrayOf<string> localeIds)
         {
-            ArrayOf<EndpointDescription> endpoints = default;
-
-            // parse the url provided by the client.
-            Uri? parsedEndpointUrl = Utils.ParseUri(endpointUrl);
-
-            if (parsedEndpointUrl != null)
-            {
-                baseAddresses = FilterByEndpointUrl(parsedEndpointUrl, baseAddresses);
-            }
-
-            // check if nothing to do.
-            if (baseAddresses.Count != 0)
-            {
-                // localize the application name if requested.
-                LocalizedText applicationName = ServerDescription!.ApplicationName;
-
-                if (localeIds.Count > 0)
-                {
-                    applicationName = ServerInternal.ResourceManager
-                        .Translate(localeIds, applicationName);
-                }
-
-                // translate the application description.
-                ApplicationDescription application = TranslateApplicationDescription(
-                    parsedEndpointUrl!,
-                    ServerDescription,
-                    baseAddresses,
-                    applicationName);
-
-                // translate the endpoint descriptions.
-                endpoints = TranslateEndpointDescriptions(
-                    parsedEndpointUrl!,
-                    baseAddresses,
-                    Endpoints,
-                    application);
-            }
-
-            return endpoints;
+            return m_discoveryServices.GetEndpointDescriptions(endpointUrl, baseAddresses, localeIds);
         }
 
         /// <inheritdoc/>
@@ -5303,6 +5126,7 @@ namespace Opc.Ua.Server
         private IDisposable? m_certManagerSubscription;
         private ServerRateLimitOptions? m_rateLimitOptions;
         private readonly SessionAdmission m_admission;
+        private readonly DiscoveryServices m_discoveryServices;
         private readonly ILogger m_eventLogger;
 
         private readonly record struct HistorianProviderRegistration(
