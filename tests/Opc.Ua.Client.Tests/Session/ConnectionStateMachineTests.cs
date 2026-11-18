@@ -259,11 +259,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
-        /// Records the level of every log entry; entries arrive from the worker thread.
+        /// Records the level and message of every log entry; entries arrive from the worker thread.
         /// </summary>
         private sealed class RecordingLogger : ILogger
         {
             public ConcurrentQueue<LogLevel> Levels { get; } = new();
+
+            public ConcurrentQueue<string> Messages { get; } = new();
 
             public IDisposable? BeginScope<TState>(TState state)
                 where TState : notnull
@@ -284,6 +286,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Func<TState, Exception?, string> formatter)
             {
                 Levels.Enqueue(logLevel);
+                Messages.Enqueue(formatter(state, exception));
             }
         }
 
@@ -1117,6 +1120,38 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Last(t => t.NewState == ConnectionState.Disconnected);
             Assert.That(disconnected.Error?.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
             Assert.That(logger.Levels, Has.None.GreaterThanOrEqualTo(LogLevel.Error));
+            Assert.That(logger.Messages, Has.Some.Match(@"Reconnect policy exhausted after \d+ attempts, no failover"));
+            Assert.That(logger.Messages, Has.None.Contains("failover to redundant server"));
+        }
+
+        /// <summary>
+        /// A reconnect that runs out of its total time budget also skips the Failover
+        /// state when no failover operation is configured.
+        /// </summary>
+        [Test]
+        public async Task ExhaustedReconnectBudgetWithoutFailoverSkipsFailoverStateAsync()
+        {
+            var logger = new RecordingLogger();
+            await using var sm = new ConnectionStateMachine(
+                new ReconnectPolicy
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromSeconds(5),
+                    JitterFactor = 0.0
+                },
+                logger,
+                maxTotalReconnectTime: TimeSpan.FromMilliseconds(50));
+            sm.ConnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            sm.ReconnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+
+            sm.Start();
+            sm.RequestConnect();
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected, 10000).ConfigureAwait(false);
+
+            Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.False);
+            Assert.That(logger.Messages, Has.Some.Match(@"Reconnect budget exhausted after \d+ attempts, no failover"));
+            Assert.That(logger.Levels, Has.None.GreaterThanOrEqualTo(LogLevel.Error));
         }
 
         /// <summary>
@@ -1564,8 +1599,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo(ConnectionState.Closed));
         }
 
-        [Test]
-        public async Task EstablishedSessionStartsAnotherCycleAfterExhaustionBackoffAsync()
+        /// <summary>
+        /// An established session restarts recovery after the exhaustion backoff, also when
+        /// it skipped the Failover state because no failover operation is configured.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task EstablishedSessionStartsAnotherCycleAfterExhaustionBackoffAsync(bool withFailover)
         {
             var time = new FakeTimeProvider();
             var policy = new ReconnectPolicy
@@ -1581,7 +1621,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             machine.ReconnectAsync = _ => Task.FromResult(++attempts == 1
                 ? new ServiceResult(StatusCodes.BadConnectionClosed)
                 : ServiceResult.Good);
-            machine.FailoverAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadNotSupported));
+            if (withFailover)
+            {
+                machine.FailoverAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadNotSupported));
+            }
+            StateTransitionRecorder recorder = AttachRecorder(machine);
             var disconnected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             machine.StateChanged += (_, change) =>
             {
@@ -1604,6 +1648,40 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(machine.State, Is.EqualTo(ConnectionState.Connected));
             Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.EqualTo(withFailover));
+        }
+
+        /// <summary>
+        /// The backoff before an established session restarts recovery is at least one
+        /// second, even when the policy's maximum delay is shorter.
+        /// </summary>
+        [Test]
+        public async Task ExhaustionBackoffIsAtLeastTheDefaultInitialDelayAsync()
+        {
+            var time = new FakeTimeProvider();
+            var policy = new ReconnectPolicy
+            {
+                InitialDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.FromMilliseconds(10),
+                MaxRetries = 1,
+                JitterFactor = 0
+            };
+            await using var machine = new ConnectionStateMachine(policy, m_logger, timeProvider: time);
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            machine.ReconnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            StateTransitionRecorder recorder = AttachRecorder(machine);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            machine.Start();
+            machine.RequestConnect();
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+            machine.TriggerReconnect();
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected).ConfigureAwait(false);
+
+            // The recovery timer fires synchronously inside Advance.
+            time.Advance(ReconnectPolicy.DefaultInitialDelay - TimeSpan.FromMilliseconds(1));
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
+            time.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Reconnecting));
         }
 
         [Test]
