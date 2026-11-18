@@ -1111,6 +1111,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(sm.State, Is.EqualTo(ConnectionState.Disconnected));
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected).ConfigureAwait(false);
             Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.False);
             ConnectionStateChangedEventArgs disconnected = recorder.GetTransitions()
                 .Last(t => t.NewState == ConnectionState.Disconnected);
