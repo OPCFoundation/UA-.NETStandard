@@ -542,8 +542,11 @@ namespace Opc.Ua.Bindings
 
             // Kestrel accepts as soon as it is bound, so a deferred listener
             // holds the requests at the gate until it is opened.
-            m_acceptRequested = !settings.DeferAccept;
-            m_acceptGate = CreateAcceptGate(m_acceptRequested);
+            lock (m_acceptLock)
+            {
+                m_acceptRequested = !settings.DeferAccept;
+                m_acceptGate = CreateAcceptGate(m_acceptRequested);
+            }
 
             // reverse-connect listener mode dispatches accepted WSS
             // upgrades to TcpReverseConnectChannels and fires the
@@ -591,8 +594,13 @@ namespace Opc.Ua.Bindings
         public ValueTask StartAcceptingAsync(CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
-            m_acceptRequested = true;
-            m_acceptGate.TrySetResult(true);
+            // synchronized with the gate replacement of a restart, so the
+            // activation always opens the gate that requests wait on.
+            lock (m_acceptLock)
+            {
+                m_acceptRequested = true;
+                m_acceptGate.TrySetResult(true);
+            }
             return default;
         }
 
@@ -762,9 +770,12 @@ namespace Opc.Ua.Bindings
         {
             // a stop released the gate with false; a restart (for example
             // after a certificate update) needs a new one in the same state.
-            if (m_acceptGate.Task.IsCompleted && !m_acceptGate.Task.Result)
+            lock (m_acceptLock)
             {
-                m_acceptGate = CreateAcceptGate(m_acceptRequested);
+                if (m_acceptGate.Task.IsCompleted && !m_acceptGate.Task.Result)
+                {
+                    m_acceptGate = CreateAcceptGate(m_acceptRequested);
+                }
             }
             Volatile.Write(ref m_admissionStopped, 0);
             m_admission?.Start();
@@ -1428,7 +1439,10 @@ namespace Opc.Ua.Bindings
         protected virtual async ValueTask DisposeAsyncCore()
         {
             // release requests held at the gate of a listener that never opened.
-            m_acceptGate.TrySetResult(false);
+            lock (m_acceptLock)
+            {
+                m_acceptGate.TrySetResult(false);
+            }
             Volatile.Write(ref m_admissionStopped, 1);
             try
             {
@@ -4169,7 +4183,8 @@ namespace Opc.Ua.Bindings
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ITransportListenerCallback? m_callback;
         private TaskCompletionSource<bool> m_acceptGate = CreateAcceptGate(accepting: true);
-        private volatile bool m_acceptRequested = true;
+        private bool m_acceptRequested = true;
+        private readonly Lock m_acceptLock = new();
 #if NET8_0_OR_GREATER
         private IHost? m_host;
 #else

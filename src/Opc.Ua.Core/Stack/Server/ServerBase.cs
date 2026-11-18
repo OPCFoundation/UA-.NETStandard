@@ -1375,7 +1375,17 @@ namespace Opc.Ua
 
                 // Only a listener in TransportListeners is disposed when the
                 // server stops. One that failed to open, e.g. because the port
-                // is taken, has no other owner.
+                // is taken, has no other owner. One that opened but failed to
+                // start accepting would hold its port without serving, so it
+                // is rolled back and disposed as well.
+                if (tracked)
+                {
+                    listener.ConnectionStatusChanged -= OnConnectionStatusChanged;
+                    lock (m_acceptLock)
+                    {
+                        tracked = !TransportListeners.Remove(listener);
+                    }
+                }
                 if (!tracked)
                 {
                     try
