@@ -167,6 +167,13 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="factory"/> is null.</exception>
         // TODO: Remove this naming exemption when RCS1047 recognizes async-interface adapter names.
 #pragma warning disable RCS1047 // AsAsync names an interface adapter, not asynchronous execution.
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.INodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.INodeManagerFactory)]
+#endif
         public static IAsyncNodeManagerFactory AsAsync(this INodeManagerFactory factory)
         {
             return new NodeManagerLifecycleExtensions.SyncFactoryAdapter(

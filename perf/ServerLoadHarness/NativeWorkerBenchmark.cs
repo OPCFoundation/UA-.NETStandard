@@ -798,7 +798,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// The address space of the benchmark servers: 100 writable Int32 variables
     /// ns=1;i=1001..1100 in the namespace of the server URI.
     /// </summary>
+#pragma warning disable CS0618, UA0031 // Benchmarks the legacy base class against AsyncBenchmarkContractNodeManager.
     internal sealed class BenchmarkContractNodeManager : CustomNodeManager2
+#pragma warning restore CS0618, UA0031
     {
         public BenchmarkContractNodeManager(IServerInternal server, ApplicationConfiguration configuration)
             : base(server, configuration, NativeWorkerBenchmark.ContractServerUri)
@@ -909,7 +911,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             cancellationToken.ThrowIfCancellationRequested();
             IAsyncNodeManager manager = m_asyncNodeManager
                 ? new AsyncBenchmarkContractNodeManager(server, configuration)
+#pragma warning disable CS0618, UA0031 // Benchmarks the legacy base class against AsyncBenchmarkContractNodeManager.
                 : new BenchmarkContractNodeManager(server, configuration).ToAsyncNodeManager();
+#pragma warning restore CS0618, UA0031
             return new ValueTask<IAsyncNodeManager>(manager);
         }
 #pragma warning restore CA2000

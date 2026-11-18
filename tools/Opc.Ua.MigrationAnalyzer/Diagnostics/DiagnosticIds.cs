@@ -86,6 +86,10 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         /// </summary>
         public const string UA0030 = "UA0030";
 
+        // UA0031 is reserved: it is the DiagnosticId of the [Obsolete] attributes that
+        // deprecate the synchronous node manager API in 2.1 (docs/migrate/2.1/node-managers.md).
+        // It is reported by the compiler, not by this analyzer package.
+
         /// <summary>The diagnostic category every UA00xx rule belongs to.</summary>
         public const string Category = "Migration";
 

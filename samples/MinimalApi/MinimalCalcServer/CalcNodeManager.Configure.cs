@@ -33,7 +33,7 @@ using Opc.Ua.Server.Fluent;
 namespace Calc
 {
     /// <summary>
-    /// Source-generated <c>CustomNodeManager2</c> for the calculator
+    /// Source-generated <c>FluentNodeManagerBase</c> for the calculator
     /// sample. The <c>[NodeManager]</c> attribute opts this partial class
     /// in to source generation: the generator emits the sibling partial
     /// that owns the predefined-node load and calls back into the

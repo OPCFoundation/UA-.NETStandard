@@ -219,7 +219,7 @@ namespace Pumps
         /// <see cref="CreatePumpAsync(QualifiedName, CancellationToken)"/>
         /// which composes the same primitives
         /// (<see cref="SystemContext"/> +
-        /// <see cref="CustomNodeManager2.AddPredefinedNodeAsync(ISystemContext, NodeState, CancellationToken)"/>)
+        /// <see cref="AsyncCustomNodeManager.AddPredefinedNodeAsync(ISystemContext, NodeState, CancellationToken)"/>)
         /// directly.
         /// </remarks>
         private async ValueTask ConfigureInstancesAsync(

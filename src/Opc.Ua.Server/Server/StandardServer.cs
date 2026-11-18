@@ -6130,6 +6130,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         public IEnumerable<INodeManagerFactory> NodeManagerFactories => m_nodeManagerFactories;
 
         /// <inheritdoc/>
@@ -6137,6 +6144,13 @@ namespace Opc.Ua.Server
             => m_asyncNodeManagerFactories;
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         public virtual void AddNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Add(nodeManagerFactory);
@@ -6205,6 +6219,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
@@ -6313,7 +6334,9 @@ namespace Opc.Ua.Server
         private bool m_registeredWithDiscoveryServer;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
+#pragma warning disable CS0618, UA0031 // Backs the obsolete INodeManagerFactory registration.
         private readonly List<INodeManagerFactory> m_nodeManagerFactories = [];
+#pragma warning restore CS0618, UA0031
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
 
         private readonly List<HistorianProviderRegistration>

@@ -1402,6 +1402,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeManager">The facade supplied by the owner.</param>
         /// <returns>The canonical resource key.</returns>
+#pragma warning disable CS0618, UA0031 // Unwraps legacy adapters to one canonical identity.
         internal static IAsyncNodeManager GetIdentity(IAsyncNodeManager nodeManager)
         {
             if (nodeManager is not AsyncNodeManagerAdapter adapter)
@@ -1414,6 +1415,7 @@ namespace Opc.Ua.Server
             }
             return adapter.SyncNodeManager.ToAsyncNodeManager();
         }
+#pragma warning restore CS0618, UA0031
 
         /// <summary>Serializes generation identity changes on writer paths.</summary>
         private static readonly Lock s_lock = new();

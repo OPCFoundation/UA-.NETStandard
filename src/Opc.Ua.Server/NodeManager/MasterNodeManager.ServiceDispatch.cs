@@ -142,6 +142,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         public virtual object? GetManagerHandle(NodeId nodeId, out INodeManager? nodeManager)
         {
             return m_serviceDispatch.GetManagerHandle(nodeId, out nodeManager);

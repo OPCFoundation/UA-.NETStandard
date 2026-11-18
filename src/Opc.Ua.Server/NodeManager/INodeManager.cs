@@ -37,6 +37,13 @@ namespace Opc.Ua.Server
     /// <summary>
     /// An interface to an object that creates a INodeManager object.
     /// </summary>
+#if NET5_0_OR_GREATER
+    [Obsolete(SyncNodeManagerDeprecation.INodeManagerFactory,
+        DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+        UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+    [Obsolete(SyncNodeManagerDeprecation.INodeManagerFactory)]
+#endif
     public interface INodeManagerFactory
     {
         /// <summary>
@@ -55,6 +62,13 @@ namespace Opc.Ua.Server
     /// <summary>
     /// An interface to an object that manages a set of nodes in the address space.
     /// </summary>
+#if NET5_0_OR_GREATER
+    [Obsolete(SyncNodeManagerDeprecation.INodeManager,
+        DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+        UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+    [Obsolete(SyncNodeManagerDeprecation.INodeManager)]
+#endif
     public interface INodeManager
     {
         /// <summary>
@@ -351,6 +365,13 @@ namespace Opc.Ua.Server
     /// <summary>
     /// An interface to an object that manages a set of nodes in the address space.
     /// </summary>
+#if NET5_0_OR_GREATER
+    [Obsolete(SyncNodeManagerDeprecation.INodeManager,
+        DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+        UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+    [Obsolete(SyncNodeManagerDeprecation.INodeManager)]
+#endif
     public interface INodeManager2 : INodeManager
     {
         /// <summary>
@@ -382,6 +403,13 @@ namespace Opc.Ua.Server
     /// <summary>
     /// An interface to an object that manages a set of nodes in the address space.
     /// </summary>
+#if NET5_0_OR_GREATER
+    [Obsolete(SyncNodeManagerDeprecation.INodeManager,
+        DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+        UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+    [Obsolete(SyncNodeManagerDeprecation.INodeManager)]
+#endif
     public interface INodeManager3 : INodeManager2
     {
         /// <summary>
@@ -894,7 +922,9 @@ namespace Opc.Ua.Server
         /// If the NodeManager does not support synchronous calls natively use <see cref="SyncNodeManagerAdapter"/>
         /// to wrap the async calls.
         /// </summary>
+#pragma warning disable CS0618, UA0031 // The runtime still needs the legacy view for identity comparisons and legacy lookups.
         INodeManager SyncNodeManager { get; }
+#pragma warning restore CS0618, UA0031
 
         /// <summary>
         /// Creates the address space by loading any configuration information an connecting to an underlying system (if applicable).

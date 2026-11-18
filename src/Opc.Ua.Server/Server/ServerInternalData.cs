@@ -784,7 +784,9 @@ namespace Opc.Ua.Server
             List<T> asyncManagers = [.. nodeManager.AsyncNodeManagers.OfType<T>()];
 
             return asyncManagers.Concat(
+#pragma warning disable CS0618, UA0031 // Legacy managers registered only through the sync list still count.
                 nodeManager.NodeManagers
+#pragma warning restore CS0618, UA0031
                     .OfType<T>()
                     .Where(manager => !asyncManagers.Exists(known => ReferenceEquals(known, manager))));
         }

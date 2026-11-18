@@ -276,6 +276,7 @@ are null.
 
 | From | To | Where to read |
 | --- | --- | --- |
+| `2.0.x` | `2.1` | [`migrate/2.1/`](migrate/2.1/README.md) — deprecations; nothing breaks, but `[Obsolete]` warnings (`UA0031`) point at the replacement APIs. |
 | `1.5.378` | `2.0.x` | [`migrate/2.0.x/`](migrate/2.0.x/README.md) — landing page and symptom-based thematic sub-doc index. |
 | `1.05.377` | `1.05.378` | [§ inline below](#migrating-from-105377-to-105378) — small enough to keep on this page. |
 | `1.04` | `1.05` | [§ inline below](#migrating-from-104-to-105) — small enough to keep on this page. |

@@ -58,6 +58,13 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// Creates a registration carrying a synchronous factory.
         /// </summary>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         public OpcUaServerNodeManagerRegistration(INodeManagerFactory factory)
         {
             SyncFactory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -77,6 +84,13 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// The synchronous factory instance, or <c>null</c> for an asynchronous or deferred registration.
         /// </summary>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         public INodeManagerFactory? SyncFactory { get; }
 
         internal ArrayOf<IAsyncNodeManagerFactory> ResolveAsyncFactories(

@@ -17,7 +17,18 @@ The server library provides these TAP features:
 - Generated code and `MasterNodeManager` support Task-based operations.
 - The `IAsyncNodeManager` interface supports fully asynchronous node managers.
 - `AsyncNodeManagerAdapter` and `SyncNodeManagerAdapter` let synchronous
-  and asynchronous node managers run side by side.
+  and asynchronous node managers run side by side. `AsyncNodeManagerAdapter`
+  only serves the deprecated synchronous `INodeManager` and is obsolete
+  since 2.1.
+
+> [!IMPORTANT]
+> Since 2.1 the synchronous node manager API (`CustomNodeManager2`,
+> `INodeManager`, `INodeManager2`, `INodeManager3`, `INodeManagerFactory`) is
+> marked `[Obsolete]` with diagnostic `UA0031`. It keeps working and will be
+> removed in a later major version. New code derives from
+> `AsyncCustomNodeManager` or uses `FluentNodeManagerBase` / the `[NodeManager]`
+> source generator. See
+> [Migrating to the asynchronous node manager API](migrate/2.1/node-managers.md).
 
 ## Contents
 
@@ -36,11 +47,15 @@ The server library provides these TAP features:
 
 ## Upgrading an existing server
 
-- Update `INodeManager.CreateMonitoredItems` to support the new `MonitoredItemIdFactory`.
-- `AsyncCustomNodeManager` is the recommended base class for fully
-  asynchronous node managers; see [AsyncCustomNodeManager](#asynccustomnodemanager).
-- Keep using `CustomNodeManager2` and implement the asynchronous interfaces
-  your server needs:
+- Derive from `AsyncCustomNodeManager`, the base class for fully asynchronous
+  node managers; see [AsyncCustomNodeManager](#asynccustomnodemanager) and the
+  [2.1 migration notes](migrate/2.1/node-managers.md), which map every
+  `CustomNodeManager2` hook to its asynchronous equivalent.
+- Register it through an `IAsyncNodeManagerFactory`, not an
+  `INodeManagerFactory`.
+- Until you have migrated, an existing `CustomNodeManager2` keeps working
+  (with `UA0031` warnings). It can implement the asynchronous interfaces your
+  server needs one service at a time:
   - `IAsyncNodeManager` for full async support
   - `ICallAsyncNodeManager` for async method calls
   - `IReadAsyncNodeManager` for async reading
@@ -62,14 +77,18 @@ The server library provides these TAP features:
 
 - The server supports fully asynchronous node managers that implement
   `IAsyncNodeManager`. Register one with
-  `StandardServer.RegisterNodeManager(IAsyncNodeManagerFactory)`.
-  `IAsyncNodeManager.SyncNodeManager` is required for compatibility; pass
-  the node manager to `SyncNodeManagerAdapter` to provide it.
+  `StandardServer.AddNodeManager(IAsyncNodeManagerFactory)` or, in a hosted
+  server, `IOpcUaServerBuilder.AddNodeManager<TFactory>()`.
+  `IAsyncNodeManager.SyncNodeManager` is still required, because the runtime
+  uses it for identity comparisons and the remaining legacy lookups.
+  `AsyncCustomNodeManager` provides it; a direct `IAsyncNodeManager`
+  implementation returns `this.ToSyncNodeManager()` (`SyncNodeManagerAdapter`).
 
 ## Async method calls
 
-`CustomNodeManager2` supports asynchronous method callbacks. Implement
-`IAsyncNodeManager` on your node manager to enable them. Generated method
+`AsyncCustomNodeManager` dispatches method calls asynchronously. A legacy
+`CustomNodeManager2` supports asynchronous method callbacks only when it also
+implements `ICallAsyncNodeManager`. Generated method
 state classes expose asynchronous callbacks such as
 `UpdateCertificateMethodState.OnCallAsync`; the server uses these callbacks
 when the node manager implements the interface. For a generic method handler,
@@ -90,12 +109,27 @@ Unlike the older `CustomNodeManager2`, it implements `IAsyncNodeManager` **direc
 
 ### Registering an AsyncCustomNodeManager
 
-Use the `IAsyncNodeManagerFactory` overload of `StandardServer.RegisterNodeManager`:
+Implement `IAsyncNodeManagerFactory` and pass it to the `IAsyncNodeManagerFactory`
+overload of `StandardServer.AddNodeManager`:
 
 ```csharp
-server.RegisterNodeManager(context =>
-    new MyAsyncNodeManager(server, configuration));
+public sealed class MyNodeManagerFactory : IAsyncNodeManagerFactory
+{
+    public ArrayOf<string> NamespacesUris => ["http://my.org/UA/Data/"];
+
+    public ValueTask<IAsyncNodeManager> CreateAsync(
+        IServerInternal server,
+        ApplicationConfiguration configuration,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<IAsyncNodeManager>(new MyNodeManager(server, configuration));
+    }
+}
+
+server.AddNodeManager(new MyNodeManagerFactory());
 ```
+
+In a hosted server use `IOpcUaServerBuilder.AddNodeManager<MyNodeManagerFactory>()`.
 
 ### Async browse iteration
 

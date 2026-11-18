@@ -171,8 +171,9 @@ await builder.Build().RunAsync();
 `AddOpcUa()` registers a `ServiceProviderTelemetryContext` that adapts
 the host's `ILoggerFactory` to `ITelemetryContext` — no separate logging
 pipeline is required. `IOpcUaServerBuilder.AddNodeManager<T>()` registers
-an `IAsyncNodeManagerFactory`; use `AddSyncNodeManager<T>()` for the
-legacy `INodeManagerFactory`. For advanced configuration (custom security
+an `IAsyncNodeManagerFactory`. `AddSyncNodeManager<T>()` still registers a
+legacy `INodeManagerFactory`, but it is obsolete since 2.1 (`UA0031`, see
+[the 2.1 migration notes](migrate/2.1/node-managers.md)). For advanced configuration (custom security
 policies, additional builder calls), set `OpcUaServerOptions.ConfigureBuilder`.
 
 That's the whole server. The Boiler version is in
@@ -357,8 +358,16 @@ manager as a normal startup factory and ignore the provider.
 `CoreNodeManager` is the built-in owner of core server nodes. It derives from
 `AsyncCustomNodeManager` and therefore shares its NodeState-based service,
 monitoring, and synchronization infrastructure. For application models, prefer
-source-generated managers or an application-owned `AsyncCustomNodeManager`;
-`CustomNodeManager2` remains the synchronous compatibility base.
+source-generated managers or an application-owned `AsyncCustomNodeManager`.
+
+> [!WARNING]
+> Since 2.1, `CustomNodeManager2`, the synchronous `INodeManager`, `INodeManager2`,
+> `INodeManager3` and `INodeManagerFactory` interfaces, `AsyncNodeManagerAdapter`, and the
+> master and server members that register or return synchronous node managers are marked
+> `[Obsolete]` (diagnostic `UA0031` on .NET 5 and later, `CS0618` on .NET Framework). They
+> keep working unchanged and will be removed in a later major version. `CustomNodeManager2`
+> remains the synchronous compatibility base until then. See
+> [Migrating to the asynchronous node manager API](migrate/2.1/node-managers.md).
 
 ### Storage and data structures
 
@@ -2021,8 +2030,8 @@ namespace (legacy MSBuild mode) or the user class's namespace
     namespace or swap in a manager subclass.
 
 `AddNodeManager` on `StandardServer` has overloads for both
-`INodeManagerFactory` and `IAsyncNodeManagerFactory`; the generated
-async factory binds to the latter automatically.
+`INodeManagerFactory` (obsolete since 2.1) and `IAsyncNodeManagerFactory`;
+the generated async factory binds to the latter automatically.
 
 #### The generated activation pipeline
 
@@ -2359,10 +2368,11 @@ The builder exposes:
 | `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate` | Node or manager-level dispatch keyed by `NodeId` |
 | `OnCreateMonitoredItem`, `OnMonitoredItemCreated`, `OnMonitoredItemModified`, `OnMonitoredItemDeleted`, `OnMonitoringModeChanged` | Data-change monitored-item creation and lifecycle |
 
-`INodeManagerBuilder.NodeManager` is typed as `IAsyncNodeManager`. Use
-`builder.NodeManager.SyncNodeManager` to obtain the synchronous
-`INodeManager` facade for legacy interop, or cast it to your concrete
-manager type if you need direct access.
+`INodeManagerBuilder.NodeManager` is typed as `IAsyncNodeManager`. Cast it
+to your concrete manager type if you need direct access.
+`builder.NodeManager.SyncNodeManager` still returns the synchronous
+`INodeManager` facade for legacy interop, but `INodeManager` is obsolete
+since 2.1; prefer the asynchronous members.
 
 Ordinary `Node(...)` / `Variable(...)` resolution happens **once**
 during `CreateAddressSpaceAsync`, against the in-memory predefined-node
