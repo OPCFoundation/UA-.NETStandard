@@ -244,15 +244,17 @@ namespace Opc.Ua.Core.Security.Tests
         }
 
         /// <summary>
-        /// The Attribute services raise the generic failure audit (an AuditEventType
-        /// event with SourceName Attribute/&lt;Service&gt;) when they fail with a service
-        /// fault, here Bad_NothingToDo for an empty list of operations.
+        /// The Attribute services and the Call service raise the generic failure audit
+        /// (an AuditEventType event with SourceName Attribute/&lt;Service&gt; or
+        /// Method/Call) when they fail with a service fault, here Bad_NothingToDo for an
+        /// empty list of operations.
         /// </summary>
         [TestCase("Read")]
         [TestCase("HistoryRead")]
         [TestCase("Write")]
         [TestCase("HistoryUpdate")]
-        public async Task AttributeServiceFaultRaisesGenericAuditEventAsync(string service)
+        [TestCase("Call")]
+        public async Task ServiceFaultRaisesGenericAuditEventAsync(string service)
         {
             ServiceResultException? fault = null;
             List<NodeId> eventTypes = await ObserveEventsAsync(
@@ -302,6 +304,8 @@ namespace Opc.Ua.Core.Security.Tests
                     return session.WriteAsync(null, default, CancellationToken.None).AsTask();
                 case "HistoryUpdate":
                     return session.HistoryUpdateAsync(null, default, CancellationToken.None).AsTask();
+                case "Call":
+                    return session.CallAsync(null, default, CancellationToken.None).AsTask();
                 default:
                     throw new ArgumentOutOfRangeException(nameof(service), service, null);
             }

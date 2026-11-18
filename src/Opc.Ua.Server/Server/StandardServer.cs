@@ -2098,7 +2098,9 @@ namespace Opc.Ua.Server
                     };
                     response.ResponseHeader = server.CreateResponse(header, context, response.ResponseHeader);
                     return response;
-                });
+                },
+                static (server, context, _, e) =>
+                    server.ServerInternal.ReportMethodServiceAuditEvent(context, "Call", e, server.m_logger));
         }
 
         /// <inheritdoc/>
