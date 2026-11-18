@@ -830,6 +830,15 @@ Every test matrix entry collects coverage while it runs and publishes its raw Co
 
 Before merging, [`.github/scripts/normalize-coverage.ps1`](../.github/scripts/normalize-coverage.ps1) copies the fragments to a separate empty directory and converts each valid line hit count to zero or one. Negative, missing or malformed counts reject the input. Raw artifacts retain their original execution counts; source paths and branch evidence are unchanged. The pinned ReportGenerator 5.5.11 merges the presence copies to avoid Int32 overflow when large positive counters are added. Merged hit counts represent fragment presence, not execution frequency; use the raw artifacts for frequency analysis. Coverage floors are unchanged.
 
+The copied reports also pass through
+[class-identity preparation](../.github/scripts/prepare-coverage-class-identities.ps1).
+ReportGenerator identifies a partial type's files by basename, so two distinct
+`ApplicationConfiguration.cs` files would otherwise share coverage incorrectly.
+Temporary file-qualified class names keep those files separate across shards.
+The merged Cobertura and HTML reports restore the original class names before
+publication and gate evaluation. Source paths, method data and branch evidence
+are not rewritten.
+
 Coverage is collected only on .NET 8.0 and newer hosts. `coverlet.collector` 10.x ships build assets for net8.0+ only, so a .NET Framework test host cannot load the `XPlat Code Coverage` collector at all — VSTest merely warns and writes nothing. The expander therefore never requests coverage on a `net4*` profile, and `CiMatrixScriptTests` asserts that. The long-running and durable tiers also opt out: they re-run projects the filtered legs already covered, so folding their numbers in would double-count them.
 
 The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), driven by [`coverage-thresholds.json`](../coverage-thresholds.json):

@@ -366,6 +366,8 @@ jobs:
         ./.github/scripts/normalize-coverage.ps1 `
             -InputDirectory coverage-artifacts `
             -OutputDirectory normalized-coverage
+        ./.github/scripts/prepare-coverage-class-identities.ps1 `
+            -InputDirectory normalized-coverage
         dotnet tool install --tool-path tools dotnet-reportgenerator-globaltool --version 5.5.11
         if ($LASTEXITCODE -ne 0) {
             throw "ReportGenerator 5.5.11 installation failed with exit code $LASTEXITCODE."
@@ -380,6 +382,9 @@ jobs:
             Write-Host "::error title=Code coverage::ReportGenerator failed with exit code $LASTEXITCODE."
             exit $LASTEXITCODE
         }
+        ./.github/scripts/prepare-coverage-class-identities.ps1 `
+            -InputDirectory normalized-coverage `
+            -RestoreReport CodeCoverage/Cobertura.xml
 
     - name: Upload merged coverage report
       if: ${{ steps.probe.outputs.has_reports == 'true' }}

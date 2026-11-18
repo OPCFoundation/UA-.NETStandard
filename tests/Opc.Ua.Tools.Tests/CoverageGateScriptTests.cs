@@ -218,6 +218,84 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// Same-basename partial files stay distinct while class names and original evidence remain recoverable.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task PartialTypeFileIdentitiesPreserveRawPathsAndBranchEvidenceAsync(int sourceDepth)
+        {
+            IdentityResult result = await RunClassIdentityAsync("restore", sourceDepth).ConfigureAwait(false);
+            Assert.That(result.Prepared.ExitCode, Is.Zero, result.Prepared.Output);
+            Assert.That(result.Restored.ExitCode, Is.Zero, result.Restored.Output);
+            XElement[] classes = [.. XDocument.Parse(result.PreparedReport).Descendants("class")];
+            XElement[] restored = [.. XDocument.Parse(result.RestoredReport).Descendants("class")];
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.RawHashesAfter, Is.EqualTo(result.RawHashesBefore));
+                Assert.That((string?)classes[0].Attribute("name"),
+                    Is.EqualTo((string?)classes[1].Attribute("name")));
+                Assert.That((string?)classes[0].Attribute("name"),
+                    Is.Not.EqualTo((string?)classes[^1].Attribute("name")));
+                Assert.That(restored.Select(value => (string?)value.Attribute("name")),
+                    Is.All.EqualTo("Synthetic.Subject"));
+                Assert.That(restored.Select(value => (string?)value.Attribute("filename")),
+                    Is.EqualTo(classes.Select(value => (string?)value.Attribute("filename"))));
+                Assert.That(restored.Select(value => value.Element("lines")!.ToString()),
+                    Is.EqualTo(classes.Select(value => value.Element("lines")!.ToString())));
+                Assert.That(restored[0].Element("lines")!.Element("line")!.Attribute("hits")!.Value,
+                    Is.EqualTo("1"));
+                Assert.That(restored[^1].Element("lines")!.Element("line")!.Attribute("hits")!.Value,
+                    Is.EqualTo("0"));
+                Assert.That((string?)restored[^1].Element("lines")!.Element("line")!
+                    .Attribute("condition-coverage"), Is.EqualTo("50% (1/2)"));
+                Assert.That(result.Html, Does.Not.Contain("__UaCoverageFile_"));
+                Assert.That(result.Html, Does.Contain("Synthetic.Subject"));
+            }
+        }
+
+        /// <summary>
+        /// Types without a same-basename partial-file collision do not acquire temporary identities.
+        /// </summary>
+        [Test]
+        public async Task PartialTypeIdentityLeavesDistinctBasenamesUnchangedAsync()
+        {
+            IdentityResult result = await RunClassIdentityAsync("no-collision", sourceDepth: 0)
+                .ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Prepared.ExitCode, Is.Zero, result.Prepared.Output);
+                Assert.That(result.Restored.ExitCode, Is.Zero, result.Restored.Output);
+                Assert.That(result.PreparedReport, Does.Not.Contain("__UaCoverageFile_"));
+                Assert.That(XDocument.Parse(result.RestoredReport).ToString(),
+                    Is.EqualTo(XDocument.Parse(result.PreparedReport).ToString()));
+                Assert.That(result.RawHashesAfter, Is.EqualTo(result.RawHashesBefore));
+            }
+        }
+
+        /// <summary>
+        /// Repeated staging and unknown merged identities fail without changing raw collector data.
+        /// </summary>
+        [TestCase("repeat")]
+        [TestCase("unknown")]
+        [TestCase("missing-manifest")]
+        public async Task PartialTypeIdentityRejectsUnclassifiedOrRepeatedPreparationAsync(string operation)
+        {
+            IdentityResult result = await RunClassIdentityAsync(operation, sourceDepth: 0).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Prepared.ExitCode, Is.Zero, result.Prepared.Output);
+                Assert.That(result.Restored.ExitCode, Is.Not.Zero, result.Restored.Output);
+                Assert.That(result.RawHashesAfter, Is.EqualTo(result.RawHashesBefore));
+                Assert.That(result.RestoredReport, Is.EqualTo(result.PreparedReport),
+                    "A rejected operation must not partially restore or rewrite the merged report.");
+            }
+        }
+
+        /// <summary>
         /// Both coverage jobs must actually merge the copied presence reports with an explicit tool version.
         /// </summary>
         [TestCase("buildandtest.yml")]
@@ -239,6 +317,8 @@ namespace Opc.Ua.Tools.Tests
                 Assert.That(merge, Is.GreaterThan(normalize));
                 Assert.That(step, Does.Contain("-OutputDirectory normalized-coverage"));
                 Assert.That(step, Does.Contain("-reports:normalized-coverage/**/*.cobertura.xml"));
+                Assert.That(step, Does.Contain("./.github/scripts/prepare-coverage-class-identities.ps1"));
+                Assert.That(step, Does.Contain("-RestoreReport CodeCoverage/Cobertura.xml"));
                 Assert.That(step, Does.Not.Contain("-reports:coverage-artifacts/"));
                 Assert.That(step, Does.Contain("dotnet-reportgenerator-globaltool --version "));
                 Assert.That(step, Does.Contain("installation failed with exit code"));
@@ -1243,6 +1323,134 @@ namespace Opc.Ua.Tools.Tests
             return new ScriptResult(process.ExitCode, output + error);
         }
 
+        /// <summary>
+        /// Exercises temporary class identities using copies, including a shard containing only one partial file.
+        /// </summary>
+        private static async Task<IdentityResult> RunClassIdentityAsync(string operation, int sourceDepth)
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "coverage-identities", Guid.NewGuid().ToString("N"));
+            string raw = Path.Combine(directory, "raw");
+            string copies = Path.Combine(directory, "copies");
+            Directory.CreateDirectory(raw);
+            Directory.CreateDirectory(copies);
+            try
+            {
+                static XElement MakeClass(string path, int hits) => new("class",
+                    new XAttribute("name", "Synthetic.Subject"), new XAttribute("filename", path),
+                    new XElement("lines", new XElement("line",
+                        new XAttribute("number", 7), new XAttribute("hits", hits),
+                        new XAttribute("branch", "true"), new XAttribute("condition-coverage", "50% (1/2)"))));
+
+                static XDocument MakeReport(string root, params XElement[] classes) => new(new XElement("coverage",
+                    new XElement("sources", new XElement("source", root)),
+                    new XElement("packages", new XElement("package", new XAttribute("name", "SyntheticCounts"),
+                        new XElement("classes", classes)))));
+
+                string prefix = sourceDepth switch
+                {
+                    0 => "src/SyntheticCounts/",
+                    1 => "SyntheticCounts/",
+                    _ => string.Empty
+                };
+                string sourceRoot = sourceDepth switch
+                {
+                    0 => "/other/repository/",
+                    1 => "/other/repository/src/",
+                    _ => "/other/repository/src/SyntheticCounts/"
+                };
+                XDocument[] reports =
+                [
+                    MakeReport("/agent/repository/",
+                        MakeClass("src/SyntheticCounts/A/Shared.cs", 1),
+                        MakeClass("src/SyntheticCounts/A/Shared.cs", 0)),
+                    MakeReport(sourceRoot,
+                        MakeClass(prefix + "A/Shared.cs", 0),
+                        MakeClass(prefix + "B/Shared.cs", 0))
+                ];
+                string generatedSuffix = sourceDepth == 1 ? ".<>c" : "/<ReadAsync>d__0";
+                reports[0].Descendants("class").Last().SetAttributeValue(
+                    "name", "Synthetic.Subject" + generatedSuffix);
+                if (operation == "no-collision")
+                {
+                    reports[1].Descendants("class").Last().SetAttributeValue(
+                        "filename", "src/SyntheticCounts/B/Different.cs");
+                }
+                var before = new List<string>();
+                var paths = new List<string>();
+                for (int index = 0; index < reports.Length; index++)
+                {
+                    string path = Path.Combine(raw, index + ".cobertura.xml");
+                    await File.WriteAllTextAsync(path, reports[index].ToString()).ConfigureAwait(false);
+                    before.Add(Convert.ToHexString(SHA256.HashData(
+                        await File.ReadAllBytesAsync(path).ConfigureAwait(false))));
+                    File.Copy(path, Path.Combine(copies, Path.GetFileName(path)));
+                    paths.Add(path);
+                }
+                string script = Path.Combine(
+                    FindRepositoryRoot(), ".github", "scripts", "prepare-coverage-class-identities.ps1");
+                ScriptResult prepared = await RunScriptAsync(
+                    directory, script, "-InputDirectory", copies).ConfigureAwait(false);
+                Assert.That(prepared.ExitCode, Is.Zero, prepared.Output);
+                var classes = new List<XElement>();
+                foreach (string path in Directory.GetFiles(copies, "*.cobertura.xml").Order())
+                {
+                    var copy = XDocument.Parse(
+                        await File.ReadAllTextAsync(path).ConfigureAwait(false));
+                    XDocument original = reports[int.Parse(Path.GetFileNameWithoutExtension(
+                        Path.GetFileNameWithoutExtension(path)), CultureInfo.InvariantCulture)];
+                    Assert.That(copy.Root!.Element("sources")!.ToString(),
+                        Is.EqualTo(original.Root!.Element("sources")!.ToString()));
+                    if (Path.GetFileName(path) == "0.cobertura.xml" && operation != "no-collision")
+                    {
+                        string parent = copy.Descendants("class").First().Attribute("name")!.Value;
+                        Assert.That(copy.Descendants("class").Last().Attribute("name")!.Value,
+                            Is.EqualTo(parent + generatedSuffix),
+                            "Generated state machines must retain the pinned parser's parent-type grouping.");
+                    }
+                    classes.AddRange(copy.Descendants("class"));
+                }
+                foreach (XElement value in classes)
+                {
+                    string name = value.Attribute("name")!.Value.Split('/')[0];
+                    int generated = name.IndexOf(".<", StringComparison.Ordinal);
+                    value.SetAttributeValue("name", generated < 0 ? name : name[..generated]);
+                }
+                if (operation == "unknown")
+                {
+                    classes[^1].SetAttributeValue("name", "Unknown__UaCoverageFile_0000");
+                }
+                string merged = Path.Combine(directory, "merged.xml");
+                await File.WriteAllTextAsync(merged, MakeReport("unchanged", [.. classes]).ToString())
+                    .ConfigureAwait(false);
+                string html = Path.Combine(directory, "summary.html");
+                await File.WriteAllTextAsync(html, string.Join(" ",
+                    classes.Select(value => System.Net.WebUtility.HtmlEncode((string?)value.Attribute("name")))))
+                    .ConfigureAwait(false);
+                string preparedReport = await File.ReadAllTextAsync(merged).ConfigureAwait(false);
+                if (operation == "missing-manifest")
+                {
+                    File.Delete(Path.Combine(copies, "coverage-class-identities.json"));
+                }
+                ScriptResult restored = operation == "repeat"
+                    ? await RunScriptAsync(directory, script, "-InputDirectory", copies).ConfigureAwait(false)
+                    : await RunScriptAsync(directory, script,
+                        "-InputDirectory", copies, "-RestoreReport", merged).ConfigureAwait(false);
+                var after = new List<string>();
+                foreach (string path in paths)
+                {
+                    after.Add(Convert.ToHexString(SHA256.HashData(
+                        await File.ReadAllBytesAsync(path).ConfigureAwait(false))));
+                }
+                return new IdentityResult(prepared, restored, [.. before], [.. after], preparedReport,
+                    await File.ReadAllTextAsync(merged).ConfigureAwait(false),
+                    await File.ReadAllTextAsync(html).ConfigureAwait(false));
+            }
+            finally
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+
         private static string FindRepositoryRoot()
         {
             string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
@@ -1274,6 +1482,18 @@ namespace Opc.Ua.Tools.Tests
         private static readonly string[] s_expectedPresenceHits = ["0", "1", "1", "1", "0", "1", "1", "1"];
 
         private sealed record ScriptResult(int ExitCode, string Output);
+
+        /// <summary>
+        /// Records the raw hashes and reversible class/file identity evidence from a bounded script invocation.
+        /// </summary>
+        private sealed record IdentityResult(
+            ScriptResult Prepared,
+            ScriptResult Restored,
+            string[] RawHashesBefore,
+            string[] RawHashesAfter,
+            string PreparedReport,
+            string RestoredReport,
+            string Html);
 
         /// <summary>
         /// Captures the script outcome and immutable raw/report evidence before fixture cleanup.
