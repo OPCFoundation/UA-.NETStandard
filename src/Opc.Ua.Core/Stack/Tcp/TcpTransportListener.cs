@@ -913,6 +913,8 @@ namespace Opc.Ua.Bindings
             ct.ThrowIfCancellationRequested();
             lock (m_lock)
             {
+                // a later Stop/Start cycle accepts right away.
+                m_deferAccept = false;
                 if (m_accepting || (m_listeningSocket == null && m_listeningSocketIPv6 == null))
                 {
                     return default;

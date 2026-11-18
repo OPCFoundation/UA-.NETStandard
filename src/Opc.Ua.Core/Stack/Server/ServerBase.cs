@@ -1157,13 +1157,15 @@ namespace Opc.Ua
             {
                 if (m_acceptTask == null || m_acceptTask.IsFaulted || m_acceptTask.IsCanceled)
                 {
+                    // the shared activation is not bound to one caller's token.
                     ITransportListener[] listeners = [.. TransportListeners];
-                    m_acceptTask = StartListenersAcceptingAsync(listeners, cancellationToken);
+                    m_acceptTask = StartListenersAcceptingAsync(listeners, CancellationToken.None);
                 }
                 activation = m_acceptTask;
             }
 
-            await activation.ConfigureAwait(false);
+            // each caller can stop waiting on its own.
+            await activation.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private static async Task StartListenersAcceptingAsync(

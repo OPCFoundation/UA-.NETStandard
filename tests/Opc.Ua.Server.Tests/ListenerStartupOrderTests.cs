@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
@@ -117,6 +118,56 @@ namespace Opc.Ua.Server.Tests
                         // reported by the assertions above
                     }
                 }
+                await fixture.StopAsync().ConfigureAwait(false);
+                StartupGateServer.Reset();
+                if (Directory.Exists(pkiRoot))
+                {
+                    try
+                    {
+                        Directory.Delete(pkiRoot, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                        // best effort
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// A TCP listener that was opened deferred and then activated keeps
+        /// accepting after a stop/start cycle of the listener.
+        /// </summary>
+        [Test]
+        public async Task ActivatedTcpListenerAcceptsAfterRestartAsync()
+        {
+            string pkiRoot = Path.Combine(
+                Path.GetTempPath(),
+                "ua-lsr-" + Guid.NewGuid().ToString("N"));
+            var fixture = new ServerFixture<StartupGateServer>(t => new StartupGateServer(t))
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            StartupGateServer.Release.TrySetResult(true);
+            try
+            {
+                StartupGateServer server = await fixture.StartAsync(pkiRoot).ConfigureAwait(false);
+                TcpTransportListener listener = server.Listeners.OfType<TcpTransportListener>().Single();
+                Assert.That(listener.IsAccepting, Is.True);
+
+                listener.Stop();
+                listener.Start();
+
+                Assert.That(listener.IsAccepting, Is.True);
+                ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync(fixture.Port)
+                    .WaitAsync(TimeSpan.FromSeconds(30))
+                    .ConfigureAwait(false);
+                Assert.That(endpoints.Count, Is.GreaterThan(0));
+            }
+            finally
+            {
                 await fixture.StopAsync().ConfigureAwait(false);
                 StartupGateServer.Reset();
                 if (Directory.Exists(pkiRoot))
@@ -268,6 +319,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         public static TaskCompletionSource<bool> Entered { get; private set; } = NewSignal();
+
+        public ITransportListener[] Listeners => [.. TransportListeners];
 
         public static TaskCompletionSource<bool> Release { get; private set; } = NewSignal();
 
