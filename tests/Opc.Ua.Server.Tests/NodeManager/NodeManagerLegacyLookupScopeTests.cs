@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 routing.PinRequest(context);
                 NodeManagerRoutingTable.RoutingSnapshot pinned = context.RoutingSnapshot!;
                 var nodeId = new NodeId("CapturedLookup", 1);
-                var handle = new object();
+                object handle = new();
                 var published = new Mock<IAsyncNodeManager>();
                 published.Setup(value => value.GetManagerHandleAsync(nodeId, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(handle);
@@ -84,10 +84,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(context.RoutingSnapshot, Is.SameAs(pinned));
 
                     Task<(object? handle, IAsyncNodeManager? nodeManager)>? active = null;
-                    ExecutionContext.Run(captured.CreateCopy(), _ =>
-                    {
-                        active = master.LookupBaseAsync(nodeId, timeout.Token).AsTask();
-                    }, null);
+                    ExecutionContext.Run(
+                        captured.CreateCopy(),
+                        _ => active = master.LookupBaseAsync(nodeId, timeout.Token).AsTask(),
+                        null);
                     Assert.That(active, Is.Not.Null);
                     (object? activeHandle, IAsyncNodeManager? activeOwner) =
                         await active!.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -117,10 +117,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
 
                     Task<(object? handle, IAsyncNodeManager? nodeManager)>? expired = null;
-                    ExecutionContext.Run(captured.CreateCopy(), _ =>
-                    {
-                        expired = master.LookupBaseAsync(nodeId, timeout.Token).AsTask();
-                    }, null);
+                    ExecutionContext.Run(
+                        captured.CreateCopy(),
+                        _ => expired = master.LookupBaseAsync(nodeId, timeout.Token).AsTask(),
+                        null);
                     Assert.That(expired, Is.Not.Null);
                     (object? currentHandle, IAsyncNodeManager? currentOwner) =
                         await expired!.WaitAsync(timeout.Token).ConfigureAwait(false);

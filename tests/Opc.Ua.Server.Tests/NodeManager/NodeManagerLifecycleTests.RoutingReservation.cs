@@ -28,10 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.RuntimeNodeSet;
@@ -287,7 +288,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             bool HasSurvivorRoute()
             {
-                return master.NamespaceManagers.TryGetValue(namespaceIndex, out var owners) &&
+                return master.NamespaceManagers.TryGetValue(
+                    namespaceIndex, out IReadOnlyList<IAsyncNodeManager>? owners) &&
                     owners.Contains(survivor.NodeManager);
             }
 

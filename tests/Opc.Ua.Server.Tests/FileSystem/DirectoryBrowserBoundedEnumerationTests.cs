@@ -1208,7 +1208,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [TestCase(true)]
         public Task GenerationRetirementWaitsForCursorCleanupRegistrationAsync(
             bool sessionVisibleDuringRetirement)
-            => VerifyRetirementDuringCursorReleaseAsync(sessionVisibleDuringRetirement, pauseBeforeTracking: false);
+        {
+            return VerifyRetirementDuringCursorReleaseAsync(sessionVisibleDuringRetirement, pauseBeforeTracking: false);
+        }
 
         /// <summary>
         /// Verifies retirement waits when cursor cleanup starts before the host records it.
@@ -1220,7 +1222,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [TestCase(true)]
         public Task GenerationRetirementWaitsForStartedCursorCleanupRegistrationAsync(
             bool sessionVisibleDuringRetirement)
-            => VerifyRetirementDuringCursorReleaseAsync(sessionVisibleDuringRetirement, pauseBeforeTracking: true);
+        {
+            return VerifyRetirementDuringCursorReleaseAsync(sessionVisibleDuringRetirement, pauseBeforeTracking: true);
+        }
 
         [Test]
         public async Task LegacyNextContinuesAnAsyncDirectoryCursorWithoutReenumerationAsync()
@@ -1343,6 +1347,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <param name="pauseBeforeTracking">
         /// Whether to pause before tracking cursor cleanup instead of before browser disposal.
         /// </param>
+        /// <exception cref="TimeoutException"></exception>
         private async Task VerifyRetirementDuringCursorReleaseAsync(
             bool sessionVisibleDuringRetirement,
             bool pauseBeforeTracking)

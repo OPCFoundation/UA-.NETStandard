@@ -831,10 +831,7 @@ namespace Opc.Ua.Server
             {
                 if (!attached)
                 {
-                    if (adoption is not null)
-                    {
-                        adoption.Generation = null;
-                    }
+                    adoption?.Generation = null;
                     if (!rollbackAttempted)
                     {
                         RollbackRegistration();

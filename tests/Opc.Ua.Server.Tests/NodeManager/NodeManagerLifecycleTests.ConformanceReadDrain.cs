@@ -495,7 +495,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (catalog.TryGetCleanupDrainState(contributor, out var state))
+                if (catalog.TryGetCleanupDrainState(
+                    contributor, out ConformanceUnitsManager.ConformanceCleanupDrainState state))
                 {
                     return state;
                 }

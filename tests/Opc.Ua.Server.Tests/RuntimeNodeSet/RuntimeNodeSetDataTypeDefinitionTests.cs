@@ -36,7 +36,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Server.Tests.NodeManager;
 using Quickstarts.ReferenceServer;
 using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 

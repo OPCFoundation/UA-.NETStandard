@@ -166,6 +166,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Invokes the NodeVersion write handler with a string value.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static ServiceResult WriteNodeVersion(PropertyState<string> nodeVersion, string value)
         {
             var written = new Variant(value);

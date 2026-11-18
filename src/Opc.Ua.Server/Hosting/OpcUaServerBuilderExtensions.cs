@@ -1728,7 +1728,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
             services.TryAddSingleton<HostedNodeManagerLifecycle>(services =>
-                new HostedNodeManagerLifecycle(new NodeManagerCleanupAuthority(
+                new(new NodeManagerCleanupAuthority(
                     services.GetService<INodeManagerCleanupAuthorization>(),
                     services.GetService<INodeManagerCleanupVerifier>(),
                     services.GetService<INodeManagerCleanupAudit>())));

@@ -44,6 +44,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Retirement withdraws an overlapping explicit contribution without reading the disposed manager.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Category("NodeManagerLifecycle")]
         public async Task ConformancePublishDoesNotReadRetiredLifecycleContributorAsync()

@@ -37,7 +37,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Server.Tests.NodeManager;
+
 using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.Fluent

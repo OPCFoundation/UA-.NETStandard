@@ -381,7 +381,7 @@ namespace Opc.Ua.Server
                 audit, requestId, NodeManagerCleanupOperation.Reconcile, NodeManagerCleanupAuditOutcome.Requested,
                 handle, authorization.AuditUserId, cancellationToken).ConfigureAwait(false);
 
-            NodeManagerLifecycle? owner = null;
+            NodeManagerLifecycle? owner;
             NodeManagerGeneration? generation = null;
             bool admitted = false;
             try

@@ -601,7 +601,7 @@ namespace Opc.Ua.Tools.Tests
                     {
                         bool allowed = profile.First().Tier != "mainline" ||
                             (!categories.Contains("LongRunning", StringComparer.Ordinal) &&
-                             !categories.Contains("Stress", StringComparer.Ordinal));
+                                !categories.Contains("Stress", StringComparer.Ordinal));
                         string[] matches = profile
                             .Where(entry => MatchesServerFilter(entry.Filter, testName, categories))
                             .Select(entry => entry.Shard)
@@ -731,7 +731,7 @@ namespace Opc.Ua.Tools.Tests
                         string[] categories = integration ? [.. exclusions, "Integration"] : exclusions;
                         bool allowed = profile.First().Tier != "mainline" ||
                             (!exclusions.Contains("LongRunning", StringComparer.Ordinal) &&
-                             !exclusions.Contains("Stress", StringComparer.Ordinal));
+                                !exclusions.Contains("Stress", StringComparer.Ordinal));
                         string[] matches = profile
                             .Where(entry => MatchesWotFilter(entry.Filter, testName, categories))
                             .Select(entry => entry.Shard)
@@ -743,13 +743,16 @@ namespace Opc.Ua.Tools.Tests
                             : profile.First().Framework != "net48" && profile.First().Os != "macos"
                                 ? "wot-materialization"
                                 : integration ? "wot-materialization-integration" : "wot-materialization-core";
-                        if (integration && profile.First().Framework != "net48" &&
+                        if (integration &&
+                            profile.First().Framework != "net48" &&
                             profile.First().Os == "macos" &&
                             testName.Contains(".WotEventModesLiveTests.", StringComparison.Ordinal))
                         {
                             expectedShard = "wot-materialization-live-events";
                         }
-                        if (!materialization && integration && profile.First().Framework != "net48" &&
+                        if (!materialization &&
+                            integration &&
+                            profile.First().Framework != "net48" &&
                             profile.First().Os == "macos" &&
                             testName.Contains(
                                 "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
@@ -760,7 +763,9 @@ namespace Opc.Ua.Tools.Tests
                                 ? "wot-other-identity-di-integration"
                                 : "wot-other-identity-integration";
                         }
-                        if (!materialization && integration && profile.First().Framework != "net48" &&
+                        if (!materialization &&
+                            integration &&
+                            profile.First().Framework != "net48" &&
                             profile.First().Os == "macos" &&
                             testName.Contains("Opc.Ua.WotCon.Tests.WotLegacy", StringComparison.Ordinal))
                         {

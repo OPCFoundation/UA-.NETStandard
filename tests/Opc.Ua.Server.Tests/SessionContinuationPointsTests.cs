@@ -598,12 +598,9 @@ namespace Opc.Ua.Server.Tests
             var point = new Mock<IHistoryContinuationPoint>();
             point.SetupGet(value => value.Id).Returns(id);
             SessionContinuationPoints holder = NewHolder();
-            point.Setup(value => value.Dispose()).Callback(() =>
-            {
-                Assert.That(
+            point.Setup(value => value.Dispose()).Callback(() => Assert.That(
                     () => holder.SaveHistory(point.Object),
-                    Throws.TypeOf<InvalidOperationException>());
-            });
+                    Throws.TypeOf<InvalidOperationException>()));
             holder.SaveHistory(point.Object);
 
             Assert.That(holder.ReleaseHistory(ToByteString(id)), Is.True);

@@ -904,11 +904,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     null,
                     synchronousFactory: false,
                     kGeneration1Value,
-                    ownerManager =>
-                    {
-                        ((IHistorianRegistryProvider)ownerManager.SystemContext.Server)
-                            .HistorianRegistry.RegisterDefault(provider);
-                    },
+                    ownerManager => ((IHistorianRegistryProvider)ownerManager.SystemContext.Server)
+                            .HistorianRegistry.RegisterDefault(provider),
                     timeout.Token).ConfigureAwait(false);
                 owner = RequireRegistration(publicationResult7.Registrations[0]);
 

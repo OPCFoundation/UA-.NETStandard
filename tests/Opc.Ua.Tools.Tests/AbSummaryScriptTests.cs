@@ -312,10 +312,10 @@ namespace Opc.Ua.Tools.Tests
             {
                 AppendResult(
                     input, "A", round, count, count, 1000, 0.1m,
-                    scenario: scenario, rateUnit: rateUnit, cpuUnit: cpuUnit, serverCpuTicks: count);
+                    rateUnit: rateUnit, scenario: scenario, cpuUnit: cpuUnit, serverCpuTicks: count);
                 AppendResult(
                     input, "B", round, count, count, 1100, 0.1m,
-                    scenario: scenario, rateUnit: rateUnit, cpuUnit: cpuUnit, serverCpuTicks: candidateTicks);
+                    rateUnit: rateUnit, scenario: scenario, cpuUnit: cpuUnit, serverCpuTicks: candidateTicks);
             }
             await WriteResultsAsync(input).ConfigureAwait(false);
 
@@ -702,8 +702,8 @@ namespace Opc.Ua.Tools.Tests
         public async Task FailedExitWithoutResultReportsExitAsync()
         {
             var input = new StringBuilder();
-            input.AppendLine("### side=A round=1 --scenario sub");
-            input.AppendLine("EXIT code=124");
+            input.AppendLine("### side=A round=1 --scenario sub")
+                .AppendLine("EXIT code=124");
             await WriteResultsAsync(input).ConfigureAwait(false);
 
             (int exitCode, string output) = await InvokeAsync(1, requireExitStatus: true).ConfigureAwait(false);
@@ -782,6 +782,7 @@ namespace Opc.Ua.Tools.Tests
         /// <summary>
         /// The runner records and propagates the actual status of each harness invocation.
         /// </summary>
+        /// <exception cref="PlatformNotSupportedException"></exception>
         [TestCase(0, 0)]
         [TestCase(124, 1)]
         [Platform("Linux,MacOSX")]
@@ -978,9 +979,9 @@ namespace Opc.Ua.Tools.Tests
         public async Task IncompleteBlockFailsAsync()
         {
             var input = new StringBuilder();
-            input.AppendLine("### side=A round=1 --scenario sub");
-            input.AppendLine("RESULT scenario=sub");
-            input.AppendLine("  client: notif/s=1000 received/expected=90.0 % received=90 expected=100");
+            input.AppendLine("### side=A round=1 --scenario sub")
+                .AppendLine("RESULT scenario=sub")
+                .AppendLine("  client: notif/s=1000 received/expected=90.0 % received=90 expected=100");
             await WriteResultsAsync(input).ConfigureAwait(false);
 
             (int exitCode, string output) = await InvokeAsync(1).ConfigureAwait(false);
@@ -1081,9 +1082,9 @@ namespace Opc.Ua.Tools.Tests
         public async Task MissingDeliveryCountFailsAsync()
         {
             var input = new StringBuilder();
-            input.AppendLine("### side=A round=1 --scenario sub");
-            input.AppendLine("RESULT scenario=sub");
-            input.AppendLine("  client: notif/s=1000 received/expected=90.0 % received=90");
+            input.AppendLine("### side=A round=1 --scenario sub")
+                .AppendLine("RESULT scenario=sub")
+                .AppendLine("  client: notif/s=1000 received/expected=90.0 % received=90");
             await WriteResultsAsync(input).ConfigureAwait(false);
 
             (int exitCode, string output) = await InvokeAsync(1).ConfigureAwait(false);
@@ -1178,10 +1179,10 @@ namespace Opc.Ua.Tools.Tests
             int? exitCode = null,
             long? serverCpuTicks = null)
         {
-            input.AppendLine(FormattableString.Invariant($"### side={side} round={round} --scenario {scenario}"));
-            input.AppendLine(FormattableString.Invariant(
-                $"RESULT scenario={scenario} security={security} sessions=1 --scenario {scenario}"));
-            input.Append(FormattableString.Invariant($"  client: {rateUnit}/s={rate}"));
+            input.AppendLine(FormattableString.Invariant($"### side={side} round={round} --scenario {scenario}"))
+                .AppendLine(FormattableString.Invariant(
+                $"RESULT scenario={scenario} security={security} sessions=1 --scenario {scenario}"))
+                .Append(FormattableString.Invariant($"  client: {rateUnit}/s={rate}"));
             if (scenario == "native-counters")
             {
                 input.Append(" notif/s=250");
@@ -1196,8 +1197,8 @@ namespace Opc.Ua.Tools.Tests
                     input.Append(FormattableString.Invariant($" received={received} expected={expected}"));
                 }
             }
-            input.Append(" writeErrors=0 latency n=1 p50=1.000ms p90=2.000ms p99=3.000ms");
-            input.AppendLine(clientFailure ? " FAIL" : string.Empty);
+            input.Append(" writeErrors=0 latency n=1 p50=1.000ms p90=2.000ms p99=3.000ms")
+                .AppendLine(clientFailure ? " FAIL" : string.Empty);
             string serverCpuMs = serverCpuTicks.HasValue
                 ? TimeSpan.FromTicks(serverCpuTicks.Value).TotalMilliseconds.ToString(
                     "F0", CultureInfo.InvariantCulture)
@@ -1212,8 +1213,8 @@ namespace Opc.Ua.Tools.Tests
             {
                 input.AppendLine("  client-process: pauseMs=4 contention=5");
             }
-            input.AppendLine(FormattableString.Invariant($"  per-op: allocB=10 cpuUs={cpu:F6}  ({cpuUnit})"));
-            input.AppendLine(FormattableString.Invariant(
+            input.AppendLine(FormattableString.Invariant($"  per-op: allocB=10 cpuUs={cpu:F6}  ({cpuUnit})"))
+                .AppendLine(FormattableString.Invariant(
                 $"  client-per-op: allocB=20 cpuUs=1.0  ({clientCpuUnit ?? cpuUnit})"));
             if (exitCode.HasValue)
             {

@@ -348,6 +348,7 @@ namespace Opc.Ua.Tools.Tests
         /// <summary>
         /// Coverage and native-loader diagnostics preserve large selections through one runsettings delimiter.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -453,7 +454,7 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("coverlet.runsettings.xml")]
         public void NUnitSelectionLimitIsPresentInDefaultAndCoverageSettings(string file)
         {
-            XDocument settings = XDocument.Load(Path.Combine(FindRepositoryRoot(), "tests", file));
+            var settings = XDocument.Load(Path.Combine(FindRepositoryRoot(), "tests", file));
             Assert.That((int?)settings.Root?.Element("NUnit")?.Element("AssemblySelectLimit"),
                 Is.EqualTo(int.MaxValue));
             Assert.That(settings.Root?.Element("DataCollectionRunSettings") is not null,

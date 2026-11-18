@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -136,9 +137,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public Task NamespaceRegistrationWaitsForDurableDecisionAsync(
             bool namespaceAlreadyExists,
             bool unregister,
-            bool decisionFails) =>
-            AssertNamespaceRegistrationDuringDurableDecisionAsync(
+            bool decisionFails)
+        {
+            return AssertNamespaceRegistrationDuringDurableDecisionAsync(
                 namespaceAlreadyExists, unregister, decisionFails, conflicting: true);
+        }
 
         /// <summary>
         /// Unrelated namespace registration takes effect without waiting for the durable decision.
@@ -154,9 +157,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public Task UnrelatedNamespaceRegistrationProceedsDuringDurableDecisionAsync(
             bool namespaceAlreadyExists,
             bool unregister,
-            bool decisionFails) =>
-            AssertNamespaceRegistrationDuringDurableDecisionAsync(
+            bool decisionFails)
+        {
+            return AssertNamespaceRegistrationDuringDurableDecisionAsync(
                 namespaceAlreadyExists, unregister, decisionFails, conflicting: false);
+        }
 
         /// <summary>
         /// Asynchronous unrelated aliases take effect while the durable decision remains pending.
@@ -172,9 +177,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public Task AsyncUnrelatedNamespaceRegistrationProceedsDuringDurableDecisionAsync(
             bool namespaceAlreadyExists,
             bool unregister,
-            bool decisionFails) =>
-            AssertNamespaceRegistrationDuringDurableDecisionAsync(
+            bool decisionFails)
+        {
+            return AssertNamespaceRegistrationDuringDurableDecisionAsync(
                 namespaceAlreadyExists, unregister, decisionFails, conflicting: false, asynchronous: true);
+        }
 
         /// <summary>
         /// Cancelling a decision preserves completed unrelated aliases and releases conflicting registration waiters.
@@ -190,10 +197,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public Task NamespaceRegistrationSurvivesDecisionCancellationAsync(
             bool unregister,
             bool asynchronous,
-            bool conflicting) =>
-            AssertNamespaceRegistrationDuringDurableDecisionAsync(
+            bool conflicting)
+        {
+            return AssertNamespaceRegistrationDuringDurableDecisionAsync(
                 namespaceAlreadyExists: unregister, unregister, decisionFails: false,
                 conflicting, asynchronous, decisionCancelled: true);
+        }
 
         /// <summary>
         /// An unrelated namespace change before reservation still invalidates an already prepared batch.
@@ -493,11 +502,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                     });
                     await started.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    await RunWithoutExecutionContext(async () =>
-                    {
-                        await master.RegisterNamespaceManagerAsync(SurvivorAlias, survivor, timeout.Token)
-                            .ConfigureAwait(false);
-                    }).WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await RunWithoutExecutionContext(async () => await master.RegisterNamespaceManagerAsync(
+                            SurvivorAlias, survivor, timeout.Token)
+                            .ConfigureAwait(false)).WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(blocked.IsCompleted, Is.False);
                     Assert.That(commit.IsCompleted, Is.False);
                     Assert.That(server.NamespaceUris.GetIndex(RetiringAlias), Is.LessThan(0));
@@ -780,18 +787,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(result.CleanupFailure, Is.Null);
             Assert.That(decisionContext, Is.Not.Null);
             Task? resumed = null;
-            ExecutionContext.Run(decisionContext!, _ =>
+            ExecutionContext.Run(decisionContext!, _ => resumed = requestType switch
             {
-                resumed = requestType switch
-                {
-                    RequestType.AddNodes => master.AddNodesAsync(context, [], CancellationToken.None).AsTask(),
-                    RequestType.DeleteNodes => master.DeleteNodesAsync(context, [], CancellationToken.None).AsTask(),
-                    RequestType.AddReferences => master.AddReferencesAsync(context, [], CancellationToken.None)
-                        .AsTask(),
-                    RequestType.DeleteReferences => master.DeleteReferencesAsync(context, [], CancellationToken.None)
-                        .AsTask(),
-                    _ => throw new AssertionException($"Unexpected request type {requestType}.")
-                };
+                RequestType.AddNodes => master.AddNodesAsync(context, [], CancellationToken.None).AsTask(),
+                RequestType.DeleteNodes => master.DeleteNodesAsync(context, [], CancellationToken.None).AsTask(),
+                RequestType.AddReferences => master.AddReferencesAsync(context, [], CancellationToken.None)
+                    .AsTask(),
+                RequestType.DeleteReferences => master.DeleteReferencesAsync(context, [], CancellationToken.None)
+                    .AsTask(),
+                _ => throw new AssertionException($"Unexpected request type {requestType}.")
             }, null);
             Assert.That(resumed, Is.Not.Null);
             await resumed!.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -928,7 +932,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         earlyNamespaceIndex = server.NamespaceUris.GetIndex(aliasUri);
                         earlyRouteContainsManager = earlyNamespaceIndex >= 0 &&
-                            host.RoutingRevision.NamespaceManagers.TryGetValue(earlyNamespaceIndex, out var managers) &&
+                            host.RoutingRevision.NamespaceManagers.TryGetValue(
+                                earlyNamespaceIndex, out IReadOnlyList<IAsyncNodeManager>? managers) &&
                             managers.Contains(manager);
                     }
                     Assert.That(host.RoutingRevision.NodeManagers, Is.EqualTo(before.NodeManagers),

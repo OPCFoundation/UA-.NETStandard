@@ -465,12 +465,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     m_server.NodeManagerLifecycle, original).BeginAsync(CancellationToken.None).ConfigureAwait(false);
                 await using IPreparedChanges prepared =
                     await exactWriter2.PrepareAsync(
-                        [LifecycleChange.Replace(original.Slot, CreateRetryReadinessFactory(manager =>
-                        {
-                            manager.ReadinessCallback = _ => fail
+                        [LifecycleChange.Replace(original.Slot, CreateRetryReadinessFactory(
+                            manager => manager.ReadinessCallback = _ => fail
                                 ? new ValueTask(Task.FromException(new InvalidOperationException("Readiness failed.")))
-                                : default;
-                        }))]).ConfigureAwait(false);
+                                : default))]).ConfigureAwait(false);
                 result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
                 await exactWriter2.DisposeAsync().ConfigureAwait(false);
                 Task retirement = result.Retired;

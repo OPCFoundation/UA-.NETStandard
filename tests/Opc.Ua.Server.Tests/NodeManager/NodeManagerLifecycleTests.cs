@@ -3495,6 +3495,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// A pending retired-generation drain must not block removal of an unrelated current
         /// registration, and a later callback reload must reject the now-stale registration.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task PendingRetiredDrainAllowsUnrelatedRemoveAndRejectsStaleReloadAsync()
         {

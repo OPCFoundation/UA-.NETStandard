@@ -2705,10 +2705,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 participantMock.Setup(value => value.ConfirmCleanup(It.IsAny<NodeManagerCleanupConfirmation>()))
                     .Callback<NodeManagerCleanupConfirmation>(state.Confirm);
 
-                async ValueTask RetainLateFailureAsync()
-                {
-                    await state.AddFailedResourceAsync().ConfigureAwait(false);
-                }
+                async ValueTask RetainLateFailureAsync() => await state.AddFailedResourceAsync().ConfigureAwait(false);
 
                 if (lateFailureStage == "Abort")
                 {

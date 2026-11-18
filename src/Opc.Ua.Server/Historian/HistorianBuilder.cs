@@ -609,7 +609,7 @@ namespace Opc.Ua.Server.Historian
 
         private void CompleteProviderCleanup(IHistorianProvider provider)
         {
-            bool unregister = false;
+            bool unregister;
             TaskCompletionSource<bool>? drained = null;
             lock (m_captureSinkLock)
             {
@@ -705,7 +705,7 @@ namespace Opc.Ua.Server.Historian
             CaptureHandlerRegistration[] handlers = [];
             EventCaptureHandlerRegistration[] eventHandlers = [];
             HistorianCaptureSink[] sinks = [];
-            CaptureHandlerRegistration[] pendingHandlers = [];
+            CaptureHandlerRegistration[] pendingHandlers;
             EventCaptureHandlerRegistration[] pendingEventHandlers = [];
             HistorianCaptureSink[] pendingSinks = [];
             Task? pendingConstruction = null;

@@ -952,6 +952,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A collected nested owner cannot cause its already-bound routing conflict to be rebound to the outer batch.
         /// </summary>
+        /// <exception cref="SentinelException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="NodeManagerRoutingConflictException"></exception>
         [Test]
         public async Task CollectedNestedRoutingConflictDoesNotRebindAsync()
         {
