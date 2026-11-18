@@ -619,7 +619,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 publication.Setup(value => value.BindReadImages(It.IsAny<ArrayOf<INodeManagerReadImage>>()))
                     .Callback((ArrayOf<INodeManagerReadImage> images) =>
                     {
-                        if (probe.RejectReadImages)
+                        if (probe.RejectReadImagesAtBind?.Invoke() ?? probe.RejectReadImages)
                         {
                             throw new NotSupportedException("The custom source provider cannot retain read images.");
                         }
@@ -762,6 +762,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the on runtime created for <c>HandoffProbe</c>.
             /// </summary>
             public Action? OnRuntimeCreated { get; set; }
+
+            /// <summary>
+            /// Gets or sets the rejection predicate for each actual read-image binding attempt.
+            /// </summary>
+            public Func<bool>? RejectReadImagesAtBind { get; set; }
 
             /// <summary>
             /// Gets the changes for <c>HandoffProbe</c>.
