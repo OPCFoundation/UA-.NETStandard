@@ -23,6 +23,7 @@ covers cross-cutting changes.
 - [Migrating code that used ApplicationConfiguration.PropertiesLock](#migrating-code-that-used-applicationconfigurationpropertieslock)
 - [Migrating node types that override FindChild or CreateChild](#migrating-node-types-that-override-findchild-or-createchild)
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
+- [Session user identifiers and custom operation contexts](#session-user-identifiers-and-custom-operation-contexts)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
 - [Migrating the 2.x NodeManager lifecycle](#migrating-the-2x-nodemanager-lifecycle)
@@ -656,6 +657,18 @@ plan an offline namespace/identifier migration and client cutover.
 Unbound legacy shared state is not automatically adopted or renumbered. The
 identity module refuses unknown or conflicting stored contracts; see its
 new-store provisioning and migration limits before attaching an existing store.
+
+## Session user identifiers and custom operation contexts
+
+Custom `ISessionOperationContext` implementations must expose `string? ClientUserId`.
+Forward it from the standard request context when wrapping one; otherwise use the
+authenticated token's user identifier, not its display label. Anonymous users
+have a `null` identifier.
+
+`SessionSystemContext.UserId` reports `ClientUserId`. Code that used it as a
+display label should use `UserIdentity.DisplayName` explicitly instead. See
+[session user identifiers](migrate/2.0.x/sessions-subscriptions.md#session-user-identifiers)
+for the token mapping and authorization limits.
 
 ## Removed members on ISession
 

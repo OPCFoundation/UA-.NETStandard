@@ -18,6 +18,7 @@
   - [Service Call Behavior During Reconnect](#service-call-behavior-during-reconnect)
   - [Fluent Builder, V2 Subscriptions, and Dependency Injection](#fluent-builder-v2-subscriptions-and-dependency-injection)
 - [Server Session Activation and Subscription Transfer](#server-session-activation-and-subscription-transfer)
+  - [Session user identifiers](#session-user-identifiers)
 - [Subscriptions and Transports](#subscriptions-and-transports)
   - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
   - [Request completion is owned by `OperationContext`](#request-completion-is-owned-by-operationcontext)
@@ -379,6 +380,23 @@ This iteration uses single-instance options (no named/keyed registrations); the 
 Identity continuity across a SecureChannel transfer or a Subscription transfer is compared using an encoded continuity key rather than the human-readable ClientUserId that OPC 10000-5 reports through `SessionSecurityDiagnostics`. The key includes the `UserTokenType` and delimits the issuer from the subject, so a `UserNameIdentityToken` whose user name equals an X.509 certificate subject — or two issued tokens whose issuer and subject concatenate to the same string — are no longer treated as the same owner. Transfers that previously succeeded only because of such a collision are now rejected with `Bad_IdentityChangeNotSupported` (activation) or `Bad_UserAccessDenied` (subscription transfer). The reported `ClientUserIdOfSession` diagnostic value is unchanged.
 
 `SessionManager.OnSessionActivatedAsync` takes an additional `long activationSequence` parameter. The value increases with every successful activation of a Session and is stamped while the per-Session activation gate is still held. Because the callback itself runs after that gate is released, implementations that persist activation state outside the gate must use the sequence to discard writes that a newer concurrent activation has already superseded.
+
+### Session user identifiers
+
+Custom `ISessionOperationContext` implementations must provide `string? ClientUserId`.
+When decorating a standard request context, forward its captured value.
+The identifier is the user name for a UserName token, the certificate subject for
+an X.509 token, the issuer and subject for an issued token, or `null` for anonymous
+authentication. Do not substitute `IUserIdentity.DisplayName`.
+
+`SessionSystemContext.UserId` aliases `ClientUserId`. If the application needs a
+presentation label, read `UserIdentity.DisplayName` explicitly. Keep using the
+identity and role authorization APIs: the reported ClientUserId is not the encoded
+continuity key used for SecureChannel and Subscription transfers.
+
+For a stand-alone `SessionSystemContext` without an operation context or an
+assigned identifier, token or claims metadata takes precedence. `DisplayName`
+remains the compatibility fallback only when neither identifies the user.
 
 ## Subscriptions and Transports
 
