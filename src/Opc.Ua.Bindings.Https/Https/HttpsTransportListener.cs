@@ -542,7 +542,8 @@ namespace Opc.Ua.Bindings
 
             // Kestrel accepts as soon as it is bound, so a deferred listener
             // holds the requests at the gate until it is opened.
-            m_acceptGate = CreateAcceptGate(accepting: !settings.DeferAccept);
+            m_acceptRequested = !settings.DeferAccept;
+            m_acceptGate = CreateAcceptGate(m_acceptRequested);
 
             // reverse-connect listener mode dispatches accepted WSS
             // upgrades to TcpReverseConnectChannels and fires the
@@ -590,6 +591,7 @@ namespace Opc.Ua.Bindings
         public ValueTask StartAcceptingAsync(CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            m_acceptRequested = true;
             m_acceptGate.TrySetResult(true);
             return default;
         }
@@ -758,6 +760,12 @@ namespace Opc.Ua.Bindings
 
         private async ValueTask StartCoreAsync(CancellationToken ct)
         {
+            // a stop released the gate with false; a restart (for example
+            // after a certificate update) needs a new one in the same state.
+            if (m_acceptGate.Task.IsCompleted && !m_acceptGate.Task.Result)
+            {
+                m_acceptGate = CreateAcceptGate(m_acceptRequested);
+            }
             Volatile.Write(ref m_admissionStopped, 0);
             m_admission?.Start();
             // 1) Prepare the TLS certificate up front so the registry can
@@ -4161,6 +4169,7 @@ namespace Opc.Ua.Bindings
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ITransportListenerCallback? m_callback;
         private TaskCompletionSource<bool> m_acceptGate = CreateAcceptGate(accepting: true);
+        private volatile bool m_acceptRequested = true;
 #if NET8_0_OR_GREATER
         private IHost? m_host;
 #else

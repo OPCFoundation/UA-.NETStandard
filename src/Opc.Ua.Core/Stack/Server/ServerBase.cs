@@ -772,7 +772,7 @@ namespace Opc.Ua
             // a restart binds the listeners again before it takes connections.
             lock (m_acceptLock)
             {
-                m_acceptingConnections = false;
+                m_acceptTask = null;
             }
 
             if (listeners != null)
@@ -1136,7 +1136,8 @@ namespace Opc.Ua
             {
                 lock (m_acceptLock)
                 {
-                    return m_acceptingConnections;
+                    return m_acceptTask != null &&
+                        m_acceptTask.Status == TaskStatus.RanToCompletion;
                 }
             }
         }
@@ -1145,22 +1146,32 @@ namespace Opc.Ua
         /// Lets the transport listeners take connections. <c>StartAsync</c>
         /// calls this unless <see cref="AcceptConnectionsOnStart"/> is
         /// <c>false</c>. Listeners opened later take connections at once.
-        /// Calling it again does nothing.
+        /// Concurrent and later calls wait for the same activation; a failed
+        /// activation can be retried.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask StartAcceptingConnectionsAsync(CancellationToken cancellationToken = default)
         {
-            ITransportListener[] listeners;
+            Task activation;
             lock (m_acceptLock)
             {
-                if (m_acceptingConnections)
+                if (m_acceptTask == null || m_acceptTask.IsFaulted || m_acceptTask.IsCanceled)
                 {
-                    return;
+                    ITransportListener[] listeners = [.. TransportListeners];
+                    m_acceptTask = StartListenersAcceptingAsync(listeners, cancellationToken);
                 }
-                m_acceptingConnections = true;
-                listeners = [.. TransportListeners];
+                activation = m_acceptTask;
             }
 
+            await activation.ConfigureAwait(false);
+        }
+
+        private static async Task StartListenersAcceptingAsync(
+            ITransportListener[] listeners,
+            CancellationToken cancellationToken)
+        {
+            // run outside the caller's lock scope.
+            await Task.Yield();
             foreach (ITransportListener listener in listeners)
             {
                 if (listener is ITransportListenerAcceptControl acceptControl)
@@ -1312,7 +1323,9 @@ namespace Opc.Ua
                 lock (m_acceptLock)
                 {
                     TransportListeners.Add(listener);
-                    accepting = m_acceptingConnections;
+                    // listeners added while the activation runs start themselves.
+                    accepting = m_acceptTask != null &&
+                        !m_acceptTask.IsFaulted && !m_acceptTask.IsCanceled;
                 }
                 tracked = true;
 
@@ -2324,7 +2337,7 @@ namespace Opc.Ua
         private readonly Lock m_stopLock = new();
         private Task? m_stopTask;
         private readonly Lock m_acceptLock = new();
-        private bool m_acceptingConnections;
+        private Task? m_acceptTask;
     }
 
     /// <summary>

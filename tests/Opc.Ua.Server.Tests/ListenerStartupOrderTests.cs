@@ -74,16 +74,18 @@ namespace Opc.Ua.Server.Tests
             {
                 start = Task.Run(() => fixture.StartAsync(pkiRoot, port));
 
-                // Wait until the server is inside StartApplicationAsync. The
-                // first attempt can fail on a taken port and retry elsewhere,
-                // which the test does not cover; such a run is inconclusive.
+                // Wait until the server is inside StartApplicationAsync. An
+                // attempt that fails on a taken port fails before it gets
+                // there, so the fixture's current base address is the port
+                // that is bound.
                 Task entered = await Task.WhenAny(StartupGateServer.Entered.Task, start)
                     .WaitAsync(TimeSpan.FromSeconds(60))
                     .ConfigureAwait(false);
                 Assert.That(entered, Is.SameAs(StartupGateServer.Entered.Task),
                     "The server must reach StartApplicationAsync.");
 
-                Task<ArrayOf<EndpointDescription>> early = GetEndpointsAsync(port);
+                int boundPort = new Uri(fixture.Config.ServerConfiguration!.BaseAddresses[0]).Port;
+                Task<ArrayOf<EndpointDescription>> early = GetEndpointsAsync(boundPort);
 
                 // Before the fix the listener accepts here and the request
                 // completes with BadServerHalted (or a startup race).

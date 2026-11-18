@@ -105,6 +105,15 @@ namespace Opc.Ua.Gds.Server.Hosting
         public bool DiagnosticsEnabled { get; set; } = true;
 
         /// <summary>
+        /// When <c>false</c> (default), the endpoints serve clients only after
+        /// every <c>IServerStartupTask</c> has run. A client that connects
+        /// earlier waits and is served afterwards. Set to <c>true</c> to serve
+        /// clients while the startup tasks run, e.g. when a startup task
+        /// connects to this GDS itself.
+        /// </summary>
+        public bool ServeClientsDuringStartupTasks { get; set; }
+
+        /// <summary>
         /// Maximum byte-string length advertised on the transport.
         /// Defaults to 4 MiB.
         /// </summary>
