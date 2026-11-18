@@ -1170,23 +1170,31 @@ namespace Opc.Ua
             if (owner != null)
             {
                 // The caller that starts the activation runs it outside the
-                // lock and to completion: it is not bound to one caller's
-                // token, and a listener that starts at once completes it
-                // synchronously.
-                try
-                {
-                    await StartListenersAcceptingAsync(listeners, CancellationToken.None)
-                        .ConfigureAwait(false);
-                    owner.TrySetResult(true);
-                }
-                catch (Exception ex)
-                {
-                    owner.TrySetException(ex);
-                }
+                // lock but does not await it: the activation is not bound to
+                // one caller's token, a listener that starts at once completes
+                // it synchronously, and the starting caller can still cancel
+                // its own wait below like any other caller.
+                _ = RunActivationAsync(owner, listeners);
             }
 
             // each caller can stop waiting on its own.
             await activation.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task RunActivationAsync(
+            TaskCompletionSource<bool> owner,
+            ITransportListener[] listeners)
+        {
+            try
+            {
+                await StartListenersAcceptingAsync(listeners, CancellationToken.None)
+                    .ConfigureAwait(false);
+                owner.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                owner.TrySetException(ex);
+            }
         }
 
         private static async Task StartListenersAcceptingAsync(

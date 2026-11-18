@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Server.Hosting;
@@ -185,6 +186,46 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The caller that starts the listener activation can cancel its own
+        /// wait while a listener is still activating; the activation goes on
+        /// and a later caller observes its completion.
+        /// </summary>
+        [Test]
+        public async Task StartingCallerCanCancelPendingActivationAsync()
+        {
+            var activating = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var listener = new Mock<ITransportListener>();
+            listener.Setup(l => l.ListenerId).Returns("pending");
+            listener.As<ITransportListenerAcceptControl>()
+                .Setup(l => l.StartAcceptingAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(activating.Task));
+
+            using var server = new StartupGateServer(NUnitTelemetryContext.Create());
+            server.AddListener(listener.Object);
+
+            using var cts = new CancellationTokenSource();
+            Task first = server.StartAcceptingConnectionsAsync(cts.Token).AsTask();
+            Assert.That(first.IsCompleted, Is.False);
+
+            cts.Cancel();
+            Assert.That(
+                async () => await first.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(server.IsAcceptingConnections, Is.False);
+
+            activating.TrySetResult(true);
+            await server.StartAcceptingConnectionsAsync()
+                .AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+            Assert.That(server.IsAcceptingConnections, Is.True);
+            listener.As<ITransportListenerAcceptControl>().Verify(
+                l => l.StartAcceptingAsync(It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        /// <summary>
         /// The hosted server serves clients only after its startup tasks ran,
         /// unless <see cref="OpcUaServerOptions.ServeClientsDuringStartupTasks"/>
         /// is set.
@@ -321,6 +362,11 @@ namespace Opc.Ua.Server.Tests
         public static TaskCompletionSource<bool> Entered { get; private set; } = NewSignal();
 
         public ITransportListener[] Listeners => [.. TransportListeners];
+
+        public void AddListener(ITransportListener listener)
+        {
+            TransportListeners.Add(listener);
+        }
 
         public static TaskCompletionSource<bool> Release { get; private set; } = NewSignal();
 
