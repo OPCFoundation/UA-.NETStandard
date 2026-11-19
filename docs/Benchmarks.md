@@ -1005,5 +1005,25 @@ notification delivery, not activation cost versus generation count during
 concurrent publication and close. A diagnostic on .NET 10 compared 1,024
 membership checks at 128 sessions: the snapshot scan allocated 2,326,528 bytes
 across the checks; the stock lookup allocated no bytes on the calling thread.
-This isolates membership checks. It does not measure activation scaling during
-concurrent publication and close.
+That result isolates membership checks.
+
+A separate hosted diagnostic overlapped a real activation, a replacement
+decision, and the close of another session. It checked the exact activation and
+close callbacks, verified that the closing session was removed, and waited for
+retirement. Three alternating pairs compared `1e352d379` and `7197c76ea` on
+Windows and .NET 10. Only the server assembly and its symbols differed; the test
+assembly and its other dependencies were byte-identical.
+
+| Live sessions before the race | Added generations | Median elapsed, baseline / candidate | Median allocated bytes, baseline / candidate |
+|---:|---:|---:|---:|
+| 2 | 1 | 1.99 / 2.10 ms | 1,787,848 / 1,782,760 |
+| 2 | 8 | 2.26 / 2.40 ms | 1,817,632 / 1,812,648 |
+| 24 | 1 | 2.14 / 2.17 ms | 1,817,296 / 1,798,264 |
+| 24 | 8 | 2.61 / 2.38 ms | 1,861,012 / 1,822,656 |
+
+Each median uses 24 post-warmup observations. Allocation covers the process
+during the whole race, including session creation. The candidate allocated less
+at all four scales, but the elapsed results were mixed. The process CPU counter
+reported zero in most individual windows, and the host was not qualified as
+quiet. These measurements do not establish lower CPU cost or pass the
+activation-scaling gate.
