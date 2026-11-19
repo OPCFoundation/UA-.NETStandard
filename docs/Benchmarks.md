@@ -970,8 +970,25 @@ The `sub` scenario drives notifications through writes and does not measure
 periodic sampling.
 
 Whole-workload CPU and allocation measurements do not establish the cost of
-an individual cache or registration-storage change. No isolated comparative
-measurement is recorded here for those costs.
+an individual cache or registration-storage change. The following diagnostic
+used a scratch build based on `1e352d379` with the stock session membership
+change from `ed8c2df41`, on Windows with .NET 10.0.15 and Workstation GC. The
+probes ran in the server process and sampled each operation once per 256 calls
+per thread.
+
+| Workload | Snapshot lookup | Static permission lookup | Permission decode | Weak context path |
+|---|---:|---:|---:|---:|
+| Write-driven, 10 sessions x 15 subscriptions x 600 items | 0.12 us | 0.77 us | Not sampled | 1.49 us |
+| Periodic managed, 48 sessions x 5 subscriptions x 1,000 items | Not sampled | 0.41 us | 0.82 us | 0.04 us |
+| Event fanout, 10 sessions x 15 subscriptions, 400 events/s | 0.36 us | 0.33 us | Not sampled | Not sampled |
+
+These are mean elapsed times for sampled calls, including any waits within the
+probe boundary. None of those calls recorded calling-thread allocations; this
+does not establish that cache misses or snapshot rebuilds allocate nothing.
+The 48-session run recorded 43,668,000 verdict reuses and 4,852,000 rechecks
+across completed sampling passes. The client reported `FAIL` at 90.3% delivery
+even though the executable exited zero. This is diagnostic evidence, not a
+quiet-host comparison, a passing workload, or a substitute for `native-subs`.
 
 ### Session activation scaling
 
