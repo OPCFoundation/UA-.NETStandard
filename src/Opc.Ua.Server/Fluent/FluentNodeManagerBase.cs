@@ -972,7 +972,7 @@ namespace Opc.Ua.Server.Fluent
         /// <param name="configure">The callback, which must support retry if it fails after performing side effects.</param>
         /// <remarks>
         /// Lifecycle readiness serializes callback attempts and completes this configuration after the callback
-        /// returns. A manager can call <see cref="CompletePublishedConfigurationAsync"/> from its callback when
+        /// returns. A manager can call <see cref="CompletePublishedConfigurationAsync(CancellationToken)"/> when
         /// later callback work depends on the configured services.
         /// Steps for the same original builder run in registration order; register them all before readiness starts.
         /// Registration fails during configuration when the manager does not participate in readiness.
@@ -980,6 +980,22 @@ namespace Opc.Ua.Server.Fluent
         protected void DeferConfigurationUntilReady(
             INodeManagerBuilder builder,
             Func<CancellationToken, ValueTask> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            DeferConfigurationUntilReady(builder, (_, token) => configure(token));
+        }
+
+        /// <summary>
+        /// Defers configuration and supplies the initializer's readiness admission to the callback.
+        /// </summary>
+        /// <param name="builder">The builder kept open until configuration completes.</param>
+        /// <param name="configure">The retryable callback. Direct initialization may provide no readiness context.</param>
+        protected void DeferConfigurationUntilReady(
+            INodeManagerBuilder builder,
+            Func<NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
         {
             if (configure is null)
             {
@@ -1015,6 +1031,22 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(configure));
             }
+            DeferPublishedAuthoringUntilReady(builder, (published, _, token) => configure(published, token));
+        }
+
+        /// <summary>
+        /// Defers published authoring and supplies the initializer's readiness admission to the callback.
+        /// </summary>
+        /// <param name="builder">The original preparation builder.</param>
+        /// <param name="configure">The retryable authoring callback.</param>
+        protected void DeferPublishedAuthoringUntilReady(
+            INodeManagerBuilder builder,
+            Func<INodeManagerBuilder, NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
             NodeManagerBuilder attached = ResolveAttachedBuilder(builder, "published authoring");
             EnsureReadinessParticipant(attached, "published authoring");
             string namespaceUri = attached.Context.NamespaceUris.GetString(attached.DefaultNamespaceIndex)
@@ -1039,14 +1071,25 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Completes the deferred callback before sealing, without repeating a callback that already succeeded.
         /// </summary>
+        protected ValueTask CompletePublishedConfigurationAsync(CancellationToken cancellationToken = default)
+        {
+            return CompletePublishedConfigurationAsync(null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Completes deferred configuration with the initializer's explicit readiness context.
+        /// </summary>
+        /// <param name="readiness">The readiness capability, if invoked by the lifecycle.</param>
         /// <param name="cancellationToken">The readiness attempt's cancellation token.</param>
-        protected async ValueTask CompletePublishedConfigurationAsync(CancellationToken cancellationToken = default)
+        protected async ValueTask CompletePublishedConfigurationAsync(
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
         {
             if (m_publishedConfiguration is not { IsSealed: false } pending)
             {
                 return;
             }
-            await pending.RunAsync(cancellationToken).ConfigureAwait(false);
+            await pending.RunAsync(readiness, cancellationToken).ConfigureAwait(false);
             await SealConfigurationAsync(pending.Builder, cancellationToken).ConfigureAwait(false);
             pending.CompleteSeal();
         }
@@ -1054,10 +1097,13 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Completes deferred configuration from the lifecycle readiness scope.
         /// </summary>
+        /// <param name="readiness">The initializer's context.</param>
         /// <param name="cancellationToken">The readiness attempt's cancellation token.</param>
-        internal ValueTask CompleteDeferredConfigurationForLifecycleAsync(CancellationToken cancellationToken)
+        internal ValueTask CompleteDeferredConfigurationForLifecycleAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
         {
-            return CompletePublishedConfigurationAsync(cancellationToken);
+            return CompletePublishedConfigurationAsync(readiness, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -1672,7 +1718,8 @@ namespace Opc.Ua.Server.Fluent
             /// <summary>
             /// Starts a configuration sequence during private preparation.
             /// </summary>
-            public PublishedConfiguration(NodeManagerBuilder builder, Func<CancellationToken, ValueTask> configure)
+            public PublishedConfiguration(
+                NodeManagerBuilder builder, Func<NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
             {
                 Builder = builder;
                 m_steps.Add(configure);
@@ -1696,7 +1743,8 @@ namespace Opc.Ua.Server.Fluent
             /// <summary>
             /// Appends a callback before readiness starts, preserving registration order and one builder owner.
             /// </summary>
-            public void Add(NodeManagerBuilder builder, Func<CancellationToken, ValueTask> configure)
+            public void Add(
+                NodeManagerBuilder builder, Func<NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
             {
                 if (m_started || !ReferenceEquals(Builder, builder))
                 {
@@ -1709,12 +1757,12 @@ namespace Opc.Ua.Server.Fluent
             /// <summary>
             /// Retries only the first unfinished step; lifecycle readiness serializes attempts.
             /// </summary>
-            public async ValueTask RunAsync(CancellationToken cancellationToken)
+            public async ValueTask RunAsync(NodeManagerReadinessContext? readiness, CancellationToken cancellationToken)
             {
                 m_started = true;
                 while (!IsComplete)
                 {
-                    await m_steps[m_completedSteps](cancellationToken).ConfigureAwait(false);
+                    await m_steps[m_completedSteps](readiness, cancellationToken).ConfigureAwait(false);
                     m_completedSteps++;
                 }
             }
@@ -1729,7 +1777,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             /// <summary>The shared-service steps in registration order.</summary>
-            private readonly List<Func<CancellationToken, ValueTask>> m_steps = [];
+            private readonly List<Func<NodeManagerReadinessContext?, CancellationToken, ValueTask>> m_steps = [];
 
             /// <summary>The number of successfully completed callbacks.</summary>
             private int m_completedSteps;
@@ -1749,7 +1797,7 @@ namespace Opc.Ua.Server.Fluent
             public PublishedAuthoringPass(
                 FluentNodeManagerBase owner,
                 string namespaceUri,
-                Func<INodeManagerBuilder, CancellationToken, ValueTask> configure)
+                Func<INodeManagerBuilder, NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
             {
                 m_owner = owner;
                 m_namespaceUri = namespaceUri;
@@ -1759,7 +1807,7 @@ namespace Opc.Ua.Server.Fluent
             /// <summary>
             /// Completes only unfinished work, retaining the manager's ownership when an attempt fails.
             /// </summary>
-            public async ValueTask RunAsync(CancellationToken cancellationToken)
+            public async ValueTask RunAsync(NodeManagerReadinessContext? readiness, CancellationToken cancellationToken)
             {
                 if (m_builder is null)
                 {
@@ -1772,7 +1820,7 @@ namespace Opc.Ua.Server.Fluent
                 }
                 if (!m_configured)
                 {
-                    await m_configure(m_builder, cancellationToken).ConfigureAwait(false);
+                    await m_configure(m_builder, readiness, cancellationToken).ConfigureAwait(false);
                     m_configured = true;
                 }
                 if (!m_registered)
@@ -1805,7 +1853,8 @@ namespace Opc.Ua.Server.Fluent
             private readonly string m_namespaceUri;
 
             /// <summary>The published authoring callback.</summary>
-            private readonly Func<INodeManagerBuilder, CancellationToken, ValueTask> m_configure;
+            private readonly Func<INodeManagerBuilder, NodeManagerReadinessContext?, CancellationToken, ValueTask>
+                m_configure;
 
             /// <summary>The attached builder, created only after publication.</summary>
             private NodeManagerBuilder? m_builder;

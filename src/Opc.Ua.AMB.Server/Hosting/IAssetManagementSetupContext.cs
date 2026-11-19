@@ -29,6 +29,7 @@
 
 using System.Threading;
 using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.AMB.Server.Hosting
@@ -66,6 +67,11 @@ namespace Opc.Ua.AMB.Server.Hosting
         /// Gets the cancellation token of the server startup.
         /// </summary>
         CancellationToken CancellationToken { get; }
+
+        /// <summary>
+        /// Gets the initializer's readiness admission, or null during direct setup.
+        /// </summary>
+        NodeManagerReadinessContext? Readiness { get; }
 
         /// <summary>
         /// Resolves a required application service.

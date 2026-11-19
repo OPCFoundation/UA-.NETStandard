@@ -249,6 +249,7 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(captured.Assets, Is.SameAs(server.AssetManagement));
                 Assert.That(resolved, Is.SameAs(server.AssetManagement));
                 Assert.That(captured.Builder, Is.Not.Null);
+                Assert.That(captured.Readiness, Is.Not.Null);
                 Assert.That(captured.GetService<IDisposable>(), Is.Null);
                 Assert.That(captured.CancellationToken.IsCancellationRequested, Is.False);
             });

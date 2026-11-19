@@ -682,10 +682,11 @@ namespace Opc.Ua.Server
                     INodeManagerReadinessInitializer? initializer = NodeManagerReadiness.FindInitializer(manager);
                     using var readiness = new NodeManagerReadinessScope(
                         server, state.Registration.Identity, parentReadiness, ambient: initializer is null);
-                    string readinessContext = $"{state.Registration.Identity.GetQuiescenceWaitContext()}; " +
+                    var readinessContext = new NodeManagerReadinessContext(readiness);
+                    string waitContext = $"{state.Registration.Identity.GetQuiescenceWaitContext()}; " +
                         GetLifecycleWaitContext();
                     ValueTask work = initializer is not null
-                        ? initializer.OnServerReadyAsync(new NodeManagerReadinessContext(readiness), ct)
+                        ? initializer.OnServerReadyAsync(readinessContext, ct)
                         : (manager as INodeManagerReadinessNotification ??
                             throw new InvalidOperationException(
                                 "A registration pending readiness does not expose a readiness callback."))
@@ -698,13 +699,13 @@ namespace Opc.Ua.Server
                             .LifecycleWaitExceeded(
                                 "NodeManager readiness callback",
                                 elapsed,
-                                readinessContext),
+                                waitContext),
                         ct).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
                     if (state.Prepared.NodeManager is FluentNodeManagerBase fluentNodeManager)
                     {
-                        await fluentNodeManager.CompleteDeferredConfigurationForLifecycleAsync(ct)
-                        .ConfigureAwait(false);
+                        await fluentNodeManager.CompleteDeferredConfigurationForLifecycleAsync(readinessContext, ct)
+                            .ConfigureAwait(false);
                     }
                     ct.ThrowIfCancellationRequested();
 
