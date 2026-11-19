@@ -68,6 +68,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
+        public IWotProjectionPublicationCapture CapturePublication(NodeManagerReadinessContext readiness)
+        {
+            return new PublicationCapture(this,
+                (readiness ?? throw new ArgumentNullException(nameof(readiness))).CaptureChanges(m_lifecycle));
+        }
+
+        /// <inheritdoc/>
         /// <param name="changes">The source projection changes to prepare.</param>
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="callerContext">The compatibility request context, ignored by this host.</param>

@@ -113,7 +113,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private NodeManagerRegistration m_registryRegistration = null!;
         private FileWotRegistryStore? m_startupStore;
 
-        private sealed class DeadlineProjectionHost(IWotInvocationProjectionHost inner) : IWotInvocationProjectionHost
+        private sealed class DeadlineProjectionHost(IWotReadinessProjectionHost inner) : IWotReadinessProjectionHost
         {
             public int AddCalls => Volatile.Read(ref m_addCalls);
 
@@ -132,6 +132,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             public IWotProjectionPublicationCapture CapturePublication()
             {
                 return new DeadlineCapture(this, inner.CapturePublication());
+            }
+
+            public IWotProjectionPublicationCapture CapturePublication(NodeManagerReadinessContext readiness)
+            {
+                return new DeadlineCapture(this, inner.CapturePublication(readiness));
             }
 
             /// <summary>

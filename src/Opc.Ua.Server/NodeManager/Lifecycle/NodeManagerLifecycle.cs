@@ -1942,6 +1942,7 @@ namespace Opc.Ua.Server
         /// <param name="initial">The explicit startup capability, or null for runtime preparation.</param>
         /// <param name="shutdown">The explicit removal-only shutdown capability, or null.</param>
         /// <param name="readiness">The initializer that requested dependent publication, if any.</param>
+        /// <param name="bindReadiness">Whether this writer explicitly carries readiness into commit.</param>
         /// <returns>The prepared batch, which must be disposed if it is not committed.</returns>
         /// <exception cref="NotSupportedException">
         /// The server factory does not support prepared publication,
@@ -1956,7 +1957,8 @@ namespace Opc.Ua.Server
             bool validationOnly = false,
             InitialPublication? initial = null,
             ShutdownPublication? shutdown = null,
-            NodeManagerReadinessScope? readiness = null)
+            NodeManagerReadinessScope? readiness = null,
+            bool bindReadiness = false)
         {
             if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0 && initial is null))
             {
@@ -2144,7 +2146,7 @@ namespace Opc.Ua.Server
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
                         preparation.FactoryRevision, resolver, preparation, publication,
                         initial, shutdown, callbackPermit);
-                    var prepared = new PreparedChanges(payload, validationOnly);
+                    var prepared = new PreparedChanges(payload, validationOnly, bindReadiness ? readiness : null);
                     if (readImages.Count != 0)
                     {
                         foreach (INodeManagerReadImage image in readImages)
@@ -3602,10 +3604,12 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Takes ownership of private preparation data and captures non-owning inspection descriptors.
             /// </summary>
-            public PreparedChanges(PreparationPayload payload, bool validationOnly)
+            public PreparedChanges(
+                PreparationPayload payload, bool validationOnly, NodeManagerReadinessScope? readiness)
             {
                 m_payload = payload;
                 m_validationOnly = validationOnly;
+                m_readiness = readiness;
                 Registrations = payload.Registrations;
                 Slots = payload.Entries.Select(entry =>
                     entry.Next?.Registration.Slot ?? entry.Current!.Registration.Slot).ToArrayOf();
@@ -3770,7 +3774,8 @@ namespace Opc.Ua.Server
                 }
                 return new ValueTask(payload is null
                     ? RejectAfterDisposalAsync()
-                    : CompleteAsync(payload, null, null, NodeManagerReadinessScope.Current, cancellationToken));
+                    : CompleteAsync(payload, null, null, m_readiness ?? NodeManagerReadinessScope.Current,
+                        cancellationToken));
             }
 
             /// <summary>
@@ -3878,7 +3883,7 @@ namespace Opc.Ua.Server
                         TaskCreationOptions.RunContinuationsAsynchronously);
                 }
                 _ = CompleteAsync(
-                    payload, decideAsync, publishCommittedState, readiness, cancellationToken);
+                    payload, decideAsync, publishCommittedState, m_readiness ?? readiness, cancellationToken);
                 return new ValueTask<LifecycleResult>(commitCompletion.Task);
             }
 
@@ -4090,29 +4095,49 @@ namespace Opc.Ua.Server
 
             /// <summary>Whether this unit admits validation only.</summary>
             private readonly bool m_validationOnly;
+
+            private readonly NodeManagerReadinessScope? m_readiness;
         }
 
         /// <inheritdoc/>
         public ILifecycleCapture CaptureChanges()
         {
-            (IServerInternal server, IDynamicNodeManagerHost host) =
-                GetRunningServer(NodeManagerReadinessScope.Current);
-            return new LifecycleCapture(this, m_writer.CaptureRevision(server, host));
+            return CaptureChanges(NodeManagerReadinessScope.Current, bindReadiness: false);
+        }
+
+        /// <summary>
+        /// Captures a publication whose writer and prepared changes use the same revocable initializer.
+        /// </summary>
+        internal ILifecycleCapture CaptureChanges(NodeManagerReadinessScope? readiness, bool bindReadiness)
+        {
+            (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer(readiness);
+            if (bindReadiness && readiness?.Includes(server) != true)
+            {
+                throw new InvalidOperationException("The initializer is not active for this server.");
+            }
+            return new LifecycleCapture(
+                this, m_writer.CaptureRevision(server, host), bindReadiness ? readiness : null);
         }
 
         /// <summary>
         /// Begins independent publication ownership for captured serving revisions without excluding other callers.
         /// </summary>
         /// <param name="revision">The captured evidence, never recaptured by admission.</param>
+        /// <param name="readiness">The initializer bound to the capture, if any.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The publication invocation.</returns>
-        private PublicationWriter BeginWriter(
+        private ValueTask<ILifecycleWriter> BeginWriter(
             LifecycleWriter.PublicationRevision revision,
+            NodeManagerReadinessScope? readiness,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             LifecycleWriter.PublicationSession session = m_writer.BeginPublication(revision);
-            return new PublicationWriter(this, session);
+            // The caller of ILifecycleCapture.BeginAsync owns and disposes the returned writer.
+            // TODO: Remove when CA2000 recognizes ownership transfer through ValueTask.
+#pragma warning disable CA2000
+            return new ValueTask<ILifecycleWriter>(new PublicationWriter(this, session, readiness));
+#pragma warning restore CA2000
         }
 
         /// <summary>
@@ -4123,10 +4148,14 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Captures non-owning provider and revision evidence without retaining a serving image.
             /// </summary>
-            public LifecycleCapture(NodeManagerLifecycle owner, LifecycleWriter.PublicationRevision revision)
+            public LifecycleCapture(
+                NodeManagerLifecycle owner,
+                LifecycleWriter.PublicationRevision revision,
+                NodeManagerReadinessScope? readiness)
             {
                 m_owner = new WeakReference<NodeManagerLifecycle>(owner);
                 m_revision = revision;
+                m_readiness = readiness;
             }
 
             /// <inheritdoc/>
@@ -4137,7 +4166,7 @@ namespace Opc.Ua.Server
                 {
                     throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
                 }
-                return new ValueTask<ILifecycleWriter>(owner.BeginWriter(m_revision, cancellationToken));
+                return owner.BeginWriter(m_revision, m_readiness, cancellationToken);
             }
 
             /// <summary>The non-owning lifecycle identity.</summary>
@@ -4145,6 +4174,8 @@ namespace Opc.Ua.Server
 
             /// <summary>The non-owning captured serving evidence.</summary>
             private readonly LifecycleWriter.PublicationRevision m_revision;
+
+            private readonly NodeManagerReadinessScope? m_readiness;
         }
 
         /// <summary>
@@ -4155,10 +4186,14 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Exposes the existing writer's publication session without a second admission owner.
             /// </summary>
-            public PublicationWriter(NodeManagerLifecycle owner, LifecycleWriter.PublicationSession session)
+            public PublicationWriter(
+                NodeManagerLifecycle owner,
+                LifecycleWriter.PublicationSession session,
+                NodeManagerReadinessScope? readiness)
             {
                 m_owner = new WeakReference<NodeManagerLifecycle>(owner);
                 Session = session;
+                m_readiness = readiness;
             }
 
             /// <summary>
@@ -4171,6 +4206,8 @@ namespace Opc.Ua.Server
             /// Gets the independently owned invocation and its expected serving revisions.
             /// </summary>
             private LifecycleWriter.PublicationSession Session { get; }
+
+            private readonly NodeManagerReadinessScope? m_readiness;
 
             /// <inheritdoc/>
             public ValueTask<IPreparedChanges> PrepareAsync(
@@ -4253,14 +4290,14 @@ namespace Opc.Ua.Server
             {
                 ArrayOf<LifecycleChange> capturedChanges = [.. changes];
                 ArrayOf<INodeManagerReadImage> capturedImages = [.. images];
-                NodeManagerReadinessScope? readiness = NodeManagerReadinessScope.Current;
+                NodeManagerReadinessScope? readiness = m_readiness ?? NodeManagerReadinessScope.Current;
                 return Session.PrepareAsync(() =>
                 {
                     NodeManagerLifecycle owner = GetOwner();
                     NodeManagerCallbackPermit? callbackPermit = owner.CaptureLifecycleCallbackPermit();
                     return owner.PrepareChangesAsync(
                         capturedChanges, Session, callbackPermit, cancellationToken, capturedImages,
-                        validationOnly, readiness: readiness);
+                        validationOnly, readiness: readiness, bindReadiness: m_readiness is not null);
                 });
             }
 

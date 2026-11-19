@@ -33,6 +33,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -56,7 +57,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Returns false when the registry has no committed materialization to restore.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
-        public async ValueTask<bool> RecoverAsync(CancellationToken cancellationToken = default)
+        public ValueTask<bool> RecoverAsync(CancellationToken cancellationToken = default)
+        {
+            return RecoverAsync(null, cancellationToken);
+        }
+
+        internal async ValueTask<bool> RecoverAsync(
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
         {
             if (!TryBeginOperation(allowDisposed: false))
             {
@@ -67,7 +75,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    bool recovered = await RecoverCommittedImageAsync(cancellationToken).ConfigureAwait(false);
+                    bool recovered = await RecoverCommittedImageAsync(readiness, cancellationToken).ConfigureAwait(false);
                     m_publicationRecoveryRequired = false;
                     return recovered;
                 }
@@ -82,7 +90,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private async ValueTask<bool> RecoverCommittedImageAsync(CancellationToken cancellationToken)
+        private static IWotProjectionPublicationCapture CaptureSourcePublication(
+            IWotInvocationProjectionHost host,
+            NodeManagerReadinessContext? readiness)
+        {
+            return readiness is not null && host is IWotReadinessProjectionHost initializer
+                ? initializer.CapturePublication(readiness)
+                : host.CapturePublication();
+        }
+
+        private async ValueTask<bool> RecoverCommittedImageAsync(
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
         {
             if (m_registry is not IWotRegistryRecoveryResolver resolver)
             {
@@ -105,7 +124,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             throw new ServiceResultException(
                                 StatusCodes.BadInvalidState, "The deciding record precedes the known live publication.");
                         }
-                        if (!await ReconcileResolvedMetadataAsync(snapshot, cancellationToken).ConfigureAwait(false))
+                        if (!await ReconcileResolvedMetadataAsync(snapshot, readiness, cancellationToken)
+                            .ConfigureAwait(false))
                         {
                             continue;
                         }
@@ -117,7 +137,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     if (m_recoveryMetadataPending)
                     {
-                        if (!await ReconcileResolvedMetadataAsync(snapshot, cancellationToken).ConfigureAwait(false))
+                        if (!await ReconcileResolvedMetadataAsync(snapshot, readiness, cancellationToken)
+                            .ConfigureAwait(false))
                         {
                             continue;
                         }
@@ -193,7 +214,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     Selection = selected.ToImmutableArray(),
                     Options = new WoTRefreshOptionsDataType { Force = true, Atomicity = WoTAtomicityEnum.PerRegistry }
                 };
-                IWotProjectionPublicationCapture sourceCapture = host.CapturePublication();
+                IWotProjectionPublicationCapture sourceCapture = CaptureSourcePublication(host, readiness);
                 using WotRefreshCapture? inputs = selected.Count == 0 ? null : await CaptureInputsAsync(
                     WotCapturedRefreshRequest.Capture(request), cancellationToken, snapshot.RefreshGeneration,
                     committedInputs: true)
@@ -400,14 +421,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private async ValueTask<bool> ReconcileResolvedMetadataAsync(
-            WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
+            WotRegistrySnapshot snapshot,
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
         {
             if (m_sourceHost is not IWotInvocationProjectionHost host ||
                 m_registry is not IWotRegistryRecoveryResolver resolver)
             {
                 throw new NotSupportedException("The configured owners cannot reconcile a recovered publication.");
             }
-            IWotProjectionPublicationCapture capture = host.CapturePublication();
+            IWotProjectionPublicationCapture capture = CaptureSourcePublication(host, readiness);
             IWotRegistryPublication registryPublication = await resolver.BeginRecoveryPublicationAsync(cancellationToken)
                 .ConfigureAwait(false);
             await using var registryLifetime = registryPublication.ConfigureAwait(false);

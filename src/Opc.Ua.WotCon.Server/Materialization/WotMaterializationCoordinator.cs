@@ -156,9 +156,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <exception cref="ObjectDisposedException"></exception>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="request">The WoT refresh request.</param>
-        public async ValueTask<WotRefreshResult> RefreshAsync(
+        public ValueTask<WotRefreshResult> RefreshAsync(
             WotRefreshRequest request,
             CancellationToken cancellationToken = default)
+        {
+            return RefreshAsync(request, null, cancellationToken);
+        }
+
+        internal async ValueTask<WotRefreshResult> RefreshAsync(
+            WotRefreshRequest request,
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
         {
             WotCapturedRefreshRequest invocation = WotCapturedRefreshRequest.Capture(request);
             m_converterOptions.Validate();
@@ -190,7 +198,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                         try
                         {
-                            await RecoverCommittedImageAsync(cancellationToken).ConfigureAwait(false);
+                            await RecoverCommittedImageAsync(readiness, cancellationToken).ConfigureAwait(false);
                             m_publicationRecoveryRequired = false;
                         }
                         catch (Exception failure) when (failure is IOException or InvalidDataException)
@@ -215,7 +223,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             WotRegistrySnapshot expectedRegistry = m_registry.Current;
                             CheckExpectedGeneration(invocation, expectedRegistry.RefreshGeneration);
                             m_generation = expectedRegistry.RefreshGeneration;
-                            IWotProjectionPublicationCapture sourceCapture = invocationHost.CapturePublication();
+                            IWotProjectionPublicationCapture sourceCapture = CaptureSourcePublication(
+                                invocationHost, readiness);
                             using WotRefreshCapture capture = await CaptureInputsAsync(invocation, cancellationToken)
                                 .ConfigureAwait(false);
                             IWotRegistryPublication registryPublication = await invocationRegistry

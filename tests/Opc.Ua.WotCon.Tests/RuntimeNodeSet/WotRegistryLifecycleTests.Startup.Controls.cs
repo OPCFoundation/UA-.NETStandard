@@ -912,7 +912,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
         }
 
-        private sealed class RemovalDeadlineProjectionHost(IWotInvocationProjectionHost inner) : IWotInvocationProjectionHost
+        private sealed class RemovalDeadlineProjectionHost(IWotReadinessProjectionHost inner)
+            : IWotReadinessProjectionHost
         {
             public int RemoveCalls => Volatile.Read(ref m_removeCalls);
 
@@ -931,6 +932,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             public IWotProjectionPublicationCapture CapturePublication()
             {
                 return inner.CapturePublication();
+            }
+
+            public IWotProjectionPublicationCapture CapturePublication(NodeManagerReadinessContext readiness)
+            {
+                return inner.CapturePublication(readiness);
             }
 
             /// <summary>

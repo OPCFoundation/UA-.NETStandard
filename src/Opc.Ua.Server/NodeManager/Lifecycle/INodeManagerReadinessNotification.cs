@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server
 {
@@ -129,6 +130,19 @@ namespace Opc.Ua.Server
         {
             return (server ?? throw new ArgumentNullException(nameof(server))).PublishWithReadinessAsync(
                 changes, Scope, cancellationToken);
+        }
+
+        /// <summary>
+        /// Binds optimistic publication to the same initializer through preparation and commit.
+        /// </summary>
+        internal ILifecycleCapture CaptureChanges(INodeManagerLifecycle lifecycle)
+        {
+            return lifecycle switch
+            {
+                NodeManagerLifecycle stock => stock.CaptureChanges(Scope, bindReadiness: true),
+                HostedNodeManagerLifecycle hosted => hosted.CaptureChanges(Scope),
+                _ => throw new NotSupportedException("The lifecycle does not support readiness-bound capture.")
+            };
         }
 
         /// <summary>

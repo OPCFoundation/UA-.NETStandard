@@ -47,7 +47,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// requests or continuations. The stable WoT registry NodeManager is never
     /// touched.
     /// </summary>
-    public sealed partial class LifecycleWotProjectionHost : IWotInvocationProjectionHost
+    public sealed partial class LifecycleWotProjectionHost : IWotReadinessProjectionHost
     {
         /// <summary>
         /// Initializes a new host over the supplied lifecycle.

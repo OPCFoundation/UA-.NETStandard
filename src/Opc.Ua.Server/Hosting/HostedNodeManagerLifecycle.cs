@@ -86,6 +86,16 @@ namespace Opc.Ua.Server.Hosting
             return Current.CaptureChanges();
         }
 
+        /// <summary>
+        /// Resolves the hosted lifecycle before capturing the initializer's exact publication.
+        /// </summary>
+        internal ILifecycleCapture CaptureChanges(NodeManagerReadinessScope readiness)
+        {
+            return Current is NodeManagerLifecycle lifecycle
+                ? lifecycle.CaptureChanges(readiness, bindReadiness: true)
+                : throw new NotSupportedException("The hosted lifecycle does not support readiness-bound capture.");
+        }
+
         /// <inheritdoc/>
         public ValueTask<IPreparedChanges> PrepareAsync(
             ArrayOf<LifecycleChange> changes,
