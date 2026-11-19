@@ -1102,28 +1102,50 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        async ValueTask IDynamicNodeManagerHost.ResolveUnresolvedSourcesAsync(
+        ValueTask IDynamicNodeManagerHost.ResolveUnresolvedSourcesAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId>? nodeIds,
             CancellationToken cancellationToken)
         {
             if ((!Server.IsRunning && !NodeManagerReadinessScope.Allows(Server)) ||
-                GetVisibleNodeManager(nodeManager) is not { } visibleNodeManager)
+                GetLiveGeneration(nodeManager) is not { } generation)
             {
-                return;
+                return default;
             }
+            return ResolveUnresolvedSourcesAsync(generation, nodeIds, cancellationToken);
+        }
 
-            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(visibleNodeManager).Slot;
+        /// <summary>
+        /// Recovers monitored-item sources on the exact generation just published by the lifecycle.
+        /// This path is also used before the server starts accepting requests.
+        /// </summary>
+        internal ValueTask ResolvePublishedSourcesAsync(
+            NodeManagerGeneration generation,
+            CancellationToken cancellationToken)
+        {
+            return ReferenceEquals(GetLiveGeneration(generation.NodeManager), generation)
+                ? ResolveUnresolvedSourcesAsync(generation, null, cancellationToken)
+                : default;
+        }
+
+        private async ValueTask ResolveUnresolvedSourcesAsync(
+            NodeManagerGeneration generation,
+            IReadOnlyCollection<NodeId>? nodeIds,
+            CancellationToken cancellationToken)
+        {
             await ResolveMonitoredItemSourcesAsync(
-                visibleNodeManager,
-                GetUnresolvedMonitoredItems(slot, nodeIds),
+                generation.NodeManager,
+                GetUnresolvedMonitoredItems(generation.Slot, nodeIds),
+                unresolvedOnly: false,
+                generation,
                 cancellationToken).ConfigureAwait(false);
             if (NodeManagerGenerationRegistry.TryGetOwnerlessSlot(Server, out NodeManagerSlot? ownerless))
             {
                 await ResolveMonitoredItemSourcesAsync(
-                    visibleNodeManager,
+                    generation.NodeManager,
                     GetUnresolvedMonitoredItems(ownerless, nodeIds),
                     unresolvedOnly: true,
+                    generation,
                     cancellationToken).ConfigureAwait(false);
             }
         }
@@ -1163,7 +1185,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             return ResolveMonitoredItemSourcesAsync(
-                nodeManager, monitoredItems, unresolvedOnly: false, cancellationToken);
+                nodeManager, monitoredItems, unresolvedOnly: false, expectedGeneration: null, cancellationToken);
         }
 
         /// <summary>
@@ -1172,15 +1194,18 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The node manager associated with the operation.</param>
         /// <param name="monitoredItems">The monitored items included in the operation.</param>
         /// <param name="unresolvedOnly">Whether to skip items rebound since the recovery snapshot was taken.</param>
+        /// <param name="expectedGeneration">The exact target when recovering on behalf of publication.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         private async ValueTask ResolveMonitoredItemSourcesAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyList<IMonitoredItem> monitoredItems,
             bool unresolvedOnly,
+            NodeManagerGeneration? expectedGeneration,
             CancellationToken cancellationToken)
         {
-            IAsyncNodeManager? visibleNodeManager = GetVisibleNodeManager(nodeManager);
-            if (visibleNodeManager is not INodeManagerMonitoredItemSource nodeManagerLifecycle)
+            NodeManagerGeneration? generation = GetLiveGeneration(nodeManager);
+            if (generation?.NodeManager is not INodeManagerMonitoredItemSource nodeManagerLifecycle ||
+                (expectedGeneration is not null && !ReferenceEquals(generation, expectedGeneration)))
             {
                 return;
             }
@@ -1277,11 +1302,11 @@ namespace Opc.Ua.Server
                 statusCode == StatusCodes.BadFilterLiteralInvalid;
         }
 
-        private IAsyncNodeManager? GetVisibleNodeManager(IAsyncNodeManager nodeManager)
+        private NodeManagerGeneration? GetLiveGeneration(IAsyncNodeManager nodeManager)
         {
             return m_nodeManagers.Revision.TryGetGeneration(nodeManager, out NodeManagerGeneration? generation) &&
                 generation!.Gate.State == NodeManagerGenerationState.Live
-                    ? generation.NodeManager
+                    ? generation
                     : null;
         }
 

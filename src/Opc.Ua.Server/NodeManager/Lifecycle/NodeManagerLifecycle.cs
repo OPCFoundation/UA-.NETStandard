@@ -1145,16 +1145,21 @@ namespace Opc.Ua.Server
                 statusCode == StatusCodes.BadFilterLiteralInvalid;
         }
 
-        private static ValueTask ResolveUnresolvedSourcesAsync(
+        private static async ValueTask ResolvePublishedSourcesAsync(
             IServerInternal server,
-            IAsyncNodeManager nodeManager,
+            NodeManagerGeneration generation,
             CancellationToken ct)
         {
-            return server.NodeManager is IDynamicNodeManagerHost recovery
-                ? recovery.ResolveUnresolvedSourcesAsync(
-                    nodeManager,
-                    cancellationToken: ct)
-                : default;
+            if (server.NodeManager is MasterNodeManager master)
+            {
+                await master.ResolvePublishedSourcesAsync(generation, ct).ConfigureAwait(false);
+            }
+            else if (server.NodeManager is IDynamicNodeManagerHost recovery)
+            {
+                using var readinessScope = new NodeManagerReadinessScope(server, generation);
+                await recovery.ResolveUnresolvedSourcesAsync(generation.NodeManager, cancellationToken: ct)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -2544,14 +2549,11 @@ namespace Opc.Ua.Server
                     NodeManagerGeneration generation = state.Registration.Identity;
                     if (recoverSources)
                     {
-                        using var readinessScope = new NodeManagerReadinessScope(
-                            batch.Server,
-                            state.Registration.Identity);
                         await reconciliation.RunAsync(
                             NodeManagerReconciliationStage.MonitoredItems,
                             [generation],
-                            () => ResolveUnresolvedSourcesAsync(
-                                batch.Server, generation.NodeManager, CancellationToken.None))
+                            () => ResolvePublishedSourcesAsync(
+                                batch.Server, generation, CancellationToken.None))
                             .ConfigureAwait(false);
                     }
                     await reconciliation.RunAsync(
