@@ -1020,6 +1020,11 @@ Request routing remains owned by the explicit `OperationContext` view.
 | --- | --- | --- |
 | `LifecycleWriter` publication scope | The host uses the writer's scope from namespace admission until it releases the reservation. It rejects serving namespace changes made from publication callbacks, and both staged and serving changes made from the durable decision. The writer rejects nested lifecycle operations while the decision callback runs. Independent callers can still publish unrelated aliases or wait for a conflicting reservation. | A callback activity flag and a reservation flag; no manager or generation |
 | `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears its server and generation. Normal unwinding preserves access to a still-active parent; out-of-order disposal severs the parent link. | Server and generation references only while active |
+
+Request admission copies an initializer's readiness scope to the `OperationContext` only for
+the exact server. Dispatch checks that scope for the exact pending generation selected by the
+request's pinned view. An unbound request cannot inherit readiness at dispatch, and a pin does
+not extend the readiness scope.
 | `MasterNodeManager` callback permit | Allows nested publication to borrow the capabilities currently held by a manager callback. Disposal rejects new borrows and waits for existing borrows before the callback releases its host admission; later operations must reacquire admission. | Capability flags, borrow accounting, the preceding permit and its execution-context slot; no manager or generation |
 | `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
 | Node registration, AddNodes, adapter notification and NodeVersion guards | Suppresses nested notifications or reserves a request's NodeId only while the owning operation is active. Disposal revokes the value in captured contexts, including on failure. An ended inner guard can fall back to a still-active enclosing operation. | A Boolean or NodeId, an active flag and preceding guard; no manager or generation |

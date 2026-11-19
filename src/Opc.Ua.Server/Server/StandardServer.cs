@@ -3623,8 +3623,16 @@ namespace Opc.Ua.Server
             base.ValidateRequest(requestHeader);
 
             ServerInternalData? serverInternal = m_serverInternal;
-            if (serverInternal == null ||
-                (!serverInternal.IsRunning && !NodeManagerReadinessScope.Allows(serverInternal)))
+            NodeManagerReadinessScope? readiness = NodeManagerReadinessScope.Current;
+            if (serverInternal is null)
+            {
+                throw new ServiceResultException(StatusCodes.BadServerHalted);
+            }
+            if (readiness?.Includes(serverInternal) != true)
+            {
+                readiness = null;
+            }
+            if (!serverInternal.IsRunning && readiness is null)
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -3645,6 +3653,8 @@ namespace Opc.Ua.Server
                 CountRejectedRequest(serverInternal, requestType, e.StatusCode);
                 throw;
             }
+
+            context.Readiness = readiness;
 
             if (m_eventLogger.IsEventLogEnabled())
             {

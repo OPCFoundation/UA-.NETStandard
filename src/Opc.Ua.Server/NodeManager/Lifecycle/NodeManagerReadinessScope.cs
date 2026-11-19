@@ -51,13 +51,28 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets the initializer at a context-free entry point.
+        /// </summary>
+        internal static NodeManagerReadinessScope? Current => s_current.Value;
+
+        /// <summary>
         /// Determines whether the current initializer may use this pending generation.
         /// </summary>
         /// <param name="generation">The generation selected by explicit request routing.</param>
         /// <returns>Whether an active initializer owns this generation.</returns>
         internal static bool Allows(NodeManagerGeneration generation)
         {
-            for (NodeManagerReadinessScope? scope = s_current.Value; scope is not null; scope = scope.m_parent)
+            return Current?.Includes(generation) == true;
+        }
+
+        /// <summary>
+        /// Checks pending-generation access on an explicitly selected initializer chain.
+        /// </summary>
+        /// <param name="generation">The generation selected by explicit request routing.</param>
+        /// <returns>Whether an active initializer in the chain owns this generation.</returns>
+        internal bool Includes(NodeManagerGeneration generation)
+        {
+            for (NodeManagerReadinessScope? scope = this; scope is not null; scope = scope.m_parent)
             {
                 if (Volatile.Read(ref scope.m_active) != 0 &&
                     ReferenceEquals(Volatile.Read(ref scope.m_generation), generation) &&
@@ -76,7 +91,17 @@ namespace Opc.Ua.Server
         /// <returns>Whether an active initializer belongs to this server.</returns>
         internal static bool Allows(IServerInternal server)
         {
-            for (NodeManagerReadinessScope? scope = s_current.Value; scope is not null; scope = scope.m_parent)
+            return Current?.Includes(server) == true;
+        }
+
+        /// <summary>
+        /// Checks startup admission for the exact server.
+        /// </summary>
+        /// <param name="server">The server receiving the request.</param>
+        /// <returns>Whether an active initializer belongs to this server.</returns>
+        internal bool Includes(IServerInternal server)
+        {
+            for (NodeManagerReadinessScope? scope = this; scope is not null; scope = scope.m_parent)
             {
                 if (Volatile.Read(ref scope.m_active) != 0 &&
                     ReferenceEquals(Volatile.Read(ref scope.m_server), server) &&

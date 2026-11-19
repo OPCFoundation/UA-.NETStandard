@@ -231,6 +231,11 @@ namespace Opc.Ua.Server
         internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; private set; }
 
         /// <summary>
+        /// Gets or sets the local initializer that admitted this request, independently of its routing view.
+        /// </summary>
+        internal NodeManagerReadinessScope? Readiness { get; set; }
+
+        /// <summary>
         /// Gets whether this operation currently owns a routing-view pin.
         /// </summary>
         internal bool HasRoutingPin =>
