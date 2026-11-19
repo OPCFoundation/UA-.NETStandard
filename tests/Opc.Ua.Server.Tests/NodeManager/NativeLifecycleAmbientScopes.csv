@@ -3,7 +3,6 @@ src\Opc.Ua.Server\NodeManager\Lifecycle\LifecycleWriter.cs,m_decision,DecisionSc
 src\Opc.Ua.Server\NodeManager\Lifecycle\NodeManagerReadinessScope.cs,s_current,Disposed scope clears owners; active parent remains reachable only through valid links,NodeManagerReadinessScopeTests
 src\Opc.Ua.Server\NodeManager\Lifecycle\NodeManagerCleanupRecovery.cs,s_currentVerification,Active exact-generation marker revoked on callback exit,NodeManagerLifecycleTests (CleanupRecovery cases)
 src\Opc.Ua.Server\NodeManager\MasterNodeManager.cs,m_lifecycleCallbackPermit,Borrow accounting rejects new borrows then drains existing ones,NodeManagerCallbackPermitTests
-src\Opc.Ua.Server\NodeManager\MasterNodeManager.cs,m_currentLifecycleDecision,Completed reservation task no longer grants re-entry restriction,NodeManagerLifecycleTests (NamespaceDecision cases)
 src\Opc.Ua.Server\NodeManager\MasterNodeManager.cs,m_currentNamespacePublication,Completed reservation task expires captured marker,NodeManagerLifecycleTests (NamespaceDecision cases)
 src\Opc.Ua.Server\NodeManager\NodeManagerServiceDispatcher.cs,m_legacyLookupContext,Lookup finally clears shared routing image before restoring caller,NodeManagerLegacyLookupScopeTests
 src\Opc.Ua.Server\NodeManager\AsyncCustomNodeManager.cs,m_operationContext,Operation Active flag and operation counter end admission,AsyncNodeManagerDisposalReviewTests

@@ -87,14 +87,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var rejected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var expired = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task? spawned = null;
+            Assert.That(mutation.IsInDecisionWindow, Is.False);
             await mutation.DecideAsync(async token =>
             {
                 Assert.Throws<InvalidOperationException>(() => writer.EnterOperation());
                 spawned = Task.Run(async () =>
                 {
+                    Assert.That(mutation.IsInDecisionWindow, Is.True);
                     Assert.Throws<InvalidOperationException>(() => writer.EnterOperation());
                     rejected.TrySetResult(true);
                     await expired.Task.WaitAsync(token).ConfigureAwait(false);
+                    Assert.That(mutation.IsInDecisionWindow, Is.False);
                     using LifecycleWriter.OperationLifetime allowed = writer.EnterOperation();
                 }, token);
                 await rejected.Task.WaitAsync(token).ConfigureAwait(false);
@@ -102,6 +105,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
             expired.TrySetResult(true);
             Assert.That(spawned, Is.Not.Null);
             await spawned!.WaitAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The host window stays visible to callback descendants until the host releases its reservation.
+        /// </summary>
+        [Test]
+        public async Task HostDecisionWindowOutlivesCallbackOnlyInItsOwnFlowAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var writer = new LifecycleWriter();
+            using LifecycleWriter.OperationLifetime operation = writer.EnterOperation();
+            using LifecycleWriter.Mutation mutation = await writer.BeginMutationAsync(timeout.Token)
+                .ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool> independent = Task.Run(async () =>
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                return mutation.IsInDecisionWindow;
+            }, timeout.Token);
+
+            Task<bool> descended;
+            using (mutation.EnterDecisionWindow())
+            {
+                await mutation.DecideAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                entered.TrySetResult(true);
+                Assert.That(await independent.WaitAsync(timeout.Token).ConfigureAwait(false), Is.False);
+                Assert.That(mutation.IsInDecisionWindow, Is.True);
+                descended = Task.Run(async () =>
+                {
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    return mutation.IsInDecisionWindow;
+                }, timeout.Token);
+            }
+
+            release.TrySetResult(true);
+            Assert.That(await descended.WaitAsync(timeout.Token).ConfigureAwait(false), Is.False);
         }
 
         /// <summary>

@@ -1728,7 +1728,7 @@ namespace Opc.Ua.Server
             NodeManagerCallbackPermit? callbackPermit = CaptureLifecycleCallbackPermit();
             while (true)
             {
-                Task? pendingDecision = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+                Task? pendingDecision = Volatile.Read(ref m_lifecycleDecisionWindow)?.Completion.Task;
                 if (pendingDecision is not null)
                 {
                     await pendingDecision.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -1739,7 +1739,7 @@ namespace Opc.Ua.Server
                     callbackPermit,
                     NodeManagerAdmissionCapability.AddressSpaceMutation,
                     cancellationToken).ConfigureAwait(false);
-                if (Volatile.Read(ref m_lifecycleDecisionCompletion) is null)
+                if (Volatile.Read(ref m_lifecycleDecisionWindow) is null)
                 {
                     return admission;
                 }
@@ -1754,7 +1754,7 @@ namespace Opc.Ua.Server
         private async ValueTask WaitForLifecycleDecisionAsync(CancellationToken cancellationToken)
         {
             ThrowIfNodeManagementFromDecision();
-            while (Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task is { } pending)
+            while (Volatile.Read(ref m_lifecycleDecisionWindow)?.Completion.Task is { } pending)
             {
                 await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -1763,14 +1763,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Opens the mutation-admission window before releasing lifecycle semaphores for a durable decision.
         /// </summary>
-        private void BeginLifecycleDecisionWindow()
+        /// <param name="commit">The publication that owns the durable decision.</param>
+        private void BeginLifecycleDecisionWindow(INodeManagerPublicationCommit commit)
         {
-            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (Interlocked.CompareExchange(ref m_lifecycleDecisionCompletion, completion, null) is not null)
+            var window = new LifecycleDecisionWindow(commit, commit.EnterDecisionWindow());
+            if (Interlocked.CompareExchange(ref m_lifecycleDecisionWindow, window, null) is not null)
             {
+                window.Scope.Dispose();
                 throw new InvalidOperationException("A lifecycle decision window is already active.");
             }
-            m_currentLifecycleDecision.Value = completion.Task;
         }
 
         /// <summary>
@@ -1778,15 +1779,15 @@ namespace Opc.Ua.Server
         /// </summary>
         private void EndLifecycleDecisionWindow()
         {
-            TaskCompletionSource<bool>? completion = Interlocked.Exchange(
-                ref m_lifecycleDecisionCompletion,
+            LifecycleDecisionWindow? window = Interlocked.Exchange(
+                ref m_lifecycleDecisionWindow,
                 null);
-            if (completion is null)
+            if (window is null)
             {
                 throw new InvalidOperationException("No lifecycle decision window is active.");
             }
-            m_currentLifecycleDecision.Value = null;
-            completion.TrySetResult(true);
+            window.Scope.Dispose();
+            window.Completion.TrySetResult(true);
         }
 
         /// <summary>
@@ -1794,9 +1795,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ThrowIfNamespaceRegistrationFromDecision(bool serving = true)
         {
-            Task? current = m_currentLifecycleDecision.Value;
-            if (current is not null &&
-                ReferenceEquals(current, Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task))
+            if (IsInLifecycleDecisionWindow())
             {
                 throw new InvalidOperationException(
                     "Namespace registration cannot change serving routes from the durable decision callback.");
@@ -1813,8 +1812,14 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ThrowIfNodeManagementFromDecision()
         {
-            ThrowIfNodeManagementFromDecision(m_currentLifecycleDecision.Value is { IsCompleted: false });
+            ThrowIfNodeManagementFromDecision(IsInLifecycleDecisionWindow());
         }
+
+        /// <summary>
+        /// Checks the decision owner for the active host window without creating another ambient scope.
+        /// </summary>
+        private bool IsInLifecycleDecisionWindow() =>
+            Volatile.Read(ref m_lifecycleDecisionWindow)?.Commit.IsInDecisionWindow == true;
 
         private static void ThrowIfNodeManagementFromDecision(bool isLifecycleDecision)
         {
@@ -1891,11 +1896,34 @@ namespace Opc.Ua.Server
         /// <summary>The boundary supplied before the host is bound to the server.</summary>
         private readonly INodeManagerHostBoundary? m_hostBoundary;
         private readonly AsyncLocal<NodeManagerCallbackPermit?> m_lifecycleCallbackPermit = new();
-        private TaskCompletionSource<bool>? m_lifecycleDecisionCompletion;
-        private readonly AsyncLocal<Task?> m_currentLifecycleDecision = new();
+        private LifecycleDecisionWindow? m_lifecycleDecisionWindow;
 
         /// <summary>Marks this execution context's namespace reservation until it is released.</summary>
         private readonly AsyncLocal<Task?> m_currentNamespacePublication = new();
+
+        /// <summary>
+        /// Couples the published host wait with the exact decision owner until reservations are released.
+        /// </summary>
+        /// <param name="commit">The publication that owns the durable decision.</param>
+        /// <param name="scope">The marker owned by the writer.</param>
+        private sealed class LifecycleDecisionWindow(INodeManagerPublicationCommit commit, IDisposable scope)
+        {
+            /// <summary>
+            /// The publication owning this window.
+            /// </summary>
+            public INodeManagerPublicationCommit Commit { get; } = commit;
+
+            /// <summary>
+            /// The scope revoked when the host releases the window.
+            /// </summary>
+            public IDisposable Scope { get; } = scope;
+
+            /// <summary>
+            /// Completes after the host releases the window.
+            /// </summary>
+            public TaskCompletionSource<bool> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
 
         /// <summary>
         /// Identifies the system configuration and diagnostics role across view changes.

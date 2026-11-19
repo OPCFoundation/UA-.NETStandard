@@ -320,6 +320,17 @@ namespace Opc.Ua.Server
         bool HasDecision { get; }
 
         /// <summary>
+        /// Gets whether the caller belongs to this plan's active decision window.
+        /// </summary>
+        bool IsInDecisionWindow { get; }
+
+        /// <summary>
+        /// Associates the reservation with the writer's decision scope until the host releases it.
+        /// </summary>
+        /// <returns>The scope that expires the host reservation marker.</returns>
+        IDisposable EnterDecisionWindow();
+
+        /// <summary>
         /// Executes the durable decision once under lifecycle mutation ownership.
         /// </summary>
         /// <param name="cancellationToken">Cancels before the durable decision.</param>

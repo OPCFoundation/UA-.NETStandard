@@ -421,6 +421,33 @@ namespace Opc.Ua.Server
         internal sealed class Mutation(LifecycleWriter owner) : IDisposable
         {
             /// <summary>
+            /// Gets whether the caller belongs to this mutation's active decision window.
+            /// </summary>
+            internal bool IsInDecisionWindow =>
+                owner.m_decision.Value is { IsOpen: true } scope &&
+                ReferenceEquals(scope, Volatile.Read(ref m_activeDecision));
+
+            /// <summary>
+            /// Opens a decision window in the caller's context, without extending mutation ownership.
+            /// </summary>
+            internal IDisposable EnterDecisionWindow()
+            {
+                owner.ThrowIfDecisionCallbackActive();
+                if (!m_held)
+                {
+                    throw new InvalidOperationException("The durable decision requires mutation ownership.");
+                }
+                DecisionScope? previous = owner.m_decision.Value;
+                var scope = new DecisionScope();
+                if (Interlocked.CompareExchange(ref m_activeDecision, scope, null) is not null)
+                {
+                    throw new InvalidOperationException("The mutation already has a durable decision window.");
+                }
+                owner.m_decision.Value = scope;
+                return new DecisionWindow(this, owner, scope, previous);
+            }
+
+            /// <summary>
             /// Invokes the sole callback allowed under mutation ownership.
             /// </summary>
             internal async ValueTask DecideAsync(
@@ -432,9 +459,9 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The durable decision requires mutation ownership.");
                 }
-                DecisionScope? previous = owner.m_decision.Value;
-                var scope = new DecisionScope();
-                owner.m_decision.Value = scope;
+                using IDisposable? window = IsInDecisionWindow ? null : EnterDecisionWindow();
+                DecisionScope scope = owner.m_decision.Value!;
+                scope.Activate();
                 try
                 {
                     await callback(cancellationToken).ConfigureAwait(false);
@@ -442,7 +469,6 @@ namespace Opc.Ua.Server
                 finally
                 {
                     scope.Deactivate();
-                    owner.m_decision.Value = previous;
                 }
             }
 
@@ -474,8 +500,35 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>The exact decision for this mutation, cleared when the callback exits.</summary>
+            private DecisionScope? m_activeDecision;
+
             /// <summary>Whether this owner currently holds mutation admission.</summary>
             private bool m_held = true;
+
+            /// <summary>
+            /// Revokes the marker shared by the host and writer before relinquishing the window.
+            /// </summary>
+            private sealed class DecisionWindow(
+                Mutation mutation,
+                LifecycleWriter writer,
+                DecisionScope scope,
+                DecisionScope? previous) : IDisposable
+            {
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                    if (!scope.Close())
+                    {
+                        return;
+                    }
+                    if (ReferenceEquals(writer.m_decision.Value, scope))
+                    {
+                        writer.m_decision.Value = previous;
+                    }
+                    Interlocked.CompareExchange(ref mutation.m_activeDecision, null, scope);
+                }
+            }
         }
 
         /// <summary>
@@ -816,9 +869,25 @@ namespace Opc.Ua.Server
         private sealed class DecisionScope
         {
             /// <summary>
+            /// Gets whether the host has not yet released its reservations.
+            /// </summary>
+            internal bool IsOpen => Volatile.Read(ref m_open) != 0;
+
+            /// <summary>
             /// Gets whether the decision is still executing.
             /// </summary>
             internal bool IsActive => Volatile.Read(ref m_active) != 0;
+
+            /// <summary>
+            /// Marks the callback active until it returns.
+            /// </summary>
+            internal void Activate()
+            {
+                if (Interlocked.CompareExchange(ref m_active, 1, 0) != 0)
+                {
+                    throw new InvalidOperationException("The durable decision callback is already active.");
+                }
+            }
 
             /// <summary>
             /// Expires this decision in every captured execution context.
@@ -828,8 +897,16 @@ namespace Opc.Ua.Server
                 Volatile.Write(ref m_active, 0);
             }
 
+            /// <summary>
+            /// Expires the host reservation marker in every captured context.
+            /// </summary>
+            internal bool Close() => Interlocked.Exchange(ref m_open, 0) != 0;
+
             /// <summary>Decision activity shared across execution contexts.</summary>
-            private int m_active = 1;
+            private int m_active;
+
+            /// <summary>Host reservation marker shared across execution contexts.</summary>
+            private int m_open = 1;
         }
 
         /// <summary>Checks whether independent cleanup still requires shutdown synchronization.</summary>

@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken)
         {
-            bool isLifecycleDecision = m_currentLifecycleDecision.Value is { IsCompleted: false };
+            bool isLifecycleDecision = IsInLifecycleDecisionWindow();
             if (isLifecycleDecision &&
                 TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var decisionResponse))
             {
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server
             while (true)
             {
                 await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+                Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionWindow)?.Completion.Task;
                 if (decisionWindow is null)
                 {
                     using INodeManagerBatchAdmission mutationAdmission =

@@ -661,7 +661,7 @@ namespace Opc.Ua.Server
                         {
                             return null;
                         }
-                        BeginLifecycleDecisionWindow();
+                        BeginLifecycleDecisionWindow(commit);
                         lifecycleDecisionWindowStarted = true;
                         // The lifecycle writer excludes server teardown; do not hold the startup/shutdown semaphore
                         // while the durable decision callback performs external I/O. The prepared batch retains

@@ -1018,7 +1018,7 @@ Request routing remains owned by the explicit `OperationContext` view.
 
 | Scope | Purpose and expiration | Retained state |
 | --- | --- | --- |
-| `LifecycleWriter` decision scope | Rejects nested lifecycle operations during the durable decision, including spawned work. The decision's `finally` block revokes the scope before restoring its predecessor. | An active flag; no manager or generation |
+| `LifecycleWriter` decision scope | Rejects nested lifecycle operations during the durable decision, including spawned work. The host uses the same scope to reject re-entry until it releases its reservations. Other requests can wait for the host to release the window. | A callback activity flag and a reservation flag; no manager or generation |
 | `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears its server and generation. Normal unwinding preserves access to a still-active parent; out-of-order disposal severs the parent link. | Server and generation references only while active |
 | `MasterNodeManager` callback permit | Allows nested publication to borrow the capabilities currently held by a manager callback. Disposal rejects new borrows and waits for existing borrows before the callback releases its host admission; later operations must reacquire admission. | Capability flags, borrow accounting, the preceding permit and its execution-context slot; no manager or generation |
 | `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
