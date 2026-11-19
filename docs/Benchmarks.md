@@ -51,6 +51,7 @@ session scalability.
 - [NodeManager lifecycle measurements](#nodemanager-lifecycle-measurements)
   - [Type registration snapshots](#type-registration-snapshots)
   - [Lifecycle fixture cost](#lifecycle-fixture-cost)
+  - [System context reuse](#system-context-reuse)
   - [Notification and permission costs](#notification-and-permission-costs)
   - [Session activation scaling](#session-activation-scaling)
 
@@ -963,6 +964,18 @@ In this diagnostic, the hosted guards each spent about 0.78 s and allocated
 4.25 ms and 0.33 MB for the second. The three hosted controls continued to start
 and stop the server. These are one-run, process-wide measurements, not matched
 cold and warm medians or a reason to remove the hosted controls.
+
+### System context reuse
+
+A component probe compared `4a78fe779` and `1e352d379` with 1, 8, and 24
+alternating templates on pinned requests, unpinned requests, and shared
+subscriber contexts. Both sources reused every copy in all nine cases. First
+access allocated the same number of bytes on pinned requests and shared
+subscriber contexts. For 128 unpinned operations at 24 templates, first access
+allocated 289,792 bytes on the baseline and 372,736 bytes on the checkpoint,
+which weakly keys copies beyond the first. On the checkpoint, none of the warm
+lookups allocated on the calling thread. This probe does not run sampling or
+measure authorization-verdict hits.
 
 ### Notification and permission costs
 
