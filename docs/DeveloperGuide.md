@@ -725,17 +725,18 @@ separates ordinary cases, full generation replacement, and native comparisons.
 The matrix records each shard and its filter; no test is dropped to fit a budget.
 
 NUnit projects use `tests/nunit.runsettings.xml` when `dotnet test` runs without
-an explicit settings file. It sets `AssemblySelectLimit` to `2147483647` for
-direct and stress runs. The explicit coverage settings contain the same limit,
-and the CI executor also
-supplies it on the command line. TUnit and NativeAOT projects are unaffected.
-NUnit3TestAdapter otherwise replaces a non-category selection of more than
-2,000 cases with an empty engine filter.
-The engine then runs cases outside the shard, while VSTest can omit their
-results because discovery did not select them. A passing TRX alone therefore
-does not prove that the engine respected the shard. For a direct large filtered
-run with another settings file, include this limit in that file or append
-`-- NUnit.AssemblySelectLimit=2147483647` to `dotnet test`.
+an explicit settings file. That file and the coverage settings both set
+`AssemblySelectLimit` to `2147483647`. CI also passes the setting on the
+command line. It does not apply to TUnit or NativeAOT test runs.
+
+With the adapter's default command-line settings, an unfiltered `dotnet test`
+run does not hit the 2,000-case limit just because the assembly contains more
+tests. For a non-category filter, the adapter can drop the selection if
+discovery loads more cases than the limit. The adapter also checks the list
+length when it builds a filter from individual test cases. The engine can
+then run tests outside the shard even if VSTest omits them from the TRX.
+For a large filtered run with another settings file, set the limit in that
+file or append `-- NUnit.AssemblySelectLimit=2147483647` to `dotnet test`.
 
 The executor measures build and test time separately. Builds do not consume the
 test-execution budget, but remain bounded by the overall job timeout. The matrix

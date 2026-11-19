@@ -462,14 +462,15 @@ borrowed registration with `NotSupportedException`. Owning registration remains
 available on existing custom implementations. A borrowed registration does not
 revoke ownership acquired by an earlier owning registration of the same provider.
 
-A lifecycle-staged registry withdraws its serving bindings when its NodeManager
-generation retires. Resource cleanup can still unregister that generation's
-private node, namespace and default bindings until the staged registry is
-disposed. Those releases do not republish withdrawn bindings or alter a
-successor's registrations, including when both generations use the same
-provider. New registrations and publication remain rejected after retirement;
-all mutations are rejected after disposal. Removing a borrowed binding does not
-dispose its application-owned provider.
+When a NodeManager generation leaves routing, its staged registry removes
+that generation's historian bindings from service. The registry rejects new
+registrations and publication after retirement. Until disposal, cleanup can
+still unregister the retired generation's private node, namespace, and default
+bindings. That cleanup cannot restore withdrawn bindings or change a
+successor's bindings, even if both generations use the same provider.
+
+After disposal, the registry rejects all changes. Removing a borrowed binding
+does not dispose the provider; the application still owns it.
 
 ### Provider resolution order
 
@@ -766,17 +767,20 @@ Pagination rules:
 3. To indicate "no more pages", return a page with a default (empty) `NextToken`. `IsFinal` becomes true automatically.
 4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is retained server-side behind the wire continuation identifier and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
 
-The default Session cache retains a history continuation while it is saved or
-being used by a request. Its state holds the provider, the source node when
-available, the provider cursor, and the original query parameters. The issuing
-NodeManager generation is identified weakly, but the provider and source node
-can hold other strong references. Every resumed read through the default cache
-checks the caller's current permissions, and a continuation from a retired
-generation returns `BadContinuationPointInvalid`. For Annotations reads, the
-requested Property is remembered separately from the provider's source Variable.
-The history-read callback must finish using a restored point before it returns;
-retaining the point or a captured asynchronous context does not extend the
-issuing generation's lifetime.
+The default Session cache holds the provider, the source node when available,
+the provider cursor, and the original query parameters while a continuation
+is saved or in use. The continuation uses a weak reference to find the issuing
+NodeManager generation without keeping it alive. The provider and source node
+can still keep other objects alive through their own references. For
+Annotations reads, the continuation records the requested Property separately
+from the provider's source Variable.
+
+Before dispatching a resumed read, the server rechecks the caller's current
+permissions on the requested node. A continuation from a retired generation
+returns `BadContinuationPointInvalid`. Finish using the restored point before
+the history-read callback returns. Keeping the point or capturing the
+callback's asynchronous context does not let later work reuse the current
+read's admission.
 
 Clients use the continuation identifier returned by the latest response.
 Completion is indicated by an empty continuation identifier, not by the number
