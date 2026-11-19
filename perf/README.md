@@ -193,6 +193,8 @@ publishing interval (or per sample when sampling is slower), and the `server:` l
 `samplesTaken`. `per-op` divides the server's allocation and CPU by notifications and
 `per-op2` by samples taken. These values describe one run; compare client modes only from
 controlled runs with the same server, workload and timing settings on an otherwise idle host.
+The managed `counters` run prints its result and exits with status 1 if any item
+progresses below 99% of its expected sample count or has no measurable progress window.
 
 `--server-affinity` (Windows and Linux) is applied after the server started, when the .NET
 runtime has already sized the thread pool and the GC heaps for all processors. Set
