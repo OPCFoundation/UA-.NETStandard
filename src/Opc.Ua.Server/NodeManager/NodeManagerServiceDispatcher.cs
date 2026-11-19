@@ -129,6 +129,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Applies readiness admission to the generation selected by this dispatch.
+        /// </summary>
+        private static bool CanDispatchTo(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            IAsyncNodeManager nodeManager)
+        {
+            return snapshot.FindPendingReadiness(nodeManager) is not { } generation ||
+                NodeManagerReadinessScope.Allows(generation);
+        }
+
+        /// <summary>
         /// Borrows the operation's view until service return, retaining explicit context-owned pins.
         /// </summary>
         /// <param name="context">The operation receiving the view.</param>
@@ -194,7 +205,7 @@ namespace Opc.Ua.Server
             {
                 if (ReferenceEquals(manager, result.nodeManager))
                 {
-                    return snapshot.CanDispatchTo(manager) ? result : (null, null);
+                    return CanDispatchTo(snapshot, manager) ? result : (null, null);
                 }
             }
             foreach (IAsyncNodeManager manager in m_nodeManagers.Revision.VisibleNodeManagers)
@@ -235,7 +246,7 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                if (!snapshot.CanDispatchTo(routing.NodeManagers[1]))
+                if (!CanDispatchTo(snapshot, routing.NodeManagers[1]))
                 {
                     return null;
                 }
@@ -252,7 +263,7 @@ namespace Opc.Ua.Server
 
             foreach (IAsyncNodeManager asyncNodeManager in nodeManagers!)
             {
-                if (!snapshot.CanDispatchTo(asyncNodeManager))
+                if (!CanDispatchTo(snapshot, asyncNodeManager))
                 {
                     continue;
                 }
@@ -343,7 +354,7 @@ namespace Opc.Ua.Server
                     return (null, null, null);
                 }
                 IAsyncNodeManager core = routing.NodeManagers[1];
-                if (!snapshot.CanDispatchTo(core))
+                if (!CanDispatchTo(snapshot, core))
                 {
                     return (null, null, null);
                 }
@@ -365,7 +376,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < nodeManagers!.Count; ii++)
             {
                 IAsyncNodeManager asyncNodeManager = nodeManagers[ii];
-                if (!snapshot.CanDispatchTo(asyncNodeManager))
+                if (!CanDispatchTo(snapshot, asyncNodeManager))
                 {
                     continue;
                 }
@@ -1653,7 +1664,7 @@ namespace Opc.Ua.Server
                 context?.RoutingSnapshot ?? m_nodeManagers.Revision;
             foreach (IAsyncNodeManager nodeManager in snapshot.VisibleNodeManagers)
             {
-                if (!snapshot.CanDispatchTo(nodeManager))
+                if (!CanDispatchTo(snapshot, nodeManager))
                 {
                     continue;
                 }
@@ -1758,7 +1769,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                     {
-                        if (!routes.Includes(nodeManager) || !GetRouting(context).CanDispatchTo(nodeManager))
+                        if (!routes.Includes(nodeManager) || !CanDispatchTo(GetRouting(context), nodeManager))
                         {
                             continue;
                         }
@@ -2012,7 +2023,7 @@ namespace Opc.Ua.Server
             {
                 foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                 {
-                    if (!GetRouting(context).CanDispatchTo(nodeManager))
+                    if (!CanDispatchTo(GetRouting(context), nodeManager))
                     {
                         continue;
                     }
@@ -2241,7 +2252,7 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
-                    if (!routes.Includes(nodeManager) || !GetRouting(context).CanDispatchTo(nodeManager))
+                    if (!routes.Includes(nodeManager) || !CanDispatchTo(GetRouting(context), nodeManager))
                     {
                         continue;
                     }
@@ -2399,7 +2410,7 @@ namespace Opc.Ua.Server
                     NodeManagerRoutingTable.RoutingSnapshot routing = GetRouting(context);
                     foreach (IAsyncNodeManager nodeManager in routing.VisibleNodeManagers)
                     {
-                        if (!routing.CanDispatchTo(nodeManager))
+                        if (!CanDispatchTo(routing, nodeManager))
                         {
                             continue;
                         }
@@ -2509,7 +2520,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (IAsyncNodeManager nodeManager in namespaceManagers)
                         {
-                            if (!routing.CanDispatchTo(nodeManager))
+                            if (!CanDispatchTo(routing, nodeManager))
                             {
                                 errors[ii] = StatusCodes.BadServerTooBusy;
                                 break;
@@ -2764,7 +2775,7 @@ namespace Opc.Ua.Server
                     // create items for data access.
                     foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                     {
-                        if (!GetRouting(context).CanDispatchTo(nodeManager))
+                        if (!CanDispatchTo(GetRouting(context), nodeManager))
                         {
                             continue;
                         }
