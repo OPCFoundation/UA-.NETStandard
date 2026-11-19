@@ -2240,7 +2240,7 @@ namespace Opc.Ua.Server
                 {
                     if (entry.Current is not null)
                     {
-                        if (decideAsync is not null && entry.Manager is not null)
+                        if (!validationOnly && entry.Manager is not null)
                         {
                             semanticChanges.AddRange(GetSemanticChanges(
                                 entry.Current.Prepared.NodeManager,
@@ -2260,7 +2260,7 @@ namespace Opc.Ua.Server
                             retirement.MigrateLateMonitoredItemsAsync =
                                 () => MigrateLateMonitoredItemsAsync(retirement);
                         }
-                        if (decideAsync is not null)
+                        if (!validationOnly)
                         {
                             MonitoredItemTransition transition = await PrepareMonitoredItemTransitionAsync(
                                 entry.Current.Prepared.NodeManager,
