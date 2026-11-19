@@ -93,10 +93,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a verification capability for the exact participant and failure.
         /// </summary>
-        internal NodeManagerCleanupVerification(INodeManagerCleanupParticipant participant, Guid failureId)
+        internal NodeManagerCleanupVerification(
+            INodeManagerCleanupParticipant participant,
+            Guid failureId,
+            NodeManagerCleanupVerificationContext? context = null)
         {
             m_capability = new NodeManagerCleanupConfirmation(participant, failureId);
+            Context = context;
         }
+
+        /// <summary>
+        /// Gets the verification context to pass to any recovery call made while resolving the resource.
+        /// </summary>
+        public NodeManagerCleanupVerificationContext? Context { get; }
 
         /// <summary>
         /// Consumes the capability for the exact participant and returns the failure identifier.
@@ -195,10 +204,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a discovery capability for the exact participant.
         /// </summary>
-        internal NodeManagerCleanupAccess(INodeManagerCleanupParticipant participant)
+        internal NodeManagerCleanupAccess(
+            INodeManagerCleanupParticipant participant,
+            NodeManagerCleanupVerificationContext? context = null)
         {
             m_participant = participant;
+            Context = context;
         }
+
+        /// <summary>
+        /// Gets the verification context to pass to nested recovery, if this discovery is part of verification.
+        /// </summary>
+        public NodeManagerCleanupVerificationContext? Context { get; }
 
         /// <summary>
         /// Checks whether this capability is active for the exact participant.

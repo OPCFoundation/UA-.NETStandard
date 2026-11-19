@@ -1675,9 +1675,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(false, true)]
         [TestCase(true, true)]
         [Category("NodeManagerLifecycle")]
-        public async Task VerificationRejectsReentrantRecoveryForItsGenerationAsync(
+        public Task VerificationRejectsReentrantRecoveryForItsGenerationAsync(
             bool confirmAgain,
             bool duringLookup)
+        {
+            return VerifyRecoveryReentryAsync(confirmAgain, duringLookup, duringDiscovery: false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("NodeManagerLifecycle")]
+        public Task VerificationDiscoveryRejectsReentrantRecoveryForItsGenerationAsync(bool confirmAgain)
+        {
+            return VerifyRecoveryReentryAsync(confirmAgain, duringLookup: false, duringDiscovery: true);
+        }
+
+        private async Task VerifyRecoveryReentryAsync(bool confirmAgain, bool duringLookup, bool duringDiscovery)
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(2)
                 .ConfigureAwait(false);
@@ -1692,25 +1705,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             InvalidOperationException? rejected = null;
             Task? lookupAttempt = null;
-            Task StartNestedRecovery(CancellationToken cancellationToken)
+            Task StartNestedRecovery(
+                NodeManagerCleanupVerificationContext context,
+                CancellationToken cancellationToken)
             {
                 return confirmAgain
-                    ? harness.Recovery.ConfirmAsync(second, cancellationToken).AsTask()
-                    : harness.Recovery.ReconcileAsync(first, cancellationToken).AsTask();
+                    ? harness.Recovery.ConfirmAsync(second, context, cancellationToken).AsTask()
+                    : harness.Recovery.ReconcileAsync(first, context, cancellationToken).AsTask();
             }
             if (duringLookup)
             {
-                harness.State.OnResourceLookup = () => lookupAttempt = StartNestedRecovery(timeout.Token);
+                harness.State.OnResourceLookup = verification =>
+                    lookupAttempt = StartNestedRecovery(RequireLifecycleValue(verification.Context), timeout.Token);
             }
-            harness.Verifier.VerifyResourceAsync = async (_, resource, cancellationToken) =>
+            if (duringDiscovery)
+            {
+                harness.State.OnFailureDiscovery = access =>
+                    lookupAttempt = StartNestedRecovery(RequireLifecycleValue(access.Context), timeout.Token);
+            }
+            harness.Verifier.VerifyResourceAsync = async (_, resource, context, cancellationToken) =>
             {
                 Assert.That(
                     resource.TryGetAsyncDisposable(out IAsyncDisposable? resolved) &&
                     ReferenceEquals(resolved, harness.State.Resource(second.FailureId)),
                     Is.True);
-                Task nested = duringLookup
+                Task nested = duringLookup || duringDiscovery
                     ? lookupAttempt ?? throw new InvalidOperationException("The resource lookup did not run.")
-                    : StartNestedRecovery(cancellationToken);
+                    : StartNestedRecovery(context, cancellationToken);
                 rejected = await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await nested.ConfigureAwait(false)).ConfigureAwait(false);
                 return false;
@@ -1730,6 +1751,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 harness.State.OnResourceLookup = null;
+                harness.State.OnFailureDiscovery = null;
                 harness.Verifier.VerifyResourceAsync = null;
             }
 
@@ -1739,7 +1761,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// An inherited verifier context no longer blocks recovery after the callback exits.
+        /// A retained verification context no longer blocks recovery after the callback exits.
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
@@ -1758,12 +1780,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var resume = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task? inherited = null;
-            harness.Verifier.VerifyResourceAsync = (_, _, cancellationToken) =>
+            harness.Verifier.VerifyResourceAsync = (_, _, context, cancellationToken) =>
             {
                 inherited = Task.Run(async () =>
                 {
                     await resume.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    await harness.Recovery.ReconcileAsync(first, cancellationToken).ConfigureAwait(false);
+                    await harness.Recovery.ReconcileAsync(first, context, cancellationToken).ConfigureAwait(false);
                 }, cancellationToken);
                 return new ValueTask<bool>(false);
             };
@@ -1811,7 +1833,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// An inherited context still detects an active outer verifier after an inner verifier exits.
+        /// An explicit context still detects an active outer verifier after an inner verifier exits.
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
@@ -1835,19 +1857,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var resume = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task? inherited = null;
             bool rejected = false;
-            inner.Verifier.VerifyResourceAsync = (_, _, cancellationToken) =>
+            inner.Verifier.VerifyResourceAsync = (_, _, context, cancellationToken) =>
             {
                 inherited = Task.Run(async () =>
                 {
                     await resume.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    await outer.Recovery.ReconcileAsync(first, cancellationToken).ConfigureAwait(false);
+                    await outer.Recovery.ReconcileAsync(first, context, cancellationToken).ConfigureAwait(false);
                 }, cancellationToken);
                 return new ValueTask<bool>(false);
             };
-            outer.Verifier.VerifyResourceAsync = async (_, _, cancellationToken) =>
+            outer.Verifier.VerifyResourceAsync = async (_, _, context, cancellationToken) =>
             {
                 await Assert.ThatAsync(
-                    async () => await inner.Recovery.ConfirmAsync(innerHandle, cancellationToken)
+                    async () => await inner.Recovery.ConfirmAsync(innerHandle, context, cancellationToken)
                         .ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>()
                         .With.Message.Contains("was not verified")).ConfigureAwait(false);
@@ -3038,7 +3060,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets or sets an action run while resolving a retained test resource.
             /// </summary>
-            internal Action? OnResourceLookup { get; set; }
+            internal Action<NodeManagerCleanupVerification>? OnResourceLookup { get; set; }
+
+            /// <summary>
+            /// Runs during the next inspection of this participant's retained failures.
+            /// </summary>
+            internal Action<NodeManagerCleanupAccess>? OnFailureDiscovery { get; set; }
 
             /// <summary>
             /// Gets or sets the participant-supplied resource kind.
@@ -3172,6 +3199,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         throw new UnauthorizedAccessException();
                     }
+                    Action<NodeManagerCleanupAccess>? onFailureDiscovery = OnFailureDiscovery;
+                    OnFailureDiscovery = null;
+                    onFailureDiscovery?.Invoke(access);
                     if (DiscoveryFailure is { } discoveryFailure)
                     {
                         throw discoveryFailure;
@@ -3195,9 +3225,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 lock (m_gate)
                 {
                     LastVerification = verification;
-                    Action? onResourceLookup = OnResourceLookup;
+                    Action<NodeManagerCleanupVerification>? onResourceLookup = OnResourceLookup;
                     OnResourceLookup = null;
-                    onResourceLookup?.Invoke();
+                    onResourceLookup?.Invoke(verification);
                     if (SkipNextVerificationConsumption)
                     {
                         SkipNextVerificationConsumption = false;
@@ -3430,6 +3460,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             internal Func<
                 RetainedNodeManagerCleanupFailure,
                 NodeManagerCleanupResource,
+                NodeManagerCleanupVerificationContext,
                 CancellationToken,
                 ValueTask<bool>>? VerifyResourceAsync
             { get; set; }
@@ -3486,6 +3517,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public async ValueTask<bool> VerifyAsync(
                 RetainedNodeManagerCleanupFailure failure,
                 NodeManagerCleanupResource resource,
+                NodeManagerCleanupVerificationContext context,
                 CancellationToken cancellationToken)
             {
                 Interlocked.Increment(ref m_count);
@@ -3513,7 +3545,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     if (VerifyResourceAsync is { } verifyAsync)
                     {
-                        return await verifyAsync(failure, resource, cancellationToken).ConfigureAwait(false);
+                        return await verifyAsync(failure, resource, context, cancellationToken).ConfigureAwait(false);
                     }
                     return VerifyResource?.Invoke(resource) ?? Verified;
                 }

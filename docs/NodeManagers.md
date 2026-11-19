@@ -1026,7 +1026,6 @@ Request routing remains owned by the explicit `OperationContext` view.
 | Node registration, AddNodes, adapter notification and NodeVersion guards | Suppresses nested notifications or reserves a request's NodeId only while the owning operation is active. Disposal revokes the value in captured contexts, including on failure. An ended inner guard can fall back to a still-active enclosing operation. | A Boolean or NodeId, an active flag and preceding guard; no manager or generation |
 | Certificate rotation and user-change collectors | Admit additions only through the nearest active typed guard. Their owners clear the collected rotations or deactivation tasks after completing the owned work. | The callback's collection; a revoked guard cannot collect later work |
 | Async and synchronous manager operation scopes | Permit re-entry only while the inherited operation is active. Disposal ends admission before restoring the preceding operation. Async disposal also checks its owner-wide active-disposal flag, so an escaped Boolean alone cannot authorize later work. | Active flags, counter slots and preceding markers; no manager reference |
-| Cleanup verification scope | Rejects same-generation re-entry only while verification is active; an ended inner scope cannot hide an active outer verification. | Opaque generation identifiers and preceding markers |
 | History request, dispatch and read scopes | Request/read guards revoke and release session, point and generation admissions when they end. Dispatch authority expires on callback exit, but its detached issuer identity remains available to attribute late saved points correctly. | Active ownership while admitted; detached request identity and weak generation attribution after dispatch |
 | Durable queue restore staging | Requests staged writes only while the owning restore marker is active. Disposing it revokes staging in captured child contexts. | One active flag; no queue, manager or generation |
 | NodeState event propagation | Shares a visited set during one event publication. Closing the publication revokes sharing and releases both the visited nodes and the event graph, including from captured callback contexts. | The occurrence and visited nodes only while active |
@@ -1451,8 +1450,14 @@ asynchronous resource and must establish that it was actually cleaned up. Use
 the original resource. Authentication, a resource name, or an operator assertion alone is not proof.
 The host retains the generation until verification returns. The verifier must honor
 cancellation, must not retain the resource after it returns, and must not await cleanup of
-that generation from its callback. Confirmation or reconciliation for the same generation
-is rejected in the verification execution context while verification is active.
+that generation from its callback. Pass the supplied `NodeManagerCleanupVerificationContext`
+to `ConfirmAsync` or `ReconcileAsync` when calling recovery from a verifier.
+A participant gets the context from `NodeManagerCleanupAccess.Context` when the host
+inspects the retained failure, and from `NodeManagerCleanupVerification.Context` when it
+resolves the resource. The context rejects recovery that would wait
+for an active verification of the same generation, even through a nested verification.
+It grants no authorization and does not retain the generation or resource. Recovery through
+a separately captured service without the supplied context is unsupported from these callbacks.
 The audit adapter must persist each record before returning and remain available for recovery
 after a failed stop. The host can resolve `INodeManagerCleanupRecovery` and expose its
 operations through an appropriately protected operator interface. Given the resolved

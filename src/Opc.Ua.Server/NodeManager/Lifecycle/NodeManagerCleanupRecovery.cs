@@ -207,9 +207,28 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask ConfirmAsync(
+        public ValueTask ConfirmAsync(
             NodeManagerCleanupFailureHandle handle,
             CancellationToken cancellationToken = default)
+        {
+            return ConfirmCoreAsync(handle, null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ConfirmAsync(
+            NodeManagerCleanupFailureHandle handle,
+            NodeManagerCleanupVerificationContext verificationContext,
+            CancellationToken cancellationToken)
+        {
+            return ConfirmCoreAsync(
+                handle, verificationContext ?? throw new ArgumentNullException(nameof(verificationContext)),
+                cancellationToken);
+        }
+
+        private async ValueTask ConfirmCoreAsync(
+            NodeManagerCleanupFailureHandle handle,
+            NodeManagerCleanupVerificationContext? verificationContext,
+            CancellationToken cancellationToken)
         {
             var requestId = Guid.NewGuid();
             INodeManagerCleanupAudit audit = RequireAudit();
@@ -229,29 +248,28 @@ namespace Opc.Ua.Server
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    RejectVerificationReentrancy(handle);
+                    verificationContext?.RejectReentry(handle);
                     INodeManagerCleanupVerifier verifier = m_authority.Verifier
                         ?? throw new InvalidOperationException("A trusted cleanup verifier is not configured.");
                     bool verified;
+                    var context = new NodeManagerCleanupVerificationContext(handle.GenerationId, verificationContext);
                     try
                     {
-                        using (var verificationScope = new VerificationOperationScope(handle.GenerationId))
+                        captured = CaptureResource(handle, context);
+                        NodeManagerCleanupResource resource = captured.TakeResource();
+                        try
                         {
-                            captured = CaptureResource(handle);
-                            NodeManagerCleanupResource resource = captured.TakeResource();
-                            try
-                            {
-                                verified = await verifier.VerifyAsync(captured.Description, resource, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            finally
-                            {
-                                resource = default;
-                            }
+                            verified = await verifier.VerifyAsync(
+                                captured.Description, resource, context, cancellationToken).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            resource = default;
                         }
                     }
                     finally
                     {
+                        context.Revoke();
                         captured?.ReleaseVerification();
                     }
                     if (!verified)
@@ -368,9 +386,28 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask ReconcileAsync(
+        public ValueTask ReconcileAsync(
             NodeManagerCleanupFailureHandle handle,
             CancellationToken cancellationToken = default)
+        {
+            return ReconcileCoreAsync(handle, null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReconcileAsync(
+            NodeManagerCleanupFailureHandle handle,
+            NodeManagerCleanupVerificationContext verificationContext,
+            CancellationToken cancellationToken)
+        {
+            return ReconcileCoreAsync(
+                handle, verificationContext ?? throw new ArgumentNullException(nameof(verificationContext)),
+                cancellationToken);
+        }
+
+        private async ValueTask ReconcileCoreAsync(
+            NodeManagerCleanupFailureHandle handle,
+            NodeManagerCleanupVerificationContext? verificationContext,
+            CancellationToken cancellationToken)
         {
             var requestId = Guid.NewGuid();
             INodeManagerCleanupAudit audit = RequireAudit();
@@ -389,7 +426,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    RejectVerificationReentrancy(handle);
+                    verificationContext?.RejectReentry(handle);
                     (owner, generation) = FindRecoveryGeneration(handle);
                     if (!generation.TryBeginCleanupRecovery())
                     {
@@ -529,7 +566,9 @@ namespace Opc.Ua.Server
         // TODO: Remove this exception when CA2000 recognizes the returned owner's lease transfer.
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "The successful path transfers the lease to CapturedFailure.Dispose; finally owns failures.")]
-        private CapturedFailure CaptureResource(NodeManagerCleanupFailureHandle handle)
+        private CapturedFailure CaptureResource(
+            NodeManagerCleanupFailureHandle handle,
+            NodeManagerCleanupVerificationContext context)
         {
             if (handle.GenerationId == Guid.Empty || handle.ParticipantId == Guid.Empty || handle.FailureId == Guid.Empty)
             {
@@ -556,8 +595,8 @@ namespace Opc.Ua.Server
                         }
                         verificationAdmitted = true;
                         INodeManagerCleanupParticipant participant = FindParticipant(generation, handle.ParticipantId);
-                        NodeManagerCleanupFailure failure = FindFailure(participant, handle.FailureId);
-                        var verification = new NodeManagerCleanupVerification(participant, failure.Id);
+                        NodeManagerCleanupFailure failure = FindFailure(participant, handle.FailureId, context);
+                        var verification = new NodeManagerCleanupVerification(participant, failure.Id, context);
                         NodeManagerCleanupResource resource;
                         try
                         {
@@ -1056,13 +1095,16 @@ namespace Opc.Ua.Server
         /// Captures and validates a detached snapshot of a participant's retained failure descriptions.
         /// </summary>
         /// <param name="participant">The participant that owns the failure registry.</param>
+        /// <param name="context">The enclosing verification, if discovery is resolving its exact failure.</param>
         /// <returns>The validated descriptions in host-owned storage.</returns>
         /// <exception cref="InvalidOperationException">
         /// The participant returns a null snapshot, a null failure entry or duplicate failure identifiers.
         /// </exception>
-        internal static ArrayOf<NodeManagerCleanupFailure> CaptureFailures(INodeManagerCleanupParticipant participant)
+        internal static ArrayOf<NodeManagerCleanupFailure> CaptureFailures(
+            INodeManagerCleanupParticipant participant,
+            NodeManagerCleanupVerificationContext? context = null)
         {
-            var access = new NodeManagerCleanupAccess(participant);
+            var access = new NodeManagerCleanupAccess(participant, context);
             ArrayOf<NodeManagerCleanupFailure> failures;
             try
             {
@@ -1094,9 +1136,12 @@ namespace Opc.Ua.Server
         /// <exception cref="InvalidOperationException">
         /// The participant's retained-failure snapshot contains no failure with the requested identifier.
         /// </exception>
-        private static NodeManagerCleanupFailure FindFailure(INodeManagerCleanupParticipant participant, Guid id)
+        private static NodeManagerCleanupFailure FindFailure(
+            INodeManagerCleanupParticipant participant,
+            Guid id,
+            NodeManagerCleanupVerificationContext? context = null)
         {
-            foreach (NodeManagerCleanupFailure failure in CaptureFailures(participant))
+            foreach (NodeManagerCleanupFailure failure in CaptureFailures(participant, context))
             {
                 if (failure.Id == id)
                 {
@@ -1195,68 +1240,6 @@ namespace Opc.Ua.Server
                 throw new AggregateException("Cleanup recovery and recording its failure both failed.",
                     failure, auditFailure);
             }
-        }
-
-        /// <summary>
-        /// Rejects recovery that would wait for its own verification to exit.
-        /// </summary>
-        /// <exception cref="InvalidOperationException">
-        /// The current asynchronous flow is already verifying cleanup for the handle's generation.
-        /// </exception>
-        private static void RejectVerificationReentrancy(NodeManagerCleanupFailureHandle handle)
-        {
-            if (VerificationOperationScope.Contains(handle.GenerationId))
-            {
-                throw new InvalidOperationException(
-                    "Cleanup recovery cannot be requested during verification for the same generation.");
-            }
-        }
-
-        /// <summary>
-        /// Tracks active verification without retaining a generation in inherited execution contexts.
-        /// </summary>
-        private sealed class VerificationOperationScope : IDisposable
-        {
-            /// <summary>
-            /// Enters verification for one exact generation.
-            /// </summary>
-            internal VerificationOperationScope(Guid generationId)
-            {
-                m_generationId = generationId;
-                m_previous = s_currentVerification.Value;
-                s_currentVerification.Value = this;
-            }
-
-            /// <summary>
-            /// Checks whether active verification in this flow owns the specified generation.
-            /// </summary>
-            internal static bool Contains(Guid generationId)
-            {
-                for (VerificationOperationScope? scope = s_currentVerification.Value;
-                    scope is not null;
-                    scope = scope.m_previous)
-                {
-                    if (Volatile.Read(ref scope.m_active) != 0 && scope.m_generationId == generationId)
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-            /// <inheritdoc/>
-            public void Dispose()
-            {
-                if (Interlocked.Exchange(ref m_active, 0) != 0 &&
-                    ReferenceEquals(s_currentVerification.Value, this))
-                {
-                    s_currentVerification.Value = m_previous;
-                }
-            }
-
-            private readonly Guid m_generationId;
-            private readonly VerificationOperationScope? m_previous;
-            private int m_active = 1;
         }
 
         /// <summary>
@@ -1377,6 +1360,5 @@ namespace Opc.Ua.Server
         private readonly Func<NodeManagerLifecycle[]> m_getOwners;
         private readonly Func<NodeManagerLifecycle, ValueTask> m_resume;
         private readonly NodeManagerCleanupAuthority m_authority;
-        private static readonly AsyncLocal<VerificationOperationScope?> s_currentVerification = new();
     }
 }

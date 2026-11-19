@@ -197,7 +197,8 @@ namespace Opc.Ua.Server
     /// proof of closure. Return false when actual closure cannot be verified. The host retains the generation
     /// while verification runs. The verifier must not retain the resource after returning or await cleanup of
     /// that generation from this callback, and must honor cancellation. Confirmation or reconciliation for
-    /// the same generation is rejected in the verification execution context while verification is active.
+    /// the same generation is rejected while verification is active when the caller passes the supplied
+    /// context. Pass that context to nested recovery calls, including calls to another recovery provider.
     /// </remarks>
     public interface INodeManagerCleanupVerifier
     {
@@ -206,12 +207,63 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="failure">The exact generation and participant failure to verify.</param>
         /// <param name="resource">The exact retained resource, provided only to the trusted verifier.</param>
+        /// <param name="context">The context to pass to any recovery call made by this callback.</param>
         /// <param name="cancellationToken">Cancels verification.</param>
         /// <returns>Whether actual cleanup was verified.</returns>
         ValueTask<bool> VerifyAsync(
             RetainedNodeManagerCleanupFailure failure,
             NodeManagerCleanupResource resource,
+            NodeManagerCleanupVerificationContext context,
             CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Identifies active verification calls so nested recovery cannot wait for itself.
+    /// </summary>
+    /// <remarks>
+    /// This context grants no authorization and does not retain the resource, generation, or server.
+    /// </remarks>
+    public sealed class NodeManagerCleanupVerificationContext
+    {
+        /// <summary>
+        /// Records the exact generation and any enclosing verification.
+        /// </summary>
+        internal NodeManagerCleanupVerificationContext(
+            Guid generationId,
+            NodeManagerCleanupVerificationContext? parent)
+        {
+            m_generationId = generationId;
+            m_parent = parent;
+        }
+
+        /// <summary>
+        /// Rejects recovery that would wait for an active verification in this call chain.
+        /// </summary>
+        internal void RejectReentry(NodeManagerCleanupFailureHandle handle)
+        {
+            for (NodeManagerCleanupVerificationContext? context = this;
+                context is not null;
+                context = context.m_parent)
+            {
+                if (context.m_generationId == handle.GenerationId && Volatile.Read(ref context.m_active) != 0)
+                {
+                    throw new InvalidOperationException(
+                        "Cleanup recovery cannot be requested during verification for the same generation.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ends this verification without invalidating an enclosing verification.
+        /// </summary>
+        internal void Revoke()
+        {
+            Volatile.Write(ref m_active, 0);
+        }
+
+        private readonly Guid m_generationId;
+        private readonly NodeManagerCleanupVerificationContext? m_parent;
+        private int m_active = 1;
     }
 
     /// <summary>
@@ -352,6 +404,17 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Confirms verified cleanup from a callback without waiting for an active verification in its call chain.
+        /// </summary>
+        /// <param name="handle">The handle returned by discovery.</param>
+        /// <param name="verificationContext">The context supplied to the calling verification callback.</param>
+        /// <param name="cancellationToken">Cancels the request before confirmation is applied.</param>
+        ValueTask ConfirmAsync(
+            NodeManagerCleanupFailureHandle handle,
+            NodeManagerCleanupVerificationContext verificationContext,
+            CancellationToken cancellationToken);
+
+        /// <summary>
         /// Reconciles an earlier verified confirmation whose effect or cleanup resumption was not established.
         /// </summary>
         /// <param name="handle">The exact handle from the earlier confirmation or pending discovery.</param>
@@ -371,6 +434,17 @@ namespace Opc.Ua.Server
         ValueTask ReconcileAsync(
             NodeManagerCleanupFailureHandle handle,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reconciles an earlier confirmation from a callback without waiting for an active verification in its call chain.
+        /// </summary>
+        /// <param name="handle">The exact handle from the earlier confirmation or pending discovery.</param>
+        /// <param name="verificationContext">The context supplied to the calling verification callback.</param>
+        /// <param name="cancellationToken">Cancels the request before cleanup is resumed.</param>
+        ValueTask ReconcileAsync(
+            NodeManagerCleanupFailureHandle handle,
+            NodeManagerCleanupVerificationContext verificationContext,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -432,7 +506,8 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <remarks>
     /// Rediscover the retained failures through the authorized host. If the failure remains, confirm it again
-    /// with fresh verification; if it is absent, use <see cref="INodeManagerCleanupRecovery.ReconcileAsync"/>
+    /// with fresh verification; if it is absent, use
+    /// <see cref="INodeManagerCleanupRecovery.ReconcileAsync(NodeManagerCleanupFailureHandle, CancellationToken)"/>
     /// with the same handle. This exception does not assert that the failure was either cleared or retained.
     /// </remarks>
     public sealed class NodeManagerCleanupConfirmationOutcomeUnknownException : InvalidOperationException

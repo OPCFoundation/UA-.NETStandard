@@ -1,7 +1,6 @@
 Path,Field,Guard and expiration,Owning control or disposition
 src\Opc.Ua.Server\NodeManager\Lifecycle\LifecycleWriter.cs,m_decision,DecisionScope shared active flag revoked in finally,LifecycleWriterTests
 src\Opc.Ua.Server\NodeManager\Lifecycle\NodeManagerReadinessScope.cs,s_current,Disposed scope clears owners; active parent remains reachable only through valid links,NodeManagerReadinessScopeTests
-src\Opc.Ua.Server\NodeManager\Lifecycle\NodeManagerCleanupRecovery.cs,s_currentVerification,Active exact-generation marker revoked on callback exit,NodeManagerLifecycleTests (CleanupRecovery cases)
 src\Opc.Ua.Server\NodeManager\MasterNodeManager.cs,m_lifecycleCallbackPermit,Borrow accounting rejects new borrows then drains existing ones,NodeManagerCallbackPermitTests
 src\Opc.Ua.Server\NodeManager\MasterNodeManager.cs,m_currentNamespacePublication,Completed reservation task expires captured marker,NodeManagerLifecycleTests (NamespaceDecision cases)
 src\Opc.Ua.Server\NodeManager\NodeManagerServiceDispatcher.cs,m_legacyLookupContext,Lookup finally clears shared routing image before restoring caller,NodeManagerLegacyLookupScopeTests
