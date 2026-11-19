@@ -198,13 +198,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ReadinessCallback = async ct =>
+                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
                     {
-                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value)
+                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value, readiness)
                             .ConfigureAwait(false);
                         entered.TrySetResult(true);
                         await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value)
+                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value, readiness)
                             .ConfigureAwait(false);
                     };
                 },

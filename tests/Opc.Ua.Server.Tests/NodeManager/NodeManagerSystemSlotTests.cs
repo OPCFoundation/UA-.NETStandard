@@ -614,12 +614,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var fixture = new ServerFixture<SystemLifetimeServer>(telemetry =>
             {
                 server = new SystemLifetimeServer(telemetry) { StartsUnconfigured = unconfigured };
-                server.ReadinessCallback = async ct =>
+                server.ReadinessCallback = async (readiness, ct) =>
                 {
                     Assert.That(server.CurrentInstance.IsRunning, Is.False);
-                    server.ValidateInitializerRequest();
+                    server.ValidateInitializerRequest(readiness);
                     using var context = new OperationContext(
-                        new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                        new RequestHeader(), null, RequestType.Read, RequestLifetime.None)
+                    {
+                        Readiness = readiness.Scope
+                    };
                     (ArrayOf<DataValue> values, _) = await server.CurrentInstance.NodeManager.ReadAsync(
                         context, 0, TimestampsToReturn.Both,
                         [new ReadValueId
@@ -636,12 +639,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                         It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(manager.Object);
-                    LifecycleResult publicationResult1 = await CommitChangeAsync(
-                        server.NodeManagerLifecycle, LifecycleChange.Add(factory.Object), ct).ConfigureAwait(false);
+                    LifecycleResult publicationResult1 = await readiness.PublishAsync(
+                        server, [LifecycleChange.Add(factory.Object)], ct).ConfigureAwait(false);
                     child = Registration(publicationResult1.Registrations[0]);
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    server.ValidateInitializerRequest();
+                    server.ValidateInitializerRequest(readiness);
                 };
                 return server;
             })
@@ -772,7 +775,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets or sets the initial core initializer used by startup admission controls.
             /// </summary>
-            internal Func<CancellationToken, ValueTask>? ReadinessCallback { get; set; }
+            internal Func<NodeManagerReadinessContext, CancellationToken, ValueTask>? ReadinessCallback { get; set; }
 
             /// <summary>
             /// Gets or sets whether application setup keeps the started server in NoConfiguration.
@@ -789,6 +792,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             internal void ValidateInitializerRequest()
             {
                 ValidateRequest(new RequestHeader());
+            }
+
+            internal void ValidateInitializerRequest(NodeManagerReadinessContext readiness)
+            {
+                ValidateRequest(new RequestHeader(), readiness.Scope);
             }
 
             /// <summary>
@@ -901,7 +909,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal server,
             ApplicationConfiguration configuration,
             ushort namespaceIndex) : CoreNodeManager(server, configuration, namespaceIndex),
-            INodeManagerReadinessNotification
+            INodeManagerReadinessInitializer
         {
             /// <summary>
             /// Gets the number of readiness callbacks.
@@ -916,7 +924,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets or sets the initializer used by startup admission controls.
             /// </summary>
-            internal Func<CancellationToken, ValueTask>? ReadinessCallback { get; set; }
+            internal Func<NodeManagerReadinessContext, CancellationToken, ValueTask>? ReadinessCallback { get; set; }
 
             /// <summary>
             /// Gets or sets the remaining injected destruction failures.
@@ -934,11 +942,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             internal int DisposeCount { get; private set; }
 
             /// <inheritdoc/>
-            public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            public ValueTask OnServerReadyAsync(
+                NodeManagerReadinessContext readiness,
+                CancellationToken cancellationToken)
             {
                 ReadyCount++;
                 ReadyWhileRunning = Server.IsRunning;
-                return ReadinessCallback?.Invoke(cancellationToken) ?? default;
+                return ReadinessCallback?.Invoke(readiness, cancellationToken) ?? default;
             }
 
             /// <inheritdoc/>

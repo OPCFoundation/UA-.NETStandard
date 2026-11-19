@@ -681,7 +681,7 @@ namespace Opc.Ua.Server
                     IAsyncNodeManager manager = state.Prepared.NodeManager;
                     INodeManagerReadinessInitializer? initializer = NodeManagerReadiness.FindInitializer(manager);
                     using var readiness = new NodeManagerReadinessScope(
-                        server, state.Registration.Identity, parentReadiness, ambient: initializer is null);
+                        server, state.Registration.Identity, parentReadiness);
                     var readinessContext = new NodeManagerReadinessContext(readiness);
                     string waitContext = $"{state.Registration.Identity.GetQuiescenceWaitContext()}; " +
                         GetLifecycleWaitContext();
@@ -1895,8 +1895,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentException("A publication unit must contain at least one change.", nameof(changes));
             }
-            return PrepareChangesAsync(changes, null, CaptureLifecycleCallbackPermit(), cancellationToken,
-                readiness: NodeManagerReadinessScope.Current);
+            return PrepareChangesAsync(changes, null, CaptureLifecycleCallbackPermit(), cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -3657,7 +3656,7 @@ namespace Opc.Ua.Server
             {
                 return CommitCoreAsync(
                     decideAsync is null ? null : (_, token) => decideAsync(token), null, null,
-                    NodeManagerReadinessScope.Current, cancellationToken);
+                    null, cancellationToken);
             }
 
             /// <inheritdoc/>
@@ -3670,7 +3669,7 @@ namespace Opc.Ua.Server
                     decideAsync is null ? null : (_, token) => decideAsync(token),
                     publishCommittedState ?? throw new ArgumentNullException(nameof(publishCommittedState)),
                     null,
-                    NodeManagerReadinessScope.Current,
+                    null,
                     cancellationToken);
             }
 
@@ -3684,7 +3683,7 @@ namespace Opc.Ua.Server
                     decideAsync ?? throw new ArgumentNullException(nameof(decideAsync)),
                     publishCommittedState,
                     null,
-                    NodeManagerReadinessScope.Current,
+                    null,
                     cancellationToken);
             }
 
@@ -3695,7 +3694,7 @@ namespace Opc.Ua.Server
             {
                 return CommitCoreAsync(null, null,
                     decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)),
-                    NodeManagerReadinessScope.Current, cancellationToken);
+                    null, cancellationToken);
             }
 
             /// <summary>
@@ -3775,7 +3774,7 @@ namespace Opc.Ua.Server
                 }
                 return new ValueTask(payload is null
                     ? RejectAfterDisposalAsync()
-                    : CompleteAsync(payload, null, null, m_readiness ?? NodeManagerReadinessScope.Current,
+                    : CompleteAsync(payload, null, null, m_readiness,
                         cancellationToken));
             }
 
@@ -4103,7 +4102,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ILifecycleCapture CaptureChanges()
         {
-            return CaptureChanges(NodeManagerReadinessScope.Current, bindReadiness: false);
+            return CaptureChanges(null, bindReadiness: false);
         }
 
         /// <summary>
@@ -4291,7 +4290,7 @@ namespace Opc.Ua.Server
             {
                 ArrayOf<LifecycleChange> capturedChanges = [.. changes];
                 ArrayOf<INodeManagerReadImage> capturedImages = [.. images];
-                NodeManagerReadinessScope? readiness = m_readiness ?? NodeManagerReadinessScope.Current;
+                NodeManagerReadinessScope? readiness = m_readiness;
                 return Session.PrepareAsync(() =>
                 {
                     NodeManagerLifecycle owner = GetOwner();

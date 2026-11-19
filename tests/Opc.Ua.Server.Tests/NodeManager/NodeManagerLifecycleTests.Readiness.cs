@@ -278,22 +278,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ReadinessCallback = async ct =>
+                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
                     {
                         Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         Assert.That(observed.Generation, Is.EqualTo(1));
                         AssertReadinessManager(observed, manager, synchronousFactory);
-                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value)
+                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value, readiness)
                             .ConfigureAwait(false);
 
-                        LifecycleResult publicationResult2 = await CommitChangeAsync(
-                            lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                        LifecycleResult publicationResult2 = await readiness.PublishAsync(
+                            m_server, [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                                 kSecondRegistrationValue,
                                 created => childManager = created,
                                 kSecondModelNamespaceUri,
                                 ReadinessNodeId(
-                                    kModelNamespaceUri, kRootNodeId))), ct).WaitAsync(
+                                    kModelNamespaceUri, kRootNodeId)))], ct).AsTask().WaitAsync(
                                     s_readinessTimeout, ct).ConfigureAwait(false);
                         child = RequireRegistration(publicationResult2.Registrations[0]);
                         Assert.That(child.Id, Is.Not.EqualTo(observed.Id));
@@ -382,7 +382,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ReadinessCallback = async ct =>
+                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
                     {
                         Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
@@ -390,15 +390,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Assert.That(observed.Generation, Is.EqualTo(2));
                         Assert.That(observed, Is.Not.SameAs(original));
                         AssertReadinessManager(observed, manager, synchronousFactory);
-                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value)
+                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value, readiness)
                             .ConfigureAwait(false);
-                        LifecycleResult publicationResult4 = await CommitChangeAsync(
-                            lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                        LifecycleResult publicationResult4 = await readiness.PublishAsync(
+                            m_server, [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                                 kSecondRegistrationValue,
                                 created => childManager = created,
                                 kSecondModelNamespaceUri,
                                 ReadinessNodeId(
-                                    kModelNamespaceUri, kRootNodeId))), ct).WaitAsync(
+                                    kModelNamespaceUri, kRootNodeId)))], ct).AsTask().WaitAsync(
                                     s_readinessTimeout, ct).ConfigureAwait(false);
                         child = RequireRegistration(publicationResult4.Registrations[0]);
                         Assert.That(child.Id, Is.Not.EqualTo(original.Id));
@@ -540,11 +540,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ReadinessCallback = async ct =>
+                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
                     {
                         Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
-                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value)
+                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value, readiness)
                             .ConfigureAwait(false);
                         throw expected;
                     };
@@ -1253,11 +1253,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ReadinessCallback = async ct =>
+                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
                     {
                         receivedToken = ct;
                         observed = FindReadinessRegistration();
-                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value)
+                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value, readiness)
                             .ConfigureAwait(false);
                         entered.TrySetResult(true);
                         await release.Task.WaitAsync(s_readinessTimeout, CancellationToken.None).ConfigureAwait(false);
@@ -1388,13 +1388,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ReadinessCallback = async ct =>
+                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
                     {
                         Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         Assert.That(observed.Id, Is.EqualTo(original.Id));
                         Assert.That(observed.Generation, Is.EqualTo(2));
-                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value)
+                        await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value, readiness)
                             .ConfigureAwait(false);
                         if (cancel)
                         {
@@ -1962,12 +1962,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return new NodeId(identifier, (ushort)namespaceIndex);
         }
 
-        private async Task AssertReadinessValueAsync(string namespaceUri, int expected)
+        private async Task AssertReadinessValueAsync(
+            string namespaceUri, int expected, NodeManagerReadinessContext? readiness = null)
         {
-            DataValue value = await ReadValueAsync(ReadinessNodeId(namespaceUri, kValueNodeId))
+            DataValue value = await ReadInitializerValueAsync(
+                    ReadinessNodeId(namespaceUri, kValueNodeId), readiness)
                 .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(value.WrappedValue.GetInt32(), Is.EqualTo(expected));
+        }
+
+        private async Task<DataValue> ReadInitializerValueAsync(NodeId nodeId, NodeManagerReadinessContext? readiness)
+        {
+            if (readiness is null)
+            {
+                return await ReadValueAsync(nodeId).ConfigureAwait(false);
+            }
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse response = await readiness.ReadAsync(
+                m_server, m_secureChannelContext, m_requestHeader, kMaxAge, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }],
+                RequestLifetime.None).ConfigureAwait(false);
+            return response.Results[0];
         }
 
         private async Task AssertReadinessNodeUnknownAsync(string namespaceUri)
@@ -2167,7 +2183,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             : ReadinessLifecycleNodeManager(server, configuration, logger, kGeneration1Value),
                 INodeManagerReadinessInitializer
         {
-            public ValueTask OnServerReadyAsync(
+            public override ValueTask OnServerReadyAsync(
                 NodeManagerReadinessContext readiness,
                 CancellationToken cancellationToken)
             {
@@ -2177,7 +2193,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private class ReadinessLifecycleNodeManager :
             NodeManagementLifecycleNodeManager,
-            INodeManagerReadinessNotification
+            INodeManagerReadinessInitializer
         {
             public ReadinessLifecycleNodeManager(
                 IServerInternal server,
@@ -2189,6 +2205,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             public Func<CancellationToken, ValueTask>? ReadinessCallback { get; set; }
+
+            public Func<NodeManagerReadinessContext, CancellationToken, ValueTask>? ExplicitReadinessCallback { get; set; }
 
             public Func<CancellationToken, ValueTask>? DeleteCallback { get; set; }
 
@@ -2227,10 +2245,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     context, detailsType, nodesToUpdate, results, errors, cancellationToken);
             }
 
-            public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            public virtual async ValueTask OnServerReadyAsync(
+                NodeManagerReadinessContext readiness,
+                CancellationToken cancellationToken)
             {
                 Interlocked.Increment(ref m_readinessCount);
-                if (ReadinessCallback is not null)
+                if (ExplicitReadinessCallback is not null)
+                {
+                    await ExplicitReadinessCallback(readiness, cancellationToken).ConfigureAwait(false);
+                }
+                else if (ReadinessCallback is not null)
                 {
                     await ReadinessCallback(cancellationToken).ConfigureAwait(false);
                 }

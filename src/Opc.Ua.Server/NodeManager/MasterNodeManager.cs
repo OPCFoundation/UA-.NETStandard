@@ -1107,7 +1107,7 @@ namespace Opc.Ua.Server
             IReadOnlyCollection<NodeId>? nodeIds,
             CancellationToken cancellationToken)
         {
-            if ((!Server.IsRunning && !NodeManagerReadinessScope.Allows(Server)) ||
+            if (!Server.IsRunning ||
                 GetLiveGeneration(nodeManager) is not { } generation)
             {
                 return default;

@@ -241,7 +241,6 @@ namespace Opc.Ua.Server
             int index = nodeId.NamespaceIndex;
             NodeManagerRoutingTable.RoutingSnapshot snapshot = m_nodeManagers.Revision;
             var routing = m_nodeManagers.GetDispatchView(snapshot);
-            NodeManagerReadinessScope? readiness = NodeManagerReadinessScope.Current;
 
             // check if node managers are registered - use the core node manager if unknown.
             if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
@@ -251,7 +250,7 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                if (!CanDispatchTo(snapshot, routing.NodeManagers[1], readiness))
+                if (!CanDispatchTo(snapshot, routing.NodeManagers[1], null))
                 {
                     return null;
                 }
@@ -268,7 +267,7 @@ namespace Opc.Ua.Server
 
             foreach (IAsyncNodeManager asyncNodeManager in nodeManagers!)
             {
-                if (!CanDispatchTo(snapshot, asyncNodeManager, readiness))
+                if (!CanDispatchTo(snapshot, asyncNodeManager, null))
                 {
                     continue;
                 }
@@ -295,7 +294,7 @@ namespace Opc.Ua.Server
             LegacyLookupScope? legacy = m_legacyLookupContext?.Value;
             NodeManagerRoutingTable.RoutingSnapshot? snapshot = legacy?.Snapshot;
             return ResolveManagerHandleAsync(nodeId, snapshot,
-                snapshot is null ? NodeManagerReadinessScope.Current : legacy?.Readiness,
+                snapshot is null ? null : legacy?.Readiness,
                 cancellationToken);
         }
 
@@ -1673,9 +1672,7 @@ namespace Opc.Ua.Server
             }
             NodeManagerRoutingTable.RoutingSnapshot snapshot =
                 context?.RoutingSnapshot ?? m_nodeManagers.Revision;
-            NodeManagerReadinessScope? readiness = context is null
-                ? NodeManagerReadinessScope.Current
-                : context.Readiness;
+            NodeManagerReadinessScope? readiness = context?.Readiness;
             foreach (IAsyncNodeManager nodeManager in snapshot.VisibleNodeManagers)
             {
                 if (!CanDispatchTo(snapshot, nodeManager, readiness))

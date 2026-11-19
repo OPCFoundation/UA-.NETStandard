@@ -38,23 +38,12 @@ namespace Opc.Ua.Server
     internal sealed class NodeManagerReadinessScope : IDisposable
     {
         /// <summary>
-        /// Enters a revocable readiness callback scope for one server and generation.
-        /// </summary>
-        /// <param name="server">The exact server being initialized.</param>
-        /// <param name="generation">The generation whose initializer is running.</param>
-        internal NodeManagerReadinessScope(IServerInternal server, NodeManagerGeneration generation)
-            : this(server, generation, s_current.Value, ambient: true)
-        {
-        }
-
-        /// <summary>
         /// Creates explicit readiness admission without changing the execution context.
         /// </summary>
         internal NodeManagerReadinessScope(
             IServerInternal server,
             NodeManagerGeneration generation,
-            NodeManagerReadinessScope? parent,
-            bool ambient)
+            NodeManagerReadinessScope? parent = null)
         {
             m_server = server;
             m_generation = generation;
@@ -63,27 +52,6 @@ namespace Opc.Ua.Server
             {
                 Interlocked.Increment(ref parent.m_liveChildren);
             }
-            m_ambient = ambient;
-            if (ambient)
-            {
-                m_previous = s_current.Value;
-                s_current.Value = this;
-            }
-        }
-
-        /// <summary>
-        /// Gets the initializer at a context-free entry point.
-        /// </summary>
-        internal static NodeManagerReadinessScope? Current => s_current.Value;
-
-        /// <summary>
-        /// Determines whether the current initializer may use this pending generation.
-        /// </summary>
-        /// <param name="generation">The generation selected by explicit request routing.</param>
-        /// <returns>Whether an active initializer owns this generation.</returns>
-        internal static bool Allows(NodeManagerGeneration generation)
-        {
-            return Current?.Includes(generation) == true;
         }
 
         /// <summary>
@@ -104,16 +72,6 @@ namespace Opc.Ua.Server
                 }
             }
             return false;
-        }
-
-        /// <summary>
-        /// Determines whether the current initializer may invoke services during this server's startup.
-        /// </summary>
-        /// <param name="server">The exact server being initialized.</param>
-        /// <returns>Whether an active initializer belongs to this server.</returns>
-        internal static bool Allows(IServerInternal server)
-        {
-            return Current?.Includes(server) == true;
         }
 
         /// <summary>
@@ -146,29 +104,17 @@ namespace Opc.Ua.Server
 
             NodeManagerReadinessScope? parent = m_parent;
             // A live child cannot traverse a revoked ancestor to reach an older initializer.
-            if (Volatile.Read(ref m_liveChildren) != 0 ||
-                (m_ambient && !ReferenceEquals(s_current.Value, this)))
+            if (Volatile.Read(ref m_liveChildren) != 0)
             {
                 Interlocked.Exchange(ref m_parent, null);
             }
-            if (m_ambient && ReferenceEquals(s_current.Value, this))
-            {
-                s_current.Value = m_previous;
-            }
             Interlocked.Exchange(ref m_server, null);
             Interlocked.Exchange(ref m_generation, null);
-            Interlocked.Exchange(ref m_previous, null);
             if (parent is not null)
             {
                 Interlocked.Decrement(ref parent.m_liveChildren);
             }
         }
-
-        /// <summary>The initializer scope in this execution context, never a routing view.</summary>
-        private static readonly AsyncLocal<NodeManagerReadinessScope?> s_current = new();
-
-        private readonly bool m_ambient;
-        private NodeManagerReadinessScope? m_previous;
 
         /// <summary>The exact server owning this initializer.</summary>
         private IServerInternal? m_server;

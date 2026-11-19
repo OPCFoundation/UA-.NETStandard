@@ -1019,7 +1019,6 @@ Request routing remains owned by the explicit `OperationContext` view.
 | Scope | Purpose and expiration | Retained state |
 | --- | --- | --- |
 | Legacy namespace getter | The writer binds a marker around context-free routing getters. It rejects serving namespace changes that would wait on the getter's own reservation. | A revocable marker; no manager or generation |
-| `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears its server and generation. Normal unwinding preserves access to a still-active parent; out-of-order disposal severs the parent link. | Server and generation references only while active |
 | Legacy node-management and session-close callback scope | Supplies a permit to context-free calls from the released callbacks. The permit itself is explicit: disposal rejects new borrows and drains existing borrows before the callback releases host admission. | Capability flags, borrow accounting and the preceding permit; no manager or generation |
 | Legacy virtual handle lookup | Passes the pinned view and the request's readiness admission to the released context-free override, including when it calls `base`. Return, failure and cancellation clear both. | The pinned view and the revocable readiness scope only during the override |
 | Node registration, AddNodes, adapter notification and NodeVersion guards | Suppresses nested notifications or reserves a request's NodeId only while the owning operation is active. Disposal revokes the value in captured contexts, including on failure. An ended inner guard can fall back to a still-active enclosing operation. | A Boolean or NodeId, an active flag and preceding guard; no manager or generation |
@@ -1029,15 +1028,16 @@ Request routing remains owned by the explicit `OperationContext` view.
 | Durable queue restore staging | Requests staged writes only while the owning restore marker is active. Disposing it revokes staging in captured child contexts. | One active flag; no queue, manager or generation |
 | NodeState event propagation | Shares a visited set during one event publication. Closing the publication revokes sharing and releases both the visited nodes and the event graph, including from captured callback contexts. | The occurrence and visited nodes only while active |
 
-Request admission copies an initializer's readiness scope to the `OperationContext` only for
-the exact server. Dispatch checks that scope for the exact pending generation selected by the
-request's pinned view. An unbound request cannot inherit readiness at dispatch, and a pin does
-not extend the readiness scope.
+Readiness does not flow through the execution context. Local request admission copies an explicitly
+supplied initializer scope to `OperationContext` only for the exact server. Dispatch checks that
+scope against the pending generation selected by the request's pinned view. Neither a context-free
+lookup nor a routing pin grants readiness.
 
 `INodeManagerReadinessInitializer` receives a `NodeManagerReadinessContext` explicitly, including
 through a supported manager adapter. Use `ReadAsync` on that context for an authenticated local
 read of pending nodes, or `PublishAsync` for dependent lifecycle changes. Neither method grants
 admission to a different server. The lifecycle revokes admission when initialization ends.
+`INodeManagerReadinessNotification` still runs callbacks that do not need initializer admission.
 
 When an intermediate readiness scope is disposed while a descendant remains active,
 it clears its link to the grandparent. The descendant cannot reach the grandparent's

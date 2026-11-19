@@ -91,12 +91,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     bool materialized = await master.IsNodeMaterializedAsync(nodeId).ConfigureAwait(false);
                     Assert.That(explicitHandle, initializer ? Is.SameAs(handle) : Is.Null);
                     Assert.That(explicitOwner, initializer ? Is.SameAs(manager.Object) : Is.Null);
-                    Assert.That(liveHandle, initializer ? Is.SameAs(handle) : Is.Null);
-                    Assert.That(liveOwner, initializer ? Is.SameAs(manager.Object) : Is.Null);
-                    Assert.That(materialized, Is.EqualTo(initializer));
+                    Assert.That(liveHandle, Is.Null);
+                    Assert.That(liveOwner, Is.Null);
+                    Assert.That(materialized, Is.False);
                     Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                     manager.Verify(value => value.GetManagerHandleAsync(nodeId, It.IsAny<CancellationToken>()),
-                        Times.Exactly(initializer ? 3 : 0));
+                        Times.Exactly(initializer ? 1 : 0));
                 }
 
                 // Readiness capability is revocable, even though the context still owns the same routing view.
@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(readyHandle, Is.SameAs(handle));
                 Assert.That(readyOwner, Is.SameAs(manager.Object));
                 manager.Verify(value => value.GetManagerHandleAsync(nodeId, It.IsAny<CancellationToken>()),
-                    Times.Exactly(initializer ? 5 : 2));
+                    Times.Exactly(initializer ? 3 : 2));
             }
         }
     }

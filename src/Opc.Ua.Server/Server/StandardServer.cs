@@ -2280,7 +2280,7 @@ namespace Opc.Ua.Server
             RequestLifetime requestLifetime)
         {
             return ReadWithReadinessAsync(secureChannelContext, requestHeader, maxAge, timestampsToReturn,
-                nodesToRead, requestLifetime, NodeManagerReadinessScope.Current);
+                nodesToRead, requestLifetime, null);
         }
 
         /// <summary>
@@ -3527,6 +3527,14 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected override void ValidateRequest([NotNull] RequestHeader? requestHeader)
         {
+            ValidateRequest(requestHeader, null);
+        }
+
+        /// <summary>
+        /// Applies service-entry checks with explicitly supplied startup admission.
+        /// </summary>
+        internal void ValidateRequest([NotNull] RequestHeader? requestHeader, NodeManagerReadinessScope? readiness)
+        {
             // check for server error.
             ServiceResult error = ServerError;
 
@@ -3538,8 +3546,8 @@ namespace Opc.Ua.Server
             // check server state.
             ServerInternalData? serverInternal = m_serverInternal;
 
-            if (serverInternal == null ||
-                (!serverInternal.IsRunning && !NodeManagerReadinessScope.Allows(serverInternal)))
+            if (serverInternal is null ||
+                (!serverInternal.IsRunning && readiness?.Includes(serverInternal) != true))
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -3649,7 +3657,7 @@ namespace Opc.Ua.Server
             RequestLifetime requestLifetime)
         {
             return ValidateRequestAsync(
-                secureChannelContext, requestHeader, requestType, requestLifetime, NodeManagerReadinessScope.Current);
+                secureChannelContext, requestHeader, requestType, requestLifetime, null);
         }
 
         /// <summary>
