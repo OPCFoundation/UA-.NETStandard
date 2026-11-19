@@ -72,19 +72,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="callerContext">The compatibility request context, ignored by this host.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-        public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+        public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views,
             IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
-            return PrepareStandaloneAsync(changes, views, cancellationToken);
+            return await PrepareStandaloneAsync(changes, views, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Captures before exact-owner checks, so a concurrent replacement cannot be silently rebased.
         /// </summary>
-        private async ValueTask<IWotPreparedProjectionPublication> PrepareStandaloneAsync(
+        private async ValueTask<PreparedPublication> PrepareStandaloneAsync(
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views,
             CancellationToken cancellationToken)
@@ -93,7 +93,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ILifecycleWriter writer = await capture.BeginAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                var prepared = (PreparedPublication)await PrepareCoreAsync(
+                PreparedPublication prepared = await PrepareCoreAsync(
                     changes, views, writer, cancellationToken).ConfigureAwait(false);
                 prepared.OwnedWriter = writer;
                 return prepared;
@@ -112,7 +112,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private async ValueTask<IWotPreparedProjectionPublication> PrepareCoreAsync(
+        private async ValueTask<PreparedPublication> PrepareCoreAsync(
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views,
             ILifecycleWriter publication,
@@ -310,12 +310,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// <param name="changes">The source projection changes to prepare.</param>
             /// <param name="views">The WoT prepared view publication.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+            public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
                 ArrayOf<WotProjectionChange> changes,
                 IWotPreparedViewPublication? views = null,
                 CancellationToken cancellationToken = default)
             {
-                return owner.PrepareCoreAsync(changes, views, publication, cancellationToken);
+                return await owner.PrepareCoreAsync(changes, views, publication, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             /// <summary>
@@ -421,11 +422,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// <summary>
             /// Commits the prepared batch after the caller's decision and publishes the committed state.
             /// </summary>
-            /// <param name="decideAsync">The decide async.</param>
-            /// <param name="publishCommittedState">The publish committed state.</param>
+            /// <param name="decideAsync">The durable decision, or null for in-memory publication.</param>
+            /// <param name="publishCommittedState">The callback that installs the committed state.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask CommitAsync(
-                Func<CancellationToken, ValueTask> decideAsync,
+                Func<CancellationToken, ValueTask>? decideAsync,
                 Action publishCommittedState,
                 CancellationToken cancellationToken = default)
             {
