@@ -59,6 +59,10 @@ namespace Opc.Ua.Server
             m_server = server;
             m_generation = generation;
             m_parent = parent;
+            if (parent is not null)
+            {
+                Interlocked.Increment(ref parent.m_liveChildren);
+            }
             m_ambient = ambient;
             if (ambient)
             {
@@ -89,7 +93,8 @@ namespace Opc.Ua.Server
         /// <returns>Whether an active initializer in the chain owns this generation.</returns>
         internal bool Includes(NodeManagerGeneration generation)
         {
-            for (NodeManagerReadinessScope? scope = this; scope is not null; scope = scope.m_parent)
+            for (NodeManagerReadinessScope? scope = this; scope is not null;
+                scope = Volatile.Read(ref scope.m_parent))
             {
                 if (Volatile.Read(ref scope.m_active) != 0 &&
                     ReferenceEquals(Volatile.Read(ref scope.m_generation), generation) &&
@@ -118,7 +123,8 @@ namespace Opc.Ua.Server
         /// <returns>Whether an active initializer belongs to this server.</returns>
         internal bool Includes(IServerInternal server)
         {
-            for (NodeManagerReadinessScope? scope = this; scope is not null; scope = scope.m_parent)
+            for (NodeManagerReadinessScope? scope = this; scope is not null;
+                scope = Volatile.Read(ref scope.m_parent))
             {
                 if (Volatile.Read(ref scope.m_active) != 0 &&
                     ReferenceEquals(Volatile.Read(ref scope.m_server), server) &&
@@ -138,21 +144,24 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // Normal unwinding restores captured parent access; out-of-order disposal detaches descendants.
-            if (m_ambient)
+            NodeManagerReadinessScope? parent = m_parent;
+            // A live child cannot traverse a revoked ancestor to reach an older initializer.
+            if (Volatile.Read(ref m_liveChildren) != 0 ||
+                (m_ambient && !ReferenceEquals(s_current.Value, this)))
             {
-                if (ReferenceEquals(s_current.Value, this))
-                {
-                    s_current.Value = m_previous;
-                }
-                else
-                {
-                    Interlocked.Exchange(ref m_parent, null);
-                }
+                Interlocked.Exchange(ref m_parent, null);
+            }
+            if (m_ambient && ReferenceEquals(s_current.Value, this))
+            {
+                s_current.Value = m_previous;
             }
             Interlocked.Exchange(ref m_server, null);
             Interlocked.Exchange(ref m_generation, null);
             Interlocked.Exchange(ref m_previous, null);
+            if (parent is not null)
+            {
+                Interlocked.Decrement(ref parent.m_liveChildren);
+            }
         }
 
         /// <summary>The initializer scope in this execution context, never a routing view.</summary>
@@ -169,6 +178,9 @@ namespace Opc.Ua.Server
 
         /// <summary>The enclosing initializer, if a callback publishes a dependent generation.</summary>
         private NodeManagerReadinessScope? m_parent;
+
+        /// <summary>Counts initializer scopes linked to this scope that have not yet been revoked.</summary>
+        private int m_liveChildren;
 
         /// <summary>Whether captured execution contexts may still use this initializer capability.</summary>
         private int m_active = 1;

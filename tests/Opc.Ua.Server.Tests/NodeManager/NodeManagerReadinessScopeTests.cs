@@ -88,6 +88,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(NodeManagerReadinessScope.Allows(child), Is.False);
         }
 
+        [Test]
+        public void ExplicitChildCannotReachGrandparentThroughRevokedMiddleScope()
+        {
+            IServerInternal server = Mock.Of<IServerInternal>();
+            NodeManagerGeneration original = CreateGeneration();
+            NodeManagerGeneration pending = CreateGeneration();
+            using var grandparent = new NodeManagerReadinessScope(server, original, null, ambient: false);
+            using var middle = new NodeManagerReadinessScope(server, CreateGeneration(), grandparent, ambient: false);
+            using var child = new NodeManagerReadinessScope(server, pending, middle, ambient: false);
+
+            Assert.That(child.Includes(original), Is.True);
+            middle.Dispose();
+
+            Assert.That(child.Includes(original), Is.False);
+            Assert.That(child.Includes(pending), Is.True);
+            Assert.That(grandparent.Includes(original), Is.True);
+        }
+
         /// <summary>
         /// Disposing the middle scope severs a grandchild from its active grandparent.
         /// </summary>
