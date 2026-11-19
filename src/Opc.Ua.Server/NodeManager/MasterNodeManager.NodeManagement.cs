@@ -712,7 +712,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                await using var callbackPermit = new NodeManagerCallbackPermit(
+                await using var callbackScope = new LegacyNodeManagerCallbackScope(
                     m_lifecycleCallbackPermit,
                     GetAdmissionCapabilities(admission)).ConfigureAwait(false);
                 return await nodeManagement.AddNodeAsync(context, item, cancellationToken)
@@ -768,7 +768,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                await using var callbackPermit = new NodeManagerCallbackPermit(
+                await using var callbackScope = new LegacyNodeManagerCallbackScope(
                     m_lifecycleCallbackPermit,
                     GetAdmissionCapabilities(admission)).ConfigureAwait(false);
                 return await owner.DeleteNodeAsync(context, item, cancellationToken)

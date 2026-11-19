@@ -80,18 +80,16 @@ namespace Opc.Ua.Server
     internal sealed class NodeManagerCallbackPermit : IAsyncDisposable
     {
         /// <summary>
-        /// Establishes a scoped permit in the current asynchronous execution context.
+        /// Creates a revocable permit for a callback.
         /// </summary>
-        /// <param name="current">The execution-context slot for callback permits.</param>
         /// <param name="capabilities">The lifecycle capabilities granted to the callback.</param>
+        /// <param name="previous">The enclosing permit, if any.</param>
         internal NodeManagerCallbackPermit(
-            AsyncLocal<NodeManagerCallbackPermit?> current,
-            NodeManagerAdmissionCapability capabilities)
+            NodeManagerAdmissionCapability capabilities,
+            NodeManagerCallbackPermit? previous = null)
         {
-            m_current = current;
-            Previous = current.Value;
+            Previous = previous;
             Capabilities = capabilities;
-            current.Value = this;
         }
 
         /// <summary>
@@ -222,7 +220,6 @@ namespace Opc.Ua.Server
                 }
                 disposal = m_disposal;
             }
-            RestoreContext();
             return new ValueTask(disposal);
         }
 
@@ -264,14 +261,6 @@ namespace Opc.Ua.Server
             private NodeManagerCallbackPermit? m_owner;
         }
 
-        private void RestoreContext()
-        {
-            if (ReferenceEquals(m_current.Value, this))
-            {
-                m_current.Value = Previous;
-            }
-        }
-
         /// <summary>
         /// Releases one accepted child after its wait or borrowed operation has stopped using the semaphore.
         /// </summary>
@@ -295,7 +284,6 @@ namespace Opc.Ua.Server
             drained?.TrySetResult(true);
         }
 
-        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
         private readonly Lock m_gate = new();
         private readonly SemaphoreSlim m_childAdmission = new(1, 1);
         private TaskCompletionSource<bool>? m_drained;
@@ -307,6 +295,42 @@ namespace Opc.Ua.Server
 
         /// <summary>Counts accepted children, including pending semaphore waits.</summary>
         private int m_borrows;
+    }
+
+    /// <summary>
+    /// Adapts the released node and session callbacks that cannot pass a lifecycle permit.
+    /// </summary>
+    internal readonly struct LegacyNodeManagerCallbackScope : IAsyncDisposable
+    {
+        /// <summary>
+        /// Installs a callback permit for context-free calls made by the legacy callback.
+        /// </summary>
+        internal LegacyNodeManagerCallbackScope(
+            AsyncLocal<NodeManagerCallbackPermit?> current,
+            NodeManagerAdmissionCapability capabilities)
+        {
+            m_current = current;
+            Permit = new NodeManagerCallbackPermit(capabilities, current.Value);
+            current.Value = Permit;
+        }
+
+        /// <summary>
+        /// Gets the permit granted to this callback.
+        /// </summary>
+        internal NodeManagerCallbackPermit Permit { get; }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            ValueTask disposal = Permit.DisposeAsync();
+            if (ReferenceEquals(m_current.Value, Permit))
+            {
+                m_current.Value = Permit.Previous;
+            }
+            return disposal;
+        }
+
+        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
     }
 
     /// <summary>

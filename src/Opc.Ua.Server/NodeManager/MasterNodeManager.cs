@@ -567,7 +567,7 @@ namespace Opc.Ua.Server
                             deleteSubscriptions,
                             async (sessionContext, callbackToken) =>
                             {
-                                await using var callbackPermit = new NodeManagerCallbackPermit(
+                                await using var callbackScope = new LegacyNodeManagerCallbackScope(
                                     m_lifecycleCallbackPermit,
                                     NodeManagerAdmissionCapability.ServerLifecycle |
                                     NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
@@ -579,7 +579,7 @@ namespace Opc.Ua.Server
                             }).ConfigureAwait(false);
                         if (!closed)
                         {
-                            await using var callbackPermit = new NodeManagerCallbackPermit(
+                            await using var callbackScope = new LegacyNodeManagerCallbackScope(
                                 m_lifecycleCallbackPermit,
                                 NodeManagerAdmissionCapability.ServerLifecycle |
                                 NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);

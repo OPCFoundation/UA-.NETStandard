@@ -876,9 +876,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
             using INodeManagerBatchAdmission opposing =
                 await host.AcquireCommitAdmissionAsync(null, timeout.Token).ConfigureAwait(false);
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
             NodeManagerCallbackPermit callbackPermit = new(
-                current,
                 inheritMutation
                     ? NodeManagerAdmissionCapability.AddressSpaceMutation
                     : NodeManagerAdmissionCapability.ServerLifecycle);
@@ -888,7 +886,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(pending.IsCompleted, Is.False);
                 ValueTask disposal = callbackPermit.DisposeAsync();
-                Assert.That(current.Value, Is.Null, "Disposal must restore the caller's context before returning.");
+                Assert.That(callbackPermit.IsActive, Is.False);
                 await disposal.ConfigureAwait(false);
             }
             finally
@@ -912,9 +910,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
             using INodeManagerBatchAdmission outer =
                 await host.AcquireCommitAdmissionAsync(null, timeout.Token).ConfigureAwait(false);
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
             var permit = new NodeManagerCallbackPermit(
-                current,
                 NodeManagerAdmissionCapability.ServerLifecycle | NodeManagerAdmissionCapability.AddressSpaceMutation);
             INodeManagerBatchAdmission? nested = null;
             Task<INodeManagerBatchAdmission>? competing = null;
@@ -925,7 +921,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(nested.Includes(NodeManagerAdmissionCapability.ServerLifecycle), Is.True);
 
                 ValueTask closing = permit.DisposeAsync();
-                Assert.That(current.Value, Is.Null);
+                Assert.That(permit.IsActive, Is.False);
                 Assert.That(closing.IsCompleted, Is.False);
                 competing = host.AcquireCommitAdmissionAsync(null, timeout.Token).AsTask();
                 Assert.That(competing.IsCompleted, Is.False);
@@ -966,9 +962,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
             using INodeManagerBatchAdmission outer =
                 await host.AcquireCommitAdmissionAsync(null, timeout.Token).ConfigureAwait(false);
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
             var permit = new NodeManagerCallbackPermit(
-                current,
                 NodeManagerAdmissionCapability.ServerLifecycle | NodeManagerAdmissionCapability.AddressSpaceMutation);
             INodeManagerBatchAdmission? first = null;
             Task<INodeManagerBatchAdmission>? pending = null;

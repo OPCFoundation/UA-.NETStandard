@@ -1,7 +1,7 @@
 Path,Field,Guard and expiration,Owning control or disposition
 src\Opc.Ua.Server\NodeManager\Lifecycle\LifecycleWriter.cs,m_decision,Bound at context-free routing and decision callbacks; callback activity ends on return and reservation identity expires on release,LifecycleWriterTests
 src\Opc.Ua.Server\NodeManager\Lifecycle\NodeManagerReadinessScope.cs,s_current,Used at startup admission and context-free entry; request dispatch uses OperationContext. Disposal clears owners; active parent remains reachable only through valid links,NodeManagerReadinessScopeTests; NodeLookupReadinessRegressionTests
-src\Opc.Ua.Server\NodeManager\MasterNodeManager.cs,m_lifecycleCallbackPermit,Borrow accounting rejects new borrows then drains existing ones,NodeManagerCallbackPermitTests
+src\Opc.Ua.Server\NodeManager\MasterNodeManager.cs,m_lifecycleCallbackPermit,Legacy callback adapter restores the slot after revoking the explicit permit; existing borrows drain before host admission releases,NodeManagerCallbackPermitTests
 src\Opc.Ua.Server\NodeManager\NodeManagerServiceDispatcher.cs,m_legacyLookupContext,Released virtual lookup adapter clears both the shared routing image and readiness on exit,NodeManagerLegacyLookupScopeTests
 src\Opc.Ua.Server\NodeManager\AsyncCustomNodeManager.cs,m_operationContext,Operation Active flag and operation counter end admission,AsyncNodeManagerDisposalReviewTests
 src\Opc.Ua.Server\NodeManager\AsyncCustomNodeManager.cs,m_disposeAsyncCoreContext,Scalar flag additionally requires owner-wide active disposal,AsyncNodeManagerDisposalReviewTests
