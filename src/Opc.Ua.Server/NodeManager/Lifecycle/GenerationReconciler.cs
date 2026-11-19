@@ -452,13 +452,13 @@ namespace Opc.Ua.Server
                 if (ReferenceEquals(identity, session.EffectiveIdentity) &&
                     session.Activated &&
                     !SessionTermination.IsClosingOrClaimed(session) &&
-                    m_server.SessionManager.GetSessions().Any(current => ReferenceEquals(current, session)))
+                    SessionManager.ContainsRegisteredSession(m_server.SessionManager, session))
                 {
                     return new SessionBinding(session, identity, generation.Reference);
                 }
                 if (!session.Activated ||
                     SessionTermination.IsClosingOrClaimed(session) ||
-                    !m_server.SessionManager.GetSessions().Any(current => ReferenceEquals(current, session)))
+                    !SessionManager.ContainsRegisteredSession(m_server.SessionManager, session))
                 {
                     await nodeManager.SessionClosingAsync(
                         context, session.Id, deleteSubscriptions: false, cancellationToken).ConfigureAwait(false);

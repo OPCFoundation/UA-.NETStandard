@@ -150,6 +150,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_authenticationToken = authenticationToken;
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -354,6 +355,14 @@ namespace Opc.Ua.Server
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
         public NodeId Id { get; private set; }
+
+        /// <summary>
+        /// Checks exact membership in the stock manager without publishing the private session token.
+        /// </summary>
+        internal bool IsRegisteredWith(SessionManager manager)
+        {
+            return ReferenceEquals(manager.GetSession(m_authenticationToken), this);
+        }
 
         /// <summary>
         /// The SessionId <see cref="InitializeAsync"/> asks the diagnostics node manager
@@ -2375,6 +2384,7 @@ namespace Opc.Ua.Server
         private int m_closing;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
+        private readonly NodeId m_authenticationToken;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
 

@@ -57,6 +57,68 @@ namespace Opc.Ua.Server.Tests
         private static readonly string[] s_terminatedAudit = ["Session/Terminated"];
 
         /// <summary>
+        /// Checks exact stock session membership before activation, after commit, and after removal.
+        /// </summary>
+        [Test]
+        public async Task StockSessionMembershipFollowsRegistrationAsync()
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
+            ISession session = harness.Manager.GetSession(created.AuthenticationToken)!;
+            Assert.That(SessionManager.ContainsRegisteredSession(harness.Manager, session), Is.True);
+
+            await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false);
+            Assert.That(SessionManager.ContainsRegisteredSession(harness.Manager, session), Is.True);
+            var unrelated = new Mock<ISession>();
+            unrelated.SetupGet(value => value.Id).Returns(session.Id);
+            Assert.That(SessionManager.ContainsRegisteredSession(harness.Manager, unrelated.Object), Is.False);
+
+            await harness.Manager.CloseSessionAsync(session.Id, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(SessionManager.ContainsRegisteredSession(harness.Manager, session), Is.False);
+        }
+
+        /// <summary>
+        /// Removes a stock session while a generation callback is in flight.
+        /// </summary>
+        [Test]
+        public async Task StockSessionRemovedDuringGenerationCallbackIsNotBoundAsync()
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            ISession session = harness.Manager.GetSession(created.AuthenticationToken)!;
+            NodeId sessionId = session.Id;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.SessionActivatedAsync(
+                    It.IsAny<OperationContext>(), sessionId, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask(release.Task);
+                });
+            var generation = new NodeManagerGeneration(
+                new NodeManagerSlot(), 1, manager.Object, NodeManagerGenerationState.Live);
+            var reconciler = new GenerationReconciler(harness.Server.Object);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task<GenerationReconciler.SessionBinding?> activation = reconciler.ActivateSessionAsync(
+                generation, session, timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await harness.Manager.CloseSessionAsync(sessionId, timeout.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            Assert.That(await activation.WaitAsync(timeout.Token).ConfigureAwait(false), Is.Null);
+            Assert.That(generation.SessionBindings, Is.Empty);
+            manager.Verify(value => value.SessionClosingAsync(
+                It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// LC-1: a request arriving after the session timeout must not revive the
         /// session; it is rejected and the session is terminated as timed out.
         /// </summary>
