@@ -706,7 +706,7 @@ namespace Opc.Ua.Server
                     }
                     ct.ThrowIfCancellationRequested();
 
-                    EnsurePublicationServer(server, host, initial);
+                    EnsurePublicationServer(server, host, initial, shutdown: null, readiness);
                     if (!IsCurrentRegistration(state.Registration))
                     {
                         throw new InvalidOperationException(
@@ -817,12 +817,13 @@ namespace Opc.Ua.Server
             }
         }
 
-        private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer()
+        private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer(
+            NodeManagerReadinessScope? readiness)
         {
             m_writer.EnsureRunning();
 
             IServerInternal server = m_server.CurrentInstance;
-            if (!server.IsRunning && !NodeManagerReadinessScope.Allows(server))
+            if (!server.IsRunning && readiness?.Includes(server) != true)
             {
                 throw new InvalidOperationException(
                     "NodeManagers can only be changed while the server is running.");
@@ -854,10 +855,11 @@ namespace Opc.Ua.Server
 
         private void EnsureSameRunningServer(
             IServerInternal server,
-            IDynamicNodeManagerHost host)
+            IDynamicNodeManagerHost host,
+            NodeManagerReadinessScope? readiness)
         {
             (IServerInternal currentServer, IDynamicNodeManagerHost currentHost) =
-                GetRunningServer();
+                GetRunningServer(readiness);
             if (!ReferenceEquals(currentServer, server) ||
                 !ReferenceEquals(currentHost, host))
             {
@@ -1889,7 +1891,8 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentException("A publication unit must contain at least one change.", nameof(changes));
             }
-            return PrepareChangesAsync(changes, null, CaptureLifecycleCallbackPermit(), cancellationToken);
+            return PrepareChangesAsync(changes, null, CaptureLifecycleCallbackPermit(), cancellationToken,
+                readiness: NodeManagerReadinessScope.Current);
         }
 
         /// <summary>
@@ -1905,6 +1908,7 @@ namespace Opc.Ua.Server
         /// committed.</param>
         /// <param name="initial">The explicit startup capability, or null for runtime preparation.</param>
         /// <param name="shutdown">The explicit removal-only shutdown capability, or null.</param>
+        /// <param name="readiness">The initializer that requested dependent publication, if any.</param>
         /// <returns>The prepared batch, which must be disposed if it is not committed.</returns>
         /// <exception cref="NotSupportedException">
         /// The server factory does not support prepared publication,
@@ -1918,7 +1922,8 @@ namespace Opc.Ua.Server
             ArrayOf<INodeManagerReadImage> readImages = default,
             bool validationOnly = false,
             InitialPublication? initial = null,
-            ShutdownPublication? shutdown = null)
+            ShutdownPublication? shutdown = null,
+            NodeManagerReadinessScope? readiness = null)
         {
             if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0 && initial is null))
             {
@@ -1958,7 +1963,7 @@ namespace Opc.Ua.Server
                 operation = shutdown?.EnterOperation() ?? EnterLifecycleOperation();
                 (IServerInternal server, IDynamicNodeManagerHost host) =
                     shutdown is not null ? shutdown.GetServer() :
-                    initial is null ? GetRunningServer() : initial.GetServer();
+                    initial is null ? GetRunningServer(readiness) : initial.GetServer();
                 if (server.Factory is not EncodeableFactory)
                 {
                     throw new NotSupportedException("The server factory does not support prepared publication.");
@@ -1969,7 +1974,7 @@ namespace Opc.Ua.Server
                 var admissions = new List<(NodeManagerGeneration Generation, int Stripe)>(changes.Count);
                 try
                 {
-                    EnsurePublicationServer(server, host, initial, shutdown);
+                    EnsurePublicationServer(server, host, initial, shutdown, readiness);
                     publication?.ValidateRevision(server);
                     var preparation = new ChangePreparer(server);
                     NodeManagerRoutingTable.RoutingSnapshot routingRevision = host.RoutingRevision;
@@ -2157,6 +2162,7 @@ namespace Opc.Ua.Server
         /// <param name="batch">The prepared batch to complete.</param>
         /// <param name="decideAsync">An optional external durable decision.</param>
         /// <param name="validationOnly">Whether to validate without publishing.</param>
+        /// <param name="readiness">The initializer that requested completion, if any.</param>
         /// <param name="publishCommittedState">The callback invoked after the committed image is installed, or
         /// null.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
@@ -2165,6 +2171,7 @@ namespace Opc.Ua.Server
             PreparationPayload batch,
             Func<CancellationToken, ValueTask>? decideAsync,
             bool validationOnly,
+            NodeManagerReadinessScope? readiness,
             Action? publishCommittedState,
             CancellationToken cancellationToken)
         {
@@ -2187,7 +2194,7 @@ namespace Opc.Ua.Server
                 reconciler.CreateReconciliation(() => EnterLifecycleOperation(), () => m_writer.IsShuttingDown);
             try
             {
-                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown);
+                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown, readiness);
                 foreach (BatchEntry entry in batch.Entries)
                 {
                     if (entry.Next is { ReadinessPending: true } next)
@@ -2305,7 +2312,7 @@ namespace Opc.Ua.Server
                     await batch.Host.AcquireCommitAdmissionAsync(
                         batch.CallbackPermit, cancellationToken).ConfigureAwait(false);
                 mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
-                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown);
+                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown, readiness);
                 if (!ReferenceEquals(
                     batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
@@ -3802,6 +3809,7 @@ namespace Opc.Ua.Server
                 Action? publishCommittedState,
                 CancellationToken cancellationToken)
             {
+                NodeManagerReadinessScope? readiness = NodeManagerReadinessScope.Current;
                 LifecycleResult? result = null;
                 Exception? executionFailure = null;
                 Exception? cleanupFailure = null;
@@ -3810,7 +3818,8 @@ namespace Opc.Ua.Server
                     try
                     {
                         result = await payload.Owner.CompleteChangesAsync(
-                            payload, decideAsync, m_validationOnly, publishCommittedState, cancellationToken)
+                            payload, decideAsync, m_validationOnly, readiness,
+                            publishCommittedState, cancellationToken)
                             .ConfigureAwait(false);
                         if (!m_validationOnly && result is null)
                         {
@@ -3999,7 +4008,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ILifecycleCapture CaptureChanges()
         {
-            (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer();
+            (IServerInternal server, IDynamicNodeManagerHost host) =
+                GetRunningServer(NodeManagerReadinessScope.Current);
             return new LifecycleCapture(this, m_writer.CaptureRevision(server, host));
         }
 
@@ -4156,12 +4166,14 @@ namespace Opc.Ua.Server
             {
                 ArrayOf<LifecycleChange> capturedChanges = [.. changes];
                 ArrayOf<INodeManagerReadImage> capturedImages = [.. images];
+                NodeManagerReadinessScope? readiness = NodeManagerReadinessScope.Current;
                 return Session.PrepareAsync(() =>
                 {
                     NodeManagerLifecycle owner = GetOwner();
                     NodeManagerCallbackPermit? callbackPermit = owner.CaptureLifecycleCallbackPermit();
                     return owner.PrepareChangesAsync(
-                        capturedChanges, Session, callbackPermit, cancellationToken, capturedImages, validationOnly);
+                        capturedChanges, Session, callbackPermit, cancellationToken, capturedImages,
+                        validationOnly, readiness: readiness);
                 });
             }
 
