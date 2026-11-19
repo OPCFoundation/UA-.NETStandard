@@ -38,6 +38,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 using ServerSession = Opc.Ua.Server.Session;
 
@@ -116,6 +117,53 @@ namespace Opc.Ua.Server.Tests
             Assert.That(generation.SessionBindings, Is.Empty);
             manager.Verify(value => value.SessionClosingAsync(
                 It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Protocol activation dispatch only binds the exact session that the server validated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RegisteredActivationDispatchRequiresExactLiveSessionAsync(bool removeBeforeDispatch)
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            ISession session = harness.Manager.GetSession(created.AuthenticationToken)!;
+            NodeId sessionId = session.Id;
+            Mock<IServerInternal> dispatcherServer = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                dispatcherServer.SetupGet(value => value.SessionManager).Returns(harness.Manager);
+                var manager = new Mock<IAsyncNodeManager>();
+                await using MasterNodeManager master =
+                    DeterministicServerMock.CreateMasterNodeManager(dispatcherServer, [manager.Object]);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.ActivateSession, RequestLifetime.None);
+                if (removeBeforeDispatch)
+                {
+                    await harness.Manager.CloseSessionAsync(sessionId, CancellationToken.None).ConfigureAwait(false);
+                }
+
+                await master.NotifyRegisteredSessionActivatedAsync(context, session, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                manager.Verify(value => value.SessionActivatedAsync(
+                        It.Is<OperationContext>(operation => ReferenceEquals(operation.Session, session)),
+                        sessionId, It.IsAny<CancellationToken>()),
+                    removeBeforeDispatch ? Times.Never() : Times.Once());
+                manager.Verify(value => value.SessionActivatedAsync(context, sessionId, It.IsAny<CancellationToken>()),
+                    Times.Never);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+                if (removeBeforeDispatch)
+                {
+                    Assert.That(generation.SessionBindings, Is.Empty);
+                }
+                else
+                {
+                    Assert.That(generation.SessionBindings[sessionId].Binding?.Session, Is.SameAs(session));
+                }
+                Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            }
         }
 
         /// <summary>

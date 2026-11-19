@@ -605,18 +605,51 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask SessionActivatedAsync(
+        public virtual ValueTask SessionActivatedAsync(
             OperationContext context,
             NodeId sessionId,
             CancellationToken cancellationToken = default)
+        {
+            return NotifySessionActivatedAsync(context, sessionId, protocolSession: null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Notifies managers of the exact session that the stock activation path just validated.
+        /// </summary>
+        internal ValueTask NotifyRegisteredSessionActivatedAsync(
+            OperationContext context,
+            ISession session,
+            CancellationToken cancellationToken)
+        {
+            return NotifySessionActivatedAsync(context, session.Id, session, cancellationToken);
+        }
+
+        private async ValueTask NotifySessionActivatedAsync(
+            OperationContext context,
+            NodeId sessionId,
+            ISession? protocolSession,
+            CancellationToken cancellationToken)
         {
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);
             try
             {
-                ISession? activatedSession = Server.SessionManager.GetSessions().FirstOrDefault(
-                    current => current.Id == sessionId);
+                ISessionManager sessions = Server.SessionManager;
+                ISession? activatedSession;
+                if (protocolSession is not null)
+                {
+                    if (SessionTermination.IsClosingOrClaimed(protocolSession) ||
+                        !SessionManager.ContainsRegisteredSession(sessions, protocolSession))
+                    {
+                        return;
+                    }
+                    activatedSession = protocolSession;
+                }
+                else
+                {
+                    activatedSession = sessions.GetSessions().FirstOrDefault(current => current.Id == sessionId);
+                }
                 if (activatedSession is null &&
                     !sessionId.IsNull &&
                     context.ActivationTargetSessionId == sessionId)

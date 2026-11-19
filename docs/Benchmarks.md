@@ -976,10 +976,11 @@ measurement is recorded here for those costs.
 ### Session activation scaling
 
 `SessionManager.GetSessions()` creates a list from `m_sessions.Values`.
-`MasterNodeManager.SessionActivatedAsync` searches that list.
-`GenerationReconciler` enumerates it during binding and reconciliation. After
-an activation callback, the stock manager checks whether the existing token
-entry still refers to the same session object without taking another snapshot.
+The stock protocol activation path passes the session that `StandardServer`
+already resolved to `MasterNodeManager`. It checks that the session is still
+registered before dispatching. `GenerationReconciler` still enumerates the list
+during binding and reconciliation, but the stock manager checks exact
+membership after each activation callback without taking another snapshot.
 Custom session managers keep the reference-equality check against `GetSessions()`.
 
 The session-load test measures connection establishment and steady-state
