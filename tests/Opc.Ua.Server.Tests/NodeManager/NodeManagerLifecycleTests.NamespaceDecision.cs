@@ -840,6 +840,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable.RoutingSnapshot before = host.RoutingRevision;
             int reservedNamespaceIndex = server.NamespaceUris.GetIndex(kSecondModelNamespaceUri);
             bool candidateNamespaceExists = reservedNamespaceIndex >= 0;
+            bool materializedSuffix = !conflicting && !unregister && !namespaceAlreadyExists;
             if (!candidateNamespaceExists)
             {
                 reservedNamespaceIndex = server.NamespaceUris.Count;
@@ -943,7 +944,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         candidateRoutes.Any(owner =>
                             !ReferenceEquals(owner, manager)), Is.False,
                         "The durable decision must finish before candidate routes become visible.");
-                    bool materializedSuffix = !conflicting && !unregister && !namespaceAlreadyExists;
                     Assert.That(server.NamespaceUris.GetIndex(kSecondModelNamespaceUri),
                         Is.EqualTo(candidateNamespaceExists || materializedSuffix ? reservedNamespaceIndex : -1));
                     if (decisionCancelled)
@@ -1004,6 +1004,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 else
                 {
                     Assert.That(host.RoutingRevision.NodeManagers, Is.EqualTo(before.NodeManagers));
+                    if (!conflicting || unregister)
+                    {
+                        Assert.That(server.NamespaceUris.GetIndex(kSecondModelNamespaceUri),
+                            Is.EqualTo(candidateNamespaceExists || materializedSuffix ? reservedNamespaceIndex : -1),
+                            "A concurrent append preserves materialized indices without publishing candidate routes.");
+                    }
                 }
             }
             finally

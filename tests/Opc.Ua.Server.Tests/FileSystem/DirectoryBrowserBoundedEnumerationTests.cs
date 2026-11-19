@@ -731,9 +731,22 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// A logging failure does not leave browser disposal pending or hide the retained cursor failure.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Cleanup or cursor ownership was not tracked.</exception>
         [Test]
-        public async Task LoggerFailureCompletesDisposalAndFaultsTrackedCleanupAsync()
+        public Task LoggerFailureCompletesDisposalAndFaultsTrackedCleanupAsync()
+        {
+            return AssertCursorAndLoggerFailuresAsync(confirmBeforeTrackingCompletes: false);
+        }
+
+        /// <summary>
+        /// Confirmation during completion must not add the cursor error to the tracked cleanup task.
+        /// </summary>
+        [Test]
+        public Task ConfirmedCursorFailureIsExcludedFromTrackedCleanupAsync()
+        {
+            return AssertCursorAndLoggerFailuresAsync(confirmBeforeTrackingCompletes: true);
+        }
+
+        private async Task AssertCursorAndLoggerFailuresAsync(bool confirmBeforeTrackingCompletes)
         {
             var cursorFailure = new InvalidOperationException("The cursor did not close.");
             var loggingFailure = new InvalidOperationException("The logger failed.");
@@ -770,7 +783,16 @@ namespace Opc.Ua.Server.Tests.FileSystem
             host.SetupGet(value => value.Provider).Returns(provider.Object);
             host.Setup(value => value.RegisterDirectoryCursor(It.IsAny<DirectoryCursorOwnership>()))
                 .Callback<DirectoryCursorOwnership>(value => ownership = value);
-            host.Setup(value => value.CompleteDirectoryCursor(It.IsAny<DirectoryCursorOwnership>()));
+            host.Setup(value => value.CompleteDirectoryCursor(It.IsAny<DirectoryCursorOwnership>()))
+                .Callback<DirectoryCursorOwnership>(value =>
+                {
+                    if (confirmBeforeTrackingCompletes)
+                    {
+                        Assert.That(value.TryGetFailure(out _, out Exception? retained), Is.True);
+                        Assert.That(retained, Is.SameAs(cursorFailure));
+                        Assert.That(value.TryConfirm(), Is.True);
+                    }
+                });
             host.Setup(value => value.TrackCursorCleanup(It.IsAny<Task>())).Callback<Task>(value => cleanup = value);
             host.Setup(value => value.BuildDirectoryNodeId(It.IsAny<string>()))
                 .Returns((string path) => FileSystemNodeId.BuildDirectory(path, m_manager.NamespaceIndex));
@@ -793,9 +815,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     Throws.Exception.SameAs(loggingFailure)).ConfigureAwait(false);
                 DirectoryCursorOwnership retained = ownership
                     ?? throw new InvalidOperationException("Cursor ownership was not registered.");
-                Assert.That(retained.TryGetFailure(out IAsyncDisposable? resource, out Exception? failure), Is.True);
-                Assert.That(resource, Is.SameAs(cursor.Object));
-                Assert.That(failure, Is.SameAs(cursorFailure));
+                Assert.That(retained.TryGetFailure(out IAsyncDisposable? resource, out Exception? failure),
+                    Is.EqualTo(!confirmBeforeTrackingCompletes));
+                if (!confirmBeforeTrackingCompletes)
+                {
+                    Assert.That(resource, Is.SameAs(cursor.Object));
+                    Assert.That(failure, Is.SameAs(cursorFailure));
+                }
                 AggregateException? repeatedError = await Assert.ThrowsAsync<AggregateException>(
                     async () => await browser.DisposeAsync().AsTask().WaitAsync(timeout.Token).ConfigureAwait(false))
                     .ConfigureAwait(false);
@@ -827,6 +853,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
                         await cleanup.WaitAsync(timeout.Token).ConfigureAwait(false);
                     }
                     catch (InvalidOperationException exception) when (ReferenceEquals(exception, loggingFailure))
+                    {
+                    }
+                    catch (AggregateException exception) when (confirmBeforeTrackingCompletes &&
+                        exception.InnerExceptions.Count == 2 &&
+                        ReferenceEquals(exception.InnerExceptions[0], cursorFailure) &&
+                        ReferenceEquals(exception.InnerExceptions[1], loggingFailure))
                     {
                     }
                 }
@@ -1329,6 +1361,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
                 Assert.That(stale[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
                 Assert.That(stale[0].References, Is.Empty);
+                await entries.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Assert.That(entries.MoveNextCount, Is.EqualTo(cursorPosition));
                 Assert.That(entries.DisposeCount, Is.EqualTo(1));
             }
