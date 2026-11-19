@@ -440,8 +440,7 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     await RecordAsync(
                         audit, requestId, NodeManagerCleanupOperation.Reconcile, NodeManagerCleanupAuditOutcome.Succeeded,
-                        handle, authorization.AuditUserId, cancellationToken).ConfigureAwait(false);
-                    cancellationToken.ThrowIfCancellationRequested();
+                        handle, authorization.AuditUserId, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {

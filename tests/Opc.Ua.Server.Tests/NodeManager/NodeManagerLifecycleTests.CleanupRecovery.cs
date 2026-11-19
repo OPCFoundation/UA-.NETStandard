@@ -2076,6 +2076,52 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Cancellation after a successful audit record does not interrupt reconciliation.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task ReconciliationCompletesWhenSuccessAuditCancelsCallerAsync()
+        {
+            await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
+                .ConfigureAwait(false);
+            NodeManagerCleanupFailureHandle handle = (await harness.DiscoverAsync().ConfigureAwait(false))[0].Handle;
+            harness.State.FailNextConfirmationSnapshot = true;
+            await Assert.ThatAsync(
+                async () => await harness.Recovery.ConfirmAsync(handle).ConfigureAwait(false),
+                Throws.TypeOf<NodeManagerCleanupConfirmationOutcomeUnknownException>()).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            harness.Audit.AfterRecord = record =>
+                record.Operation == NodeManagerCleanupOperation.Reconcile &&
+                record.Outcome == NodeManagerCleanupAuditOutcome.Succeeded
+                    ? new ValueTask(cancellation.CancelAsync())
+                    : default;
+
+            try
+            {
+                await harness.Recovery.ReconcileAsync(handle, cancellation.Token).ConfigureAwait(false);
+
+                Assert.That(cancellation.IsCancellationRequested, Is.True);
+                Assert.That(harness.Audit.Records
+                    .Where(record => record.Operation == NodeManagerCleanupOperation.Reconcile)
+                    .Select(record => record.Outcome),
+                    Is.EqualTo(new[]
+                    {
+                        NodeManagerCleanupAuditOutcome.Requested,
+                        NodeManagerCleanupAuditOutcome.Succeeded
+                    }));
+                harness.AssertPhysicalCleanupOnce();
+            }
+            finally
+            {
+                harness.Audit.AfterRecord = null;
+                if (harness.Generation.HasPendingCleanupConfirmation)
+                {
+                    await harness.Recovery.ReconcileAsync(handle).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Authorized discovery can recover a cleared failure's pending reconciliation handle.
         /// </summary>
         [Test]
@@ -3577,6 +3623,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             internal NodeManagerCleanupOperation FailNextOperation { get; set; } = NodeManagerCleanupOperation.Confirm;
             internal bool PauseConfirmationOutcome { get; set; }
 
+            /// <summary>
+            /// Runs after the audit record has been stored.
+            /// </summary>
+            internal Func<NodeManagerCleanupAuditRecord, ValueTask>? AfterRecord { get; set; }
+
             internal TaskCompletionSource<bool> OutcomeEntered { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -3610,6 +3661,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 lock (m_gate)
                 {
                     m_records.Add(record);
+                }
+                if (AfterRecord is { } afterRecord)
+                {
+                    await afterRecord(record).ConfigureAwait(false);
                 }
             }
 

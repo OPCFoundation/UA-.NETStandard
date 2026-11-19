@@ -208,7 +208,7 @@ namespace Opc.Ua.Server.FileSystem
                 (BrowseName.IsNull || BrowseName.NamespaceIndex == m_source.BrowseName.NamespaceIndex);
         }
 
-        private async ValueTask CompleteEnumerationAsync()
+        private async ValueTask<Exception?> CompleteEnumerationAsync(bool captureCursorFailure = false)
         {
             m_stage = Stage.Done;
             IAsyncEnumerator<FileSystemEntry>? cursor = m_cursor;
@@ -226,7 +226,10 @@ namespace Opc.Ua.Server.FileSystem
             catch (Exception exception)
             {
                 failure = exception;
-                throw;
+                if (!captureCursorFailure || ownership is null)
+                {
+                    throw;
+                }
             }
             finally
             {
@@ -236,6 +239,7 @@ namespace Opc.Ua.Server.FileSystem
                     m_host.CompleteDirectoryCursor(ownership);
                 }
             }
+            return failure;
         }
 
         private async Task DisposeCursorAsync(Task start)
@@ -252,14 +256,19 @@ namespace Opc.Ua.Server.FileSystem
                 failure = exception;
                 ancillaryFailure = exception;
             }
-            DirectoryCursorOwnership? ownership = null;
             try
             {
                 await m_cursorSemaphore.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    ownership = m_cursorOwnership;
-                    await CompleteEnumerationAsync().ConfigureAwait(false);
+                    // Report the cursor error to the disposer even if recovery has already
+                    // confirmed the retained failure. Only ancillary errors fault the tracked task.
+                    Exception? cursorFailure = await CompleteEnumerationAsync(captureCursorFailure: true)
+                        .ConfigureAwait(false);
+                    if (cursorFailure is not null)
+                    {
+                        failure = CombineFailures(failure, cursorFailure);
+                    }
                 }
                 finally
                 {
@@ -269,12 +278,7 @@ namespace Opc.Ua.Server.FileSystem
             catch (Exception exception)
             {
                 failure = CombineFailures(failure, exception);
-                if (ownership is null ||
-                    !ownership.TryGetFailure(out _, out Exception? retained) ||
-                    !ReferenceEquals(exception, retained))
-                {
-                    ancillaryFailure = CombineFailures(ancillaryFailure, exception);
-                }
+                ancillaryFailure = CombineFailures(ancillaryFailure, exception);
             }
             finally
             {

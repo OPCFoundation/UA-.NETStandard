@@ -894,7 +894,17 @@ The script renders a markdown summary, so you never have to open a raw log to se
 
 > A full-scope `nightly.yml` run reports different numbers from a pull-request run, and that is expected: it merges a different set of profiles.
 
-To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
+To reproduce a CI coverage failure, use the same test fragments and checkout as
+the failing run. Download the `dotnet-results-*` artifacts into
+`coverage-artifacts`, then run the **Merge coverage report** step from
+[`buildandtest.yml`](../.github/workflows/buildandtest.yml) (or
+[`nightly.yml`](../.github/workflows/nightly.yml) for a nightly run) locally.
+That step normalizes hit counts, prepares file identities, merges with
+ReportGenerator 5.5.11, and restores the original file identities. The
+standalone scripts in `tests` produce a local report, not this CI report.
+
+Run the gate against the resulting report. Replace `master` with the run's
+base ref if it compared against a different branch:
 
 ```powershell
 ./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master -SummaryPath ./coverage-summary.md
