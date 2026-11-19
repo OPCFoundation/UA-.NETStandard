@@ -123,6 +123,15 @@ namespace Opc.Ua
         public int ListenBacklog { get; set; }
 
         /// <summary>
+        /// When <c>true</c>, a listener that implements
+        /// <see cref="ITransportListenerAcceptControl"/> binds its address when
+        /// opened but serves no connection until
+        /// <see cref="ITransportListenerAcceptControl.StartAcceptingAsync"/> is
+        /// called. Listeners that do not implement the interface ignore it.
+        /// </summary>
+        public bool DeferAccept { get; set; }
+
+        /// <summary>
         /// Optional connection admission rate limiter consulted for each inbound
         /// connection before a channel is created. When <c>null</c>, no
         /// connection rate limiting is applied.

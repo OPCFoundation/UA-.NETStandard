@@ -206,6 +206,7 @@ namespace Opc.Ua.Bindings
                 HttpsTransportListener.CompleteHttpHandshake(context);
                 return next();
             });
+            UseAcceptGate(appBuilder, listener);
 
             // Invoke companion-binding startup contributors (e.g. the
             // REST MVC pipeline from Opc.Ua.Bindings.WebApi) so their
@@ -265,6 +266,23 @@ namespace Opc.Ua.Bindings
             }
 
             return listener.SendBinaryAsync(context);
+        }
+
+        /// <summary>
+        /// Holds requests that arrive while the server is still starting
+        /// until the listener serves connections.
+        /// </summary>
+        internal static void UseAcceptGate(IApplicationBuilder appBuilder, HttpsTransportListener listener)
+        {
+            appBuilder.Use(async (context, next) =>
+            {
+                if (!await listener.WaitUntilAcceptingAsync(context.RequestAborted).ConfigureAwait(false))
+                {
+                    context.Abort();
+                    return;
+                }
+                await next().ConfigureAwait(false);
+            });
         }
 
         private const string kHttpsContentType = "text/plain";
@@ -328,6 +346,7 @@ namespace Opc.Ua.Bindings
             HttpsTransportListener listener)
         {
             IApplicationBuilder branch = appBuilder.New();
+            Startup.UseAcceptGate(branch, listener);
             foreach (IHttpsListenerStartupContributor contributor in listener.StartupContributors)
             {
                 contributor.Configure(branch, listener);
@@ -345,6 +364,7 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportListener :
         ITransportListener,
+        ITransportListenerAcceptControl,
         ITransportListenerCertificateRotation,
         ITransportListenerPeerCertificateChainRotation
     {
@@ -520,6 +540,14 @@ namespace Opc.Ua.Bindings
 
             m_mutualTlsEnabled = settings.HttpsMutualTls;
 
+            // Kestrel accepts as soon as it is bound, so a deferred listener
+            // holds the requests at the gate until it is opened.
+            lock (m_acceptLock)
+            {
+                m_acceptRequested = !settings.DeferAccept;
+                m_acceptGate = CreateAcceptGate(m_acceptRequested);
+            }
+
             // reverse-connect listener mode dispatches accepted WSS
             // upgrades to TcpReverseConnectChannels and fires the
             // listener's ConnectionWaiting event when the server's
@@ -555,6 +583,56 @@ namespace Opc.Ua.Bindings
                     m_quotas.MaxBufferSize,
                     m_telemetry));
 
+        }
+
+        /// <inheritdoc/>
+        public bool IsAccepting => Volatile.Read(ref m_admissionStopped) == 0 &&
+            m_acceptGate.Task.Status == TaskStatus.RanToCompletion &&
+            m_acceptGate.Task.Result;
+
+        /// <inheritdoc/>
+        public ValueTask StartAcceptingAsync(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            // synchronized with the gate replacement of a restart, so the
+            // activation always opens the gate that requests wait on.
+            lock (m_acceptLock)
+            {
+                m_acceptRequested = true;
+                m_acceptGate.TrySetResult(true);
+            }
+            return default;
+        }
+
+        /// <summary>
+        /// Waits until the listener serves requests. Returns <c>false</c>
+        /// when the listener stops first or the request is aborted.
+        /// </summary>
+        internal async ValueTask<bool> WaitUntilAcceptingAsync(CancellationToken ct)
+        {
+            Task<bool> gate = m_acceptGate.Task;
+            if (gate.Status == TaskStatus.RanToCompletion)
+            {
+                return gate.Result;
+            }
+            try
+            {
+                return await gate.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return false;
+            }
+        }
+
+        private static TaskCompletionSource<bool> CreateAcceptGate(bool accepting)
+        {
+            var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (accepting)
+            {
+                gate.TrySetResult(true);
+            }
+            return gate;
         }
 
         /// <summary>
@@ -690,6 +768,15 @@ namespace Opc.Ua.Bindings
 
         private async ValueTask StartCoreAsync(CancellationToken ct)
         {
+            // a stop released the gate with false; a restart (for example
+            // after a certificate update) needs a new one in the same state.
+            lock (m_acceptLock)
+            {
+                if (m_acceptGate.Task.IsCompleted && !m_acceptGate.Task.Result)
+                {
+                    m_acceptGate = CreateAcceptGate(m_acceptRequested);
+                }
+            }
             Volatile.Write(ref m_admissionStopped, 0);
             m_admission?.Start();
             // 1) Prepare the TLS certificate up front so the registry can
@@ -1351,6 +1438,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual async ValueTask DisposeAsyncCore()
         {
+            // release requests held at the gate of a listener that never opened.
+            lock (m_acceptLock)
+            {
+                m_acceptGate.TrySetResult(false);
+            }
             Volatile.Write(ref m_admissionStopped, 1);
             try
             {
@@ -4090,6 +4182,9 @@ namespace Opc.Ua.Bindings
         private BufferManager m_bufferManager = null!;
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ITransportListenerCallback? m_callback;
+        private TaskCompletionSource<bool> m_acceptGate = CreateAcceptGate(accepting: true);
+        private bool m_acceptRequested = true;
+        private readonly Lock m_acceptLock = new();
 #if NET8_0_OR_GREATER
         private IHost? m_host;
 #else
