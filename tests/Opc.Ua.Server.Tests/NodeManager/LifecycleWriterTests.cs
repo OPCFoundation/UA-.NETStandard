@@ -87,15 +87,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var rejected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var expired = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task? spawned = null;
-            await mutation.DecideAsync(async token =>
+            using var otherWriter = new LifecycleWriter();
+            await mutation.DecideAsync(async (decision, token) =>
             {
-                Assert.Throws<InvalidOperationException>(() => writer.EnterOperation());
+                Assert.That(() => writer.ThrowIfDecisionCallbackActive(decision), Throws.InvalidOperationException);
+                otherWriter.ThrowIfDecisionCallbackActive(decision);
                 spawned = Task.Run(async () =>
                 {
-                    Assert.Throws<InvalidOperationException>(() => writer.EnterOperation());
+                    Assert.That(() => writer.ThrowIfDecisionCallbackActive(decision), Throws.InvalidOperationException);
                     rejected.TrySetResult(true);
                     await expired.Task.WaitAsync(token).ConfigureAwait(false);
-                    using LifecycleWriter.OperationLifetime allowed = writer.EnterOperation();
+                    writer.ThrowIfDecisionCallbackActive(decision);
                 }, token);
                 await rejected.Task.WaitAsync(token).ConfigureAwait(false);
             }, timeout.Token).ConfigureAwait(false);
@@ -132,17 +134,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(reservation.IsInCurrentFlow, Is.False);
                 Task<bool>? captured = null;
-                await mutation.DecideAsync(async token =>
+                await mutation.DecideAsync(async (decision, token) =>
                 {
                     entered.TrySetResult(true);
                     Assert.That(await independent.WaitAsync(token).ConfigureAwait(false), Is.False);
-                    Assert.That(reservation.IsInCurrentFlow, Is.True);
+                    Assert.That(reservation.IsInCurrentFlow, Is.False);
+                    Assert.That(reservation.Includes(decision), Is.True);
                     captured = Task.Run(async () =>
                     {
                         await callbackReturned.Task.WaitAsync(token).ConfigureAwait(false);
-                        stillInWindow.TrySetResult(reservation.IsInCurrentFlow);
+                        stillInWindow.TrySetResult(reservation.Includes(decision));
                         await release.Task.WaitAsync(token).ConfigureAwait(false);
-                        return reservation.IsInCurrentFlow;
+                        return reservation.Includes(decision);
                     }, token);
                 }, reservation, timeout.Token).ConfigureAwait(false);
                 Assert.That(reservation.IsInCurrentFlow, Is.False);
@@ -171,7 +174,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             using LifecycleWriter.Mutation.DecisionWindow reservation = mutation.EnterDecisionWindow();
 
-            static ValueTask UnexpectedDecision(CancellationToken _) =>
+            static ValueTask UnexpectedDecision(NodeManagerDecisionContext _, CancellationToken __) =>
                 throw new AssertionException("An invalid reservation must not invoke the durable decision.");
 
             await Assert.ThatAsync(

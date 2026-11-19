@@ -762,16 +762,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         .ConfigureAwait(false);
                     var observed = new Mock<IPreparedChanges>(MockBehavior.Strict);
                     observed.Setup(value => value.CommitAsync(
-                        It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<Action>(),
+                        It.IsAny<Func<CancellationToken, ValueTask>?>(), It.IsAny<Action>(),
                         It.IsAny<CancellationToken>()))
-                        .Returns(async (Func<CancellationToken, ValueTask> decide, Action publish,
+                        .Returns(async (Func<CancellationToken, ValueTask>? decide, Action publish,
                             CancellationToken cancellation) =>
                         {
                             LifecycleResult result = await prepared.CommitAsync(
                                 async decisionToken =>
                                 {
                                     decideAttempt?.Invoke();
-                                    await decide(decisionToken).ConfigureAwait(false);
+                                    if (decide is not null)
+                                    {
+                                        await decide(decisionToken).ConfigureAwait(false);
+                                    }
                                 },
                                 () =>
                                 {

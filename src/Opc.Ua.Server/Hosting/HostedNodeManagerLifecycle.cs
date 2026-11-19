@@ -94,6 +94,15 @@ namespace Opc.Ua.Server.Hosting
             return Current.PrepareAsync(changes, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        public ValueTask<IPreparedChanges> PrepareAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            return Current.PrepareAsync(changes, decisionContext, cancellationToken);
+        }
+
         /// <summary>
         /// Attaches the lifecycle of the server that just started, so injected consumers are
         /// routed to it.

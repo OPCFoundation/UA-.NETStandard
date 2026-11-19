@@ -312,7 +312,6 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            ThrowIfDecisionCallbackActive();
 
             // Signal only: Dispose is synchronous. A drain already running
             // finishes retiring the generations it captured.
@@ -326,7 +325,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void BeginStartup()
         {
-            ThrowIfDecisionCallbackActive();
 
             m_writer.BeginStartup(() =>
             {
@@ -1895,6 +1893,17 @@ namespace Opc.Ua.Server
                 readiness: NodeManagerReadinessScope.Current);
         }
 
+        /// <inheritdoc/>
+        public ValueTask<IPreparedChanges> PrepareAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            ThrowIfDecisionCallbackActive(
+                decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)));
+            return PrepareAsync(changes, cancellationToken);
+        }
+
         /// <summary>
         /// Validates a publication unit and prepares its node managers privately, without publishing them.
         /// </summary>
@@ -2169,14 +2178,12 @@ namespace Opc.Ua.Server
         /// <returns>The committed result, or null for a validation candidate.</returns>
         private async ValueTask<LifecycleResult?> CompleteChangesAsync(
             PreparationPayload batch,
-            Func<CancellationToken, ValueTask>? decideAsync,
+            Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? decideAsync,
             bool validationOnly,
             NodeManagerReadinessScope? readiness,
             Action? publishCommittedState,
             CancellationToken cancellationToken)
         {
-            ThrowIfDecisionCallbackActive();
-
             LifecycleWriter.Mutation mutation =
                 await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
             var retired = new List<RetiredGeneration>();
@@ -2671,7 +2678,7 @@ namespace Opc.Ua.Server
                 NodeManagerLifecycle owner,
                 PreparationPayload batch,
                 LifecycleWriter.Mutation mutation,
-                Func<CancellationToken, ValueTask>? decideAsync,
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? decideAsync,
                 bool validationOnly,
                 Dictionary<Guid, RegistrationState> registrations,
                 List<RetiredGeneration> retired,
@@ -2815,7 +2822,7 @@ namespace Opc.Ua.Server
             private readonly LifecycleWriter.Mutation m_mutation;
 
             /// <summary>The external durable decision.</summary>
-            private readonly Func<CancellationToken, ValueTask>? m_decideAsync;
+            private readonly Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? m_decideAsync;
 
             /// <summary>The prepared registration map.</summary>
             private readonly Dictionary<Guid, RegistrationState> m_registrations;
@@ -2833,9 +2840,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects lifecycle re-entry from the durable decision callback.
         /// </summary>
-        private void ThrowIfDecisionCallbackActive()
+        private void ThrowIfDecisionCallbackActive(NodeManagerDecisionContext context)
         {
-            m_writer.ThrowIfDecisionCallbackActive();
+            m_writer.ThrowIfDecisionCallbackActive(context);
         }
 
         /// <summary>
@@ -3619,7 +3626,8 @@ namespace Opc.Ua.Server
                 Func<CancellationToken, ValueTask>? decideAsync = null,
                 CancellationToken cancellationToken = default)
             {
-                return CommitCoreAsync(decideAsync, null, cancellationToken);
+                return CommitCoreAsync(
+                    decideAsync is null ? null : (_, token) => decideAsync(token), null, null, cancellationToken);
             }
 
             /// <inheritdoc/>
@@ -3629,18 +3637,55 @@ namespace Opc.Ua.Server
                 CancellationToken cancellationToken = default)
             {
                 return CommitCoreAsync(
-                    decideAsync,
+                    decideAsync is null ? null : (_, token) => decideAsync(token),
                     publishCommittedState ?? throw new ArgumentNullException(nameof(publishCommittedState)),
+                    null,
                     cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<LifecycleResult> CommitWithDecisionAsync(
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask> decideAsync,
+                Action? publishCommittedState = null,
+                CancellationToken cancellationToken = default)
+            {
+                return CommitCoreAsync(
+                    decideAsync ?? throw new ArgumentNullException(nameof(decideAsync)),
+                    publishCommittedState,
+                    null,
+                    cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<LifecycleResult> CommitInMemoryAsync(
+                NodeManagerDecisionContext decisionContext,
+                CancellationToken cancellationToken)
+            {
+                return CommitCoreAsync(null, null,
+                    decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)), cancellationToken);
             }
 
             /// <inheritdoc/>
             public ValueTask DisposeAsync()
             {
+                return DisposeCoreAsync(null);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask DisposeAsync(NodeManagerDecisionContext decisionContext)
+            {
+                return DisposeCoreAsync(decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)));
+            }
+
+            private ValueTask DisposeCoreAsync(NodeManagerDecisionContext? decisionContext)
+            {
                 PreparationPayload payload;
                 lock (m_state)
                 {
-                    m_payload?.Owner.ThrowIfDecisionCallbackActive();
+                    if (decisionContext is not null)
+                    {
+                        m_payload?.Owner.ThrowIfDecisionCallbackActive(decisionContext);
+                    }
                     if (m_consumed)
                     {
                         return new ValueTask(m_finished.Task);
@@ -3710,7 +3755,6 @@ namespace Opc.Ua.Server
                 lock (m_state)
                 {
                     PreparationPayload payload = GetOpenPayload();
-                    payload.Owner.ThrowIfDecisionCallbackActive();
                     if (metadata.Owner is not { } owner ||
                         !NodeManagerGenerationRegistry.TryGet(owner, out NodeManagerGeneration? generation) ||
                         generation is null ||
@@ -3764,15 +3808,19 @@ namespace Opc.Ua.Server
             /// This is a validation-only candidate, or its preparation is no longer open.
             /// </exception>
             private ValueTask<LifecycleResult> CommitCoreAsync(
-                Func<CancellationToken, ValueTask>? decideAsync,
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? decideAsync,
                 Action? publishCommittedState,
+                NodeManagerDecisionContext? decisionContext,
                 CancellationToken cancellationToken)
             {
                 PreparationPayload payload;
                 TaskCompletionSource<LifecycleResult> commitCompletion;
                 lock (m_state)
                 {
-                    m_payload?.Owner.ThrowIfDecisionCallbackActive();
+                    if (decisionContext is not null)
+                    {
+                        m_payload?.Owner.ThrowIfDecisionCallbackActive(decisionContext);
+                    }
                     if (m_validationOnly)
                     {
                         throw new InvalidOperationException("A validation candidate cannot be committed.");
@@ -3805,7 +3853,7 @@ namespace Opc.Ua.Server
                 Justification = "The caught publication failure faults the commit completion, not this helper task.")]
             private async Task CompleteAsync(
                 PreparationPayload payload,
-                Func<CancellationToken, ValueTask>? decideAsync,
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? decideAsync,
                 Action? publishCommittedState,
                 CancellationToken cancellationToken)
             {

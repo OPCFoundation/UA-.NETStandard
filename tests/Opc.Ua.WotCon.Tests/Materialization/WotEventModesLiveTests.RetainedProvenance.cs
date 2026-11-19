@@ -283,6 +283,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .Returns((Func<CancellationToken, ValueTask> decide, Action publish,
                     CancellationToken cancellation) =>
                     ObserveCommitAsync(prepared.CommitAsync(decide, publish, cancellation), committed));
+            observed.Setup(owner => owner.CommitWithDecisionAsync(
+                It.IsAny<Func<NodeManagerDecisionContext, CancellationToken, ValueTask>>(),
+                It.IsAny<Action?>(), It.IsAny<CancellationToken>()))
+                .Returns((Func<NodeManagerDecisionContext, CancellationToken, ValueTask> decide,
+                    Action? publish, CancellationToken cancellation) =>
+                    ObserveCommitAsync(prepared.CommitWithDecisionAsync(decide, publish, cancellation), committed));
             observed.Setup(owner => owner.DisposeAsync()).Returns(() => prepared.DisposeAsync());
             return observed.Object;
         }

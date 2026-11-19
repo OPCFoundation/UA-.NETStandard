@@ -75,7 +75,6 @@ namespace Opc.Ua.Server
         /// </exception>
         internal void EnsureRunning()
         {
-            ThrowIfDecisionCallbackActive();
             if (m_disposed)
             {
                 throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
@@ -107,7 +106,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void BeginStartup(Action reset)
         {
-            ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 if (m_disposed)
@@ -135,7 +133,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal OperationLifetime EnterOperation()
         {
-            ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 EnsureRunning();
@@ -150,7 +147,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal async ValueTask<Mutation> BeginMutationAsync(CancellationToken cancellationToken)
         {
-            ThrowIfDecisionCallbackActive();
             await m_mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
             return new Mutation(this);
         }
@@ -160,7 +156,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal PublicationSession BeginPublication(PublicationRevision revision)
         {
-            ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 EnsureRunning();
@@ -178,7 +173,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal ValueTask<Task> BeginShutdownAsync(CancellationToken cancellationToken)
         {
-            ThrowIfDecisionCallbackActive();
             cancellationToken.ThrowIfCancellationRequested();
             lock (m_state)
             {
@@ -223,7 +217,6 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 m_disposed = true;
@@ -233,11 +226,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rejects lifecycle entry from an active decision, including execution contexts spawned by it.
+        /// Rejects lifecycle entry from this writer's active decision.
         /// </summary>
-        internal void ThrowIfDecisionCallbackActive()
+        internal void ThrowIfDecisionCallbackActive(NodeManagerDecisionContext context)
         {
-            if (m_decision.Value is { IsActive: true })
+            if (context.WriterId == m_decisionIdentity && context.IsActive)
             {
                 throw new InvalidOperationException(
                     "NodeManager lifecycle operations cannot be started from the durable decision callback.");
@@ -425,12 +418,11 @@ namespace Opc.Ua.Server
             /// </summary>
             internal DecisionWindow EnterDecisionWindow()
             {
-                owner.ThrowIfDecisionCallbackActive();
                 if (!m_held)
                 {
                     throw new InvalidOperationException("The durable decision requires mutation ownership.");
                 }
-                var scope = new DecisionScope();
+                var scope = new NodeManagerDecisionContext(owner.m_decisionIdentity);
                 if (Interlocked.CompareExchange(ref m_activeDecision, scope, null) is not null)
                 {
                     throw new InvalidOperationException("The mutation already has a durable decision window.");
@@ -442,7 +434,7 @@ namespace Opc.Ua.Server
             /// Invokes the sole callback allowed under mutation ownership.
             /// </summary>
             internal ValueTask DecideAsync(
-                Func<CancellationToken, ValueTask> callback,
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask> callback,
                 CancellationToken cancellationToken)
             {
                 return DecideAsync(callback, null, cancellationToken);
@@ -452,23 +444,21 @@ namespace Opc.Ua.Server
             /// Executes the decision using the host's reservation, or owns a local reservation if there is no host.
             /// </summary>
             internal async ValueTask DecideAsync(
-                Func<CancellationToken, ValueTask> callback,
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask> callback,
                 DecisionWindow? reservation,
                 CancellationToken cancellationToken)
             {
-                owner.ThrowIfDecisionCallbackActive();
                 if (!m_held)
                 {
                     throw new InvalidOperationException("The durable decision requires mutation ownership.");
                 }
                 using DecisionWindow? local = reservation is null ? EnterDecisionWindow() : null;
                 DecisionWindow window = reservation ?? local!;
-                DecisionScope scope = window.GetScope(this);
-                using DecisionWindow.CallbackFlow flow = window.EnterCallbackFlow();
+                NodeManagerDecisionContext scope = window.GetScope(this);
                 scope.Activate();
                 try
                 {
-                    await callback(cancellationToken).ConfigureAwait(false);
+                    await callback(scope, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -504,8 +494,8 @@ namespace Opc.Ua.Server
                 }
             }
 
-            /// <summary>The exact decision for this mutation, cleared when the callback exits.</summary>
-            private DecisionScope? m_activeDecision;
+            /// <summary>The exact reservation for this mutation, cleared on release.</summary>
+            private NodeManagerDecisionContext? m_activeDecision;
 
             /// <summary>Whether this owner currently holds mutation admission.</summary>
             private bool m_held = true;
@@ -516,13 +506,21 @@ namespace Opc.Ua.Server
             internal sealed class DecisionWindow(
                 Mutation mutation,
                 LifecycleWriter writer,
-                DecisionScope scope) : IDisposable
+                NodeManagerDecisionContext scope) : IDisposable
             {
+                /// <summary>
+                /// Determines whether the explicit context identifies this open reservation.
+                /// </summary>
+                internal bool Includes(NodeManagerDecisionContext context)
+                {
+                    return ReferenceEquals(scope, context) && scope.IsOpen;
+                }
+
                 /// <summary>
                 /// Identifies re-entry from this reservation's current flow.
                 /// </summary>
                 internal bool IsInCurrentFlow =>
-                    scope.IsOpen && ReferenceEquals(writer.m_decision.Value, scope);
+                    scope.IsOpen && ReferenceEquals(writer.m_namespaceGetter.Value, scope);
 
                 /// <summary>
                 /// Adapts a callback that cannot receive a reservation. The bound marker carries no
@@ -534,15 +532,15 @@ namespace Opc.Ua.Server
                     {
                         throw new InvalidOperationException("The publication reservation has already closed.");
                     }
-                    var flow = new CallbackFlow(writer, writer.m_decision.Value);
-                    writer.m_decision.Value = scope;
+                    var flow = new CallbackFlow(writer, writer.m_namespaceGetter.Value);
+                    writer.m_namespaceGetter.Value = scope;
                     return flow;
                 }
 
                 /// <summary>
                 /// Requires the live reservation owned by this exact mutation.
                 /// </summary>
-                internal DecisionScope GetScope(Mutation expected)
+                internal NodeManagerDecisionContext GetScope(Mutation expected)
                 {
                     if (!scope.IsOpen || !ReferenceEquals(mutation, expected))
                     {
@@ -565,12 +563,13 @@ namespace Opc.Ua.Server
                 /// <summary>
                 /// Restores the caller's context after invoking a callback.
                 /// </summary>
-                internal readonly struct CallbackFlow(LifecycleWriter writer, DecisionScope? previous) : IDisposable
+                internal readonly struct CallbackFlow(
+                    LifecycleWriter writer, NodeManagerDecisionContext? previous) : IDisposable
                 {
                     /// <inheritdoc/>
                     public void Dispose()
                     {
-                        writer.m_decision.Value = previous;
+                        writer.m_namespaceGetter.Value = previous;
                     }
                 }
             }
@@ -676,7 +675,6 @@ namespace Opc.Ua.Server
                 lock (m_state)
                 {
                     LifecycleWriter owner = Revision.Owner;
-                    owner.ThrowIfDecisionCallbackActive();
                     owner.EnsureRunning();
                     if (m_closing)
                     {
@@ -745,7 +743,6 @@ namespace Opc.Ua.Server
                 bool ownsDisposal;
                 lock (m_state)
                 {
-                    m_revision?.Owner.ThrowIfDecisionCallbackActive();
                     ownsDisposal = !m_closing;
                     m_closing = true;
                     prepared = m_prepared?.Task;
@@ -876,7 +873,6 @@ namespace Opc.Ua.Server
                 lock (owner.m_state)
                 {
                     Validate(owner);
-                    owner.ThrowIfDecisionCallbackActive();
                     owner.m_activeOperations++;
                     return new OperationLifetime(owner);
                 }
@@ -908,52 +904,6 @@ namespace Opc.Ua.Server
             private int m_disposed;
         }
 
-        /// <summary>
-        /// Shared decision state expires even in execution contexts spawned by the callback.
-        /// </summary>
-        internal sealed class DecisionScope
-        {
-            /// <summary>
-            /// Gets whether the host has not yet released its reservations.
-            /// </summary>
-            internal bool IsOpen => Volatile.Read(ref m_open) != 0;
-
-            /// <summary>
-            /// Gets whether the decision is still executing.
-            /// </summary>
-            internal bool IsActive => Volatile.Read(ref m_active) != 0;
-
-            /// <summary>
-            /// Marks the callback active until it returns.
-            /// </summary>
-            internal void Activate()
-            {
-                if (Interlocked.CompareExchange(ref m_active, 1, 0) != 0)
-                {
-                    throw new InvalidOperationException("The durable decision callback is already active.");
-                }
-            }
-
-            /// <summary>
-            /// Expires this decision in every captured execution context.
-            /// </summary>
-            internal void Deactivate()
-            {
-                Volatile.Write(ref m_active, 0);
-            }
-
-            /// <summary>
-            /// Expires the host reservation marker in every captured context.
-            /// </summary>
-            internal bool Close() => Interlocked.Exchange(ref m_open, 0) != 0;
-
-            /// <summary>Decision activity shared across execution contexts.</summary>
-            private int m_active;
-
-            /// <summary>Host reservation marker shared across execution contexts.</summary>
-            private int m_open = 1;
-        }
-
         /// <summary>Checks whether independent cleanup still requires shutdown synchronization.</summary>
         private readonly Func<bool> m_canDispose;
 
@@ -966,8 +916,11 @@ namespace Opc.Ua.Server
         /// <summary>Protects operation and invocation admission.</summary>
         private readonly Lock m_state = new();
 
-        /// <summary>Active durable decision in the current execution context.</summary>
-        private readonly AsyncLocal<DecisionScope?> m_decision = new();
+        /// <summary>The adapter for context-free namespace getters.</summary>
+        private readonly AsyncLocal<NodeManagerDecisionContext?> m_namespaceGetter = new();
+
+        /// <summary>Identifies this writer without retaining it in a callback context.</summary>
+        private readonly Guid m_decisionIdentity = Guid.NewGuid();
 
         /// <summary>Completion of outstanding operations after shutdown admission.</summary>
         private TaskCompletionSource<bool>? m_operationsDrained;

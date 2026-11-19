@@ -253,7 +253,7 @@ namespace Opc.Ua.Server
             {
                 await using var lifetime = batch.ConfigureAwait(false);
                 return await batch.CommitAsync(
-                    static _ => default,
+                    decideAsync: null,
                     () => m_published.TrySetResult(true),
                     cancellationToken).ConfigureAwait(false);
             }

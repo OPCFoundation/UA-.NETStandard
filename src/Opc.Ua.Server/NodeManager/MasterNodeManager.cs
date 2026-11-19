@@ -1326,7 +1326,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
-            ThrowIfNamespaceRegistrationFromDecision(serving: false);
             IAsyncNodeManager? preparingNodeManager =
                 GetPreparingNodeManager(nodeManager);
             ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(preparingNodeManager ?? nodeManager);
@@ -1337,7 +1336,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            ThrowIfNamespaceRegistrationFromDecision();
+            ThrowIfNamespaceRegistrationFromGetter();
             ChangeNamespaceRegistration(
                 namespaceUri, preparingNodeManager ?? nodeManager,
                 register: true, visible: preparingNodeManager is null);
@@ -1372,7 +1371,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
-            ThrowIfNamespaceRegistrationFromDecision(serving: false);
             IAsyncNodeManager candidate = asyncNodeManager ?? nodeManager!.ToAsyncNodeManager();
             ChangePreparer.StagingServer? staging =
                 ChangePreparer.GetServer(GetPreparingNodeManager(candidate) ?? candidate);
@@ -1381,7 +1379,7 @@ namespace Opc.Ua.Server
                 return staging.UnstageNamespaceRegistration(namespaceUri);
             }
 
-            ThrowIfNamespaceRegistrationFromDecision();
+            ThrowIfNamespaceRegistrationFromGetter();
             return ChangeNamespaceRegistration(namespaceUri, candidate, register: false, visible: true);
         }
 
@@ -1746,7 +1744,6 @@ namespace Opc.Ua.Server
         private async ValueTask<INodeManagerBatchAdmission> AcquireDynamicMutationAdmissionAsync(
             CancellationToken cancellationToken)
         {
-            ThrowIfNodeManagementFromDecision();
             NodeManagerCallbackPermit? callbackPermit = CaptureLifecycleCallbackPermit();
             while (true)
             {
@@ -1775,7 +1772,6 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">The cancellation token for the waiting service operation.</param>
         private async ValueTask WaitForLifecycleDecisionAsync(CancellationToken cancellationToken)
         {
-            ThrowIfNodeManagementFromDecision();
             while (Volatile.Read(ref m_lifecycleDecisionWindow)?.Completion.Task is { } pending)
             {
                 await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -1811,16 +1807,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rejects namespace mutation from a durable decision and serving mutation from publication callbacks.
+        /// Rejects serving namespace mutation from a legacy namespace getter.
         /// </summary>
-        private void ThrowIfNamespaceRegistrationFromDecision(bool serving = true)
+        private void ThrowIfNamespaceRegistrationFromGetter()
         {
-            if (IsInLifecycleDecisionWindow())
-            {
-                throw new InvalidOperationException(
-                    "Namespace registration cannot change serving routes from the durable decision callback.");
-            }
-            if (serving && Volatile.Read(ref m_namespacePublicationOwner)?.IsInCurrentFlow == true)
+            if (Volatile.Read(ref m_namespacePublicationOwner)?.IsInCurrentFlow == true)
             {
                 throw new InvalidOperationException(
                     "Namespace registration cannot change serving routes from a lifecycle publication callback.");
@@ -1828,26 +1819,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rejects node-management re-entry from the durable decision callback that is waiting for completion.
+        /// Rejects address-space mutation from the exact decision whose reservation it would wait for.
         /// </summary>
-        private void ThrowIfNodeManagementFromDecision()
+        internal void ThrowIfDecisionReservesAddressSpace(NodeManagerDecisionContext? context)
         {
-            ThrowIfNodeManagementFromDecision(IsInLifecycleDecisionWindow());
-        }
-
-        /// <summary>
-        /// Checks the decision owner for the active host window without creating another ambient scope.
-        /// </summary>
-        private bool IsInLifecycleDecisionWindow() =>
-            Volatile.Read(ref m_lifecycleDecisionWindow)?.Reservation.IsInCurrentFlow == true;
-
-        private static void ThrowIfNodeManagementFromDecision(bool isLifecycleDecision)
-        {
-            if (isLifecycleDecision)
+            if (IsDecisionReservingAddressSpace(context))
             {
                 throw new InvalidOperationException(
-                    "Node management cannot modify serving routes from the durable decision callback.");
+                    "The address space cannot change from the durable decision callback.");
             }
+        }
+
+        private bool IsDecisionReservingAddressSpace(NodeManagerDecisionContext? context)
+        {
+            return context is not null &&
+                Volatile.Read(ref m_lifecycleDecisionWindow)?.Reservation.Includes(context) == true;
         }
 
         /// <summary>

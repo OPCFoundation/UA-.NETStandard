@@ -435,19 +435,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     m_imagesBound = true;
                 }
-                LifecycleResult result = await batch.CommitAsync(
-                    decideAsync,
-                    () =>
-                    {
-                        for (int i = 0; i < runtimePublications.Count; i++)
-                        {
-                            runtimePublications[i].Publish(Projections[i].Generation);
-                        }
-                        publishCommittedState();
-                    },
-                    cancellationToken).ConfigureAwait(false);
+                LifecycleResult result = decideAsync is null
+                    ? await batch.CommitAsync(null, Publish, cancellationToken).ConfigureAwait(false)
+                    : await batch.CommitWithDecisionAsync(
+                        (_, token) => decideAsync(token), Publish, cancellationToken).ConfigureAwait(false);
                 Result = result;
                 CleanupFailure = result.CleanupFailure;
+
+                void Publish()
+                {
+                    for (int i = 0; i < runtimePublications.Count; i++)
+                    {
+                        runtimePublications[i].Publish(Projections[i].Generation);
+                    }
+                    publishCommittedState();
+                }
             }
 
             public async ValueTask DisposeAsync()

@@ -184,13 +184,12 @@ namespace Opc.Ua.Server
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken)
         {
-            bool isLifecycleDecision = IsInLifecycleDecisionWindow();
-            if (isLifecycleDecision &&
+            if (IsDecisionReservingAddressSpace(context.PublicationDecision) &&
                 TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var decisionResponse))
             {
                 return decisionResponse;
             }
-            ThrowIfNodeManagementFromDecision(isLifecycleDecision);
+            ThrowIfDecisionReservesAddressSpace(context.PublicationDecision);
             if (HasActiveCallbackPermit(
                     CaptureLifecycleCallbackPermit(),
                     NodeManagerAdmissionCapability.AddressSpaceMutation) ||
@@ -316,6 +315,7 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteNodesItem> nodesToDelete,
                 CancellationToken cancellationToken = default)
         {
+            ThrowIfDecisionReservesAddressSpace(context.PublicationDecision);
             using INodeManagerBatchAdmission mutationAdmission = await AcquireDynamicMutationAdmissionAsync(
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -384,6 +384,7 @@ namespace Opc.Ua.Server
                 ArrayOf<AddReferencesItem> referencesToAdd,
                 CancellationToken cancellationToken = default)
         {
+            ThrowIfDecisionReservesAddressSpace(context.PublicationDecision);
             await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
             using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
@@ -434,6 +435,7 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteReferencesItem> referencesToDelete,
                 CancellationToken cancellationToken = default)
         {
+            ThrowIfDecisionReservesAddressSpace(context.PublicationDecision);
             await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
             using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 

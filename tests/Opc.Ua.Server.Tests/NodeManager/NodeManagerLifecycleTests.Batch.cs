@@ -1342,7 +1342,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
                 ]).ConfigureAwait(false);
 
-            await prepared.CommitAsync(async _ =>
+            await prepared.CommitWithDecisionAsync(async (decision, token) =>
             {
                 await Task.Run(async () =>
                 {
@@ -1352,18 +1352,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await lifecycle.PrepareAsync([
                                 LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                                     CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
-                            ], timeout.Token).ConfigureAwait(false);
+                            ], decision, timeout.Token).ConfigureAwait(false);
                     }).ConfigureAwait(false);
 
                     await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     {
-                        await nestedCommit.CommitAsync(_ => default).ConfigureAwait(false);
+                        await nestedCommit.CommitInMemoryAsync(decision, timeout.Token).ConfigureAwait(false);
                     }).ConfigureAwait(false);
                     await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     {
-                        await nestedCommit.DisposeAsync().ConfigureAwait(false);
+                        await nestedCommit.DisposeAsync(decision).ConfigureAwait(false);
                     }).ConfigureAwait(false);
-                }, _).ConfigureAwait(false);
+                }, token).ConfigureAwait(false);
             }).ConfigureAwait(false);
             Assert.That(prepared.IsCommitted, Is.True);
             Assert.That(GetBranchRegistrations().Count, Is.EqualTo(1));

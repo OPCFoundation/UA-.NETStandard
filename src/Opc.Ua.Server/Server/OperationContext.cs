@@ -236,6 +236,11 @@ namespace Opc.Ua.Server
         internal NodeManagerReadinessScope? Readiness { get; set; }
 
         /// <summary>
+        /// Identifies a local durable decision when its callback invokes node management.
+        /// </summary>
+        public NodeManagerDecisionContext? PublicationDecision { get; init; }
+
+        /// <summary>
         /// Gets whether this operation currently owns a routing-view pin.
         /// </summary>
         internal bool HasRoutingPin =>

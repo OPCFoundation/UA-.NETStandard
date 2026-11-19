@@ -1051,6 +1051,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public ValueTask<IPreparedChanges> PrepareAsync(
                 ArrayOf<LifecycleChange> changes,
+                NodeManagerDecisionContext decisionContext,
+                CancellationToken cancellationToken)
+            {
+                ValueTask<IPreparedChanges> pending = inner.PrepareAsync(changes, decisionContext, cancellationToken);
+                preparationQueued.TrySetResult(true);
+                return pending;
+            }
+
+            public ValueTask<IPreparedChanges> PrepareAsync(
+                ArrayOf<LifecycleChange> changes,
                 CancellationToken cancellationToken = default)
             {
                 ValueTask<IPreparedChanges> pending = inner.PrepareAsync(changes, cancellationToken);

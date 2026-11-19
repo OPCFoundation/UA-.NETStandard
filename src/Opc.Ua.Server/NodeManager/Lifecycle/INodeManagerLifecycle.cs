@@ -36,7 +36,8 @@ namespace Opc.Ua.Server
     /// Prepares and publishes transactions over stable NodeManager slots.
     /// </summary>
     /// <remarks>
-    /// Prepare an addition, replacement, removal, or batch with <see cref="PrepareAsync"/>, then commit
+    /// Prepare an addition, replacement, removal, or batch with
+    /// <see cref="PrepareAsync(ArrayOf{LifecycleChange}, CancellationToken)"/>, then commit
     /// the returned owner. Commit waits through reconciliation and readiness, but not generation drain.
     /// Its result describes the authoritative published revision, registrations, slots, post-commit
     /// failures, and asynchronous retirement. Dispose an uncommitted owner to release its candidates.
@@ -86,5 +87,17 @@ namespace Opc.Ua.Server
         ValueTask<IPreparedChanges> PrepareAsync(
             ArrayOf<LifecycleChange> changes,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Prepares changes requested by a durable decision, rejecting re-entry into that decision's lifecycle.
+        /// </summary>
+        /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
+        /// <param name="decisionContext">The context supplied to the durable decision.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared changes.</returns>
+        ValueTask<IPreparedChanges> PrepareAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken);
     }
 }

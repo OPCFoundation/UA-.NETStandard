@@ -1018,7 +1018,7 @@ Request routing remains owned by the explicit `OperationContext` view.
 
 | Scope | Purpose and expiration | Retained state |
 | --- | --- | --- |
-| `LifecycleWriter` publication scope | The host passes the exact reservation to the writer. Context-free routing getters and the durable decision bind a marker for their callback flows. The marker rejects self-waits on the reservation until it closes; nested lifecycle operations are rejected during the decision callback. Independent callers can still publish unrelated aliases or wait for a conflict. | A callback activity flag and a reservation flag; no manager or generation |
+| Legacy namespace getter | The writer binds a marker around context-free routing getters. It rejects serving namespace changes that would wait on the getter's own reservation. | A revocable marker; no manager or generation |
 | `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears its server and generation. Normal unwinding preserves access to a still-active parent; out-of-order disposal severs the parent link. | Server and generation references only while active |
 | Legacy node-management and session-close callback scope | Supplies a permit to context-free calls from the released callbacks. The permit itself is explicit: disposal rejects new borrows and drains existing borrows before the callback releases host admission. | Capability flags, borrow accounting and the preceding permit; no manager or generation |
 | Legacy virtual handle lookup | Passes the pinned view and the request's readiness admission to the released context-free override, including when it calls `base`. Return, failure and cancellation clear both. | The pinned view and the revocable readiness scope only during the override |
@@ -1223,7 +1223,12 @@ the callback or request whose own view or generation admission must drain.
 Service, Method, event-source, session, and hosted-service callbacks use the same context-free
 transaction members and ordinary factories; no callback opt-in or request exclusion is needed.
 No explicit `OperationContext` is passed to lifecycle preparation or publication admission.
-Nested lifecycle mutations from the durable decision callback are rejected.
+Durable decisions that call back into the host use `CommitWithDecisionAsync` and pass the supplied
+`NodeManagerDecisionContext`. Use the context-taking lifecycle and namespace operations, or set
+`OperationContext.PublicationDecision` for local node management. The context rejects re-entry
+against its own writer or reservation and does not change ordinary admission on another host.
+Context-free decision delegates are for persistence only; do not re-enter through a captured host
+or lifecycle without the supplied context.
 
 Node-management and session-closing callbacks retain their host mutation admission while they
 execute. Session closing acquires address-space and server-lifecycle admission together before
@@ -1928,9 +1933,8 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
 - Before the durable decision callback runs, the batch reserves the serving routing revision.
   The host passes that exact reservation to the lifecycle writer when it starts the decision.
   A closed reservation or one from a different mutation cannot start the callback.
-  Opening the reservation does not mark its caller as a callback. The compatibility marker is
-  bound when invoking context-free routing getters or the decision callback, and expires when
-  the reservation closes.
+  The decision context is explicit. Only the context-free namespace getter uses an
+  execution-context adapter. Both identify the exact reservation and expire when it closes.
   Public namespace registration and unregistration from other flows proceed during a pending decision
   when their namespace and manager lifetime are unrelated to the batch. Those mutations update the
   serving routes immediately and are mirrored only into that exact reserved successor, preserving
