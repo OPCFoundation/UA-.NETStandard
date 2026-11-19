@@ -1034,6 +1034,11 @@ the exact server. Dispatch checks that scope for the exact pending generation se
 request's pinned view. An unbound request cannot inherit readiness at dispatch, and a pin does
 not extend the readiness scope.
 
+`INodeManagerReadinessInitializer` receives a `NodeManagerReadinessContext` explicitly, including
+through a supported manager adapter. Use `ReadAsync` on that context for an authenticated local
+read of pending nodes, or `PublishAsync` for dependent lifecycle changes. Neither method grants
+admission to a different server. The lifecycle revokes admission when initialization ends.
+
 When an intermediate readiness scope is disposed while a descendant remains active,
 it clears its link to the grandparent. The descendant cannot reach the grandparent's
 generation through that scope. It retains authority for its own server and generation,

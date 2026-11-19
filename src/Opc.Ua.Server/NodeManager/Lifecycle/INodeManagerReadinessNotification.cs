@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -66,6 +67,77 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Initializes a published generation using explicit, revocable readiness admission.
+    /// </summary>
+    public interface INodeManagerReadinessInitializer
+    {
+        /// <summary>
+        /// Completes initialization before ordinary requests can dispatch to this generation.
+        /// </summary>
+        /// <param name="readiness">The capability for the exact server and generation.</param>
+        /// <param name="cancellationToken">The host's readiness cancellation token.</param>
+        ValueTask OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Carries readiness admission without selecting or retaining a request routing image.
+    /// </summary>
+    public sealed class NodeManagerReadinessContext
+    {
+        internal NodeManagerReadinessContext(NodeManagerReadinessScope scope)
+        {
+            Scope = scope;
+        }
+
+        /// <summary>
+        /// Reads nodes through the normal server request path, including the initializer's pending generation.
+        /// </summary>
+        /// <param name="server">The local server receiving the read.</param>
+        /// <param name="channel">The channel on which the session was authenticated.</param>
+        /// <param name="header">The local request header.</param>
+        /// <param name="maxAge">The maximum acceptable cache age, in milliseconds.</param>
+        /// <param name="timestampsToReturn">The timestamps requested by the caller.</param>
+        /// <param name="nodes">The node attributes to read.</param>
+        /// <param name="requestLifetime">The lifetime of the read request.</param>
+        /// <returns>The read response.</returns>
+        public ValueTask<ReadResponse> ReadAsync(
+            StandardServer server,
+            SecureChannelContext channel,
+            RequestHeader header,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodes,
+            RequestLifetime requestLifetime)
+        {
+            return (server ?? throw new ArgumentNullException(nameof(server))).ReadWithReadinessAsync(
+                channel, header, maxAge, timestampsToReturn, nodes, requestLifetime, Scope);
+        }
+
+        /// <summary>
+        /// Publishes dependent changes while the initializer is still active.
+        /// </summary>
+        /// <param name="server">The local server that owns the dependent changes.</param>
+        /// <param name="changes">The additions, replacements, or retirements to publish.</param>
+        /// <param name="cancellationToken">Cancels before the publication commits.</param>
+        /// <returns>The committed publication result.</returns>
+        public ValueTask<LifecycleResult> PublishAsync(
+            StandardServer server,
+            ArrayOf<LifecycleChange> changes,
+            CancellationToken cancellationToken)
+        {
+            return (server ?? throw new ArgumentNullException(nameof(server))).PublishWithReadinessAsync(
+                changes, Scope, cancellationToken);
+        }
+
+        /// <summary>
+        /// Gets the scope that the lifecycle revokes on return, failure, or cancellation.
+        /// </summary>
+        internal NodeManagerReadinessScope Scope { get; }
+    }
+
+    /// <summary>
     /// Readiness participation helpers for adapted and directly implemented managers.
     /// </summary>
     internal static class NodeManagerReadiness
@@ -80,7 +152,22 @@ namespace Opc.Ua.Server
             return nodeManager switch
             {
                 AsyncNodeManagerAdapter adapter => adapter.HasReadinessParticipant,
-                _ => nodeManager is INodeManagerReadinessNotification
+                _ => nodeManager is INodeManagerReadinessInitializer or INodeManagerReadinessNotification
+            };
+        }
+
+        /// <summary>
+        /// Finds the actual initializer, not an adapter that exposes an optional callback.
+        /// </summary>
+        internal static INodeManagerReadinessInitializer? FindInitializer(IAsyncNodeManager nodeManager)
+        {
+            return nodeManager switch
+            {
+                AsyncNodeManagerAdapter { SyncNodeManager: SyncNodeManagerAdapter sync } =>
+                    FindInitializer(sync.AsyncNodeManager),
+                AsyncNodeManagerAdapter adapter => adapter.SyncNodeManager as INodeManagerReadinessInitializer,
+                INodeManagerReadinessInitializer initializer => initializer,
+                _ => null
             };
         }
     }

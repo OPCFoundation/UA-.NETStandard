@@ -40,7 +40,8 @@ namespace Opc.Ua.Server.Network
     /// <summary>
     /// Projects provider snapshots into the standard Part 22 Resources model.
     /// </summary>
-    public sealed partial class NetworkModelNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
+    public sealed partial class NetworkModelNodeManager :
+        AsyncCustomNodeManager, INodeManagerReadinessNotification, INodeManagerReadinessInitializer
     {
         /// <summary>
         /// Namespace URI used for application-owned network instances.
@@ -94,6 +95,14 @@ namespace Opc.Ua.Server.Network
                 NetworkModelNodeManagerLog.ProviderReadFailed(m_networkLogger, exception);
                 await MarkUnavailableAsync(ProviderFailureStatus(exception), cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessInitializer.OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return OnServerReadyAsync(cancellationToken);
         }
 
         /// <summary>

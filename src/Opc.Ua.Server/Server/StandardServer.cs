@@ -164,6 +164,17 @@ namespace Opc.Ua.Server
         public INodeManagerLifecycle NodeManagerLifecycle => m_nodeManagerLifecycle;
 
         /// <summary>
+        /// Publishes dependent changes from an initializer on this server.
+        /// </summary>
+        internal ValueTask<LifecycleResult> PublishWithReadinessAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerReadinessScope readiness,
+            CancellationToken cancellationToken)
+        {
+            return m_nodeManagerLifecycle.PublishWithReadinessAsync(changes, readiness, cancellationToken);
+        }
+
+        /// <summary>
         /// Gets or sets the factory that every <see cref="AsyncCustomNodeManager"/>
         /// this server hosts mints runtime NodeIds with.
         /// </summary>
@@ -2260,7 +2271,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override async ValueTask<ReadResponse> ReadAsync(
+        public override ValueTask<ReadResponse> ReadAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader? requestHeader,
             double maxAge,
@@ -2268,11 +2279,28 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             RequestLifetime requestLifetime)
         {
+            return ReadWithReadinessAsync(secureChannelContext, requestHeader, maxAge, timestampsToReturn,
+                nodesToRead, requestLifetime, NodeManagerReadinessScope.Current);
+        }
+
+        /// <summary>
+        /// Runs the standard read path with explicitly supplied readiness admission.
+        /// </summary>
+        internal async ValueTask<ReadResponse> ReadWithReadinessAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader? requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodesToRead,
+            RequestLifetime requestLifetime,
+            NodeManagerReadinessScope? readiness)
+        {
             using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Read,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                readiness).ConfigureAwait(false);
 
             try
             {
@@ -3614,16 +3642,29 @@ namespace Opc.Ua.Server
         /// <param name="requestType">Type of the request.</param>
         /// <param name="requestLifetime">The request lifetime.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected async ValueTask<OperationContext> ValidateRequestAsync(
+        protected ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             [NotNull] RequestHeader? requestHeader,
             RequestType requestType,
             RequestLifetime requestLifetime)
         {
+            return ValidateRequestAsync(
+                secureChannelContext, requestHeader, requestType, requestLifetime, NodeManagerReadinessScope.Current);
+        }
+
+        /// <summary>
+        /// Validates the session and pins its request independently of initializer admission.
+        /// </summary>
+        private async ValueTask<OperationContext> ValidateRequestAsync(
+            SecureChannelContext secureChannelContext,
+            [NotNull] RequestHeader? requestHeader,
+            RequestType requestType,
+            RequestLifetime requestLifetime,
+            NodeManagerReadinessScope? readiness)
+        {
             base.ValidateRequest(requestHeader);
 
             ServerInternalData? serverInternal = m_serverInternal;
-            NodeManagerReadinessScope? readiness = NodeManagerReadinessScope.Current;
             if (serverInternal is null)
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);

@@ -132,7 +132,7 @@ namespace Opc.Ua.Server
         internal bool HasReadinessParticipant => SyncNodeManager switch
         {
             SyncNodeManagerAdapter adapter => adapter.HasReadinessParticipant,
-            INodeManagerReadinessNotification => true,
+            INodeManagerReadinessInitializer or INodeManagerReadinessNotification => true,
             _ => false
         };
 

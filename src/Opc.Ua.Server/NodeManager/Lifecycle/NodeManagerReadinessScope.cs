@@ -43,11 +43,28 @@ namespace Opc.Ua.Server
         /// <param name="server">The exact server being initialized.</param>
         /// <param name="generation">The generation whose initializer is running.</param>
         internal NodeManagerReadinessScope(IServerInternal server, NodeManagerGeneration generation)
+            : this(server, generation, s_current.Value, ambient: true)
+        {
+        }
+
+        /// <summary>
+        /// Creates explicit readiness admission without changing the execution context.
+        /// </summary>
+        internal NodeManagerReadinessScope(
+            IServerInternal server,
+            NodeManagerGeneration generation,
+            NodeManagerReadinessScope? parent,
+            bool ambient)
         {
             m_server = server;
             m_generation = generation;
-            m_parent = s_current.Value;
-            s_current.Value = this;
+            m_parent = parent;
+            m_ambient = ambient;
+            if (ambient)
+            {
+                m_previous = s_current.Value;
+                s_current.Value = this;
+            }
         }
 
         /// <summary>
@@ -122,20 +139,27 @@ namespace Opc.Ua.Server
             }
 
             // Normal unwinding restores captured parent access; out-of-order disposal detaches descendants.
-            if (ReferenceEquals(s_current.Value, this))
+            if (m_ambient)
             {
-                s_current.Value = m_parent;
-            }
-            else
-            {
-                Interlocked.Exchange(ref m_parent, null);
+                if (ReferenceEquals(s_current.Value, this))
+                {
+                    s_current.Value = m_previous;
+                }
+                else
+                {
+                    Interlocked.Exchange(ref m_parent, null);
+                }
             }
             Interlocked.Exchange(ref m_server, null);
             Interlocked.Exchange(ref m_generation, null);
+            Interlocked.Exchange(ref m_previous, null);
         }
 
         /// <summary>The initializer scope in this execution context, never a routing view.</summary>
         private static readonly AsyncLocal<NodeManagerReadinessScope?> s_current = new();
+
+        private readonly bool m_ambient;
+        private NodeManagerReadinessScope? m_previous;
 
         /// <summary>The exact server owning this initializer.</summary>
         private IServerInternal? m_server;
