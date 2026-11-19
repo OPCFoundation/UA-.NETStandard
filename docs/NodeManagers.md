@@ -1794,8 +1794,7 @@ continuation points. The built-in Session store invalidates saved cursors during
 Releasing a point, cache eviction, cancellation, or Session close also disposes their cursor
 state. The reclaimer does not notify custom `ISessionContinuationPoints` implementations, and
 custom history continuations use the NodeManager's history dispatch path instead of the built-in
-saved-generation path. Their retirement behavior needs separate validation; see
-[lifecycle migration limitations](MigrationGuide.md#migrating-the-2x-nodemanager-lifecycle).
+saved-generation path. Validate the retirement behavior of custom stores separately.
 
 Paged Browse does not require pre-enumerating targets or declaring dependencies; the file-system
 `DirectoryBrowser` uses ordinary cursor pagination. With the built-in Session store, history
@@ -2022,34 +2021,17 @@ The following interfaces carry its publication and ownership guarantees:
 | `ILifecycleCapture` and `ILifecycleWriter` | Preserve captured revisions across sequential prepared units. | Capture before reading application inputs or checking an exact registration. A stale writer rejects preparation before factory effects. |
 | `IPreparedChanges` | Owns unpublished candidates and immutable read metadata until commit or disposal. | Commit once or dispose; terminal completion releases the preparation payload. |
 | `LifecycleResult` | Reports the committed revision, weak registration snapshots, reconciliation issues and independent retirement. | Handle `CleanupFailure` without replaying the durable decision. Join `Retired` only outside callbacks whose admissions must drain. |
-| `INodeManagerReadinessNotification` | Completes readiness for native and adapted classic managers through one awaited callback. | Classic managers can perform synchronous initialization and return a completed `ValueTask`; see the [readiness migration](MigrationGuide.md#migrating-classic-manager-readiness-callbacks). |
+| `INodeManagerReadinessNotification` | Completes readiness for native and adapted classic managers through one awaited callback. | Classic managers can perform synchronous initialization and return a completed `ValueTask`; see [Awaited readiness](#awaited-readiness). |
 | `INodeManagerReadImage`, `INodeManagerReadImageSource` and `NodeManagerReadImageExtensions` | Select immutable application state through the request's routing view, or live state without a request pin. A pinned view with no image for an owner does not fall back to newer live state. | Use the context-aware `GetReadImage` and `GetNodeManagers` extensions for request work. Bind new metadata through the [prepared unit](#publishing-typed-metadata); account for any strong references the image holds to its exact `Owner`. |
 
 Use `LifecycleChange` with `RuntimeNodeSetNodeManagerFactory` to publish runtime
 NodeSets; see
 [Runtime NodeSets](RuntimeNodeSets.md#startup-and-live-lifecycle-semantics).
-The removed 2.x batch, publication, forwarding and committed-exception
-interfaces require source migration and recompilation; see the
-[migration guide](MigrationGuide.md#migrating-the-2x-nodemanager-lifecycle).
 
-`RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback` and
-`RuntimeNodeSetNodeManagerFactory.AllowLifecycleFromRequestCallback` were
-public in 2.0.1 and are absent from the current types. The option allowed
-lifecycle work for a Runtime NodeSet to start from a request callback under
-the documented drain constraints. The current transaction path does not
-expose the same option.
-
-The 2.0.1 `ISessionContinuationPoints.RemoveForManager` member is also absent
-from the current interface. During retirement, the reclaimer invalidates the
-exact generation in the built-in session continuation-point store. It does
-not invoke an equivalent invalidation method on custom
-`ISessionContinuationPoints` implementations, which received
-`RemoveForManager` in 2.0.1. These are intentional 2.x-only removals; neither
-member existed in released 1.5.378. There is no equivalent provider callback
-or request-callback option in the native contract. Custom continuation stores
-must not assume they receive retirement notifications. Use the built-in store
-for generation-bound invalidation, and migrate/recompile affected 2.x callers;
-see the [migration guide](MigrationGuide.md#migrating-the-2x-nodemanager-lifecycle).
+Finish a request callback before starting lifecycle work that must drain that
+request. During retirement, the reclaimer invalidates the exact generation's
+continuation points in the built-in Session store. It does not notify custom
+`ISessionContinuationPoints` implementations.
 
 These interfaces do not make explicit inspection handles non-owning. A
 `NodeManagerRegistration` or `NodeManagerSlotSnapshot` can
