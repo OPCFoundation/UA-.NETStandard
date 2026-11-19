@@ -345,7 +345,8 @@ namespace Opc.Ua.Wot
     /// existing document projects to.
     /// </remarks>
     public sealed class WotCompositeNodeResolver
-        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver,
+        IWotArgumentPropertyResolver
     {
         /// <summary>
         /// Initializes a composite over the supplied resolvers, in order.
@@ -510,6 +511,29 @@ namespace Opc.Ua.Wot
                 }
             }
             return ArrayOf<WotDataTypeDefinitionSource>.Empty;
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<WotNodeSetConverter.WotArgumentProperty?>
+            IWotArgumentPropertyResolver.ResolveArgumentPropertyAsync(
+                string nodeId,
+                CancellationToken cancellationToken)
+        {
+            foreach (IWotNodeResolver resolver in m_resolvers)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (resolver is IWotArgumentPropertyResolver arguments &&
+                    await arguments.ResolveArgumentPropertyAsync(nodeId, cancellationToken).ConfigureAwait(false)
+                        is { } property)
+                {
+                    return property;
+                }
+                if (await resolver.ResolveByNodeIdAsync(nodeId, cancellationToken).ConfigureAwait(false) is not null)
+                {
+                    return null;
+                }
+            }
+            return null;
         }
 
         /// <summary>

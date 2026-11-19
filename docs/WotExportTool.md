@@ -28,10 +28,17 @@ An output folder that contains the source folder is not allowed.
 
 All successfully read NodeSets form a local type-resolution context before export
 starts. Include the required companion models and the OPC UA base NodeSet in
-the source tree so event ancestry can be followed across namespace boundaries.
+the source tree so event ancestry and method argument properties can be resolved
+across namespace boundaries.
 Their nodes remain in their own output folders; they are not added to a
 dependent model's source partition. A single-file input supplies only that file
 as the local context.
+
+The command follows each method's argument-property references, including
+references to properties in another NodeSet. It writes named `input` and
+`output` schemas with explicit argument order. If an external method property
+cannot be resolved or its argument value cannot be decoded, that source export
+fails with a diagnostic. It does not treat missing metadata as zero arguments.
 
 ## Output
 

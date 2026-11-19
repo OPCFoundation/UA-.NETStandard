@@ -313,7 +313,8 @@ namespace Opc.Ua.Wot
             string? documentHref = null,
             HashSet<string>? projectedNodeIds = null,
             bool foldEventSourceType = true,
-            WotReferenceTypeNames? referenceTypes = null)
+            WotReferenceTypeNames? referenceTypes = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using var output = new MemoryStream();
@@ -402,7 +403,7 @@ namespace Opc.Ua.Wot
                     foldEventSourceType && nativeProjection is null && !emitEnvelope
                         ? FoldedTypeDefinitionHref(root, nodeSet)
                         : TypeDefinitionHref(root, nodeSet),
-                    eventTypeHrefs, documentHref, projectedNodeIds, documentLocale);
+                    eventTypeHrefs, documentHref, projectedNodeIds, documentLocale, resolvedArgumentProperties);
 
                 if (emitEnvelope)
                 {
@@ -792,7 +793,8 @@ namespace Opc.Ua.Wot
             IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
             string? documentHref = null,
             HashSet<string>? projectedNodeIds = null,
-            string? documentLocale = null)
+            string? documentLocale = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             if (root is null)
             {
@@ -1007,7 +1009,8 @@ namespace Opc.Ua.Wot
             // of the Thing.
             var representedArguments = new HashSet<string>(StringComparer.Ordinal);
             Dictionary<string, WotMethodArguments> methodArguments =
-                CollectMethodArguments(actions, index, representedArguments, referenceTypeNames);
+                CollectMethodArguments(
+                    actions, index, representedArguments, referenceTypeNames, resolvedArgumentProperties);
 
             // A Variable may itself hold Variables — EURange and
             // EngineeringUnits sit below an analog Variable, two levels under

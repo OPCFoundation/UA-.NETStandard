@@ -200,6 +200,164 @@ namespace Opc.Ua.Wot.Exporter.Tests
         }
 
         /// <summary>
+        /// Resolves shared argument properties through forward references without importing dependency nodes.
+        /// </summary>
+        [TestCase("A", "Z", "valid")]
+        [TestCase("Z", "A", "valid")]
+        [TestCase("A", "Z", "missing")]
+        [TestCase("A", "Z", "invalid")]
+        [TestCase("A", "Z", "empty")]
+        public async Task ExportResolvesRequiredModelMethodArgumentsAsync(
+            string sourcePrefix,
+            string dependencyPrefix,
+            string metadata)
+        {
+            const string source = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>urn:export:child</Uri><Uri>urn:export:arguments</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:child" Version="1.0">
+                <RequiredModel ModelUri="urn:export:arguments" Version="1.0" />
+              </Model></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:AssetType">
+                <DisplayName>AssetType</DisplayName>
+                <References>
+                  <Reference ReferenceType="i=45" IsForward="false">i=58</Reference>
+                  <Reference ReferenceType="i=47">ns=1;i=7000</Reference>
+                </References>
+              </UAObjectType>
+              <UAMethod NodeId="ns=1;i=7000" BrowseName="2:VerifyAsset" ParentNodeId="ns=1;i=1">
+                <DisplayName>VerifyAsset</DisplayName>
+                <References>
+                  <Reference ReferenceType="i=46">ns=2;i=1422</Reference>
+                  <Reference ReferenceType="i=46">ns=2;i=1423</Reference>
+                  <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1</Reference>
+                </References>
+              </UAMethod>
+            </UANodeSet>
+            """;
+            const string dependency = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
+                       xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+              <NamespaceUris><Uri>urn:export:arguments</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:arguments" Version="1.0" /></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:SharedAssetType">
+                <DisplayName>SharedAssetType</DisplayName>
+                <References><Reference ReferenceType="i=47">ns=1;i=1476</Reference></References>
+              </UAObjectType>
+              <UAMethod NodeId="ns=1;i=1476" BrowseName="1:VerifyAsset" ParentNodeId="ns=1;i=1">
+                <References>
+                  <Reference ReferenceType="i=46">ns=1;i=1422</Reference>
+                  <Reference ReferenceType="i=46">ns=1;i=1423</Reference>
+                </References>
+              </UAMethod>
+              <UAVariable NodeId="ns=1;i=1422" BrowseName="InputArguments" ParentNodeId="ns=1;i=1476"
+                          DataType="i=296" ValueRank="1" ArrayDimensions="1">
+                <References><Reference ReferenceType="i=40">i=68</Reference></References>
+                <Value><uax:ListOfExtensionObject><uax:ExtensionObject>
+                  <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+                  <uax:Body><uax:Argument>
+                    <uax:Name>VerificationMode</uax:Name>
+                    <uax:DataType><uax:Identifier>ns=1;i=3001</uax:Identifier></uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions />
+                  </uax:Argument></uax:Body>
+                </uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+              </UAVariable>
+              <UAVariable NodeId="ns=1;i=1423" BrowseName="OutputArguments" ParentNodeId="ns=1;i=1476"
+                          DataType="i=296" ValueRank="1" ArrayDimensions="1">
+                <References><Reference ReferenceType="i=40">i=68</Reference></References>
+                <Value><uax:ListOfExtensionObject><uax:ExtensionObject>
+                  <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+                  <uax:Body><uax:Argument>
+                    <uax:Name>VerificationErrors</uax:Name>
+                    <uax:DataType><uax:Identifier>i=19</uax:Identifier></uax:DataType>
+                    <uax:ValueRank>1</uax:ValueRank>
+                    <uax:ArrayDimensions><uax:UInt32>0</uax:UInt32></uax:ArrayDimensions>
+                  </uax:Argument></uax:Body>
+                </uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+              </UAVariable>
+              <UADataType NodeId="ns=1;i=3001" BrowseName="1:VerificationModeEnum">
+                <References><Reference ReferenceType="i=45" IsForward="false">i=29</Reference></References>
+                <Definition Name="1:VerificationModeEnum"><Field Name="Identity" Value="0" /></Definition>
+              </UADataType>
+            </UANodeSet>
+            """;
+            string sourceName = sourcePrefix + ".Child.NodeSet2.xml";
+            await File.WriteAllTextAsync(Path.Combine(m_folder, sourceName), source).ConfigureAwait(false);
+            if (metadata != "missing")
+            {
+                string dependencyText = metadata == "invalid"
+                    ? dependency.Replace(
+                        "<uax:Identifier>i=297</uax:Identifier>",
+                        "<uax:Identifier>i=999</uax:Identifier>", StringComparison.Ordinal)
+                    : dependency;
+                if (metadata == "empty")
+                {
+                    var xml = new System.Xml.XmlDocument();
+                    xml.LoadXml(dependency);
+                    foreach (System.Xml.XmlElement arguments in xml.GetElementsByTagName(
+                        "ListOfExtensionObject", "http://opcfoundation.org/UA/2008/02/Types.xsd"))
+                    {
+                        arguments.RemoveAll();
+                    }
+                    dependencyText = xml.OuterXml;
+                }
+                await File.WriteAllTextAsync(
+                    Path.Combine(m_folder, dependencyPrefix + ".Arguments.NodeSet2.xml"), dependencyText)
+                    .ConfigureAwait(false);
+            }
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+            if (metadata is "missing" or "invalid")
+            {
+                Assert.That(code, Is.EqualTo(1));
+                Assert.That(m_error.ToString(),
+                    Does.Contain("argument metadata").And.Contain("nsu=urn:export:arguments;i=1422"));
+                Assert.That(Directory.Exists(Path.Combine(m_folder, "out", sourceName)), Is.False);
+                return;
+            }
+            Assert.That(code, Is.Zero, m_error.ToString());
+
+            string[] paths = Directory.GetFiles(Path.Combine(m_folder, "out", sourceName));
+            Assert.That(paths, Has.Length.EqualTo(1), "Dependency nodes must remain in their own source partition.");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(paths[0]).ConfigureAwait(false));
+            JsonElement action = document.RootElement.GetProperty("actions").GetProperty("VerifyAsset");
+            if (metadata == "empty")
+            {
+                Assert.That(action.TryGetProperty("input", out _), Is.False);
+                Assert.That(action.TryGetProperty("output", out _), Is.False);
+                return;
+            }
+            Assert.That(action.TryGetProperty("input", out JsonElement input), Is.True);
+            Assert.That(action.TryGetProperty("output", out JsonElement output), Is.True);
+            Assert.That(input.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
+            Assert.That(input.GetProperty("uav:fieldOrder")[0].GetString(), Is.EqualTo("VerificationMode"));
+            JsonElement mode = input.GetProperty("properties").GetProperty("VerificationMode");
+            Assert.That(mode.GetProperty("type").GetString(), Is.EqualTo("integer"));
+            Assert.That(mode.GetProperty("uav:mapToType").GetString(),
+                Is.EqualTo("nsu=urn:export:arguments;i=3001"));
+            Assert.That(output.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
+            Assert.That(output.GetProperty("uav:fieldOrder")[0].GetString(), Is.EqualTo("VerificationErrors"));
+            JsonElement errors = output.GetProperty("properties").GetProperty("VerificationErrors");
+            Assert.That(errors.GetProperty("type").GetString(), Is.EqualTo("array"));
+            Assert.That(errors.GetProperty("uav:valueRank").GetInt32(), Is.EqualTo(1));
+            Assert.That(errors.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=19"));
+
+            using var dependencyXml = new MemoryStream(Encoding.UTF8.GetBytes(dependency));
+            var resolver = WotDocumentNodeResolver.FromNodeSets([UANodeSet.Read(dependencyXml)]);
+            foreach (string argumentName in (string[])["VerificationMode", "VerificationErrors"])
+            {
+                string changed = document.RootElement.GetRawText().Replace(
+                    "\"" + argumentName + "\"", "\"ChangedArgument\"", StringComparison.Ordinal);
+                using var tampered = WotDocument.Parse(Encoding.UTF8.GetBytes(changed));
+                WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetResultAsync(
+                    tampered, null, null, null, resolver).ConfigureAwait(false);
+                Assert.That(restored.Success, Is.False);
+                Assert.That(restored.Diagnostics.Any(
+                    diagnostic => diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict), Is.True);
+            }
+        }
+
+        /// <summary>
         /// Matches catalogue URNs without deriving identity from display text or the BrowseName namespace.
         /// </summary>
         [TestCase("http://opcfoundation.org/UA/ADI/", "1:PumpType", "urn:org.opcfoundation.UA.ADI.PumpType")]

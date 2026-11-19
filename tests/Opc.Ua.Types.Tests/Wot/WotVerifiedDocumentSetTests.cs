@@ -50,6 +50,84 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotVerifiedDocumentSetTests
     {
         /// <summary>
+        /// Keeps nested instance declarations in their type model rather than exporting them as instance TDs.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NestedDeclarationPropertiesRemainInTheirTypePartitionAsync(bool variableType)
+        {
+            UANode root = variableType
+                ? new UAVariableType { DataType = "i=24" }
+                : new UAObjectType { IsAbstract = true };
+            root.NodeId = "ns=2;i=93";
+            root.BrowseName = "2:ServerCommunicationDeviceType";
+            root.DisplayName = [new Export.LocalizedText { Value = "ServerCommunicationDeviceType" }];
+            root.References =
+            [
+                new Reference
+                {
+                    ReferenceType = "i=45",
+                    IsForward = false,
+                    Value = variableType ? "i=62" : "i=58"
+                }
+            ];
+            var source = new UANodeSet
+            {
+                NamespaceUris =
+                [
+                    "http://opcfoundation.org/UA/DI/",
+                    "http://fdi-cooperation.com/OPCUA/FDI7/"
+                ],
+                Items =
+                [
+                    root,
+                    new UAObject
+                    {
+                        NodeId = "ns=2;i=96",
+                        BrowseName = "1:MethodSet",
+                        ParentNodeId = root.NodeId,
+                        DisplayName = [new Export.LocalizedText { Value = "MethodSet" }],
+                        References =
+                        [
+                            new Reference { ReferenceType = "i=47", IsForward = false, Value = root.NodeId },
+                            new Reference { ReferenceType = "i=40", Value = "i=58" },
+                            new Reference { ReferenceType = "i=37", Value = "i=80" }
+                        ]
+                    },
+                    new UAVariable
+                    {
+                        NodeId = "ns=2;i=2220",
+                        BrowseName = "2:ListOfCommunicationProfiles",
+                        ParentNodeId = "ns=2;i=96",
+                        DataType = "i=12",
+                        ValueRank = 1,
+                        DisplayName = [new Export.LocalizedText { Value = "ListOfCommunicationProfiles" }],
+                        References =
+                        [
+                            new Reference { ReferenceType = "i=46", IsForward = false, Value = "ns=2;i=96" },
+                            new Reference { ReferenceType = "i=40", Value = "i=68" },
+                            new Reference { ReferenceType = "i=37", Value = "i=78" }
+                        ]
+                    }
+                ]
+            };
+
+            WotConversionResult<WotDocumentSet> result =
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            using WotDocumentSet set = result.Value!;
+            Assert.That(set.Entries, Has.Count.EqualTo(1),
+                "Instance declarations must remain in their owning type's source partition.");
+            WotDocument document = set.Entries[0].Document;
+            Assert.That(document.Kind, Is.EqualTo(WotDocumentKind.ThingModel));
+            Assert.That(document.Properties.ContainsKey("ListOfCommunicationProfiles"), Is.False);
+            Assert.That(document.TryGetNativeProjection(out JsonElement projection), Is.True);
+            Assert.That(projection.GetProperty("nodes").GetArrayLength(), Is.EqualTo(3));
+            await AssertEquivalentAsync(source, set, new WotNodeSetConverterOptions()).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Checks that colons in namespace-zero BrowseNames are not mistaken for unbound context prefixes.
         /// </summary>
         [TestCase("http://opcfoundation.org/UA/")]

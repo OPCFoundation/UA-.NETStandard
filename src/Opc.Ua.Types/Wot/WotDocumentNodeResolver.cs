@@ -51,7 +51,8 @@ namespace Opc.Ua.Wot
     /// reports every type binding unresolved.
     /// </remarks>
     public sealed class WotDocumentNodeResolver
-        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver,
+        IWotArgumentPropertyResolver
     {
         /// <summary>
         /// Initializes a resolver over the supplied documents.
@@ -308,6 +309,18 @@ namespace Opc.Ua.Wot
                 m_declarations.ResolveDataTypeDefinitions(graphId));
         }
 
+        /// <inheritdoc/>
+        ValueTask<WotNodeSetConverter.WotArgumentProperty?> IWotArgumentPropertyResolver.ResolveArgumentPropertyAsync(
+            string nodeId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            nodeId = WotNodeSetConverter.NormalizeExpandedNodeId(nodeId);
+            m_argumentProperties.TryGetValue(nodeId, out WotNodeSetConverter.WotArgumentProperty? property);
+            return new ValueTask<WotNodeSetConverter.WotArgumentProperty?>(
+                property ?? (m_byNodeId.ContainsKey(nodeId) ? s_notArgumentProperty : null));
+        }
+
         private void Index(WotDocument document)
         {
             if (document is null)
@@ -422,6 +435,10 @@ namespace Opc.Ua.Wot
                 portable = WotNodeSetConverter.NormalizeExpandedNodeId(portable);
                 WotResolvedNode resolved = WotNodeSetConverter.DescribeNativeType(node, nodeSet);
                 m_byNodeId[portable] = resolved;
+                if (WotNodeSetConverter.DescribeArgumentProperty(node, nodeSet) is { } arguments)
+                {
+                    m_argumentProperties[portable] = arguments;
+                }
                 if (node.BrowseName is { } browseName)
                 {
                     var name = QualifiedName.Parse(browseName);
@@ -567,6 +584,17 @@ namespace Opc.Ua.Wot
             new(StringComparer.Ordinal);
 
         private readonly WotDocumentDeclarationIndex m_declarations = new();
+
+        /// <summary>
+        /// Captures argument values separately from native node ownership.
+        /// </summary>
+        private readonly Dictionary<string, WotNodeSetConverter.WotArgumentProperty> m_argumentProperties =
+            new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Distinguishes a held non-argument node from an unresolved identity.
+        /// </summary>
+        private static readonly WotNodeSetConverter.WotArgumentProperty s_notArgumentProperty = new(string.Empty, []);
 
         private readonly Dictionary<string, List<WotResolvedNode>> m_byBrowseName =
             new(StringComparer.Ordinal);

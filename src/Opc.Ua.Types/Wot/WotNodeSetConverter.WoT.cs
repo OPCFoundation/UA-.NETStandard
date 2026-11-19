@@ -388,6 +388,20 @@ namespace Opc.Ua.Wot
                     cancellationToken).ConfigureAwait(false);
             }
 
+            Dictionary<string, WotArgumentProperty>? resolvedArguments = null;
+            if (nodeResolver is not null && documentSet?.DeferPreservedFactValidation != true &&
+                TakesRestorePath(document) && HasMethodArgumentSchemas(document))
+            {
+                UANodeSet? native = GetProvidedArchiveContext(thingResolver, document) ??
+                    ReadAuthoritativeTypeContext(document).Value;
+                if (native is not null)
+                {
+                    resolvedArguments = await ResolveExportArgumentPropertiesAsync(
+                        native, nodeResolver, diagnostics, cancellationToken, requireComplete: false)
+                        .ConfigureAwait(false);
+                }
+            }
+
             UANodeSet? ToNodeSet(
                 IReadOnlyDictionary<string, string>? carrierEventIds,
                 List<string>? missingWitnesses)
@@ -413,7 +427,8 @@ namespace Opc.Ua.Wot
                     dataTypeNames,
                     documentSet,
                     carrierEventIds,
-                    missingWitnesses);
+                    missingWitnesses,
+                    resolvedArguments);
             }
 
             int firstPassStart = diagnostics.Count;
@@ -1287,7 +1302,8 @@ namespace Opc.Ua.Wot
             Dictionary<(string NamespaceUri, string Name), string?>? dataTypeNames = null,
             DocumentSetThingResolver? documentSet = null,
             IReadOnlyDictionary<string, string>? carrierEventIds = null,
-            List<string>? missingWitnesses = null)
+            List<string>? missingWitnesses = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -1337,7 +1353,7 @@ namespace Opc.Ua.Wot
                 {
                     ValidatePreservedReadableFacts(
                         document, restored, options, diagnostics, archiveContext, carrierEventIds,
-                        missingWitnesses);
+                        missingWitnesses, resolvedArgumentProperties: resolvedArgumentProperties);
                 }
                 ApplyIdentifierLeniency(diagnostics, options);
                 if (HasErrors(diagnostics))
@@ -1363,7 +1379,7 @@ namespace Opc.Ua.Wot
                             document, archiveContext ?? restored, diagnostics, carrierEventIds);
                         ValidatePreservedReadableFacts(
                             document, restored, options, diagnostics, archiveContext, carrierEventIds,
-                            missingWitnesses);
+                            missingWitnesses, resolvedArgumentProperties: resolvedArgumentProperties);
                     }
                     ApplyIdentifierLeniency(diagnostics, options);
                     if (!HasErrors(diagnostics))

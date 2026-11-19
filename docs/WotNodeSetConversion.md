@@ -947,6 +947,16 @@ the arguments are and not which Nodes hold them, so the exact NodeId and
 attributes of the argument Properties travel in the `uav:nodes` preservation
 projection.
 
+For argument properties in another NodeSet, use `FromNodeSetDocumentsAsync`
+with a `WotDocumentNodeResolver.FromNodeSets` context that contains the required
+models. The converter follows forward `HasProperty` references by namespace URI.
+It preserves argument order and resolves each argument's datatype in the
+namespace table of the NodeSet that holds the property. Dependency nodes stay
+in their own source partitions. An unresolved external method property or an
+undecodable external argument value produces `MethodArgumentSchemaInvalid`;
+it does not imply a zero-argument method. The same context is required to
+validate these readable signatures when restoring preserved native partitions.
+
 **WoT to NodeSet.** Each supplied schema creates an `InputArguments` or
 `OutputArguments` Property (`Argument[]`, DataType `i=296`, ValueRank `1`)
 held by `HasProperty`. Its generated NodeId appends the bare base-namespace

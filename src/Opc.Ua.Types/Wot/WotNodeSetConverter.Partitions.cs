@@ -704,7 +704,8 @@ namespace Opc.Ua.Wot
             List<UANodeSet> partitions,
             UANodeSet merged,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             if (HasErrors(diagnostics))
             {
@@ -723,7 +724,7 @@ namespace Opc.Ua.Wot
                     }
                     ValidatePreservedReadableFacts(
                         document, partitions[index], options, diagnostics, merged,
-                        derivations: derivations);
+                        derivations: derivations, resolvedArgumentProperties: resolvedArgumentProperties);
                 }
             }
             ApplyIdentifierLeniency(diagnostics, options);
