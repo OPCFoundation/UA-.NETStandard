@@ -863,16 +863,19 @@ a display fallback that asserts no locale. The document does not claim that text
 is written in the default locale, and nothing is pushed into the exceptional
 `uav:nodes` projection to say something the plural member already says.
 
-Asserting no locale is a claim a JSON-LD reader has to be told about. `title` and
-`description` are terms of the W3C Thing Description context, and a `@context`
-that declares `@language` tags every unqualified value with it - so a German
-singular member would expand as English text. Where any projected text states no
-entry for the document's default locale, the generated `@context` therefore
-carries **one** further entry re-declaring the two terms with `"@language": null`.
-It is written only where the document needs it: adding it unconditionally would
-strip the language tag from every document this library writes. Being derived
-from the projected Nodes it is re-derivable and is not also captured as residue;
-an author's own override of the same terms says something different and is kept.
+The W3C Thing Description context explicitly gives `title` and `description`
+the language `en`. A document-level `@language` does not replace these term
+definitions. The converter overrides each term when needed to preserve its
+selected language. Untagged source text uses `"@language": null`. A tagged
+fallback also uses a node-local neutral override under the current binding rule.
+Each override retains the term's IRI.
+
+Actions and events inherit the root's term definitions. The converter omits
+their local overrides when the inherited language is already correct, except
+where the binding requires a local fallback override. Properties and nested
+input/output schemas still need overrides after W3C scoped contexts reset the
+term definitions. Generated overrides are derived from the source texts and
+are not also stored as residue. Authored context extensions remain preserved.
 
 The same problem has a different answer inside `uav:engineeringUnits`. Section
 6.4.1 mints `displayName` and `description` there as **short members under a
@@ -894,9 +897,10 @@ document is a document whose meaning changed without it being edited.
 entry written first — the one the Node's own attribute carries — is the
 default-locale entry where the map has one and the code-point-first entry
 otherwise, which is the same entry the singular member carries, so the round
-trip is stable. A singular member alone becomes one `LocalizedText` tagged with
-the document's declared `@language`, or untagged where the context declares none
-— the form a UANodeSet writes when it names one language without saying which.
+trip is stable. A singular member alone becomes one `LocalizedText` with its
+effective term language. The W3C definitions supply `en` unless an override
+changes the term language. An effective `"@language": null` term override
+preserves untagged source text.
 
 The same selection is used wherever a term reduces a `LocalizedText` to one
 string: a ReferenceType's `uav:inverseName`, and the `displayName` and

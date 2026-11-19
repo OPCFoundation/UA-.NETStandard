@@ -1113,7 +1113,7 @@ namespace Opc.Ua.Wot
                         ? (conditionAction, actsOn)
                         : null;
                     WriteMethodAffordance(
-                        writer, method, namespaceUris, nodeSet, defaultLocale, arguments,
+                        writer, method, namespaceUris, nodeSet, defaultLocale, root, arguments,
                         condition, referenceTypeNames, scalarContext);
                     AddOptionalAffordance(optionalAffordances, "actions", key, method, nodeSet);
                 }
@@ -1137,7 +1137,7 @@ namespace Opc.Ua.Wot
                     }
                     writer.WritePropertyName(eventKeys[ii]);
                     WriteEventAffordance(
-                        writer, events[ii], namespaceUris, nodeSet, index, defaultLocale,
+                        writer, events[ii], namespaceUris, nodeSet, index, defaultLocale, root,
                         eventProjections[ii],
                         ResolveEventTypeHref(events[ii], eventTypeHrefs, documentHref), scalarContext);
                     AddOptionalAffordance(optionalAffordances, "events", eventKeys[ii], events[ii], nodeSet);
@@ -1697,6 +1697,7 @@ namespace Opc.Ua.Wot
             string[]? namespaceUris,
             UANodeSet nodeSet,
             string defaultLocale,
+            UANode contextRoot,
             WotMethodArguments arguments,
             (string Action, string ActsOn)? condition,
             WotReferenceTypeNames? referenceTypeNames = null,
@@ -1705,7 +1706,9 @@ namespace Opc.Ua.Wot
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:method");
             WriteLocalizedTextContext(
-                writer, method.DisplayName, method.Description, defaultLocale, inheritedLanguageMayDiffer: true);
+                writer, method.DisplayName, method.Description, defaultLocale,
+                inheritedTitleLanguage: GetGeneratedTermLanguage(contextRoot.DisplayName, defaultLocale),
+                inheritedDescriptionLanguage: GetGeneratedTermLanguage(contextRoot.Description, defaultLocale));
             WriteLocalizedTitle(writer, method.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, method.Description, defaultLocale);
             WriteOptional(
@@ -1740,6 +1743,7 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
             string defaultLocale,
+            UANode contextRoot,
             WotConditionProjection projection,
             string? eventTypeHref = null,
             ReadableScalarContext? scalarContext = null)
@@ -1750,7 +1754,9 @@ namespace Opc.Ua.Wot
             // parallel boolean flag, so nothing else states event identity.
             writer.WriteString("@type", WotVocabulary.EventTypeAnnotation);
             WriteLocalizedTextContext(
-                writer, eventType.DisplayName, eventType.Description, defaultLocale, inheritedLanguageMayDiffer: true);
+                writer, eventType.DisplayName, eventType.Description, defaultLocale,
+                inheritedTitleLanguage: GetGeneratedTermLanguage(contextRoot.DisplayName, defaultLocale),
+                inheritedDescriptionLanguage: GetGeneratedTermLanguage(contextRoot.Description, defaultLocale));
             WriteLocalizedTitle(writer, eventType.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, eventType.Description, defaultLocale);
             WriteOptional(
