@@ -50,6 +50,7 @@ session scalability.
   - [Sizing and configuration](#sizing-and-configuration)
 - [NodeManager lifecycle measurements](#nodemanager-lifecycle-measurements)
   - [Type registration snapshots](#type-registration-snapshots)
+  - [Lifecycle fixture cost](#lifecycle-fixture-cost)
   - [Notification and permission costs](#notification-and-permission-costs)
   - [Session activation scaling](#session-activation-scaling)
 
@@ -884,9 +885,9 @@ The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `Buffer
 
 ## NodeManager lifecycle measurements
 
-These measurements cover metadata capture and private candidate preparation.
-They do not measure complete lifecycle transactions or establish notification,
-session-activation or retirement throughput.
+The component probes separate metadata capture and private candidate
+preparation from hosted lifecycle operations. Diagnostic runs do not establish
+notification, activation, or retirement throughput.
 
 ### Type registration snapshots
 
@@ -942,6 +943,26 @@ in `Opc.Ua.Types.Tests` and
 `TypeRegistrationSnapshotPerformanceTests.CaptureRevisionAndConcurrentPreparationReportTimeAndAllocationAsync`
 in `Opc.Ua.Server.Tests`. Select them by full method name in a Release
 `dotnet test` run to collect the corresponding measurements.
+
+Hosted add and replacement probes on `4a78fe779` and `1e352d379` also measured
+real prepared-unit disposal with 128, 2,048, and 16,384 additional types. The
+serving type relationships and routes stayed unchanged. Both sources recorded
+type and factory capture during disposal, but no first type write during that
+phase. This diagnostic separates preparation from abort; it was not repeated
+on a quiet host, so the timings do not establish a performance difference.
+
+### Lifecycle fixture cost
+
+The same five cases ran on `4a78fe779` and `1e352d379`: two admission guards and
+three retained real-server controls covering shutdown drain and historian
+retirement. On the baseline the guards start a real server; on the checkpoint
+they use the direct lifecycle harness and check routing and writer state.
+
+In this diagnostic, the hosted guards each spent about 0.78 s and allocated
+130–131 MB in setup. Direct setup took 0.35 s and 3.84 MB for the first guard and
+4.25 ms and 0.33 MB for the second. The three hosted controls continued to start
+and stop the server. These are one-run, process-wide measurements, not matched
+cold and warm medians or a reason to remove the hosted controls.
 
 ### Notification and permission costs
 
