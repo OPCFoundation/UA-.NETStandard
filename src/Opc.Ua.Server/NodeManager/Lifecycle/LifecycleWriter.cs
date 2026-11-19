@@ -421,13 +421,6 @@ namespace Opc.Ua.Server
         internal sealed class Mutation(LifecycleWriter owner) : IDisposable
         {
             /// <summary>
-            /// Gets whether the caller belongs to this mutation's active decision window.
-            /// </summary>
-            internal bool IsInDecisionWindow =>
-                owner.m_decision.Value is { IsOpen: true } scope &&
-                ReferenceEquals(scope, Volatile.Read(ref m_activeDecision));
-
-            /// <summary>
             /// Opens a decision window in the caller's context, without extending mutation ownership.
             /// </summary>
             internal DecisionWindow EnterDecisionWindow()
@@ -529,6 +522,12 @@ namespace Opc.Ua.Server
                 DecisionScope scope,
                 DecisionScope? previous) : IDisposable
             {
+                /// <summary>
+                /// Identifies re-entry from this reservation's current flow.
+                /// </summary>
+                internal bool IsInCurrentFlow =>
+                    scope.IsOpen && ReferenceEquals(writer.m_decision.Value, scope);
+
                 /// <summary>
                 /// Requires the live reservation owned by this exact mutation.
                 /// </summary>

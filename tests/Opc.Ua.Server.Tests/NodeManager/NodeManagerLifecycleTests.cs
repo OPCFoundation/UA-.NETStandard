@@ -7781,8 +7781,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     var commit = new Mock<INodeManagerPublicationCommit>();
                     commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
-                    commit.SetupGet(value => value.IsInPublicationScope)
-                        .Returns(() => context.Commit.IsInPublicationScope);
                     commit.Setup(value => value.EnterPublicationScope())
                         .Returns(() => context.Commit.EnterPublicationScope());
                     commit.Setup(value => value.DecideAsync(

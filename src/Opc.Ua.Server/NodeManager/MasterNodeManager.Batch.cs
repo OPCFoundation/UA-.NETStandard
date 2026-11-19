@@ -548,7 +548,7 @@ namespace Opc.Ua.Server
                 await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 namespaceRegistrationAdmissionHeld = true;
                 publicationScope = commit.EnterPublicationScope();
-                Volatile.Write(ref m_namespacePublicationOwner, commit);
+                Volatile.Write(ref m_namespacePublicationOwner, publicationScope);
                 if (!dynamicMutationSemaphoreHeld)
                 {
                     throw new InvalidOperationException(
@@ -659,7 +659,7 @@ namespace Opc.Ua.Server
                         {
                             return null;
                         }
-                        BeginLifecycleDecisionWindow(commit);
+                        BeginLifecycleDecisionWindow(publicationScope);
                         lifecycleDecisionWindowStarted = true;
                         // The lifecycle writer excludes server teardown; do not hold the startup/shutdown semaphore
                         // while the durable decision callback performs external I/O. The prepared batch retains

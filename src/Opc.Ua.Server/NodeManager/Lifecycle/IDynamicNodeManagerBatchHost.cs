@@ -320,11 +320,6 @@ namespace Opc.Ua.Server
         bool HasDecision { get; }
 
         /// <summary>
-        /// Gets whether the caller belongs to this plan's active publication scope.
-        /// </summary>
-        bool IsInPublicationScope { get; }
-
-        /// <summary>
         /// Associates namespace admission with the writer's scope before publication callbacks run.
         /// </summary>
         /// <returns>The scope that expires the host reservation marker.</returns>

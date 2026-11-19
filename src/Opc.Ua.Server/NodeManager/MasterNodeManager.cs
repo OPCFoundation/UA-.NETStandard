@@ -1785,10 +1785,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Opens the mutation-admission window before releasing lifecycle semaphores for a durable decision.
         /// </summary>
-        /// <param name="commit">The publication that owns the durable decision.</param>
-        private void BeginLifecycleDecisionWindow(INodeManagerPublicationCommit commit)
+        /// <param name="reservation">The reservation that owns the durable decision.</param>
+        private void BeginLifecycleDecisionWindow(LifecycleWriter.Mutation.DecisionWindow reservation)
         {
-            var window = new LifecycleDecisionWindow(commit);
+            var window = new LifecycleDecisionWindow(reservation);
             if (Interlocked.CompareExchange(ref m_lifecycleDecisionWindow, window, null) is not null)
             {
                 throw new InvalidOperationException("A lifecycle decision window is already active.");
@@ -1820,7 +1820,7 @@ namespace Opc.Ua.Server
                 throw new InvalidOperationException(
                     "Namespace registration cannot change serving routes from the durable decision callback.");
             }
-            if (serving && Volatile.Read(ref m_namespacePublicationOwner)?.IsInPublicationScope == true)
+            if (serving && Volatile.Read(ref m_namespacePublicationOwner)?.IsInCurrentFlow == true)
             {
                 throw new InvalidOperationException(
                     "Namespace registration cannot change serving routes from a lifecycle publication callback.");
@@ -1839,7 +1839,7 @@ namespace Opc.Ua.Server
         /// Checks the decision owner for the active host window without creating another ambient scope.
         /// </summary>
         private bool IsInLifecycleDecisionWindow() =>
-            Volatile.Read(ref m_lifecycleDecisionWindow)?.Commit.IsInPublicationScope == true;
+            Volatile.Read(ref m_lifecycleDecisionWindow)?.Reservation.IsInCurrentFlow == true;
 
         private static void ThrowIfNodeManagementFromDecision(bool isLifecycleDecision)
         {
@@ -1919,18 +1919,18 @@ namespace Opc.Ua.Server
         private LifecycleDecisionWindow? m_lifecycleDecisionWindow;
 
         /// <summary>The publication owning namespace admission, including before the decision starts.</summary>
-        private INodeManagerPublicationCommit? m_namespacePublicationOwner;
+        private LifecycleWriter.Mutation.DecisionWindow? m_namespacePublicationOwner;
 
         /// <summary>
         /// Couples the published host wait with the exact decision owner until reservations are released.
         /// </summary>
-        /// <param name="commit">The publication that owns the durable decision.</param>
-        private sealed class LifecycleDecisionWindow(INodeManagerPublicationCommit commit)
+        /// <param name="reservation">The reservation that owns the durable decision.</param>
+        private sealed class LifecycleDecisionWindow(LifecycleWriter.Mutation.DecisionWindow reservation)
         {
             /// <summary>
-            /// The publication owning this window.
+            /// The reservation owning this window.
             /// </summary>
-            public INodeManagerPublicationCommit Commit { get; } = commit;
+            public LifecycleWriter.Mutation.DecisionWindow Reservation { get; } = reservation;
 
             /// <summary>
             /// Completes after the host releases the window.

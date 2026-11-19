@@ -2680,9 +2680,6 @@ namespace Opc.Ua.Server
             public bool HasDecision => m_decideAsync is not null;
 
             /// <inheritdoc/>
-            public bool IsInPublicationScope => m_mutation.IsInDecisionWindow;
-
-            /// <inheritdoc/>
             public LifecycleWriter.Mutation.DecisionWindow EnterPublicationScope()
             {
                 return m_mutation.EnterDecisionWindow();
