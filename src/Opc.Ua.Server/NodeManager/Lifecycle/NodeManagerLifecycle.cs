@@ -2155,16 +2155,18 @@ namespace Opc.Ua.Server
         /// and reports cleanup failures after the commit.
         /// </summary>
         /// <param name="batch">The prepared batch to complete.</param>
-        /// <param name="decideAsync">The durable decision callback, or null for a validation candidate.</param>
-        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        /// <param name="decideAsync">An optional external durable decision.</param>
+        /// <param name="validationOnly">Whether to validate without publishing.</param>
         /// <param name="publishCommittedState">The callback invoked after the committed image is installed, or
         /// null.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The committed result, or null for a validation candidate.</returns>
         private async ValueTask<LifecycleResult?> CompleteChangesAsync(
             PreparationPayload batch,
             Func<CancellationToken, ValueTask>? decideAsync,
-            CancellationToken cancellationToken,
-            Action? publishCommittedState = null)
+            bool validationOnly,
+            Action? publishCommittedState,
+            CancellationToken cancellationToken)
         {
             ThrowIfDecisionCallbackActive();
 
@@ -2363,7 +2365,8 @@ namespace Opc.Ua.Server
                         .Concat((candidates.ToArray() ?? []).Select(candidate => candidate.Generation))
                 ];
                 var lifecycleCommit = new LifecycleCommit(
-                    this, batch, mutation, decideAsync, committedRegistrations, retired, readinessClaims, reconciler);
+                    this, batch, mutation, decideAsync, validationOnly, committedRegistrations, retired,
+                    readinessClaims, reconciler);
                 committedLifecycle = lifecycleCommit;
                 bool reconciliationStarted = false;
                 async ValueTask PublishCommittedStateAsync()
@@ -2435,7 +2438,7 @@ namespace Opc.Ua.Server
                 {
                     committedReferences ??= lifecycleCommit.CommittedReferences;
                 }
-                if (decideAsync is null)
+                if (validationOnly)
                 {
                     return null;
                 }
@@ -2651,7 +2654,8 @@ namespace Opc.Ua.Server
             /// <param name="owner">The registration lifecycle owner.</param>
             /// <param name="batch">The prepared unit.</param>
             /// <param name="mutation">The mutation admission for this decision.</param>
-            /// <param name="decideAsync">The application decision, or null for validation.</param>
+            /// <param name="decideAsync">The optional application decision.</param>
+            /// <param name="validationOnly">Whether this plan can only validate publication.</param>
             /// <param name="registrations">The next registration map.</param>
             /// <param name="retired">The prepared retirement records.</param>
             /// <param name="readinessClaims">The states requiring readiness after publication.</param>
@@ -2661,6 +2665,7 @@ namespace Opc.Ua.Server
                 PreparationPayload batch,
                 LifecycleWriter.Mutation mutation,
                 Func<CancellationToken, ValueTask>? decideAsync,
+                bool validationOnly,
                 Dictionary<Guid, RegistrationState> registrations,
                 List<RetiredGeneration> retired,
                 List<RegistrationState>? readinessClaims,
@@ -2674,10 +2679,11 @@ namespace Opc.Ua.Server
                 m_retired = retired;
                 m_readinessClaims = readinessClaims;
                 m_reconciler = reconciler;
+                Publishes = !validationOnly;
             }
 
             /// <inheritdoc/>
-            public bool HasDecision => m_decideAsync is not null;
+            public bool Publishes { get; }
 
             /// <inheritdoc/>
             public LifecycleWriter.Mutation.DecisionWindow EnterPublicationScope()
@@ -2710,10 +2716,16 @@ namespace Opc.Ua.Server
                 LifecycleWriter.Mutation.DecisionWindow? reservation,
                 CancellationToken cancellationToken)
             {
+                if (!Publishes)
+                {
+                    throw new InvalidOperationException("A validation unit cannot publish.");
+                }
                 m_batch.Publication?.ValidateRevision(m_batch.Server);
-                await m_mutation.DecideAsync(m_decideAsync ??
-                    throw new InvalidOperationException("A validation unit has no durable decision."),
-                    reservation, cancellationToken).ConfigureAwait(false);
+                if (m_decideAsync is not null)
+                {
+                    await m_mutation.DecideAsync(m_decideAsync, reservation, cancellationToken)
+                        .ConfigureAwait(false);
+                }
                 m_batch.DecisionCommitted = true;
             }
 
@@ -3772,7 +3784,7 @@ namespace Opc.Ua.Server
                         TaskCreationOptions.RunContinuationsAsynchronously);
                 }
                 _ = CompleteAsync(
-                    payload, decideAsync ?? (static _ => default), publishCommittedState, cancellationToken);
+                    payload, decideAsync, publishCommittedState, cancellationToken);
                 return new ValueTask<LifecycleResult>(commitCompletion.Task);
             }
 
@@ -3798,7 +3810,8 @@ namespace Opc.Ua.Server
                     try
                     {
                         result = await payload.Owner.CompleteChangesAsync(
-                            payload, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
+                            payload, decideAsync, m_validationOnly, publishCommittedState, cancellationToken)
+                            .ConfigureAwait(false);
                         if (!m_validationOnly && result is null)
                         {
                             throw new InvalidOperationException("A publication returned no committed result.");

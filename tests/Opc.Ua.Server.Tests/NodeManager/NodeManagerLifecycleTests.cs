@@ -7124,7 +7124,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using LifecycleWriter.Mutation mutation = await writer.BeginMutationAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             var commit = new Mock<INodeManagerPublicationCommit>();
-            commit.SetupGet(value => value.HasDecision).Returns(true);
+            commit.SetupGet(value => value.Publishes).Returns(true);
             commit.Setup(value => value.EnterPublicationScope()).Returns(mutation.EnterDecisionWindow);
             commit.Setup(value => value.DecideAsync(
                     It.IsAny<LifecycleWriter.Mutation.DecisionWindow?>(), It.IsAny<CancellationToken>()))
@@ -7780,7 +7780,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (fail && !notifyBeforeFailure)
                 {
                     var commit = new Mock<INodeManagerPublicationCommit>();
-                    commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
+                    commit.SetupGet(value => value.Publishes).Returns(() => context.Commit.Publishes);
                     commit.Setup(value => value.EnterPublicationScope())
                         .Returns(() => context.Commit.EnterPublicationScope());
                     commit.Setup(value => value.DecideAsync(

@@ -317,7 +317,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets whether this plan should publish rather than only validate.
         /// </summary>
-        bool HasDecision { get; }
+        bool Publishes { get; }
 
         /// <summary>
         /// Associates namespace admission with the writer's scope before publication callbacks run.

@@ -659,7 +659,7 @@ namespace Opc.Ua.Server
                                 }
                             });
                         cancellationToken.ThrowIfCancellationRequested();
-                        if (!commit.HasDecision)
+                        if (!commit.Publishes)
                         {
                             return null;
                         }
