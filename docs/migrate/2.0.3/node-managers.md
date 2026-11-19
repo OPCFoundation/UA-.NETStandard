@@ -1,6 +1,6 @@
 # The synchronous node manager API is deprecated
 
-Since 2.1 the synchronous node manager API is marked `[Obsolete]`. It keeps
+Since 2.0.3 the synchronous node manager API is marked `[Obsolete]`. It keeps
 working exactly as before; a later major version removes it. New and migrated
 code uses the asynchronous seam (`IAsyncNodeManager`,
 `IAsyncNodeManagerFactory`, `AsyncCustomNodeManager`) or the generated and
@@ -87,7 +87,7 @@ monitored-item managers (`useSamplingGroups`), and a `New`/`NodeIdFactory`
 NodeId policy. The work is mostly renaming overrides to their `*Async`
 equivalents and awaiting what used to be called synchronously. The Boiler
 sample (`samples/Quickstarts.Servers/Boiler/BoilerNodeManager.cs`) was ported
-this way in 2.1 and makes a compact before/after reference.
+this way in 2.0.3 and makes a compact before/after reference.
 
 ### Constructor and factory
 

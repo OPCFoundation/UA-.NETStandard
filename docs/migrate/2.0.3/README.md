@@ -1,6 +1,6 @@
-# Migrating from 2.0.x to 2.1
+# Migrating to 2.0.3
 
-Version **2.1** removes nothing. It deprecates APIs that a later major
+Version **2.0.3** removes nothing. It deprecates APIs that a later major
 version will remove, so upgrading compiles and runs unchanged, but you see
 `[Obsolete]` warnings that name the replacement. If your build treats
 warnings as errors, either migrate or suppress the specific diagnostic
@@ -8,7 +8,7 @@ until you can.
 
 ## Contents
 
-- [Migrating from 2.0.x to 2.1](#migrating-from-20x-to-21)
+- [Migrating to 2.0.3](#migrating-to-203)
   - [Migration sub-doc index](#migration-sub-doc-index)
   - [All sub-documents](#all-sub-documents)
   - [See also](#see-also)

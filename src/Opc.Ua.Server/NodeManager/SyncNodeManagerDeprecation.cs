@@ -52,9 +52,9 @@ namespace Opc.Ua.Server
         /// The help link for <see cref="DiagnosticId"/>.
         /// </summary>
         public const string UrlFormat =
-            "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.1/node-managers.md#ua0031";
+            "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.3/node-managers.md#ua0031";
 
-        private const string kSee = " See docs/migrate/2.1/node-managers.md.";
+        private const string kSee = " See docs/migrate/2.0.3/node-managers.md.";
 
         /// <summary>
         /// Message for <see cref="CustomNodeManager2"/>.

@@ -19,16 +19,16 @@ The server library provides these TAP features:
 - `AsyncNodeManagerAdapter` and `SyncNodeManagerAdapter` let synchronous
   and asynchronous node managers run side by side. `AsyncNodeManagerAdapter`
   only serves the deprecated synchronous `INodeManager` and is obsolete
-  since 2.1.
+  since 2.0.3.
 
 > [!IMPORTANT]
-> Since 2.1 the synchronous node manager API (`CustomNodeManager2`,
+> Since 2.0.3 the synchronous node manager API (`CustomNodeManager2`,
 > `INodeManager`, `INodeManager2`, `INodeManager3`, `INodeManagerFactory`) is
 > marked `[Obsolete]` with diagnostic `UA0031`. It keeps working and will be
 > removed in a later major version. New code derives from
 > `AsyncCustomNodeManager` or uses `FluentNodeManagerBase` / the `[NodeManager]`
 > source generator. See
-> [Migrating to the asynchronous node manager API](migrate/2.1/node-managers.md).
+> [Migrating to the asynchronous node manager API](migrate/2.0.3/node-managers.md).
 
 ## Contents
 
@@ -49,7 +49,7 @@ The server library provides these TAP features:
 
 - Derive from `AsyncCustomNodeManager`, the base class for fully asynchronous
   node managers; see [AsyncCustomNodeManager](#asynccustomnodemanager) and the
-  [2.1 migration notes](migrate/2.1/node-managers.md), which map every
+  [2.0.3 migration notes](migrate/2.0.3/node-managers.md), which map every
   `CustomNodeManager2` hook to its asynchronous equivalent.
 - Register it through an `IAsyncNodeManagerFactory`, not an
   `INodeManagerFactory`.

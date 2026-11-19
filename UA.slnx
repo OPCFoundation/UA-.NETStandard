@@ -386,9 +386,9 @@
     <File Path="docs/migrate/2.0.x/timeprovider.md" />
     <File Path="docs/migrate/2.0.x/types.md" />
   </Folder>
-  <Folder Name="/Solution Items/docs/migrate/2.1/">
-    <File Path="docs/migrate/2.1/node-managers.md" />
-    <File Path="docs/migrate/2.1/README.md" />
+  <Folder Name="/Solution Items/docs/migrate/2.0.3/">
+    <File Path="docs/migrate/2.0.3/node-managers.md" />
+    <File Path="docs/migrate/2.0.3/README.md" />
   </Folder>
   <Folder Name="/Solution Items/docs/perf/">
     <File Path="docs/perf/PooledNotificationBenchmarks.md" />

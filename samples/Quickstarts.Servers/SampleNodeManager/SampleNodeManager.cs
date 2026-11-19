@@ -47,13 +47,13 @@ namespace Opc.Ua.Sample
 #if NET5_0_OR_GREATER
     [Obsolete(
         "SampleNodeManager implements the synchronous INodeManager interface. Derive from AsyncCustomNodeManager " +
-        "instead. See docs/migrate/2.1/node-managers.md.",
+        "instead. See docs/migrate/2.0.3/node-managers.md.",
         DiagnosticId = "UA0031",
-        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.1/node-managers.md#ua0031")]
+        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.3/node-managers.md#ua0031")]
 #else
     [Obsolete(
         "SampleNodeManager implements the synchronous INodeManager interface. Derive from AsyncCustomNodeManager " +
-        "instead. See docs/migrate/2.1/node-managers.md.")]
+        "instead. See docs/migrate/2.0.3/node-managers.md.")]
 #endif
     public class SampleNodeManager : INodeManager, INodeIdFactory, IDisposable
     {
