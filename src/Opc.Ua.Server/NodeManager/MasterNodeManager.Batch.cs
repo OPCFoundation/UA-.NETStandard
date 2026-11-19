@@ -539,18 +539,16 @@ namespace Opc.Ua.Server
             bool decisionCommitted = false;
             bool lifecycleDecisionWindowStarted = false;
             bool namespaceRegistrationAdmissionHeld = false;
-            TaskCompletionSource<bool>? namespacePublication = null;
+            IDisposable? publicationScope = null;
             NamespacePublication? namespaceReservation = null;
-            Task? previousNamespacePublication = m_currentNamespacePublication.Value;
             NodeManagerRoutingTable.PreparedRoutes? routes = null;
             PublishedReferenceChanges? committedReferences = null;
             try
             {
                 await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 namespaceRegistrationAdmissionHeld = true;
-                namespacePublication = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                m_currentNamespacePublication.Value = namespacePublication.Task;
+                publicationScope = commit.EnterPublicationScope();
+                Volatile.Write(ref m_namespacePublicationOwner, commit);
                 if (!dynamicMutationSemaphoreHeld)
                 {
                     throw new InvalidOperationException(
@@ -726,8 +724,8 @@ namespace Opc.Ua.Server
                         // release.
                         EndLifecycleDecisionWindow();
                         lifecycleDecisionWindowStarted = false;
-                        namespacePublication.TrySetResult(true);
-                        m_currentNamespacePublication.Value = previousNamespacePublication;
+                        publicationScope.Dispose();
+                        Volatile.Write(ref m_namespacePublicationOwner, null);
                         if (ReferenceEquals(m_namespacePublication, namespaceReservation))
                         {
                             m_namespacePublication = null;
@@ -779,8 +777,8 @@ namespace Opc.Ua.Server
             {
                 if (namespaceRegistrationAdmissionHeld)
                 {
-                    namespacePublication?.TrySetResult(true);
-                    m_currentNamespacePublication.Value = previousNamespacePublication;
+                    publicationScope?.Dispose();
+                    Volatile.Write(ref m_namespacePublicationOwner, null);
                     if (ReferenceEquals(m_namespacePublication, namespaceReservation))
                     {
                         m_namespacePublication = null;

@@ -2698,10 +2698,10 @@ namespace Opc.Ua.Server
             public bool HasDecision => m_decideAsync is not null;
 
             /// <inheritdoc/>
-            public bool IsInDecisionWindow => m_mutation.IsInDecisionWindow;
+            public bool IsInPublicationScope => m_mutation.IsInDecisionWindow;
 
             /// <inheritdoc/>
-            public IDisposable EnterDecisionWindow() => m_mutation.EnterDecisionWindow();
+            public IDisposable EnterPublicationScope() => m_mutation.EnterDecisionWindow();
 
             /// <summary>
             /// Gets the revision installed at the routing swap.

@@ -320,15 +320,15 @@ namespace Opc.Ua.Server
         bool HasDecision { get; }
 
         /// <summary>
-        /// Gets whether the caller belongs to this plan's active decision window.
+        /// Gets whether the caller belongs to this plan's active publication scope.
         /// </summary>
-        bool IsInDecisionWindow { get; }
+        bool IsInPublicationScope { get; }
 
         /// <summary>
-        /// Associates the reservation with the writer's decision scope until the host releases it.
+        /// Associates namespace admission with the writer's scope before publication callbacks run.
         /// </summary>
         /// <returns>The scope that expires the host reservation marker.</returns>
-        IDisposable EnterDecisionWindow();
+        IDisposable EnterPublicationScope();
 
         /// <summary>
         /// Executes the durable decision once under lifecycle mutation ownership.

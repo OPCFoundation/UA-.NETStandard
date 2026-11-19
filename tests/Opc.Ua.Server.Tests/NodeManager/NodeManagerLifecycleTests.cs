@@ -7122,7 +7122,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             int decisions = 0;
             var commit = new Mock<INodeManagerPublicationCommit>();
             commit.SetupGet(value => value.HasDecision).Returns(true);
-            commit.Setup(value => value.EnterDecisionWindow()).Returns(Mock.Of<IDisposable>());
+            commit.Setup(value => value.EnterPublicationScope()).Returns(Mock.Of<IDisposable>());
             commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>())).Returns(() =>
             {
                 decisions++;
@@ -7776,10 +7776,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     var commit = new Mock<INodeManagerPublicationCommit>();
                     commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
-                    commit.SetupGet(value => value.IsInDecisionWindow)
-                        .Returns(() => context.Commit.IsInDecisionWindow);
-                    commit.Setup(value => value.EnterDecisionWindow())
-                        .Returns(() => context.Commit.EnterDecisionWindow());
+                    commit.SetupGet(value => value.IsInPublicationScope)
+                        .Returns(() => context.Commit.IsInPublicationScope);
+                    commit.Setup(value => value.EnterPublicationScope())
+                        .Returns(() => context.Commit.EnterPublicationScope());
                     commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
                         .Returns<CancellationToken>(context.Commit.DecideAsync);
                     commit.Setup(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()))

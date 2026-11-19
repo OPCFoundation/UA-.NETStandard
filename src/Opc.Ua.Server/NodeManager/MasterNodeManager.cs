@@ -1791,10 +1791,9 @@ namespace Opc.Ua.Server
         /// <param name="commit">The publication that owns the durable decision.</param>
         private void BeginLifecycleDecisionWindow(INodeManagerPublicationCommit commit)
         {
-            var window = new LifecycleDecisionWindow(commit, commit.EnterDecisionWindow());
+            var window = new LifecycleDecisionWindow(commit);
             if (Interlocked.CompareExchange(ref m_lifecycleDecisionWindow, window, null) is not null)
             {
-                window.Scope.Dispose();
                 throw new InvalidOperationException("A lifecycle decision window is already active.");
             }
         }
@@ -1811,7 +1810,6 @@ namespace Opc.Ua.Server
             {
                 throw new InvalidOperationException("No lifecycle decision window is active.");
             }
-            window.Scope.Dispose();
             window.Completion.TrySetResult(true);
         }
 
@@ -1825,7 +1823,7 @@ namespace Opc.Ua.Server
                 throw new InvalidOperationException(
                     "Namespace registration cannot change serving routes from the durable decision callback.");
             }
-            if (serving && m_currentNamespacePublication.Value is { IsCompleted: false })
+            if (serving && Volatile.Read(ref m_namespacePublicationOwner)?.IsInPublicationScope == true)
             {
                 throw new InvalidOperationException(
                     "Namespace registration cannot change serving routes from a lifecycle publication callback.");
@@ -1844,7 +1842,7 @@ namespace Opc.Ua.Server
         /// Checks the decision owner for the active host window without creating another ambient scope.
         /// </summary>
         private bool IsInLifecycleDecisionWindow() =>
-            Volatile.Read(ref m_lifecycleDecisionWindow)?.Commit.IsInDecisionWindow == true;
+            Volatile.Read(ref m_lifecycleDecisionWindow)?.Commit.IsInPublicationScope == true;
 
         private static void ThrowIfNodeManagementFromDecision(bool isLifecycleDecision)
         {
@@ -1923,25 +1921,19 @@ namespace Opc.Ua.Server
         private readonly AsyncLocal<NodeManagerCallbackPermit?> m_lifecycleCallbackPermit = new();
         private LifecycleDecisionWindow? m_lifecycleDecisionWindow;
 
-        /// <summary>Marks this execution context's namespace reservation until it is released.</summary>
-        private readonly AsyncLocal<Task?> m_currentNamespacePublication = new();
+        /// <summary>The publication owning namespace admission, including before the decision starts.</summary>
+        private INodeManagerPublicationCommit? m_namespacePublicationOwner;
 
         /// <summary>
         /// Couples the published host wait with the exact decision owner until reservations are released.
         /// </summary>
         /// <param name="commit">The publication that owns the durable decision.</param>
-        /// <param name="scope">The marker owned by the writer.</param>
-        private sealed class LifecycleDecisionWindow(INodeManagerPublicationCommit commit, IDisposable scope)
+        private sealed class LifecycleDecisionWindow(INodeManagerPublicationCommit commit)
         {
             /// <summary>
             /// The publication owning this window.
             /// </summary>
             public INodeManagerPublicationCommit Commit { get; } = commit;
-
-            /// <summary>
-            /// The scope revoked when the host releases the window.
-            /// </summary>
-            public IDisposable Scope { get; } = scope;
 
             /// <summary>
             /// Completes after the host releases the window.
