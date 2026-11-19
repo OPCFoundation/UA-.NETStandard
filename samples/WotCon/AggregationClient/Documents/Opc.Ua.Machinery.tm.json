@@ -66,6 +66,9 @@
     }
   },
   "title": "OPC UA Machinery",
+  "tm:optional": [
+    "/properties/Location"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IMachineTagNameplateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1011",

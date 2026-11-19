@@ -314,7 +314,8 @@ namespace Opc.Ua.Wot
             HashSet<string>? projectedNodeIds = null,
             bool foldEventSourceType = true,
             WotReferenceTypeNames? referenceTypes = null,
-            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null,
+            string? resolvedEventAncestor = null)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using var output = new MemoryStream();
@@ -391,7 +392,8 @@ namespace Opc.Ua.Wot
                         nodeSet.NamespaceUris,
                         nodeSet,
                         BuildIndex(nodeSet),
-                        defaultLocale);
+                        defaultLocale,
+                        resolvedEventAncestor);
                 }
                 referenceTypes ??= WotReferenceTypeNames.Build(nodeSet);
                 WriteDataTypeDefinitions(

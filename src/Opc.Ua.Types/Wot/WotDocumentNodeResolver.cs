@@ -444,13 +444,30 @@ namespace Opc.Ua.Wot
                     var name = QualifiedName.Parse(browseName);
                     if (name.Name is { Length: > 0 } local)
                     {
-                        if (name.NamespaceIndex == 0)
+                        string? namespaceUri = name.NamespaceIndex == 0
+                            ? WotVocabulary.OpcUaNamespace
+                            : name.NamespaceIndex <= (nodeSet.NamespaceUris?.Length ?? 0)
+                                ? nodeSet.NamespaceUris![name.NamespaceIndex - 1]
+                                : null;
+                        if (namespaceUri is null)
                         {
-                            AddBrowseName(WotVocabulary.OpcUaNamespace, local, resolved);
+                            continue;
                         }
-                        else if (name.NamespaceIndex <= (nodeSet.NamespaceUris?.Length ?? 0))
+                        AddBrowseName(namespaceUri, local, resolved);
+                        if (node is UAReferenceType referenceType)
                         {
-                            AddBrowseName(nodeSet.NamespaceUris![name.NamespaceIndex - 1], local, resolved);
+                            AddReferenceTypeName(namespaceUri, local, portable, local, true);
+                            if (!referenceType.Symmetric)
+                            {
+                                foreach (Export.LocalizedText inverse in referenceType.InverseName ?? [])
+                                {
+                                    if (inverse.Value is { Length: > 0 } inverseName &&
+                                        !string.Equals(inverseName, local, StringComparison.Ordinal))
+                                    {
+                                        AddReferenceTypeName(namespaceUri, inverseName, portable, inverseName, false);
+                                    }
+                                }
+                            }
                         }
                     }
                 }

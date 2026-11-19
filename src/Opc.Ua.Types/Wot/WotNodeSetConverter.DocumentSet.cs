@@ -81,9 +81,10 @@ namespace Opc.Ua.Wot
     /// <i>OPC UA — WoT Binding</i> §9.1 maps an OPC UA Object to a "Thing /
     /// nested Thing" and §6.5 states that an Object "can nest", reached by a
     /// link. A Thing Description describes exactly one Thing, so a NodeSet whose
-    /// Objects nest converts to one document per Object: the root, and one for
-    /// each nested Object carrying a <c>uav:componentOf</c> link to the document
-    /// that owns its parent.
+    /// instance Objects nest converts to one document per instance Object: the
+    /// root, and one for each nested Object carrying a <c>uav:componentOf</c>
+    /// link to the document that owns its parent. Instance declarations remain
+    /// in their owning type's source partition.
     /// </summary>
     /// <remarks>
     /// This exists because the single-document conversion cannot express an
@@ -191,7 +192,7 @@ namespace Opc.Ua.Wot
             string? title,
             WotNodeSetConverterOptions? options,
             CancellationToken cancellationToken,
-            HashSet<string>? resolvedEventTypes = null,
+            IReadOnlyDictionary<string, string>? resolvedEventTypes = null,
             IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             if (nodeSet is null)
@@ -265,7 +266,7 @@ namespace Opc.Ua.Wot
                         documentTitle, first && title is not null,
                         nodeSetBytes, resolved, diagnostics, entries, hrefs, emitted,
                         declaredChildren, eventTypeHrefs, ref totalBytes, cancellationToken,
-                        resolvedArgumentProperties))
+                        resolvedArgumentProperties, resolvedEventTypes))
                     {
                         withinLimits = false;
                         break;
@@ -361,7 +362,7 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            HashSet<string>? resolvedEventTypes = nodeResolver is null
+            Dictionary<string, string>? resolvedEventTypes = nodeResolver is null
                 ? null
                 : await ResolveExportEventTypesAsync(nodeSet, nodeResolver, cancellationToken).ConfigureAwait(false);
             Dictionary<string, WotArgumentProperty> resolvedArguments = await ResolveExportArgumentPropertiesAsync(
@@ -418,7 +419,7 @@ namespace Opc.Ua.Wot
         /// Resolves event ancestry before the synchronous projection without adding dependency
         /// nodes to the source partitions or blocking on an asynchronous resolver.
         /// </summary>
-        private static async ValueTask<HashSet<string>> ResolveExportEventTypesAsync(
+        private static async ValueTask<Dictionary<string, string>> ResolveExportEventTypesAsync(
             UANodeSet nodeSet,
             IWotNodeResolver nodeResolver,
             CancellationToken cancellationToken)
@@ -426,7 +427,7 @@ namespace Opc.Ua.Wot
             var resolver = new WotCompositeNodeResolver(
                 WotDocumentNodeResolver.FromNodeSets([nodeSet], cancellationToken),
                 nodeResolver);
-            var eventTypes = new HashSet<string>(StringComparer.Ordinal);
+            var eventTypes = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (UANode node in nodeSet.Items ?? [])
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -446,7 +447,7 @@ namespace Opc.Ua.Wot
                     if (current == WotVocabulary.BaseEventType ||
                         WotVocabulary.TryGetConditionTypeName(current, out _))
                     {
-                        eventTypes.Add(nodeId);
+                        eventTypes[nodeId] = current;
                         break;
                     }
                     WotResolvedNode? ancestor = await resolver.ResolveByNodeIdAsync(current, cancellationToken)
@@ -468,6 +469,34 @@ namespace Opc.Ua.Wot
                 }
             }
             return eventTypes;
+        }
+
+        /// <summary>
+        /// Resolves the standard event ancestor used to distinguish generated payload data from authored residue.
+        /// </summary>
+        private static async ValueTask<string?> ResolveDocumentEventAncestorAsync(
+            UANodeSet nodeSet,
+            WotDocument document,
+            IWotNodeResolver? nodeResolver,
+            CancellationToken cancellationToken)
+        {
+            if (nodeResolver is null ||
+                !HasEventTypeAnnotation(document) ||
+                GetUavString(document, "id") is not { } identity)
+            {
+                return null;
+            }
+            Dictionary<string, string> eventTypes = await ResolveExportEventTypesAsync(
+                nodeSet, nodeResolver, cancellationToken).ConfigureAwait(false);
+            foreach (KeyValuePair<string, string> entry in eventTypes)
+            {
+                if (AreSameExpandedNodeId(
+                    ToPortableNodeId(entry.Key, nodeSet.NamespaceUris) ?? entry.Key, identity))
+                {
+                    return entry.Value;
+                }
+            }
+            return null;
         }
 
         private static async ValueTask<string?> DocumentSetDifferenceAsync(
@@ -516,7 +545,7 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
             CancellationToken cancellationToken,
-            HashSet<string>? resolvedEventTypes = null)
+            IReadOnlyDictionary<string, string>? resolvedEventTypes = null)
         {
             var eventTypeHrefs = new Dictionary<string, string>(StringComparer.Ordinal);
             var hrefs = new HashSet<string>(StringComparer.Ordinal);
@@ -554,7 +583,7 @@ namespace Opc.Ua.Wot
             int depth,
             ref int documents,
             CancellationToken cancellationToken,
-            HashSet<string>? resolvedEventTypes = null)
+            IReadOnlyDictionary<string, string>? resolvedEventTypes = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!hrefs.Add(href) ||
@@ -579,9 +608,13 @@ namespace Opc.Ua.Wot
                 return false;
             }
             if (node.NodeId is { Length: > 0 } nodeId &&
-                (resolvedEventTypes?.Contains(nodeId) == true || IsEventTypeRoot(node, nodeSet)))
+                (resolvedEventTypes?.ContainsKey(nodeId) == true || IsEventTypeRoot(node, nodeSet)))
             {
                 eventTypeHrefs[nodeId] = href;
+            }
+            if (node is UAType)
+            {
+                return true;
             }
             foreach (UANode child in ChildrenOf(node, index, declaredChildren))
             {
@@ -624,7 +657,8 @@ namespace Opc.Ua.Wot
             IReadOnlyDictionary<string, string> eventTypeHrefs,
             ref long totalBytes,
             CancellationToken cancellationToken,
-            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null,
+            IReadOnlyDictionary<string, string>? resolvedEventTypes = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!hrefs.Add(href) ||
@@ -639,7 +673,10 @@ namespace Opc.Ua.Wot
                 nodeSet, node, title, explicitTitle, nodeSetBytes,
                 nativeProjection: null, emitEnvelope: false,
                 options, diagnostics, parentHref, eventTypeHrefs, href,
-                foldEventSourceType: false, resolvedArgumentProperties: resolvedArgumentProperties);
+                foldEventSourceType: false, resolvedArgumentProperties: resolvedArgumentProperties,
+                resolvedEventAncestor: resolvedEventTypes is not null &&
+                    resolvedEventTypes.TryGetValue(node.NodeId ?? string.Empty, out string? ancestor)
+                        ? ancestor : null);
             if (json.Length > options.MaxJsonDocumentSize ||
                 json.Length > options.MaxDocumentSetBytes - totalBytes)
             {
@@ -655,6 +692,10 @@ namespace Opc.Ua.Wot
             entries.Add(new WotDocumentSetEntry(href, WotDocument.FromOwnedBytes(json, options)));
 #pragma warning restore CA2000
 
+            if (node is UAType)
+            {
+                return true;
+            }
             // A NodeSet may state containment from either end. Walking only the
             // parent's forward references loses a child that declares the
             // relationship itself and is never named by its parent.
@@ -670,7 +711,7 @@ namespace Opc.Ua.Wot
                     FirstText(child.DisplayName) ?? local, false,
                     nodeSetBytes, options, diagnostics, entries, hrefs, emitted,
                     declaredChildren, eventTypeHrefs, ref totalBytes, cancellationToken,
-                    resolvedArgumentProperties))
+                    resolvedArgumentProperties, resolvedEventTypes))
                 {
                     return false;
                 }
@@ -783,6 +824,7 @@ namespace Opc.Ua.Wot
                 return [];
             }
             HashSet<string> contained = CollectContainedNodes(nodeSet);
+            Dictionary<string, UANode> index = BuildIndex(nodeSet);
             var roots = new List<UANode>();
             foreach (UANode node in nodeSet.Items)
             {
@@ -790,7 +832,8 @@ namespace Opc.Ua.Wot
                 {
                     continue;
                 }
-                if (node.NodeId is not null && contained.Contains(node.NodeId))
+                if ((node.NodeId is not null && contained.Contains(node.NodeId)) ||
+                    IsTypeDeclaration(node, index))
                 {
                     continue;
                 }
@@ -805,6 +848,25 @@ namespace Opc.Ua.Wot
                 }
             }
             return roots;
+        }
+
+        /// <summary>
+        /// Recognizes type declarations whose parent uses a companion-defined containment reference.
+        /// </summary>
+        private static bool IsTypeDeclaration(UANode node, Dictionary<string, UANode> index)
+        {
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            UANode? current = node;
+            while (current is UAInstance { ParentNodeId: { Length: > 0 } parent } &&
+                visited.Add(parent) &&
+                index.TryGetValue(parent, out current))
+            {
+                if (current is UAType)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -995,8 +1057,12 @@ namespace Opc.Ua.Wot
                 diagnostics.AddRange(single.Diagnostics);
                 if (single.Value is not null)
                 {
+                    string? ancestor = await ResolveDocumentEventAncestorAsync(
+                        single.Value, documents.Entries[0].Document, nodeResolver, cancellationToken)
+                        .ConfigureAwait(false);
                     WotJsonResidue.RemoveDocumentSetLinks(
-                        single.Value, documents.Entries[0].Document, documents, resolved, diagnostics);
+                        single.Value, documents.Entries[0].Document, documents, resolved, diagnostics,
+                        resolvedEventAncestor: ancestor);
                 }
                 ValidateDocumentSetOutput(single.Value, documents.RootHref, resolved, diagnostics, cancellationToken);
                 return new WotConversionResult<UANodeSet>(HasErrors(diagnostics) ? null : single.Value, diagnostics);

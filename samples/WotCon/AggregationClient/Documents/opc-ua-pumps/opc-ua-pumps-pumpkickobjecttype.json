@@ -54,9 +54,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8829"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8836",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -85,9 +82,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8830"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8835",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -116,9 +110,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8831"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8833",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -146,9 +137,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8831"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8834",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -177,9 +165,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8831"
-      ],
       "uav:engineeringUnits": {
         "description": "second [unit of time]",
         "displayName": "s",
@@ -282,6 +267,15 @@
     }
   },
   "title": "PumpKickObjectType",
+  "tm:optional": [
+    "/properties/PumpKickMode",
+    "/properties/PumpKickTime",
+    "/properties/PumpKickTimeDifference",
+    "/properties/Definition",
+    "/properties/Definition_2",
+    "/properties/Definition_3",
+    "/properties/EURange"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:PumpKickObjectType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1032",

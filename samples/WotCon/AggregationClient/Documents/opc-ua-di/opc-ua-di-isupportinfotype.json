@@ -365,6 +365,976 @@
           }
         ],
         "superType": "i=17602"
+      },
+      {
+        "browseName": "1:DeviceTypeImage",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "DeviceTypeImage"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=15055",
+        "parentNodeId": "ns=1;i=15054",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15056"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15054"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:<ImageIdentifier>",
+        "dataType": "i=30",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ImageIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=15056",
+        "parentNodeId": "ns=1;i=15055",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15055"
+          }
+        ],
+        "symbolicName": "ImageIdentifier",
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:Documentation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Documentation"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=15057",
+        "parentNodeId": "ns=1;i=15054",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15058"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15054"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:<DocumentIdentifier>",
+        "dataType": "ByteString",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<DocumentIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=15058",
+        "parentNodeId": "ns=1;i=15057",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15057"
+          }
+        ],
+        "symbolicName": "DocumentIdentifier",
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:DocumentationFiles",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "DocumentationFiles"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=27",
+        "parentNodeId": "ns=1;i=15054",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=28"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15054"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "browseName": "1:<DocumentFileId>",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<DocumentFileId>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=28",
+        "parentNodeId": "ns=1;i=27",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=29"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=30"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=31"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=32"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=36"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=39"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=63"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=66"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=68"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=71"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=11575"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=27"
+          }
+        ],
+        "symbolicName": "DocumentFileId",
+        "typeDefinition": "i=11575"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Size",
+        "dataType": "UInt64",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Size"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=29",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=28"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Writable",
+        "dataType": "Boolean",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Writable"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=30",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=28"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "UserWritable",
+        "dataType": "Boolean",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "UserWritable"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=31",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=28"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "OpenCount",
+        "dataType": "UInt16",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OpenCount"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=32",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=28"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "Open",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Open"
+          }
+        ],
+        "methodDeclarationId": "i=11580",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=36",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=37"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=38"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=28"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=37",
+        "parentNodeId": "ns=1;i=36",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=36"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Mode</Name>\n              <DataType>\n                <Identifier>i=3</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=38",
+        "parentNodeId": "ns=1;i=36",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=36"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "Close",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Close"
+          }
+        ],
+        "methodDeclarationId": "i=11583",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=39",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=62"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=28"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=62",
+        "parentNodeId": "ns=1;i=39",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=39"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "Read",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Read"
+          }
+        ],
+        "methodDeclarationId": "i=11585",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=63",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=64"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=65"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=28"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "2",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=64",
+        "parentNodeId": "ns=1;i=63",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=63"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Length</Name>\n              <DataType>\n                <Identifier>i=6</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=65",
+        "parentNodeId": "ns=1;i=63",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=63"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Data</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "Write",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Write"
+          }
+        ],
+        "methodDeclarationId": "i=11588",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=66",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=67"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=28"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "2",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=67",
+        "parentNodeId": "ns=1;i=66",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=66"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Data</Name>\n              <DataType>\n                <Identifier>i=15</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "GetPosition",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "GetPosition"
+          }
+        ],
+        "methodDeclarationId": "i=11590",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=68",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=69"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=70"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=28"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=69",
+        "parentNodeId": "ns=1;i=68",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=70",
+        "parentNodeId": "ns=1;i=68",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Position</Name>\n              <DataType>\n                <Identifier>i=9</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "SetPosition",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "SetPosition"
+          }
+        ],
+        "methodDeclarationId": "i=11593",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=71",
+        "parentNodeId": "ns=1;i=28",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=72"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=28"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "2",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=72",
+        "parentNodeId": "ns=1;i=71",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=71"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Position</Name>\n              <DataType>\n                <Identifier>i=9</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "1:ProtocolSupport",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ProtocolSupport"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=15059",
+        "parentNodeId": "ns=1;i=15054",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15060"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15054"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:<ProtocolSupportIdentifier>",
+        "dataType": "ByteString",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ProtocolSupportIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=15060",
+        "parentNodeId": "ns=1;i=15059",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15059"
+          }
+        ],
+        "symbolicName": "ProtocolSupportIdentifier",
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:ImageSet",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ImageSet"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=15061",
+        "parentNodeId": "ns=1;i=15054",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15062"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15054"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:<ImageIdentifier>",
+        "dataType": "i=30",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ImageIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=15062",
+        "parentNodeId": "ns=1;i=15061",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15061"
+          }
+        ],
+        "symbolicName": "ImageIdentifier",
+        "typeDefinition": "i=63"
       }
     ],
     "profileVersion": "1.0"

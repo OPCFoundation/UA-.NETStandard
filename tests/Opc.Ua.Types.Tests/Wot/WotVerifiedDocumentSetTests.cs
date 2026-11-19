@@ -52,9 +52,13 @@ namespace Opc.Ua.Types.Tests.Wot
         /// <summary>
         /// Keeps nested instance declarations in their type model rather than exporting them as instance TDs.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task NestedDeclarationPropertiesRemainInTheirTypePartitionAsync(bool variableType)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task NestedDeclarationPropertiesRemainInTheirTypePartitionAsync(
+            bool variableType,
+            bool companionReference)
         {
             UANode root = variableType
                 ? new UAVariableType { DataType = "i=24" }
@@ -89,7 +93,12 @@ namespace Opc.Ua.Types.Tests.Wot
                         DisplayName = [new Export.LocalizedText { Value = "MethodSet" }],
                         References =
                         [
-                            new Reference { ReferenceType = "i=47", IsForward = false, Value = root.NodeId },
+                            new Reference
+                            {
+                                ReferenceType = companionReference ? "ns=2;i=9001" : "i=47",
+                                IsForward = false,
+                                Value = root.NodeId
+                            },
                             new Reference { ReferenceType = "i=40", Value = "i=58" },
                             new Reference { ReferenceType = "i=37", Value = "i=80" }
                         ]

@@ -25,12 +25,6 @@
   "@type": "uav:object",
   "actions": {
     "CavitationAcknowledge": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -76,12 +70,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAcknowledge"
     },
     "CavitationConfirm": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -127,12 +115,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationConfirm"
     },
     "MotorOverheatAcknowledge": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -178,12 +160,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatAcknowledge"
     },
     "MotorOverheatConfirm": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -229,72 +205,36 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatConfirm"
     },
     "SourceAReset": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "SourceAReset",
       "uav:browseName": "ns1:SourceAReset",
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAReset"
     },
     "SourceAStart": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "SourceAStart",
       "uav:browseName": "ns1:SourceAStart",
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAStart"
     },
     "SourceAStop": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "SourceAStop",
       "uav:browseName": "ns1:SourceAStop",
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAStop"
     },
     "SourceBReset": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "SourceBReset",
       "uav:browseName": "ns1:SourceBReset",
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBReset"
     },
     "SourceBStart": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "SourceBStart",
       "uav:browseName": "ns1:SourceBStart",
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBStart"
     },
     "SourceBStop": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "SourceBStop",
       "uav:browseName": "ns1:SourceBStop",
@@ -304,16 +244,6 @@
   "description": "Sample-owned aggregate pump projected from two upstream OPC UA servers.",
   "events": {
     "CavitationAlarm": {
-      "@context": {
-        "description": {
-          "@id": "https://www.w3.org/2019/wot/td#description",
-          "@language": null
-        },
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:eventType",
       "data": {
         "properties": {
@@ -502,16 +432,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAlarm"
     },
     "MotorOverheatAlarm": {
-      "@context": {
-        "description": {
-          "@id": "https://www.w3.org/2019/wot/td#description",
-          "@language": null
-        },
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:eventType",
       "data": {
         "properties": {

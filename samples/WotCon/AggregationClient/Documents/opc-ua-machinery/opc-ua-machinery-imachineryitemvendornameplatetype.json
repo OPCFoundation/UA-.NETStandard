@@ -190,6 +190,11 @@
     }
   },
   "title": "IMachineryItemVendorNameplateType",
+  "tm:optional": [
+    "/properties/InitialOperationDate",
+    "/properties/MonthOfConstruction",
+    "/properties/YearOfConstruction"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IMachineryItemVendorNameplateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1003",

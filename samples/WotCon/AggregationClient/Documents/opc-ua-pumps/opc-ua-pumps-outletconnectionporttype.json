@@ -322,6 +322,2458 @@
           }
         ],
         "superType": "ns=1;i=1035"
+      },
+      {
+        "browseName": "1:Design",
+        "description": [
+          {
+            "locale": "",
+            "value": "Manufacturer's properties that describe the rudimentary data of the outlet connection."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Design"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=5111",
+        "parentNodeId": "ns=1;i=1037",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1037"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9685"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9686"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9687"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9688"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1042"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9689"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9690"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9691"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9692"
+          }
+        ],
+        "typeDefinition": "ns=1;i=1042"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:MaximumAllowableOutletPressure",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Highest value of outlet pressure at which the pump or component is capable of functioning on the basis of the materials used."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "MaximumAllowableOutletPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9685",
+        "parentNodeId": "ns=1;i=5111",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9693"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9695"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9694"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5111"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9693",
+        "parentNodeId": "ns=1;i=9685",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9685"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9695",
+        "parentNodeId": "ns=1;i=9685",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9685"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9694",
+        "parentNodeId": "ns=1;i=9685",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9685"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:MinimumAllowableOutetPressure",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Lowest value of outlet pressure at which the pump or component is capable of functioning on the basis of the materials used."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "MinimumAllowableOutetPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9686",
+        "parentNodeId": "ns=1;i=5111",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9696"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9698"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9697"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5111"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          }
+        ],
+        "typeDefinition": "i=15318",
+        "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9696",
+        "parentNodeId": "ns=1;i=9686",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9686"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9698",
+        "parentNodeId": "ns=1;i=9686",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9686"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9697",
+        "parentNodeId": "ns=1;i=9686",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9686"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:NominalPressure",
+        "dataType": "String",
+        "description": [
+          {
+            "locale": "",
+            "value": "Alphanumeric parameter for reference purposes, referring to a combination of mechanical and dimensional properties of a component of a piping system. It comprises the letters PN followed by a dimensionless number."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "NominalPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9687",
+        "parentNodeId": "ns=1;i=5111",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2365"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9699"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5111"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          }
+        ],
+        "typeDefinition": "i=2365"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9699",
+        "parentNodeId": "ns=1;i=9687",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9687"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:OutletAreaOfThePump",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Free cross-sectional area of the orifice in the outlet connection of the pump."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutletAreaOfThePump"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9688",
+        "parentNodeId": "ns=1;i=5111",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9700"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9702"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9701"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5111"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9700",
+        "parentNodeId": "ns=1;i=9688",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9688"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9702",
+        "parentNodeId": "ns=1;i=9688",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9688"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067851</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>square metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9701",
+        "parentNodeId": "ns=1;i=9688",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9688"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:ReliefValveAccumulationPressure",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Outlet pressure at which the relief valve will pass the total pump flow."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ReliefValveAccumulationPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9689",
+        "parentNodeId": "ns=1;i=5111",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9703"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9705"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9704"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5111"
+          }
+        ],
+        "typeDefinition": "i=15318",
+        "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9703",
+        "parentNodeId": "ns=1;i=9689",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9689"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9705",
+        "parentNodeId": "ns=1;i=9689",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9689"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9704",
+        "parentNodeId": "ns=1;i=9689",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9689"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:ReliefValveBackPressure",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Pressure at the outlet of the relief valve when the valve is closed."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ReliefValveBackPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9690",
+        "parentNodeId": "ns=1;i=5111",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9706"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9708"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9707"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5111"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9706",
+        "parentNodeId": "ns=1;i=9690",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9690"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9708",
+        "parentNodeId": "ns=1;i=9690",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9690"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9707",
+        "parentNodeId": "ns=1;i=9690",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9690"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:ReliefValveReseatPressure",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Outlet pressure at which the relief valve will close after passing the total pump flow."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ReliefValveReseatPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9691",
+        "parentNodeId": "ns=1;i=5111",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9709"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9711"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9710"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5111"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9709",
+        "parentNodeId": "ns=1;i=9691",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9691"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9711",
+        "parentNodeId": "ns=1;i=9691",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9691"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9710",
+        "parentNodeId": "ns=1;i=9691",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9691"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:ReliefValveSetPressure",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Outlet pressure at which the relief valve begins to open."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ReliefValveSetPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9692",
+        "parentNodeId": "ns=1;i=5111",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9712"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9714"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9713"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5111"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9712",
+        "parentNodeId": "ns=1;i=9692",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9692"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9714",
+        "parentNodeId": "ns=1;i=9692",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9692"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9713",
+        "parentNodeId": "ns=1;i=9692",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9692"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "1:Implementation",
+        "description": [
+          {
+            "locale": "",
+            "value": "Properties that describe the specific installation and operational situation of the outlet connection."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Implementation"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=5112",
+        "parentNodeId": "ns=1;i=1037",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9715"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1037"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9716"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9717"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1048"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9718"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9719"
+          }
+        ],
+        "typeDefinition": "ns=1;i=1048"
+      },
+      {
+        "accessLevel": 3,
+        "arrayDimensions": "",
+        "browseName": "1:HeightOfTheOutletConnection",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Height of the center of the outlet connection of the pump."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "HeightOfTheOutletConnection"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9715",
+        "parentNodeId": "ns=1;i=5112",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9720"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9722"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9721"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5112"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9720",
+        "parentNodeId": "ns=1;i=9715",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9715"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9722",
+        "parentNodeId": "ns=1;i=9715",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9715"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9721",
+        "parentNodeId": "ns=1;i=9715",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9715"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "accessLevel": 3,
+        "arrayDimensions": "",
+        "browseName": "1:MeanRatedVelocityAtOutlet",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Rated flow at pump outlet connection divided by the inlet area of the pump."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "MeanRatedVelocityAtOutlet"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9716",
+        "parentNodeId": "ns=1;i=5112",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9723"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9725"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9724"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5112"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9723",
+        "parentNodeId": "ns=1;i=9716",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9716"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9725",
+        "parentNodeId": "ns=1;i=9716",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9716"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067859</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9724",
+        "parentNodeId": "ns=1;i=9716",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9716"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "accessLevel": 3,
+        "arrayDimensions": "",
+        "browseName": "1:NominalSize",
+        "dataType": "String",
+        "description": [
+          {
+            "locale": "",
+            "value": "An alphanumeric designation of size for components of a pipework system, which is used for reference purposes. It comprises the letters DN followed by a dimensionless whole number which is indirectly related to the physical size, in millimeters, of the bore or outside diameter of the end connections."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "NominalSize"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9717",
+        "parentNodeId": "ns=1;i=5112",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2365"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9726"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5112"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          }
+        ],
+        "typeDefinition": "i=2365"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9726",
+        "parentNodeId": "ns=1;i=9717",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9717"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "accessLevel": 3,
+        "arrayDimensions": "",
+        "browseName": "1:RatedOutletPressure",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Outlet pressure of the pump at the guarantee point with rated flow and rated speed, as well as rated inlet pressure, for rotodynamic pumps only."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "RatedOutletPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9718",
+        "parentNodeId": "ns=1;i=5112",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9727"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9729"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9728"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5112"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9727",
+        "parentNodeId": "ns=1;i=9718",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9718"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9729",
+        "parentNodeId": "ns=1;i=9718",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9718"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9728",
+        "parentNodeId": "ns=1;i=9718",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9718"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "accessLevel": 3,
+        "arrayDimensions": "",
+        "browseName": "1:TotalHeadAtOutletAreaOfThePump",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Head observed at outlet area of the pump, corresponding to the sum of the height, pressure head and velocity head."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "TotalHeadAtOutletAreaOfThePump"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9719",
+        "parentNodeId": "ns=1;i=5112",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9730"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9732"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9731"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5112"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9730",
+        "parentNodeId": "ns=1;i=9719",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9719"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9732",
+        "parentNodeId": "ns=1;i=9719",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9719"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9731",
+        "parentNodeId": "ns=1;i=9719",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9719"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "1:Measurements",
+        "description": [
+          {
+            "locale": "",
+            "value": "All measurements of the operation which describe the outlet connection."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Measurements"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=5113",
+        "parentNodeId": "ns=1;i=1037",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9733"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1037"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1049"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9735"
+          }
+        ],
+        "typeDefinition": "ns=1;i=1049"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:MeanVelocityAtOutlet",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Measured rate of flow at pump outlet connection divided by the outlet area of the pump."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "MeanVelocityAtOutlet"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9733",
+        "parentNodeId": "ns=1;i=5113",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9737"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9739"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9738"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=14961"
+          },
+          {
+            "referenceType": "GeneratesEvent",
+            "target": "i=2955"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5113"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          }
+        ],
+        "typeDefinition": "i=15318",
+        "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9737",
+        "parentNodeId": "ns=1;i=9733",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9733"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9739",
+        "parentNodeId": "ns=1;i=9733",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9733"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067859</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9738",
+        "parentNodeId": "ns=1;i=9733",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9733"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:KindOfQuantity",
+        "dataType": "String",
+        "description": [
+          {
+            "locale": "",
+            "value": "Vector quantity giving the rate of change of a position vector"
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "KindOfQuantity"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=14961",
+        "parentNodeId": "ns=1;i=9733",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9733"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">velocity</uax:String>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:OutletTemperatureOfThePump",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Measured temperature acting at the outlet area of the pump."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutletTemperatureOfThePump"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9735",
+        "parentNodeId": "ns=1;i=5113",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9740"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9742"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9741"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=14970"
+          },
+          {
+            "referenceType": "GeneratesEvent",
+            "target": "i=2955"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5113"
+          }
+        ],
+        "typeDefinition": "i=15318",
+        "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9740",
+        "parentNodeId": "ns=1;i=9735",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9735"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9742",
+        "parentNodeId": "ns=1;i=9735",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9735"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9741",
+        "parentNodeId": "ns=1;i=9735",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9735"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:KindOfQuantity",
+        "dataType": "String",
+        "description": [
+          {
+            "locale": "",
+            "value": "Quantity representing a temperature value"
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "KindOfQuantity"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=14970",
+        "parentNodeId": "ns=1;i=9735",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9735"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
+      },
+      {
+        "browseName": "1:SystemRequirements",
+        "description": [
+          {
+            "locale": "",
+            "value": "Buyer's properties that describe the installation situation of the outlet port."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "SystemRequirements"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=5114",
+        "parentNodeId": "ns=1;i=1037",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=9743"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1044"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1037"
+          }
+        ],
+        "typeDefinition": "ns=1;i=1044"
+      },
+      {
+        "accessLevel": 3,
+        "arrayDimensions": "",
+        "browseName": "1:BackingPressure",
+        "dataType": "Double",
+        "description": [
+          {
+            "locale": "",
+            "value": "Pressure at the outlet of a vacuum pump."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "BackingPressure"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9743",
+        "parentNodeId": "ns=1;i=5114",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5114"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15318"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9744"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9746"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9745"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          }
+        ],
+        "typeDefinition": "i=15318"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Definition",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Definition"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9744",
+        "parentNodeId": "ns=1;i=9743",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9743"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EngineeringUnits",
+        "dataType": "EUInformation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EngineeringUnits"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9746",
+        "parentNodeId": "ns=1;i=9743",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9743"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "EURange",
+        "dataType": "Range",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "EURange"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=9745",
+        "parentNodeId": "ns=1;i=9743",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=9743"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
       }
     ],
     "profileVersion": "1.0"

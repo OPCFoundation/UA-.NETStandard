@@ -145,13 +145,19 @@ namespace Opc.Ua.Wot.Exporter.Tests
         /// <summary>
         /// Resolves event ancestry across required models regardless of file order.
         /// </summary>
-        [TestCase("i=2041", "uav:eventType")]
-        [TestCase("i=58", "uav:objectType")]
-        [TestCase("i=999999", "uav:objectType")]
-        [TestCase("ns=1;i=1", "uav:objectType")]
-        public async Task ExportResolvesRequiredModelEventAncestryAsync(string ancestorId, string expectedType)
+        [TestCase("i=2041", "uav:eventType", false)]
+        [TestCase("i=2782", "uav:eventType", false)]
+        [TestCase("i=2782", "uav:eventType", true)]
+        [TestCase("i=2915", "uav:eventType", true)]
+        [TestCase("i=58", "uav:objectType", false)]
+        [TestCase("i=999999", "uav:objectType", false)]
+        [TestCase("ns=1;i=1", "uav:objectType", false)]
+        public async Task ExportResolvesRequiredModelEventAncestryAsync(
+            string ancestorId,
+            string expectedType,
+            bool additionalRoot)
         {
-            const string child = """
+            string child = """
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
               <NamespaceUris><Uri>urn:export:child</Uri><Uri>urn:export:parent</Uri></NamespaceUris>
               <Models><Model ModelUri="urn:export:child" Version="1.0">
@@ -163,6 +169,16 @@ namespace Opc.Ua.Wot.Exporter.Tests
               </UAObjectType>
             </UANodeSet>
             """;
+            if (additionalRoot)
+            {
+                child = child.Replace("</UANodeSet>", """
+                  <UAObjectType NodeId="ns=1;i=2" BrowseName="1:OtherType">
+                    <DisplayName>OtherType</DisplayName>
+                    <References><Reference ReferenceType="i=45" IsForward="false">i=58</Reference></References>
+                  </UAObjectType>
+                </UANodeSet>
+                """, StringComparison.Ordinal);
+            }
             string parent = $$"""
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
               <NamespaceUris><Uri>urn:export:parent</Uri></NamespaceUris>
@@ -183,8 +199,10 @@ namespace Opc.Ua.Wot.Exporter.Tests
 
             string target = Path.Combine(m_folder, "out", "A.Child.NodeSet2.xml");
             string[] paths = Directory.GetFiles(target);
-            Assert.That(paths, Has.Length.EqualTo(1), "Dependency nodes must not become source documents.");
-            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(paths[0]).ConfigureAwait(false));
+            Assert.That(paths, Has.Length.EqualTo(additionalRoot ? 2 : 1),
+                "Dependency nodes must not become source documents.");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(
+                Path.Combine(target, "model.TM.json")).ConfigureAwait(false));
             JsonElement root = document.RootElement;
             Assert.That(root.GetProperty("@type").EnumerateArray().Select(t => t.GetString()),
                 Does.Contain(expectedType));
@@ -192,6 +210,13 @@ namespace Opc.Ua.Wot.Exporter.Tests
             {
                 JsonElement data = root.GetProperty("data");
                 Assert.That(data.GetProperty("properties").TryGetProperty("EventId", out _), Is.True);
+                if (ancestorId is "i=2782" or "i=2915")
+                {
+                    Assert.That(data.GetProperty("properties").TryGetProperty("ConditionId", out _), Is.True);
+                    Assert.That(data.GetProperty("properties").TryGetProperty("Retain", out _), Is.True);
+                    Assert.That(data.GetProperty("required").EnumerateArray().Select(field => field.GetString()),
+                        Does.Contain("ConditionId").And.Contain("Retain"));
+                }
             }
             else
             {

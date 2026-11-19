@@ -446,6 +446,22 @@
     }
   },
   "title": "ComponentType",
+  "tm:optional": [
+    "/properties/Manufacturer",
+    "/properties/ManufacturerUri",
+    "/properties/Model",
+    "/properties/HardwareRevision",
+    "/properties/SoftwareRevision",
+    "/properties/DeviceRevision",
+    "/properties/ProductCode",
+    "/properties/DeviceManual",
+    "/properties/DeviceClass",
+    "/properties/SerialNumber",
+    "/properties/ProductInstanceUri",
+    "/properties/RevisionCounter",
+    "/properties/AssetId",
+    "/properties/ComponentName"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ComponentType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15063",

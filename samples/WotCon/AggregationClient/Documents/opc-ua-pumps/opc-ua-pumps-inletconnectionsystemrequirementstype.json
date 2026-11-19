@@ -53,9 +53,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9385"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9386",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -83,9 +80,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9385"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9387",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -114,9 +108,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9385"
-      ],
       "uav:engineeringUnits": {
         "description": "pascal",
         "displayName": "Pa",
@@ -164,6 +155,12 @@
     }
   },
   "title": "InletConnectionSystemRequirementsType",
+  "tm:optional": [
+    "/properties/InletPressure",
+    "/properties/Definition",
+    "/properties/EngineeringUnits",
+    "/properties/EURange"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:InletConnectionSystemRequirementsType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1045",

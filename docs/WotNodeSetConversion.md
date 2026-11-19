@@ -223,8 +223,10 @@ measurements used for preserved JSON values.
 `WotNodeSetConverter.FromNodeSetDocumentsAsync` exports a linked set and
 reconstructs it before returning success. Each document root owns a disjoint
 partition of the source. Methods, their argument Properties, and nested
-Variables stay with their owner; nested Objects and EventTypes have separate
-document roots. References can point at Nodes in other partitions.
+Variables stay with their owner. Instance declarations, including nested Objects,
+stay in their owning type's partition. Standalone nested Object instances and
+EventTypes have separate document roots. References can point at Nodes in other
+partitions.
 
 Complete readable partitions omit `uav:nodes`. A partition requiring exceptional
 preservation carries its complete authoritative `uav:nodes` representation,

@@ -209,7 +209,8 @@ namespace Opc.Ua.Wot
             WotDocumentSet documents,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
-            UANodeSet? context = null)
+            UANodeSet? context = null,
+            string? resolvedEventAncestor = null)
         {
             List<Entry> entries = ReadEntries(nodeSet, options, diagnostics);
             var retained = new List<Entry>();
@@ -229,7 +230,8 @@ namespace Opc.Ua.Wot
                 {
                     if (entry.Pointer == "/data" &&
                         WotNodeSetConverter.IsGeneratedEventDefinitionData(
-                            document, context ?? nodeSet, value.RootElement, options.MaxJsonDepth))
+                            document, context ?? nodeSet, value.RootElement, options.MaxJsonDepth,
+                            resolvedEventAncestor))
                     {
                         continue;
                     }

@@ -140,9 +140,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.DifferentialPressure"
-      ],
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.DifferentialPressure.EURange",
       "uav:mapToType": "i=884"
     },
@@ -169,9 +166,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.FluidTemperature"
-      ],
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.FluidTemperature.EURange",
       "uav:mapToType": "i=884"
     },
@@ -198,9 +192,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.BearingTemperature"
-      ],
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.BearingTemperature.EURange",
       "uav:mapToType": "i=884"
     },
@@ -227,9 +218,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.PumpPowerInput"
-      ],
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.PumpPowerInput.EURange",
       "uav:mapToType": "i=884"
     },
@@ -256,9 +244,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.MassFlow"
-      ],
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.MassFlow.EURange",
       "uav:mapToType": "i=884"
     },
@@ -285,9 +270,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.PumpEfficiency"
-      ],
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.PumpEfficiency.EURange",
       "uav:mapToType": "i=884"
     },
@@ -314,9 +296,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.Level"
-      ],
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.Level.EURange",
       "uav:mapToType": "i=884"
     },
@@ -344,9 +323,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.DifferentialPressure"
-      ],
       "uav:engineeringUnits": {
         "description": "Pascal",
         "displayName": "Pa",
@@ -380,9 +356,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.FluidTemperature"
-      ],
       "uav:engineeringUnits": {
         "description": "Kelvin",
         "displayName": "K",
@@ -416,9 +389,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.BearingTemperature"
-      ],
       "uav:engineeringUnits": {
         "description": "Kelvin",
         "displayName": "K",
@@ -452,9 +422,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.PumpPowerInput"
-      ],
       "uav:engineeringUnits": {
         "description": "Watt",
         "displayName": "W",
@@ -488,9 +455,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.MassFlow"
-      ],
       "uav:engineeringUnits": {
         "description": "Kilograms per Second",
         "displayName": "kg/s",
@@ -524,9 +488,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.PumpEfficiency"
-      ],
       "uav:engineeringUnits": {
         "description": "Percent",
         "displayName": "%",
@@ -560,9 +521,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Operational.Measurements.Level"
-      ],
       "uav:engineeringUnits": {
         "description": "Metre",
         "displayName": "m",
@@ -685,6 +643,9 @@
       "maximum": 1,
       "minimum": 0,
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/KiloGM-PER-SEC"
+      },
       "readOnly": true,
       "title": "MassFlow",
       "type": "number",

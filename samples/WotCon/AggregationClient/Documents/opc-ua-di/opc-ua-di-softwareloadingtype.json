@@ -64,6 +64,9 @@
     }
   },
   "title": "SoftwareLoadingType",
+  "tm:optional": [
+    "/properties/UpdateKey"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:SoftwareLoadingType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=135",
