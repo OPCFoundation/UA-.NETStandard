@@ -988,6 +988,17 @@ each delivery's collection snapshots, `NamespaceDefaultPermissionReader`,
 `MonitoredItemBenchmarks.QueueEvent` benchmark only queues synthetic events; it
 does not exercise subscriber delivery or authorization.
 
+The historical [#4869](https://github.com/OPCFoundation/UA-.NETStandard/issues/4869)
+allocation trace predates
+[#5009](https://github.com/OPCFoundation/UA-.NETStandard/pull/5009), which is
+included in `1e352d379`. Stock data-change fan-out now reuses the admitted item
+array and reads Value into a dedicated snapshot field. Membership changes
+invalidate the cached array, and exposing the public mutable dictionary
+restores a fresh `ConcurrentDictionary.ToArray()` for each change. The earlier
+per-change item-array and attribute-set percentages are not current allocation
+estimates. The #5009 measurements use a different workload and do not qualify
+end-to-end delivery.
+
 The 48-session `native-subs` comparison in
 [#4908](https://github.com/OPCFoundation/UA-.NETStandard/pull/4908) uses a separate
 harness patch and native multi-subscription worker that are not in this repository.
