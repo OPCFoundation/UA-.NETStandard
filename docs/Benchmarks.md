@@ -954,6 +954,21 @@ each delivery's collection snapshots, `NamespaceDefaultPermissionReader`,
 `MonitoredItemBenchmarks.QueueEvent` benchmark only queues synthetic events; it
 does not exercise subscriber delivery or authorization.
 
+The 48-session `native-subs` comparison in
+[#4908](https://github.com/OPCFoundation/UA-.NETStandard/pull/4908) uses a separate
+harness patch and native multi-subscription worker that are not in this repository.
+The in-tree `native-counters` scenario is not that workload. To measure periodic
+sampling with a **managed client**, use the matching 48-session, five-subscription,
+1,000-item shape from [#4955](https://github.com/OPCFoundation/UA-.NETStandard/pull/4955):
+
+```powershell
+ServerLoadHarness.exe run --scenario counters --sessions 48 --subs 5 --nodes 1000 --sampling 100 --pub 100 --async-node-manager 1 --duration 20 --warmup 15
+```
+
+Report managed `counters` results separately from native `native-subs` results.
+The `sub` scenario drives notifications through writes and does not measure
+periodic sampling.
+
 Whole-workload CPU and allocation measurements do not establish the cost of
 an individual cache or registration-storage change. No isolated comparative
 measurement is recorded here for those costs.
