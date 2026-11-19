@@ -272,11 +272,17 @@ including method arguments and array elements. Unknown element types omit an
 empty `items` schema; `uav:mapToType` and `uav:valueRank` retain the native type
 and rank independently.
 
-Locally declared scalar subtypes follow their unambiguous `HasSubtype` chain
-to a known scalar representation, including inside arrays, matrices and method
-arguments. The definitive `uav:mapToType` remains the declared subtype. Missing,
-cyclic, conflicting or structured bases do not receive a guessed scalar type;
-external model dependencies are not fetched implicitly.
+Locally declared DataTypes follow their unambiguous `HasSubtype` chain to a
+known value shape, including inside arrays, matrices, method arguments and
+event fields. Structures and unions use `type: "object"`; enumerations and
+integer-backed OptionSets use `type: "integer"`. The abstract Number, Integer
+and UInteger types retain their numeric shapes without selecting a concrete
+width. The definitive `uav:mapToType` remains the declared DataType; its
+definition supplies the structure fields or enumeration values.
+
+Scalar-or-array ranks use `oneOf`, not a top-level scalar type. Missing,
+cyclic, conflicting or contradictory datatype ancestry does not receive a
+guessed type. External model dependencies are not fetched implicitly.
 
 ```csharp
 WotConversionResult<WotDocumentSet> exported =

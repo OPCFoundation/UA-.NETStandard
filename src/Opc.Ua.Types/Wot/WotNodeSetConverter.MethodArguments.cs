@@ -619,7 +619,22 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static string? MapReadableScalarType(string? dataType)
         {
-            return MapDataTypeToJson(dataType) ?? GetValidationBuiltInType(dataType ?? string.Empty) switch
+            switch (dataType)
+            {
+                case WotVocabulary.Number:
+                    return "number";
+                case WotVocabulary.Integer:
+                case "i=28":
+                    return "integer";
+                case WotVocabulary.Structure:
+                case WotVocabulary.Union:
+                    return "object";
+            }
+            if (MapDataTypeToJson(dataType) is { } mappedType)
+            {
+                return mappedType;
+            }
+            return GetValidationBuiltInType(dataType ?? string.Empty) switch
             {
                 BuiltInType.String or BuiltInType.DateTime or BuiltInType.Guid or BuiltInType.ByteString or
                 BuiltInType.XmlElement or BuiltInType.NodeId or BuiltInType.ExpandedNodeId or
@@ -632,7 +647,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Follows an unambiguous local scalar subtype chain without changing the definitive DataType identity.
+        /// Resolves readable value shapes through local datatype ancestry without changing the definitive identity.
         /// </summary>
         internal sealed class ReadableScalarContext
         {
@@ -676,7 +691,7 @@ namespace Opc.Ua.Wot
             }
 
             /// <summary>
-            /// Resolves a scalar terminal while retaining unresolved or ambiguous datatype identities.
+            /// Resolves a readable terminal while retaining unresolved, contradictory or ambiguous datatype identities.
             /// </summary>
             internal string? Resolve(string? dataType)
             {
@@ -695,9 +710,21 @@ namespace Opc.Ua.Wot
                     return cached ?? dataType;
                 }
                 string? terminal = null;
+                string? definitionType = null;
                 var visited = new HashSet<string>(StringComparer.Ordinal);
                 while (visited.Add(current))
                 {
+                    m_index.TryGetValue(current, out UANode? node);
+                    if (node is UADataType { Definition: { } definition })
+                    {
+                        string jsonType = HasEnumFields(definition) ? "integer" : "object";
+                        if (definitionType is not null && definitionType != jsonType)
+                        {
+                            m_terminals[dataType] = null;
+                            return dataType;
+                        }
+                        definitionType = jsonType;
+                    }
                     if (m_terminals.TryGetValue(current, out terminal))
                     {
                         break;
@@ -707,9 +734,7 @@ namespace Opc.Ua.Wot
                         terminal = current;
                         break;
                     }
-                    if (!m_index.TryGetValue(current, out UANode? node) ||
-                        node is not UADataType type ||
-                        (type.Definition is { } definition && !HasEnumFields(definition)))
+                    if (node is not UADataType)
                     {
                         break;
                     }
@@ -718,6 +743,11 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     current = parent;
+                }
+                if (definitionType is not null && MapReadableScalarType(terminal) != definitionType)
+                {
+                    m_terminals[dataType] = null;
+                    return dataType;
                 }
                 foreach (string identity in visited)
                 {
@@ -993,7 +1023,8 @@ namespace Opc.Ua.Wot
             var declared = new HashSet<string>(StringComparer.Ordinal);
             foreach (JsonProperty property in properties.EnumerateObject())
             {
-                if (property.Name.Length == 0 || property.Value.ValueKind != JsonValueKind.Object ||
+                if (property.Name.Length == 0 ||
+                    property.Value.ValueKind != JsonValueKind.Object ||
                     !declared.Add(property.Name))
                 {
                     return false;
@@ -1010,7 +1041,9 @@ namespace Opc.Ua.Wot
                 foreach (JsonElement entry in required.EnumerateArray())
                 {
                     if (entry.ValueKind != JsonValueKind.String ||
-                        entry.GetString() is not { } name || !declared.Contains(name) || !seen.Add(name))
+                        entry.GetString() is not { } name ||
+                        !declared.Contains(name) ||
+                        !seen.Add(name))
                     {
                         return false;
                     }
