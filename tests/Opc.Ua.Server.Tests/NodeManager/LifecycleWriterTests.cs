@@ -116,6 +116,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using LifecycleWriter.Mutation mutation = await writer.BeginMutationAsync(timeout.Token)
                 .ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var callbackReturned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var stillInWindow = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             // Schedule the independent probe before entering the reservation's compatibility scope.
             LifecycleWriter.Mutation.DecisionWindow? reservation = null;
@@ -128,15 +130,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task<bool> descended;
             using (reservation = mutation.EnterDecisionWindow())
             {
-                await mutation.DecideAsync(_ => default, reservation, timeout.Token).ConfigureAwait(false);
-                entered.TrySetResult(true);
-                Assert.That(await independent.WaitAsync(timeout.Token).ConfigureAwait(false), Is.False);
-                Assert.That(reservation.IsInCurrentFlow, Is.True);
-                descended = Task.Run(async () =>
+                Assert.That(reservation.IsInCurrentFlow, Is.False);
+                Task<bool>? captured = null;
+                await mutation.DecideAsync(async token =>
                 {
-                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    return reservation.IsInCurrentFlow;
-                }, timeout.Token);
+                    entered.TrySetResult(true);
+                    Assert.That(await independent.WaitAsync(token).ConfigureAwait(false), Is.False);
+                    Assert.That(reservation.IsInCurrentFlow, Is.True);
+                    captured = Task.Run(async () =>
+                    {
+                        await callbackReturned.Task.WaitAsync(token).ConfigureAwait(false);
+                        stillInWindow.TrySetResult(reservation.IsInCurrentFlow);
+                        await release.Task.WaitAsync(token).ConfigureAwait(false);
+                        return reservation.IsInCurrentFlow;
+                    }, token);
+                }, reservation, timeout.Token).ConfigureAwait(false);
+                Assert.That(reservation.IsInCurrentFlow, Is.False);
+                callbackReturned.TrySetResult(true);
+                Assert.That(await stillInWindow.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.True);
+                Assert.That(captured, Is.Not.Null);
+                descended = captured!;
             }
 
             release.TrySetResult(true);

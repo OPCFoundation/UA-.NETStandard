@@ -421,7 +421,7 @@ namespace Opc.Ua.Server
         internal sealed class Mutation(LifecycleWriter owner) : IDisposable
         {
             /// <summary>
-            /// Opens a decision window in the caller's context, without extending mutation ownership.
+            /// Opens a decision window without binding it to the caller's execution context.
             /// </summary>
             internal DecisionWindow EnterDecisionWindow()
             {
@@ -430,14 +430,12 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The durable decision requires mutation ownership.");
                 }
-                DecisionScope? previous = owner.m_decision.Value;
                 var scope = new DecisionScope();
                 if (Interlocked.CompareExchange(ref m_activeDecision, scope, null) is not null)
                 {
                     throw new InvalidOperationException("The mutation already has a durable decision window.");
                 }
-                owner.m_decision.Value = scope;
-                return new DecisionWindow(this, owner, scope, previous);
+                return new DecisionWindow(this, owner, scope);
             }
 
             /// <summary>
@@ -464,10 +462,10 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException("The durable decision requires mutation ownership.");
                 }
                 using DecisionWindow? local = reservation is null ? EnterDecisionWindow() : null;
-                DecisionScope scope = (reservation ?? local!).GetScope(this);
-                DecisionScope? previous = owner.m_decision.Value;
+                DecisionWindow window = reservation ?? local!;
+                DecisionScope scope = window.GetScope(this);
+                using DecisionWindow.CallbackFlow flow = window.EnterCallbackFlow();
                 scope.Activate();
-                owner.m_decision.Value = scope;
                 try
                 {
                     await callback(cancellationToken).ConfigureAwait(false);
@@ -475,7 +473,6 @@ namespace Opc.Ua.Server
                 finally
                 {
                     scope.Deactivate();
-                    owner.m_decision.Value = previous;
                 }
             }
 
@@ -519,14 +516,28 @@ namespace Opc.Ua.Server
             internal sealed class DecisionWindow(
                 Mutation mutation,
                 LifecycleWriter writer,
-                DecisionScope scope,
-                DecisionScope? previous) : IDisposable
+                DecisionScope scope) : IDisposable
             {
                 /// <summary>
                 /// Identifies re-entry from this reservation's current flow.
                 /// </summary>
                 internal bool IsInCurrentFlow =>
                     scope.IsOpen && ReferenceEquals(writer.m_decision.Value, scope);
+
+                /// <summary>
+                /// Adapts a callback that cannot receive a reservation. The bound marker carries no
+                /// reservation owner and remains revocable for any flow captured by the callback.
+                /// </summary>
+                internal CallbackFlow EnterCallbackFlow()
+                {
+                    if (!scope.IsOpen)
+                    {
+                        throw new InvalidOperationException("The publication reservation has already closed.");
+                    }
+                    var flow = new CallbackFlow(writer, writer.m_decision.Value);
+                    writer.m_decision.Value = scope;
+                    return flow;
+                }
 
                 /// <summary>
                 /// Requires the live reservation owned by this exact mutation.
@@ -548,11 +559,19 @@ namespace Opc.Ua.Server
                     {
                         return;
                     }
-                    if (ReferenceEquals(writer.m_decision.Value, scope))
+                    Interlocked.CompareExchange(ref mutation.m_activeDecision, null, scope);
+                }
+
+                /// <summary>
+                /// Restores the caller's context after invoking a callback.
+                /// </summary>
+                internal readonly struct CallbackFlow(LifecycleWriter writer, DecisionScope? previous) : IDisposable
+                {
+                    /// <inheritdoc/>
+                    public void Dispose()
                     {
                         writer.m_decision.Value = previous;
                     }
-                    Interlocked.CompareExchange(ref mutation.m_activeDecision, null, scope);
                 }
             }
         }
