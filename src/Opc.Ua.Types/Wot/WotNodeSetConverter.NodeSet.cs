@@ -333,7 +333,8 @@ namespace Opc.Ua.Wot
                     ? preservedLocale : SelectDocumentLocale(root);
                 string defaultLocale = EffectiveLocale(documentLocale);
                 WriteContext(writer, nodeSet, documentLocale, root);
-                bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
+                bool rootIsEventType = eventTypeHrefs?.ContainsKey(root?.NodeId ?? string.Empty) == true ||
+                    IsEventTypeRoot(root, nodeSet);
                 WriteRootType(writer, root, rootIsEventType);
 
                 // Section 4.1: a tool that generates a document against

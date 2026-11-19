@@ -143,6 +143,63 @@ namespace Opc.Ua.Wot.Exporter.Tests
         }
 
         /// <summary>
+        /// Resolves event ancestry across required models regardless of file order.
+        /// </summary>
+        [TestCase("i=2041", "uav:eventType")]
+        [TestCase("i=58", "uav:objectType")]
+        [TestCase("i=999999", "uav:objectType")]
+        [TestCase("ns=1;i=1", "uav:objectType")]
+        public async Task ExportResolvesRequiredModelEventAncestryAsync(string ancestorId, string expectedType)
+        {
+            const string child = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>urn:export:child</Uri><Uri>urn:export:parent</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:child" Version="1.0">
+                <RequiredModel ModelUri="urn:export:parent" Version="1.0" />
+              </Model></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ChildType">
+                <DisplayName>ChildType</DisplayName>
+                <References><Reference ReferenceType="i=45" IsForward="false">ns=2;i=1</Reference></References>
+              </UAObjectType>
+            </UANodeSet>
+            """;
+            string parent = $$"""
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>urn:export:parent</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:parent" Version="1.0" /></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ParentType">
+                <DisplayName>ParentType</DisplayName>
+                <References>
+                  <Reference ReferenceType="i=45" IsForward="false">{{ancestorId}}</Reference>
+                </References>
+              </UAObjectType>
+            </UANodeSet>
+            """;
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "A.Child.NodeSet2.xml"), child).ConfigureAwait(false);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "Z.Parent.NodeSet2.xml"), parent).ConfigureAwait(false);
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+            Assert.That(code, Is.Zero, m_error.ToString());
+
+            string target = Path.Combine(m_folder, "out", "A.Child.NodeSet2.xml");
+            string[] paths = Directory.GetFiles(target);
+            Assert.That(paths, Has.Length.EqualTo(1), "Dependency nodes must not become source documents.");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(paths[0]).ConfigureAwait(false));
+            JsonElement root = document.RootElement;
+            Assert.That(root.GetProperty("@type").EnumerateArray().Select(t => t.GetString()),
+                Does.Contain(expectedType));
+            if (expectedType == "uav:eventType")
+            {
+                JsonElement data = root.GetProperty("data");
+                Assert.That(data.GetProperty("properties").TryGetProperty("EventId", out _), Is.True);
+            }
+            else
+            {
+                Assert.That(root.TryGetProperty("data", out _), Is.False);
+            }
+        }
+
+        /// <summary>
         /// Matches catalogue URNs without deriving identity from display text or the BrowseName namespace.
         /// </summary>
         [TestCase("http://opcfoundation.org/UA/ADI/", "1:PumpType", "urn:org.opcfoundation.UA.ADI.PumpType")]
@@ -298,6 +355,25 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(code, Is.EqualTo(1));
             Assert.That(m_error.ToString(), Does.Contain("A.NodeSet2.xml").And.Contain("ERROR:"));
             Assert.That(Directory.GetFiles(target, "*", SearchOption.AllDirectories), Has.Length.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Excludes an invalid native type context without preventing valid models from being exported.
+        /// </summary>
+        [Test]
+        public async Task InvalidTypeContextDoesNotStopOtherFilesAsync()
+        {
+            string duplicate = k_nodeSet.Replace(
+                "NodeId=\"ns=1;i=2\"", "NodeId=\"ns=1;i=1\"", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "A.NodeSet2.xml"), duplicate).ConfigureAwait(false);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "B.NodeSet2.xml"), k_nodeSet).ConfigureAwait(false);
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+
+            Assert.That(code, Is.EqualTo(1));
+            Assert.That(m_error.ToString(), Does.Contain("A.NodeSet2.xml").And.Contain("ERROR:"));
+            Assert.That(Directory.GetFiles(Path.Combine(m_folder, "out"), "*", SearchOption.AllDirectories),
+                Has.Length.EqualTo(2));
         }
 
         /// <summary>

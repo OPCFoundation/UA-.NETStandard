@@ -717,6 +717,14 @@ metadata. Generated documents emit neither member, nothing is synthesized from
 either, and permissive conversion preserves either unknown member as ordinary
 residue. Strict authoring reports either as an unknown term.
 
+For asynchronous document-set export, supply the locally available dependency
+models through `nodeResolver`. `WotDocumentNodeResolver.FromNodeSets` builds this
+context directly from source NodeSets, preserving each model's namespace table.
+The exporter follows the bounded supertype chain through that context to
+recognize EventTypes whose ancestors are defined in another model. Dependency
+nodes are used for resolution, not added to the exported source partitions.
+Missing or cyclic ancestry is not inferred from a type's name.
+
 ## Engineering units, ranges and scaling (Sections 6.4 and 6.4.1)
 
 The default `WotQudtUnitMappingProvider` maps an explicit allowlist of UN/CEFACT

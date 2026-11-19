@@ -26,6 +26,13 @@ The file name check is not case-sensitive. The command does not follow
 directory links or read the output folder as input.
 An output folder that contains the source folder is not allowed.
 
+All successfully read NodeSets form a local type-resolution context before export
+starts. Include the required companion models and the OPC UA base NodeSet in
+the source tree so event ancestry can be followed across namespace boundaries.
+Their nodes remain in their own output folders; they are not added to a
+dependent model's source partition. A single-file input supplies only that file
+as the local context.
+
 ## Output
 
 Each input file gets a separate output folder. For example:

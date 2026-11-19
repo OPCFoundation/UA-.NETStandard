@@ -38,7 +38,7 @@ namespace Opc.Ua.Wot
 {
     /// <summary>
     /// Resolves names and identifiers against a fixed collection of WoT
-    /// documents — the "sibling documents of the conversion" half of the local
+    /// documents or native NodeSets — the "sibling documents of the conversion" half of the local
     /// context of <i>OPC UA — WoT Binding</i> §5.1.5.
     /// </summary>
     /// <remarks>
@@ -70,6 +70,33 @@ namespace Opc.Ua.Wot
             {
                 Index(document);
             }
+        }
+
+        /// <summary>
+        /// Creates a local type context from NodeSets, retaining their namespace-qualified
+        /// identities and declarations without exporting dependency nodes.
+        /// </summary>
+        /// <param name="nodeSets">The source and locally available dependency models.</param>
+        /// <param name="cancellationToken">A token that cancels indexing between models.</param>
+        /// <returns>The indexed local context.</returns>
+        /// <exception cref="ArgumentException">A supplied NodeSet is null.</exception>
+        public static WotDocumentNodeResolver FromNodeSets(
+            ArrayOf<UANodeSet> nodeSets,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var resolver = new WotDocumentNodeResolver([]);
+            foreach (UANodeSet nodeSet in nodeSets)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (nodeSet is null)
+                {
+                    throw new ArgumentException("A source NodeSet is null.", nameof(nodeSets));
+                }
+                resolver.m_declarations.AddNodeSet(nodeSet);
+                resolver.IndexNativeNodes(nodeSet);
+            }
+            return resolver;
         }
 
         /// <inheritdoc/>
@@ -360,6 +387,7 @@ namespace Opc.Ua.Wot
         /// carries its own namespace table, and its node identifiers are indices
         /// into that table rather than into the document's <c>@context</c>.
         /// </remarks>
+        /// <exception cref="FormatException"></exception>
         private void IndexNativeProjection(WotDocument document)
         {
             if (!document.TryGetEnvelope(out _) &&
@@ -373,7 +401,14 @@ namespace Opc.Ua.Wot
             {
                 throw new FormatException("The authoritative native type context could not be restored.");
             }
-            UANodeSet nodeSet = result.Value;
+            IndexNativeNodes(result.Value);
+        }
+
+        /// <summary>
+        /// Indexes native identities using the namespace table of their source model.
+        /// </summary>
+        private void IndexNativeNodes(UANodeSet nodeSet)
+        {
             foreach (string namespaceUri in nodeSet.NamespaceUris ?? [])
             {
                 m_namespaces.Add(namespaceUri);

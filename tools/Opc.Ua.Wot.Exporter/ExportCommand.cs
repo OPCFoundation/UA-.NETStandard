@@ -107,6 +107,7 @@ namespace Opc.Ua.Wot.Exporter
                 }
                 int failed = 0;
                 int written = 0;
+                var loaded = new List<(string Path, UANodeSet NodeSet)>();
                 for (int i = 0; i < files.Length; i++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -114,8 +115,31 @@ namespace Opc.Ua.Wot.Exporter
                     await m_output.WriteLineAsync($"[{i + 1}/{files.Length}] Read {relative}").ConfigureAwait(false);
                     try
                     {
+                        loaded.Add((files[i], await ReadNodeSetAsync(files[i], cancellationToken).ConfigureAwait(false)));
+                    }
+                    catch (Exception ex) when (IsInputError(ex))
+                    {
+                        failed++;
+                        await m_error.WriteLineAsync($"ERROR: {relative}: {ex.Message}").ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                    {
+                        failed++;
+                        await m_error.WriteLineAsync(
+                            $"ERROR: {relative}: Unexpected {ex.GetType().Name}: {ex.Message}").ConfigureAwait(false);
+                    }
+                }
+                var nodeResolver = WotDocumentNodeResolver.FromNodeSets(
+                    loaded.Select(file => file.NodeSet).ToArrayOf(), cancellationToken);
+                foreach ((string path, UANodeSet nodeSet) in loaded)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    string relative = Path.GetRelativePath(sourceFolder, path);
+                    try
+                    {
                         string folder = Path.Combine(destination, relative);
-                        written += await ExportFileAsync(files[i], folder, cancellationToken).ConfigureAwait(false);
+                        written += await ExportFileAsync(nodeSet, folder, nodeResolver, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception ex) when (IsInputError(ex))
                     {
@@ -149,10 +173,36 @@ namespace Opc.Ua.Wot.Exporter
         }
 
         /// <summary>
+        /// Reads a bounded source model before any dependent model is exported.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        private static async Task<UANodeSet> ReadNodeSetAsync(string source, CancellationToken cancellationToken)
+        {
+            var options = new WotNodeSetConverterOptions();
+            using var stream = new FileStream(
+                source, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
+            if (stream.Length > options.MaxNodeSetSize)
+            {
+                throw new FormatException($"The NodeSet exceeds the {options.MaxNodeSetSize} byte limit.");
+            }
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+            buffer.Position = 0;
+            UANodeSet nodeSet = UANodeSet.Read(buffer) ?? throw new FormatException("The file is not a NodeSet2.");
+            // Validate before combining contexts so a malformed model cannot stop unrelated exports.
+            _ = WotDocumentNodeResolver.FromNodeSets([nodeSet], cancellationToken);
+            return nodeSet;
+        }
+
+        /// <summary>
         /// Exports one source as a linked document set without changing its hrefs.
         /// </summary>
         /// <exception cref="FormatException"></exception>
-        private async Task<int> ExportFileAsync(string source, string destination, CancellationToken cancellationToken)
+        private async Task<int> ExportFileAsync(
+            UANodeSet nodeSet,
+            string destination,
+            IWotNodeResolver nodeResolver,
+            CancellationToken cancellationToken)
         {
             var options = new WotNodeSetConverterOptions
             {
@@ -165,19 +215,10 @@ namespace Opc.Ua.Wot.Exporter
                 MaxResolverDepth = 128,
                 MaxResolverTotalBytes = 512L * 1024 * 1024
             };
-            using var stream = new FileStream(
-                source, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
-            if (stream.Length > options.MaxNodeSetSize)
-            {
-                throw new FormatException($"The NodeSet exceeds the {options.MaxNodeSetSize} byte limit.");
-            }
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
-            buffer.Position = 0;
-            UANodeSet nodeSet = UANodeSet.Read(buffer) ?? throw new FormatException("The file is not a NodeSet2.");
             await m_output.WriteLineAsync("  Convert the NodeSet. Check source preservation.").ConfigureAwait(false);
             WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter.FromNodeSetDocumentsAsync(
-                nodeSet, "model.TM.json", options: options, cancellationToken: cancellationToken).ConfigureAwait(false);
+                nodeSet, "model.TM.json", options: options, nodeResolver: nodeResolver,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
             using WotDocumentSet? documents = result.Value;
             foreach (WotDiagnostic diagnostic in result.Diagnostics)
             {
