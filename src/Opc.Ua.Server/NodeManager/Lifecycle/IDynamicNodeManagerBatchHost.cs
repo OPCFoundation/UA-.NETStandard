@@ -328,14 +328,17 @@ namespace Opc.Ua.Server
         /// Associates namespace admission with the writer's scope before publication callbacks run.
         /// </summary>
         /// <returns>The scope that expires the host reservation marker.</returns>
-        IDisposable EnterPublicationScope();
+        LifecycleWriter.Mutation.DecisionWindow EnterPublicationScope();
 
         /// <summary>
         /// Executes the durable decision once under lifecycle mutation ownership.
         /// </summary>
+        /// <param name="reservation">The host's publication reservation, if it opened one.</param>
         /// <param name="cancellationToken">Cancels before the durable decision.</param>
         /// <returns>Completion of the decision.</returns>
-        ValueTask DecideAsync(CancellationToken cancellationToken);
+        ValueTask DecideAsync(
+            LifecycleWriter.Mutation.DecisionWindow? reservation,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Installs committed registration and retirement bookkeeping at the routing swap.

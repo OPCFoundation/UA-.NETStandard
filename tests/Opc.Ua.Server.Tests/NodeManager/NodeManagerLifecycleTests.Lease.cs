@@ -610,7 +610,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable.RoutingSnapshot publishedView = host.RoutingRevision;
             m_server.HostBoundary.Publication = async (plan, _) =>
             {
-                await plan.Commit.DecideAsync(timeout.Token).ConfigureAwait(false);
+                await plan.Commit.DecideAsync(null, timeout.Token).ConfigureAwait(false);
                 throw expected;
             };
 

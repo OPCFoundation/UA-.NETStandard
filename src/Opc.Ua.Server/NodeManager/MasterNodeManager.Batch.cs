@@ -539,7 +539,7 @@ namespace Opc.Ua.Server
             bool decisionCommitted = false;
             bool lifecycleDecisionWindowStarted = false;
             bool namespaceRegistrationAdmissionHeld = false;
-            IDisposable? publicationScope = null;
+            LifecycleWriter.Mutation.DecisionWindow? publicationScope = null;
             NamespacePublication? namespaceReservation = null;
             NodeManagerRoutingTable.PreparedRoutes? routes = null;
             PublishedReferenceChanges? committedReferences = null;
@@ -675,7 +675,7 @@ namespace Opc.Ua.Server
                             dynamicMutationSemaphoreHeld = false;
                         }
                         // Enter the decision under admission so its final revision check precedes permitted aliases.
-                        ValueTask decision = commit.DecideAsync(cancellationToken);
+                        ValueTask decision = commit.DecideAsync(publicationScope, cancellationToken);
                         if (decision.IsCompleted)
                         {
                             await decision.ConfigureAwait(false);

@@ -430,7 +430,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Opens a decision window in the caller's context, without extending mutation ownership.
             /// </summary>
-            internal IDisposable EnterDecisionWindow()
+            internal DecisionWindow EnterDecisionWindow()
             {
                 owner.ThrowIfDecisionCallbackActive();
                 if (!m_held)
@@ -450,8 +450,19 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Invokes the sole callback allowed under mutation ownership.
             /// </summary>
+            internal ValueTask DecideAsync(
+                Func<CancellationToken, ValueTask> callback,
+                CancellationToken cancellationToken)
+            {
+                return DecideAsync(callback, null, cancellationToken);
+            }
+
+            /// <summary>
+            /// Executes the decision using the host's reservation, or owns a local reservation if there is no host.
+            /// </summary>
             internal async ValueTask DecideAsync(
                 Func<CancellationToken, ValueTask> callback,
+                DecisionWindow? reservation,
                 CancellationToken cancellationToken)
             {
                 owner.ThrowIfDecisionCallbackActive();
@@ -459,9 +470,11 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The durable decision requires mutation ownership.");
                 }
-                using IDisposable? window = IsInDecisionWindow ? null : EnterDecisionWindow();
-                DecisionScope scope = owner.m_decision.Value!;
+                using DecisionWindow? local = reservation is null ? EnterDecisionWindow() : null;
+                DecisionScope scope = (reservation ?? local!).GetScope(this);
+                DecisionScope? previous = owner.m_decision.Value;
                 scope.Activate();
+                owner.m_decision.Value = scope;
                 try
                 {
                     await callback(cancellationToken).ConfigureAwait(false);
@@ -469,6 +482,7 @@ namespace Opc.Ua.Server
                 finally
                 {
                     scope.Deactivate();
+                    owner.m_decision.Value = previous;
                 }
             }
 
@@ -509,12 +523,25 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Revokes the marker shared by the host and writer before relinquishing the window.
             /// </summary>
-            private sealed class DecisionWindow(
+            internal sealed class DecisionWindow(
                 Mutation mutation,
                 LifecycleWriter writer,
                 DecisionScope scope,
                 DecisionScope? previous) : IDisposable
             {
+                /// <summary>
+                /// Requires the live reservation owned by this exact mutation.
+                /// </summary>
+                internal DecisionScope GetScope(Mutation expected)
+                {
+                    if (!scope.IsOpen || !ReferenceEquals(mutation, expected))
+                    {
+                        throw new InvalidOperationException(
+                            "The decision reservation is not active for this mutation.");
+                    }
+                    return scope;
+                }
+
                 /// <inheritdoc/>
                 public void Dispose()
                 {
@@ -866,7 +893,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Shared decision state expires even in execution contexts spawned by the callback.
         /// </summary>
-        private sealed class DecisionScope
+        internal sealed class DecisionScope
         {
             /// <summary>
             /// Gets whether the host has not yet released its reservations.

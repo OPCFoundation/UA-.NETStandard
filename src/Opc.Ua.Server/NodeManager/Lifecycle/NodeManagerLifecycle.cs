@@ -2683,7 +2683,10 @@ namespace Opc.Ua.Server
             public bool IsInPublicationScope => m_mutation.IsInDecisionWindow;
 
             /// <inheritdoc/>
-            public IDisposable EnterPublicationScope() => m_mutation.EnterDecisionWindow();
+            public LifecycleWriter.Mutation.DecisionWindow EnterPublicationScope()
+            {
+                return m_mutation.EnterDecisionWindow();
+            }
 
             /// <summary>
             /// Gets the revision installed at the routing swap.
@@ -2706,12 +2709,14 @@ namespace Opc.Ua.Server
             public PublishedReferenceChanges? CommittedReferences { get; private set; }
 
             /// <inheritdoc/>
-            public async ValueTask DecideAsync(CancellationToken cancellationToken)
+            public async ValueTask DecideAsync(
+                LifecycleWriter.Mutation.DecisionWindow? reservation,
+                CancellationToken cancellationToken)
             {
                 m_batch.Publication?.ValidateRevision(m_batch.Server);
                 await m_mutation.DecideAsync(m_decideAsync ??
                     throw new InvalidOperationException("A validation unit has no durable decision."),
-                    cancellationToken).ConfigureAwait(false);
+                    reservation, cancellationToken).ConfigureAwait(false);
                 m_batch.DecisionCommitted = true;
             }
 

@@ -1921,6 +1921,8 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
   corresponding information for the current view. A nested lifecycle change during reconciliation
   or readiness can advance the current view without changing the original result's revision or slot set.
 - Before the durable decision callback runs, the batch reserves the serving routing revision.
+  The host passes that exact reservation to the lifecycle writer when it starts the decision.
+  A closed reservation or one from a different mutation cannot start the callback.
   Public namespace registration and unregistration from other flows proceed during a pending decision
   when their namespace and manager lifetime are unrelated to the batch. Those mutations update the
   serving routes immediately and are mirrored only into that exact reserved successor, preserving
