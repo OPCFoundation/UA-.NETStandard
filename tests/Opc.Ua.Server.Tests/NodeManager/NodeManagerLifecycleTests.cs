@@ -7785,7 +7785,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .Returns(() => context.Commit.EnterPublicationScope());
                     commit.Setup(value => value.DecideAsync(
                             It.IsAny<LifecycleWriter.Mutation.DecisionWindow?>(), It.IsAny<CancellationToken>()))
-                        .Returns<LifecycleWriter.Mutation.DecisionWindow?, CancellationToken>(context.Commit.DecideAsync);
+                        .Returns<LifecycleWriter.Mutation.DecisionWindow?, CancellationToken>(
+                            context.Commit.DecideAsync);
                     commit.Setup(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()))
                         .Callback<PublishedReferenceChanges>(context.Commit.CaptureCommittedReferences);
                     commit.Setup(value => value.Publish(It.IsAny<bool>())).Callback<bool>(historianChanged =>

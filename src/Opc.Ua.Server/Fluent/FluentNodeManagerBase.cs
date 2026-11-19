@@ -992,7 +992,9 @@ namespace Opc.Ua.Server.Fluent
         /// Defers configuration and supplies the initializer's readiness admission to the callback.
         /// </summary>
         /// <param name="builder">The builder kept open until configuration completes.</param>
-        /// <param name="configure">The retryable callback. Direct initialization may provide no readiness context.</param>
+        /// <param name="configure">
+        /// The retryable callback. Direct initialization may provide no readiness context.
+        /// </param>
         protected void DeferConfigurationUntilReady(
             INodeManagerBuilder builder,
             Func<NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)

@@ -436,7 +436,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Reconciles an earlier confirmation from a callback without waiting for an active verification in its call chain.
+        /// Reconciles an earlier confirmation without waiting for an active verification in the callback's call chain.
         /// </summary>
         /// <param name="handle">The exact handle from the earlier confirmation or pending discovery.</param>
         /// <param name="verificationContext">The context supplied to the calling verification callback.</param>

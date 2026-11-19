@@ -44,7 +44,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task NestedPermitRestoresParentCapabilitiesAsync()
         {
             var current = new AsyncLocal<NodeManagerCallbackPermit?>();
-            var parentScope = new LegacyNodeManagerCallbackScope(current, NodeManagerAdmissionCapability.ServerLifecycle);
+            var parentScope = new LegacyNodeManagerCallbackScope(
+                current, NodeManagerAdmissionCapability.ServerLifecycle);
             NodeManagerCallbackPermit parent = parentScope.Permit;
             try
             {
@@ -173,7 +174,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task OutOfOrderDisposalPreservesOnlyActivePermitAsync()
         {
             var current = new AsyncLocal<NodeManagerCallbackPermit?>();
-            var parentScope = new LegacyNodeManagerCallbackScope(current, NodeManagerAdmissionCapability.ServerLifecycle);
+            var parentScope = new LegacyNodeManagerCallbackScope(
+                current, NodeManagerAdmissionCapability.ServerLifecycle);
             var childScope = new LegacyNodeManagerCallbackScope(
                 current, NodeManagerAdmissionCapability.AddressSpaceMutation);
             NodeManagerCallbackPermit parent = parentScope.Permit;

@@ -2206,7 +2206,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public Func<CancellationToken, ValueTask>? ReadinessCallback { get; set; }
 
-            public Func<NodeManagerReadinessContext, CancellationToken, ValueTask>? ExplicitReadinessCallback { get; set; }
+            public Func<NodeManagerReadinessContext, CancellationToken, ValueTask>? ExplicitReadinessCallback
+            {
+                get;
+                set;
+            }
 
             public Func<CancellationToken, ValueTask>? DeleteCallback { get; set; }
 

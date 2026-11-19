@@ -75,7 +75,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    bool recovered = await RecoverCommittedImageAsync(readiness, cancellationToken).ConfigureAwait(false);
+                    bool recovered = await RecoverCommittedImageAsync(readiness, cancellationToken)
+                        .ConfigureAwait(false);
                     m_publicationRecoveryRequired = false;
                     return recovered;
                 }

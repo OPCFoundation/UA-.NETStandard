@@ -322,7 +322,8 @@ namespace Opc.Ua.WotCon.Server
                 }
                 bool recovered = await Coordinator.RecoverAsync(readiness, cancellationToken).ConfigureAwait(false);
                 WotRefreshResult? result = recovered ? null : await Coordinator.RefreshAsync(
-                    new WotRefreshRequest { RequestId = "startup" }, readiness, cancellationToken).ConfigureAwait(false);
+                    new WotRefreshRequest { RequestId = "startup" }, readiness, cancellationToken)
+                    .ConfigureAwait(false);
                 await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
                 await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
                 if (result?.Summary.Failed > 0)
