@@ -1018,21 +1018,21 @@ Request routing remains owned by the explicit `OperationContext` view.
 
 | Scope | Purpose and expiration | Retained state |
 | --- | --- | --- |
-| `LifecycleWriter` publication scope | The host uses the writer's scope from namespace admission until it releases the reservation. It rejects serving namespace changes made from publication callbacks, and both staged and serving changes made from the durable decision. The writer rejects nested lifecycle operations while the decision callback runs. Independent callers can still publish unrelated aliases or wait for a conflicting reservation. | A callback activity flag and a reservation flag; no manager or generation |
+| `LifecycleWriter` publication scope | The host passes the exact reservation to the writer. Context-free routing getters and the durable decision bind a marker for their callback flows. The marker rejects self-waits on the reservation until it closes; nested lifecycle operations are rejected during the decision callback. Independent callers can still publish unrelated aliases or wait for a conflict. | A callback activity flag and a reservation flag; no manager or generation |
 | `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears its server and generation. Normal unwinding preserves access to a still-active parent; out-of-order disposal severs the parent link. | Server and generation references only while active |
-
-Request admission copies an initializer's readiness scope to the `OperationContext` only for
-the exact server. Dispatch checks that scope for the exact pending generation selected by the
-request's pinned view. An unbound request cannot inherit readiness at dispatch, and a pin does
-not extend the readiness scope.
 | `MasterNodeManager` callback permit | Allows nested publication to borrow the capabilities currently held by a manager callback. Disposal rejects new borrows and waits for existing borrows before the callback releases its host admission; later operations must reacquire admission. | Capability flags, borrow accounting, the preceding permit and its execution-context slot; no manager or generation |
-| `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
+| Legacy virtual handle lookup | Passes the pinned view and the request's readiness admission to the released context-free override, including when it calls `base`. Return, failure and cancellation clear both. | The pinned view and the revocable readiness scope only during the override |
 | Node registration, AddNodes, adapter notification and NodeVersion guards | Suppresses nested notifications or reserves a request's NodeId only while the owning operation is active. Disposal revokes the value in captured contexts, including on failure. An ended inner guard can fall back to a still-active enclosing operation. | A Boolean or NodeId, an active flag and preceding guard; no manager or generation |
 | Certificate rotation and user-change collectors | Admit additions only through the nearest active typed guard. Their owners clear the collected rotations or deactivation tasks after completing the owned work. | The callback's collection; a revoked guard cannot collect later work |
 | Async and synchronous manager operation scopes | Permit re-entry only while the inherited operation is active. Disposal ends admission before restoring the preceding operation. Async disposal also checks its owner-wide active-disposal flag, so an escaped Boolean alone cannot authorize later work. | Active flags, counter slots and preceding markers; no manager reference |
 | History request, dispatch and read scopes | Request/read guards revoke and release session, point and generation admissions when they end. Dispatch authority expires on callback exit, but its detached issuer identity remains available to attribute late saved points correctly. | Active ownership while admitted; detached request identity and weak generation attribution after dispatch |
 | Durable queue restore staging | Requests staged writes only while the owning restore marker is active. Disposing it revokes staging in captured child contexts. | One active flag; no queue, manager or generation |
 | NodeState event propagation | Shares a visited set during one event publication. Closing the publication revokes sharing and releases both the visited nodes and the event graph, including from captured callback contexts. | The occurrence and visited nodes only while active |
+
+Request admission copies an initializer's readiness scope to the `OperationContext` only for
+the exact server. Dispatch checks that scope for the exact pending generation selected by the
+request's pinned view. An unbound request cannot inherit readiness at dispatch, and a pin does
+not extend the readiness scope.
 
 When an intermediate readiness scope is disposed while a descendant remains active,
 it clears its link to the grandparent. The descendant cannot reach the grandparent's
