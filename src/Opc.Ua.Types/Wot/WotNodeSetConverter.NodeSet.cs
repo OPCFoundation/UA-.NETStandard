@@ -1015,7 +1015,7 @@ namespace Opc.Ua.Wot
             // value this direction cannot decode is held the same way. Walking
             // only the root's references leaves all of them unreachable, so they
             // are collected here and stated as properties of the same Thing,
-            // each naming the Node it belongs to (§9.1's `uav:componentOf`).
+            // each retaining its typed ownership Reference to its parent.
             CollectOwnedVariables(
                 actions, properties, index, nestedParents, namespaceUris, representedArguments,
                 affordanceIds, referenceTypeNames);
@@ -1599,10 +1599,22 @@ namespace Opc.Ua.Wot
             writer.WriteString("@type", "uav:variable");
             if (componentOf is not null)
             {
-                writer.WritePropertyName("uav:componentOf");
-                writer.WriteStartArray();
-                writer.WriteStringValue(componentOf);
-                writer.WriteEndArray();
+                ArrayOf<Reference> references = referenceTypeNames?.GetReferences(variable) ??
+                    new ArrayOf<Reference>(variable.References ?? []);
+                foreach (Reference reference in references)
+                {
+                    if (!reference.IsForward &&
+                        (referenceTypeNames?.IsHasComponentReference(reference.ReferenceType) ??
+                            IsHasComponentReference(reference.ReferenceType, nodeSet, null)) &&
+                        ToPortableNodeId(reference.Value, namespaceUris) == componentOf)
+                    {
+                        writer.WritePropertyName("uav:componentOf");
+                        writer.WriteStartArray();
+                        writer.WriteStringValue(componentOf);
+                        writer.WriteEndArray();
+                        break;
+                    }
+                }
             }
             WriteLocalizedTextContext(writer, variable.DisplayName, variable.Description, defaultLocale);
             WriteLocalizedTitle(writer, variable.DisplayName, defaultLocale);

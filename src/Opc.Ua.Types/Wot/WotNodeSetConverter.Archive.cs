@@ -471,7 +471,8 @@ namespace Opc.Ua.Wot
                 string? conditionOwner = null;
                 if (collection == "properties")
                 {
-                    string? explicitOwner = ReadComponentOfParent(affordance.Value, identities, diagnostics);
+                    string? explicitOwner = ReadAffordanceParent(
+                        document, affordance.Value, identities, diagnostics);
                     if (explicitOwner is not null)
                     {
                         owner = explicitOwner;

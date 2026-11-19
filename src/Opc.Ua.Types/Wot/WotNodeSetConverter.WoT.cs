@@ -2182,7 +2182,8 @@ namespace Opc.Ua.Wot
             // the Thing. Without this a Variable's own Variables — EURange and
             // EngineeringUnits below an analog Variable — come back re-parented
             // onto the Thing, one level higher than the source put them.
-            string owner = ReadComponentOfParent(schema, nodeSet, diagnostics) ?? rootNodeId;
+            string owner = ReadAffordanceParent(document, schema, nodeSet, diagnostics, referenceTypeCatalog) ??
+                rootNodeId;
             string? typeDefinition = ApplyTypeBinding(
                 document, typeBinding, diagnostics, schema,
                 "/properties/" + EscapeJsonPointerToken(key), WotExpectedNodeClass.VariableType);
@@ -2272,24 +2273,47 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Reads the parent an affordance names, where that parent is another
-        /// affordance of the same Thing rather than the Thing itself.
+        /// Reads an affordance's parent from its component annotation or an
+        /// inverse ownership link.
         /// </summary>
-        private static string? ReadComponentOfParent(
+        private static string? ReadAffordanceParent(
+            WotDocument document,
             JsonElement schema,
             UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            WotReferenceTypeCatalog? referenceTypeCatalog = null)
         {
-            if (!schema.TryGetProperty("uav:componentOf", out JsonElement declared) ||
-                declared.ValueKind != JsonValueKind.Array)
+            if (schema.TryGetProperty("uav:componentOf", out JsonElement declared) &&
+                declared.ValueKind == JsonValueKind.Array)
             {
-                return null;
-            }
-            foreach (JsonElement entry in declared.EnumerateArray())
-            {
-                if (entry.ValueKind == JsonValueKind.String)
+                foreach (JsonElement entry in declared.EnumerateArray())
                 {
-                    return ToNodeSetNodeId(entry.GetString()!, nodeSet, diagnostics);
+                    if (entry.ValueKind == JsonValueKind.String)
+                    {
+                        return ToNodeSetNodeId(entry.GetString()!, nodeSet, diagnostics);
+                    }
+                }
+            }
+            foreach (JsonElement link in WotDocument.ReadArray(schema, "links"))
+            {
+                string? rel = GetElementString(link, "rel");
+                string? href = GetElementString(link, "href");
+                if (rel is null ||
+                    rel == TypeBindingRel ||
+                    href is null ||
+                    !LooksLikeNodeId(href) ||
+                    !TryResolveLinkReferenceType(
+                        document, link, rel, referenceTypeCatalog, diagnostics,
+                        out string referenceType, out bool isForward) ||
+                    isForward)
+                {
+                    continue;
+                }
+                referenceType = ToNodeSetReferenceType(referenceType, nodeSet, diagnostics);
+                if (IsComponentReference(referenceType) ||
+                    IsHasComponentReference(referenceType, nodeSet, referenceTypeCatalog))
+                {
+                    return ToNodeSetNodeId(href, nodeSet, diagnostics);
                 }
             }
             return null;
@@ -2794,7 +2818,8 @@ namespace Opc.Ua.Wot
                 Description = ReadDescription(document, action)
             };
 
-            string owner = ReadComponentOfParent(action, nodeSet, diagnostics) ?? rootNodeId;
+            string owner = ReadAffordanceParent(document, action, nodeSet, diagnostics, referenceTypeCatalog) ??
+                rootNodeId;
             if (isConditionMethod &&
                 document.Events.TryGetValue(actsOn, out JsonElement target))
             {
