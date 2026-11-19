@@ -84,12 +84,15 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="capabilities">The lifecycle capabilities granted to the callback.</param>
         /// <param name="previous">The enclosing permit, if any.</param>
+        /// <param name="hostId">The issuing host for an explicit permit.</param>
         internal NodeManagerCallbackPermit(
             NodeManagerAdmissionCapability capabilities,
-            NodeManagerCallbackPermit? previous = null)
+            NodeManagerCallbackPermit? previous = null,
+            Guid hostId = default)
         {
             Previous = previous;
             Capabilities = capabilities;
+            HostId = hostId;
         }
 
         /// <summary>
@@ -101,6 +104,11 @@ namespace Opc.Ua.Server
         /// Gets the lifecycle capabilities granted to this callback.
         /// </summary>
         internal NodeManagerAdmissionCapability Capabilities { get; }
+
+        /// <summary>
+        /// Identifies the host that granted an explicit callback permit.
+        /// </summary>
+        internal Guid HostId { get; }
 
         /// <summary>
         /// Gets whether this permit remains active.
@@ -298,7 +306,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Adapts the released node and session callbacks that cannot pass a lifecycle permit.
+    /// Adapts released session callbacks that cannot pass a lifecycle permit.
     /// </summary>
     internal readonly struct LegacyNodeManagerCallbackScope : IAsyncDisposable
     {

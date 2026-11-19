@@ -684,12 +684,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const string targetNamespaceUri = kModelNamespaceUri + ":AddNodesReentry";
             IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
                 targetNamespaceUri,
-                async cancellationToken =>
+                async (context, cancellationToken) =>
                 {
                     callbackEntered.TrySetResult(true);
                     RequireRegistration(
-                        (await CommitChangeAsync(
-                        lifecycle, LifecycleChange.Add(
+                        (await CommitCallbackChangeAsync(
+                        lifecycle, context, LifecycleChange.Add(
                         nestedFactory), cancellationToken).ConfigureAwait(false)).Registrations[0]);
                 },
                 sessionClosing: null);
@@ -1030,7 +1030,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool sessionCallbackOwnsBothCapabilities = false;
             IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
                 targetNamespaceUri,
-                async cancellationToken =>
+                async (context, cancellationToken) =>
                 {
                     if (Volatile.Read(ref callbacksEnabled) == 0)
                     {
@@ -1045,10 +1045,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         await releaseAddNode.Task.WaitAsync(callbackCancellation.Token).ConfigureAwait(false);
                         Task<LifecycleResult> publication = forkNestedPublication
-                            ? Task.Run(() => CommitChangeAsync(
-                                lifecycle, LifecycleChange.Add(addNestedFactory), callbackCancellation.Token))
-                            : CommitChangeAsync(
-                                lifecycle, LifecycleChange.Add(addNestedFactory), callbackCancellation.Token);
+                            ? Task.Run(() => CommitCallbackChangeAsync(
+                                lifecycle, context, LifecycleChange.Add(addNestedFactory), callbackCancellation.Token))
+                            : CommitCallbackChangeAsync(
+                                lifecycle, context, LifecycleChange.Add(addNestedFactory), callbackCancellation.Token);
                         addNestedStarted.TrySetResult(true);
                         NodeManagerRegistration registration = RequireRegistration(
                             (await publication.ConfigureAwait(false)).Registrations[0]);
@@ -2444,7 +2444,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private IAsyncNodeManagerFactory CreateLifecycleCallbackNodeManagerFactory(
             string namespaceUri,
-            Func<CancellationToken, ValueTask>? addNode,
+            Func<OperationContext, CancellationToken, ValueTask>? addNode,
             Func<CancellationToken, ValueTask>? sessionClosing)
         {
             var factory = new Mock<IAsyncNodeManagerFactory>();
@@ -2656,7 +2656,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ApplicationConfiguration configuration,
                 ILogger logger,
                 string namespaceUri,
-                Func<CancellationToken, ValueTask>? addNode,
+                Func<OperationContext, CancellationToken, ValueTask>? addNode,
                 Func<CancellationToken, ValueTask>? sessionClosing)
                 : base(server, configuration, logger, namespaceUri)
             {
@@ -2672,7 +2672,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (m_addNode is { } addNode)
                 {
-                    await addNode(cancellationToken).ConfigureAwait(false);
+                    await addNode(context, cancellationToken).ConfigureAwait(false);
                 }
                 return await base.AddNodeAsync(context, item, cancellationToken).ConfigureAwait(false);
             }
@@ -2695,7 +2695,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Nested lifecycle operation invoked from AddNodeAsync.
             /// </summary>
-            private readonly Func<CancellationToken, ValueTask>? m_addNode;
+            private readonly Func<OperationContext, CancellationToken, ValueTask>? m_addNode;
 
             /// <summary>
             /// Nested lifecycle operation invoked from SessionClosingAsync.

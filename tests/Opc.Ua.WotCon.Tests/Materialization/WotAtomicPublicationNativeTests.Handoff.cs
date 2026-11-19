@@ -1059,6 +1059,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return pending;
             }
 
+            public ValueTask<IPreparedChanges> PrepareFromCallbackAsync(
+                ArrayOf<LifecycleChange> changes,
+                OperationContext context,
+                CancellationToken cancellationToken = default)
+            {
+                ValueTask<IPreparedChanges> pending = inner.PrepareFromCallbackAsync(
+                    changes, context, cancellationToken);
+                preparationQueued.TrySetResult(true);
+                return pending;
+            }
+
             public ValueTask<IPreparedChanges> PrepareAsync(
                 ArrayOf<LifecycleChange> changes,
                 CancellationToken cancellationToken = default)

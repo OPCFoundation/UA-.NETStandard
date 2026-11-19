@@ -99,5 +99,17 @@ namespace Opc.Ua.Server
             ArrayOf<LifecycleChange> changes,
             NodeManagerDecisionContext decisionContext,
             CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Prepares changes that may borrow admission from an active node-management callback.
+        /// </summary>
+        /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
+        /// <param name="context">The operation context supplied to the callback.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared changes.</returns>
+        ValueTask<IPreparedChanges> PrepareFromCallbackAsync(
+            ArrayOf<LifecycleChange> changes,
+            OperationContext context,
+            CancellationToken cancellationToken = default);
     }
 }

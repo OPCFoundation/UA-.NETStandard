@@ -1909,6 +1909,22 @@ namespace Opc.Ua.Server
             return PrepareAsync(changes, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        public ValueTask<IPreparedChanges> PrepareFromCallbackAsync(
+            ArrayOf<LifecycleChange> changes,
+            OperationContext context,
+            CancellationToken cancellationToken = default)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            NodeManagerCallbackPermit? permit = m_server.CurrentInstance.NodeManager is MasterNodeManager master
+                ? master.GetExplicitCallbackPermit(context)
+                : null;
+            return PrepareChangesAsync(changes, null, permit, cancellationToken);
+        }
+
         /// <summary>
         /// Uses initializer admission for both preparation and commit without storing it in the prepared result.
         /// </summary>

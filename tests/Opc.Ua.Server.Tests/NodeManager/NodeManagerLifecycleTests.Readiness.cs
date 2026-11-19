@@ -278,7 +278,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
+                    manager.ExplicitReady = async (readiness, ct) =>
                     {
                         Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
@@ -382,7 +382,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
+                    manager.ExplicitReady = async (readiness, ct) =>
                     {
                         Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
@@ -540,7 +540,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
+                    manager.ExplicitReady = async (readiness, ct) =>
                     {
                         Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
@@ -1253,7 +1253,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
+                    manager.ExplicitReady = async (readiness, ct) =>
                     {
                         receivedToken = ct;
                         observed = FindReadinessRegistration();
@@ -1388,7 +1388,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager =>
                 {
                     participant = manager;
-                    manager.ExplicitReadinessCallback = async (readiness, ct) =>
+                    manager.ExplicitReady = async (readiness, ct) =>
                     {
                         Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
@@ -2206,11 +2206,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public Func<CancellationToken, ValueTask>? ReadinessCallback { get; set; }
 
-            public Func<NodeManagerReadinessContext, CancellationToken, ValueTask>? ExplicitReadinessCallback
-            {
-                get;
-                set;
-            }
+            public Func<NodeManagerReadinessContext, CancellationToken, ValueTask>? ExplicitReady { get; set; }
 
             public Func<CancellationToken, ValueTask>? DeleteCallback { get; set; }
 
@@ -2254,9 +2250,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CancellationToken cancellationToken)
             {
                 Interlocked.Increment(ref m_readinessCount);
-                if (ExplicitReadinessCallback is not null)
+                if (ExplicitReady is not null)
                 {
-                    await ExplicitReadinessCallback(readiness, cancellationToken).ConfigureAwait(false);
+                    await ExplicitReady(readiness, cancellationToken).ConfigureAwait(false);
                 }
                 else if (ReadinessCallback is not null)
                 {

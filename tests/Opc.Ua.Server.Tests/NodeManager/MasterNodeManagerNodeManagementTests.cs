@@ -352,12 +352,14 @@ namespace Opc.Ua.Server.Tests
             Task<INodeManagerBatchAdmission>? competing = null;
             int calls = 0;
 
-            async Task<(ServiceResult result, NodeId addedNodeId)> OnAddNodeAsync(CancellationToken cancellationToken)
+            async Task<(ServiceResult result, NodeId addedNodeId)> OnAddNodeAsync(
+                OperationContext context, CancellationToken cancellationToken)
             {
                 if (Interlocked.Increment(ref calls) == 1)
                 {
-                    outerPermit = harness.Sut.CaptureLifecycleCallbackPermit() ??
+                    outerPermit = context.NodeManagerCallbackPermit ??
                         throw new InvalidOperationException("The outer callback has no admission permit.");
+                    nestedContext.InheritNodeManagerAdmission(context);
                     nested = harness.Sut.AddNodesAsync(nestedContext, [item], cancellationToken).AsTask();
                     await entered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
@@ -374,8 +376,9 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<OperationContext>(),
                     It.IsAny<AddNodesItem>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((OperationContext _, AddNodesItem _, CancellationToken cancellationToken) =>
-                    new ValueTask<(ServiceResult result, NodeId addedNodeId)>(OnAddNodeAsync(cancellationToken)));
+                .Returns((OperationContext context, AddNodesItem _, CancellationToken cancellationToken) =>
+                    new ValueTask<(ServiceResult result, NodeId addedNodeId)>(
+                        OnAddNodeAsync(context, cancellationToken)));
 
             Task<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> outer =
                 harness.Sut.AddNodesAsync(harness.AddNodesContext, [item], timeout.Token).AsTask();
@@ -459,9 +462,10 @@ namespace Opc.Ua.Server.Tests
                 await childReady.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            async Task<(ServiceResult result, NodeId addedNodeId)> OnAddNodeAsync(CancellationToken cancellationToken)
+            async Task<(ServiceResult result, NodeId addedNodeId)> OnAddNodeAsync(
+                OperationContext context, CancellationToken cancellationToken)
             {
-                NodeManagerCallbackPermit child = harness.Sut.CaptureLifecycleCallbackPermit() ??
+                NodeManagerCallbackPermit child = context.NodeManagerCallbackPermit ??
                     throw new InvalidOperationException("The node callback has no admission permit.");
                 childReady.TrySetResult(child);
                 await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -484,8 +488,9 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<OperationContext>(),
                     It.IsAny<AddNodesItem>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((OperationContext _, AddNodesItem _, CancellationToken cancellationToken) =>
-                    new ValueTask<(ServiceResult result, NodeId addedNodeId)>(OnAddNodeAsync(cancellationToken)));
+                .Returns((OperationContext context, AddNodesItem _, CancellationToken cancellationToken) =>
+                    new ValueTask<(ServiceResult result, NodeId addedNodeId)>(
+                        OnAddNodeAsync(context, cancellationToken)));
 
             Task close = harness.Sut.SessionClosingAsync(
                 closeContext, new NodeId("ClosingAdmission", 0), true, rescue.Token).AsTask();

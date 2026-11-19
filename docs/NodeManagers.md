@@ -1019,7 +1019,7 @@ Request routing remains owned by the explicit `OperationContext` view.
 | Scope | Purpose and expiration | Retained state |
 | --- | --- | --- |
 | Legacy namespace getter | The writer binds a marker around context-free routing getters. It rejects serving namespace changes that would wait on the getter's own reservation. | A revocable marker; no manager or generation |
-| Legacy node-management and session-close callback scope | Supplies a permit to context-free calls from the released callbacks. The permit itself is explicit: disposal rejects new borrows and drains existing borrows before the callback releases host admission. | Capability flags, borrow accounting and the preceding permit; no manager or generation |
+| Legacy session-close callback scope | Supplies a permit to context-free calls from the released session-close callback. Disposal rejects new borrows and drains existing borrows before the callback releases host admission. | Capability flags, borrow accounting and the preceding permit; no manager or generation |
 | Legacy virtual handle lookup | Passes the pinned view and the request's readiness admission to the released context-free override, including when it calls `base`. Return, failure and cancellation clear both. | The pinned view and the revocable readiness scope only during the override |
 | Node registration, AddNodes, adapter notification and NodeVersion guards | Suppresses nested notifications or reserves a request's NodeId only while the owning operation is active. Disposal revokes the value in captured contexts, including on failure. An ended inner guard can fall back to a still-active enclosing operation. | A Boolean or NodeId, an active flag and preceding guard; no manager or generation |
 | Certificate rotation and user-change collectors | Admit additions only through the nearest active typed guard. Their owners clear the collected rotations or deactivation tasks after completing the owned work. | The callback's collection; a revoked guard cannot collect later work |
@@ -1032,6 +1032,11 @@ Readiness does not flow through the execution context. Local request admission c
 supplied initializer scope to `OperationContext` only for the exact server. Dispatch checks that
 scope against the pending generation selected by the request's pinned view. Neither a context-free
 lookup nor a routing pin grants readiness.
+
+`AddNodeAsync` and `DeleteNodeAsync` callbacks carry admission in their `OperationContext`.
+Pass that context to `PrepareFromCallbackAsync` for nested lifecycle changes. For a separate local
+node-management operation, use `InheritNodeManagerAdmission` to pass admission to its context.
+Only the issuing host accepts the permit, and callback exit revokes it before draining borrows.
 
 `INodeManagerReadinessInitializer` receives a `NodeManagerReadinessContext` explicitly, including
 through a supported manager adapter. Use `ReadAsync` on that context for an authenticated local

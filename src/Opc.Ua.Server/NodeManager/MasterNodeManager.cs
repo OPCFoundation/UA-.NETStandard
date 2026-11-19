@@ -550,7 +550,8 @@ namespace Opc.Ua.Server
         {
             using INodeManagerBatchAdmission admission =
                 await ((IDynamicNodeManagerBatchHost)this).AcquireCommitAdmissionAsync(
-                    CaptureLifecycleCallbackPermit(), cancellationToken).ConfigureAwait(false);
+                    GetExplicitCallbackPermit(context) ?? CaptureLifecycleCallbackPermit(), cancellationToken)
+                    .ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);
@@ -1739,12 +1740,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Acquires mutation admission without retaining it while a durable lifecycle decision is pending.
         /// </summary>
+        /// <param name="callbackPermit">The callback's exact host admission, if it is still active.</param>
         /// <param name="cancellationToken">The cancellation token for the waiting service operation.</param>
         /// <returns>The owned or borrowed address-space mutation admission.</returns>
         private async ValueTask<INodeManagerBatchAdmission> AcquireDynamicMutationAdmissionAsync(
+            NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken)
         {
-            NodeManagerCallbackPermit? callbackPermit = CaptureLifecycleCallbackPermit();
             while (true)
             {
                 Task? pendingDecision = Volatile.Read(ref m_lifecycleDecisionWindow)?.Completion.Task;
@@ -1885,6 +1887,15 @@ namespace Opc.Ua.Server
             return m_lifecycleCallbackPermit.Value;
         }
 
+        /// <summary>
+        /// Accepts only a permit issued by this host; foreign contexts carry no admission here.
+        /// </summary>
+        internal NodeManagerCallbackPermit? GetExplicitCallbackPermit(OperationContext? context)
+        {
+            NodeManagerCallbackPermit? permit = context?.NodeManagerCallbackPermit;
+            return permit?.HostId == m_nodeManagementHostId ? permit : null;
+        }
+
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
@@ -1902,6 +1913,7 @@ namespace Opc.Ua.Server
         /// <summary>The boundary supplied before the host is bound to the server.</summary>
         private readonly INodeManagerHostBoundary? m_hostBoundary;
         private readonly AsyncLocal<NodeManagerCallbackPermit?> m_lifecycleCallbackPermit = new();
+        private readonly Guid m_nodeManagementHostId = Guid.NewGuid();
         private LifecycleDecisionWindow? m_lifecycleDecisionWindow;
 
         /// <summary>The publication owning namespace admission, including before the decision starts.</summary>

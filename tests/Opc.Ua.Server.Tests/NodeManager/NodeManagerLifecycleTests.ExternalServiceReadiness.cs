@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     manager =>
                     {
                         participant = manager;
-                        manager.ExplicitReadinessCallback = async (readiness, ct) =>
+                        manager.ExplicitReady = async (readiness, ct) =>
                         {
                             await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value, readiness)
                                 .ConfigureAwait(false);

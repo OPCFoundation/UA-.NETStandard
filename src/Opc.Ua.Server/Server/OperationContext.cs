@@ -241,6 +241,21 @@ namespace Opc.Ua.Server
         public NodeManagerDecisionContext? PublicationDecision { get; init; }
 
         /// <summary>
+        /// Gets or sets the revocable permit for a node-management callback.
+        /// </summary>
+        internal NodeManagerCallbackPermit? NodeManagerCallbackPermit { get; set; }
+
+        /// <summary>
+        /// Passes a node-management callback's admission to a nested local operation.
+        /// </summary>
+        /// <param name="callbackContext">The operation context supplied to the callback.</param>
+        public void InheritNodeManagerAdmission(OperationContext callbackContext)
+        {
+            NodeManagerCallbackPermit = (callbackContext ??
+                throw new ArgumentNullException(nameof(callbackContext))).NodeManagerCallbackPermit;
+        }
+
+        /// <summary>
         /// Gets whether this operation currently owns a routing-view pin.
         /// </summary>
         internal bool HasRoutingPin =>
