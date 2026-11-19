@@ -389,7 +389,7 @@ namespace Opc.Ua.Server
                     }
                     try
                     {
-                        await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                        await m_server.StopAsync(CancellationToken.None).ConfigureAwait(false);
                         if (ServiceResult.IsBad(m_server.ServerError))
                         {
                             Exception failure = new ServiceResultException(m_server.ServerError);
