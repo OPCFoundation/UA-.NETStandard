@@ -122,11 +122,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 var otherGeneration = new NodeManagerGeneration(
                     generation.Slot, generation.Number, manager.Object, NodeManagerGenerationState.Live);
-                await master.ResolvePublishedSourcesAsync(otherGeneration, CancellationToken.None)
+                await host.ResolvePublishedSourcesAsync(otherGeneration, CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(item.NodeManager, Is.Null);
 
-                await master.ResolvePublishedSourcesAsync(generation, CancellationToken.None)
+                await host.ResolvePublishedSourcesAsync(generation, CancellationToken.None)
                     .ConfigureAwait(false);
 
                 Assert.That(item.NodeManager, Is.SameAs(manager.Object));

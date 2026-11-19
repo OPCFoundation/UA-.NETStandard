@@ -1145,23 +1145,6 @@ namespace Opc.Ua.Server
                 statusCode == StatusCodes.BadFilterLiteralInvalid;
         }
 
-        private static async ValueTask ResolvePublishedSourcesAsync(
-            IServerInternal server,
-            NodeManagerGeneration generation,
-            CancellationToken ct)
-        {
-            if (server.NodeManager is MasterNodeManager master)
-            {
-                await master.ResolvePublishedSourcesAsync(generation, ct).ConfigureAwait(false);
-            }
-            else if (server.NodeManager is IDynamicNodeManagerHost recovery)
-            {
-                using var readinessScope = new NodeManagerReadinessScope(server, generation);
-                await recovery.ResolveUnresolvedSourcesAsync(generation.NodeManager, cancellationToken: ct)
-                    .ConfigureAwait(false);
-            }
-        }
-
         /// <summary>
         /// Verifies that the server's subscriptions no longer retain items on the manager.
         /// </summary>
@@ -2552,8 +2535,7 @@ namespace Opc.Ua.Server
                         await reconciliation.RunAsync(
                             NodeManagerReconciliationStage.MonitoredItems,
                             [generation],
-                            () => ResolvePublishedSourcesAsync(
-                                batch.Server, generation, CancellationToken.None))
+                            () => batch.Host.ResolvePublishedSourcesAsync(generation, CancellationToken.None))
                             .ConfigureAwait(false);
                     }
                     await reconciliation.RunAsync(

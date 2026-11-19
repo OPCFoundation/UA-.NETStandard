@@ -1115,11 +1115,8 @@ namespace Opc.Ua.Server
             return ResolveUnresolvedSourcesAsync(generation, nodeIds, cancellationToken);
         }
 
-        /// <summary>
-        /// Recovers monitored-item sources on the exact generation just published by the lifecycle.
-        /// This path is also used before the server starts accepting requests.
-        /// </summary>
-        internal ValueTask ResolvePublishedSourcesAsync(
+        /// <inheritdoc/>
+        ValueTask IDynamicNodeManagerHost.ResolvePublishedSourcesAsync(
             NodeManagerGeneration generation,
             CancellationToken cancellationToken)
         {
