@@ -71,7 +71,7 @@ namespace Opc.Ua.XRegistry.Tests
             var sequence = new MockSequence();
             strategy.InSequence(sequence).Setup(value => value.EnumerateClosuresAsync(
                     It.IsAny<XRegistryRefreshRequest>(), CancellationToken.None))
-                .ReturnsAsync((ArrayOf<XRegistryDependencyClosure>)[closure]);
+                .ReturnsAsync([closure]);
             strategy.InSequence(sequence).Setup(value => value.PrepareClosureAsync(
                     It.Is<XRegistryClosurePreparationContext>(context => ReferenceEquals(context.Closure, closure)),
                     CancellationToken.None))

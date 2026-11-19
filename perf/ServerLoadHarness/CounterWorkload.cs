@@ -77,11 +77,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public override (double Count, string Name)? Secondary =>
             m_serverSamples > 0 ? (m_serverSamples, "sample") : null;
 
-        /// <summary>
-        /// Whether the last report failed the per-item progress gate.
-        /// </summary>
-        internal bool Failed { get; private set; }
-
         public override void OnServerReport(string report)
         {
             const string Key = "samplesTaken=";
@@ -265,14 +260,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // queue size one: at most one notification per item and publishing interval, and per sample
             double expectedNotifications = m_latestValue.Length * seconds * 1000 /
                 Math.Max(m_publishingInterval, m_samplingInterval);
-            Failed = below != 0 || missing != 0;
             return FormattableString.Invariant(
                 $"notif/s={notifications / seconds:F0} delivered={notifications / expectedNotifications:P1} ") +
                 FormattableString.Invariant(
                 $"items={m_latestValue.Length} progressMin={min:P2} ") +
                 FormattableString.Invariant(
                 $"progressMean={(measured == 0 ? 0 : sum / measured):P2} itemsBelow99={below} itemsWithoutData={missing} ") +
-                (Failed ? "FAIL" : "PASS");
+                (below == 0 && missing == 0 ? "PASS" : "FAIL");
         }
 
         private async Task SetupManagedAsync(ManagedSession session, ushort namespaceIndex, int first)

@@ -51,7 +51,6 @@ session scalability.
 - [NodeManager lifecycle measurements](#nodemanager-lifecycle-measurements)
   - [Type registration snapshots](#type-registration-snapshots)
   - [Lifecycle fixture cost](#lifecycle-fixture-cost)
-  - [System context reuse](#system-context-reuse)
   - [Notification and permission costs](#notification-and-permission-costs)
   - [Session activation scaling](#session-activation-scaling)
 
@@ -945,13 +944,6 @@ in `Opc.Ua.Types.Tests` and
 in `Opc.Ua.Server.Tests`. Select them by full method name in a Release
 `dotnet test` run to collect the corresponding measurements.
 
-Hosted add and replacement probes on `4a78fe779` and `1e352d379` also measured
-real prepared-unit disposal with 128, 2,048, and 16,384 additional types. The
-serving type relationships and routes stayed unchanged. Both sources recorded
-type and factory capture during disposal, but no first type write during that
-phase. This diagnostic separates preparation from abort; it was not repeated
-on a quiet host, so the timings do not establish a performance difference.
-
 ### Lifecycle fixture cost
 
 The same five cases ran on `4a78fe779` and `1e352d379`: two admission guards and
@@ -965,18 +957,6 @@ In this diagnostic, the hosted guards each spent about 0.78 s and allocated
 and stop the server. These are one-run, process-wide measurements, not matched
 cold and warm medians or a reason to remove the hosted controls.
 
-### System context reuse
-
-A component probe compared `4a78fe779` and `1e352d379` with 1, 8, and 24
-alternating templates on pinned requests, unpinned requests, and shared
-subscriber contexts. Both sources reused every copy in all nine cases. First
-access allocated the same number of bytes on pinned requests and shared
-subscriber contexts. For 128 unpinned operations at 24 templates, first access
-allocated 289,792 bytes on the baseline and 372,736 bytes on the checkpoint,
-which weakly keys copies beyond the first. On the checkpoint, none of the warm
-lookups allocated on the calling thread. This probe does not run sampling or
-measure authorization-verdict hits.
-
 ### Notification and permission costs
 
 `perf/ServerLoadHarness` can run write-driven `sub`, sampled `native-counters`,
@@ -988,52 +968,9 @@ each delivery's collection snapshots, `NamespaceDefaultPermissionReader`,
 `MonitoredItemBenchmarks.QueueEvent` benchmark only queues synthetic events; it
 does not exercise subscriber delivery or authorization.
 
-The historical [#4869](https://github.com/OPCFoundation/UA-.NETStandard/issues/4869)
-allocation trace predates
-[#5009](https://github.com/OPCFoundation/UA-.NETStandard/pull/5009), which is
-included in `1e352d379`. Stock data-change fan-out now reuses the admitted item
-array and reads Value into a dedicated snapshot field. Membership changes
-invalidate the cached array, and exposing the public mutable dictionary
-restores a fresh `ConcurrentDictionary.ToArray()` for each change. The earlier
-per-change item-array and attribute-set percentages are not current allocation
-estimates. The #5009 measurements use a different workload and do not qualify
-end-to-end delivery.
-
-The 48-session `native-subs` comparison in
-[#4908](https://github.com/OPCFoundation/UA-.NETStandard/pull/4908) uses a separate
-harness patch and native multi-subscription worker that are not in this repository.
-The in-tree `native-counters` scenario is not that workload. To measure periodic
-sampling with a **managed client**, use the matching 48-session, five-subscription,
-1,000-item shape from [#4955](https://github.com/OPCFoundation/UA-.NETStandard/pull/4955):
-
-```powershell
-ServerLoadHarness.exe run --scenario counters --sessions 48 --subs 5 --nodes 1000 --sampling 100 --pub 100 --async-node-manager 1 --duration 20 --warmup 15
-```
-
-Report managed `counters` results separately from native `native-subs` results.
-The `sub` scenario drives notifications through writes and does not measure
-periodic sampling.
-
 Whole-workload CPU and allocation measurements do not establish the cost of
-an individual cache or registration-storage change. The following diagnostic
-used a scratch build based on `1e352d379` with the stock session membership
-change from `ed8c2df41`, on Windows with .NET 10.0.15 and Workstation GC. The
-probes ran in the server process and sampled each operation once per 256 calls
-per thread.
-
-| Workload | Snapshot lookup | Static permission lookup | Permission decode | Weak context path |
-|---|---:|---:|---:|---:|
-| Write-driven, 10 sessions x 15 subscriptions x 600 items | 0.12 us | 0.77 us | Not sampled | 1.49 us |
-| Periodic managed, 48 sessions x 5 subscriptions x 1,000 items | Not sampled | 0.41 us | 0.82 us | 0.04 us |
-| Event fanout, 10 sessions x 15 subscriptions, 400 events/s | 0.36 us | 0.33 us | Not sampled | Not sampled |
-
-These are mean elapsed times for sampled calls, including any waits within the
-probe boundary. None of those calls recorded calling-thread allocations; this
-does not establish that cache misses or snapshot rebuilds allocate nothing.
-The 48-session run recorded 43,668,000 verdict reuses and 4,852,000 rechecks
-across completed sampling passes. The client reported `FAIL` at 90.3% delivery
-even though the executable exited zero. This is diagnostic evidence, not a
-quiet-host comparison, a passing workload, or a substitute for `native-subs`.
+an individual cache or registration-storage change. No isolated comparative
+measurement is recorded here for those costs.
 
 ### Session activation scaling
 

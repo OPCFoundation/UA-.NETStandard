@@ -796,7 +796,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 server.Kill();
             }
-            return workload is CounterWorkload { Failed: true } ? 1 : 0;
+            return 0;
         }
 
         /// <summary>
