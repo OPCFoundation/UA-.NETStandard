@@ -641,6 +641,9 @@ namespace Opc.Ua.Server
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <returns>A task that completes when the readiness callback finished and the registration is still
         /// current.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The registration changed or no longer exposes its readiness callback.
+        /// </exception>
         private async ValueTask CompleteReadinessAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,
@@ -1928,6 +1931,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Uses initializer admission for both preparation and commit without storing it in the prepared result.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The initializer is not active for this server.</exception>
         internal async ValueTask<LifecycleResult> PublishWithReadinessAsync(
             ArrayOf<LifecycleChange> changes,
             NodeManagerReadinessScope readiness,
@@ -1940,8 +1944,10 @@ namespace Opc.Ua.Server
             var prepared = (PreparedChanges)await PrepareChangesAsync(
                 changes, null, CaptureLifecycleCallbackPermit(), cancellationToken, readiness: readiness)
                 .ConfigureAwait(false);
-            await using var lifetime = prepared.ConfigureAwait(false);
-            return await prepared.CommitWithReadinessAsync(readiness, cancellationToken).ConfigureAwait(false);
+            await using (prepared.ConfigureAwait(false))
+            {
+                return await prepared.CommitWithReadinessAsync(readiness, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -4124,6 +4130,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures a publication whose writer and prepared changes use the same revocable initializer.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The initializer is not active for this server.</exception>
         internal ILifecycleCapture CaptureChanges(NodeManagerReadinessScope? readiness, bool bindReadiness)
         {
             (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer(readiness);

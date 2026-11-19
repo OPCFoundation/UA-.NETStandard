@@ -194,6 +194,7 @@ namespace Opc.Ua.Server
         /// The check remains in effect until publication releases its reservation.
         /// </summary>
         /// <param name="host">The host to call.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="host"/> is null.</exception>
         internal void CheckAddressSpaceMutation(IMasterNodeManager host)
         {
             if (host is null)
@@ -224,6 +225,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Marks the decision active until the callback exits.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The decision is already active.</exception>
         internal void Activate()
         {
             if (Interlocked.CompareExchange(ref m_active, 1, 0) != 0)
@@ -243,7 +245,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Revokes access to the publication reservation.
         /// </summary>
-        internal bool Close() => Interlocked.Exchange(ref m_open, 0) != 0;
+        internal bool Close()
+        {
+            return Interlocked.Exchange(ref m_open, 0) != 0;
+        }
 
         private int m_active;
         private int m_open = 1;

@@ -3663,6 +3663,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates the session and pins its request independently of initializer admission.
         /// </summary>
+        /// <exception cref="ServiceResultException">The server cannot admit the request.</exception>
         private async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             [NotNull] RequestHeader? requestHeader,
@@ -3672,11 +3673,8 @@ namespace Opc.Ua.Server
         {
             base.ValidateRequest(requestHeader);
 
-            ServerInternalData? serverInternal = m_serverInternal;
-            if (serverInternal is null)
-            {
+            ServerInternalData serverInternal = m_serverInternal ??
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
-            }
             if (readiness?.Includes(serverInternal) != true)
             {
                 readiness = null;

@@ -977,6 +977,7 @@ namespace Opc.Ua.Server.Fluent
         /// Steps for the same original builder run in registration order; register them all before readiness starts.
         /// Registration fails during configuration when the manager does not participate in readiness.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
         protected void DeferConfigurationUntilReady(
             INodeManagerBuilder builder,
             Func<CancellationToken, ValueTask> configure)
@@ -1025,6 +1026,7 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         /// <param name="builder">The original preparation builder whose final seal must wait.</param>
         /// <param name="configure">The published authoring callback.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
         protected void DeferPublishedAuthoringUntilReady(
             INodeManagerBuilder builder,
             Func<INodeManagerBuilder, CancellationToken, ValueTask> configure)

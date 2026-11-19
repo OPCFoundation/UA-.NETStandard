@@ -249,6 +249,7 @@ namespace Opc.Ua.Server
         /// Passes a node-management callback's admission to a nested local operation.
         /// </summary>
         /// <param name="callbackContext">The operation context supplied to the callback.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="callbackContext"/> is null.</exception>
         public void InheritNodeManagerAdmission(OperationContext callbackContext)
         {
             NodeManagerCallbackPermit = (callbackContext ??

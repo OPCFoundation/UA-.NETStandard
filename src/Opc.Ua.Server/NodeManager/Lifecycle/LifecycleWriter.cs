@@ -416,6 +416,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Opens a decision window without binding it to the caller's execution context.
             /// </summary>
+            /// <exception cref="InvalidOperationException">
+            /// The mutation is not held or already has a decision window.
+            /// </exception>
             internal DecisionWindow EnterDecisionWindow()
             {
                 if (!m_held)
@@ -526,6 +529,7 @@ namespace Opc.Ua.Server
                 /// Adapts a callback that cannot receive a reservation. The bound marker carries no
                 /// reservation owner and remains revocable for any flow captured by the callback.
                 /// </summary>
+                /// <exception cref="InvalidOperationException">The reservation has closed.</exception>
                 internal CallbackFlow EnterCallbackFlow()
                 {
                     if (!scope.IsOpen)
@@ -540,6 +544,9 @@ namespace Opc.Ua.Server
                 /// <summary>
                 /// Requires the live reservation owned by this exact mutation.
                 /// </summary>
+                /// <exception cref="InvalidOperationException">
+                /// The reservation has closed or belongs to another mutation.
+                /// </exception>
                 internal NodeManagerDecisionContext GetScope(Mutation expected)
                 {
                     if (!scope.IsOpen || !ReferenceEquals(mutation, expected))

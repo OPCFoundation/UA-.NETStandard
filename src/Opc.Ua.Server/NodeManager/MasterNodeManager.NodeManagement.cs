@@ -178,6 +178,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Dispatches AddNodes under address-space mutation admission.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
         private async ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             AddNodesCoreAsync(
                 OperationContext context,

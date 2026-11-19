@@ -568,27 +568,33 @@ namespace Opc.Ua.Server
                             deleteSubscriptions,
                             async (sessionContext, callbackToken) =>
                             {
-                                await using var callbackScope = new LegacyNodeManagerCallbackScope(
+                                LegacyNodeManagerCallbackScope callbackScope = new(
                                     m_lifecycleCallbackPermit,
                                     NodeManagerAdmissionCapability.ServerLifecycle |
-                                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
-                                await dispatch.NodeManager.SessionClosingAsync(
-                                    sessionContext,
-                                    sessionId,
-                                    deleteSubscriptions,
-                                    callbackToken).ConfigureAwait(false);
+                                    NodeManagerAdmissionCapability.AddressSpaceMutation);
+                                await using (callbackScope.ConfigureAwait(false))
+                                {
+                                    await dispatch.NodeManager.SessionClosingAsync(
+                                        sessionContext,
+                                        sessionId,
+                                        deleteSubscriptions,
+                                        callbackToken).ConfigureAwait(false);
+                                }
                             }).ConfigureAwait(false);
                         if (!closed)
                         {
-                            await using var callbackScope = new LegacyNodeManagerCallbackScope(
+                            LegacyNodeManagerCallbackScope callbackScope = new(
                                 m_lifecycleCallbackPermit,
                                 NodeManagerAdmissionCapability.ServerLifecycle |
-                                NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
-                            await dispatch.NodeManager.SessionClosingAsync(
-                                context,
-                                sessionId,
-                                deleteSubscriptions,
-                                cancellationToken).ConfigureAwait(false);
+                                NodeManagerAdmissionCapability.AddressSpaceMutation);
+                            await using (callbackScope.ConfigureAwait(false))
+                            {
+                                await dispatch.NodeManager.SessionClosingAsync(
+                                    context,
+                                    sessionId,
+                                    deleteSubscriptions,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
                         }
                     }
                     catch (Exception e)
@@ -1796,15 +1802,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Closes the mutation-admission window after prepared routes and references are released.
         /// </summary>
+        /// <exception cref="InvalidOperationException">There is no active decision window.</exception>
         private void EndLifecycleDecisionWindow()
         {
-            LifecycleDecisionWindow? window = Interlocked.Exchange(
-                ref m_lifecycleDecisionWindow,
-                null);
-            if (window is null)
-            {
+            LifecycleDecisionWindow window = Interlocked.Exchange(ref m_lifecycleDecisionWindow, null) ??
                 throw new InvalidOperationException("No lifecycle decision window is active.");
-            }
             window.Completion.TrySetResult(true);
         }
 

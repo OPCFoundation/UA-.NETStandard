@@ -239,6 +239,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects recovery that would wait for an active verification in this call chain.
         /// </summary>
+        /// <exception cref="InvalidOperationException">This call chain is already verifying the generation.</exception>
         internal void RejectReentry(NodeManagerCleanupFailureHandle handle)
         {
             for (NodeManagerCleanupVerificationContext? context = this;

@@ -103,6 +103,7 @@ namespace Opc.Ua.Server
         /// <param name="nodes">The node attributes to read.</param>
         /// <param name="requestLifetime">The lifetime of the read request.</param>
         /// <returns>The read response.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
         public ValueTask<ReadResponse> ReadAsync(
             StandardServer server,
             SecureChannelContext channel,
@@ -123,6 +124,7 @@ namespace Opc.Ua.Server
         /// <param name="changes">The additions, replacements, or retirements to publish.</param>
         /// <param name="cancellationToken">Cancels before the publication commits.</param>
         /// <returns>The committed publication result.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
         public ValueTask<LifecycleResult> PublishAsync(
             StandardServer server,
             ArrayOf<LifecycleChange> changes,
@@ -135,6 +137,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Binds optimistic publication to the same initializer through preparation and commit.
         /// </summary>
+        /// <exception cref="NotSupportedException">The lifecycle does not support readiness-bound capture.</exception>
         internal ILifecycleCapture CaptureChanges(INodeManagerLifecycle lifecycle)
         {
             return lifecycle switch

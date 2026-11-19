@@ -89,6 +89,7 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// Resolves the hosted lifecycle before capturing the initializer's exact publication.
         /// </summary>
+        /// <exception cref="NotSupportedException">The host does not support readiness-bound capture.</exception>
         internal ILifecycleCapture CaptureChanges(NodeManagerReadinessScope readiness)
         {
             return Current is NodeManagerLifecycle lifecycle

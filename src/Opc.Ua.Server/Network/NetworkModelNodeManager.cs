@@ -40,7 +40,7 @@ namespace Opc.Ua.Server.Network
     /// <summary>
     /// Projects provider snapshots into the standard Part 22 Resources model.
     /// </summary>
-    public sealed partial class NetworkModelNodeManager :
+    public sealed class NetworkModelNodeManager :
         AsyncCustomNodeManager, INodeManagerReadinessNotification, INodeManagerReadinessInitializer
     {
         /// <summary>
