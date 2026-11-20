@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 // CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.

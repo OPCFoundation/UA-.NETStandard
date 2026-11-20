@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 using System.Collections.Generic;
@@ -825,7 +825,7 @@ namespace Opc.Ua.SourceGeneration
             string nodeSet = EmbeddedText.From("Isa95JobControl.NodeSet2.xml")
                 .GetText()!
                 .ToString();
-            Assert.That(nodeSet, Does.Contain("OPC Foundation MIT License 1.00"));
+            Assert.That(nodeSet, Does.Contain("SPDX-License-Identifier: MIT"));
 
             var document = XDocument.Parse(nodeSet);
             XNamespace ua = "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd";

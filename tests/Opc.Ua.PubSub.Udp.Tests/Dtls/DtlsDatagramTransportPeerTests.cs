@@ -1,8 +1,8 @@
 #if NET8_0_OR_GREATER
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 using System.Diagnostics;

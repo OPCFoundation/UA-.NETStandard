@@ -8,13 +8,13 @@
   "modelVersion": "1.00",
   "modelPublicationDate": "2023-09-01T00:00:00Z",
   "namespaceMetadataPublicationDate": "2023-05-01T00:00:00Z",
-  "normalization": "UTF-8, CRLF replaced by LF, no other changes",
+  "normalization": "UTF-8, CRLF replaced by LF, no other changes; the OPC Foundation MIT license banner is replaced by the SPDX header.",
   "sources": [
     {
       "file": "Opc.Ua.CranesHoists.NodeSet2.xml",
       "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/CranesHoists/Opc.Ua.CranesHoists.NodeSet2.xml",
-      "sha256": "79a2b2c4425d9ead9377dbe3e14b0f2b8a99c82d4af4d549f5236025e42c794d",
-      "normalizedSha256": "79a2b2c4425d9ead9377dbe3e14b0f2b8a99c82d4af4d549f5236025e42c794d"
+      "sha256": "f52199e3e00cca31f764086a128c05cbfeb02741c729182fed4175289f9f8a74",
+      "normalizedSha256": "f52199e3e00cca31f764086a128c05cbfeb02741c729182fed4175289f9f8a74"
     },
     {
       "file": "Opc.Ua.CranesHoists.NodeSet2.documentation.csv",

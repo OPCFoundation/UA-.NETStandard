@@ -1,10 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
-
-//  Copyright (c) Microsoft Corporation.  All rights reserved.
-//  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 using System.IO;

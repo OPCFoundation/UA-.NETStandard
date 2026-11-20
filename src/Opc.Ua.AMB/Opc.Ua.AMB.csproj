@@ -37,11 +37,12 @@
     <None Remove="Model\Opc.Ua.AMB.NodeSet2.xml" />
     <None Remove="Model\Opc.Ua.AMB.NodeIds.csv" />
   </ItemGroup>
-  <!-- The NodeSet2 XML is the unmodified OPC Foundation publication from
+  <!-- The NodeSet2 XML is the OPC Foundation publication (only its license
+       banner is replaced by the SPDX header) from
        UA-Nodeset/latest/AMB (model http://opcfoundation.org/UA/AMB/, version
        1.01.1, 2024-02-27, UA-Nodeset commit 29a22fcd; git blob
-       21f9475b646e9c5508171277ffe5b74edbeb0a58, SHA-256
-       d2ea805b6f799589156c85ffc7799b5d296a68f4d7cace3a5ffb40a0fd1f065c).
+       a0f8d99d7af53c821dd4b7336ee832bae45d99d2, SHA-256
+       47e38c0b975d0059e414a6a61e92833008478152231f73f5b6e9cc89a0c7548d).
 
        Prefix and Name are pinned: they are the contract this assembly
        publishes through [ModelDependencyAttribute] (Opc.Ua.AMB.Namespaces.AMB,

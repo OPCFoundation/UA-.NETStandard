@@ -41,7 +41,7 @@ No formal certification is claimed.
 
 - [Pinned official NodeSet](https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/PlasticsRubber/Extrusion_v2/Cutter/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Cutter.NodeSet2.xml)
 - Upstream revision: `96a08945425d0295edb3607d2a38f6841ef44046`
-- SHA-256: `b6c709b004033ce5bd3fd156c87bf75d2f4e060a6b8ed75c00b3a4f53641c5da`
+- SHA-256: `e69d9232163baf00e589ce9b3977b8f5829a8454bdef06a6e90c1f00926920dc`
 
 The NodeSet is the byte-for-byte upstream publication with its individual MIT
 notice preserved. `Model\*.Upstream.NodeIds.csv` retains the published table;

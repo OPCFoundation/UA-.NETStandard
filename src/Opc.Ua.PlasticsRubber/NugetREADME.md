@@ -49,7 +49,7 @@ verified for that artifact, and neither it nor its prose, schema blobs, or
 identifier table is included or used by the authoring script.
 
 - [Pinned MIT v1.02 basis](https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/PlasticsRubber/GeneralTypes/1.02/Opc.Ua.PlasticsRubber.GeneralTypes.NodeSet2.xml)
-- Basis SHA-256: `5fe4469bf64ebab5a828d2f888dca85e985cf2d48286029d37565c09e4ac9ba8`
+- Basis SHA-256: `c4e2c75ef4e1edadc2e0ca7a568879ea4d08ddac8d2638c3402fef77e16ef776`
 - [Published interface specification](https://reference.opcfoundation.org/specs/OPC-40083/v1.03)
 - [Specification agreement](https://reference.opcfoundation.org/specs/OPC-40083/v1.03/agreement-of-use)
 

@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 namespace Opc.Ua.CranesHoists
 {
@@ -29,6 +29,6 @@ namespace Opc.Ua.CranesHoists
         /// The SHA-256 of the UTF-8 NodeSet with CRLF line endings normalized to LF.
         /// </summary>
         public const string NormalizedNodeSetSha256 =
-            "79A2B2C4425D9EAD9377DBE3E14B0F2B8A99C82D4AF4D549F5236025E42C794D";
+            "F52199E3E00CCA31F764086A128C05CBFEB02741C729182FED4175289F9F8A74";
     }
 }

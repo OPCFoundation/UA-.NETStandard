@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 // TODO: NullChannel is internal in Opc.Ua.Core and does not grant
 // InternalsVisibleTo to Opc.Ua.Client.V2.Tests.  Additionally, the

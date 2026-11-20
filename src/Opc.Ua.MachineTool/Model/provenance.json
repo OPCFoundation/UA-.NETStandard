@@ -1,6 +1,6 @@
 {
   "revision": "96a08945425d0295edb3607d2a38f6841ef44046",
-  "hashNormalization": "UTF-8 source bytes with CRLF and CR normalized to LF; repository files use CRLF.",
+  "hashNormalization": "UTF-8 source bytes with CRLF and CR normalized to LF; repository files use CRLF; the OPC Foundation MIT license banner is replaced by the SPDX header.",
   "families": {
     "MachineTool": {
       "specification": "OPC-40501-1",
@@ -10,8 +10,8 @@
         {
           "file": "Opc.Ua.MachineTool.NodeSet2.xml",
           "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/MachineTool/Opc.Ua.MachineTool.NodeSet2.xml",
-          "sha256": "ada2158cf4b307e571a243d5944422496cc80e93d33831ae92c4162505e3b2c0",
-          "normalizedSha256": "ada2158cf4b307e571a243d5944422496cc80e93d33831ae92c4162505e3b2c0"
+          "sha256": "94720bb9db8ab96cf1c89ce0a50399e47685cd92f3f29571d7a791857c45000d",
+          "normalizedSha256": "94720bb9db8ab96cf1c89ce0a50399e47685cd92f3f29571d7a791857c45000d"
         },
         {
           "file": "Opc.Ua.MachineTool.NodeIds.csv",
@@ -84,8 +84,8 @@
         {
           "file": "Opc.Ua.WMTP.Nodeset2.xml",
           "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/WMTP/Opc.Ua.WMTP.Nodeset2.xml",
-          "sha256": "421aba93c231dadd672d10300830be5c65f214a7325ac18465f66609c56c5efc",
-          "normalizedSha256": "421aba93c231dadd672d10300830be5c65f214a7325ac18465f66609c56c5efc"
+          "sha256": "bcaf9e043e75fbc54426c2050bc9da49e504beb75ad88c10e48ca0174f65de6f",
+          "normalizedSha256": "bcaf9e043e75fbc54426c2050bc9da49e504beb75ad88c10e48ca0174f65de6f"
         },
         {
           "file": "Opc.Ua.WMTP.NodeIds.csv",

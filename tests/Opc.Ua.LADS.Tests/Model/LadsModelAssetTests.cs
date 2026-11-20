@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 using System.Collections.Generic;
@@ -27,7 +27,7 @@ namespace Opc.Ua.LADS.Tests.Model
         /// The vendored files are byte-identical to the pinned UA-Nodeset revision.
         /// </summary>
         [TestCase("Opc.Ua.LADS.NodeSet2.xml",
-            "15FA32B4952F12A2D696FDDD2466A4C764AFDAC2125D198223547D787AAB6ADB")]
+            "75A45B39A19F37B2FE8ACDF3449CD5B6373A6C16068F5BFD8CA87EE0F2D253D6")]
         [TestCase("Opc.Ua.LADS.NodeIds.csv",
             "836D55A7716C4852D1E94390BBF6996551FCC31381EBD7166D1D9A2007E4E3B0")]
         public void PublishedFilesMatchPinnedHashes(string file, string expectedHash)

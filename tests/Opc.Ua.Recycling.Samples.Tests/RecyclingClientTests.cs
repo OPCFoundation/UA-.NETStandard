@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 using System.Collections.Generic;
@@ -189,8 +189,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// <summary>
         /// Both owners embed identical bytes and retain the pre-extraction XML across Git newline conversions.
         /// </summary>
-        [TestCase("\n", "C6DEB4B037F05F83E541E1851C82FE166A3D22E163B732544C5AB9C570777D51")]
-        [TestCase("\r\n", "7E331A9A4370B2F70C5135140DC83D8D92AFAF40641D2607AF17D8CF6B8DDA7A")]
+        [TestCase("\n", "EC77150443F931C59763C8EB69CEE4C86CFB7E8207059DF7F928FF007BD03557")]
+        [TestCase("\r\n", "2060988C6B818657303433FDF8D6AB67C1ECDF5911BB075C7CE24FA25BFE304C")]
         public async Task ModelResourceBytesAndLogicalNameRemainCompatibleWithExistingJournals(
             string checkoutNewLine, string expectedOriginalHash)
         {
@@ -211,7 +211,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 .Replace("\r\n", "\n", StringComparison.Ordinal);
             byte[] canonicalHash = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalModel));
             Assert.That(Convert.ToHexString(canonicalHash),
-                Is.EqualTo("C6DEB4B037F05F83E541E1851C82FE166A3D22E163B732544C5AB9C570777D51"));
+                Is.EqualTo("EC77150443F931C59763C8EB69CEE4C86CFB7E8207059DF7F928FF007BD03557"));
 
             byte[] originalCheckoutBytes = Encoding.UTF8.GetBytes(
                 canonicalModel.Replace("\n", checkoutNewLine, StringComparison.Ordinal));

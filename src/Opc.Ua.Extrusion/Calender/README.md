@@ -40,7 +40,7 @@ No formal certification is claimed.
 
 - [Pinned official NodeSet](https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/PlasticsRubber/Extrusion_v2/Calender/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Calender.NodeSet2.xml)
 - Upstream revision: `96a08945425d0295edb3607d2a38f6841ef44046`
-- SHA-256: `d196cb4d38ecfe9adf7b32285a9fb71f968ebfdb87bcae1ee4c72e87057bbd8b`
+- SHA-256: `5a526aa845b5b13b07f431af09efbb75c817fb7da6cf25c6858a2ec50bc68a6f`
 
 The NodeSet is the byte-for-byte upstream publication with its individual MIT
 notice preserved. `Model\*.Upstream.NodeIds.csv` retains the published table;

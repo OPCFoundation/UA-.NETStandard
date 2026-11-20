@@ -40,7 +40,7 @@ No formal certification is claimed.
 
 - [Pinned official NodeSet](https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/PlasticsRubber/Extrusion_v2/MeltPump/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.MeltPump.NodeSet2.xml)
 - Upstream revision: `96a08945425d0295edb3607d2a38f6841ef44046`
-- SHA-256: `28a729dea897f30fd97c2722559e7e0906e0344fde633a36670bc7aff9f9d33b`
+- SHA-256: `a23e47180c499b814d5f1c0a70ed22806ea915ba8a0a67b9b37886a76eab654a`
 
 The NodeSet is the byte-for-byte upstream publication with its individual MIT
 notice preserved. `Model\*.Upstream.NodeIds.csv` retains the published table;

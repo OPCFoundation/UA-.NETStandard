@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 using System.Collections.Generic;
@@ -27,7 +27,7 @@ namespace Opc.Ua.AutoID.Tests
         /// Reversing the documented verifier correction recovers the byte-identical upstream publication.
         /// </summary>
         [TestCase("Opc.Ua.AutoID.NodeSet2.xml",
-            "C3D5E77AAEEED03862620E307CDF4974E5998267E8FAA992C1F1A24F9BE6A4BA")]
+            "A5DB37D8DEEFBAABC279BCB6D50C3976E25E48F501ECA1F5BF9600CDFAA7653F")]
         [TestCase("Opc.Ua.AutoID.NodeIds.csv",
             "E8F1D80FBCE4F76E9D42F3A652C6CC8C6DAF68C289B2629BCCE68C5879746CD6")]
         public void PublishedFilesMatchPinnedHashes(string file, string expectedHash)

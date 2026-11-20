@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 using System.Collections.Generic;
@@ -28,9 +28,9 @@ namespace Opc.Ua.AMB.Tests
     public sealed class AmbModelTests
     {
         private const string NodeSetSha256 =
-            "d2ea805b6f799589156c85ffc7799b5d296a68f4d7cace3a5ffb40a0fd1f065c";
+            "47e38c0b975d0059e414a6a61e92833008478152231f73f5b6e9cc89a0c7548d";
 
-        private const string NodeSetGitBlob = "21f9475b646e9c5508171277ffe5b74edbeb0a58";
+        private const string NodeSetGitBlob = "a0f8d99d7af53c821dd4b7336ee832bae45d99d2";
 
         /// <summary>
         /// The published id of <c>AssetsByProductInstanceUri/NodeVersion</c>.

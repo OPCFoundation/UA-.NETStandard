@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 
@@ -46,10 +46,10 @@ namespace Opc.Ua.Vision
 
         /// <summary>The SHA-256 of the unmodified OPC 40100-1 NodeSet.</summary>
         public const string ControlNodeSetSha256 =
-            "81B77250E5DE8D4FCCEDA7E05FD32BF199299CAAC32D15DF8F1FE25ED907C053";
+            "DF542BF2BC1666818A035B5874B484CA505E0F432569146D33CA2BCB94A9CE03";
 
         /// <summary>The SHA-256 of the unmodified OPC 40100-2 NodeSet.</summary>
         public const string AssetNodeSetSha256 =
-            "C70ED87915AB9A9F72F471C1B852A16EF7596921C0937A93FE2C3F73A6C0EC1F";
+            "D084C88790A0700CBAF3FDBB790A8513C081495205082F0EA4900532ACA79B80";
     }
 }

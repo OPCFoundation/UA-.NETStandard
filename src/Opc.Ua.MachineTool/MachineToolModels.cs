@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 using System;
 using System.Collections.Generic;
@@ -70,10 +70,10 @@ namespace Opc.Ua.MachineTool
 
         /// <summary>The SHA-256 of the MachineTool NodeSet with LF-normalized line endings.</summary>
         public const string MachineToolNodeSetSha256 =
-            "ADA2158CF4B307E571A243D5944422496CC80E93D33831AE92C4162505E3B2C0";
+            "94720BB9DB8AB96CF1C89CE0A50399E47685CD92F3F29571D7A791857C45000D";
 
         /// <summary>The SHA-256 of the WMTP NodeSet with LF-normalized line endings.</summary>
         public const string WmtpNodeSetSha256 =
-            "421ABA93C231DADD672D10300830BE5C65F214A7325AC18465F66609C56C5EFC";
+            "BCAF9E043E75FBC54426C2050BC9DA49E504BEB75AD88C10E48CA0174F65DE6F";
     }
 }

@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 // Trace analyzer for perf/ServerLoadHarness traces. Not part of the product; see perf/README.md.
 //   TraceAnalyzer cpu        <trace> [top] [focus] : on-CPU samples (blocked leaf frames dropped)

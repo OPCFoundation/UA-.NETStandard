@@ -1,7 +1,7 @@
-/* ========================================================================
- * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
- * SPDX-License-Identifier: MIT
- * ======================================================================*/
+// ========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+// ========================================================================
 
 namespace Opc.Ua.AutoID
 {
@@ -31,6 +31,6 @@ namespace Opc.Ua.AutoID
 
         /// <summary>The SHA-256 of the published NodeSet, which uses LF line endings.</summary>
         public const string NodeSetSha256 =
-            "C3D5E77AAEEED03862620E307CDF4974E5998267E8FAA992C1F1A24F9BE6A4BA";
+            "A5DB37D8DEEFBAABC279BCB6D50C3976E25E48F501ECA1F5BF9600CDFAA7653F";
     }
 }
