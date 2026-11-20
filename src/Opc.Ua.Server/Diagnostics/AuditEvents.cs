@@ -86,6 +86,38 @@ namespace Opc.Ua.Server
             ServiceResultException serviceResultException,
             ILogger logger)
         {
+            ReportServiceFaultAuditEvent(
+                server, operationContext, $"Attribute/{methodName}", methodName, serviceResultException, logger);
+        }
+
+        /// <summary>
+        /// Reports the audit event of a Method service set request (Call) that failed
+        /// with a service fault. The SourceName is <c>Method/{methodName}</c>.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="operationContext">Client operation info</param>
+        /// <param name="methodName">The name of the service</param>
+        /// <param name="serviceResultException">The service fault</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        internal static void ReportMethodServiceAuditEvent(
+            this IAuditEventServer? server,
+            OperationContext operationContext,
+            string methodName,
+            ServiceResultException serviceResultException,
+            ILogger logger)
+        {
+            ReportServiceFaultAuditEvent(
+                server, operationContext, $"Method/{methodName}", methodName, serviceResultException, logger);
+        }
+
+        private static void ReportServiceFaultAuditEvent(
+            IAuditEventServer? server,
+            OperationContext operationContext,
+            string sourceName,
+            string methodName,
+            ServiceResultException serviceResultException,
+            ILogger logger)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -116,7 +148,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.SourceName,
-                    $"Attribute/{methodName}",
+                    sourceName,
                     false);
                 e.SetChildValue(
                     systemContext,

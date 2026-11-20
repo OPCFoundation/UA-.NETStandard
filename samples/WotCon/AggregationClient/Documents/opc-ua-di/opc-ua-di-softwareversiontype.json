@@ -21,12 +21,6 @@
   ],
   "actions": {
     "Clear": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "Clear",
       "uav:browseName": "ns1:Clear",
@@ -249,6 +243,13 @@
     }
   },
   "title": "SoftwareVersionType",
+  "tm:optional": [
+    "/properties/PatchIdentifiers",
+    "/properties/ReleaseDate",
+    "/properties/ChangeLogReference",
+    "/properties/Hash",
+    "/actions/Clear"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:SoftwareVersionType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=212",

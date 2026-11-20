@@ -65,9 +65,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8777"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8778",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -96,9 +93,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8773"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8776",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -126,9 +120,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8777"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8779",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -156,9 +147,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8777"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8780",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -187,9 +175,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8773"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8774",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -274,15 +259,20 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8773"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8775",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
     }
   },
   "title": "DiscreteObjectType",
+  "tm:optional": [
+    "/properties/OnOffCycle",
+    "/properties/Status",
+    "/properties/Definition",
+    "/properties/EngineeringUnits",
+    "/properties/EURange",
+    "/properties/Definition_2"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DiscreteObjectType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1029",

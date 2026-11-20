@@ -190,6 +190,42 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Resolves native companion relations by forward and localized inverse names without symmetric ambiguity.
+        /// </summary>
+        [TestCase("MaterialReference", true, false)]
+        [TestCase("MaterialOf", false, false)]
+        [TestCase("WerkstoffVon", false, false)]
+        [TestCase("ConnectedTo", true, true)]
+        public async Task NativeReferenceTypeNamesResolveTheirDirectionAsync(
+            string name,
+            bool isForward,
+            bool symmetric)
+        {
+            UANodeSet source = CompanionNodeSet();
+            UAReferenceType referenceType = source.Items!.OfType<UAReferenceType>().First();
+            referenceType.InverseName =
+            [
+                new Export.LocalizedText { Locale = "en", Value = "MaterialOf" },
+                new Export.LocalizedText { Locale = "de", Value = "WerkstoffVon" }
+            ];
+            source.Items!.OfType<UAReferenceType>().Last().InverseName =
+                [new Export.LocalizedText { Value = "ConnectedTo" }];
+            var resolver = WotDocumentNodeResolver.FromNodeSets([source]);
+            using WotDocument document = WotDocument.Parse(
+                WotTestData.Utf8(ThingModelWithLink("pump:" + name, null)));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, null, null, resolver).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Reference reference = result.Value!.Items!.OfType<UAObjectType>().Single()
+                .References!.Single(r => r.Value == LocalReferenceType(result.Value, LinkTarget));
+            Assert.That(reference.ReferenceType,
+                Is.EqualTo(LocalReferenceType(result.Value, symmetric ? PumpConnectedTo : PumpMaterialReference)));
+            Assert.That(reference.IsForward, Is.EqualTo(isForward));
+        }
+
         [Test]
         public async Task TheContextDisambiguatesTheSameLocalNameInTwoNamespacesAsync()
         {

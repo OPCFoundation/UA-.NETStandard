@@ -21,12 +21,6 @@
   ],
   "actions": {
     "StartLocationIndication": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -51,12 +45,6 @@
       "uav:modellingRule": "Mandatory"
     },
     "StopLocationIndication": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "StopLocationIndication",
       "uav:browseName": "ns1:StopLocationIndication",
@@ -158,6 +146,10 @@
     }
   },
   "title": "IAssetLocationIndicationType",
+  "tm:optional": [
+    "/properties/UsedIndicationType",
+    "/properties/SupportedIndicationTypes"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IAssetLocationIndicationType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=118",

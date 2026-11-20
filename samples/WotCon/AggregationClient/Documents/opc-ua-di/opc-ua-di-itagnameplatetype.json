@@ -91,6 +91,10 @@
     }
   },
   "title": "ITagNameplateType",
+  "tm:optional": [
+    "/properties/AssetId",
+    "/properties/ComponentName"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ITagNameplateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15048",
