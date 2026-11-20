@@ -31,8 +31,8 @@
 using System;
 using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -76,6 +76,139 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(schema.GetProperty("format").GetString(), Is.EqualTo(format));
             }
             Assert.That(document.Properties["Samples"].GetProperty("uav:mapToType").GetString(), Is.EqualTo(dataType));
+        }
+
+        /// <summary>
+        /// Retains abstract numeric and structured shapes without treating an unknown type as a string.
+        /// </summary>
+        [TestCase("i=26", "number")]
+        [TestCase("i=27", "integer")]
+        [TestCase("i=28", "integer")]
+        [TestCase("i=22", "object")]
+        [TestCase("i=12756", "object")]
+        [TestCase("i=24", null)]
+        [TestCase("ns=1;i=26", null)]
+        [TestCase("ns=1;i=9001", null)]
+        public void NativeDataTypesOnlyEmitJustifiedShapes(string dataType, string? expectedType)
+        {
+            UANodeSet source = CreateNodeSet(ValueRanks.Scalar, null);
+            source.Items!.OfType<UAVariable>().Single().DataType = dataType;
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            JsonElement schema = document.Properties["Samples"];
+            Assert.That(schema.TryGetProperty("type", out JsonElement type), Is.EqualTo(expectedType is not null));
+            if (expectedType is not null)
+            {
+                Assert.That(type.GetString(), Is.EqualTo(expectedType));
+            }
+        }
+
+        /// <summary>
+        /// Uses native datatype ancestry to describe structures, unions, enumerations and integer-backed option sets.
+        /// </summary>
+        [TestCase(-1, "i=22", "object")]
+        [TestCase(1, "i=22", "object")]
+        [TestCase(2, "i=22", "object")]
+        [TestCase(-3, "i=22", "object")]
+        [TestCase(-2, "i=22", "object")]
+        [TestCase(-1, "i=12756", "object")]
+        [TestCase(1, "i=29", "integer")]
+        [TestCase(-1, "i=7", "integer")]
+        public void LocalDataTypeDefinitionsKeepReadableShapes(int rank, string parent, string expectedType)
+        {
+            UANodeSet source = CreateNodeSet(rank, null);
+            source.Aliases = [.. source.Aliases!, new NodeIdAlias { Alias = "Reading", Value = "ns=1;i=2000" }];
+            source.Items!.OfType<UAVariable>().Single().DataType = "Reading";
+            source.Items =
+            [
+                .. source.Items!,
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2000",
+                    BrowseName = "1:Reading",
+                    References = [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "ns=1;i=2001" }]
+                },
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2001",
+                    BrowseName = "1:ReadingBase",
+                    References = [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = parent }],
+                    Definition = new Export.DataTypeDefinition
+                    {
+                        Name = "1:ReadingBase",
+                        IsUnion = parent == "i=12756",
+                        IsOptionSet = parent == "i=7",
+                        Field = expectedType == "object"
+                            ? [
+                                new DataTypeField { Name = "Name", DataType = "i=21" },
+                                new DataTypeField { Name = "NodeId", DataType = "i=17" }
+                            ]
+                            : [new DataTypeField { Name = "Ready", Value = 0 }]
+                    }
+                }
+            ];
+            byte[] original = WotTestData.Serialize(source);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            JsonElement schema = document.Properties["Samples"];
+            Assert.That(schema.GetProperty("uav:mapToType").GetString(), Does.EndWith(";i=2000"));
+            if (rank is ValueRanks.ScalarOrOneDimension or ValueRanks.Any)
+            {
+                Assert.That(schema.TryGetProperty("type", out _), Is.False);
+                JsonElement alternatives = schema.GetProperty("oneOf");
+                Assert.That(alternatives[0].GetProperty("type").GetString(), Is.EqualTo(expectedType));
+                Assert.That(alternatives[1].GetProperty("type").GetString(), Is.EqualTo("array"));
+                if (rank == ValueRanks.ScalarOrOneDimension)
+                {
+                    Assert.That(alternatives[1].GetProperty("items").GetProperty("type").GetString(),
+                        Is.EqualTo(expectedType));
+                }
+            }
+            else
+            {
+                for (int dimension = 0; dimension < rank; dimension++)
+                {
+                    Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("array"));
+                    schema = schema.GetProperty("items");
+                }
+                Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo(expectedType));
+            }
+            Assert.That(WotTestData.Serialize(source), Is.EqualTo(original));
+        }
+
+        /// <summary>
+        /// Does not turn an unresolved, cyclic or contradictory declaration into an invented readable type.
+        /// </summary>
+        [TestCase("ns=1;i=9001", false)]
+        [TestCase("ns=1;i=2000", false)]
+        [TestCase("i=12", true)]
+        public void InvalidDataTypeAncestryDoesNotInventAShape(string parent, bool structure)
+        {
+            UANodeSet source = CreateNodeSet(ValueRanks.Scalar, null);
+            source.Items!.OfType<UAVariable>().Single().DataType = "ns=1;i=2000";
+            source.Items =
+            [
+                .. source.Items!,
+                new UADataType
+                {
+                    NodeId = "ns=1;i=2000",
+                    BrowseName = "1:String",
+                    References = [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = parent }],
+                    Definition = structure
+                        ? new Export.DataTypeDefinition
+                        {
+                            Name = "1:String",
+                            Field = [new DataTypeField { Name = "Label", DataType = "i=12" }]
+                        }
+                        : null
+                }
+            ];
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Properties["Samples"].TryGetProperty("type", out _), Is.False);
         }
 
         /// <summary>
@@ -219,7 +352,16 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 JsonElement schema = document.Properties[key];
                 Assert.That(schema.GetProperty("uav:mapToType").GetString(), Does.EndWith(";i=2000"));
-                if (rank == ValueRanks.Scalar)
+                if (structure)
+                {
+                    if (rank != ValueRanks.Scalar)
+                    {
+                        Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("array"));
+                        schema = schema.GetProperty("items");
+                    }
+                    Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("object"));
+                }
+                else if (rank == ValueRanks.Scalar)
                 {
                     Assert.That(schema.TryGetProperty("type", out _), Is.False);
                 }

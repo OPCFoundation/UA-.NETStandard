@@ -86,6 +86,38 @@ namespace Opc.Ua.Server
             ServiceResultException serviceResultException,
             ILogger logger)
         {
+            ReportServiceFaultAuditEvent(
+                server, operationContext, $"Attribute/{methodName}", methodName, serviceResultException, logger);
+        }
+
+        /// <summary>
+        /// Reports the audit event of a Method service set request (Call) that failed
+        /// with a service fault. The SourceName is <c>Method/{methodName}</c>.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="operationContext">Client operation info</param>
+        /// <param name="methodName">The name of the service</param>
+        /// <param name="serviceResultException">The service fault</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        internal static void ReportMethodServiceAuditEvent(
+            this IAuditEventServer? server,
+            OperationContext operationContext,
+            string methodName,
+            ServiceResultException serviceResultException,
+            ILogger logger)
+        {
+            ReportServiceFaultAuditEvent(
+                server, operationContext, $"Method/{methodName}", methodName, serviceResultException, logger);
+        }
+
+        private static void ReportServiceFaultAuditEvent(
+            IAuditEventServer? server,
+            OperationContext operationContext,
+            string sourceName,
+            string methodName,
+            ServiceResultException serviceResultException,
+            ILogger logger)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -116,7 +148,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.SourceName,
-                    $"Attribute/{methodName}",
+                    sourceName,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -780,6 +812,67 @@ namespace Opc.Ua.Server
             catch (Exception ex)
             {
                 logger.ErrorWhileReportingAuditHistoryEventDeleteEvent(ex);
+            }
+        }
+
+        /// <summary>
+        /// Reports the AuditHistoryUpdate event matching <paramref name="details"/> for a
+        /// HistoryUpdate operation the server rejected before it reached a node manager
+        /// (for example Bad_UserAccessDenied). Part 4 §6.5.8 requires failed invocations
+        /// to be audited too; no values were changed, so the old values are empty.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The context of the rejected request.</param>
+        /// <param name="details">The update details of the rejected operation.</param>
+        /// <param name="statusCode">The status the operation was rejected with.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="isAnnotationUpdate">
+        /// <c>true</c> when an <see cref="UpdateStructureDataDetails"/> targets the Annotations
+        /// property (Part 11 §5.2.7), which is audited as an annotation update.
+        /// </param>
+        public static void ReportAuditHistoryUpdateRejectedEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            HistoryUpdateDetails details,
+            StatusCode statusCode,
+            ILogger logger,
+            bool isAnnotationUpdate = false)
+        {
+            if (server?.Auditing != true)
+            {
+                return;
+            }
+
+            switch (details)
+            {
+                case UpdateDataDetails updateData:
+                    server.ReportAuditHistoryValueUpdateEvent(
+                        systemContext, updateData, [], statusCode, logger);
+                    break;
+                case UpdateStructureDataDetails updateAnnotation when isAnnotationUpdate:
+                    server.ReportAuditHistoryAnnotationUpdateEvent(
+                        systemContext, updateAnnotation, default(ArrayOf<Annotation>), statusCode, logger);
+                    break;
+                case UpdateStructureDataDetails updateStructure:
+                    server.ReportAuditHistoryValueUpdateEvent(
+                        systemContext, updateStructure, default(ArrayOf<DataValue>), statusCode, logger);
+                    break;
+                case UpdateEventDetails updateEvent:
+                    server.ReportAuditHistoryEventUpdateEvent(
+                        systemContext, updateEvent, default, statusCode, logger);
+                    break;
+                case DeleteRawModifiedDetails deleteRaw:
+                    server.ReportAuditHistoryRawModifyDeleteEvent(
+                        systemContext, deleteRaw, default, statusCode, logger);
+                    break;
+                case DeleteAtTimeDetails deleteAtTime:
+                    server.ReportAuditHistoryAtTimeDeleteEvent(
+                        systemContext, deleteAtTime, [], statusCode, logger);
+                    break;
+                case DeleteEventDetails deleteEvent:
+                    server.ReportAuditHistoryEventDeleteEvent(
+                        systemContext, deleteEvent, oldValue: null, statusCode, logger);
+                    break;
             }
         }
 

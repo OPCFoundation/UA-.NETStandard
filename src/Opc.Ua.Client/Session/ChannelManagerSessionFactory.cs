@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -490,10 +491,16 @@ namespace Opc.Ua.Client
                     .ConfigureAwait(false);
             }
 
-            if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
+            // when the host name check is disabled a mismatch is reported instead of
+            // failing (Part 4 §6.1.3).
+            if (endpoint.Description.ServerCertificate.Length > 0)
             {
                 using var certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
-                configuration.CertificateManager?.ValidateDomains(certificate, endpoint);
+                configuration.CertificateManager.CheckServerDomain(
+                    certificate,
+                    endpoint,
+                    checkDomain,
+                    messageContext.Telemetry.CreateLogger<ChannelManagerSessionFactory>());
             }
 
             string securityPolicyUri = endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;

@@ -61,6 +61,9 @@ namespace Opc.Ua.Wot
         /// The optional invocation-scoped derivations shared across the validations of one
         /// call, or <c>null</c> to derive the facts for this document alone.
         /// </param>
+        /// <param name="resolvedArgumentProperties">
+        /// Captured dependency argument properties used to verify externally referenced method signatures.
+        /// </param>
         internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
@@ -69,7 +72,8 @@ namespace Opc.Ua.Wot
             UANodeSet? archiveContext = null,
             IReadOnlyDictionary<string, string>? carrierEventIds = null,
             List<string>? missingWitnesses = null,
-            ArchiveDerivations? derivations = null)
+            ArchiveDerivations? derivations = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             // Identity normalization may append namespaces. It must never change
             // the authoritative NodeSet, even when a readable identity conflicts.
@@ -136,7 +140,8 @@ namespace Opc.Ua.Wot
             }
             using WotDocument? readable = needsProjection
                 ? CreatePreservedReadableProjection(
-                    document, baseline, referenceTypes, root, projectedNodes, options, diagnostics)
+                    document, baseline, referenceTypes, root, projectedNodes, options, diagnostics,
+                    resolvedArgumentProperties)
                 : null;
             if (needsProjection && readable is null)
             {
@@ -319,7 +324,8 @@ namespace Opc.Ua.Wot
             UANode root,
             HashSet<string> projectedNodes,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties)
         {
             var projectionDiagnostics = new List<WotDiagnostic>();
             try
@@ -327,7 +333,8 @@ namespace Opc.Ua.Wot
                 byte[] regenerated = WriteReadableDocument(
                     baseline, root, document.Title ?? string.Empty, explicitTitle: true, [],
                     nativeProjection: null, emitEnvelope: false, options, projectionDiagnostics,
-                    projectedNodeIds: projectedNodes, referenceTypes: referenceTypes);
+                    projectedNodeIds: projectedNodes, referenceTypes: referenceTypes,
+                    resolvedArgumentProperties: resolvedArgumentProperties);
                 if (HasErrors(projectionDiagnostics))
                 {
                     return null;
@@ -471,7 +478,8 @@ namespace Opc.Ua.Wot
                 string? conditionOwner = null;
                 if (collection == "properties")
                 {
-                    string? explicitOwner = ReadComponentOfParent(affordance.Value, identities, diagnostics);
+                    string? explicitOwner = ReadAffordanceParent(
+                        document, affordance.Value, identities, diagnostics);
                     if (explicitOwner is not null)
                     {
                         owner = explicitOwner;

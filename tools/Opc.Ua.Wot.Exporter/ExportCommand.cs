@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -43,7 +44,10 @@ namespace Opc.Ua.Wot.Exporter
     /// Reads local NodeSet2 files and writes the linked WoT export.
     /// </summary>
     internal sealed class ExportCommand(
-        TextWriter output, TextWriter error, IWotUnitMappingProvider? unitMappingProvider = null)
+        TextWriter output,
+        TextWriter error,
+        IWotUnitMappingProvider? unitMappingProvider = null,
+        IWotQuantityKindMappingProvider? quantityKindMappingProvider = null)
     {
         /// <summary>
         /// Runs the command. Returns 0 on success, 1 on an export error,
@@ -103,6 +107,7 @@ namespace Opc.Ua.Wot.Exporter
                 }
                 int failed = 0;
                 int written = 0;
+                var loaded = new List<(string Path, UANodeSet NodeSet)>();
                 for (int i = 0; i < files.Length; i++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -110,8 +115,31 @@ namespace Opc.Ua.Wot.Exporter
                     await m_output.WriteLineAsync($"[{i + 1}/{files.Length}] Read {relative}").ConfigureAwait(false);
                     try
                     {
+                        loaded.Add((files[i], await ReadNodeSetAsync(files[i], cancellationToken).ConfigureAwait(false)));
+                    }
+                    catch (Exception ex) when (IsInputError(ex))
+                    {
+                        failed++;
+                        await m_error.WriteLineAsync($"ERROR: {relative}: {ex.Message}").ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                    {
+                        failed++;
+                        await m_error.WriteLineAsync(
+                            $"ERROR: {relative}: Unexpected {ex.GetType().Name}: {ex.Message}").ConfigureAwait(false);
+                    }
+                }
+                var nodeResolver = WotDocumentNodeResolver.FromNodeSets(
+                    loaded.Select(file => file.NodeSet).ToArrayOf(), cancellationToken);
+                foreach ((string path, UANodeSet nodeSet) in loaded)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    string relative = Path.GetRelativePath(sourceFolder, path);
+                    try
+                    {
                         string folder = Path.Combine(destination, relative);
-                        written += await ExportFileAsync(files[i], folder, cancellationToken).ConfigureAwait(false);
+                        written += await ExportFileAsync(nodeSet, folder, nodeResolver, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                     catch (Exception ex) when (IsInputError(ex))
                     {
@@ -145,21 +173,12 @@ namespace Opc.Ua.Wot.Exporter
         }
 
         /// <summary>
-        /// Exports one source as a linked document set without changing its hrefs.
+        /// Reads a bounded source model before any dependent model is exported.
         /// </summary>
         /// <exception cref="FormatException"></exception>
-        private async Task<int> ExportFileAsync(string source, string destination, CancellationToken cancellationToken)
+        private static async Task<UANodeSet> ReadNodeSetAsync(string source, CancellationToken cancellationToken)
         {
-            var options = new WotNodeSetConverterOptions
-            {
-                UnitMappingProvider = unitMappingProvider,
-                MaxDocumentSetDocuments = 100_000,
-                MaxDocumentSetDepth = 128,
-                MaxDocumentSetBytes = 512L * 1024 * 1024,
-                MaxResolverDocuments = 100_000,
-                MaxResolverDepth = 128,
-                MaxResolverTotalBytes = 512L * 1024 * 1024
-            };
+            var options = new WotNodeSetConverterOptions();
             using var stream = new FileStream(
                 source, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
             if (stream.Length > options.MaxNodeSetSize)
@@ -170,9 +189,36 @@ namespace Opc.Ua.Wot.Exporter
             await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
             buffer.Position = 0;
             UANodeSet nodeSet = UANodeSet.Read(buffer) ?? throw new FormatException("The file is not a NodeSet2.");
+            // Validate before combining contexts so a malformed model cannot stop unrelated exports.
+            _ = WotDocumentNodeResolver.FromNodeSets([nodeSet], cancellationToken);
+            return nodeSet;
+        }
+
+        /// <summary>
+        /// Exports one source as a linked document set without changing its hrefs.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        private async Task<int> ExportFileAsync(
+            UANodeSet nodeSet,
+            string destination,
+            IWotNodeResolver nodeResolver,
+            CancellationToken cancellationToken)
+        {
+            var options = new WotNodeSetConverterOptions
+            {
+                UnitMappingProvider = unitMappingProvider,
+                QuantityKindMappingProvider = quantityKindMappingProvider,
+                MaxDocumentSetDocuments = 100_000,
+                MaxDocumentSetDepth = 128,
+                MaxDocumentSetBytes = 512L * 1024 * 1024,
+                MaxResolverDocuments = 100_000,
+                MaxResolverDepth = 128,
+                MaxResolverTotalBytes = 512L * 1024 * 1024
+            };
             await m_output.WriteLineAsync("  Convert the NodeSet. Check source preservation.").ConfigureAwait(false);
             WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter.FromNodeSetDocumentsAsync(
-                nodeSet, "model.TM.json", options: options, cancellationToken: cancellationToken).ConfigureAwait(false);
+                nodeSet, "model.TM.json", options: options, nodeResolver: nodeResolver,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
             using WotDocumentSet? documents = result.Value;
             foreach (WotDiagnostic diagnostic in result.Diagnostics)
             {
@@ -184,6 +230,7 @@ namespace Opc.Ua.Wot.Exporter
             {
                 throw new FormatException("The converter could not preserve this NodeSet. No documents were written.");
             }
+            Dictionary<ExpandedNodeId, string> modelIds = CreateModelIds(nodeSet, cancellationToken);
             int models = 0;
             for (int i = 0; i < documents.Entries.Count; i++)
             {
@@ -206,7 +253,8 @@ namespace Opc.Ua.Wot.Exporter
                 string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try
                 {
-                    await File.WriteAllBytesAsync(temporary, entry.Document.Utf8Json, cancellationToken)
+                    ReadOnlyMemory<byte> json = AddModelId(entry.Document, modelIds);
+                    await File.WriteAllBytesAsync(temporary, json, cancellationToken)
                         .ConfigureAwait(false);
                     File.Move(temporary, path, overwrite: true);
                 }
@@ -231,6 +279,106 @@ namespace Opc.Ua.Wot.Exporter
                 $"  Wrote {models} Thing Models and {documents.Entries.Count - models} support files.")
                 .ConfigureAwait(false);
             return documents.Entries.Count;
+        }
+
+        /// <summary>
+        /// Allocates catalogue identifiers from native namespaces and BrowseNames.
+        /// Duplicate names retain the source-order suffixes used by the baseline catalogue.
+        /// </summary>
+        private static Dictionary<ExpandedNodeId, string> CreateModelIds(
+            UANodeSet nodeSet, CancellationToken cancellationToken)
+        {
+            var nodes = new List<(UANode Node, ExpandedNodeId Identity, string Id)>();
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.IsNullOrEmpty(node.NodeId) || string.IsNullOrEmpty(node.BrowseName))
+                {
+                    continue;
+                }
+                var nativeId = NodeId.Parse(node.NodeId);
+                string namespaceUri = nativeId.NamespaceIndex == 0
+                    ? Types.Namespaces.OpcUa
+                    : nodeSet.NamespaceUris[nativeId.NamespaceIndex - 1];
+                string name = QualifiedName.Parse(node.BrowseName).Name!;
+                string prefix;
+                if (Uri.TryCreate(namespaceUri, UriKind.Absolute, out Uri? uri) && uri.Host.Length > 0)
+                {
+                    prefix = "urn:" + string.Join('.', uri.Host.Split('.').Reverse());
+                    string path = uri.AbsolutePath.Trim('/').Replace('/', '.');
+                    if (path.Length > 0)
+                    {
+                        prefix += "." + path;
+                    }
+                }
+                else
+                {
+                    prefix = namespaceUri.StartsWith("urn:", StringComparison.Ordinal)
+                        ? namespaceUri.TrimEnd(':')
+                        : "urn:" + Uri.EscapeDataString(namespaceUri);
+                }
+                string id = prefix + "." + Uri.EscapeDataString(name);
+                nodes.Add((node, new ExpandedNodeId(nativeId.WithNamespaceIndex(0), namespaceUri), id));
+                counts.TryGetValue(id, out int count);
+                counts[id] = count + 1;
+            }
+            var used = new HashSet<string>(counts.Keys, StringComparer.Ordinal);
+            var ordinals = new Dictionary<string, int>(StringComparer.Ordinal);
+            var result = new Dictionary<ExpandedNodeId, string>();
+            foreach ((UANode node, ExpandedNodeId identity, string baseId) in nodes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string id = baseId;
+                if (counts[baseId] > 1)
+                {
+                    ordinals.TryGetValue(baseId, out int ordinal);
+                    do
+                    {
+                        ordinal++;
+                        id = baseId + "_" + ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                    while (!used.Add(id));
+                    ordinals[baseId] = ordinal;
+                }
+                if (node is UAType)
+                {
+                    result.Add(identity, id);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Adds a missing WoT model identifier without replacing authored identifiers or native identities.
+        /// </summary>
+        private static ReadOnlyMemory<byte> AddModelId(
+            WotDocument document, Dictionary<ExpandedNodeId, string> modelIds)
+        {
+            JsonElement root = document.RootElement;
+            if (document.Kind != WotDocumentKind.ThingModel ||
+                root.TryGetProperty("id", out _) ||
+                !root.TryGetProperty("uav:id", out JsonElement nativeId) ||
+                !ExpandedNodeId.TryParse(nativeId.GetString(), out ExpandedNodeId identity) ||
+                !modelIds.TryGetValue(
+                    new ExpandedNodeId(
+                        identity.InnerNodeId.WithNamespaceIndex(0), identity.NamespaceUri ?? Types.Namespaces.OpcUa),
+                    out string? id))
+            {
+                return document.Utf8Json;
+            }
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = true }))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("id", id);
+                foreach (JsonProperty property in root.EnumerateObject())
+                {
+                    property.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+            }
+            return output.ToArray();
         }
 
         /// <summary>

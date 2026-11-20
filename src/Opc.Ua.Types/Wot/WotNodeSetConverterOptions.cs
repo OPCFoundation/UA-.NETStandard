@@ -128,6 +128,12 @@ namespace Opc.Ua.Wot
         public IWotUnitMappingProvider? UnitMappingProvider { get; set; }
 
         /// <summary>
+        /// Gets or sets declaration-specific quantity-kind enrichment, used when the unit provider supplies no kind.
+        /// When omitted, the verified companion-declaration provider is used.
+        /// </summary>
+        public IWotQuantityKindMappingProvider? QuantityKindMappingProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the preservation-envelope policy. The default uses
         /// readable mapping plus structured fallback and emits an opaque envelope
         /// only when required.

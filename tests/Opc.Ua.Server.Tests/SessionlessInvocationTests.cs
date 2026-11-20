@@ -189,6 +189,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(context.Session, Is.Null);
         }
 
+        /// <summary>
+        /// Part 4 7.14: an endpoint accepts only the token types it lists, so an
+        /// empty list admits no anonymous Session-less request.
+        /// </summary>
+        [Test]
+        public async Task AnAnonymousRequestOnAnEndpointWithoutTokenPoliciesIsRejectedAsync()
+        {
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ValidateAsync(manager, CreateHttpsChannel(userTokenTypes: []), NodeId.Null)
+                    .ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
+
         [Test]
         public async Task AnAnonymousRequestOnASecureChannelNeedsTheClientCertificateOfTheChannelAsync(
             [Values(MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt)] MessageSecurityMode securityMode)
@@ -692,10 +710,9 @@ namespace Opc.Ua.Server.Tests
                 EndpointUrl = "https://localhost:4843/",
                 SecurityMode = secureEndpoint ? MessageSecurityMode.SignAndEncrypt : MessageSecurityMode.None,
                 SecurityPolicyUri = secureEndpoint ? SecurityPolicies.Basic256Sha256 : SecurityPolicies.None,
-                UserIdentityTokens = userTokenTypes == null
-                    ? default
-                    : new ArrayOf<UserTokenPolicy>(
-                        userTokenTypes.Select(t => new UserTokenPolicy(t)).ToArray().AsMemory())
+                UserIdentityTokens = new ArrayOf<UserTokenPolicy>(
+                    (userTokenTypes ?? [UserTokenType.Anonymous])
+                        .Select(t => new UserTokenPolicy(t)).ToArray().AsMemory())
             };
             return new SecureChannelContext(
                 "rest",
@@ -714,7 +731,8 @@ namespace Opc.Ua.Server.Tests
                 SecurityMode = securityMode,
                 SecurityPolicyUri = securityMode == MessageSecurityMode.None
                     ? SecurityPolicies.None
-                    : SecurityPolicies.Basic256Sha256
+                    : SecurityPolicies.Basic256Sha256,
+                UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous)]
             };
             return new SecureChannelContext(
                 "tcp",

@@ -68,6 +68,9 @@
     }
   },
   "title": "IDeviceHealthType",
+  "tm:optional": [
+    "/properties/DeviceHealth"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IDeviceHealthType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15051",
@@ -369,6 +372,35 @@
           }
         ],
         "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:DeviceHealthAlarms",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "DeviceHealthAlarms"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=15053",
+        "parentNodeId": "ns=1;i=15051",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=15051"
+          }
+        ],
+        "typeDefinition": "i=61"
       }
     ],
     "profileVersion": "1.0"

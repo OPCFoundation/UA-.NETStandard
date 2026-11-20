@@ -141,7 +141,6 @@ namespace Opc.Ua.Client.Tests
         /// plain text. The open fails before anything reaches the server.
         /// </summary>
         [TestCase(MessageSecurityMode.None)]
-        [TestCase(MessageSecurityMode.Sign)]
         public async Task DefaultRejectsPlaintextPasswordAsync(MessageSecurityMode securityMode)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -167,7 +166,6 @@ namespace Opc.Ua.Client.Tests
         /// that does not encrypt, and the session warns about it.
         /// </summary>
         [TestCase(MessageSecurityMode.None)]
-        [TestCase(MessageSecurityMode.Sign)]
         public async Task OptInSendsPlaintextPasswordAndWarnsAsync(MessageSecurityMode securityMode)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -195,6 +193,26 @@ namespace Opc.Ua.Client.Tests
             });
 
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Part 4 §7.40.4 Table 189: a UserName policy with SecurityPolicy None on a
+        /// Sign channel is an invalid configuration that shall be rejected, so the
+        /// server does not offer it there, while SignAndEncrypt still offers it.
+        /// </summary>
+        [Test]
+        public void SignEndpointDoesNotOfferPlaintextUserNamePolicy()
+        {
+            static bool IsPlaintextUserName(UserTokenPolicy policy) =>
+                policy.TokenType == UserTokenType.UserName &&
+                policy.SecurityPolicyUri == SecurityPolicies.None;
+
+            Assert.That(
+                FindEndpoint(MessageSecurityMode.Sign).UserIdentityTokens.ToList().Any(IsPlaintextUserName),
+                Is.False);
+            Assert.That(
+                FindEndpoint(MessageSecurityMode.SignAndEncrypt).UserIdentityTokens.ToList().Any(IsPlaintextUserName),
+                Is.True);
         }
 
         /// <summary>

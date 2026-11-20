@@ -98,9 +98,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9246"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9248",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -129,9 +126,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9245"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9249",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -160,9 +154,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9247"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9250",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -223,6 +214,14 @@
     }
   },
   "title": "PortType",
+  "tm:optional": [
+    "/properties/Category",
+    "/properties/Direction",
+    "/properties/IdCarrier",
+    "/properties/Definition",
+    "/properties/Definition_2",
+    "/properties/Definition_3"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:PortType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1035",

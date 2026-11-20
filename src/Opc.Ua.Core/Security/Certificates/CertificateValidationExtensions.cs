@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -135,5 +137,55 @@ namespace Opc.Ua
                     endpointUrl.IdnHost);
             }
         }
+
+        /// <summary>
+        /// Checks the host name of the endpoint URL against the server certificate,
+        /// as Part 4 §6.1.3 requires of a client. When <paramref name="enforce"/> is
+        /// <c>true</c> a mismatch fails with
+        /// <see cref="StatusCodes.BadCertificateHostNameInvalid"/> (unless the
+        /// validator accepts the error); otherwise the suppressed error is reported
+        /// as a warning instead of being skipped silently.
+        /// </summary>
+        /// <param name="validator">The validator, or <c>null</c> when none is configured.</param>
+        /// <param name="serverCertificate">The server certificate.</param>
+        /// <param name="endpoint">The endpoint used to connect.</param>
+        /// <param name="enforce">Whether a mismatch fails the connection.</param>
+        /// <param name="logger">The logger that reports a suppressed mismatch.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadCertificateHostNameInvalid"/>
+        /// when <paramref name="enforce"/> is <c>true</c> and the host is not listed.
+        /// </exception>
+        public static void CheckServerDomain(
+            this ICertificateValidatorEx? validator,
+            Certificate serverCertificate,
+            ConfiguredEndpoint endpoint,
+            bool enforce,
+            ILogger logger)
+        {
+            if (enforce)
+            {
+                validator?.ValidateDomains(serverCertificate, endpoint);
+                return;
+            }
+
+            Uri? endpointUrl = endpoint?.EndpointUrl;
+            if (endpointUrl != null &&
+                !CertificateValidationHelpers.FindDomain(serverCertificate, endpointUrl))
+            {
+                logger.ServerCertificateHostNameNotChecked(endpointUrl.IdnHost);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="CertificateValidationExtensions"/>.
+    /// </summary>
+    internal static partial class CertificateValidationExtensionsLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 18, Level = LogLevel.Warning,
+            Message = "The host {Host} of the endpoint URL is not listed in the server certificate. " +
+                "The connection continues because the host name check is disabled (CheckDomain = false).")]
+        public static partial void ServerCertificateHostNameNotChecked(
+            this ILogger logger, [NetworkAddress] string host);
     }
 }

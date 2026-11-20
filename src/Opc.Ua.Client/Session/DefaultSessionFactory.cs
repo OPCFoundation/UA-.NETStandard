@@ -390,12 +390,16 @@ namespace Opc.Ua.Client
                 endpointConfiguration = endpoint.Configuration!;
             }
 
-            // checks the domains in the certificate.
-            if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
+            // checks the domains in the certificate; when the check is disabled a
+            // mismatch is reported instead of failing (Part 4 §6.1.3).
+            if (endpoint.Description.ServerCertificate.Length > 0)
             {
                 using var certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
-                ICertificateValidatorEx? validator = configuration.CertificateManager;
-                validator?.ValidateDomains(certificate, endpoint);
+                configuration.CertificateManager.CheckServerDomain(
+                    certificate,
+                    endpoint,
+                    checkDomain,
+                    messageContext.Telemetry.CreateLogger<DefaultSessionFactory>());
             }
 
             Certificate? channelClientCertificate = null;

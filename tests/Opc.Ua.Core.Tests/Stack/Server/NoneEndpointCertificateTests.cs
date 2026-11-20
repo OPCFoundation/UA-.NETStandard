@@ -178,6 +178,93 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 .SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None));
         }
 
+        /// <summary>
+        /// Part 4 §7.40.4 Table 189: a UserName or IssuedToken policy with SecurityPolicy
+        /// None on a Sign channel would send the secret in clear text; the configuration
+        /// is rejected, so the policy is not published there. On SignAndEncrypt the
+        /// channel encrypts the secret, so the policy stays.
+        /// </summary>
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.Sign, false)]
+        [TestCase(UserTokenType.IssuedToken, MessageSecurityMode.Sign, false)]
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt, true)]
+        [TestCase(UserTokenType.IssuedToken, MessageSecurityMode.SignAndEncrypt, true)]
+        public void UnencryptedSecretTokenPolicyIsNotPublishedOnSignEndpoint(
+            UserTokenType type, MessageSecurityMode mode, bool expectPublished)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var registry = new CertificateManager(telemetry);
+            using var server = new ServerBase(telemetry);
+            ApplicationConfiguration configuration = CreateConfiguration(
+                registry, type, SecurityPolicies.None);
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = mode,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+
+            ArrayOf<UserTokenPolicy> policies = server.GetUserTokenPolicies(configuration, endpoint);
+
+            Assert.That(
+                policies.ToArray()!.Any(policy => policy.TokenType == type),
+                Is.EqualTo(expectPublished));
+            Assert.That(
+                ServerBase.IsCleartextTokenPolicyOnSignChannel(
+                    mode, new UserTokenPolicy(type) { SecurityPolicyUri = SecurityPolicies.None }),
+                Is.EqualTo(!expectPublished));
+        }
+
+        /// <summary>
+        /// A Sign endpoint whose only configured policy is a clear-text secret has no
+        /// usable policy left and is not offered (fail closed), while a server that
+        /// configures no policies or filters its own keeps the previous behavior.
+        /// </summary>
+        [Test]
+        public void SignEndpointWithOnlyCleartextPoliciesHasNoUsableUserTokenPolicy()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var registry = new CertificateManager(telemetry);
+            using var server = new ServerBase(telemetry);
+            ApplicationConfiguration configuration = CreateConfiguration(
+                registry, UserTokenType.UserName, SecurityPolicies.None);
+            configuration.ServerConfiguration!.UserTokenPolicies =
+            [
+                new UserTokenPolicy(UserTokenType.UserName) { SecurityPolicyUri = SecurityPolicies.None }
+            ];
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.Sign,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                EndpointUrl = "opc.tcp://localhost:4840"
+            };
+
+            endpoint.UserIdentityTokens = server.GetUserTokenPolicies(configuration, endpoint);
+
+            Assert.That(endpoint.UserIdentityTokens.IsEmpty, Is.True);
+            Assert.That(ServerBase.HasNoUsableUserTokenPolicy(configuration, endpoint), Is.True);
+
+            configuration.ServerConfiguration.UserTokenPolicies = default;
+            Assert.That(ServerBase.HasNoUsableUserTokenPolicy(configuration, endpoint), Is.False);
+
+            // a server that removes its own policies on purpose (provisioning mode drops
+            // Anonymous) keeps the endpoint.
+            configuration.ServerConfiguration.UserTokenPolicies = [new UserTokenPolicy(UserTokenType.Anonymous)];
+            Assert.That(ServerBase.HasNoUsableUserTokenPolicy(configuration, endpoint), Is.False);
+        }
+
+        [TestCase("None", true)]
+        [TestCase("http://opcfoundation.org/UA/SecurityPolicy#None", true)]
+        [TestCase("", false)]
+        [TestCase("Basic256Sha256", false)]
+        public void CleartextTokenPolicyCheckResolvesShortNames(string policyUri, bool expected)
+        {
+            Assert.That(
+                ServerBase.IsCleartextTokenPolicyOnSignChannel(
+                    MessageSecurityMode.Sign,
+                    new UserTokenPolicy(UserTokenType.UserName) { SecurityPolicyUri = policyUri }),
+                Is.EqualTo(expected));
+        }
+
         private static EndpointDescription CreateEndpoint()
         {
             return new EndpointDescription

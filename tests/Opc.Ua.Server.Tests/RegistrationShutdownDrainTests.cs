@@ -57,18 +57,15 @@ namespace Opc.Ua.Server.Tests
             var registrationFailure = new InvalidOperationException("The active registration failed.");
             using CancellationTokenRegistration callback = cancellation.Token.Register(() => throw callbackFailure);
             var registration = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            FieldInfo cancellationField = typeof(StandardServer).GetField(
-                "m_registrationCts", BindingFlags.Instance | BindingFlags.NonPublic)
+            FieldInfo cancellationField = typeof(DiscoveryRegistration).GetField(
+                "m_cts", BindingFlags.Instance | BindingFlags.NonPublic)
                 ?? throw new AssertionException("The registration cancellation owner was not found.");
-            FieldInfo registrationField = typeof(StandardServer).GetField(
-                "m_registrationTask", BindingFlags.Instance | BindingFlags.NonPublic)
+            FieldInfo registrationField = typeof(DiscoveryRegistration).GetField(
+                "m_task", BindingFlags.Instance | BindingFlags.NonPublic)
                 ?? throw new AssertionException("The active registration task was not found.");
-            MethodInfo stopMethod = typeof(StandardServer).GetMethod(
-                "StopRegistrationAsync", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?? throw new AssertionException("The registration drain method was not found.");
-            cancellationField.SetValue(server, cancellation);
-            registrationField.SetValue(server, registration.Task);
-            var stopping = (ValueTask)stopMethod.Invoke(server, null)!;
+            cancellationField.SetValue(server.DiscoveryRegistration, cancellation);
+            registrationField.SetValue(server.DiscoveryRegistration, registration.Task);
+            ValueTask stopping = server.DiscoveryRegistration.StopAsync();
             Task stop = stopping.AsTask();
             bool completedBeforeRegistration = stop.IsCompleted;
             if (failRegistration)
@@ -92,7 +89,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                registrationField.SetValue(server, Task.CompletedTask);
+                registrationField.SetValue(server.DiscoveryRegistration, Task.CompletedTask);
             }
             Assert.That(completedBeforeRegistration, Is.False,
                 "A failed cancellation callback must not bypass the active registration drain.");
@@ -104,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(failures.InnerExceptions, Has.Exactly(1).SameAs(registrationFailure));
             }
-            Assert.That(cancellationField.GetValue(server), Is.Null);
+            Assert.That(cancellationField.GetValue(server.DiscoveryRegistration), Is.Null);
         }
     }
 }

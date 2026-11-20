@@ -425,6 +425,13 @@ namespace Opc.Ua.Client
                 acknowledgementsToSend,
             RequestHeader requestHeader)
         {
+            // Observe a fault first: the early returns below skip task.Result,
+            // which would leave it to surface through UnobservedTaskException.
+            if (task.IsFaulted)
+            {
+                _ = task.Exception;
+            }
+
             // extract state information.
             uint subscriptionId = 0;
 

@@ -26,6 +26,20 @@ The file name check is not case-sensitive. The command does not follow
 directory links or read the output folder as input.
 An output folder that contains the source folder is not allowed.
 
+All successfully read NodeSets form a local type-resolution context before export
+starts. Include the required companion models and the OPC UA base NodeSet in
+the source tree so event ancestry and method argument properties can be resolved
+across namespace boundaries.
+Their nodes remain in their own output folders; they are not added to a
+dependent model's source partition. A single-file input supplies only that file
+as the local context.
+
+The command follows each method's argument-property references, including
+references to properties in another NodeSet. It writes named `input` and
+`output` schemas with explicit argument order. If an external method property
+cannot be resolved or its argument value cannot be decoded, that source export
+fails with a diagnostic. It does not treat missing metadata as zero arguments.
+
 ## Output
 
 Each input file gets a separate output folder. For example:
@@ -41,6 +55,16 @@ Keep the names and all support files. The JSON `@type` is the type claim;
 the `.TM.json` suffix alone is not a type claim.
 An Object instance can need a Thing Description instead of a Thing Model.
 The tool reports these support files with a warning.
+
+Thing Models receive a stable `id` using the baseline catalogue convention:
+reverse the hostname labels of the type node's namespace URI, append its
+dot-separated URI path and local BrowseName, and prefix the result with `urn:`.
+For example, ADI's `AccessorySlotStateMachineType` receives
+`urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType`.
+Duplicate names within a namespace receive `_1`, `_2`, and subsequent suffixes
+in NodeSet source order, including names used by instance nodes.
+Existing document IDs are preserved. Titles remain the source DisplayNames;
+`uav:id` remains the namespace-qualified native node identity.
 
 The command uses the asynchronous document-set export API.
 That API checks that the result can preserve the source facts.

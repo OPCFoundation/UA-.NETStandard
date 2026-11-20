@@ -203,6 +203,163 @@
         "superType": "i=58"
       },
       {
+        "browseName": "1:<Component>",
+        "description": [
+          {
+            "locale": "en",
+            "value": "Represents the identifiable components of a machine."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<Component>"
+          }
+        ],
+        "modellingRule": "OptionalPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=5002",
+        "parentNodeId": "ns=1;i=1006",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=58"
+          },
+          {
+            "referenceType": "HasAddIn",
+            "target": "ns=1;i=5003"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11508"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1006"
+          }
+        ],
+        "symbolicName": "Component",
+        "typeDefinition": "i=58"
+      },
+      {
+        "browseName": "2:Identification",
+        "description": [
+          {
+            "locale": "en",
+            "value": "Contains information about the identification and nameplate of a MachineryItem"
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Identification"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=5003",
+        "parentNodeId": "ns=1;i=5002",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1004"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasAddIn",
+            "target": "ns=1;i=5002"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6019"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6020"
+          }
+        ],
+        "typeDefinition": "ns=1;i=1004"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "2:Manufacturer",
+        "dataType": "LocalizedText",
+        "description": [
+          {
+            "locale": "en",
+            "value": "A human-readable, localized name of the manufacturer of the MachineryItem."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Manufacturer"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6019",
+        "parentNodeId": "ns=1;i=5003",
+        "references": [
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=5003"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "2:SerialNumber",
+        "dataType": "String",
+        "description": [
+          {
+            "locale": "en",
+            "value": "A string containing a unique production number of the manufacturer of the MachineryItem. The global uniqueness of the serial number is only given in the context of the manufacturer, and potentially the model. The value shall not change during the life-cycle of the MachineryItem."
+          }
+        ],
+        "displayName": [
+          {
+            "locale": "",
+            "value": "SerialNumber"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6020",
+        "parentNodeId": "ns=1;i=5003",
+        "references": [
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=5003"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
         "accessLevel": 3,
         "arrayDimensions": "",
         "browseName": "DefaultInstanceBrowseName",

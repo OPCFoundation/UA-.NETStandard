@@ -200,6 +200,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new InvalidOperationException("The registered View host does not support prepared publication."));
 
             services.TryAddSingleton<IWotUnitMappingProvider, WotQudtUnitMappingProvider>();
+            services.TryAddSingleton<IWotQuantityKindMappingProvider, WotCompanionQuantityKindMappingProvider>();
             services.TryAddSingleton(sp =>
             {
                 WotRegistryServerOptions options =
@@ -215,6 +216,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     ProjectionFormProvider = sp.GetService<IWotProjectionFormProvider>() ??
                         options.ProjectionFormProvider,
                     UnitMappingProvider = sp.GetRequiredService<IWotUnitMappingProvider>(),
+                    QuantityKindMappingProvider = sp.GetRequiredService<IWotQuantityKindMappingProvider>(),
                     ValueEncodingContext = sp.GetService<IServiceMessageContext>()
                 };
                 converterOptions.Validate();
