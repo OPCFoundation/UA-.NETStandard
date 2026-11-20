@@ -2447,23 +2447,64 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, writeValues);
             Assert.IsTrue(StatusCode.IsGood(writeResponse.Results[0]));
 
-            // Wait for subscription to deliver the event and data change notification
-            await Task.Delay(200).ConfigureAwait(false);
-
-            // Step 3: Issue publish to receive DataChangeNotification and SemanticChangeEvent
-            publishResponse = await services.PublishAsync(
-                requestHeader,
-                acknowledgements).ConfigureAwait(false);
-
-            Assert.IsNotNull(publishResponse.NotificationMessage);
-            Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
-            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count == 2, "One Event and One DataChangeNotification expected.");
-
+            // Step 3: Publish until the DataChangeNotification and the SemanticChangeEvent arrived.
+            // The event and the resampled value reach the subscription on separate threads, so a
+            // publishing cycle can fall between them and they arrive in separate messages.
             bool dataChangeReceived = false;
             bool semanticsChangedBitSet = false;
             bool eventReceived = false;
 
-            foreach (ExtensionObject data in publishResponse.NotificationMessage.NotificationData)
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!(semanticsChangedBitSet && eventReceived) && DateTime.UtcNow < deadline)
+            {
+                requestHeader.Timestamp = DateTime.UtcNow;
+                publishResponse = await services.PublishAsync(
+                    requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+
+                Assert.IsNotNull(publishResponse.NotificationMessage);
+                acknowledgements = [];
+                if (publishResponse.NotificationMessage.NotificationData.IsNull ||
+                    publishResponse.NotificationMessage.NotificationData.Count == 0)
+                {
+                    continue;
+                }
+
+                acknowledgements =
+                [
+                    new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                    }
+                ];
+
+                CollectSemanticChangeNotifications(
+                    publishResponse.NotificationMessage,
+                    nodeId,
+                    ref dataChangeReceived,
+                    ref semanticsChangedBitSet,
+                    ref eventReceived);
+            }
+
+            Assert.IsTrue(dataChangeReceived, "Did not receive DataChangeNotification.");
+            Assert.IsTrue(semanticsChangedBitSet, "SemanticsChanged bit is not set.");
+            Assert.IsTrue(eventReceived, "Did not receive SemanticChangeEvent.");
+
+            // Delete subscription
+            await services.DeleteSubscriptionsAsync(
+                requestHeader,
+                [subscriptionId]).ConfigureAwait(false);
+        }
+
+        private static void CollectSemanticChangeNotifications(
+            NotificationMessage message,
+            NodeId nodeId,
+            ref bool dataChangeReceived,
+            ref bool semanticsChangedBitSet,
+            ref bool eventReceived)
+        {
+            foreach (ExtensionObject data in message.NotificationData)
             {
                 if (data.TryGetValue(out DataChangeNotification? dcn))
                 {
@@ -2503,15 +2544,6 @@ namespace Opc.Ua.Server.Tests
                     }
                 }
             }
-
-            Assert.IsTrue(dataChangeReceived, "Did not receive DataChangeNotification.");
-            Assert.IsTrue(semanticsChangedBitSet, "SemanticsChanged bit is not set.");
-            Assert.IsTrue(eventReceived, "Did not receive SemanticChangeEvent.");
-
-            // Delete subscription
-            await services.DeleteSubscriptionsAsync(
-                requestHeader,
-                [subscriptionId]).ConfigureAwait(false);
         }
 
         /// <summary>
