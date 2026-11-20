@@ -276,7 +276,7 @@ are null.
 
 | From | To | Where to read |
 | --- | --- | --- |
-| `2.0.2` | `2.0.3` | [`migrate/2.0.3/`](migrate/2.0.3/README.md) — deprecations; nothing breaks, but `[Obsolete]` warnings (`UA0031`) point at the replacement APIs. |
+| `2.0.2` | `2.0.3` | [`migrate/2.0.3/`](migrate/2.0.3/README.md) — deprecations: `[Obsolete]` warnings (`UA0031`) point at the replacement APIs. The PubSub, WoT connectivity and Boiler sample factories are now asynchronous only, so direct `Create(...)` calls must move to `CreateAsync(...)`. |
 | `1.5.378` | `2.0.x` | [`migrate/2.0.x/`](migrate/2.0.x/README.md) — landing page and symptom-based thematic sub-doc index. |
 | `1.05.377` | `1.05.378` | [§ inline below](#migrating-from-105377-to-105378) — small enough to keep on this page. |
 | `1.04` | `1.05` | [§ inline below](#migrating-from-104-to-105) — small enough to keep on this page. |

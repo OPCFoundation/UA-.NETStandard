@@ -66,13 +66,24 @@ runtime still needs the synchronous view of every manager:
   `GetManagerHandle(NodeId, out INodeManager?)`) return it.
 
 They go away together with `INodeManager`. Until then a direct
-`IAsyncNodeManager` implementation still provides the property. Because its
-type is the obsolete `INodeManager`, the declaration itself needs a narrow
+`IAsyncNodeManager` implementation still provides the property. Every access
+must return the **same** instance, because the runtime compares it by
+reference: create the adapter once in the constructor (as
+`AsyncCustomNodeManager` does), not lazily and not per access. Because its
+type is the obsolete `INodeManager`, the declaration needs a narrow
 suppression:
 
 ```csharp
 #pragma warning disable CS0618, UA0031 // Required by IAsyncNodeManager until INodeManager is removed.
-public INodeManager SyncNodeManager => m_syncNodeManager ??= this.ToSyncNodeManager();
+private readonly INodeManager m_syncNodeManager;
+
+public MyNodeManager(/* ... */)
+{
+    // ...
+    m_syncNodeManager = this.ToSyncNodeManager();
+}
+
+public INodeManager SyncNodeManager => m_syncNodeManager;
 #pragma warning restore CS0618, UA0031
 ```
 
@@ -197,9 +208,14 @@ So when porting:
    exclusion, protect it with a private `System.Threading.Lock` or a
    `SemaphoreSlim` that you own. Do not hold it across an `await` or across a
    call into the server.
-4. Individual node operations are atomic; a sequence of them is not. Where a
-   multi-attribute update must be observed together, set the attributes and
-   publish once with `ClearChangeMasksAsync`.
+4. Individual node operations are atomic; a sequence of them is not, and there
+   is deliberately no cross-attribute transaction: a concurrent Read can
+   observe some of the new values and not others.
+   `ClearChangeMasksAsync` only coalesces the resulting change notifications
+   (once per node; children are dispatched separately). It does not make the
+   preceding assignments atomic. If clients must see several values together,
+   expose them as one value, for example a structured `Value`, instead of
+   relying on the order of separate updates.
 
 ## Direct `INodeManager` implementations
 

@@ -81,8 +81,11 @@ The server library provides these TAP features:
   server, `IOpcUaServerBuilder.AddNodeManager<TFactory>()`.
   `IAsyncNodeManager.SyncNodeManager` is still required, because the runtime
   uses it for identity comparisons and the remaining legacy lookups.
-  `AsyncCustomNodeManager` provides it; a direct `IAsyncNodeManager`
-  implementation returns `this.ToSyncNodeManager()` (`SyncNodeManagerAdapter`).
+  `AsyncCustomNodeManager` provides it. A direct `IAsyncNodeManager`
+  implementation creates the adapter once with `this.ToSyncNodeManager()`
+  (`SyncNodeManagerAdapter`) in its constructor and returns that same
+  instance on every access; `ToSyncNodeManager()` creates a new adapter each
+  time it is called.
 
 ## Async method calls
 
