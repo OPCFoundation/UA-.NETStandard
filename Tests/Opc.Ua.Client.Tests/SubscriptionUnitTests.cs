@@ -220,6 +220,201 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// The most entries the incoming message queue may hold.
+        /// </summary>
+        private const int kMaxIncomingMessages = 2048;
+
+        private static NotificationMessage BuildDataMessage(uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = [new(new DataChangeNotification
+                {
+                    SequenceNumber = sequenceNumber,
+                    MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                })]
+            };
+        }
+
+        /// <summary>
+        /// Counts the entries of the incoming message queue, and those that still
+        /// reference a message.
+        /// </summary>
+        private static int CountIncomingMessages(Subscription subscription, out int withMessage)
+        {
+            System.Reflection.FieldInfo field = typeof(Subscription).GetField(
+                "m_incomingMessages",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            withMessage = 0;
+            if (field.GetValue(subscription) is not System.Collections.ICollection entries)
+            {
+                return 0;
+            }
+            object cache = typeof(Subscription).GetField(
+                "m_cache",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .GetValue(subscription);
+            lock (cache)
+            {
+                foreach (object entry in entries)
+                {
+                    if (entry.GetType().GetField("Message").GetValue(entry) != null)
+                    {
+                        withMessage++;
+                    }
+                }
+                return entries.Count;
+            }
+        }
+
+        /// <summary>
+        /// A Publish response whose sequence number is far ahead of the last
+        /// one processed must not add one placeholder per missing sequence
+        /// number. The client resynchronises on the new sequence number and
+        /// still delivers the message.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        [CancelAfter(60_000)]
+        public async Task SequenceNumberFarAheadDoesNotFillTheQueueAsync(bool firstMessage, CancellationToken ct)
+        {
+            const uint kFarAhead = 200_000;
+            int delivered = 0;
+            var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                DisableMonitoredItemCache = true,
+                FastDataChangeCallback = (_, _, _) => Interlocked.Increment(ref delivered)
+            };
+            using (subscription)
+            {
+                subscription.Session = BuildSessionMock((_, _) => false);
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+                int expected = 1;
+                if (!firstMessage)
+                {
+                    subscription.SaveMessageInCache([], BuildDataMessage(1));
+                    expected++;
+                }
+
+                subscription.SaveMessageInCache([], BuildDataMessage(kFarAhead));
+
+                Assert.That(CountIncomingMessages(subscription, out _),
+                    Is.LessThanOrEqualTo(kMaxIncomingMessages));
+
+                // the next message in sequence is delivered without waiting
+                // for the messages that were skipped.
+                subscription.SaveMessageInCache([], BuildDataMessage(kFarAhead + 1));
+                expected++;
+
+                while (Volatile.Read(ref delivered) < expected)
+                {
+                    await Task.Delay(5, ct).ConfigureAwait(false);
+                }
+                Assert.That(CountIncomingMessages(subscription, out _),
+                    Is.LessThanOrEqualTo(kMaxIncomingMessages));
+            }
+        }
+
+        /// <summary>
+        /// While a message is missing at the head of the incoming queue, later
+        /// messages are delivered but their entries stay queued behind it. The
+        /// queue stays within its limit, and processed entries do not keep their
+        /// messages.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task IncomingMessageQueueIsBoundedWhileAMessageIsMissingAsync(CancellationToken ct)
+        {
+            const int kMessages = kMaxIncomingMessages + 1000;
+            int delivered = 0;
+            var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                DisableMonitoredItemCache = true,
+                FastDataChangeCallback = (_, _, _) => Interlocked.Increment(ref delivered)
+            };
+            using (subscription)
+            {
+                // Republish never completes; message 2 stays listed as available
+                // and its entry is neither delivered nor given up.
+                subscription.Session = BuildSessionMock(
+                    setup: mock => mock
+                        .Setup(x => x.RepublishAsync(It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync((false, new ServiceResult(StatusCodes.BadTimeout))));
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+                subscription.SaveMessageInCache([1], BuildDataMessage(1));
+                int saved = 1;
+                for (uint sequenceNumber = 3; sequenceNumber < kMessages + 3; sequenceNumber++)
+                {
+                    subscription.SaveMessageInCache([2, sequenceNumber], BuildDataMessage(sequenceNumber));
+                    saved++;
+                    Assert.That(CountIncomingMessages(subscription, out _),
+                        Is.LessThanOrEqualTo(kMaxIncomingMessages));
+                    if (saved % 256 == 0)
+                    {
+                        // Let the worker deliver each batch, so the limit gives up
+                        // processed entries rather than messages still waiting for it.
+                        await WaitForDeliveredAsync(saved).ConfigureAwait(false);
+                    }
+                }
+
+                // Every message after the gap is delivered without the missing one.
+                await WaitForDeliveredAsync(kMessages + 1).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref delivered), Is.EqualTo(kMessages + 1));
+                CountIncomingMessages(subscription, out int retained);
+                Assert.That(retained, Is.Zero, "Processed entries must not keep their messages.");
+            }
+
+            async Task WaitForDeliveredAsync(int count)
+            {
+                while (Volatile.Read(ref delivered) < count)
+                {
+                    await Task.Delay(5, ct).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Transfer recovery queues at most as many messages for Republish as
+        /// the incoming queue holds.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task TransferRecoveryQueuesNoMoreMessagesThanTheQueueBoundAsync(CancellationToken ct)
+        {
+            const int kAvailable = kMaxIncomingMessages + 500;
+            using var subscription = new Subscription(NUnitTelemetryContext.Create())
+            {
+                RepublishAfterTransfer = true
+            };
+            UInt32Collection available = [.. Enumerable.Range(1, kAvailable).Select(value => (uint)value)];
+            ISession session = BuildSessionMock(
+                (_, _) => false,
+                mock =>
+                {
+                    mock.Setup(value => value.Subscriptions).Returns([]);
+                    mock.Setup(value => value.RemoveTransferredSubscription(subscription)).Returns(true);
+                    mock.Setup(value => value.AddSubscription(subscription)).Returns(true);
+                });
+            subscription.Session = session;
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            bool transferred = await subscription
+                .TransferAsync(session, subscription.Id, available, ct)
+                .ConfigureAwait(false);
+
+            Assert.That(transferred, Is.True);
+            Assert.That(CountIncomingMessages(subscription, out _),
+                Is.LessThanOrEqualTo(kMaxIncomingMessages));
+        }
+
+        /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
