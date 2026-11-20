@@ -346,18 +346,21 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// The event field lists of a message are copied into an array rented from the shared
-        /// pool; the array is returned once the payload is recycled, and the message encodes
-        /// only its slice of it.
+        /// The event field lists and admission stamps of a message are copied into a pooled
+        /// event buffer; the buffer is returned once the payload is recycled, and the message
+        /// encodes only its slice of it.
         /// </summary>
         [Test]
         public void RentedEventArrayIsReturnedWithThePayload([Values(false, true)] bool acknowledgeFirst)
         {
             var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
-            EventFieldList[] rented = System.Buffers.ArrayPool<EventFieldList>.Shared.Rent(3);
+            var buffer = EventNotificationBuffer.Rent(3);
+            EventFieldList[] rented = buffer.Events;
+            object?[] stamps = buffer.Stamps;
             for (int ii = 0; ii < 3; ii++)
             {
                 rented[ii] = new EventFieldList { ClientHandle = (uint)ii + 1, EventFields = [ii] };
+                stamps[ii] = new object();
             }
             var message = new NotificationMessage
             {
@@ -371,7 +374,7 @@ namespace Opc.Ua.Server.Tests
             EventFieldList[] originals = rented.Take(3).ToArray();
             NotificationMessage sent = queue.Enqueue(
                 [message], [], out _, out _, out NotificationMessageLease lease,
-                [new RentedNotificationArrays(null, rented)]);
+                [new RentedNotificationArrays(null, buffer)]);
             var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
             PublishResponse decoded = Encode(response);
             Assert.That(
@@ -385,17 +388,19 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(queue.TryAcknowledge(1), Is.True);
                 Assert.That(rented[0], Is.EqualTo(originals[0]), "still being sent");
+                Assert.That(stamps[0], Is.Not.Null, "stamps held while being sent");
                 ((IPooledEncodeable)response).Reuse();
             }
             else
             {
                 ((IPooledEncodeable)response).Reuse();
                 Assert.That(rented[0], Is.EqualTo(originals[0]), "still retained for republish");
+                Assert.That(stamps[0], Is.Not.Null, "stamps held for republish");
                 Assert.That(queue.TryAcknowledge(1), Is.True);
             }
 
-            // returned with clearArray, so it no longer references the recycled field values
-            // (another test may have rented it again since).
+            // cleared on return, so it no longer references the recycled field values or the
+            // admission stamps (another test may have rented it again since).
             for (int ii = 0; ii < originals.Length; ii++)
             {
                 Assert.That(rented[ii], Is.Not.EqualTo(originals[ii]));
