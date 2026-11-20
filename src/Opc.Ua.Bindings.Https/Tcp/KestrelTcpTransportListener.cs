@@ -110,6 +110,7 @@ namespace Opc.Ua.Bindings
     /// </remarks>
     public sealed class KestrelTcpTransportListener
         : ITransportListener,
+            ITransportListenerAcceptControl,
             ITcpChannelListener,
             ITransportListenerCertificateRotation,
             ITransportListenerPeerCertificateChainRotation
@@ -236,6 +237,10 @@ namespace Opc.Ua.Bindings
                 m_quotas.HandshakeTimeout,
                 telemetry: Telemetry);
 
+            // Kestrel accepts as soon as it is bound, so a deferred listener
+            // holds the accepted connections at the gate until it is opened.
+            m_acceptGate = CreateAcceptGate(accepting: !settings.DeferAccept);
+
             m_host = BuildHost(baseAddress);
             await m_host.StartAsync(ct).ConfigureAwait(false);
 
@@ -275,8 +280,54 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public bool IsAccepting => m_host != null &&
+            m_acceptGate.Task.Status == TaskStatus.RanToCompletion &&
+            m_acceptGate.Task.Result;
+
+        /// <inheritdoc/>
+        public ValueTask StartAcceptingAsync(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            m_acceptGate.TrySetResult(true);
+            return default;
+        }
+
+        /// <summary>
+        /// Waits until the listener serves connections. Returns <c>false</c>
+        /// when the listener stops first or the connection closes.
+        /// </summary>
+        internal async ValueTask<bool> WaitUntilAcceptingAsync(CancellationToken ct)
+        {
+            Task<bool> gate = m_acceptGate.Task;
+            if (gate.Status == TaskStatus.RanToCompletion)
+            {
+                return gate.Result;
+            }
+            try
+            {
+                return await gate.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return false;
+            }
+        }
+
+        private static TaskCompletionSource<bool> CreateAcceptGate(bool accepting)
+        {
+            var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (accepting)
+            {
+                gate.TrySetResult(true);
+            }
+            return gate;
+        }
+
+        /// <inheritdoc/>
         public async ValueTask StopAsync(CancellationToken ct = default)
         {
+            // release connections held at the gate of a listener that never opened.
+            m_acceptGate.TrySetResult(false);
             m_inactivityDetectionTimer?.Dispose();
             m_inactivityDetectionTimer = null;
             try
@@ -1057,6 +1108,7 @@ namespace Opc.Ua.Bindings
         }
 
         private IHost? m_host;
+        private TaskCompletionSource<bool> m_acceptGate = CreateAcceptGate(accepting: true);
         private List<EndpointDescription>? m_descriptions;
         private ChannelQuotas? m_quotas;
         private BufferManager? m_bufferManager;

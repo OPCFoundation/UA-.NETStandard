@@ -72,6 +72,16 @@ namespace Opc.Ua.Bindings
                 bool registered = false;
                 try
                 {
+                    // A server that is still starting holds the admitted
+                    // connection here, so the admission limits and the
+                    // handshake deadline bound what waits.
+                    if (!await m_owner.WaitUntilAcceptingAsync(connection.ConnectionClosed)
+                        .ConfigureAwait(false))
+                    {
+                        connection.Abort();
+                        return;
+                    }
+
                     connection.ConnectionClosed.ThrowIfCancellationRequested();
                     using var transport = new PipeByteTransport(
                         connection,

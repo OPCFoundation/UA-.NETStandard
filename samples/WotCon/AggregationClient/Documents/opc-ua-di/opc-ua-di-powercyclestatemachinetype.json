@@ -339,6 +339,290 @@
           }
         ],
         "superType": "i=2771"
+      },
+      {
+        "browseName": "1:NotWaitingForPowerCycle",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "NotWaitingForPowerCycle"
+          }
+        ],
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=299",
+        "parentNodeId": "ns=1;i=285",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=300"
+          },
+          {
+            "isForward": false,
+            "referenceType": "FromState",
+            "target": "ns=1;i=303"
+          },
+          {
+            "isForward": false,
+            "referenceType": "ToState",
+            "target": "ns=1;i=305"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2309"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=285"
+          }
+        ],
+        "typeDefinition": "i=2309"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "StateNumber",
+        "dataType": "UInt32",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "StateNumber"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=300",
+        "parentNodeId": "ns=1;i=299",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=299"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<UInt32 xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">1</UInt32>"
+      },
+      {
+        "browseName": "1:WaitingForPowerCycle",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "WaitingForPowerCycle"
+          }
+        ],
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=301",
+        "parentNodeId": "ns=1;i=285",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=302"
+          },
+          {
+            "isForward": false,
+            "referenceType": "ToState",
+            "target": "ns=1;i=303"
+          },
+          {
+            "isForward": false,
+            "referenceType": "FromState",
+            "target": "ns=1;i=305"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2307"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=285"
+          }
+        ],
+        "typeDefinition": "i=2307"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "StateNumber",
+        "dataType": "UInt32",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "StateNumber"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=302",
+        "parentNodeId": "ns=1;i=301",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=301"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<UInt32 xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">2</UInt32>"
+      },
+      {
+        "browseName": "1:NotWaitingForPowerCycleToWaitingForPowerCycle",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "NotWaitingForPowerCycleToWaitingForPowerCycle"
+          }
+        ],
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=303",
+        "parentNodeId": "ns=1;i=285",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=304"
+          },
+          {
+            "referenceType": "FromState",
+            "target": "ns=1;i=299"
+          },
+          {
+            "referenceType": "ToState",
+            "target": "ns=1;i=301"
+          },
+          {
+            "referenceType": "HasEffect",
+            "target": "i=2311"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2310"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=285"
+          }
+        ],
+        "typeDefinition": "i=2310"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "TransitionNumber",
+        "dataType": "UInt32",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "TransitionNumber"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=304",
+        "parentNodeId": "ns=1;i=303",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=303"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<UInt32 xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">12</UInt32>"
+      },
+      {
+        "browseName": "1:WaitingForPowerCycleToNotWaitingForPowerCycle",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "WaitingForPowerCycleToNotWaitingForPowerCycle"
+          }
+        ],
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=305",
+        "parentNodeId": "ns=1;i=285",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=306"
+          },
+          {
+            "referenceType": "FromState",
+            "target": "ns=1;i=301"
+          },
+          {
+            "referenceType": "ToState",
+            "target": "ns=1;i=299"
+          },
+          {
+            "referenceType": "HasEffect",
+            "target": "i=2311"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2310"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=285"
+          }
+        ],
+        "typeDefinition": "i=2310"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "TransitionNumber",
+        "dataType": "UInt32",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "TransitionNumber"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=306",
+        "parentNodeId": "ns=1;i=305",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=305"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueXml": "<UInt32 xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">21</UInt32>"
       }
     ],
     "profileVersion": "1.0"

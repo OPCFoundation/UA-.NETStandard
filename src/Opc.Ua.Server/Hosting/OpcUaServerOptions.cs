@@ -96,6 +96,16 @@ namespace Opc.Ua.Server.Hosting
         public bool DiagnosticsEnabled { get; set; } = true;
 
         /// <summary>
+        /// When <c>false</c> (default), the endpoints serve clients only after
+        /// every <see cref="IServerStartupTask"/> has run, so no client sees the
+        /// server before its post-start wiring is complete. A client that
+        /// connects earlier waits and is served afterwards. Set to <c>true</c>
+        /// to serve clients as soon as the server is started, while the startup
+        /// tasks run, e.g. when a startup task connects to this server itself.
+        /// </summary>
+        public bool ServeClientsDuringStartupTasks { get; set; }
+
+        /// <summary>
         /// Maximum byte-string length advertised on the transport. Defaults to
         /// 4 MiB.
         /// </summary>

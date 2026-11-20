@@ -233,7 +233,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// <summary>
         /// Adding a runtime NodeSet after startup must publish exactly one registration,
         /// route it into the master node manager's live snapshots exactly once, append the
-        /// model namespace exactly once, and increment <c>UrisVersion</c> by one.
+        /// model namespace exactly once, and raise <c>UrisVersion</c>.
         /// </summary>
         [Test]
         public async Task AddRuntimeNodeSetAsyncPublishesRegistrationAndRoutingAsync()
@@ -286,7 +286,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Is.True);
 
             uint urisVersionAfter = await ReadUrisVersionAsync().ConfigureAwait(false);
-            Assert.That(urisVersionAfter, Is.EqualTo(urisVersionBefore + 1));
+
+            // A VersionTime: raised to the larger of the previous value plus one and the
+            // current time (Part 5 §6.3.1), so the step depends on the time since startup.
+            Assert.That(urisVersionAfter, Is.GreaterThan(urisVersionBefore));
         }
 
         /// <summary>
@@ -1848,7 +1851,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     .ConfigureAwait(false);
                 Assert.That(server.NamespaceUris.GetIndex(kModelNamespaceUri), Is.EqualTo(namespaceUrisBefore.Length));
                 Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceUrisBefore.Length + 1));
-                Assert.That(await ReadUrisVersionAsync().ConfigureAwait(false), Is.EqualTo(urisVersionBefore + 1));
+                Assert.That(await ReadUrisVersionAsync().ConfigureAwait(false), Is.GreaterThan(urisVersionBefore));
             }
 
             ushort namespaceIndex = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);

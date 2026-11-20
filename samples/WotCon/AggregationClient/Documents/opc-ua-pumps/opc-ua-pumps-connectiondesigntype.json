@@ -65,9 +65,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9275"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9276",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -102,6 +99,10 @@
     }
   },
   "title": "ConnectionDesignType",
+  "tm:optional": [
+    "/properties/NominalPressure",
+    "/properties/Definition"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ConnectionDesignType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1040",

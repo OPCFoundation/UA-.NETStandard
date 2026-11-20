@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -696,6 +697,54 @@ namespace Opc.Ua.Client.Tests
                 0), Times.Once);
             m_mockContext.Verify(c => c.OnKeepAliveError(
                 It.Is<ServiceResult>(result => result.StatusCode == StatusCodes.BadSessionIdInvalid)), Times.Once);
+        }
+
+        /// <summary>
+        /// A Publish that faults after the session or its reconnect lock was disposed is still
+        /// observed, so the fault does not surface through
+        /// <see cref="TaskScheduler.UnobservedTaskException"/>.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OnPublishCompleteObservesFaultAfterDispose(bool disposeReconnectLock)
+        {
+            var failure = new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+            int unobserved = 0;
+            void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+            {
+                // Other tests run in parallel, so only this test's fault counts.
+                if (e.Exception.InnerExceptions.Any(inner => ReferenceEquals(inner, failure)))
+                {
+                    Interlocked.Increment(ref unobserved);
+                }
+            }
+            if (disposeReconnectLock)
+            {
+                m_lock.Dispose();
+            }
+            else
+            {
+                m_mockContext.Setup(c => c.Disposed).Returns(true);
+            }
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+
+            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+            try
+            {
+                CompleteFaultedPublish(engine, failure);
+
+                // The mock records the task as an argument; release it so it can be finalized.
+                m_mockContext.Invocations.Clear();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+            finally
+            {
+                TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+            }
+
+            Assert.That(Volatile.Read(ref unobserved), Is.Zero);
         }
 
         [Test]
@@ -1796,6 +1845,15 @@ namespace Opc.Ua.Client.Tests
                     acknowledgements,
                     new RequestHeader { RequestHandle = 99 }
                 ]);
+        }
+
+        /// <summary>
+        /// Completes a publish with a faulted task that is unreachable once this returns.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CompleteFaultedPublish(ClassicSubscriptionEngine engine, Exception failure)
+        {
+            InvokeOnPublishComplete(engine, Task.FromException<PublishResponse>(failure), new NodeId(1), null);
         }
 
         private static Mock<ISession> CreateSubscriptionSession(uint subscriptionId)

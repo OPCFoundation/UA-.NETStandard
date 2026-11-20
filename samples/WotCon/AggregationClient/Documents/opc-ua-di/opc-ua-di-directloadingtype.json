@@ -81,6 +81,9 @@
     }
   },
   "title": "DirectLoadingType",
+  "tm:optional": [
+    "/properties/WriteTimeout"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DirectLoadingType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=153",

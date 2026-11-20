@@ -1841,6 +1841,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 value => options.AutoAcceptUntrustedCertificates = value);
             BindBoolean(section, nameof(OpcUaServerOptions.DiagnosticsEnabled),
                 value => options.DiagnosticsEnabled = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.ServeClientsDuringStartupTasks),
+                value => options.ServeClientsDuringStartupTasks = value);
             BindBoolean(section, nameof(OpcUaServerOptions.IncludeSignAndEncryptPolicies),
                 value => options.IncludeSignAndEncryptPolicies = value);
             BindBoolean(section, nameof(OpcUaServerOptions.IncludeUnsecurePolicyNone),

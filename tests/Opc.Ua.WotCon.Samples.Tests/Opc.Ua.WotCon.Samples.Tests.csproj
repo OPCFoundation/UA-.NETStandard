@@ -30,6 +30,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Preserve split-declaration inputs independently of the generated sample partition layout. -->
+    <EmbeddedResource Include="Fixtures\LinkedNative\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="..\Opc.Ua.WotCon.Tests\Registry\RecordingLeasedResourceStore.cs"
       Link="Registry\RecordingLeasedResourceStore.cs" />
     <ProjectReference Include="..\..\samples\WotCon\FlatTagServer\FlatTagServer.csproj" />

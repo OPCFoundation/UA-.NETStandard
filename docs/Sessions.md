@@ -323,7 +323,8 @@ cycle and failover are exhausted. It reports `Disconnected` and the last error,
 then starts a fresh bounded cycle after the policy's maximum backoff (at least
 one second). Closing or disposing the session cancels this recovery timer.
 This does not restart failed initial connections: `CreateAsync` still fails as
-described above.
+described above. A session without server redundancy skips the `Failover`
+state and goes from `Reconnecting` straight to `Disconnected`.
 
 `ReconnectAsync` explicitly re-arms the state machine instead of waiting at the
 ordinary service gate. An explicitly supplied channel or reverse connection is

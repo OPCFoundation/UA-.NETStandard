@@ -1479,7 +1479,12 @@ namespace Opc.Ua.Client
         {
             StateMachine.ConnectAsync = ct => HandleConnectAsync(null, ct);
             StateMachine.ReconnectWithBudgetAsync = HandleReconnectAsync;
-            StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
+            if (m_redundancyHandler != null)
+            {
+                // Without server redundancy there is no peer to fail over to, so an
+                // exhausted reconnect goes straight to Disconnected.
+                StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
+            }
             StateMachine.CompleteRecoveryAsync = HandleCompleteRecoveryAsync;
             StateMachine.CloseSessionAsync = HandleCloseSessionAsync;
             StateMachine.StateChanged += OnStateChanged;
