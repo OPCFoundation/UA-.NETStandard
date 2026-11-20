@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Encoders;
@@ -94,6 +96,43 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value["F2"].GetInt32(), Is.EqualTo(7));
             Assert.That(value[1].IsNull, Is.True);
             Assert.That(value.Value.GetInt32(), Is.EqualTo(7));
+        }
+
+        [Test]
+        public void ConcurrentReadersOfADecodedUnionSeeItsValue()
+        {
+            const int kReaders = 4;
+            ServiceMessageContext context = CreateContext(out DynamicUnion type, 64);
+            byte[] encoded = Encode(context, 3, 7);
+            using var start = new Barrier(kReaders);
+
+            for (int round = 0; round < 500; round++)
+            {
+                DynamicUnion value = Decode(type, context, encoded);
+                var lists = new object[kReaders];
+                var clones = new DynamicUnion[kReaders];
+                Parallel.For(
+                    0,
+                    kReaders,
+                    new ParallelOptions { MaxDegreeOfParallelism = kReaders },
+                    reader =>
+                    {
+                        start.SignalAndWait();
+                        if (reader % 2 == 0)
+                        {
+                            lists[reader] = value.GetFields();
+                        }
+                        clones[reader] = (DynamicUnion)value.Clone();
+                    });
+
+                Assert.That(value[2].GetInt32(), Is.EqualTo(7));
+                Assert.That(value.Value.GetInt32(), Is.EqualTo(7));
+                Assert.That(lists[2], Is.SameAs(lists[0]));
+                foreach (DynamicUnion clone in clones)
+                {
+                    Assert.That(clone.Value.GetInt32(), Is.EqualTo(7));
+                }
+            }
         }
 
         [Test]
@@ -253,13 +292,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             return encoder.CloseAndReturnBuffer()!;
         }
 
-        private static ServiceMessageContext CreateContext(out DynamicUnion type)
+        private static ServiceMessageContext CreateContext(out DynamicUnion type, int count = kFields)
         {
             ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             context.NamespaceUris.GetIndexOrAppend(kNs);
-            var fields = new List<StructureField>(kFields);
-            var fieldTypes = new Dictionary<string, BuiltInType>(kFields);
-            for (int i = 0; i < kFields; i++)
+            var fields = new List<StructureField>(count);
+            var fieldTypes = new Dictionary<string, BuiltInType>(count);
+            for (int i = 0; i < count; i++)
             {
                 string name = "F" + i;
                 fields.Add(new StructureField { Name = name, DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar });

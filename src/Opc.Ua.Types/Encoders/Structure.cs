@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua.Encoders
@@ -569,7 +570,9 @@ namespace Opc.Ua.Encoders
             Field? single = m_single;
             if (single == null)
             {
-                return m_single = CreateField(index);
+                // Readers of one value may run concurrently: one field wins.
+                Field created = CreateField(index);
+                single = Interlocked.CompareExchange(ref m_single, created, null) ?? created;
             }
             if (single.Order == index + 1)
             {
@@ -606,9 +609,12 @@ namespace Opc.Ua.Encoders
             {
                 fields.Add(single != null && single.Order == i + 1 ? single : CreateField(i));
             }
-            m_single = null;
-            m_propertyList = fields;
-            return fields;
+
+            // Reading a value creates its fields, and readers of one value may
+            // run concurrently. The single field stays set, so every list
+            // built here holds it, and the first list published is the one
+            // all readers use.
+            return Interlocked.CompareExchange(ref m_propertyList, fields, null) ?? fields;
         }
 
         /// <summary>
@@ -630,7 +636,8 @@ namespace Opc.Ua.Encoders
         private List<Field>? m_propertyList;
         private Dictionary<string, Field>? m_propertyDict;
 
-        // The only field in use while m_propertyList is not created.
+        // The only field in use while m_propertyList is not created. It is
+        // kept afterwards and is then the field of the list at its position.
         private Field? m_single;
 
         /// <summary>
