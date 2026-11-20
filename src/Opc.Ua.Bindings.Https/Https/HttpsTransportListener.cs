@@ -1270,8 +1270,18 @@ namespace Opc.Ua.Bindings
             IHttpsTransportAdmissionFeature? physical = context.Features.Get<IHttpsTransportAdmissionFeature>();
             if (physical != null)
             {
-                await AcceptAdmittedWebSocketAsync(context, selected, physical.Lease).ConfigureAwait(false);
-                return;
+                if (context.Request.Protocol.StartsWith("HTTP/1.", StringComparison.Ordinal))
+                {
+                    // The upgrade takes over the connection, so the socket is
+                    // what the connection's lease accounts for.
+                    await AcceptAdmittedWebSocketAsync(context, selected, physical.Lease).ConfigureAwait(false);
+                    return;
+                }
+                // An HTTP/2 connection carries many streams. Each WebSocket is
+                // admitted, counted, reclaimed and aborted on its own lease:
+                // sharing the connection's lease would count a hundred sockets
+                // as one and let its close end only the last of them.
+                physical.Lease.CompleteHandshake();
             }
             if (m_admission == null ||
                 !m_admission.TryAcquire(

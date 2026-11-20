@@ -330,6 +330,16 @@ namespace Opc.Ua.Bindings
         internal bool HoldsPartialMessage => HasPartialMessage;
 
         /// <summary>
+        /// How long outstanding response writes keep a channel without a session from
+        /// being reclaimed for admission.
+        /// </summary>
+        /// <remarks>
+        /// Long enough to deliver a discovery response over a slow link; a peer that
+        /// needs longer while the server is out of channel slots connects again.
+        /// </remarks>
+        internal static readonly TimeSpan SessionlessWriteGrace = TimeSpan.FromSeconds(5);
+
+        /// <summary>
         /// Closes an unused channel to make room for admission unless it is disposed, closing, or serving a session.
         /// </summary>
         /// <remarks>
@@ -338,6 +348,12 @@ namespace Opc.Ua.Bindings
         /// Otherwise a peer without credentials could pin every channel slot by
         /// trickling chunks of messages it never finishes. Callers try channels
         /// without an unfinished message first (<see cref="HoldsPartialMessage"/>).
+        /// <para>
+        /// A response still being written protects such a channel only for
+        /// <see cref="SessionlessWriteGrace"/>. The peer decides how fast it reads,
+        /// so it could otherwise keep one response outstanding on every channel by
+        /// reading slowly, and hold every slot without a credential.
+        /// </para>
         /// </remarks>
         internal bool TryIdleCleanupForAdmission()
         {
@@ -352,7 +368,8 @@ namespace Opc.Ua.Bindings
                 }
                 lock (m_pendingRequestLock)
                 {
-                    if (m_pendingServiceRequests != 0 || HasPendingWrites)
+                    if (m_pendingServiceRequests != 0 ||
+                        (HasPendingWrites && GetPendingWriteAge() <= SessionlessWriteGrace))
                     {
                         return false;
                     }
