@@ -395,6 +395,48 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        public async Task ConnectionAddWriterGroupMethodInjectsItsOwnerAndIsRestricted()
+        {
+            using var harness = new Harness();
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            NodeId connectionId = await harness.Application.AddConnectionAsync(new PubSubConnectionDataType
+            {
+                Name = "conn-inject",
+                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                {
+                    Url = "opc.udp://224.0.0.22:4840"
+                })
+            }).ConfigureAwait(false);
+            BaseObjectState connectionNode = harness.Manager.FindPredefinedNode<BaseObjectState>(connectionId);
+            var addWriterGroup = (MethodState)connectionNode.FindChild(
+                harness.Context,
+                new QualifiedName("AddWriterGroup", harness.Manager.AddressSpaceNamespaceIndex))!;
+
+            // The caller passes the configuration only; the owning connection
+            // is injected in front of it, so a single argument is enough to get
+            // past the argument count check and reach the type check of the
+            // configuration argument.
+            ServiceResult result = addWriterGroup.OnCallMethod!(
+                harness.Context,
+                addWriterGroup,
+                BuildArray(Variant.From("not a writer group")),
+                []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(result.LocalizedText.Text, Does.Contain("argument 1"));
+                Assert.That(
+                    addWriterGroup.AccessRestrictions,
+                    Is.EqualTo(AccessRestrictionType.SigningRequired));
+                Assert.That(addWriterGroup.RolePermissions.Count, Is.GreaterThan(0));
+            });
+        }
+
+        [Test]
         [TestSpec("9.1.3", Summary = "PubSubConnectionType instances are materialized under PublishSubscribe")]
         [TestSpec("9.1.10", Summary = "Per-instance Status exposes Enable and Disable methods")]
         public async Task ConfigurationMutation_MaterializesConnectionNodeAndStatusMethods()

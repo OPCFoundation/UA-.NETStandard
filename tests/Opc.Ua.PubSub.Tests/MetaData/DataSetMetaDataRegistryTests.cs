@@ -112,6 +112,34 @@ namespace Opc.Ua.PubSub.Tests.MetaData
                 scope.RegisterReceived(in third, wide, authenticated: false, frameLength: 200),
                 Is.False);
 
+            // Type descriptions are charged per description and per member.
+            var enumFields = new EnumField[40];
+            for (int i = 0; i < enumFields.Length; i++)
+            {
+                enumFields[i] = new EnumField { Name = "E", Value = i };
+            }
+            DataSetMetaDataType typed = NewMeta();
+            typed.EnumDataTypes =
+            [
+                new EnumDescription
+                {
+                    EnumDefinition = new EnumDefinition { Fields = enumFields }
+                }
+            ];
+            typed.StructureDataTypes =
+            [
+                new StructureDescription
+                {
+                    StructureDefinition = new StructureDefinition
+                    {
+                        Fields = [new StructureField { Name = "F" }]
+                    }
+                }
+            ];
+            Assert.That(
+                scope.RegisterReceived(in third, typed, authenticated: false, frameLength: 200),
+                Is.False);
+
             // Authenticated metadata is not subject to the budget.
             Assert.That(
                 scope.RegisterReceived(in third, wide, authenticated: true, frameLength: 1_000_000),
