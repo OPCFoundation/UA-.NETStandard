@@ -66,6 +66,7 @@ namespace Opc.Ua.Client.Programs
                     NodeId id = LocalNodeId(reference.NodeId);
                     if (visited.Add(id))
                     {
+                        EnsureWalkBudget(visited.Count, MaxDiscoveryNodes);
                         found.Add(reference);
                         pending.Enqueue(id);
                     }
@@ -115,6 +116,7 @@ namespace Opc.Ua.Client.Programs
                         matches = actualType == typeId ||
                             (includeSubtypes && await IsTypeOfAsync(actualType, typeId, ct).ConfigureAwait(false));
                         typeMatches.Add(actualType, matches);
+                        EnsureWalkBudget(typeMatches.Count, MaxDiscoveryNodes);
                     }
                     if (matches)
                     {
@@ -130,6 +132,7 @@ namespace Opc.Ua.Client.Programs
                     NodeId childId = LocalNodeId(child.NodeId);
                     if (visited.Add(childId))
                     {
+                        EnsureWalkBudget(visited.Count, MaxDiscoveryNodes);
                         pending.Enqueue(childId);
                     }
                 }
@@ -156,12 +159,19 @@ namespace Opc.Ua.Client.Programs
                 {
                     continue;
                 }
+                EnsureWalkBudget(visited.Count, MaxDiscoveryNodes);
                 ArrayOf<ReferenceDescription> parents = await BrowseAllAsync(
                     current, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse, NodeClass.ObjectType, ct)
                     .ConfigureAwait(false);
                 foreach (ReferenceDescription parent in parents)
                 {
-                    pending.Enqueue(LocalNodeId(parent.NodeId));
+                    NodeId parentId = LocalNodeId(parent.NodeId);
+                    // a parent already followed is not queued again, so the queue stays
+                    // within what one node may return per unvisited type.
+                    if (parentId == expected || !visited.Contains(parentId))
+                    {
+                        pending.Enqueue(parentId);
+                    }
                 }
             }
             return false;

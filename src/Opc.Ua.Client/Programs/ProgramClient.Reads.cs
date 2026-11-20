@@ -172,6 +172,12 @@ namespace Opc.Ua.Client.Programs
                     {
                         continue;
                     }
+                    EnsureWalkBudget(visited.Count, MaxFinalResultNodes);
+                    if (path.Count >= MaxFinalResultDepth)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                            "The FinalResultData hierarchy is nested deeper than the Program client follows.");
+                    }
                     ArrayOf<QualifiedName> resultPath = [.. path, result.BrowseName];
                     if (result.NodeClass == NodeClass.Variable)
                     {

@@ -630,6 +630,23 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        /// <summary>
+        /// A server chooses the XML dictionary a client loads. A long base type
+        /// chain must not reach the schema compiler, which would overflow the
+        /// stack and end the process.
+        /// </summary>
+        [Test]
+        public void XmlDataDictionaryWithBaseTypeChainIsNotCompiled()
+        {
+            DataDictionary xmlDictionary = CreateDictionaryWithTypeSystem(new NodeId(Objects.XmlSchema_TypeSystem));
+            byte[] schema = System.Text.Encoding.UTF8.GetBytes(
+                XmlSchemaValidatorCoverageTests.CreateBaseTypeChainSchema(20000));
+
+            InvokeValidate(xmlDictionary, schema, throwOnError: true);
+
+            Assert.That(xmlDictionary.GetSchema(NodeId.Null), Does.Contain("c20000"));
+        }
+
         private static TestComplexTypeResolver CreateResolverWithEnumStructureAndOptionSet()
         {
             var resolver = new TestComplexTypeResolver();

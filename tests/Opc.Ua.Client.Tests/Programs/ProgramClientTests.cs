@@ -450,6 +450,80 @@ namespace Opc.Ua.Client.Tests.Programs
         }
 
         /// <summary>
+        /// A server that never ends a continuation point chain fails the browse, and the point is released.
+        /// </summary>
+        [Test]
+        public async Task EndlessContinuationChainIsStoppedAndReleasedAsync()
+        {
+            ByteString point = ByteString.From([1]);
+            m_session.Setup(s => s.BrowseAsync(It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), 0,
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<BrowseResponse>(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = point }]
+                }));
+            m_session.Setup(s => s.BrowseNextAsync(It.IsAny<RequestHeader>(), false,
+                    It.IsAny<ArrayOf<ByteString>>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<BrowseNextResponse>(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = point }]
+                }));
+            m_session.Setup(s => s.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
+                    It.IsAny<ArrayOf<ByteString>>(), CancellationToken.None))
+                .Returns(new ValueTask<BrowseNextResponse>(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult()]
+                }));
+            await AssertStatus(
+                async () => await m_client.DiscoverTypesAsync().ConfigureAwait(false),
+                StatusCodes.BadNoData).ConfigureAwait(false);
+            m_session.Verify(s => s.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
+                It.Is<ArrayOf<ByteString>>(p => p[0] == point), CancellationToken.None), Times.Once);
+        }
+
+        /// <summary>
+        /// A result hierarchy nested deeper than the client follows fails instead of growing a path per level.
+        /// </summary>
+        [Test]
+        public async Task FinalResultsRejectHierarchyDeeperThanLimitAsync()
+        {
+            NodeId parent = new("results", 2);
+            SetChildren(s_invocation, Child(parent, BrowseNames.FinalResultData, NodeClass.Object));
+            for (int level = 0; level <= ProgramClient.MaxFinalResultDepth; level++)
+            {
+                NodeId child = new("level" + level, 2);
+                SetChildren(parent, Child(child, "Level" + level, NodeClass.Object, 2));
+                parent = child;
+            }
+            await AssertStatus(
+                async () => await m_client.ReadFinalResultsAsync(s_invocation).ConfigureAwait(false),
+                StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
+            Assert.That(m_browsed, Has.Count.LessThanOrEqualTo(ProgramClient.MaxFinalResultDepth + 2));
+        }
+
+        /// <summary>
+        /// A result hierarchy with more nodes than the client reads fails instead of collecting them all.
+        /// </summary>
+        [Test]
+        public async Task FinalResultsRejectMoreNodesThanLimitAsync()
+        {
+            NodeId root = new("results", 2);
+            SetChildren(s_invocation, Child(root, BrowseNames.FinalResultData, NodeClass.Object));
+            var children = new ReferenceDescription[ProgramClient.MaxFinalResultNodes + 1];
+            for (int index = 0; index < children.Length; index++)
+            {
+                children[index] = Child(new NodeId("node" + index, 2), "Node" + index, NodeClass.Object, 2);
+            }
+            SetChildren(root, children);
+            await AssertStatus(
+                async () => await m_client.ReadFinalResultsAsync(s_invocation).ConfigureAwait(false),
+                StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// A vendor call preserves all method and argument results and is sent exactly once.
         /// </summary>
         [Test]

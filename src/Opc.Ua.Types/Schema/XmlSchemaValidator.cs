@@ -103,6 +103,25 @@ namespace Opc.Ua.Schema.Xml
         }
 
         /// <summary>
+        /// Reads a schema without compiling it. Use this for a schema from an
+        /// untrusted source, such as a data type dictionary read from a server.
+        /// </summary>
+        /// <remarks>
+        /// The schema compiler resolves base types, groups and content models
+        /// recursively and without a bound, so a schema chosen by a peer can
+        /// overflow the stack or occupy the processor in <see cref="Validate(Stream, ILogger)"/>.
+        /// After this call <see cref="TargetSchema"/> is set,
+        /// <see cref="SchemaSet"/> stays <see langword="null"/>, imports are not
+        /// loaded and references between declarations are not checked.
+        /// </remarks>
+        public void Read(Stream stream, ILogger logger)
+        {
+            var handler = new ValidationEventHandler((_, e) => OnValidate(e, logger));
+            SchemaSet = null;
+            TargetSchema = Load(stream, handler);
+        }
+
+        /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
@@ -119,7 +138,11 @@ namespace Opc.Ua.Schema.Xml
 
             try
             {
-                if (typeName == null || TargetSchema!.Elements.Values.Count == 0)
+                if (SchemaSet == null)
+                {
+                    WriteUncompiledSchema(TargetSchema!, typeName, writer);
+                }
+                else if (typeName == null || TargetSchema!.Elements.Values.Count == 0)
                 {
                     TargetSchema!.Write(writer);
                 }
@@ -145,6 +168,50 @@ namespace Opc.Ua.Schema.Xml
             }
 
             return Encoding.UTF8.GetString(ostrm.ToArray());
+        }
+
+        /// <summary>
+        /// Writes the whole schema, or the global element named
+        /// <paramref name="typeName"/> with its type, from the declarations as
+        /// they were read: a schema that was not compiled has no element table
+        /// and no resolved element types.
+        /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "XmlSchema.Write is used with schema objects read from a schema document.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "XmlSchema.Write is used with schema objects read from a schema document.")]
+        private static void WriteUncompiledSchema(XmlSchema target, string? typeName, XmlWriter writer)
+        {
+            if (typeName == null || !target.Items.OfType<XmlSchemaElement>().Any())
+            {
+                target.Write(writer);
+                return;
+            }
+
+            XmlSchemaElement? element = target.Items
+                .OfType<XmlSchemaElement>()
+                .FirstOrDefault(e => e.Name == typeName);
+            if (element == null)
+            {
+                return;
+            }
+
+            var schema = new XmlSchema();
+            // an inline type is written with its element.
+            if (element.SchemaType == null &&
+                !element.SchemaTypeName.IsEmpty &&
+                element.SchemaTypeName.Namespace == (target.TargetNamespace ?? string.Empty))
+            {
+                XmlSchemaType? type = target.Items
+                    .OfType<XmlSchemaType>()
+                    .FirstOrDefault(t => t.Name == element.SchemaTypeName.Name);
+                if (type != null)
+                {
+                    schema.Items.Add(type);
+                }
+            }
+            schema.Items.Add(element);
+            schema.Write(writer);
         }
 
         /// <summary>
