@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests
 
             public List<string> Trace { get; } = [];
 
-            public int ReadyCandidateCount => ((List<IMonitoredItem>)typeof(Subscription)
+            public int ReadyCandidateCount => ((System.Collections.ICollection)typeof(Subscription)
                 .GetField("m_readyCandidates", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
                 .GetValue(Subscription)!).Count;
 

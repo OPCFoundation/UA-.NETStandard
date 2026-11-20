@@ -717,8 +717,42 @@ namespace Opc.Ua.Server
             if (!IsReadinessPending() && m_subscription is IMonitoredItemReadySink sink &&
                 Interlocked.CompareExchange(ref m_readySignal, 1, 0) == 0)
             {
-                sink.OnMonitoredItemReady(this);
+                sink.OnMonitoredItemReady(this, Id, IsReadyToReportNow());
             }
+        }
+
+        /// <summary>
+        /// Whether the subscription would report this item now: the REPORTING case of the
+        /// subscription's readiness rule, decided while the writer has the item in its cache.
+        /// <c>false</c> for every state the subscription has to look at itself (other modes,
+        /// aggregates, a sampling deadline still ahead). Called while holding <c>m_lock</c>.
+        /// </summary>
+        private bool IsReadyToReportNow()
+        {
+            if (MonitoringMode != MonitoringMode.Reporting || AggregateFilter != null)
+            {
+                return false;
+            }
+
+            if (m_resendData)
+            {
+                return true;
+            }
+
+            if (!m_readyToPublish)
+            {
+                return false;
+            }
+
+            if (m_triggered ||
+                m_sourceSamplingInterval != 0 ||
+                (MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
+            {
+                return true;
+            }
+
+            // the deadline only passes: an item ready now stays ready until it publishes.
+            return m_nextSamplingTime <= m_timeProvider.GetTimestampMilliseconds();
         }
 
         /// <summary>
