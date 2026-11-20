@@ -95,6 +95,7 @@ namespace Opc.Ua.MachineTool.Server
                 AllowCreate = options.AllowCreate,
                 AllowDelete = options.AllowDelete,
                 AllowMoveOrCopy = options.AllowMoveOrCopy,
+                AllowAnonymousWrite = options.AllowAnonymousWrite,
                 MaxEntries = options.MaxEntries,
                 MaxDepth = options.MaxDepth
             };

@@ -6595,6 +6595,18 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    ServiceResult parentAccess = await ValidateAnnotationsParentAccessAsync(
+                        systemContext,
+                        variable,
+                        AccessLevels.HistoryRead,
+                        PermissionType.ReadHistory,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(parentAccess))
+                    {
+                        errors[ii] = parentAccess;
+                        continue;
+                    }
+
                     handle.Index = ii;
                     nodesToProcess.Add(handle);
                     continue;
@@ -6715,6 +6727,48 @@ namespace Opc.Ua.Server
             byte userAccessLevel = accessNode.UserAccessLevel;
             accessNode.OnReadUserAccessLevel?.Invoke(context, accessNode, ref userAccessLevel);
             return (userAccessLevel & AccessLevels.HistoryWrite) != 0;
+        }
+
+        /// <summary>
+        /// Applies the access checks of the historized variable to a history operation
+        /// on its Annotations property. The operation is routed to the annotations of
+        /// the parent variable, so the user access level, role permissions and access
+        /// restrictions of that variable apply in addition to those of the property.
+        /// </summary>
+        private async ValueTask<ServiceResult> ValidateAnnotationsParentAccessAsync(
+            ServerSystemContext context,
+            BaseVariableState variable,
+            byte requiredAccessLevel,
+            PermissionType requiredPermission,
+            CancellationToken cancellationToken)
+        {
+            if (!HistorianDispatcher.IsAnnotationsProperty(variable) ||
+                HistorianDispatcher.GetAnnotationsParent(variable) is not { } parent)
+            {
+                return ServiceResult.Good;
+            }
+
+            byte userAccessLevel = parent.UserAccessLevel;
+            parent.OnReadUserAccessLevel?.Invoke(context, parent, ref userAccessLevel);
+            if ((userAccessLevel & requiredAccessLevel) == 0)
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            if (context.OperationContext is not { } operationContext)
+            {
+                return ServiceResult.Good;
+            }
+
+            return await ValidatePermissionsAsync(
+                operationContext,
+                parent.NodeId,
+                parent,
+                requiredPermission,
+                null,
+                permissionsOnly: true,
+                logger: null,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -7474,6 +7528,18 @@ namespace Opc.Ua.Server
                         if (!HasHistoryWritePermission(systemContext, variable))
                         {
                             errors[ii] = StatusCodes.BadUserAccessDenied;
+                            continue;
+                        }
+
+                        ServiceResult parentAccess = await ValidateAnnotationsParentAccessAsync(
+                            systemContext,
+                            variable,
+                            AccessLevels.HistoryWrite,
+                            MasterNodeManager.DetermineHistoryAccessPermission(nodeToUpdate),
+                            cancellationToken).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(parentAccess))
+                        {
+                            errors[ii] = parentAccess;
                             continue;
                         }
 

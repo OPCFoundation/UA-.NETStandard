@@ -262,6 +262,56 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Applies the access checks of the historized variable to a history operation
+        /// on its Annotations property. The operation is routed to the annotations of
+        /// the parent variable, so the user access level, role permissions and access
+        /// restrictions of that variable apply in addition to those of the property.
+        /// </summary>
+        private ServiceResult ValidateAnnotationsParentAccess(
+            ServerSystemContext context,
+            BaseVariableState variable,
+            byte requiredAccessLevel,
+            PermissionType requiredPermission)
+        {
+            if (!HistorianDispatcher.IsAnnotationsProperty(variable) ||
+                HistorianDispatcher.GetAnnotationsParent(variable) is not { } parent)
+            {
+                return ServiceResult.Good;
+            }
+
+            byte userAccessLevel = parent.UserAccessLevel;
+            parent.OnReadUserAccessLevel?.Invoke(context, parent, ref userAccessLevel);
+            if ((userAccessLevel & requiredAccessLevel) == 0)
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            if (context.OperationContext is not { } operationContext)
+            {
+                return ServiceResult.Good;
+            }
+
+            var metadata = new NodeMetadata(parent, parent.NodeId)
+            {
+                IsPartOfTypeHierarchy = parent.IsPartOfTypeHierarchy
+            };
+            SetAccessAndRolePermissions(ReadValidationAttributes(context, parent), metadata);
+            try
+            {
+                SetDefaultPermissions(context, parent, metadata);
+            }
+            catch (ServiceResultException error)
+            {
+                return error.Result;
+            }
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(
+                operationContext, metadata, requiredPermission);
+            return ServiceResult.IsBad(result)
+                ? result
+                : MasterNodeManager.ValidateAccessRestrictions(operationContext, metadata, requiredPermission);
+        }
+
+        /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -3811,6 +3861,17 @@ namespace Opc.Ua.Server
                             continue;
                         }
 
+                        ServiceResult parentAccess = ValidateAnnotationsParentAccess(
+                            systemContext,
+                            variable,
+                            AccessLevels.HistoryRead,
+                            PermissionType.ReadHistory);
+                        if (ServiceResult.IsBad(parentAccess))
+                        {
+                            errors[ii] = parentAccess;
+                            continue;
+                        }
+
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
                         continue;
@@ -4321,6 +4382,17 @@ namespace Opc.Ua.Server
                         if (!HasHistoryWritePermission(systemContext, variable))
                         {
                             errors[ii] = StatusCodes.BadUserAccessDenied;
+                            continue;
+                        }
+
+                        ServiceResult parentAccess = ValidateAnnotationsParentAccess(
+                            systemContext,
+                            variable,
+                            AccessLevels.HistoryWrite,
+                            MasterNodeManager.DetermineHistoryAccessPermission(nodeToUpdate));
+                        if (ServiceResult.IsBad(parentAccess))
+                        {
+                            errors[ii] = parentAccess;
                             continue;
                         }
 

@@ -216,6 +216,101 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Verifies that an annotation-property read is denied when the parent variable
+        /// denies history read to the user, although the property itself allows it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HistoryReadAnnotationsPropertyAppliesParentAccessAsync(bool denyByRolePermissions)
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (BaseDataVariableState parent, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "DeniedReadParent").ConfigureAwait(false);
+            if (denyByRolePermissions)
+            {
+                parent.RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = (uint)PermissionType.ReadHistory
+                    }
+                ];
+            }
+            else
+            {
+                parent.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte value) =>
+                {
+                    value = AccessLevels.None;
+                    return ServiceResult.Good;
+                };
+            }
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = BaseTime,
+                EndTime = BaseTime.AddMinutes(1)
+            };
+            var nodesToRead = new List<HistoryReadValueId> { new() { NodeId = annotProp.NodeId } };
+            var results = new List<HistoryReadResult> { null! };
+            var errors = new List<ServiceResult> { null! };
+
+            await h.Manager.HistoryReadAsync(
+                h.OperationContext, details, TimestampsToReturn.Source,
+                false, nodesToRead, results, errors).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(results[0].HistoryData.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that an annotation-property update is denied when the role permissions
+        /// of the parent variable withhold the history permission from the user.
+        /// </summary>
+        [Test]
+        public async Task HistoryUpdateAnnotationsPropertyAppliesParentRolePermissionsAsync()
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (BaseDataVariableState parent, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "DeniedUpdateParent").ConfigureAwait(false);
+            parent.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                    Permissions = (uint)PermissionType.InsertHistory
+                }
+            ];
+
+            var update = new UpdateStructureDataDetails
+            {
+                NodeId = annotProp.NodeId,
+                PerformInsertReplace = PerformUpdateType.Insert,
+                UpdateValues =
+                [
+                    new DataValue(
+                        new Variant(new ExtensionObject(new Annotation
+                        {
+                            AnnotationTime = BaseTime.AddSeconds(7),
+                            UserName = "intruder",
+                            Message = "forged"
+                        })),
+                        StatusCodes.Good,
+                        BaseTime.AddSeconds(7))
+                ]
+            };
+            var nodesToUpdate = new List<HistoryUpdateDetails> { update };
+            var results = new List<HistoryUpdateResult> { null! };
+            var errors = new List<ServiceResult> { null! };
+
+            await h.Manager.HistoryUpdateAsync(
+                h.OperationContext, typeof(UpdateStructureDataDetails),
+                nodesToUpdate, results, errors).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        /// <summary>
         /// Verifies that history reads on an unowned node leave the default error untouched.
         /// </summary>
         [Test]
@@ -783,6 +878,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
             variable.UserAccessLevel = AccessLevels.HistoryRead;
             variable.Historizing = true;
             return variable;
+        }
+
+        /// <summary>
+        /// Adds a historized variable with one stored annotation and an Annotations
+        /// property that itself allows history read and write.
+        /// </summary>
+        private static async ValueTask<(BaseDataVariableState Parent, PropertyState Annotations)>
+            AddAnnotatedVariableAsync(Harness h, string name)
+        {
+            ushort nsIdx = h.Manager.NamespaceIndexes[0];
+            BaseDataVariableState parent = CreateHistoryWriteVariable(h, name);
+
+            var annotProp = new PropertyState(parent);
+            annotProp.CreateAsPredefinedNode(h.Context);
+            annotProp.NodeId = new NodeId(name + "_Annotations", nsIdx);
+            annotProp.BrowseName = new QualifiedName(BrowseNames.Annotations, 0);
+            annotProp.DataType = DataTypeIds.Annotation;
+            annotProp.ValueRank = ValueRanks.Scalar;
+            annotProp.AccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+            annotProp.UserAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+
+            await h.Manager.AddNodeAsync(h.Context, default, parent).ConfigureAwait(false);
+            await h.Manager.AddNodeAsync(h.Context, default, annotProp).ConfigureAwait(false);
+
+            InMemoryHistorianProvider provider = CreateProvider();
+            h.RegisterProvider(parent.NodeId, provider);
+            provider.Register(parent.NodeId);
+            await provider.InsertAnnotationsAsync(
+                h.CreateHistorianOpContext(),
+                parent.NodeId,
+                [new Annotation { AnnotationTime = BaseTime.AddSeconds(5), UserName = "tester", Message = "note1" }],
+                CancellationToken.None).ConfigureAwait(false);
+
+            return (parent, annotProp);
         }
 
         private static BaseDataVariableState CreateHistoryWriteVariable(Harness h, string name)
