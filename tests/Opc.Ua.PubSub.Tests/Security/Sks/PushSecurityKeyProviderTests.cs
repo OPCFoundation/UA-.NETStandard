@@ -1,6 +1,7 @@
-/* Copyright (c) 2026 The OPC Foundation, Inc. All rights reserved.
- * Licensed under the MIT License. See LICENSE.txt in the project root.
- */
+/* ========================================================================
+ * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+ * SPDX-License-Identifier: MIT
+ * ======================================================================*/
 
 using System;
 using System.Threading;
