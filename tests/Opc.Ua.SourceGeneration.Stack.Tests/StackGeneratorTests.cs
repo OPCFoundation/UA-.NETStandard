@@ -107,8 +107,10 @@ namespace Opc.Ua.SourceGeneration
             // 0eda2ad7a for every model that declares concrete
             // FiniteStateMachineType subtypes (the OPC UA stack model
             // declares ProgramStateMachineType, ShelvedStateMachineType,
-            // FileTransferStateMachineType, etc.).
-            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(17));
+            // FileTransferStateMachineType, etc.), plus 1
+            // Opc.Ua.AggregateFunctionIds.g.cs emitted by the
+            // AggregateFunctionIdsGenerator for the core model.
+            Assert.That(generatorResult.GeneratedSources, Has.Length.EqualTo(18));
             Assert.That(generatorResult.Exception, Is.Null);
         }
     }
