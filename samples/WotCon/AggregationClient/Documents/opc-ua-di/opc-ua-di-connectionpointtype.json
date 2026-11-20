@@ -328,6 +328,99 @@
           }
         ],
         "superType": "ns=1;i=1001"
+      },
+      {
+        "browseName": "1:NetworkAddress",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "NetworkAddress"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6354",
+        "parentNodeId": "ns=1;i=6308",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1005"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6308"
+          }
+        ],
+        "typeDefinition": "ns=1;i=1005"
+      },
+      {
+        "browseName": "1:<ProfileIdentifier>",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ProfileIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6499",
+        "parentNodeId": "ns=1;i=6308",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1006"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6308"
+          }
+        ],
+        "symbolicName": "ProfileIdentifier",
+        "typeDefinition": "ns=1;i=1006"
+      },
+      {
+        "browseName": "1:<NetworkIdentifier>",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<NetworkIdentifier>"
+          }
+        ],
+        "modellingRule": "OptionalPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6599",
+        "parentNodeId": "ns=1;i=6308",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6596"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=6247"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11508"
+          },
+          {
+            "isForward": false,
+            "referenceType": "ns=1;i=6030",
+            "target": "ns=1;i=6308"
+          }
+        ],
+        "symbolicName": "NetworkIdentifier",
+        "typeDefinition": "ns=1;i=6247"
       }
     ],
     "profileVersion": "1.0"

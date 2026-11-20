@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -941,6 +942,69 @@ namespace Opc.Ua.Server.Tests
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        /// <summary>
+        /// Part 4 §6.5.8: a write the dispatcher rejects before it reaches a node manager
+        /// is a failed invocation and raises an AuditWriteUpdateEvent.
+        /// </summary>
+        [Test]
+        public async Task WriteAsyncRejectedItemIsAuditedAsync()
+        {
+            var audits = new List<AuditEventState>();
+            using MasterNodeManager sut = CreateAuditingMasterNodeManager(audits);
+            using OperationContext ctx = CreateContext();
+
+            (ArrayOf<StatusCode> results, _) = await sut.WriteAsync(
+                ctx,
+                new WriteValue[]
+                {
+                    new()
+                    {
+                        NodeId = new NodeId(99999u),
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(123))
+                    }
+                }.ToArrayOf(),
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsBad(results[0]), Is.True);
+            AuditWriteUpdateEventState audit = audits.OfType<AuditWriteUpdateEventState>().Single();
+            Assert.That(audit.Status!.Value, Is.False);
+        }
+
+        /// <summary>
+        /// Part 4 §6.5.9: a call the dispatcher rejects before it reaches a node manager
+        /// is a failed invocation and raises an AuditUpdateMethodEvent.
+        /// </summary>
+        [Test]
+        public async Task CallAsyncRejectedItemIsAuditedAsync()
+        {
+            var audits = new List<AuditEventState>();
+            using MasterNodeManager sut = CreateAuditingMasterNodeManager(audits);
+            using OperationContext ctx = CreateContext();
+
+            (ArrayOf<CallMethodResult> results, _) = await sut.CallAsync(
+                ctx,
+                new CallMethodRequest[]
+                {
+                    new()
+                    {
+                        ObjectId = new NodeId(99998u),
+                        MethodId = new NodeId(99999u),
+                        InputArguments = new Variant[]
+                        {
+                            new(new byte[] { 0x53, 0x45, 0x43, 0x52, 0x45, 0x54 }.ToByteString())
+                        }.ToArrayOf()
+                    }
+                }.ToArrayOf(),
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsBad(results[0].StatusCode), Is.True);
+            AuditUpdateMethodEventState audit = audits.OfType<AuditUpdateMethodEventState>().Single();
+            Assert.That(audit.Status!.Value, Is.False);
+            // a rejected call may carry a private key or password; it is not audited.
+            Assert.That(audit.InputArguments?.Value.Count ?? 0, Is.Zero);
         }
 
         [Test]
@@ -1858,6 +1922,19 @@ namespace Opc.Ua.Server.Tests
         {
             return DeterministicServerMock.CreateIsolatedMasterNodeManager(
                 m_server.CurrentInstance, m_fixture.Config);
+        }
+
+        private MasterNodeManager CreateAuditingMasterNodeManager(List<AuditEventState> audits)
+        {
+            return DeterministicServerMock.CreateIsolatedMasterNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                configure: server =>
+                {
+                    server.SetupGet(s => s.Auditing).Returns(true);
+                    server.Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                        .Callback((ISystemContext _, AuditEventState e) => audits.Add(e));
+                });
         }
 
         private MonitoredItem CreateDetachedMonitoredItem(

@@ -324,6 +324,32 @@ namespace Opc.Ua.Lds.Tests
             fileSystem.VerifyNoOtherCalls();
         }
 
+        [Test]
+        public async Task SemaphoreRegistrationOutlivesRegistrationLifetimeAsync()
+        {
+            string path = Path.GetFullPath("local.sem");
+            var fileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
+            fileSystem.Setup(f => f.Exists(path, false)).Returns(true);
+            using var store = new RegisteredServerStore(null, null, fileSystem.Object);
+            RegisteredServer withSemaphore = CreateRegisteredServer(ServerUri);
+            withSemaphore.SemaphoreFilePath = path;
+            RegisteredServer withoutSemaphore = CreateRegisteredServer("urn:test:no-semaphore");
+
+            await store.RegisterAsync(withSemaphore, null).ConfigureAwait(false);
+            await store.RegisterAsync(withoutSemaphore, null).ConfigureAwait(false);
+
+            // Part 4 §7.31: a semaphore registration stays while the file exists,
+            // the server is not expected to refresh it.
+            store.Prune(DateTime.UtcNow + store.RegistrationLifetime + TimeSpan.FromHours(1));
+
+            Assert.That(store.Snapshot(), Has.Count.EqualTo(1));
+            Assert.That(store.Snapshot()[0].ServerUri, Is.EqualTo(ServerUri));
+
+            fileSystem.Setup(f => f.Exists(path, false)).Returns(false);
+            store.Prune(DateTime.UtcNow);
+            Assert.That(store.Snapshot(), Is.Empty);
+        }
+
         private static Certificate CreateCertificate(
             string[] applicationUris,
             bool includeSubjectAltName = false)

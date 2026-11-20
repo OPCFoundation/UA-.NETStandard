@@ -103,7 +103,7 @@ namespace Opc.Ua.Pcap.Bindings
     /// server channels are wrapped by a <see cref="CapturingByteTransport"/>
     /// and their token activations are forwarded to the active observer.
     /// </summary>
-    internal sealed class CapturingTransportListener : ITransportListener
+    internal sealed class CapturingTransportListener : ITransportListener, ITransportListenerAcceptControl
     {
         private readonly ITransportListener m_inner;
         private readonly IChannelCaptureRegistry m_registry;
@@ -178,6 +178,18 @@ namespace Opc.Ua.Pcap.Bindings
         public void UpdateChannelLastActiveTime(string globalChannelId)
         {
             m_inner.UpdateChannelLastActiveTime(globalChannelId);
+        }
+
+        /// <inheritdoc/>
+        public bool IsAccepting => m_inner is not ITransportListenerAcceptControl acceptControl ||
+            acceptControl.IsAccepting;
+
+        /// <inheritdoc/>
+        public ValueTask StartAcceptingAsync(CancellationToken ct = default)
+        {
+            return m_inner is ITransportListenerAcceptControl acceptControl
+                ? acceptControl.StartAcceptingAsync(ct)
+                : default;
         }
 
         /// <inheritdoc/>

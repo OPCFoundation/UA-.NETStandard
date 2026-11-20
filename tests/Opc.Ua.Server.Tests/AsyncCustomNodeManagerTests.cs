@@ -6842,7 +6842,10 @@ namespace Opc.Ua.Server.Tests
             bool unknownView = await manager
                 .IsNodeInViewAsync(context, new NodeId("UnknownView", nsIdx), handle)
                 .ConfigureAwait(false);
-            Assert.That(unknownView, Is.False);
+
+            // A View owned by another node manager (Part 4 §5.9.2) does not filter
+            // the nodes of this one.
+            Assert.That(unknownView, Is.True);
 
             // A placeholder handle that carries no validated node reports false.
             var placeholder = new NodeHandle { NodeId = new NodeId("Ghost", nsIdx) };

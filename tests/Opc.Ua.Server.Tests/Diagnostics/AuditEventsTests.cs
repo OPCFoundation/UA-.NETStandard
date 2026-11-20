@@ -188,6 +188,61 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
+        /// Part 4 §6.5.8: a HistoryUpdate operation rejected before it reaches a node
+        /// manager is audited as a failed invocation with the event type of its details.
+        /// </summary>
+        [Test]
+        public void ReportAuditHistoryUpdateRejectedEventEmitsFailedEventPerDetailsType()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+            (HistoryUpdateDetails Details, Type EventType)[] cases =
+            [
+                (CreateUpdateDataDetails(), typeof(AuditHistoryValueUpdateEventState)),
+                (CreateUpdateStructureDataDetails(), typeof(AuditHistoryValueUpdateEventState)),
+                (CreateUpdateEventDetails(), typeof(AuditHistoryEventUpdateEventState)),
+                (CreateDeleteRawModifiedDetails(), typeof(AuditHistoryRawModifyDeleteEventState)),
+                (CreateDeleteAtTimeDetails(), typeof(AuditHistoryAtTimeDeleteEventState)),
+                (CreateDeleteEventDetails(), typeof(AuditHistoryEventDeleteEventState))
+            ];
+
+            foreach ((HistoryUpdateDetails details, Type eventType) in cases)
+            {
+                int before = server.Events.Count;
+
+                server.ReportAuditHistoryUpdateRejectedEvent(
+                    CreateSystemContext(RequestType.HistoryUpdate),
+                    details,
+                    StatusCodes.BadUserAccessDenied,
+                    s_logger);
+
+                Assert.That(server.Events, Has.Count.EqualTo(before + 1), details.GetType().Name);
+                Assert.That(server.Events[^1], Is.TypeOf(eventType), details.GetType().Name);
+                Assert.That(server.Events[^1].Status!.Value, Is.False, details.GetType().Name);
+            }
+        }
+
+        /// <summary>
+        /// A rejected annotation update (UpdateStructureDataDetails on the Annotations
+        /// property) is audited as an annotation update, not a value update.
+        /// </summary>
+        [Test]
+        public void ReportAuditHistoryUpdateRejectedEventAuditsAnnotationUpdates()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditHistoryUpdateRejectedEvent(
+                CreateSystemContext(RequestType.HistoryUpdate),
+                CreateUpdateStructureDataDetails(),
+                StatusCodes.BadUserAccessDenied,
+                s_logger,
+                isAnnotationUpdate: true);
+
+            Assert.That(server.Events, Has.Count.EqualTo(1));
+            Assert.That(server.Events[0], Is.TypeOf<AuditHistoryAnnotationUpdateEventState>());
+            Assert.That(server.Events[0].Status!.Value, Is.False);
+        }
+
+        /// <summary>
         /// Verifies that a validated indexed write emits a successful Attribute/Write audit event.
         /// </summary>
         [Test]

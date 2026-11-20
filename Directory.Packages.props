@@ -22,19 +22,19 @@
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Confluent.Kafka" Version="2.16.0" />
-    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
-    <PackageVersion Include="Crdt" Version="1.2.1" />
-    <PackageVersion Include="Crdt.Transport" Version="1.2.1" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.1" />
+    <PackageVersion Include="Crdt" Version="1.2.2" />
+    <PackageVersion Include="Crdt.Transport" Version="1.2.2" />
     <PackageVersion Include="Dekaf" Version="1.29.0" />
-    <PackageVersion Include="RaftCs" Version="1.1.5" />
-    <PackageVersion Include="RaftCs.Transport" Version="1.1.5" />
-    <PackageVersion Include="RaftCs.Transport.NanoMsg" Version="1.1.5" />
-    <PackageVersion Include="RaftCs.Storage.File" Version="1.1.5" />
+    <PackageVersion Include="RaftCs" Version="1.1.6" />
+    <PackageVersion Include="RaftCs.Transport" Version="1.1.6" />
+    <PackageVersion Include="RaftCs.Transport.NanoMsg" Version="1.1.6" />
+    <PackageVersion Include="RaftCs.Storage.File" Version="1.1.6" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="JsonSchema.Net" Version="9.7.0" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
     <!-- Aspire/StreamJsonRpc otherwise restore vulnerable MessagePack 2.5.302 (GHSA-qhrr-8q5h-9q3h). -->
-    <PackageVersion Include="MessagePack" Version="2.5.307" />
+    <PackageVersion Include="MessagePack" Version="3.1.12" />
     <!-- Keep the legacy ASP.NET Core transport stack on the 2.3 band for net48/netstandard.
          Connections.Abstractions must stay aligned with Kestrel, not the modern 10.x API. -->
     <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.14" />
@@ -93,10 +93,10 @@
          every platform implements underneath its own SDK. -->
     <PackageVersion Include="Microsoft.Extensions.AI" Version="11.0.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="11.0.100" />
-    <PackageVersion Include="System.CommandLine" Version="2.0.15" />
+    <PackageVersion Include="System.CommandLine" Version="3.0.0" />
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.13.37903.2" />
     <PackageVersion Include="Moq" Version="4.21.0" />
-    <PackageVersion Include="TUnit" Version="1.85.0" />
+    <PackageVersion Include="TUnit" Version="1.86.0" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.94" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <!--
@@ -129,8 +129,8 @@
          - SSH.NET 2026.0.0 fixes GHSA-q939-rpr3-3284 -->
     <PackageVersion Include="SSH.NET" Version="2026.0.1" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
-    <PackageVersion Include="Testcontainers" Version="4.16.0" />
-    <PackageVersion Include="Testcontainers.Kafka" Version="4.16.0" />
+    <PackageVersion Include="Testcontainers" Version="4.17.0" />
+    <PackageVersion Include="Testcontainers.Kafka" Version="4.17.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />

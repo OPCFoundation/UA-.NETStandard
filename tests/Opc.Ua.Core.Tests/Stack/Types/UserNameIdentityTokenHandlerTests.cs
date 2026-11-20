@@ -317,12 +317,13 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
         }
 
-        private static byte[] CreateRsaEncryptedSecret(
+        internal static byte[] CreateRsaEncryptedSecret(
             ServiceMessageContext context,
             Certificate receiverCertificate,
             string securityPolicyUri,
             byte[] secret,
-            byte[] nonce)
+            byte[] nonce,
+            bool numericTypeId = false)
         {
             SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri)!;
             if (securityPolicy!.SymmetricEncryptionAlgorithm is not
@@ -348,7 +349,17 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] encryptedPayload = EncryptPayload(plainPayload, encryptingKey, iv);
 
             using var encoder = new BinaryEncoder(context);
-            encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
+            if (numericTypeId)
+            {
+                // the seven-byte Numeric NodeId encoding instead of the compact one.
+                encoder.WriteByte(null, 0x02);
+                encoder.WriteUInt16(null, 0);
+                encoder.WriteUInt32(null, DataTypes.RsaEncryptedSecret);
+            }
+            else
+            {
+                encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
+            }
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
             int lengthPosition = encoder.Position;
             encoder.WriteUInt32(null, 0);

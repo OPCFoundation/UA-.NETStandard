@@ -24,6 +24,11 @@ The converter can also emit support documents for instances and native
 source records. DataType and ReferenceType Nodes can have their own Thing
 Models. The tool keeps all linked documents and warns about support files.
 
+Thing Models carry catalogue-compatible `id` URNs derived from the native
+namespace URI and local BrowseName, for example
+`urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType`.
+Titles and native `uav:id` identities are unchanged.
+
 The tool prints progress, converter diagnostics, and a final count.
 It checks source preservation with the existing asynchronous export API.
 It does not fetch required models from the network. Missing declarations

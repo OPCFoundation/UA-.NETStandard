@@ -352,6 +352,10 @@ namespace Opc.Ua.Server.Hosting
 
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
+
+            // The endpoints are bound by StartAsync but serve clients only
+            // once the startup tasks below have run.
+            m_server.AcceptConnectionsOnStart = m_options.ServeClientsDuringStartupTasks;
             await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
 
@@ -380,6 +384,8 @@ namespace Opc.Ua.Server.Hosting
                     throw;
                 }
             }
+
+            await m_server.StartAcceptingConnectionsAsync(stoppingToken).ConfigureAwait(false);
 
             foreach (string url in GetListenEndpointUrls(configuration))
             {

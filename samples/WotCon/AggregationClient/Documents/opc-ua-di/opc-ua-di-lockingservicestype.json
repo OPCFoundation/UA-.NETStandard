@@ -21,12 +21,6 @@
   ],
   "actions": {
     "BreakLock": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "output": {
         "properties": {
@@ -51,12 +45,6 @@
       "uav:modellingRule": "Mandatory"
     },
     "ExitLock": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "output": {
         "properties": {
@@ -81,12 +69,6 @@
       "uav:modellingRule": "Mandatory"
     },
     "InitLock": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -128,12 +110,6 @@
       "uav:modellingRule": "Mandatory"
     },
     "RenewLock": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "output": {
         "properties": {

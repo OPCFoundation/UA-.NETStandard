@@ -38,7 +38,7 @@ namespace Opc.Ua.Wot
     /// Maps an explicit allowlist of UN/CEFACT codes to QUDT units and conventional quantity kinds.
     /// </summary>
     /// <remarks>
-    /// Unit identities follow the aio-opcua-connector QudtUnitMapper table verified against QUDT 3.1.
+    /// Unit identities follow the published QUDT UN/CEFACT common-code annotations.
     /// Quantity kinds are explicit defaults, not deductions from a unit symbol or a physical dimension.
     /// Applications with more specific process semantics can replace this provider.
     /// </remarks>
@@ -124,6 +124,7 @@ namespace Opc.Ua.Wot
                 ["LTR"] = ("L", "Volume"),
                 ["MLT"] = ("MilliL", "Volume"),
                 ["MTS"] = ("M-PER-SEC", "Velocity"),
+                ["C16"] = ("MilliM-PER-SEC", null),
                 ["MSK"] = ("M-PER-SEC2", "Acceleration"),
                 ["KMH"] = ("KiloM-PER-HR", "Velocity"),
                 ["FS"] = ("FT-PER-SEC", "Velocity"),
@@ -133,6 +134,8 @@ namespace Opc.Ua.Wot
                 ["KGM"] = ("KiloGM", "Mass"),
                 ["GRM"] = ("GM", "Mass"),
                 ["MGM"] = ("MilliGM", "Mass"),
+                ["KGS"] = ("KiloGM-PER-SEC", null),
+                ["F27"] = ("GM-PER-HR", null),
                 ["TNE"] = ("TONNE", "Mass"),
                 ["KMQ"] = ("KiloGM-PER-M3", "MassDensity"),
                 ["SEC"] = ("SEC", "Time"),
@@ -144,10 +147,17 @@ namespace Opc.Ua.Wot
                 ["HTZ"] = ("HZ", "Frequency"),
                 ["KHZ"] = ("KiloHZ", "Frequency"),
                 ["MHZ"] = ("MegaHZ", "Frequency"),
+                ["C94"] = ("PER-MIN", null),
+                ["C97"] = ("PER-SEC", null),
                 ["M46"] = ("REV-PER-MIN", "AngularVelocity"),
                 ["C81"] = ("RAD", "PlaneAngle"),
                 ["DD"] = ("DEG", "PlaneAngle"),
                 ["P1"] = ("PERCENT", null),
+                ["2N"] = ("DeciB", null),
+                ["C65"] = ("PA-SEC", null),
+                ["S4"] = ("M2-PER-SEC", null),
+                ["G01"] = ("PA-M3-PER-SEC", null),
+                ["D44"] = ("V-A_Reactive", null),
                 ["PAL"] = ("PA", "Pressure"),
                 ["KPA"] = ("KiloPA", "Pressure"),
                 ["MPA"] = ("MegaPA", "Pressure"),

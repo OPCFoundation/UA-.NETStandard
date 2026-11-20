@@ -84,6 +84,7 @@ jobs:
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
       relevant_changes: ${{ steps.list.outputs.relevant_changes }}
       include_macos: ${{ steps.list.outputs.include_macos }}
+      include_macos_tests: ${{ steps.list.outputs.include_macos_tests }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -98,6 +99,7 @@ jobs:
       shell: pwsh
       env:
         EVENT_NAME: ${{ github.event_name }}
+        REF: ${{ github.ref }}
         INCLUDE_MACOS: ${{ github.event.inputs.include_macos }}
         PKCS11_NATIVE_LOADER_DIAGNOSTICS: ${{ github.event.inputs.pkcs11_native_loader_diagnostics }}
         PKCS11_FULL_SHARD_DIAGNOSTICS: ${{ github.event.inputs.pkcs11_full_shard_diagnostics }}
@@ -110,6 +112,16 @@ jobs:
             'workflow_dispatch' { $env:INCLUDE_MACOS -eq 'true' }
             default { $true }
         }
+
+        # The macOS test shards are the slowest and scarcest runners, so they
+        # only run for the protected lines (master, main, master378, release/*).
+        # Pull requests and every other branch keep the macOS NativeAOT legs as
+        # their macOS coverage and skip the macOS test shards; the nightly
+        # full-scope workflow still runs every macOS profile.
+        $protectedRef = $env:EVENT_NAME -ne 'pull_request' -and (
+            $env:REF -in @('refs/heads/master', 'refs/heads/main', 'refs/heads/master378') -or
+            $env:REF -like 'refs/heads/release/*')
+        $includeMacTests = $includeMac -and $protectedRef
 
         # Path relevance. This replaces the `paths:` filter that used to sit on
         # the pull_request trigger: filtering the whole workflow out would stop
@@ -164,9 +176,10 @@ jobs:
                 @{ os = $entry.os; rid = $entry.rid; tfm = $tfm }
             }
         })
-        Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
+        Write-Host "Event=$($env:EVENT_NAME); Ref=$($env:REF); include_macos=$includeMac; include_macos_tests=$includeMacTests"
         "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "include_macos=$($includeMac.ToString().ToLowerInvariant())"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "include_macos_tests=$($includeMacTests.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "aot_matrix=$(ConvertTo-Json -InputObject @($aotMatrix) -Compress)"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
     # The pull-request scope of the same expander the manual full-scope workflow
@@ -178,7 +191,7 @@ jobs:
       shell: pwsh
       env:
         RELEVANT_CHANGES: ${{ steps.list.outputs.relevant_changes }}
-        INCLUDE_MACOS: ${{ steps.list.outputs.include_macos }}
+        INCLUDE_MACOS_TESTS: ${{ steps.list.outputs.include_macos_tests }}
       run: |
         if ($env:RELEVANT_CHANGES -ne 'true') {
             Write-Host 'Nothing to expand: the pull request changed no build-relevant file.'
@@ -187,7 +200,7 @@ jobs:
             'batch_target_minutes=0' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
         }
-        ./.github/scripts/get-ci-matrix.ps1 -Scope pr -ExcludeMacOS:($env:INCLUDE_MACOS -ne 'true')
+        ./.github/scripts/get-ci-matrix.ps1 -Scope pr -ExcludeMacOS:($env:INCLUDE_MACOS_TESTS -ne 'true')
 
   build-and-test:
     needs: discover
