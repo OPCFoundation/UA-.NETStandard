@@ -274,6 +274,12 @@ namespace Opc.Ua.Bindings
             }
 
             /// <summary>
+            /// The admission scope that counts this lease, so that a stream of the
+            /// connection can be counted against the same capacity.
+            /// </summary>
+            internal UaScConnectionAdmission Owner => m_owner;
+
+            /// <summary>
             /// Gets the attached transport's local endpoint.
             /// </summary>
             public EndPoint? LocalEndpoint => Transport.LocalEndpoint;

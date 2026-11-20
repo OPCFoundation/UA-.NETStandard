@@ -684,6 +684,70 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
         }
 
+        [Test]
+        public async Task WebSocketsOverHttp1AndHttp2ShareOneChannelLimitAsync()
+        {
+            const int kMaxChannelCount = 3;
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                "basic",
+                configureSettings: settings => settings.MaxChannelCount = kMaxChannelCount).ConfigureAwait(false);
+            using HttpMessageInvoker connection = AuthListener.CreateHttp2Connection();
+            var sockets = new List<ClientWebSocket>();
+            var receives = new List<Task>();
+            using var stop = new CancellationTokenSource();
+            try
+            {
+                // two sockets on connections of their own, then three on one
+                // HTTP/2 connection.
+                for (int i = 0; i < 5; i++)
+                {
+                    ClientWebSocket socket = await listener
+                        .ConnectWebSocketAsync(
+                            Profiles.OpcUaWsSubProtocolUaJson,
+                            authorization: null,
+                            i < 2 ? null : connection)
+                        .ConfigureAwait(false);
+                    sockets.Add(socket);
+                    if (socket.State == WebSocketState.Open)
+                    {
+                        receives.Add(socket.ReceiveAsync(new ArraySegment<byte>(new byte[16]), stop.Token));
+                    }
+                }
+
+                // A socket over HTTP/2 is admitted only by closing an idle
+                // one, whichever protocol that one was opened with.
+                Assert.That(receives, Has.Count.GreaterThan(2), "No WebSocket was accepted over HTTP/2.");
+                DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+                int open = int.MaxValue;
+                while (DateTime.UtcNow < deadline)
+                {
+                    open = receives.Count(receive => !receive.IsCompleted);
+                    if (open <= kMaxChannelCount)
+                    {
+                        break;
+                    }
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+                Assert.That(open, Is.LessThanOrEqualTo(kMaxChannelCount));
+            }
+            finally
+            {
+                stop.Cancel();
+                foreach (ClientWebSocket socket in sockets)
+                {
+                    socket.Dispose();
+                }
+                try
+                {
+                    await Task.WhenAll(receives).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // aborted or cancelled receives.
+                }
+            }
+        }
+
         [TestCase("1700000000", 1_700_000_000_000L)]
         [TestCase("1700000000.25", 1_700_000_000_250L)]
         public void CredentialExpiryIsReadFromTheExpClaim(string exp, long expectedUnixMilliseconds)
