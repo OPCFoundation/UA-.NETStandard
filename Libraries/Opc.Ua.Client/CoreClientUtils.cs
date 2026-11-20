@@ -337,15 +337,50 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // pick the first available endpoint by default.
+            // pick the first available endpoint by default. When security was
+            // requested the fallback must not hand out a None endpoint over a
+            // transport without TLS: the endpoint list comes over an unsecured
+            // discovery channel, so a rogue answer could silently downgrade the
+            // connection. HTTPS endpoints are the exception: the discovery ran
+            // over TLS and an HTTPS endpoint with SecurityMode None is still
+            // protected by TLS (Part 6, 7.4.1).
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
+                bool tlsDiscovery = IsHttpsScheme(url.Scheme);
                 selectedEndpoint = endpoints.FirstOrDefault(e =>
-                    e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true);
+                    e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true &&
+                    (!useSecurity ||
+                        IsSecureMode(e.SecurityMode) ||
+                        (tlsDiscovery && Utils.IsUriHttpsScheme(e.EndpointUrl))));
+
+                if (selectedEndpoint == null && useSecurity)
+                {
+                    telemetry.CreateLogger<DiscoveryClient>().LogWarning(
+                        "No endpoint with message security was found for {Url}. " +
+                        "Endpoints without security are not selected when security is requested.",
+                        url);
+                }
             }
 
             // return the selected endpoint.
             return selectedEndpoint;
+        }
+
+        /// <summary>
+        /// Whether the mode signs (and possibly encrypts) messages.
+        /// </summary>
+        private static bool IsSecureMode(MessageSecurityMode mode)
+        {
+            return mode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
+        }
+
+        /// <summary>
+        /// Whether the URI scheme is carried over TLS (https or opc.https).
+        /// </summary>
+        private static bool IsHttpsScheme(string scheme)
+        {
+            return string.Equals(scheme, Utils.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(scheme, Utils.UriSchemeOpcHttps, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
