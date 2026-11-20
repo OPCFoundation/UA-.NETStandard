@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 
@@ -135,6 +136,45 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 EventNotificationBuffer.GetMaxRetainedCount(EventNotificationBuffer.MinCapacity),
                 Is.EqualTo(EventNotificationBuffer.MaxBuffersPerBucket));
+        }
+
+        /// <summary>
+        /// Verifies that a full bucket drops returned buffers instead of growing past its bound.
+        /// </summary>
+        [Test]
+        public void FullBucketDropsReturnedBuffers()
+        {
+            // the 1024 bucket, which no other test rents from.
+            const int count = 1000;
+            int max = EventNotificationBuffer.GetMaxRetainedCount(count);
+            var returned = new HashSet<EventNotificationBuffer>();
+            var rented = new EventNotificationBuffer[max + 1];
+            for (int ii = 0; ii < rented.Length; ii++)
+            {
+                rented[ii] = EventNotificationBuffer.Rent(count);
+            }
+            foreach (EventNotificationBuffer buffer in rented)
+            {
+                returned.Add(buffer);
+                buffer.Return();
+            }
+
+            int reused = 0;
+            for (int ii = 0; ii < rented.Length; ii++)
+            {
+                rented[ii] = EventNotificationBuffer.Rent(count);
+                if (returned.Contains(rented[ii]))
+                {
+                    reused++;
+                }
+            }
+            foreach (EventNotificationBuffer buffer in rented)
+            {
+                buffer.Return();
+            }
+
+            Assert.That(returned, Has.Count.EqualTo(max + 1));
+            Assert.That(reused, Is.LessThanOrEqualTo(max));
         }
 
         /// <summary>
