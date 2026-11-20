@@ -836,5 +836,50 @@ namespace Opc.Ua.Server.Tests
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
         }
+
+        /// <summary>
+        /// The server registers every aggregate function the core model declares
+        /// (<see cref="AggregateFunctionIds.All"/>) with the standard calculator. A model
+        /// update that declares a new aggregate function must fail here rather than
+        /// let the server advertise an aggregate it cannot calculate.
+        /// </summary>
+        [Test]
+        public void CreateStandardCalculatorCoversEveryDeclaredAggregateFunction()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(10000);
+
+            Assert.That(AggregateFunctionIds.All, Is.Not.Empty);
+            Assert.Multiple(() =>
+            {
+                foreach ((NodeId aggregateId, string browseName) in AggregateFunctionIds.All)
+                {
+                    IAggregateCalculator? calculator = Aggregators.CreateStandardCalculator(
+                        aggregateId, startTime, endTime, 10000, false, m_configuration, m_telemetry);
+
+                    Assert.That(
+                        calculator,
+                        Is.Not.Null,
+                        $"No standard calculator for the aggregate function {browseName} ({aggregateId}).");
+                }
+            });
+        }
+
+        /// <summary>
+        /// The generated list names every aggregate function once, with the BrowseName
+        /// of its node.
+        /// </summary>
+        [Test]
+        public void DeclaredAggregateFunctionsAreUniqueAndNamedByBrowseName()
+        {
+            Assert.That(AggregateFunctionIds.All, Has.Count.EqualTo(37));
+            Assert.That(AggregateFunctionIds.All, Is.Unique);
+            Assert.That(
+                AggregateFunctionIds.All,
+                Does.Contain((ObjectIds.AggregateFunction_Interpolative, BrowseNames.AggregateFunction_Interpolative)));
+            Assert.That(
+                AggregateFunctionIds.All,
+                Does.Contain((ObjectIds.AggregateFunction_VariancePopulation, BrowseNames.AggregateFunction_VariancePopulation)));
+        }
     }
 }
