@@ -304,6 +304,97 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public async Task DynamicConfigurationMethodsAreRestrictedToAdministrativeRoles()
+        {
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true);
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            ushort ns = harness.Manager.AddressSpaceNamespaceIndex;
+
+            await harness.Application.AddConnectionAsync(new PubSubConnectionDataType
+            {
+                Name = "conn-acl",
+                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                {
+                    Url = "opc.udp://224.0.0.22:4840"
+                })
+            }).ConfigureAwait(false);
+
+            // The Call service evaluates only the Method node's own RolePermissions,
+            // so every Method created in the PubSub namespace must carry them.
+            BaseObjectState fileNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId("pubsub:configuration", ns))!;
+            BaseObjectState connectionNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId("pubsub:connection:conn-acl", ns))!;
+            BaseObjectState statusNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId("pubsub:connection:conn-acl:Status", ns))!;
+            int checkedMethods = 0;
+            foreach (BaseObjectState parent in new[] { fileNode, connectionNode, statusNode })
+            {
+                var children = new List<BaseInstanceState>();
+                parent.GetChildren(harness.Context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    if (child is MethodState method)
+                    {
+                        AssertRestrictedTo(method, ObjectIds.WellKnownRole_ConfigureAdmin);
+                        checkedMethods++;
+                    }
+                }
+            }
+            // 8 file methods, 3 connection methods, Enable and Disable.
+            Assert.That(checkedMethods, Is.EqualTo(13));
+
+            var outputs = new List<Variant>();
+            ArrayOf<ExtensionObject> rolePermissions =
+            [
+                new ExtensionObject(new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    Permissions = (uint)PermissionType.Call
+                })
+            ];
+            ServiceResult addResult = harness.AddSecurityGroupMethod.OnCallMethod!(
+                harness.Context,
+                harness.AddSecurityGroupMethod,
+                BuildArray(
+                    Variant.From("acl-group"),
+                    Variant.From(60_000.0),
+                    Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                    Variant.From(1U),
+                    Variant.From(1U),
+                    Variant.From(rolePermissions)),
+                outputs);
+            Assert.That(ServiceResult.IsGood(addResult), Is.True);
+            Assert.That(outputs[1].TryGetValue(out NodeId groupNodeId), Is.True);
+            BaseObjectState groupNode = harness.Manager.FindPredefinedNode<BaseObjectState>(groupNodeId);
+            // A key consumer of the group (here every authenticated user) must
+            // not thereby be able to invalidate or rotate its keys.
+            foreach (string name in new[] { "InvalidateKeys", "ForceKeyRotation" })
+            {
+                var method = (MethodState)groupNode.FindChild(harness.Context, new QualifiedName(name, ns))!;
+                AssertRestrictedTo(method, ObjectIds.WellKnownRole_SecurityKeyServerAdmin);
+            }
+        }
+
+        private static void AssertRestrictedTo(MethodState method, NodeId administrativeRole)
+        {
+            string name = method.NodeId.ToString();
+            bool administratorMayCall = false;
+            foreach (RolePermissionType permission in method.RolePermissions.Span)
+            {
+                Assert.That(permission.RoleId, Is.Not.EqualTo(ObjectIds.WellKnownRole_Anonymous), name);
+                Assert.That(permission.RoleId, Is.Not.EqualTo(ObjectIds.WellKnownRole_AuthenticatedUser), name);
+                administratorMayCall |= permission.RoleId == administrativeRole &&
+                    (permission.Permissions & (uint)PermissionType.Call) != 0;
+            }
+            Assert.That(administratorMayCall, Is.True, name);
+            Assert.That(method.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired), name);
+        }
+
+        [Test]
         [TestSpec("9.1.3", Summary = "PubSubConnectionType instances are materialized under PublishSubscribe")]
         [TestSpec("9.1.10", Summary = "Per-instance Status exposes Enable and Disable methods")]
         public async Task ConfigurationMutation_MaterializesConnectionNodeAndStatusMethods()

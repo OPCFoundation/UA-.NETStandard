@@ -46,6 +46,37 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
     public class UadpActionTests
     {
         [Test]
+        [Category("SecurityRegression")]
+        public void ActionResponseEchoingLargeCorrelationDataEncodes()
+        {
+            // A response echoes the CorrelationData of the request, so its size is
+            // chosen by the requestor and can exceed the initial encode buffer.
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            byte[] correlationData = new byte[20000];
+            for (int i = 0; i < correlationData.Length; i++)
+            {
+                correlationData[i] = (byte)i;
+            }
+            var response = new UadpActionResponseMessage
+            {
+                PublisherId = PublisherId.FromUInt16(0x4242),
+                DataSetWriterId = 0x1234,
+                ActionTargetId = 0x0021,
+                RequestId = 0x1001,
+                ActionState = ActionState.Done,
+                CorrelationData = ByteString.From(correlationData)
+            };
+
+            byte[] encoded = UadpActionCoder.Encode(response, context);
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
+
+            Assert.That(decoded, Is.InstanceOf<UadpActionResponseMessage>());
+            Assert.That(
+                ((UadpActionResponseMessage)decoded!).CorrelationData.ToArray(),
+                Is.EqualTo(correlationData));
+        }
+
+        [Test]
         public void ActionRequestRoundTrips()
         {
             PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();

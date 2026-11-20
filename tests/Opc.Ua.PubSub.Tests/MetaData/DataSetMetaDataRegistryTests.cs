@@ -73,6 +73,51 @@ namespace Opc.Ua.PubSub.Tests.MetaData
                 "Even an authenticated connection announcement must not mutate the host or sibling scopes.");
         }
 
+        [Test]
+        [Category("SecurityRegression")]
+        public void UnauthenticatedMetadataIsBoundedByCostNotOnlyByIdentityCount()
+        {
+            var scope = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = 4096 };
+            DataSetMetaDataKey first = NewKey(dataSetWriterId: 1);
+            DataSetMetaDataKey second = NewKey(dataSetWriterId: 2);
+            DataSetMetaDataKey third = NewKey(dataSetWriterId: 3);
+
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.False,
+                "A second large announcement must not fit in the remaining budget.");
+            Assert.That(scope.TryGet(in second, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+
+            // Replacing an entry releases what the replaced announcement was charged.
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 100),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+
+            // Elements that are tiny on the wire are charged as objects.
+            var manyFields = new FieldMetaData[64];
+            for (int i = 0; i < manyFields.Length; i++)
+            {
+                manyFields[i] = new FieldMetaData();
+            }
+            DataSetMetaDataType wide = NewMeta();
+            wide.Fields = manyFields;
+            scope.Remove(in second);
+            Assert.That(
+                scope.RegisterReceived(in third, wide, authenticated: false, frameLength: 200),
+                Is.False);
+
+            // Authenticated metadata is not subject to the budget.
+            Assert.That(
+                scope.RegisterReceived(in third, wide, authenticated: true, frameLength: 1_000_000),
+                Is.True);
+        }
+
         private static DataSetMetaDataKey NewKey(
             ushort writerGroupId = 100,
             ushort dataSetWriterId = 200,

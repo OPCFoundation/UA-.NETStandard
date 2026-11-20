@@ -103,6 +103,22 @@ namespace Opc.Ua.PubSub.MetaData
         /// </summary>
         public int MaxEntries { get; init; } = DefaultMaxEntries;
 
+        /// <summary>
+        /// Default for <see cref="MaxUnauthenticatedCost"/>.
+        /// </summary>
+        public const long DefaultMaxUnauthenticatedCost = 16 * 1024 * 1024;
+
+        /// <summary>
+        /// Budget for metadata received without verified message security.
+        /// The count of identities alone does not bound the memory such
+        /// metadata retains, because one announcement can be megabytes in
+        /// size. Every unauthenticated entry is charged the length of the
+        /// frame that carried it plus a fixed amount per decoded element, and
+        /// an announcement that would take the total above this budget is not
+        /// registered. Zero or less disables the limit.
+        /// </summary>
+        public long MaxUnauthenticatedCost { get; init; } = DefaultMaxUnauthenticatedCost;
+
         /// <inheritdoc/>
         public event EventHandler<DataSetMetaDataChangedEventArgs>? MetaDataChanged;
 
@@ -228,7 +244,11 @@ namespace Opc.Ua.PubSub.MetaData
         /// Registers received metadata with its authentication provenance.
         /// Unauthenticated metadata may replace only other unauthenticated metadata.
         /// </summary>
-        internal bool RegisterReceived(in DataSetMetaDataKey key, DataSetMetaDataType metaData, bool authenticated)
+        internal bool RegisterReceived(
+            in DataSetMetaDataKey key,
+            DataSetMetaDataType metaData,
+            bool authenticated,
+            int frameLength = 0)
         {
             if (metaData is null)
             {
@@ -242,6 +262,7 @@ namespace Opc.Ua.PubSub.MetaData
             }
 
             var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
+            long cost = authenticated ? 0 : EstimateCost(metaData, frameLength);
             DataSetMetaDataChangedEventArgs? evt;
             lock (m_lock)
             {
@@ -259,8 +280,25 @@ namespace Opc.Ua.PubSub.MetaData
                         MaxEntries.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                         ").");
                 }
-                m_entries[identity] = new RegisteredEntry(key, metaData, authenticated);
-                evt = new DataSetMetaDataChangedEventArgs(key, existing.MetaData, metaData);
+                long previousCost = found ? existing.Cost : 0;
+                if (!authenticated &&
+                    MaxUnauthenticatedCost > 0 &&
+                    m_unauthenticatedCost - previousCost + cost > MaxUnauthenticatedCost)
+                {
+                    evt = null;
+                }
+                else
+                {
+                    m_unauthenticatedCost += cost - previousCost;
+                    m_entries[identity] = new RegisteredEntry(key, metaData, authenticated, cost);
+                    evt = new DataSetMetaDataChangedEventArgs(key, existing.MetaData, metaData);
+                }
+            }
+            if (evt is null)
+            {
+                m_logger.UnauthenticatedMetadataOverBudget(
+                    key.PublisherId, key.WriterGroupId, key.DataSetWriterId, cost, MaxUnauthenticatedCost);
+                return false;
             }
             m_logger.RegisteredMetadata(
                 key.PublisherId,
@@ -278,7 +316,11 @@ namespace Opc.Ua.PubSub.MetaData
             var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
             lock (m_lock)
             {
-                _ = m_entries.Remove(identity);
+                if (m_entries.TryGetValue(identity, out RegisteredEntry removed))
+                {
+                    m_unauthenticatedCost -= removed.Cost;
+                    _ = m_entries.Remove(identity);
+                }
             }
         }
 
@@ -298,6 +340,34 @@ namespace Opc.Ua.PubSub.MetaData
             return m_trustedRegistry is not null &&
                 m_trustedRegistry.TryGet(in key, out _) != MetaDataMatchResult.NotFound;
         }
+
+        /// <summary>
+        /// Estimates what an unauthenticated metadata entry retains: the bytes of
+        /// the frame that carried it plus a fixed amount per decoded element, since
+        /// an element that is a few bytes on the wire becomes a full object.
+        /// </summary>
+        private static long EstimateCost(DataSetMetaDataType metaData, int frameLength)
+        {
+            long elements = 1;
+            elements += metaData.Namespaces.Count;
+            elements += metaData.SimpleDataTypes.Count;
+            foreach (StructureDescription structure in metaData.StructureDataTypes.Span)
+            {
+                elements += 1 + (structure?.StructureDefinition?.Fields.Count ?? 0);
+            }
+            foreach (EnumDescription enumeration in metaData.EnumDataTypes.Span)
+            {
+                elements += 1 + (enumeration?.EnumDefinition?.Fields.Count ?? 0);
+            }
+            foreach (FieldMetaData field in metaData.Fields.Span)
+            {
+                elements += 1 + (field?.Properties.Count ?? 0);
+            }
+            return Math.Max(frameLength, 0) + (elements * kElementCost);
+        }
+
+        private const int kElementCost = 128;
+        private long m_unauthenticatedCost;
 
         private void RaiseChanged(DataSetMetaDataChangedEventArgs evt)
         {
@@ -322,8 +392,13 @@ namespace Opc.Ua.PubSub.MetaData
 
         private readonly struct RegisteredEntry
         {
-            public RegisteredEntry(DataSetMetaDataKey key, DataSetMetaDataType metaData, bool authenticated)
+            public RegisteredEntry(
+                DataSetMetaDataKey key,
+                DataSetMetaDataType metaData,
+                bool authenticated,
+                long cost)
             {
+                Cost = cost;
                 Key = key;
                 MetaData = metaData;
                 Authenticated = authenticated;
@@ -331,6 +406,12 @@ namespace Opc.Ua.PubSub.MetaData
 
             public DataSetMetaDataKey Key { get; }
             public DataSetMetaDataType MetaData { get; }
+
+            /// <summary>
+            /// Amount charged to the budget for unauthenticated metadata;
+            /// zero for an authenticated entry.
+            /// </summary>
+            public long Cost { get; }
 
             /// <summary>
             /// Whether this entry was authenticated or registered by the host.
@@ -363,6 +444,17 @@ namespace Opc.Ua.PubSub.MetaData
             PublisherId publisher,
             ushort group,
             ushort writer);
+
+        [LoggerMessage(EventId = PubSubEventIds.DataSetMetaDataRegistry + 2, Level = LogLevel.Warning,
+            Message = "DataSetMetaDataRegistry ignored unauthenticated metadata for {Publisher}/{Group}/{Writer}: " +
+                "cost {Cost} exceeds the remaining budget ({Budget} in total).")]
+        public static partial void UnauthenticatedMetadataOverBudget(
+            this ILogger logger,
+            PublisherId publisher,
+            ushort group,
+            ushort writer,
+            long cost,
+            long budget);
     }
 
 }

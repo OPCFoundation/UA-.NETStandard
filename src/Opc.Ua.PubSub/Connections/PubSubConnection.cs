@@ -1103,7 +1103,7 @@ namespace Opc.Ua.PubSub.Connections
                     if (message is UadpDiscoveryResponseMessage discoveryResponse)
                     {
                         RouteInboundDiscoveryResponse(discoveryResponse);
-                        _ = TryRouteInboundMetaData(message, frameAuthenticated);
+                        _ = TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length);
                         continue;
                     }
                     if (message is UadpActionRequestMessage actionRequest)
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
-                    if (TryRouteInboundMetaData(message, frameAuthenticated))
+                    if (TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length))
                     {
                         continue;
                     }
@@ -1172,6 +1172,9 @@ namespace Opc.Ua.PubSub.Connections
         /// <param name="message">Decoded inbound NetworkMessage.</param>
         /// <param name="authenticated"><see langword="true"/> when the
         /// frame carried verified message security.</param>
+        /// <param name="frameLength">Length in bytes of the frame that
+        /// carried the metadata; charged to the budget for unauthenticated
+        /// metadata of the registry.</param>
         /// <returns><see langword="true"/> when the message was a
         /// metadata frame (so callers should skip the data-side
         /// dispatch).</returns>
@@ -1186,14 +1189,16 @@ namespace Opc.Ua.PubSub.Connections
         /// </remarks>
         internal bool TryRouteInboundMetaData(
             PubSubNetworkMessage message,
-            bool authenticated = false)
+            bool authenticated = false,
+            int frameLength = 0)
         {
             return TryRouteInboundMetaData(
                 m_inboundMetaDataRegistry,
                 message,
                 m_logger,
                 authenticated,
-                AdmitInboundMetaDataIdentity);
+                AdmitInboundMetaDataIdentity,
+                frameLength);
         }
 
         /// <summary>
@@ -1271,7 +1276,7 @@ namespace Opc.Ua.PubSub.Connections
         internal delegate bool InboundMetaDataAdmission(in DataSetMetaDataKey key);
 
         /// <summary>
-        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage, bool)"/>
+        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage, bool, int)"/>
         /// used by tests and by the receive loop. Dispatches the
         /// JSON / UADP metadata variants into the supplied registry.
         /// </summary>
@@ -1288,6 +1293,8 @@ namespace Opc.Ua.PubSub.Connections
         /// </param>
         /// <param name="admit">Optional admission check; identities it
         /// rejects are not registered.</param>
+        /// <param name="frameLength">Length in bytes of the frame that
+        /// carried the metadata.</param>
         /// <returns>Whether the message was recognised as metadata.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         internal static bool TryRouteInboundMetaData(
@@ -1295,7 +1302,8 @@ namespace Opc.Ua.PubSub.Connections
             PubSubNetworkMessage message,
             ILogger logger,
             bool authenticated = false,
-            InboundMetaDataAdmission? admit = null)
+            InboundMetaDataAdmission? admit = null,
+            int frameLength = 0)
         {
             if (registry is null)
             {
@@ -1362,7 +1370,7 @@ namespace Opc.Ua.PubSub.Connections
             {
                 if (registry is DataSetMetaDataRegistry scopedRegistry)
                 {
-                    if (!scopedRegistry.RegisterReceived(in key, meta, authenticated))
+                    if (!scopedRegistry.RegisterReceived(in key, meta, authenticated, frameLength))
                     {
                         return true;
                     }
@@ -1699,7 +1707,8 @@ namespace Opc.Ua.PubSub.Connections
                 ActionState = ActionState.Done,
                 Payload = result.OutputFields
             };
-            await SendNetworkMessageAsync(response, request.ResponseAddress, cancellationToken)
+            await SendActionResponseAsync(
+                response, request.ResponseAddress, request.DataSetWriterId, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -1775,8 +1784,32 @@ namespace Opc.Ua.PubSub.Connections
                 CorrelationData = message.CorrelationData,
                 Messages = [new ExtensionObject(responseBody)]
             };
-            await SendNetworkMessageAsync(response, message.ResponseAddress, cancellationToken)
+            await SendActionResponseAsync(
+                response, message.ResponseAddress, request.DataSetWriterId, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Sends an Action response from the receive loop. The response is built
+        /// from requestor-controlled input (CorrelationData, ResponseAddress), so a
+        /// response that cannot be encoded, secured or sent is dropped and logged:
+        /// it must never end the receive loop of the connection.
+        /// </summary>
+        private async ValueTask SendActionResponseAsync(
+            PubSubNetworkMessage response,
+            string? responseAddress,
+            ushort dataSetWriterId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await SendNetworkMessageAsync(response, responseAddress, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.ActionResponseNotSent(ex, dataSetWriterId, Name);
+            }
         }
 
         private async ValueTask<PubSubActionHandlerResult> InvokeActionHandlerAsync(
@@ -3529,6 +3562,14 @@ namespace Opc.Ua.PubSub.Connections
             this ILogger logger,
             Exception exception,
             UadpDiscoveryType discoveryType,
+            string connection);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 23, Level = LogLevel.Warning,
+            Message = "Could not send the Action response of DataSetWriter {WriterId} on connection '{Connection}'.")]
+        public static partial void ActionResponseNotSent(
+            this ILogger logger,
+            Exception exception,
+            ushort writerId,
             string connection);
     }
 

@@ -103,6 +103,44 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public async Task ServerDropsMalformedDatagramsAndStillAcceptsHandshakeAsync()
+        {
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
+            using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair =
+                InMemoryDtlsDatagramChannel.CreatePair();
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            // Unauthenticated datagrams that are not a ClientHello for the profile:
+            // too short for a handshake header, a frame of another handshake type,
+            // and a ClientHello type with a truncated body. RFC 9147 §4.5.2 requires
+            // the server to discard them and keep waiting.
+            await pair.Client.SendAsync(new byte[] { 0x01, 0x02, 0x03 }, null, cts.Token).ConfigureAwait(false);
+            await pair.Client.SendAsync(
+                DtlsHandshakeCodec.EncodeFrame(DtlsHandshakeType.Finished, 0, new byte[32]),
+                null,
+                cts.Token).ConfigureAwait(false);
+            await pair.Client.SendAsync(
+                DtlsHandshakeCodec.EncodeFrame(DtlsHandshakeType.ClientHello, 0, new byte[] { 0xFE, 0xFC, 0x00 }),
+                null,
+                cts.Token).ConfigureAwait(false);
+
+            await Task.WhenAll(
+                client.OpenAsync(pair.Client, cts.Token).AsTask(),
+                server.OpenAsync(pair.Server, cts.Token).AsTask()).ConfigureAwait(false);
+
+            Assert.That(pair.Server.AuthenticatedPeer, Is.EqualTo(pair.Server.RemoteEndpoint));
+            byte[] payload = [0x55, 0x41, 0x44, 0x50];
+            ReadOnlyMemory<byte> record = await client.ProtectAsync(payload, cts.Token).ConfigureAwait(false);
+            ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, cts.Token).ConfigureAwait(false);
+            Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
+        }
+
+        [Test]
         public async Task CipherDowngradeIsRejectedAsync()
         {
             DtlsProfile profile = ResolveOrIgnore("ECC_nistP384_AesGcm");

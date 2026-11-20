@@ -527,6 +527,52 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public async Task ReceiveLoopSurvivesActionResponseThatCannotBeSentAsync()
+        {
+            var transport = new DatagramHarnessTransport(UadpProfile);
+            var encoder = new ThrowOnceEncoder(UadpProfile);
+            var decoder = new QueueDecoder(UadpProfile);
+            await using PubSubConnection connection = CreateConnection(
+                Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
+                EncMap(UadpProfile, encoder), DecMap(UadpProfile, decoder),
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
+
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((_, _) =>
+                    new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good })),
+                allowUnsecured: true);
+
+            await connection.EnableAsync().ConfigureAwait(false);
+            // The response to the first request cannot be encoded. That must cost
+            // only that response: the receive loop has to serve the second request.
+            Deliver(transport, decoder, new UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 1,
+                ResponseAddress = string.Empty
+            });
+            Deliver(transport, decoder, new UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 2,
+                ResponseAddress = string.Empty
+            });
+
+            await AwaitBoundedAsync(transport.WaitUntilSentAsync(1), "second action response")
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoder.Attempts, Is.EqualTo(2));
+                Assert.That(transport.SentPayloads, Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
         public async Task ReceiveLoopUadpActionRequestWithoutResponderDropsAsync()
         {
             var transport = new DatagramHarnessTransport(UadpProfile);
@@ -1437,6 +1483,38 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public override ValueTask CloseAsync(CancellationToken cancellationToken = default)
             {
                 throw new InvalidOperationException("transport close failed");
+            }
+        }
+
+        /// <summary>
+        /// Encoder whose first call fails, as an Action response fails that the
+        /// encoder or transport cannot handle.
+        /// </summary>
+        private sealed class ThrowOnceEncoder : INetworkMessageEncoder
+        {
+            private int m_attempts;
+
+            public ThrowOnceEncoder(string profile)
+            {
+                TransportProfileUri = profile;
+            }
+
+            public string TransportProfileUri { get; }
+
+            public int EstimatedHeaderOverhead => 0;
+
+            public int Attempts => Volatile.Read(ref m_attempts);
+
+            public ValueTask<ReadOnlyMemory<byte>> EncodeAsync(
+                PubSubNetworkMessage networkMessage,
+                PubSubNetworkMessageContext context,
+                CancellationToken cancellationToken = default)
+            {
+                if (Interlocked.Increment(ref m_attempts) == 1)
+                {
+                    throw new InvalidOperationException("The response cannot be encoded.");
+                }
+                return new ValueTask<ReadOnlyMemory<byte>>(new ReadOnlyMemory<byte>([1]));
             }
         }
 

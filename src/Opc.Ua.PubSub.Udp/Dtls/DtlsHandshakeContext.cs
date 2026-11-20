@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             cancellationToken.ThrowIfCancellationRequested();
             using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken);
-            using ITimer? handshakeTimeout = CreateHandshakeTimeoutTimer(handshakeCts);
+            using ITimer? handshakeTimeout = CreateTimeoutTimer(handshakeCts, ComputeHandshakeTimeout());
             try
             {
                 if (m_role == DtlsEndpointRole.Client)
@@ -90,8 +90,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                throw new DtlsHandshakeException(
-                    "DTLS handshake exceeded the overall handshake timeout before completion.");
+                const string message =
+                    "DTLS handshake exceeded the overall handshake timeout before completion.";
+                throw m_lastPeerFailure is { } peerFailure
+                    ? new DtlsHandshakeException(message, peerFailure)
+                    : new DtlsHandshakeException(message);
             }
         }
 
@@ -268,25 +271,73 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 CryptoUtils.ZeroMemory(sharedSecret);
             }
         }
+
         private async ValueTask AcceptAsync(IDtlsDatagramChannel channel, CancellationToken cancellationToken)
         {
             using Certificate localCertificate = GetLocalCertificate();
-            using DtlsEcdheKeyExchange ecdhe = new(Profile.KeyExchangeCurve);
-            var transcript = new DtlsTranscriptHash(GetHashAlgorithm(Profile.CipherSuite));
             byte[] cookieKey = CreateRandom(32);
-            byte[] sharedSecret = [];
+            TimeSpan flightTimeout = ComputeFlightTimeout();
             try
             {
-                DtlsClientHello clientHello;
-                IPEndPoint? clientSource = null;
+                // RFC 9147 §4.5.2: invalid datagrams are discarded and the
+                // association is preserved. Everything a peer sends before the
+                // handshake completes is unauthenticated, so neither a malformed
+                // datagram nor a handshake attempt that fails or stalls may end
+                // the accept: the server drops it and waits for the next
+                // ClientHello until the overall handshake timeout expires.
                 while (true)
                 {
-                    (DtlsHandshakeFrame clientHelloFrame, IPEndPoint? source) =
-                        await ReceiveSourcedFrameAsync(channel, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    (DtlsClientHello clientHello, DtlsHandshakeFrame clientHelloFrame, IPEndPoint clientSource) =
+                        await ReceiveClientHelloAsync(channel, cookieKey, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        await CompleteAcceptWithinFlightTimeoutAsync(
+                            channel,
+                            localCertificate,
+                            clientHello,
+                            clientHelloFrame,
+                            clientSource,
+                            flightTimeout,
+                            cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+                    catch (Exception ex) when (
+                        !cancellationToken.IsCancellationRequested && IsPeerHandshakeFailure(ex))
+                    {
+                        m_lastPeerFailure = ex;
+                        ResetAcceptState();
+                    }
+                }
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(cookieKey);
+            }
+        }
+
+        /// <summary>
+        /// Waits for a ClientHello that matches the profile and carries a valid
+        /// HelloRetryRequest cookie. Datagrams that are not such a ClientHello are
+        /// dropped; a ClientHello without a valid cookie is answered statelessly
+        /// with a HelloRetryRequest.
+        /// </summary>
+        private async ValueTask<(DtlsClientHello Hello, DtlsHandshakeFrame Frame, IPEndPoint Source)>
+            ReceiveClientHelloAsync(
+                IDtlsDatagramChannel channel,
+                byte[] cookieKey,
+                CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                DtlsDatagram datagram = await channel.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    DtlsHandshakeFrame clientHelloFrame = DtlsHandshakeCodec.DecodeFrame(datagram.Payload.Span);
                     RequireMessage(clientHelloFrame, DtlsHandshakeType.ClientHello);
-                    clientHello = DtlsHandshakeCodec.DecodeClientHello(clientHelloFrame.Fragment);
+                    DtlsClientHello clientHello = DtlsHandshakeCodec.DecodeClientHello(clientHelloFrame.Fragment);
                     ValidateClientHello(clientHello);
-                    clientSource = source ?? GetPeerEndpoint(channel);
+                    IPEndPoint clientSource = datagram.Source ?? GetPeerEndpoint(channel);
                     using var cookieProtector = new DtlsHelloRetryCookieProtector(cookieKey);
                     if (m_options.RequireHelloRetryRequestCookie &&
                         !cookieProtector.ValidateCookie(
@@ -298,25 +349,65 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                         byte[] retryFrame = BuildHelloRetryRequest(clientHello.SessionId, retryCookie);
                         await SendFlightAsync(channel, retryFrame, cancellationToken, clientSource)
                             .ConfigureAwait(false);
-                        transcript = new DtlsTranscriptHash(GetHashAlgorithm(Profile.CipherSuite));
                         continue;
                     }
 
-                    transcript.Append(ToCompleteFrame(clientHelloFrame));
-                    DtlsKeyShareEntry clientKeyShare = clientHello.Extensions.KeyShares
-                        .First(k => k.Group == Profile.KeyExchangeCurve);
-                    sharedSecret = ecdhe.DeriveSharedSecret(clientKeyShare.KeyExchange);
-                    byte[] serverHelloFrame = BuildServerHello(clientHello.SessionId, ecdhe.PublicKey);
-                    await SendFlightAsync(channel, serverHelloFrame, cancellationToken, clientSource)
-                        .ConfigureAwait(false);
-                    transcript.Append(serverHelloFrame);
-                    byte[] serverHelloHash = transcript.GetHash();
-                    m_keyingContext = new DtlsHandshakeKeyingContext(
-                        Profile,
-                        sharedSecret,
-                        serverHelloHash);
-                    break;
+                    return (clientHello, clientHelloFrame, clientSource);
                 }
+                catch (Exception ex) when (
+                    !cancellationToken.IsCancellationRequested && IsPeerHandshakeFailure(ex))
+                {
+                    m_lastPeerFailure = ex;
+                }
+            }
+        }
+
+        private async ValueTask CompleteAcceptWithinFlightTimeoutAsync(
+            IDtlsDatagramChannel channel,
+            Certificate localCertificate,
+            DtlsClientHello clientHello,
+            DtlsHandshakeFrame clientHelloFrame,
+            IPEndPoint clientSource,
+            TimeSpan flightTimeout,
+            CancellationToken cancellationToken)
+        {
+            using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            using ITimer? attemptTimeout = CreateTimeoutTimer(attemptCts, flightTimeout);
+            await CompleteAcceptAsync(
+                channel,
+                localCertificate,
+                clientHello,
+                clientHelloFrame,
+                clientSource,
+                attemptCts.Token).ConfigureAwait(false);
+        }
+
+        private async ValueTask CompleteAcceptAsync(
+            IDtlsDatagramChannel channel,
+            Certificate localCertificate,
+            DtlsClientHello clientHello,
+            DtlsHandshakeFrame clientHelloFrame,
+            IPEndPoint clientSource,
+            CancellationToken cancellationToken)
+        {
+            using DtlsEcdheKeyExchange ecdhe = new(Profile.KeyExchangeCurve);
+            var transcript = new DtlsTranscriptHash(GetHashAlgorithm(Profile.CipherSuite));
+            byte[] sharedSecret = [];
+            try
+            {
+                transcript.Append(ToCompleteFrame(clientHelloFrame));
+                DtlsKeyShareEntry clientKeyShare = clientHello.Extensions.KeyShares
+                    .First(k => k.Group == Profile.KeyExchangeCurve);
+                sharedSecret = ecdhe.DeriveSharedSecret(clientKeyShare.KeyExchange);
+                byte[] serverHelloFrame = BuildServerHello(clientHello.SessionId, ecdhe.PublicKey);
+                await SendFlightAsync(channel, serverHelloFrame, cancellationToken, clientSource)
+                    .ConfigureAwait(false);
+                transcript.Append(serverHelloFrame);
+                byte[] serverHelloHash = transcript.GetHash();
+                m_keyingContext = new DtlsHandshakeKeyingContext(
+                    Profile,
+                    sharedSecret,
+                    serverHelloHash);
 
                 byte[] encryptedExtensionsFrame = DtlsHandshakeCodec.EncodeFrame(
                     DtlsHandshakeType.EncryptedExtensions,
@@ -355,7 +446,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     .ConfigureAwait(false);
                 transcript.Append(certificateVerifyFrame);
                 byte[] serverFinishedBody = DtlsHandshakeCodec.EncodeFinished(
-                    m_keyingContext!.ComputeServerFinished(transcript.GetHash()));
+                    m_keyingContext.ComputeServerFinished(transcript.GetHash()));
                 byte[] serverFinishedFrame = DtlsHandshakeCodec.EncodeFrame(
                     DtlsHandshakeType.Finished,
                     m_nextSendSequence++,
@@ -397,9 +488,38 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptoUtils.ZeroMemory(cookieKey);
                 CryptoUtils.ZeroMemory(sharedSecret);
             }
+        }
+
+        /// <summary>
+        /// Whether a failure during the accept was caused by what a peer sent (or
+        /// failed to send) rather than by the local endpoint. Such a failure ends
+        /// the handshake attempt of that peer only.
+        /// </summary>
+        private static bool IsPeerHandshakeFailure(Exception exception)
+        {
+            return exception
+                is DtlsHandshakeException
+                    or CryptographicException
+                    or ServiceResultException
+                    or ArgumentException
+                    or FormatException
+                    or System.Net.Sockets.SocketException
+                    // The per-attempt flight timeout; the caller has already
+                    // excluded cancellation of the accept itself.
+                    or OperationCanceledException;
+        }
+
+        /// <summary>
+        /// Discards the state of a failed handshake attempt so that the next
+        /// ClientHello starts from a clean server state.
+        /// </summary>
+        private void ResetAcceptState()
+        {
+            m_keyingContext?.Dispose();
+            m_keyingContext = null;
+            m_nextSendSequence = 0;
         }
 
         private byte[] BuildClientHello(byte[] sessionId, byte[] publicKey, byte[] cookie)
@@ -471,14 +591,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
         }
 
-        private static async ValueTask<(DtlsHandshakeFrame Frame, IPEndPoint? Source)> ReceiveSourcedFrameAsync(
-            IDtlsDatagramChannel channel,
-            CancellationToken cancellationToken)
-        {
-            DtlsDatagram datagram = await channel.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-            return (DtlsHandshakeCodec.DecodeFrame(datagram.Payload.Span), datagram.Source);
-        }
-
         private async ValueTask SendClientAuthenticationAsync(
             IDtlsDatagramChannel channel,
             DtlsTranscriptHash transcript,
@@ -536,9 +648,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             transcript.Append(ToCompleteFrame(certificateVerifyFrame));
         }
 
-        private ITimer? CreateHandshakeTimeoutTimer(CancellationTokenSource handshakeCts)
+        private ITimer? CreateTimeoutTimer(CancellationTokenSource handshakeCts, TimeSpan timeout)
         {
-            TimeSpan timeout = ComputeHandshakeTimeout();
             if (timeout > TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
             {
                 return m_timeProvider.CreateTimer(
@@ -571,6 +682,19 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             return TimeSpan.FromTicks(unit.Ticks * HandshakeFlightBudget);
+        }
+
+        /// <summary>
+        /// Time one peer is given to complete its handshake once the server has
+        /// answered its ClientHello: one flight of the overall handshake budget, so
+        /// a peer that stalls cannot hold the accept until the overall timeout.
+        /// </summary>
+        private TimeSpan ComputeFlightTimeout()
+        {
+            TimeSpan overall = ComputeHandshakeTimeout();
+            return overall == Timeout.InfiniteTimeSpan
+                ? overall
+                : TimeSpan.FromTicks(overall.Ticks / HandshakeFlightBudget);
         }
         private static async ValueTask<DtlsHandshakeFrame> ReceiveAndAppendAsync(
             IDtlsDatagramChannel channel,
@@ -770,6 +894,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private DtlsRecordProtection? m_writeProtection;
         private DtlsRecordProtection? m_readProtection;
         private DtlsHandshakeKeyingContext? m_keyingContext;
+        private Exception? m_lastPeerFailure;
         private const int HandshakeFlightBudget = 4;
         private ushort m_nextSendSequence;
         private bool m_disposed;
