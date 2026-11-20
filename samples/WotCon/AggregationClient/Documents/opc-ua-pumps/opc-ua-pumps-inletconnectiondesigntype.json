@@ -90,9 +90,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9305"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9306",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -121,9 +118,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9309"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9316",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -152,9 +146,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9310"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9319",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -183,9 +174,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9311"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9322",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -214,9 +202,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9312"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9325",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -245,9 +230,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9313"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9328",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -276,9 +258,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9314"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9331",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -307,9 +286,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9315"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9334",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -337,9 +313,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9305"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9307",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -367,9 +340,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9309"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9317",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -397,9 +367,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9310"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9320",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -427,9 +394,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9311"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9323",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -457,9 +421,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9312"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9326",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -487,9 +448,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9313"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9329",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -517,9 +475,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9314"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9332",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -547,9 +502,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9315"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9335",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -578,9 +530,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9305"
-      ],
       "uav:engineeringUnits": {
         "description": "pascal",
         "displayName": "Pa",
@@ -615,9 +564,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9309"
-      ],
       "uav:engineeringUnits": {
         "description": "square metre",
         "displayName": "m²",
@@ -652,9 +598,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9310"
-      ],
       "uav:engineeringUnits": {
         "description": "pascal",
         "displayName": "Pa",
@@ -689,9 +632,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9311"
-      ],
       "uav:engineeringUnits": {
         "description": "pascal",
         "displayName": "Pa",
@@ -726,9 +666,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9312"
-      ],
       "uav:engineeringUnits": {
         "description": "pascal",
         "displayName": "Pa",
@@ -763,9 +700,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9313"
-      ],
       "uav:engineeringUnits": {
         "description": "pascal",
         "displayName": "Pa",
@@ -800,9 +734,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9314"
-      ],
       "uav:engineeringUnits": {
         "description": "pascal",
         "displayName": "Pa",
@@ -837,9 +768,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9315"
-      ],
       "uav:engineeringUnits": {
         "description": "gram per hour",
         "displayName": "g/h",
@@ -1086,6 +1014,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/MassFlowRate"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/GM-PER-HR"
+      },
       "readOnly": true,
       "title": "WaterVaporCapacity",
       "type": "number",
@@ -1098,6 +1032,40 @@
     }
   },
   "title": "InletConnectionDesignType",
+  "tm:optional": [
+    "/properties/CriticalBackingPressure",
+    "/properties/InletAreaOfThePump",
+    "/properties/MaximumAllowableInletPressure",
+    "/properties/MaximumTolerableWaterVaporInletPressure",
+    "/properties/MaximumWorkingPressure",
+    "/properties/MinimumAllowableInletPressure",
+    "/properties/NetPositiveInletPressureRequired",
+    "/properties/WaterVaporCapacity",
+    "/properties/Definition",
+    "/properties/EngineeringUnits",
+    "/properties/EURange",
+    "/properties/Definition_2",
+    "/properties/EngineeringUnits_2",
+    "/properties/EURange_2",
+    "/properties/Definition_3",
+    "/properties/EngineeringUnits_3",
+    "/properties/EURange_3",
+    "/properties/Definition_4",
+    "/properties/EngineeringUnits_4",
+    "/properties/EURange_4",
+    "/properties/Definition_5",
+    "/properties/EngineeringUnits_5",
+    "/properties/EURange_5",
+    "/properties/Definition_6",
+    "/properties/EngineeringUnits_6",
+    "/properties/EURange_6",
+    "/properties/Definition_7",
+    "/properties/EngineeringUnits_7",
+    "/properties/EURange_7",
+    "/properties/Definition_8",
+    "/properties/EngineeringUnits_8",
+    "/properties/EURange_8"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:InletConnectionDesignType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1041",

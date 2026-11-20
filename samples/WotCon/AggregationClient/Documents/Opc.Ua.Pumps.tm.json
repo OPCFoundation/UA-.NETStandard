@@ -291,6 +291,7 @@
       ],
       "observable": true,
       "title": "PhysicalAddress",
+      "type": "object",
       "uav:browseName": "ns1:PhysicalAddress",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9940",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/Pumps/;i=3020",
@@ -364,6 +365,18 @@
     }
   },
   "title": "OPC UA Pumps",
+  "tm:optional": [
+    "/properties/ArticleNumber",
+    "/properties/CountryOfOrigin",
+    "/properties/DayOfConstruction",
+    "/properties/FabricationNumber",
+    "/properties/GTINCode",
+    "/properties/NationalStockNumber",
+    "/properties/OrderProductCode",
+    "/properties/PhysicalAddress",
+    "/properties/Supplier",
+    "/properties/TypeOfProduct"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IPumpVendorNameplateType",
   "uav:dataTypeDefinitions": [

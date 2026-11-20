@@ -92,6 +92,7 @@
       "observable": true,
       "readOnly": true,
       "title": "LimitValue",
+      "type": "number",
       "uav:browseName": "ns1:LimitValue",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=470",
       "uav:mapToType": "i=26",
@@ -124,6 +125,7 @@
       "observable": true,
       "readOnly": true,
       "title": "StartValue",
+      "type": "number",
       "uav:browseName": "ns1:StartValue",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=469",
       "uav:mapToType": "i=26",
@@ -154,6 +156,17 @@
         }
       ],
       "observable": true,
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        }
+      ],
       "readOnly": true,
       "title": "WarningValues",
       "uav:browseName": "ns1:WarningValues",
@@ -164,6 +177,10 @@
     }
   },
   "title": "LifetimeVariableType",
+  "tm:optional": [
+    "/properties/Indication",
+    "/properties/WarningValues"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:LifetimeVariableType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=468",

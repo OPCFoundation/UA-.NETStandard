@@ -31,10 +31,25 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// Supplies captured native argument properties without transferring dependency node ownership.
+    /// </summary>
+    internal interface IWotArgumentPropertyResolver
+    {
+        /// <summary>
+        /// Resolves an argument property's portable identity in its original namespace context.
+        /// </summary>
+        ValueTask<WotNodeSetConverter.WotArgumentProperty?> ResolveArgumentPropertyAsync(
+            string nodeId,
+            CancellationToken cancellationToken);
+    }
+
     /// <summary>
     /// The Method argument mapping of WoT Binding Sections 9.1 and 6.11.
     /// </summary>
@@ -104,12 +119,152 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// One decoded or authored <c>Argument</c>.
         /// </summary>
-        private readonly record struct WotMethodArgument(
+        internal readonly record struct WotMethodArgument(
             string Name,
             string? DataType,
             int ValueRank,
             string? ArrayDimensions,
-            Export.LocalizedText[]? Description);
+            Export.LocalizedText[]? Description,
+            string? ReadableDataType = null);
+
+        /// <summary>
+        /// Captures an argument property's decoded value using portable datatype identities.
+        /// </summary>
+        internal sealed record WotArgumentProperty(string Name, ArrayOf<WotMethodArgument> Arguments);
+
+        /// <summary>
+        /// Gets whether preserved method signatures require readable argument validation.
+        /// </summary>
+        private static bool HasMethodArgumentSchemas(WotDocument document)
+        {
+            foreach (JsonElement action in document.Actions.Values)
+            {
+                if (action.ValueKind == JsonValueKind.Object &&
+                    (action.TryGetProperty(InputMember, out _) || action.TryGetProperty(OutputMember, out _)))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Captures argument metadata before the source namespace table leaves scope.
+        /// </summary>
+        internal static WotArgumentProperty? DescribeArgumentProperty(UANode node, UANodeSet nodeSet)
+        {
+            if (node is not UAVariable variable)
+            {
+                return null;
+            }
+            string? name = IsBaseNamespaceBrowseName(variable.BrowseName, InputArgumentsBrowseName)
+                ? InputArgumentsBrowseName
+                : IsBaseNamespaceBrowseName(variable.BrowseName, OutputArgumentsBrowseName)
+                    ? OutputArgumentsBrowseName : null;
+            if (name is null)
+            {
+                return null;
+            }
+            if (!TryDecodeArguments(variable.Value, out List<WotMethodArgument> arguments))
+            {
+                return new WotArgumentProperty(name, default);
+            }
+            for (int index = 0; index < arguments.Count; index++)
+            {
+                arguments[index] = arguments[index] with
+                {
+                    DataType = ToPortableDataTypeId(arguments[index].DataType, nodeSet)
+                };
+            }
+            return new WotArgumentProperty(name, arguments.ToArrayOf());
+        }
+
+        /// <summary>
+        /// Resolves externally held argument properties without adding their nodes to source partitions.
+        /// </summary>
+        private static async ValueTask<Dictionary<string, WotArgumentProperty>> ResolveExportArgumentPropertiesAsync(
+            UANodeSet nodeSet,
+            IWotNodeResolver? nodeResolver,
+            List<WotDiagnostic> diagnostics,
+            CancellationToken cancellationToken,
+            bool requireComplete = true)
+        {
+            var properties = new Dictionary<string, WotArgumentProperty>(StringComparer.Ordinal);
+            Dictionary<string, UANode> index = BuildIndex(nodeSet);
+            var references = WotReferenceTypeNames.Build(nodeSet);
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                if (node is not UAMethod method)
+                {
+                    continue;
+                }
+                ArrayOf<Reference> methodReferences = references.GetReferences(method);
+                for (int referenceIndex = 0; referenceIndex < methodReferences.Count; referenceIndex++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Reference reference = methodReferences[referenceIndex];
+                    if (!reference.IsForward || reference.ReferenceType != WotVocabulary.HasProperty ||
+                        reference.Value is not { } target || index.ContainsKey(target) || !visited.Add(target))
+                    {
+                        continue;
+                    }
+                    string? identity = ToPortableNodeId(target, nodeSet.NamespaceUris);
+                    WotArgumentProperty? property =
+                        identity is not null && nodeResolver is IWotArgumentPropertyResolver argumentResolver
+                            ? await argumentResolver.ResolveArgumentPropertyAsync(identity, cancellationToken)
+                                .ConfigureAwait(false)
+                            : null;
+                    if (property is null || property.Arguments.IsNull)
+                    {
+                        if (requireComplete)
+                        {
+                            diagnostics.Add(new WotDiagnostic(
+                                WotDiagnosticSeverity.Error, WotDiagnosticCode.MethodArgumentSchemaInvalid,
+                                $"The external Method property '{identity ?? target}' " +
+                                "could not supply argument metadata. " +
+                                "Include its required NodeSet in the local conversion context.",
+                                new WotLocation(nodeId: method.NodeId, reference: identity ?? target)));
+                        }
+                        continue;
+                    }
+                    if (property.Name.Length == 0)
+                    {
+                        continue;
+                    }
+                    var arguments = property.Arguments.ToList();
+                    for (int position = 0; position < arguments.Count; position++)
+                    {
+                        WotMethodArgument argument = arguments[position];
+                        string? current = argument.DataType;
+                        var ancestors = new HashSet<string>(StringComparer.Ordinal);
+                        for (int depth = 0;
+                            current is not null && depth <= WotTypeDeclarations.MaxSupertypeDepth;
+                            depth++)
+                        {
+                            if (!ancestors.Add(current))
+                            {
+                                break;
+                            }
+                            if (MapReadableScalarType(current) is not null)
+                            {
+                                argument = argument with { ReadableDataType = current };
+                                break;
+                            }
+                            WotResolvedNode? resolved = await nodeResolver!.ResolveByNodeIdAsync(
+                                current, cancellationToken).ConfigureAwait(false);
+                            current = resolved is { NodeClass: WotExpectedNodeClass.DataType } type &&
+                                AreSameExpandedNodeId(type.NodeId, current) &&
+                                type.DirectSupertypeNodeIds.Count == 1
+                                    ? type.DirectSupertypeNodeIds[0] : null;
+                        }
+                        arguments[position] = argument;
+                    }
+                    properties.Add(target, property with { Arguments = arguments.ToArrayOf() });
+                }
+            }
+            return properties;
+        }
 
         /// <summary>
         /// The arguments a Method holds, in declaration order.
@@ -277,7 +432,8 @@ namespace Opc.Ua.Wot
             List<UAMethod> actions,
             Dictionary<string, UANode> index,
             HashSet<string> represented,
-            WotReferenceTypeNames? referenceTypeNames = null)
+            WotReferenceTypeNames? referenceTypeNames = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             var collected = new Dictionary<string, WotMethodArguments>(StringComparer.Ordinal);
             foreach (UAMethod method in actions)
@@ -287,9 +443,11 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 List<WotMethodArgument>? input = ReadArgumentVariable(
-                    method, index, InputArgumentsBrowseName, represented, referenceTypeNames);
+                    method, index, InputArgumentsBrowseName, represented, referenceTypeNames,
+                    resolvedArgumentProperties);
                 List<WotMethodArgument>? output = ReadArgumentVariable(
-                    method, index, OutputArgumentsBrowseName, represented, referenceTypeNames);
+                    method, index, OutputArgumentsBrowseName, represented, referenceTypeNames,
+                    resolvedArgumentProperties);
                 if (input is null && output is null)
                 {
                     continue;
@@ -308,7 +466,8 @@ namespace Opc.Ua.Wot
             Dictionary<string, UANode> index,
             string browseName,
             HashSet<string> represented,
-            WotReferenceTypeNames? referenceTypeNames)
+            WotReferenceTypeNames? referenceTypeNames,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties)
         {
             ArrayOf<Reference> references = referenceTypeNames?.GetReferences(method) ??
                 new ArrayOf<Reference>(method.References ?? []);
@@ -316,9 +475,21 @@ namespace Opc.Ua.Wot
             {
                 if (!reference.IsForward ||
                     reference.Value is null ||
-                    !IsComponentReference(reference.ReferenceType) ||
-                    !index.TryGetValue(reference.Value, out UANode? target) ||
-                    target is not UAVariable variable ||
+                    !IsComponentReference(reference.ReferenceType))
+                {
+                    continue;
+                }
+                if (!index.TryGetValue(reference.Value, out UANode? target))
+                {
+                    if (resolvedArgumentProperties is not null &&
+                        resolvedArgumentProperties.TryGetValue(reference.Value, out WotArgumentProperty? resolved) &&
+                        resolved.Name == browseName)
+                    {
+                        return resolved.Arguments.ToList();
+                    }
+                    continue;
+                }
+                if (target is not UAVariable variable ||
                     variable.NodeId is null ||
                     !IsBaseNamespaceBrowseName(variable.BrowseName, browseName))
                 {
@@ -391,7 +562,7 @@ namespace Opc.Ua.Wot
                 }
                 arguments.Add(decoded);
             }
-            return arguments.Count > 0;
+            return true;
         }
 
         /// <summary>
@@ -570,7 +741,8 @@ namespace Opc.Ua.Wot
             ReadableScalarContext scalarContext)
         {
             writer.WriteStartObject();
-            WriteRankedJsonType(writer, argument.DataType, argument.ValueRank, scalarContext);
+            WriteRankedJsonType(
+                writer, argument.ReadableDataType ?? argument.DataType, argument.ValueRank, scalarContext);
             WriteLocalizedTextContext(writer, null, argument.Description, defaultLocale);
             WriteLocalizedDescription(writer, argument.Description, defaultLocale);
             WriteOptional(
@@ -619,7 +791,22 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static string? MapReadableScalarType(string? dataType)
         {
-            return MapDataTypeToJson(dataType) ?? GetValidationBuiltInType(dataType ?? string.Empty) switch
+            switch (dataType)
+            {
+                case WotVocabulary.Number:
+                    return "number";
+                case WotVocabulary.Integer:
+                case "i=28":
+                    return "integer";
+                case WotVocabulary.Structure:
+                case WotVocabulary.Union:
+                    return "object";
+            }
+            if (MapDataTypeToJson(dataType) is { } mappedType)
+            {
+                return mappedType;
+            }
+            return GetValidationBuiltInType(dataType ?? string.Empty) switch
             {
                 BuiltInType.String or BuiltInType.DateTime or BuiltInType.Guid or BuiltInType.ByteString or
                 BuiltInType.XmlElement or BuiltInType.NodeId or BuiltInType.ExpandedNodeId or
@@ -632,7 +819,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Follows an unambiguous local scalar subtype chain without changing the definitive DataType identity.
+        /// Resolves readable value shapes through local datatype ancestry without changing the definitive identity.
         /// </summary>
         internal sealed class ReadableScalarContext
         {
@@ -676,7 +863,7 @@ namespace Opc.Ua.Wot
             }
 
             /// <summary>
-            /// Resolves a scalar terminal while retaining unresolved or ambiguous datatype identities.
+            /// Resolves a readable terminal while retaining unresolved, contradictory or ambiguous datatype identities.
             /// </summary>
             internal string? Resolve(string? dataType)
             {
@@ -695,9 +882,21 @@ namespace Opc.Ua.Wot
                     return cached ?? dataType;
                 }
                 string? terminal = null;
+                string? definitionType = null;
                 var visited = new HashSet<string>(StringComparer.Ordinal);
                 while (visited.Add(current))
                 {
+                    m_index.TryGetValue(current, out UANode? node);
+                    if (node is UADataType { Definition: { } definition })
+                    {
+                        string jsonType = HasEnumFields(definition) ? "integer" : "object";
+                        if (definitionType is not null && definitionType != jsonType)
+                        {
+                            m_terminals[dataType] = null;
+                            return dataType;
+                        }
+                        definitionType = jsonType;
+                    }
                     if (m_terminals.TryGetValue(current, out terminal))
                     {
                         break;
@@ -707,9 +906,7 @@ namespace Opc.Ua.Wot
                         terminal = current;
                         break;
                     }
-                    if (!m_index.TryGetValue(current, out UANode? node) ||
-                        node is not UADataType type ||
-                        (type.Definition is { } definition && !HasEnumFields(definition)))
+                    if (node is not UADataType)
                     {
                         break;
                     }
@@ -718,6 +915,11 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     current = parent;
+                }
+                if (definitionType is not null && MapReadableScalarType(terminal) != definitionType)
+                {
+                    m_terminals[dataType] = null;
+                    return dataType;
                 }
                 foreach (string identity in visited)
                 {
@@ -993,7 +1195,8 @@ namespace Opc.Ua.Wot
             var declared = new HashSet<string>(StringComparer.Ordinal);
             foreach (JsonProperty property in properties.EnumerateObject())
             {
-                if (property.Name.Length == 0 || property.Value.ValueKind != JsonValueKind.Object ||
+                if (property.Name.Length == 0 ||
+                    property.Value.ValueKind != JsonValueKind.Object ||
                     !declared.Add(property.Name))
                 {
                     return false;
@@ -1010,7 +1213,9 @@ namespace Opc.Ua.Wot
                 foreach (JsonElement entry in required.EnumerateArray())
                 {
                     if (entry.ValueKind != JsonValueKind.String ||
-                        entry.GetString() is not { } name || !declared.Contains(name) || !seen.Add(name))
+                        entry.GetString() is not { } name ||
+                        !declared.Contains(name) ||
+                        !seen.Add(name))
                     {
                         return false;
                     }

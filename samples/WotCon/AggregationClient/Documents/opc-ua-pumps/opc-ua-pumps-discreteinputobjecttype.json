@@ -54,9 +54,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8837"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8840",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -113,9 +110,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8837"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8838",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -144,15 +138,15 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8837"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8839",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
     }
   },
   "title": "DiscreteInputObjectType",
+  "tm:optional": [
+    "/properties/Definition"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DiscreteInputObjectType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",

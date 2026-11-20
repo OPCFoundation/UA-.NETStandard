@@ -124,6 +124,9 @@
     }
   },
   "title": "MachineIdentificationType",
+  "tm:optional": [
+    "/properties/Location"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:MachineIdentificationType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1012",
