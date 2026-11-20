@@ -99,10 +99,8 @@ namespace Opc.Ua.SourceGeneration
 
         private static bool WriteTemplate_Entry(IWriteContext context, string namespacePrefix)
         {
-            if (context.Target is not ObjectDesign aggregate)
-            {
-                return false;
-            }
+            // Emit only ever renders the list of ObjectDesign collected below.
+            var aggregate = (ObjectDesign)context.Target!;
 
             context.Template.AddReplacement(Tokens.NamespacePrefix, namespacePrefix);
             context.Template.AddReplacement(Tokens.SymbolicId, aggregate.SymbolicId.Name);

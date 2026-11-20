@@ -121,6 +121,43 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void Emit_ExcludedOrUnnamedAggregateFunctions_AreNotListed()
+        {
+            using var fileSystem = new VirtualFileSystem();
+            ObjectDesign listed = CreateAggregateFunction(
+                "AggregateFunction_Count", "Count", "AggregateFunctionType");
+            ObjectDesign excluded = CreateAggregateFunction(
+                "AggregateFunction_Excluded", "Excluded", "AggregateFunctionType");
+            ObjectDesign noSymbolicId = CreateAggregateFunction(
+                "AggregateFunction_NoSymbolicId", "NoSymbolicId", "AggregateFunctionType");
+            noSymbolicId.SymbolicId = null!;
+            ObjectDesign noSymbolicName = CreateAggregateFunction(
+                "AggregateFunction_NoSymbolicName", "NoSymbolicName", "AggregateFunctionType");
+            noSymbolicName.SymbolicName = null!;
+            GeneratorContext context = CreateContext(
+                kUaNamespaceUri,
+                "Opc.Ua",
+                fileSystem,
+                listed,
+                excluded,
+                noSymbolicId,
+                noSymbolicName);
+            Mock.Get(context.ModelDesign)
+                .Setup(m => m.IsExcluded(It.Is<NodeDesign>(n => ReferenceEquals(n, excluded))))
+                .Returns(true);
+
+            var resources = new AggregateFunctionIdsGenerator(context).Emit().ToList();
+
+            Assert.That(resources, Has.Count.EqualTo(1));
+            string output = Encoding.UTF8.GetString(fileSystem.Get(
+                System.IO.Path.Combine("out", "Opc.Ua.AggregateFunctionIds.g.cs")));
+            Assert.That(output, Does.Contain("ObjectIds.AggregateFunction_Count"));
+            Assert.That(output, Does.Not.Contain("Excluded"));
+            Assert.That(output, Does.Not.Contain("NoSymbolicId"));
+            Assert.That(output, Does.Not.Contain("NoSymbolicName"));
+        }
+
+        [Test]
         public void Emit_InstanceOfAggregateFunctionSubtype_IsListed()
         {
             using var fileSystem = new VirtualFileSystem();
