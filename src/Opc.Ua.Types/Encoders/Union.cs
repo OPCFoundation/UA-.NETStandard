@@ -252,7 +252,7 @@ namespace Opc.Ua.Encoders
         {
             get
             {
-                if (index + 1 == (int)SwitchField)
+                if (index >= 0 && index + 1 == (int)SwitchField)
                 {
                     return GetField(index).Value;
                 }

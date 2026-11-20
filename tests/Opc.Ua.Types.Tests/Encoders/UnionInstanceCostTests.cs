@@ -148,6 +148,72 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void IndexBeyondTheFieldsIsRejectedOnAValueWithoutFields()
+        {
+            CreateContext(out DynamicUnion type);
+            var value = (DynamicUnion)type.CreateInstance();
+
+            Assert.That(
+                () => value[kFields] = Variant.From(0),
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(value[kFields].IsNull, Is.True);
+            Assert.That(value.SwitchField, Is.Zero);
+        }
+
+        [Test]
+        public void UnknownIndexOrNameReadsTheSelectedField()
+        {
+            ServiceMessageContext context = CreateContext(out DynamicUnion type);
+            DynamicUnion value = Decode(type, context, Encode(context, 3, 7));
+            DynamicUnion unselected = Decode(type, context, Encode(context, 0, 0));
+
+            Assert.That(value[-1].GetInt32(), Is.EqualTo(7));
+            Assert.That(value["NoSuchField"].GetInt32(), Is.EqualTo(7));
+            Assert.That(unselected[-1].IsNull, Is.True);
+            Assert.That(unselected["NoSuchField"].IsNull, Is.True);
+            Assert.That(unselected.Value.IsNull, Is.True);
+        }
+
+        [Test]
+        public void UnionsOfDifferentSelectionOrTypeAreNotEqual()
+        {
+            ServiceMessageContext context = CreateContext(out DynamicUnion type);
+            DynamicUnion value = Decode(type, context, Encode(context, 3, 7));
+            DynamicUnion unselected = Decode(type, context, Encode(context, 0, 0));
+
+            Assert.That(value.IsEqual(unselected), Is.False);
+            Assert.That(value.IsEqual(null), Is.False);
+            Assert.That(unselected.IsEqual(Decode(type, context, Encode(context, 0, 0))), Is.True);
+            Assert.That(unselected.ToString(), Does.Contain("Wide"));
+            Assert.That(() => value.ToString("x", null), Throws.InstanceOf<FormatException>());
+        }
+
+        [Test]
+        public void EncodingAUnionWithASwitchFieldBeyondItsFieldsIsRejected()
+        {
+            ServiceMessageContext context = CreateContext(out _);
+            var id = new ExpandedNodeId("One", kNs);
+            var fields = new List<StructureField>
+            {
+                new() { Name = "A", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+            };
+            var value = new DynamicUnion(
+                new XmlQualifiedName("One", kNs),
+                id,
+                id,
+                id,
+                new StructureDefinition { StructureType = StructureType.Union, Fields = fields.ToArrayOf() },
+                new Dictionary<string, BuiltInType> { ["A"] = BuiltInType.Int32 },
+                switchField: 2);
+
+            using var encoder = new BinaryEncoder(context);
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(
+                () => value.Encode(encoder));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
         public void DefinitionWithTwoFieldsOfOneNameIsRejectedWhenTheTypeIsCreated()
         {
             var fields = new List<StructureField>
