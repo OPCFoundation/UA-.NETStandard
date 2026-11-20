@@ -144,8 +144,14 @@ category, as before.
 
 ### Overridden hooks
 
-Every overridable hook of `CustomNodeManager2` has an awaitable counterpart.
-Return a completed `ValueTask` where the body stays synchronous.
+The service and lifecycle hooks of `CustomNodeManager2` have awaitable
+counterparts, listed below. Return a completed `ValueTask` where the body stays
+synchronous. A few protected helpers stay synchronous on
+`AsyncCustomNodeManager` and keep their `CustomNodeManager2` signature: override
+`RestoreMonitoredItem(...)` (returns `bool`) and the protected
+`IsNodeInView(...)` overloads as before. Adding `Async` to them does not
+compile. The public `IsNodeInViewAsync` is the service-level entry point and
+calls the synchronous overloads.
 
 | `CustomNodeManager2` | `AsyncCustomNodeManager` |
 | --- | --- |
@@ -235,10 +241,21 @@ implement `IAsyncNodeManager` directly if you need full control.
 | `master.RegisterNamespaceManager(uri, syncManager)` | `master.RegisterNamespaceManager(uri, asyncManager)` |
 | `master.NodeManagers` | `master.AsyncNodeManagers` |
 
-Synchronous factories reserve their namespaces before asynchronous ones. When
-you move a factory from `INodeManagerFactory` to `IAsyncNodeManagerFactory`
-and other asynchronous factories are registered too, register it first to keep
-its namespace indexes where they were.
+The server reserves the namespaces of **all** synchronous factories before
+those of any asynchronous factory, whatever the registration order. Moving a
+factory from `INodeManagerFactory` to `IAsyncNodeManagerFactory` can therefore
+change its namespace indexes:
+
+- If every synchronous factory is migrated, registering the migrated factories
+  in their old relative order keeps their indexes.
+- If synchronous factories remain, a migrated factory moves behind all of
+  them. For example, with synchronous A and B registered in that order, A gets
+  the first free index *n* and B gets *n*+1; after migrating only A, B gets
+  *n* and A gets *n*+1, even if A is still registered first.
+
+Clients should resolve namespace indexes from the namespace URI (the
+`NamespaceArray`) rather than persist numeric indexes. If yours do persist
+them, migrate the affected factories together.
 
 ## Changed factories
 
