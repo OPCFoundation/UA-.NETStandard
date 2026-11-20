@@ -329,6 +329,8 @@ namespace Opc.Ua.Client.Tests
         /// With the primary reached over its own source or reverse connect
         /// manager and the members over another source, a failover and the
         /// recovery on the member take the member's connections.
+        /// The outbound initial connection also covers a member arriving
+        /// after the initial redundancy snapshot was captured.
         /// </summary>
         [TestCase(false, false, false)]
         [TestCase(true, false, false)]
@@ -345,27 +347,45 @@ namespace Opc.Ua.Client.Tests
             set.Primary.SetServiceLevel(250);
             set.Backup.SetServiceLevel(210);
             RecordingMemberConnections memberSource = set.MemberSource!;
+            bool lateMember = initialDialed && !unmarkedTarget;
+            memberSource.HideAvailability = lateMember;
             var primarySource = new SingleServerSource(set.Source, set.Primary.ApplicationUri);
             var policy = new ReconnectPolicyOptions { MaxTotalReconnectTime = TimeSpan.FromSeconds(10) };
             await using UaManagedSession session = await set.ConnectAsync(
                 new ServerRedundancyOptions { ProbeMemberServiceLevel = true },
                 policy, timeout.Token, memberSource, primarySource, initialManager, initialDialed)
                 .ConfigureAwait(false);
-            ServerRedundancyInfo info = await WaitForMemberAsync(
-                session, set.Backup, server => server.Endpoint != null, timeout.Token)
-                .ConfigureAwait(false);
-            int requests = memberSource.RequestCount(set.Backup.ApplicationUri);
+            if (lateMember)
+            {
+                ServerRedundancyInfo? initial = session.RedundancyInfo;
+                Assert.That(initial, Is.Not.Null);
+                RedundantServer unavailable = Member(initial!, set.Backup);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(unavailable.Endpoint, Is.Null);
+                    Assert.That(unavailable.ServiceLevelKnown, Is.False);
+                    Assert.That(unavailable.ResolutionError?.StatusCode.Code,
+                        Is.EqualTo(StatusCodes.BadNotConnected));
+                    Assert.That(memberSource.RequestCount(set.Backup.ApplicationUri), Is.Zero);
+                });
+            }
+            memberSource.HideAvailability = false;
 
             ConfiguredEndpoint? target = null;
             if (unmarkedTarget)
             {
-                ConfiguredEndpoint resolved = info.RedundantServers.ToList()
-                    .Single(server => server.ServerUri == set.Backup.ApplicationUri).Endpoint!;
+                // A snapshot does not refresh on arrival; arrange the unmarked target independently.
+                ConfiguredEndpoint resolved = await set.Client.GetEndpointAsync(
+                    new Uri(set.Backup.Url), SecurityPolicies.None).ConfigureAwait(false);
                 target = new ConfiguredEndpoint(null, resolved.Description, resolved.Configuration)
                 {
                     UpdateBeforeConnect = false
                 };
             }
+            await WaitUntilAsync(
+                () => memberSource.GetAvailableEndpointUrls(set.Backup.ApplicationUri).Count != 0,
+                timeout.Token).ConfigureAwait(false);
+            int requests = memberSource.RequestCount(set.Backup.ApplicationUri);
             await session.FailoverAsync(target, timeout.Token).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
@@ -391,8 +411,6 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(primarySource.RefusedWaits, Is.Zero);
             });
 
-            await WaitForMemberAsync(session, set.Primary, server => server.Endpoint != null, timeout.Token)
-                .ConfigureAwait(false);
             await session.FailoverAsync(ct: timeout.Token).ConfigureAwait(false);
             level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
                 .ConfigureAwait(false);
@@ -405,11 +423,15 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// Waits for the requested member state and reports the last snapshot if the wait is canceled.
+        /// </summary>
         private static async Task<ServerRedundancyInfo> WaitForMemberAsync(
             UaManagedSession session,
             RedundantMember member,
             Func<RedundantServer, bool> condition,
-            CancellationToken ct)
+            CancellationToken ct,
+            RecordingMemberConnections? memberSource = null)
         {
             while (true)
             {
@@ -419,7 +441,26 @@ namespace Opc.Ua.Client.Tests
                 {
                     return info;
                 }
-                await Task.Delay(50, ct).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(50, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    ServerRedundancyInfo? latest = session.RedundancyInfo;
+                    string members = latest is null
+                        ? "No redundancy snapshot is available."
+                        : string.Join(Environment.NewLine, latest.RedundantServers.ToList().Select(server =>
+                            $"Member={server.ServerUri}; Endpoint={server.Endpoint?.EndpointUrl}; " +
+                            $"ServiceLevelKnown={server.ServiceLevelKnown}; Error={server.ResolutionError}"));
+                    await TestContext.Error.WriteLineAsync(
+                        $"Canceled waiting for member {member.ApplicationUri}; " +
+                        $"State={session.StateMachine.State}; Mode={latest?.Mode}; " +
+                        $"MemberSourceWaits={memberSource?.RequestCount(member.ApplicationUri)}." +
+                        Environment.NewLine +
+                        members).ConfigureAwait(false);
+                    throw;
+                }
             }
         }
 
@@ -648,6 +689,11 @@ namespace Opc.Ua.Client.Tests
                 m_inner = inner;
             }
 
+            /// <summary>
+            /// Controls whether the fixture reports its held connections during the initial refresh.
+            /// </summary>
+            public bool HideAvailability { get; set; }
+
             public int RequestCount(string serverUri)
             {
                 return m_requests.TryGetValue(serverUri, out int count) ? count : 0;
@@ -662,7 +708,7 @@ namespace Opc.Ua.Client.Tests
 
             public IReadOnlyList<Uri> GetAvailableEndpointUrls(string serverUri)
             {
-                return m_inner.GetAvailableEndpointUrls(serverUri);
+                return HideAvailability ? [] : m_inner.GetAvailableEndpointUrls(serverUri);
             }
 
             public async ValueTask<ITransportWaitingConnection> WaitForConnectionAsync(

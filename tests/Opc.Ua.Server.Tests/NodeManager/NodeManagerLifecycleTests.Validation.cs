@@ -30,10 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -59,33 +61,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void LifecycleReportsTransactionCapabilitiesOnThePrimaryContract()
-        {
-            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(lifecycle.SupportsPreparedPublication, Is.True);
-                Assert.That(lifecycle.SupportsPublicationIsolation, Is.True);
-            }
-        }
-
-        [Test]
         public async Task PrivateValidationRejectsUnsupportedReferencesBeforePublication()
         {
             (Mock<IAsyncNodeManager> manager, BaseObjectState node, IAsyncNodeManagerFactory factory) =
                 CreateUnsupportedReferenceFactory();
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using INodeManagerPublication publication =
-                await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
-            Assert.That(publication, Is.InstanceOf<INodeManagerValidationPublication>());
-            INodeManagerPublication validation = publication;
+            await using ILifecycleWriter publication =
+                await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
+            Assert.That(publication, Is.InstanceOf<ILifecycleWriter>());
+            ILifecycleWriter validation = publication;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             NodeState objects = await GetObjectsReferenceOwnerAsync(CancellationToken.None).ConfigureAwait(false);
             int inspections = 0;
 
             await Assert.ThatAsync(async () => await validation.ValidateAsync(
-                [NodeManagerBatchChange.Add(factory)], (_, _) =>
+                [LifecycleChange.Add(factory)], (_, _) =>
                 {
                     inspections++;
                     return default;
@@ -107,16 +97,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
                 kFirstRegistrationValue, created => manager = created);
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using INodeManagerPublication publication =
-                await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
-            INodeManagerPublication validation = publication;
+            await using ILifecycleWriter publication =
+                await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
+            ILifecycleWriter validation = publication;
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
             NodeManagerRoutingTable.RoutingSnapshot routingBeforeValidation = host.RoutingRevision;
             long lifecycleRevision = lifecycle.Revision;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             int decisions = 0;
 
-            await validation.ValidateAsync([NodeManagerBatchChange.Add(factory)], async (batch, token) =>
+            await validation.ValidateAsync([LifecycleChange.Add(factory)], async (batch, token) =>
             {
                 Assert.That(batch.Registrations.Count, Is.EqualTo(1));
                 Assert.That(batch.IsCommitted, Is.False);
@@ -137,16 +127,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(host.RoutingRevision, Is.SameAs(routingBeforeValidation));
             Assert.That(Array.IndexOf(host.RoutingRevision.NodeManagers, validatedManager), Is.EqualTo(-1));
             Assert.That(m_server.CurrentInstance.NamespaceUris.ToArrayOf(), Is.EqualTo(namespaces));
-            await using IPreparedNodeManagerBatch next = await publication.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await next.CommitAsync(_ =>
+            await using IPreparedChanges next = await publication.PrepareAsync(
+                [LifecycleChange.Add(factory)]).ConfigureAwait(false);
+            LifecycleResult committed = await next.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
             }).ConfigureAwait(false);
             Assert.That(decisions, Is.EqualTo(1));
             Assert.That(next.IsCommitted, Is.True);
-            Assert.That(GetBranchRegistrations(lifecycle), Is.EqualTo(committed.Registrations));
+            Assert.That(
+                GetBranchRegistrations(
+                lifecycle), Is.EqualTo(committed.Registrations.ToList().Select(RequireRegistration).ToArrayOf()));
         }
 
         [TestCase(false)]
@@ -158,14 +150,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 kFirstRegistrationValue, created => manager = created);
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
-            await using (INodeManagerPublication publication =
-                await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false))
+            await using (ILifecycleWriter publication =
+                await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false))
             {
-                INodeManagerPublication validation = publication;
+                ILifecycleWriter validation = publication;
                 using var cancellation = new CancellationTokenSource();
                 var failure = new InvalidOperationException("The private metadata inspection failed.");
                 await Assert.ThatAsync(async () => await validation.ValidateAsync(
-                    [NodeManagerBatchChange.Add(factory)], (_, _) =>
+                    [LifecycleChange.Add(factory)], (_, _) =>
                     {
                         if (cancel)
                         {
@@ -183,10 +175,109 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(validatedManager.DisposeCount, Is.EqualTo(1));
                 Assert.That(m_server.CurrentInstance.NamespaceUris.ToArrayOf(), Is.EqualTo(namespaces));
             }
-            NodeManagerRegistration added = await lifecycle.AddAsync(factory, callerContext: null)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(factory), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration added = RequireRegistration(publicationResult1.Registrations[0]);
             Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(1));
             Assert.That(GetBranchRegistration(lifecycle, added.Id), Is.SameAs(added));
+        }
+
+        /// <summary>
+        /// Validation reports both the inspection and candidate cleanup failures without publishing.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PrivateValidationPreservesInspectionAndCleanupFailuresAsync(bool slotTargeted)
+        {
+            var inspectionFailure = new InvalidOperationException("The private inspection failed.");
+            var cleanupFailure = new InvalidOperationException("The private candidate cleanup failed.");
+            var externallyClosed = new RetiredConsumerProbe(cleanupFailure);
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri);
+            Mock<IAsyncDisposable> disposable = manager.As<IAsyncDisposable>();
+            disposable.Setup(value => value.DisposeAsync())
+                .Returns(new ValueTask(Task.FromException(cleanupFailure)));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            long revision = lifecycle.Revision;
+            int inspections = 0;
+            Exception? observed = null;
+            IAsyncDisposable? invocation = null;
+
+            try
+            {
+                if (slotTargeted)
+                {
+                    ILifecycleWriter writer = await lifecycle.BeginAsync().ConfigureAwait(false);
+                    invocation = writer;
+                    observed = await Assert.CatchAsync<Exception>(async () => await writer.ValidateAsync(
+                        [LifecycleChange.Add(factory.Object)], (_, _) =>
+                        {
+                            inspections++;
+                            throw inspectionFailure;
+                        })
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(writer.IsCurrent, Is.True);
+                }
+                else
+                {
+                    ILifecycleWriter publication =
+                        await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
+                    invocation = publication;
+                    observed = await Assert.CatchAsync<Exception>(async () => await publication.ValidateAsync(
+                        [LifecycleChange.Add(factory.Object)], (_, _) =>
+                        {
+                            inspections++;
+                            throw inspectionFailure;
+                        })
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(publication.IsCurrent, Is.True);
+                }
+
+                Assert.That(inspections, Is.EqualTo(1));
+                manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                disposable.Verify(value => value.DisposeAsync(), Times.Once);
+                Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
+                Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+                Assert.That(observed, Is.TypeOf<AggregateException>());
+                AggregateException failures = RequireLifecycleValue(observed as AggregateException);
+                Assert.That(failures.InnerExceptions[0], Is.SameAs(inspectionFailure));
+                Assert.That(failures.InnerExceptions, Has.Count.EqualTo(2));
+                AggregateException cleanup = RequireLifecycleValue(failures.InnerExceptions[1] as AggregateException);
+                Assert.That(cleanup.Flatten().InnerExceptions, Has.Count.EqualTo(1));
+                Assert.That(cleanup.Flatten().InnerExceptions[0], Is.SameAs(cleanupFailure));
+            }
+            finally
+            {
+                if (invocation is not null)
+                {
+                    AggregateException? disposalFailure = await Assert.CatchAsync<AggregateException>(
+                        async () => await invocation.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(disposalFailure!.Flatten().InnerExceptions, Does.Contain(cleanupFailure),
+                        "Invocation disposal must report its retained cleanup failure without repeating cleanup.");
+                    disposable.Verify(value => value.DisposeAsync(), Times.Once);
+                }
+                NodeManagerGeneration? generation = lifecycle.SnapshotCleanupGenerations().FirstOrDefault(candidate =>
+                    ReferenceEquals(candidate.NodeManager, manager.Object));
+                if (generation is not null)
+                {
+                    ArrayOf<RetainedNodeManagerCleanupFailure> failures =
+                        await m_fixtureCleanupRecovery.DiscoverAsync().ConfigureAwait(false);
+                    if (failures.ToList().Any(entry =>
+                        entry.Handle.GenerationId == generation.CleanupRecoveryId &&
+                        entry.Failure.ResourceKind == "NodeManager"))
+                    {
+                        externallyClosed.FinishExternalCleanup();
+                        await ConfirmFixtureManagerCleanupAsync(generation, resource =>
+                            resource.TryGetAsyncDisposable(out IAsyncDisposable? retained) &&
+                            ReferenceEquals(retained, manager.Object) &&
+                            externallyClosed.IsExternallyClosed)
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
         }
 
         [Test]
@@ -194,12 +285,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using INodeManagerPublication publication =
-                await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
-            INodeManagerPublication validation = publication;
+            await using ILifecycleWriter publication =
+                await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
+            ILifecycleWriter validation = publication;
 
             await Assert.ThatAsync(async () => await validation.ValidateAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], null!).ConfigureAwait(false),
+                [LifecycleChange.Add(factory.Object)], null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>()).ConfigureAwait(false);
 
             factory.Verify(value => value.CreateAsync(

@@ -886,9 +886,8 @@ namespace Opc.Ua.AMB.Tests
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var fixture = new ClientFixture(telemetry);
                 await fixture.LoadClientConfigurationAsync(Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    nameof(AmbClientServerE2eTests),
-                    Guid.NewGuid().ToString("N"),
+                    Path.GetTempPath(),
+                    "amb-client-" + Guid.NewGuid().ToString("N"),
                     "client-pki")).ConfigureAwait(false);
                 EndpointDescription? endpoint = await CoreClientUtils.SelectEndpointAsync(
                     fixture.Config,

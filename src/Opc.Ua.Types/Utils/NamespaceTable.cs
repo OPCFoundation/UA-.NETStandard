@@ -454,6 +454,12 @@ namespace Opc.Ua
         /// <summary>
         /// Reserves an unchanged namespace prefix and preallocates additions before the decision callback.
         /// </summary>
+        /// <exception cref="OptimisticPublicationConflictException">
+        /// The serving namespace prefix changed after preparation.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// Another publication already reserves the namespace prefix.
+        /// </exception>
         internal Publication BeginPublication(StringTable additions, long revision)
         {
             string[] proposed = additions.ToArray();
@@ -469,17 +475,21 @@ namespace Opc.Ua
                 {
                     m_strings.Capacity = proposed.Length;
                 }
-                m_storage.PublicationPending = true;
-                return new Publication(this, proposed);
+                var publication = new Publication(this, proposed);
+                m_storage.PublicationPending = publication;
+                return publication;
             }
         }
 
         /// <summary>
         /// Rejects changes while a lifecycle decision reserves the namespace prefix.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// A publication reserves the namespace prefix.
+        /// </exception>
         private void EnsureMutable()
         {
-            if (m_storage.PublicationPending)
+            if (m_storage.PublicationPending is not null)
             {
                 throw new InvalidOperationException("The string table has a pending publication.");
             }
@@ -497,7 +507,7 @@ namespace Opc.Ua
             internal long Version;
 
             /// <summary>Reserves the captured namespace prefix during a decision.</summary>
-            internal bool PublicationPending;
+            internal Publication? PublicationPending;
         }
 
         /// <summary>
@@ -505,6 +515,55 @@ namespace Opc.Ua
         /// </summary>
         internal sealed class Publication(StringTable owner, string[] proposed) : IDisposable
         {
+            /// <summary>
+            /// Appends an unrelated URI under this exact reservation, preserving every staged index.
+            /// Reserved URI entries become permanent if needed to reach the unrelated entry's index.
+            /// </summary>
+            /// <exception cref="ArgumentNullException">
+            /// <paramref name="value"/> is null or empty.
+            /// </exception>
+            /// <exception cref="InvalidOperationException">
+            /// This publication no longer owns the reservation.
+            /// </exception>
+            /// <exception cref="ServiceResultException">
+            /// Appending the URI would exceed the namespace index limit.
+            /// </exception>
+            internal ushort GetIndexOrAppend(string value)
+            {
+                if (string.IsNullOrEmpty(value))
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                lock (owner.m_syncRoot)
+                {
+                    if (m_disposed || !ReferenceEquals(owner.m_storage.PublicationPending, this))
+                    {
+                        throw new InvalidOperationException("The string table publication is no longer reserved.");
+                    }
+                    int existing = owner.m_strings.IndexOf(value);
+                    if (existing >= 0)
+                    {
+                        return (ushort)existing;
+                    }
+                    int nextIndex = Math.Max(owner.m_strings.Count, proposed.Length);
+                    if (nextIndex >= ushort.MaxValue)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "The string table cannot hold more than {0} entries.",
+                            ushort.MaxValue);
+                    }
+                    if (owner.m_strings.Capacity <= nextIndex)
+                    {
+                        owner.m_strings.Capacity = nextIndex + 1;
+                    }
+                    Complete();
+                    owner.m_strings.Add(value);
+                    owner.m_version++;
+                    return (ushort)nextIndex;
+                }
+            }
+
             /// <summary>
             /// Appends the reserved entries without renumbering any published namespace.
             /// </summary>
@@ -529,7 +588,7 @@ namespace Opc.Ua
                     {
                         return;
                     }
-                    owner.m_storage.PublicationPending = false;
+                    owner.m_storage.PublicationPending = null;
                     m_disposed = true;
                 }
             }

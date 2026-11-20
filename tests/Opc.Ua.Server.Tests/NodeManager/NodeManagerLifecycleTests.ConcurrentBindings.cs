@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -43,109 +44,124 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task PreparedBatchReconcilesBindingsAdmittedDuringDecisionAsync(bool rejectDecision)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            TrackingLifecycleNodeManager? originalManager = null;
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => originalManager = manager),
-                null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(originalManager);
-            TrackingLifecycleNodeManager? candidate = null;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Replace(original,
-                    CreateTrackingNodeManagementFactory(kGeneration2Value, manager => candidate = manager))],
-                null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(candidate);
-            int preparedSessions = candidate.SessionActivatedCount;
-            int preparedEvents = candidate.AllEventsSubscribeCount;
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var rejection = new IOException("The durable decision was rejected.");
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
-            {
-                entered.TrySetResult(true);
-                await release.Task.WaitAsync(token).ConfigureAwait(false);
-                if (rejectDecision)
-                {
-                    throw rejection;
-                }
-            }, timeout.Token).AsTask();
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            RequestHeader? admittedHeader = null;
-            SecureChannelContext? admittedChannel = null;
-            uint subscriptionId = 0;
+            Task exactWriter1Disposal = Task.CompletedTask;
             try
             {
-                int waitingSessions;
-                int waitingEvents;
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                TrackingLifecycleNodeManager? originalManager = null;
+                LifecycleResult publicationResult1 = await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    kGeneration1Value, manager => originalManager = manager)), timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration original = RequireRegistration(publicationResult1.Registrations[0]);
+                AssertLifecycleValue(originalManager);
+                TrackingLifecycleNodeManager? candidate = null;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                await using ILifecycleWriter exactWriter1 = await Capture(
+                    m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await exactWriter1.PrepareAsync(
+                    [LifecycleChange.Replace(
+                    original.Slot, CreateTrackingNodeManagementFactory(
+                    kGeneration2Value, manager => candidate = manager))], timeout.Token).ConfigureAwait(false);
+                AssertLifecycleValue(candidate);
+                int preparedSessions = candidate.SessionActivatedCount;
+                int preparedEvents = candidate.AllEventsSubscribeCount;
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var rejection = new IOException("The durable decision was rejected.");
+                Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                    if (rejectDecision)
+                    {
+                        throw rejection;
+                    }
+                }, timeout.Token).AsTask();
+                exactWriter1Disposal = exactWriter1.DisposeAsync().AsTask();
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                RequestHeader? admittedHeader = null;
+                SecureChannelContext? admittedChannel = null;
+                uint subscriptionId = 0;
                 try
                 {
-                    await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    (admittedHeader, admittedChannel) = await m_server.CreateAndActivateSessionAsync(
-                        "AdmittedDuringDecision", clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
-                    (subscriptionId, _) = await CreateSubscriptionAndEventMonitoredItemAsync(
-                        services, ObjectIds.Server).ConfigureAwait(false);
-                    waitingSessions = candidate.SessionActivatedCount;
-                    waitingEvents = candidate.AllEventsSubscribeCount;
+                    int waitingSessions;
+                    int waitingEvents;
+                    try
+                    {
+                        await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        (admittedHeader, admittedChannel) = await m_server.CreateAndActivateSessionAsync(
+                            "AdmittedDuringDecision",
+                            clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
+                        (subscriptionId, _) = await CreateSubscriptionAndEventMonitoredItemAsync(
+                            services, ObjectIds.Server).ConfigureAwait(false);
+                        waitingSessions = candidate.SessionActivatedCount;
+                        waitingEvents = candidate.AllEventsSubscribeCount;
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(commit.IsCompleted, Is.False);
+                            Assert.That(prepared.IsCommitted, Is.False);
+                            Assert.That(originalManager.SessionActivatedCount, Is.EqualTo(2));
+                            Assert.That(originalManager.AllEventsSubscribeCount, Is.EqualTo(1));
+                            Assert.That(originalManager.DeleteAddressSpaceCount, Is.Zero);
+                            Assert.That(originalManager.DisposeCount, Is.Zero);
+                        }
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                    }
+
+                    if (rejectDecision)
+                    {
+                        await Assert.ThatAsync(() => commit,
+                            Throws.TypeOf<IOException>().With.Message.EqualTo(rejection.Message)).ConfigureAwait(false);
+                        await prepared.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        Assert.That(result.CleanupFailure, Is.Null);
+                        await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
                     using (Assert.EnterMultipleScope())
                     {
-                        Assert.That(commit.IsCompleted, Is.False);
-                        Assert.That(prepared.IsCommitted, Is.False);
-                        Assert.That(originalManager.SessionActivatedCount, Is.EqualTo(2));
-                        Assert.That(originalManager.AllEventsSubscribeCount, Is.EqualTo(1));
-                        Assert.That(originalManager.DeleteAddressSpaceCount, Is.Zero);
-                        Assert.That(originalManager.DisposeCount, Is.Zero);
+                        Assert.That(preparedSessions, Is.Zero, "Preparation must not activate candidate sessions.");
+                        Assert.That(preparedEvents, Is.Zero, "Preparation must not subscribe candidate event sources.");
+                        Assert.That(waitingSessions, Is.Zero, "Candidate session effects must wait for commit.");
+                        Assert.That(waitingEvents, Is.Zero, "Candidate event effects must wait for commit.");
+                        Assert.That(candidate.SessionActivatedCount, Is.EqualTo(rejectDecision ? 0 : 2),
+                            "Both still-live sessions must reach the committed candidate exactly once.");
+                        Assert.That(candidate.AllEventsSubscribeCount, Is.EqualTo(rejectDecision ? 0 : 1),
+                            "The all-events item admitted during the decision must reach the committed " +
+                            "candidate once.");
+                        Assert.That(prepared.IsCommitted, Is.EqualTo(!rejectDecision));
+                        Assert.That(GetBranchRegistration(lifecycle, original.Id).NodeManager,
+                            Is.SameAs(rejectDecision ? originalManager : candidate));
+                        Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(rejectDecision ? 0 : 1));
+                        Assert.That(originalManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
+                        Assert.That(candidate.DisposeCount, Is.EqualTo(rejectDecision ? 1 : 0));
                     }
                 }
                 finally
                 {
                     release.TrySetResult(true);
-                }
-
-                if (rejectDecision)
-                {
-                    await Assert.ThatAsync(() => commit,
-                        Throws.TypeOf<IOException>().With.Message.EqualTo(rejection.Message)).ConfigureAwait(false);
-                    await prepared.DisposeAsync().ConfigureAwait(false);
-                }
-                else
-                {
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    Assert.That(result.CleanupFailure, Is.Null);
-                    await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
-                using (Assert.EnterMultipleScope())
-                {
-                    Assert.That(preparedSessions, Is.Zero, "Preparation must not activate candidate sessions.");
-                    Assert.That(preparedEvents, Is.Zero, "Preparation must not subscribe candidate event sources.");
-                    Assert.That(waitingSessions, Is.Zero, "Candidate session effects must wait for commit.");
-                    Assert.That(waitingEvents, Is.Zero, "Candidate event effects must wait for commit.");
-                    Assert.That(candidate.SessionActivatedCount, Is.EqualTo(rejectDecision ? 0 : 2),
-                        "Both still-live sessions must reach the committed candidate exactly once.");
-                    Assert.That(candidate.AllEventsSubscribeCount, Is.EqualTo(rejectDecision ? 0 : 1),
-                        "The all-events item admitted during the decision must reach the committed candidate once.");
-                    Assert.That(prepared.IsCommitted, Is.EqualTo(!rejectDecision));
-                    Assert.That(GetBranchRegistration(lifecycle, original.Id).NodeManager,
-                        Is.SameAs(rejectDecision ? originalManager : candidate));
-                    Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(rejectDecision ? 0 : 1));
-                    Assert.That(originalManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
-                    Assert.That(candidate.DisposeCount, Is.EqualTo(rejectDecision ? 1 : 0));
+                    if (subscriptionId != 0)
+                    {
+                        await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                    }
+                    if (admittedHeader is not null)
+                    {
+                        admittedHeader.Timestamp = DateTimeUtc.Now;
+                        await m_server.CloseSessionAsync(
+                            RequireLifecycleValue(admittedChannel), admittedHeader, true, RequestLifetime.None)
+                            .ConfigureAwait(false);
+                    }
                 }
             }
             finally
             {
-                release.TrySetResult(true);
-                if (subscriptionId != 0)
-                {
-                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
-                }
-                if (admittedHeader is not null)
-                {
-                    admittedHeader.Timestamp = DateTimeUtc.Now;
-                    await m_server.CloseSessionAsync(
-                        RequireLifecycleValue(admittedChannel), admittedHeader, true, RequestLifetime.None)
-                        .ConfigureAwait(false);
-                }
+                await exactWriter1Disposal.ConfigureAwait(false);
             }
         }
 
@@ -153,160 +169,177 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task PreparedBatchDoesNotResurrectRemovedBindingsAsync(bool rejectDecision)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            IServerInternal server = m_server.CurrentInstance;
-            TrackingLifecycleNodeManager? originalManager = null;
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => originalManager = manager),
-                null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(originalManager);
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            NodeId valueId = new(kValueNodeId, (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri));
-            (uint dataSubscription, uint dataItem) = await CreateSubscriptionAndMonitoredItemAsync(
-                services, valueId, 1).ConfigureAwait(false);
-            (uint eventSubscription, uint liveBefore) = await CreateSubscriptionAndEventMonitoredItemAsync(
-                services, ObjectIds.Server).ConfigureAwait(false);
-            uint removedBefore = await CreateEventMonitoredItemAsync(
-                services, eventSubscription, ObjectIds.Server, 2).ConfigureAwait(false);
-            (RequestHeader closingHeader, _) = await m_server.CreateAndActivateSessionAsync(
-                "ClosingBeforeDecision", clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
-            ISession closingSession = RequireLifecycleValue(
-                server.SessionManager.GetSession(closingHeader.AuthenticationToken));
-            using var beforeContext = new OperationContext(closingSession, DiagnosticsMasks.None);
-            TrackingLifecycleNodeManager? candidate = null;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Replace(original,
-                    CreateTrackingNodeManagementFactory(kGeneration2Value, manager => candidate = manager))],
-                null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(candidate);
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
-            {
-                entered.TrySetResult(true);
-                await release.Task.WaitAsync(token).ConfigureAwait(false);
-                if (rejectDecision)
-                {
-                    throw new IOException("Rejected live-binding reconciliation.");
-                }
-            }, timeout.Token).AsTask();
-            await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-            RequestHeader? liveHeader = null;
-            SecureChannelContext? liveChannel = null;
-            Task? closingBefore = null;
-            Task? closingDuring = null;
-            OperationContext? duringContext = null;
-            uint liveDuring = 0;
-            uint removedDuring = 0;
+            Task exactWriter2Disposal = Task.CompletedTask;
             try
             {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                IServerInternal server = m_server.CurrentInstance;
+                TrackingLifecycleNodeManager? originalManager = null;
+                LifecycleResult publicationResult2 = await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    kGeneration1Value, manager => originalManager = manager)), timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration original = RequireRegistration(publicationResult2.Registrations[0]);
+                AssertLifecycleValue(originalManager);
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                NodeId valueId = new(kValueNodeId, (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri));
+                (uint dataSubscription, uint dataItem) = await CreateSubscriptionAndMonitoredItemAsync(
+                    services, valueId, 1).ConfigureAwait(false);
+                (uint eventSubscription, uint liveBefore) = await CreateSubscriptionAndEventMonitoredItemAsync(
+                    services, ObjectIds.Server).ConfigureAwait(false);
+                uint removedBefore = await CreateEventMonitoredItemAsync(
+                    services, eventSubscription, ObjectIds.Server, 2).ConfigureAwait(false);
+                (RequestHeader closingHeader, _) = await m_server.CreateAndActivateSessionAsync(
+                    "ClosingBeforeDecision", clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
+                ISession closingSession = RequireLifecycleValue(
+                    server.SessionManager.GetSession(closingHeader.AuthenticationToken));
+                using var beforeContext = new OperationContext(closingSession, DiagnosticsMasks.None);
+                TrackingLifecycleNodeManager? candidate = null;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                await using ILifecycleWriter exactWriter2 = await Capture(
+                    m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await exactWriter2.PrepareAsync(
+                    [LifecycleChange.Replace(
+                    original.Slot, CreateTrackingNodeManagementFactory(
+                    kGeneration2Value, manager => candidate = manager))], timeout.Token).ConfigureAwait(false);
+                AssertLifecycleValue(candidate);
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                    if (rejectDecision)
+                    {
+                        throw new IOException("Rejected live-binding reconciliation.");
+                    }
+                }, timeout.Token).AsTask();
+                exactWriter2Disposal = exactWriter2.DisposeAsync().AsTask();
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                RequestHeader? liveHeader = null;
+                SecureChannelContext? liveChannel = null;
+                Task? closingBefore = null;
+                Task? closingDuring = null;
+                OperationContext? duringContext = null;
+                uint liveDuring = 0;
+                uint removedDuring = 0;
                 try
                 {
-                    (liveHeader, liveChannel) = await m_server.CreateAndActivateSessionAsync(
-                        "LiveDuringDecision", clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
-                    (RequestHeader transientHeader, _) = await m_server.CreateAndActivateSessionAsync(
-                        "ClosingDuringDecision", clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
-                    ISession transientSession = RequireLifecycleValue(
-                        server.SessionManager.GetSession(transientHeader.AuthenticationToken));
-                    duringContext = new OperationContext(transientSession, DiagnosticsMasks.None);
-                    closingBefore = server.CloseSessionAsync(
-                        beforeContext, closingSession.Id, false, timeout.Token).AsTask();
-                    closingDuring = server.CloseSessionAsync(
-                        duringContext, transientSession.Id, false, timeout.Token).AsTask();
-                    liveDuring = await CreateEventMonitoredItemAsync(
-                        services, eventSubscription, ObjectIds.Server, 3).ConfigureAwait(false);
-                    removedDuring = await CreateEventMonitoredItemAsync(
-                        services, eventSubscription, ObjectIds.Server, 4).ConfigureAwait(false);
-                    await DeleteMonitoredItemAsync(services, eventSubscription, removedBefore).ConfigureAwait(false);
-                    await DeleteMonitoredItemAsync(services, eventSubscription, removedDuring).ConfigureAwait(false);
+                    try
+                    {
+                        (liveHeader, liveChannel) = await m_server.CreateAndActivateSessionAsync(
+                            "LiveDuringDecision", clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
+                        (RequestHeader transientHeader, _) = await m_server.CreateAndActivateSessionAsync(
+                            "ClosingDuringDecision", clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
+                        ISession transientSession = RequireLifecycleValue(
+                            server.SessionManager.GetSession(transientHeader.AuthenticationToken));
+                        duringContext = new OperationContext(transientSession, DiagnosticsMasks.None);
+                        closingBefore = server.CloseSessionAsync(
+                            beforeContext, closingSession.Id, false, timeout.Token).AsTask();
+                        closingDuring = server.CloseSessionAsync(
+                            duringContext, transientSession.Id, false, timeout.Token).AsTask();
+                        liveDuring = await CreateEventMonitoredItemAsync(
+                            services, eventSubscription, ObjectIds.Server, 3).ConfigureAwait(false);
+                        removedDuring = await CreateEventMonitoredItemAsync(
+                            services, eventSubscription, ObjectIds.Server, 4).ConfigureAwait(false);
+                        await DeleteMonitoredItemAsync(
+                            services, eventSubscription, removedBefore).ConfigureAwait(false);
+                        await DeleteMonitoredItemAsync(
+                            services, eventSubscription, removedDuring).ConfigureAwait(false);
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(closingSession.IsClosing, Is.True);
+                            Assert.That(transientSession.IsClosing, Is.True);
+                            Assert.That(candidate.ActivatedSessionIds.ToList(), Is.Empty);
+                            Assert.That(candidate.ClosedSessionIds.ToList(), Is.Empty);
+                            Assert.That(candidate.SubscribedAllEventIds.ToList(), Is.Empty);
+                            Assert.That(candidate.UnsubscribedAllEventIds.ToList(), Is.Empty);
+                            Assert.That(originalManager.UnsubscribedAllEventIds.ToList(),
+                                Is.EquivalentTo(new[] { removedBefore, removedDuring }));
+                        }
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                    }
+                    if (rejectDecision)
+                    {
+                        await Assert.ThatAsync(() => commit, Throws.TypeOf<IOException>()).ConfigureAwait(false);
+                        await prepared.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(result.CleanupFailure, Is.Null);
+                            Assert.That(result.Retired.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                        }
+                    }
+                    await Task.WhenAll(RequireLifecycleValue(closingBefore), RequireLifecycleValue(closingDuring))
+                        .WaitAsync(timeout.Token).ConfigureAwait(false);
+                    NodeId initialId = RequireLifecycleValue(
+                        server.SessionManager.GetSession(m_requestHeader.AuthenticationToken)).Id;
+                    NodeId liveId = RequireLifecycleValue(
+                        server.SessionManager.GetSession(RequireLifecycleValue(liveHeader).AuthenticationToken)).Id;
+                    var owner = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager.GetSubscriptions()
+                        .Single(subscription => subscription.Id == dataSubscription);
                     using (Assert.EnterMultipleScope())
                     {
-                        Assert.That(closingSession.IsClosing, Is.True);
-                        Assert.That(transientSession.IsClosing, Is.True);
-                        Assert.That(candidate.ActivatedSessionIds.ToList(), Is.Empty);
-                        Assert.That(candidate.ClosedSessionIds.ToList(), Is.Empty);
-                        Assert.That(candidate.SubscribedAllEventIds.ToList(), Is.Empty);
+                        Assert.That(candidate.ActivatedSessionIds.ToList(),
+                            Is.EquivalentTo(rejectDecision ? Array.Empty<NodeId>() : new[] { initialId, liveId }));
+                        Assert.That(candidate.SubscribedAllEventIds.ToList(),
+                            Is.EquivalentTo(rejectDecision ? Array.Empty<uint>() : new[] { liveBefore, liveDuring }));
                         Assert.That(candidate.UnsubscribedAllEventIds.ToList(), Is.Empty);
-                        Assert.That(originalManager.UnsubscribedAllEventIds.ToList(),
-                            Is.EquivalentTo(new[] { removedBefore, removedDuring }));
+                        Assert.That(owner.HasMonitoredItems(originalManager), Is.EqualTo(rejectDecision));
+                        Assert.That(owner.HasMonitoredItems(candidate), Is.EqualTo(!rejectDecision));
+                        Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(rejectDecision ? 0 : 1));
+                        Assert.That(originalManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
+                        Assert.That(candidate.DisposeCount, Is.EqualTo(rejectDecision ? 1 : 0));
+                        if (rejectDecision)
+                        {
+                            Assert.That(candidate.ClosedSessionIds.ToList(), Is.Empty);
+                        }
                     }
+                    await DeleteMonitoredItemAsync(services, eventSubscription, liveBefore).ConfigureAwait(false);
+                    await DeleteMonitoredItemAsync(services, eventSubscription, liveDuring).ConfigureAwait(false);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(candidate.UnsubscribedAllEventIds.ToList(),
+                            Is.EquivalentTo(rejectDecision ? Array.Empty<uint>() : new[] { liveBefore, liveDuring }));
+                        Assert.That(originalManager.UnsubscribedAllEventIds.ToList(),
+                            Is.EquivalentTo(new[] { removedBefore, removedDuring, liveBefore, liveDuring }));
+                    }
+                    await DeleteMonitoredItemAsync(services, dataSubscription, dataItem).ConfigureAwait(false);
+                    NodeManagerRegistration liveRegistration = GetBranchRegistration(lifecycle, original.Id);
+                    Assert.That(liveRegistration.NodeManager, Is.SameAs(rejectDecision ? originalManager : candidate));
+                    await CommitChangeAsync(
+                        Capture(
+                        lifecycle, liveRegistration), LifecycleChange.Remove(liveRegistration.Slot), timeout.Token)
+                        .ConfigureAwait(false);
+                    await originalManager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                    Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
                 }
                 finally
                 {
                     release.TrySetResult(true);
-                }
-                if (rejectDecision)
-                {
-                    await Assert.ThatAsync(() => commit, Throws.TypeOf<IOException>()).ConfigureAwait(false);
-                    await prepared.DisposeAsync().ConfigureAwait(false);
-                }
-                else
-                {
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    using (Assert.EnterMultipleScope())
+                    duringContext?.Dispose();
+                    await DeleteSubscriptionAsync(services, eventSubscription).ConfigureAwait(false);
+                    await DeleteSubscriptionAsync(services, dataSubscription).ConfigureAwait(false);
+                    if (liveHeader is not null)
                     {
-                        Assert.That(result.CleanupFailure, Is.Null);
-                        Assert.That(result.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                        liveHeader.Timestamp = DateTimeUtc.Now;
+                        await m_server.CloseSessionAsync(
+                            RequireLifecycleValue(liveChannel), liveHeader, true, RequestLifetime.None)
+                            .ConfigureAwait(false);
                     }
                 }
-                await Task.WhenAll(RequireLifecycleValue(closingBefore), RequireLifecycleValue(closingDuring))
-                    .WaitAsync(timeout.Token).ConfigureAwait(false);
-                NodeId initialId = RequireLifecycleValue(
-                    server.SessionManager.GetSession(m_requestHeader.AuthenticationToken)).Id;
-                NodeId liveId = RequireLifecycleValue(
-                    server.SessionManager.GetSession(RequireLifecycleValue(liveHeader).AuthenticationToken)).Id;
-                var owner = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager.GetSubscriptions()
-                    .Single(subscription => subscription.Id == dataSubscription);
-                using (Assert.EnterMultipleScope())
-                {
-                    Assert.That(candidate.ActivatedSessionIds.ToList(),
-                        Is.EquivalentTo(rejectDecision ? Array.Empty<NodeId>() : new[] { initialId, liveId }));
-                    Assert.That(candidate.SubscribedAllEventIds.ToList(),
-                        Is.EquivalentTo(rejectDecision ? Array.Empty<uint>() : new[] { liveBefore, liveDuring }));
-                    Assert.That(candidate.UnsubscribedAllEventIds.ToList(), Is.Empty);
-                    Assert.That(owner.HasMonitoredItems(originalManager), Is.EqualTo(rejectDecision));
-                    Assert.That(owner.HasMonitoredItems(candidate), Is.EqualTo(!rejectDecision));
-                    Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(rejectDecision ? 0 : 1));
-                    Assert.That(originalManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
-                    Assert.That(candidate.DisposeCount, Is.EqualTo(rejectDecision ? 1 : 0));
-                    if (rejectDecision)
-                    {
-                        Assert.That(candidate.ClosedSessionIds.ToList(), Is.Empty);
-                    }
-                }
-                await DeleteMonitoredItemAsync(services, eventSubscription, liveBefore).ConfigureAwait(false);
-                await DeleteMonitoredItemAsync(services, eventSubscription, liveDuring).ConfigureAwait(false);
-                using (Assert.EnterMultipleScope())
-                {
-                    Assert.That(candidate.UnsubscribedAllEventIds.ToList(),
-                        Is.EquivalentTo(rejectDecision ? Array.Empty<uint>() : new[] { liveBefore, liveDuring }));
-                    Assert.That(originalManager.UnsubscribedAllEventIds.ToList(),
-                        Is.EquivalentTo(new[] { removedBefore, removedDuring, liveBefore, liveDuring }));
-                }
-                await DeleteMonitoredItemAsync(services, dataSubscription, dataItem).ConfigureAwait(false);
-                NodeManagerRegistration liveRegistration = GetBranchRegistration(lifecycle, original.Id);
-                Assert.That(liveRegistration.NodeManager, Is.SameAs(rejectDecision ? originalManager : candidate));
-                await lifecycle.RemoveAsync(liveRegistration, null, timeout.Token)
-                    .ConfigureAwait(false);
-                await originalManager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
-                Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
             }
             finally
             {
-                release.TrySetResult(true);
-                duringContext?.Dispose();
-                await DeleteSubscriptionAsync(services, eventSubscription).ConfigureAwait(false);
-                await DeleteSubscriptionAsync(services, dataSubscription).ConfigureAwait(false);
-                if (liveHeader is not null)
-                {
-                    liveHeader.Timestamp = DateTimeUtc.Now;
-                    await m_server.CloseSessionAsync(
-                        RequireLifecycleValue(liveChannel), liveHeader, true, RequestLifetime.None)
-                        .ConfigureAwait(false);
-                }
+                await exactWriter2Disposal.ConfigureAwait(false);
             }
         }
 
@@ -323,14 +356,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 services, ObjectIds.Server).ConfigureAwait(false);
             TrackingLifecycleNodeManager? first = null;
             TrackingLifecycleNodeManager? second = null;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [
-                    NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync([
+                    LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                         kFirstRegistrationValue, manager => first = manager)),
-                    NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                    LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                         kSecondRegistrationValue, manager => second = manager, kSecondModelNamespaceUri))
-                ], null, timeout.Token).ConfigureAwait(false);
+                ], timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(first);
             AssertLifecycleValue(second);
             var bindingEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -345,7 +377,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await releaseBinding.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
             };
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
+            Task<LifecycleResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
             Task<(RequestHeader, SecureChannelContext)>? sessionAdmission = null;
             Task<uint>? eventAdmission = null;
             try
@@ -367,7 +399,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 releaseBinding.TrySetResult(true);
             }
-            NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+            LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(sessionAdmission);
             AssertLifecycleValue(eventAdmission);
             (RequestHeader header, SecureChannelContext channel) =
@@ -414,19 +446,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (uint subscriptionId, uint eventId) = await CreateSubscriptionAndEventMonitoredItemAsync(
                 services, ObjectIds.Server).ConfigureAwait(false);
             TrackingLifecycleNodeManager? originalManager = null;
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => originalManager = manager),
-                null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult3 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                kGeneration1Value, manager => originalManager = manager)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration original = RequireRegistration(publicationResult3.Registrations[0]);
             TrackingLifecycleNodeManager? failing = null;
             TrackingLifecycleNodeManager? succeeding = null;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [
-                    NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            await using ILifecycleWriter exactWriter3 = await Capture(
+                m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await exactWriter3.PrepareAsync([
+                    LifecycleChange.Replace(original.Slot, CreateTrackingNodeManagementFactory(
                         kGeneration2Value, manager => failing = manager)),
-                    NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                    LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                         kSecondRegistrationValue, manager => succeeding = manager, kSecondModelNamespaceUri))
-                ], null, timeout.Token).ConfigureAwait(false);
+                ], timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(originalManager);
             AssertLifecycleValue(failing);
             AssertLifecycleValue(succeeding);
@@ -443,9 +478,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 failing.AllEventsCallback = (_, unsubscribe, _) => unsubscribe ? default : throw failure;
             }
-            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+            LifecycleResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                 .ConfigureAwait(false);
-            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await exactWriter3.DisposeAsync().ConfigureAwait(false);
+            await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(prepared.IsCommitted, Is.True);
@@ -458,7 +494,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(succeeding.SubscribedAllEventIds.ToList(), Is.EquivalentTo(new[] { eventId }));
                 Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
-                Assert.That(result.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                Assert.That(result.Retired.Status, Is.EqualTo(TaskStatus.RanToCompletion));
             }
             var failures = RequireLifecycleValue(result.CleanupFailure as AggregateException).Flatten().InnerExceptions;
             if (badStatus)

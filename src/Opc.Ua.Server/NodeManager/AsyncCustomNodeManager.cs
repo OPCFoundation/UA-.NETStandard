@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -820,12 +821,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        protected PredefinedNodeDictionary PredefinedNodes { get; }
 
         /// <summary>
         /// The root notifiers for the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> RootNotifiers { get; }
+        protected PredefinedNodeDictionary RootNotifiers { get; }
 
         /// <summary>
         /// Gets the table of nodes being monitored.
@@ -861,14 +862,14 @@ namespace Opc.Ua.Server
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
                 m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle ||
-                monitoredItem is not IMonitoredItemGenerationBinding)
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return StatusCodes.BadNotSupported;
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            await NodeManagerGenerationRegistry.GetOrCreate(this)
+            await MasterNodeManager.GetItemSourceGeneration(Server, this, binding)
                 .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
             return await ReleaseMonitoredItemSourceAsync(
                 context,
@@ -896,12 +897,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            if (monitoredItem is not IMonitoredItemGenerationBinding ||
+            if (monitoredItem is not IMonitoredItemGenerationBinding binding ||
                 m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle)
             {
                 return StatusCodes.BadNotSupported;
             }
-            await NodeManagerGenerationRegistry.GetOrCreate(this)
+            await MasterNodeManager.GetItemSourceGeneration(Server, this, binding)
                 .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
             (ServiceResult result, bool changed) = await AdoptMonitoredItemSourceAsync(
                 monitoredItem,
@@ -1049,7 +1050,7 @@ namespace Opc.Ua.Server
             bool restoredNative = false;
             long sourceRevision = 0;
             var binding = (IMonitoredItemGenerationBinding)monitoredItem;
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this);
+            NodeManagerGeneration generation = MasterNodeManager.GetItemSourceGeneration(Server, this, binding);
             bool isEvent =
                 (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
             ServiceResult result;
@@ -1200,6 +1201,7 @@ namespace Opc.Ua.Server
         /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
         /// </summary>
         /// <exception cref="AggregateException"></exception>
+        /// <exception cref="InvalidOperationException">The adopted source has no generation.</exception>
         private async ValueTask<(ServiceResult Result, bool Changed)> AdoptMonitoredItemSourceAsync(
             IMonitoredItem monitoredItem,
             MonitoredItemAdoption adoption,
@@ -1272,6 +1274,7 @@ namespace Opc.Ua.Server
             }
 
             MonitoredNode2? monitoredNode = null;
+            NodeManagerGeneration? boundGeneration = null;
             bool changed = false;
             long boundRevision = 0;
             ServiceResult result;
@@ -1287,6 +1290,8 @@ namespace Opc.Ua.Server
                         RemoveNodeFromComponentCache,
                         sourceRevision,
                         adoption);
+                    boundGeneration = adoption.Generation;
+                    adoption.Generation = null;
                     if (ServiceResult.IsBad(result) || !changed)
                     {
                         return (result, changed);
@@ -1312,6 +1317,10 @@ namespace Opc.Ua.Server
                     if (monitoredNode == null)
                     {
                         return (result, changed);
+                    }
+                    if (boundGeneration is null)
+                    {
+                        throw new InvalidOperationException("The adopted source has no generation.");
                     }
                     source.SetAreEventsMonitored(context, true, true);
                 }
@@ -1374,7 +1383,7 @@ namespace Opc.Ua.Server
                         removed = true;
                     }
                 }
-                if (removed)
+                if (removed && boundGeneration is not null)
                 {
                     try
                     {
@@ -1385,7 +1394,7 @@ namespace Opc.Ua.Server
                         compensationException is not OutOfMemoryException)
                     {
                         compensationFailures.Add(compensationException);
-                        NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this);
+                        NodeManagerGeneration generation = boundGeneration;
                         generation.RetainSourceRelease(monitoredItem, boundRevision, async _ =>
                         {
                             if (!await HasNewerNativeSourceAsync(
@@ -2401,15 +2410,9 @@ namespace Opc.Ua.Server
                     instance.AddReference(item.ReferenceTypeId, true, parentNodeId);
                 }
 
-                NodeId previousAddNodeId = m_addNodesNodeId.Value;
-                m_addNodesNodeId.Value = newNodeId;
-                try
+                using (new NodeManagerAmbientScope<NodeId>(m_addNodesNodeId, newNodeId))
                 {
                     await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_addNodesNodeId.Value = previousAddNodeId;
                 }
 
                 // Remote parents need an explicit reference added through their owning manager.
@@ -3717,18 +3720,13 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
-            int depth = m_registrationDepth.Value;
-            m_registrationDepth.Value = depth + 1;
+            bool nested = NodeManagerAmbientScope<bool>.GetValue(m_registrationScope);
             NodeState active;
-            try
+            using (new NodeManagerAmbientScope<bool>(m_registrationScope, true))
             {
                 active = await AddPredefinedNodeCoreAsync(context, node, cancellationToken).ConfigureAwait(false);
             }
-            finally
-            {
-                m_registrationDepth.Value = depth;
-            }
-            if (depth == 0)
+            if (!nested)
             {
                 m_localAddressSpace?.NotifyAdded(active);
             }
@@ -3842,13 +3840,9 @@ namespace Opc.Ua.Server
 
                 if (RequiresInstanceNodeIdRepair(candidate))
                 {
-                    if (!candidate.NodeId.IsNull &&
-                        PredefinedNodes.TryGetValue(
-                            candidate.NodeId,
-                            out NodeState? indexedNode) &&
-                        ReferenceEquals(indexedNode, candidate))
+                    if (!candidate.NodeId.IsNull)
                     {
-                        PredefinedNodes.TryRemove(candidate.NodeId, out _);
+                        PredefinedNodes.TryRemove(candidate.NodeId, candidate);
                     }
 
                     NodeId previousNodeId = context.AssignInstanceNodeId(candidate);
@@ -4039,12 +4033,13 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
-            if (!m_addNodesNodeId.Value.IsNull)
+            NodeId reservedNodeId = NodeManagerAmbientScope<NodeId>.GetValue(m_addNodesNodeId);
+            if (!reservedNodeId.IsNull)
             {
                 // a subtree added by AddNodes never replaces a node: its identifiers
                 // derive from a NodeId the client may choose.
                 if (!PredefinedNodes.TryAdd(activeNode.NodeId, activeNode) &&
-                    (m_addNodesNodeId.Value == activeNode.NodeId ||
+                    (reservedNodeId == activeNode.NodeId ||
                         !PredefinedNodes.TryGetValue(activeNode.NodeId, out NodeState? existing) ||
                         !ReferenceEquals(existing, activeNode)))
                 {
@@ -4092,7 +4087,7 @@ namespace Opc.Ua.Server
             List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken = default)
         {
-            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+            if (!PredefinedNodes.TryRemove(node.NodeId, node))
             {
                 return;
             }
@@ -4470,6 +4465,7 @@ namespace Opc.Ua.Server
         public virtual async ValueTask DeleteAddressSpaceAsync(
             CancellationToken cancellationToken = default)
         {
+            NodeState[] notifiers = [.. RootNotifiers.Values];
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
             List<LocalReference> referencesToRemove =
@@ -4490,7 +4486,7 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+                if (!PredefinedNodes.TryRemove(node.NodeId, node))
                 {
                     continue;
                 }
@@ -4518,7 +4514,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            foreach (NodeState notifier in RootNotifiers.Values)
+            foreach (NodeState notifier in notifiers)
             {
                 await RemoveRootNotifierAsync(notifier, cancellationToken).ConfigureAwait(false);
             }
@@ -6689,6 +6685,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves a data historian only for a variable node.
+        /// </summary>
+        private bool TryResolveDataHistorianProvider(
+            NodeState node,
+            [NotNullWhen(true)] out IHistorianProvider? provider)
+        {
+            provider = node is BaseVariableState ? ResolveHistorianProvider(node) : null;
+            return provider != null;
+        }
+
+        /// <summary>
         /// Resolves the historian provider for a history read, preferring the provider restored with the continuation
         /// point being resumed over the currently registered provider.
         /// </summary>
@@ -7692,14 +7699,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -7781,15 +7781,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider =
-                    ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -7887,14 +7879,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -7944,14 +7929,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -8482,7 +8460,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
-            if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
+            if (RootNotifiers.TryRemove(notifier.NodeId, notifier))
             {
                 if (stagingServer?.IsStaging == true)
                 {
@@ -11648,12 +11626,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private IRebasableNodeIdFactory m_nodeIdFactory;
         private PredefinedNodesAddressSpace? m_localAddressSpace;
-        private readonly AsyncLocal<int> m_registrationDepth = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<bool>?> m_registrationScope = new();
 
         /// <summary>
         /// Carries the NodeId reserved for the current asynchronous AddNodes operation.
         /// </summary>
-        private readonly AsyncLocal<NodeId> m_addNodesNodeId = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<NodeId>?> m_addNodesNodeId = new();
 
         /// <summary>
         /// Retains AddNodes identifiers until asynchronous registration and reference publication have finished.

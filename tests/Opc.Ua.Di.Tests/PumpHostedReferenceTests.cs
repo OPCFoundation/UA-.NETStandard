@@ -56,6 +56,27 @@ namespace Opc.Ua.Di.Tests
     [NonParallelizable]
     public sealed class PumpHostedReferenceTests
     {
+        /// <summary>
+        /// Assigns a short PKI root shared by this test's server and client.
+        /// </summary>
+        [SetUp]
+        public void SetUp()
+        {
+            m_pkiRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(), System.IO.Path.GetRandomFileName());
+        }
+
+        /// <summary>
+        /// Removes the test's certificate stores after the host and client are disposed.
+        /// </summary>
+        [TearDown]
+        public void TearDown()
+        {
+            if (System.IO.Directory.Exists(m_pkiRoot))
+            {
+                System.IO.Directory.Delete(m_pkiRoot, recursive: true);
+            }
+        }
+
         [Test]
         public async Task HostedPumpsBrowseSimulateAndReportEventsAsync()
         {
@@ -125,10 +146,7 @@ namespace Opc.Ua.Di.Tests
 
                 using var clientFixture = new ClientFixture(
                     NUnitTelemetryContext.Create());
-                string clientPkiRoot = System.IO.Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    nameof(HostedPumpsBrowseSimulateAndReportEventsAsync),
-                    "client-pki");
+                string clientPkiRoot = System.IO.Path.Combine(m_pkiRoot, "client");
                 await clientFixture.LoadClientConfigurationAsync(clientPkiRoot)
                     .ConfigureAwait(false);
                 using Ua.Client.ISession session = await clientFixture.ConnectAsync(
@@ -380,10 +398,7 @@ namespace Opc.Ua.Di.Tests
                 ];
 
                 using var clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
-                string clientPkiRoot = System.IO.Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    nameof(PumpCreatedAfterStartupJoinsTheLiveSimulationAsync),
-                    "client-pki");
+                string clientPkiRoot = System.IO.Path.Combine(m_pkiRoot, "client");
                 await clientFixture.LoadClientConfigurationAsync(clientPkiRoot)
                     .ConfigureAwait(false);
                 using Ua.Client.ISession session = await clientFixture.ConnectAsync(
@@ -463,17 +478,13 @@ namespace Opc.Ua.Di.Tests
             }
         }
 
-        private static void ConfigureServer(OpcUaServerOptions options)
+        private void ConfigureServer(OpcUaServerOptions options)
         {
             const string applicationName = nameof(PumpHostedReferenceTests);
-            string testRoot = System.IO.Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                applicationName,
-                Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
             options.ProductUri = "urn:localhost:" + applicationName + ":product";
-            options.PkiRoot = System.IO.Path.Combine(testRoot, "pki");
+            options.PkiRoot = System.IO.Path.Combine(m_pkiRoot, "server");
             options.AutoAcceptUntrustedCertificates = true;
             options.IncludeUnsecurePolicyNone = true;
             options.EndpointUrls.Clear();
@@ -615,6 +626,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         private static string s_endpointUrl = string.Empty;
+        private string m_pkiRoot = string.Empty;
 
         public sealed class CaptureServer : DependencyInjectionStandardServer
         {

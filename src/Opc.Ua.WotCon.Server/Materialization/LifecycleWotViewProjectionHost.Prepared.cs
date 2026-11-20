@@ -51,7 +51,39 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets whether the host can retain private View candidates and participate in one lifecycle batch.
         /// </summary>
         /// <inheritdoc/>
-        public bool SupportsPreparedPublication => m_lifecycle.SupportsPreparedPublication;
+        public bool SupportsPreparedPublication => true;
+
+        /// <summary>
+        /// Gets whether coordinator teardown must retire a canonical owner while the lifecycle is running.
+        /// </summary>
+        internal bool RequiresPreparedRetirement =>
+            !m_lifecycle.IsShuttingDown && Volatile.Read(ref m_canonicalPublication) is not null;
+
+        /// <summary>
+        /// Contributes terminal canonical-owner removal to the source publication without publishing an empty manager.
+        /// </summary>
+        internal async ValueTask<IWotPreparedViewPublication> PrepareRetirementAsync(
+            WotCommittedPublicationState expectedPublication, CancellationToken cancellationToken)
+        {
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                CanonicalPublication previous = m_canonicalPublication ??
+                    throw new InvalidOperationException("The canonical View owner has already retired.");
+                if (previous.Graph.CanonicalViewGraphState !=
+                        expectedPublication.RegistrySnapshot.CanonicalViewGraphState ||
+                    !previous.Graph.Views.ToList().SequenceEqual(expectedPublication.Views.ToList()))
+                {
+                    throw new InvalidOperationException("The canonical View image is no longer current.");
+                }
+                return new PreparedViewPublication(this, previous, [], [], retire: true);
+            }
+            catch
+            {
+                m_gate.Release();
+                throw;
+            }
+        }
 
         /// <summary>
         /// Plans the complete remaining View graph from a captured committed image and requested changes.
@@ -70,10 +102,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken = default)
         {
             _ = expectedPublication ?? throw new ArgumentNullException(nameof(expectedPublication));
-            if (!SupportsPreparedPublication)
-            {
-                throw new NotSupportedException("The lifecycle cannot prepare a canonical View publication.");
-            }
             removals = [.. removals];
             var requested = new HashSet<string>(StringComparer.Ordinal);
             var captured = new List<WotViewProjectionRequest>();
@@ -153,10 +181,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken = default)
         {
             _ = committedPublication ?? throw new ArgumentNullException(nameof(committedPublication));
-            if (!SupportsPreparedPublication)
-            {
-                throw new NotSupportedException("The lifecycle cannot recover a canonical publication.");
-            }
             WotCanonicalViewState recovered = WotCanonicalViewState.Parse(
                 committedPublication.RegistrySnapshot.CanonicalViewGraphState);
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -200,16 +224,31 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CanonicalPublication? previous,
             ArrayOf<WotViewProjectionRequest> updates,
             ArrayOf<string> removals,
-            WotCanonicalViewState? recovered = null)
+            WotCanonicalViewState? recovered = null,
+            bool retire = false)
             : IWotPreparedViewPublication, IAsyncNodeManagerFactory,
                 IWotPreparedViewSourceConsumer, IRegistrationBoundNodeManagerFactory
         {
-            public ArrayOf<LifecycleChange> Changes => previous is null
-                ? [LifecycleChange.Add(this)]
-                : [LifecycleChange.Replace(previous.Registration.Slot, this,
-                    owner.m_retirementPolicy == WotProjectionRetirementPolicy.Invalidate
-                        ? NodeManagerMonitoredItemTransitionMode.Invalidate
-                        : NodeManagerMonitoredItemTransitionMode.Migrate)];
+            public ArrayOf<LifecycleChange> Changes
+            {
+                get
+                {
+                    if (previous is not null &&
+                        (!previous.Registration.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current) ||
+                         !ReferenceEquals(current.NodeManager, previous.Registration.NodeManager)))
+                    {
+                        throw new InvalidOperationException("The canonical View owner is stale.");
+                    }
+                    return retire
+                        ? [LifecycleChange.Remove(previous!.Registration.Slot)]
+                        : previous is null
+                            ? [LifecycleChange.Add(this)]
+                            : [LifecycleChange.Reload(previous.Registration.Slot, this,
+                                owner.m_retirementPolicy == WotProjectionRetirementPolicy.Invalidate
+                                    ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                                    : NodeManagerMonitoredItemTransitionMode.Migrate)];
+                }
+            }
 
             public ArrayOf<string> NamespacesUris => [Namespaces.WotCon];
 
@@ -377,6 +416,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public WotPreparedViewGraphState BindPreparedRegistrations(ArrayOf<NodeManagerRegistration> registrations)
             {
+                if (retire)
+                {
+                    if (!registrations.IsEmpty || m_disposed != 0)
+                    {
+                        throw new ArgumentException(
+                            "Retirement must not create another View owner.", nameof(registrations));
+                    }
+                    m_sources!.RequireBound();
+                    return new WotPreparedViewGraphState(ByteString.Empty, [],
+                        previous!.Graph.Views.ConvertAll(view => view.ResourceXid));
+                }
                 if (registrations.Count != 1 || !ReferenceEquals(registrations[0].NodeManager, m_created) ||
                     m_created is null || m_preparation is null || m_namespaces is null || m_disposed != 0 ||
                     (previous is not null && (registrations[0].Id != previous.Registration.Id ||

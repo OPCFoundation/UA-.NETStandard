@@ -719,9 +719,8 @@ namespace Opc.Ua.Robotics.Client.Tests
         private void ConfigureServer(OpcUaServerOptions options)
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(RoboticsClientServerE2eTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-robotics-server-" + Guid.NewGuid().ToString("N"));
             options.ApplicationName = "RoboticsE2eServer";
             options.ApplicationUri = "urn:localhost:OPCFoundation:RoboticsE2eServer";
             options.ProductUri = "uri:opcfoundation.org:RoboticsE2eServer";
@@ -736,9 +735,8 @@ namespace Opc.Ua.Robotics.Client.Tests
         private async ValueTask<ApplicationConfiguration> CreateClientConfigurationAsync()
         {
             string pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(RoboticsClientServerE2eTests),
-                Guid.NewGuid().ToString("N"),
+                Path.GetTempPath(),
+                "ua-robotics-client-" + Guid.NewGuid().ToString("N"),
                 "client-pki");
             var configuration = new ApplicationConfiguration(Telemetry)
             {

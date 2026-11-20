@@ -39,10 +39,12 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -154,9 +156,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
             };
             m_coordinator.Event += (_, change) => m_events.Add(change);
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotResource? native = nativeFirst ? await AddNativePredecessorAsync().ConfigureAwait(false) : null;
             ByteString nativeContent = native is null ? default :
                 await m_registry.ReadContentAsync(native.DefaultVersion!).ConfigureAwait(false);
@@ -451,8 +453,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var events = new List<WotMaterializationEventArgs>();
             recovered.Event += (_, change) => events.Add(change);
 
-            await runtime.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, recovered), callerContext: null)
+            await runtime.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, recovered))])
                 .ConfigureAwait(false);
 
             Assert.That(registry.Current.Generation, Is.EqualTo(previous.Generation + (legacyIndex ? 1 : 0)));

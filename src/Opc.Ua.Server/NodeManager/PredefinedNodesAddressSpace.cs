@@ -54,7 +54,7 @@ namespace Opc.Ua.Server
         /// <param name="removeAsync">Removes a node from the address space.</param>
         public PredefinedNodesAddressSpace(
             ISystemContext context,
-            NodeIdDictionary<NodeState> predefinedNodes,
+            PredefinedNodeDictionary predefinedNodes,
             Func<NodeState, CancellationToken, ValueTask> addAsync,
             Func<NodeId, CancellationToken, ValueTask<bool>> removeAsync)
         {
@@ -112,15 +112,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(node));
             }
 
-            int depth = m_drivingOperation.Value;
-            m_drivingOperation.Value = depth + 1;
-            try
+            using (new NodeManagerAmbientScope<bool>(m_drivingOperation, true))
             {
                 await m_addAsync(node, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_drivingOperation.Value = depth;
             }
             if (!m_predefinedNodes.TryGetValue(node.NodeId, out NodeState? activeNode))
             {
@@ -143,15 +137,9 @@ namespace Opc.Ua.Server
             foreach (NodeState node in nodes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                int depth = m_drivingOperation.Value;
-                m_drivingOperation.Value = depth + 1;
-                try
+                using (new NodeManagerAmbientScope<bool>(m_drivingOperation, true))
                 {
                     await m_addAsync(node, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_drivingOperation.Value = depth;
                 }
             }
         }
@@ -159,16 +147,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public async ValueTask<bool> RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
-            int depth = m_drivingOperation.Value;
-            m_drivingOperation.Value = depth + 1;
             bool removed;
-            try
+            using (new NodeManagerAmbientScope<bool>(m_drivingOperation, true))
             {
                 removed = await m_removeAsync(nodeId, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_drivingOperation.Value = depth;
             }
             if (removed)
             {
@@ -180,7 +162,7 @@ namespace Opc.Ua.Server
 
         internal void NotifyAdded(NodeState node)
         {
-            if (m_drivingOperation.Value == 0)
+            if (!NodeManagerAmbientScope<bool>.GetValue(m_drivingOperation))
             {
                 NodeAdded?.Invoke(node);
             }
@@ -188,15 +170,15 @@ namespace Opc.Ua.Server
 
         internal void NotifyRemoved(NodeId nodeId)
         {
-            if (m_drivingOperation.Value == 0)
+            if (!NodeManagerAmbientScope<bool>.GetValue(m_drivingOperation))
             {
                 NodeRemoved?.Invoke(nodeId);
             }
         }
 
-        private readonly NodeIdDictionary<NodeState> m_predefinedNodes;
+        private readonly PredefinedNodeDictionary m_predefinedNodes;
         private readonly Func<NodeState, CancellationToken, ValueTask> m_addAsync;
         private readonly Func<NodeId, CancellationToken, ValueTask<bool>> m_removeAsync;
-        private readonly AsyncLocal<int> m_drivingOperation = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<bool>?> m_drivingOperation = new();
     }
 }

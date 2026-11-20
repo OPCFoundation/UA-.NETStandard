@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Server
                                 var page = await FetchReferencesAsync(
                                     context,
                                     m_owner.MaxContinuationPointsPerBrowse == 0 ||
-                                        continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                                    continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                                     fetching,
                                     result.References,
                                     cancellationToken).ConfigureAwait(false);
@@ -1524,8 +1524,9 @@ namespace Opc.Ua.Server
         {
             if (GetRouting(context).TryGetGeneration(nodeManager, out NodeManagerGeneration? generation))
             {
-                return generation ?? throw new InvalidOperationException(
-                    "A routing view resolved a NodeManager without a generation.");
+                return generation ??
+                    throw new InvalidOperationException(
+                        "A routing view resolved a NodeManager without a generation.");
             }
             // Legacy lookup overrides may return a proxy owner outside the managed routing view.
             return NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
@@ -1885,6 +1886,9 @@ namespace Opc.Ua.Server
         /// Validates history read requests and dispatches reads or continuation releases to the node managers.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// A session-backed history dispatch needs continuation ownership, but its history request is unavailable.
+        /// </exception>
         private async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             HistoryReadCoreAsync(
             OperationContext context,
@@ -1892,6 +1896,8 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             ArrayOf<HistoryReadValueId> nodesToRead,
+            HashSet<ByteString>? clientTokens,
+            IDisposable? historyRequest,
             List<HistoryReadResult> results,
             CancellationToken cancellationToken = default)
         {
@@ -1944,7 +1950,7 @@ namespace Opc.Ua.Server
                     else
                     {
                         (result, errors[ii]) = await ReadHistoryContinuationAsync(
-                            context, holder, nodesToRead[ii], details!, timestampsToReturn,
+                            context, holder, nodesToRead[ii], clientTokens, historyRequest, details!, timestampsToReturn,
                             releaseContinuationPoints, ii, nodesToRead.Count, cancellationToken).ConfigureAwait(false);
                     }
                     nodesToRead[ii].Processed = true;
@@ -2015,6 +2021,19 @@ namespace Opc.Ua.Server
                     {
                         pending[ii] = !nodesToRead[ii].Processed;
                     }
+                    SessionContinuationPoints? continuationPoints = !releaseContinuationPoints
+                        ? context.Session?.ContinuationPoints as SessionContinuationPoints
+                        : null;
+                    IDisposable? currentRequest = continuationPoints is not null
+                        ? historyRequest ?? throw new InvalidOperationException("The history request is unavailable.")
+                        : null;
+                    NodeManagerGeneration? generation = continuationPoints is not null && currentRequest is not null
+                        ? GetRouting(context).GetGeneration(nodeManager)
+                        : null;
+                    using IDisposable? historyDispatch =
+                        continuationPoints is not null && currentRequest is not null && generation is not null
+                            ? continuationPoints.BeginHistoryDispatch(currentRequest, generation)
+                            : null;
                     await nodeManager.HistoryReadAsync(
                         context,
                         details!,
@@ -2024,18 +2043,24 @@ namespace Opc.Ua.Server
                         results,
                         errors,
                         cancellationToken).ConfigureAwait(false);
-                    if (context.Session?.ContinuationPoints is SessionContinuationPoints continuationPoints)
+                    if (continuationPoints is not null &&
+                        currentRequest is not null &&
+                        generation is not null &&
+                        historyDispatch is not null)
                     {
-                        NodeManagerGeneration generation = GetRouting(context).GetGeneration(nodeManager);
                         for (int ii = 0; ii < pending.Length; ii++)
                         {
                             if (pending[ii] &&
                                 nodesToRead[ii].Processed &&
-                                results[ii] is { ContinuationPoint.IsEmpty: false } page)
+                                results[ii] is { ContinuationPoint.IsEmpty: false } page &&
+                                !continuationPoints.TryBindHistoryResult(
+                                    currentRequest, historyDispatch, page.ContinuationPoint, generation))
                             {
-                                continuationPoints.BindHistoryGeneration(
-                                    page.ContinuationPoint,
-                                    generation);
+                                results[ii] = new HistoryReadResult
+                                {
+                                    StatusCode = StatusCodes.BadContinuationPointInvalid
+                                };
+                                errors[ii] = StatusCodes.BadContinuationPointInvalid;
                             }
                         }
                     }
@@ -2086,30 +2111,36 @@ namespace Opc.Ua.Server
         /// operations, since the response that would carry them is never sent. This includes the
         /// points a node manager saved before it faulted without assigning them to a result.
         /// </summary>
-        private void ReleaseUnreturnedHistoryContinuationPoints(
+        /// <remarks>
+        /// For the built-in session store, an unrecognized result token is reported without
+        /// attempting to release a potentially unrelated point by token.
+        /// </remarks>
+        /// <returns>The cleanup or attribution failures, or null if none were reported.</returns>
+        private List<Exception>? ReleaseUnreturnedHistoryContinuationPoints(
             OperationContext context,
             SessionContinuationPoints? sessionContinuationPoints,
             IDisposable? historyRequest,
-            ArrayOf<HistoryReadValueId> nodesToRead,
+            HashSet<ByteString>? clientTokens,
             List<HistoryReadResult> results)
         {
+            var failures = new List<Exception>();
             if (sessionContinuationPoints != null && historyRequest != null)
             {
                 try
                 {
                     sessionContinuationPoints.ReleaseSavedHistory(historyRequest);
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not OutOfMemoryException)
                 {
-                    // cleanup must not replace the error that faulted the request.
                     m_logger.HistoryContinuationReleaseFailed(e);
+                    failures.Add(e);
                 }
             }
 
             ISessionContinuationPoints? continuationPoints = context.Session?.ContinuationPoints;
             if (continuationPoints == null)
             {
-                return;
+                return failures.Count == 0 ? null : failures;
             }
             for (int ii = 0; ii < results.Count; ii++)
             {
@@ -2117,22 +2148,29 @@ namespace Opc.Ua.Server
                 // skip a point the client supplied itself: it was not created by this request.
                 if (result == null ||
                     result.ContinuationPoint.IsEmpty ||
-                    (ii < nodesToRead.Count &&
-                        nodesToRead[ii] != null &&
-                        nodesToRead[ii].ContinuationPoint.Equals(result.ContinuationPoint)))
+                    IsClientSupplied(clientTokens, result) ||
+                    sessionContinuationPoints?.IsSavedByCurrentHistoryRequest(result.ContinuationPoint) == true)
                 {
+                    continue;
+                }
+                if (continuationPoints is SessionContinuationPoints)
+                {
+                    InvalidOperationException failure = CreateUnattributedHistoryContinuationFailure();
+                    m_logger.HistoryContinuationReleaseFailed(failure);
+                    failures.Add(failure);
                     continue;
                 }
                 try
                 {
                     continuationPoints.ReleaseHistory(result.ContinuationPoint);
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not OutOfMemoryException)
                 {
-                    // cleanup must not replace the error that faulted the request.
                     m_logger.HistoryContinuationReleaseFailed(e);
+                    failures.Add(e);
                 }
             }
+            return failures.Count == 0 ? null : failures;
         }
 
         /// <summary>
@@ -2996,7 +3034,8 @@ namespace Opc.Ua.Server
                     error = await SetEventSubscriptionAsync(
                         eventManagers[ii], context, subscriptionId, monitoredItem, false, cancellationToken,
                         refreshExisting: false)
-                        .ConfigureAwait(false) ?? ServiceResult.Good;
+                        .ConfigureAwait(false) ??
+                        ServiceResult.Good;
                     if (monitoredItem.MonitoringAllEvents &&
                         error.StatusCode == StatusCodes.BadNotSupported)
                     {
@@ -3045,7 +3084,7 @@ namespace Opc.Ua.Server
                     bool captured = false;
                     for (int ii = 0; ii < eventManagers.Count; ii++)
                     {
-                        captured |= NodeManagerRoutingTable.AreSameManager(manager, eventManagers[ii]);
+                        captured |= NodeManagerGenerationRegistry.HasSameGenerationIdentity(manager, eventManagers[ii]);
                     }
                     if (!captured)
                     {
@@ -5084,7 +5123,8 @@ namespace Opc.Ua.Server
                         monitoredItem,
                         operation,
                         unsubscribe,
-                        cancellationToken).ConfigureAwait(false) ?? ServiceResult.Good;
+                        cancellationToken).ConfigureAwait(false) ??
+                        ServiceResult.Good;
                 }
                 else
                 {
@@ -5132,7 +5172,8 @@ namespace Opc.Ua.Server
                     (remove, ct) => owner.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
                     unsubscribe: true,
                     cancellationToken,
-                    retainFailedRelease: false).ConfigureAwait(false) ?? ServiceResult.Good;
+                    retainFailedRelease: false).ConfigureAwait(false) ??
+                    ServiceResult.Good;
                 if (result.StatusCode == StatusCodes.BadNotSupported)
                 {
                     return ServiceResult.Good;
@@ -5295,7 +5336,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < route.Count; ii++)
                 {
-                    if (NodeManagerRoutingTable.AreSameManager(route[ii], nodeManager))
+                    if (NodeManagerGenerationRegistry.HasSameGenerationIdentity(route[ii], nodeManager))
                     {
                         return true;
                     }

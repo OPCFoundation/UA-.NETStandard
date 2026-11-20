@@ -423,7 +423,7 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that cleanup failure does not abort clearing the session's continuations.
+        /// Verifies that cleanup failure is reported after the session's continuations are disposed.
         /// </summary>
         [Test]
         public async Task CleanupFailureDoesNotAbortSessionClearAsync()
@@ -443,7 +443,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 continuation,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.DoesNotThrow(points.Clear);
+            AggregateException? failure = Assert.Throws<AggregateException>(points.Clear);
+            Assert.That(failure!.Flatten().InnerExceptions, Does.Contain(store.ScheduleRemoveException));
             Assert.That(continuation.Disposed, Is.True);
         }
 

@@ -73,9 +73,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task OneTimeSetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(RuntimeNodeSetIntegrationTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-integration-" + Guid.NewGuid().ToString("N"));
 
             m_serverFixture = new ServerFixture<RuntimeNodeSetTestServer>(
                 t => new RuntimeNodeSetTestServer(t))

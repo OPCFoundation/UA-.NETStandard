@@ -354,8 +354,8 @@ namespace Opc.Ua.Server.UserManagement
             }
 
             List<Task<ServiceResult>> deactivations = [];
-            List<Task<ServiceResult>>? previous = m_currentUserChange.Value;
-            m_currentUserChange.Value = deactivations;
+            using var userChange = new NodeManagerAmbientScope<UserChangeDeactivations>(
+                m_currentUserChange, new UserChangeDeactivations(deactivations));
             try
             {
                 ServiceResult result;
@@ -369,11 +369,12 @@ namespace Opc.Ua.Server.UserManagement
                 }
                 finally
                 {
-                    m_currentUserChange.Value = previous;
                     Task<ServiceResult>[] pending;
                     lock (m_deactivationLock)
                     {
+                        userChange.Dispose();
                         pending = [.. deactivations];
+                        deactivations.Clear();
                     }
                     await Task.WhenAll(pending).ConfigureAwait(false);
                 }
@@ -412,7 +413,8 @@ namespace Opc.Ua.Server.UserManagement
             }
             lock (m_deactivationLock)
             {
-                List<Task<ServiceResult>>? userChange = m_currentUserChange.Value;
+                List<Task<ServiceResult>>? userChange =
+                    NodeManagerAmbientScope<UserChangeDeactivations>.GetValue(m_currentUserChange).Deactivations;
                 if (m_disposed && userChange == null)
                 {
                     return;
@@ -480,6 +482,12 @@ namespace Opc.Ua.Server.UserManagement
             return identity?.TokenType == UserTokenType.UserName ? identity.DisplayName : null;
         }
 
+        /// <summary>
+        /// Carries the deactivations collected by an active synchronous user-change callback.
+        /// </summary>
+        /// <param name="Deactivations">The callback's task collection, or null for an ended scope.</param>
+        private readonly record struct UserChangeDeactivations(List<Task<ServiceResult>>? Deactivations);
+
         private readonly IUserManagement m_userManagement;
         private readonly ISessionManager? m_sessionManager;
 
@@ -497,7 +505,7 @@ namespace Opc.Ua.Server.UserManagement
         /// <summary>
         /// Associates synchronous deactivation notifications with the user change that raised them.
         /// </summary>
-        private readonly AsyncLocal<List<Task<ServiceResult>>?> m_currentUserChange = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<UserChangeDeactivations>?> m_currentUserChange = new();
         private UserManagementState? m_state;
 
         /// <summary>

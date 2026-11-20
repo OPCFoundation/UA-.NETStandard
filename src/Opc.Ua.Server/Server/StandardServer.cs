@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
     /// so the shutdown does not block their thread.
     /// </remarks>
     public partial class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
-        IRequestParkingPolicySource, IServerApplicationCertificateActivator
+        IRequestParkingPolicySource, IServerApplicationCertificateActivator, INodeManagerLifecycleHost
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -184,6 +184,24 @@ namespace Opc.Ua.Server
         internal ApplicationConfiguration CurrentConfiguration
             => Configuration
                 ?? throw new InvalidOperationException("The server has not been configured.");
+
+        /// <inheritdoc/>
+        ApplicationConfiguration INodeManagerLifecycleHost.CurrentConfiguration => CurrentConfiguration;
+
+        /// <inheritdoc/>
+        ValueTask<IDataTypeDefinitionResolver?> INodeManagerLifecycleHost.PrepareComplexTypesAsync(
+            IServerInternal server,
+            IAsyncNodeManager manager,
+            CancellationToken cancellationToken)
+        {
+            return RefreshComplexTypesAsync(server, manager, publishResolver: false, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        void INodeManagerLifecycleHost.PublishComplexTypeResolver(IDataTypeDefinitionResolver resolver)
+        {
+            ComplexTypeResolverHolder?.SetResolver(resolver);
+        }
 
         /// <summary>
         /// The <see cref="TimeProvider"/> used by the server for all
@@ -2671,6 +2689,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Seals cleanup recovery configuration before overridable startup callbacks run.
+        /// </summary>
+        internal sealed override void SealStartupBindings()
+        {
+            m_nodeManagerLifecycle.SealCleanupAuthority();
+        }
+
+        /// <summary>
         /// Called before the server starts.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
@@ -3186,19 +3212,6 @@ namespace Opc.Ua.Server
         {
             var manager = new ConformanceUnitsManager(server);
 
-            foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
-            {
-                // A natively-async node manager is the contributor itself; a
-                // wrapped synchronous node manager exposes it through its
-                // SyncNodeManager. Honour either shape.
-                if ((nodeManager as IConformanceContributor
-                    ?? nodeManager.SyncNodeManager as IConformanceContributor)
-                    is IConformanceContributor contributor)
-                {
-                    manager.Register(contributor);
-                }
-            }
-
             await manager.PublishAsync(cancellationToken).ConfigureAwait(false);
 
             return manager;
@@ -3253,7 +3266,7 @@ namespace Opc.Ua.Server
             [
                 .. m_asyncNodeManagerFactories,
                 .. m_nodeManagerFactories.Select(
-                    static factory => new NodeManagerLifecycleExtensions.SyncFactoryAdapter(factory))
+                    static factory => new LifecycleChangeExtensions.SyncFactoryAdapter(factory))
             ];
         }
 

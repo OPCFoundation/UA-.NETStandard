@@ -151,8 +151,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 resume.TrySetResult(true);
                 await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
-                    Throws.InvalidOperationException.With.Message.Contains(
-                        "conflicts with a newer address-space revision")).ConfigureAwait(false);
+                    Throws.InvalidOperationException.With.Message.EqualTo(
+                        "A stale publication cannot prepare a candidate.")).ConfigureAwait(false);
             }
             Assert.That(probe.DecisionCount, Is.EqualTo(1));
             Assert.That(probe.PublicationCount, Is.EqualTo(1));

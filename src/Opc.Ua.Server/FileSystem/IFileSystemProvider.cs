@@ -96,6 +96,10 @@ namespace Opc.Ua.Server.FileSystem
         /// <paramref name="path"/> refers to a missing or non-directory
         /// node.
         /// </summary>
+        /// <remarks>
+        /// Each active directory browse must receive a distinct enumerator. An enumerator whose disposal
+        /// failed remains owned until its cleanup is verified and cannot be shared with another browse.
+        /// </remarks>
         /// <param name="path">The provider-relative directory path.</param>
         /// <param name="ct">The token used to cancel enumeration.</param>
         /// <returns>The directory's immediate file and directory entries.</returns>

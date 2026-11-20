@@ -68,29 +68,20 @@ namespace Opc.Ua.Server
             NodeManagerRoutingTable.RoutingSnapshot routingRevision)
             : base(message)
         {
-            RoutingRevision = routingRevision;
+            m_routingRevision = new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(
+                routingRevision ?? throw new ArgumentNullException(nameof(routingRevision)));
         }
 
         /// <summary>
-        /// Binds a host conflict to its first owning batch without relabeling nested batch failures.
+        /// Gets the live captured routing view checked by the publication host, if available.
         /// </summary>
-        internal NodeManagerRoutingConflictException(
-            NodeManagerRoutingConflictException failure,
-            IPreparedNodeManagerBatch batch)
-            : base(failure.Message, failure)
-        {
-            RoutingRevision = failure.RoutingRevision;
-            Batch = batch;
-        }
+        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingRevision =>
+            m_routingRevision is not null &&
+            m_routingRevision.TryGetTarget(out NodeManagerRoutingTable.RoutingSnapshot? routingRevision)
+                ? routingRevision
+                : null;
 
-        /// <summary>
-        /// Gets the batch whose own routing check failed, or null until that batch binds the host conflict.
-        /// </summary>
-        internal IPreparedNodeManagerBatch? Batch { get; }
-
-        /// <summary>
-        /// Gets the captured routing view checked by the publication host, or null for an unclassified failure.
-        /// </summary>
-        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingRevision { get; }
+        /// <summary>The captured routing view's non-owning identity.</summary>
+        private readonly WeakReference<NodeManagerRoutingTable.RoutingSnapshot>? m_routingRevision;
     }
 }

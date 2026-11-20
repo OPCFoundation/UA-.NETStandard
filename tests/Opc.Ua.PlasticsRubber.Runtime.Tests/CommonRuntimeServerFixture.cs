@@ -53,8 +53,9 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
         /// </summary>
         internal CommonRuntimeServerFixture()
         {
-            m_root = Path.Combine(TestContext.CurrentContext.WorkDirectory,
-                "TestResults", "CommonRuntime-" + Guid.NewGuid().ToString("N"));
+            m_root = Path.Combine(
+                Path.GetTempPath(),
+                "ua-common-runtime-" + Guid.NewGuid().ToString("N"));
         }
 
         /// <summary>

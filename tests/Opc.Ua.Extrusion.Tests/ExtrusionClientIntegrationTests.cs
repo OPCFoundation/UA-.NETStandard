@@ -77,8 +77,7 @@ namespace Opc.Ua.Extrusion.Tests
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             listener.Stop();
             string endpoint = $"opc.tcp://localhost:{port}/Extrusion";
-            string root = Path.GetFullPath(Path.Combine(
-                "artifacts", "extrusion-tests", "wire", Guid.NewGuid().ToString("N")));
+            string root = Path.Combine(Path.GetTempPath(), "extrusion-wire-" + Guid.NewGuid().ToString("N"));
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             ExtrusionDevice<Extruder.Extruder_InterfaceState>? extruder = null;
             ExtrusionDevice<Filter.Filter_InterfaceState>? filter = null;
@@ -165,6 +164,10 @@ namespace Opc.Ua.Extrusion.Tests
             try
             {
                 await host.StartAsync(ct).ConfigureAwait(false);
+                Task execution = Task.WhenAll(host.Services.GetServices<IHostedService>()
+                    .OfType<BackgroundService>().Select(service => service.ExecuteTask).OfType<Task>());
+                Task completed = await Task.WhenAny(configured.Task, execution).WaitAsync(ct).ConfigureAwait(false);
+                await completed.ConfigureAwait(false);
                 await configured.Task.WaitAsync(ct).ConfigureAwait(false);
                 var services = new ServiceCollection();
                 services.AddOpcUa().AddClient(options =>

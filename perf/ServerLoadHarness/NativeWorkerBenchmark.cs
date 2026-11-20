@@ -335,11 +335,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .Where(p => p.Length == 2)
                 .ToDictionary(p => p[0], p => p[1], StringComparer.Ordinal);
             double allocatedMb = values.TryGetValue("allocMB", out string? a) ? double.Parse(a, CultureInfo.InvariantCulture) : 0;
-            double cpuMs = double.Parse(values["cpuMs"], CultureInfo.InvariantCulture);
+            double cpuMs = ProcessCpuReport.GetMilliseconds(values);
             result.Append(CultureInfo.InvariantCulture,
-                $"  per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F2}  ({unit})\n")
-                .Append(CultureInfo.InvariantCulture,
-                $"  client-per-op: allocB=0 cpuUs={clientCpu.TotalMilliseconds * 1000 / operations:F2}  ({unit}, native workers)\n");
+                $"  per-op: allocB={allocatedMb * 1048576 / operations:F0} ")
+                .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(cpuMs, operations))
+                .Append("  (").Append(unit).Append(")\n")
+                .Append("  client-per-op: allocB=0 cpuUs=")
+                .Append(ProcessCpuReport.FormatPerOperation(clientCpu.TotalMilliseconds, operations))
+                .Append("  (").Append(unit).Append(", native workers)\n");
         }
 
         internal static long NowNs()
@@ -514,7 +517,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 double seconds = Stopwatch.GetElapsedTime(m_markTimestamp).TotalSeconds;
                 TimeSpan cpu = m_process.TotalProcessorTime - m_markCpu;
                 return FormattableString.Invariant(
-                    $"sec={seconds:F2} cpuMs={cpu.TotalMilliseconds:F0} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
+                    $"sec={seconds:F2} {ProcessCpuReport.Format(cpu)} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
                     FormattableString.Invariant(
                     $"threads={m_process.Threads.Count} wsMB={m_process.WorkingSet64 / 1048576} (external)") +
                     sched;

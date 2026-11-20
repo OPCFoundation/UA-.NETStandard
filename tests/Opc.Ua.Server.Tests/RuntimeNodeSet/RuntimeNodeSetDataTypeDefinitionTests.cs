@@ -31,11 +31,13 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 {
@@ -67,9 +69,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(RuntimeNodeSetDataTypeDefinitionTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-types-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
@@ -100,10 +101,19 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public async Task DerivedStructureInAnotherNamespaceStartsWithTheBaseFieldsAsync()
         {
-            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kBaseNamespaceUri, BuildBaseXml()), null).ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kDerivedNamespaceUri, BuildDerivedXml()), null).ConfigureAwait(false);
+            Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(
+                kBaseNamespaceUri, BuildBaseXml()))), CancellationToken.None).ConfigureAwait(false)).Registrations[0]);
+            Registration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(
+                kDerivedNamespaceUri, BuildDerivedXml()))), CancellationToken.None).ConfigureAwait(
+                false)).Registrations[0]);
 
             IServerInternal server = m_server.CurrentInstance;
             ushort baseNs = checked((ushort)server.NamespaceUris.GetIndex(kBaseNamespaceUri));

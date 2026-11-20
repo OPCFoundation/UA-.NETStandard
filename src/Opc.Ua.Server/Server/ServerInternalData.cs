@@ -162,6 +162,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initializes server internals with a preconstructed status owner, without starting runtime workers.
+        /// </summary>
+        /// <param name="serverDescription">The server description.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="messageContext">The message context.</param>
+        /// <param name="timeProvider">The server time provider, or null for the system clock.</param>
+        /// <param name="securityPolicies">The security policies, or null for the default registry.</param>
+        /// <param name="status">The status owned by these internals.</param>
+        internal ServerInternalData(
+            ServerProperties serverDescription,
+            ApplicationConfiguration configuration,
+            IServiceMessageContext messageContext,
+            TimeProvider? timeProvider,
+            ISecurityPolicyRegistry? securityPolicies,
+            ServerStatusValue status)
+            : this(serverDescription, configuration, messageContext, timeProvider, securityPolicies)
+        {
+            NonThreadSafeStatus = status ?? throw new ArgumentNullException(nameof(status));
+        }
+
+        /// <summary>
         /// Frees resources by running the asynchronous disposal core synchronously.
         /// </summary>
         /// <remarks>
@@ -316,12 +337,12 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            if (Volatile.Read(ref m_disposed) != 0)
-            {
-                throw new ObjectDisposedException(nameof(ServerInternalData));
-            }
             lock (m_historianBuildersLock)
             {
+                if (Volatile.Read(ref m_disposed) != 0)
+                {
+                    throw new ObjectDisposedException(nameof(ServerInternalData));
+                }
                 if (!m_historianBuilders.Contains(builder))
                 {
                     m_historianBuilders.Add(builder);

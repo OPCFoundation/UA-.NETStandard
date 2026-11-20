@@ -182,6 +182,54 @@ namespace Opc.Ua.Server
             double sourceSamplingInterval,
             bool createDurable,
             TimeProvider? timeProvider)
+            : this(
+                server,
+                nodeManager,
+                managerHandle,
+                subscriptionId,
+                id,
+                itemToMonitor,
+                diagnosticsMasks,
+                timestampsToReturn,
+                monitoringMode,
+                clientHandle,
+                originalFilter,
+                filterToUse,
+                range,
+                samplingInterval,
+                queueSize,
+                discardOldest,
+                sourceSamplingInterval,
+                createDurable,
+                timeProvider,
+                null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes an item with a source generation resolved before native registration.
+        /// </summary>
+        internal MonitoredItem(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            uint subscriptionId,
+            uint id,
+            ReadValueId itemToMonitor,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringMode monitoringMode,
+            uint clientHandle,
+            MonitoringFilter? originalFilter,
+            MonitoringFilter? filterToUse,
+            Range? range,
+            double samplingInterval,
+            uint queueSize,
+            bool discardOldest,
+            double sourceSamplingInterval,
+            bool createDurable,
+            TimeProvider? timeProvider,
+            NodeManagerGeneration? sourceGeneration)
         {
             if (itemToMonitor == null)
             {
@@ -196,7 +244,7 @@ namespace Opc.Ua.Server
             Initialize();
 
             m_server = server;
-            NodeManager = nodeManager;
+            SetNodeManager(nodeManager, sourceGeneration);
             ManagerHandle = managerHandle;
             SourceMetadata = CaptureSourceMetadata(server, managerHandle);
             SubscriptionId = subscriptionId;
@@ -292,7 +340,21 @@ namespace Opc.Ua.Server
             TimeProvider? timeProvider)
             : this(
                 server, storedMonitoredItem, timeProvider,
-                nodeManager ?? throw new ArgumentNullException(nameof(nodeManager)), managerHandle)
+                nodeManager ?? throw new ArgumentNullException(nameof(nodeManager)), managerHandle, null)
+        {
+        }
+
+        /// <summary>
+        /// Restores an item with a source generation resolved before native registration.
+        /// </summary>
+        internal MonitoredItem(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            IStoredMonitoredItem storedMonitoredItem,
+            TimeProvider? timeProvider,
+            NodeManagerGeneration sourceGeneration)
+            : this(server, storedMonitoredItem, timeProvider, nodeManager, managerHandle, sourceGeneration)
         {
         }
 
@@ -306,7 +368,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IStoredMonitoredItem storedMonitoredItem,
             TimeProvider? timeProvider = null)
-            : this(server, storedMonitoredItem, timeProvider, null, null)
+            : this(server, storedMonitoredItem, timeProvider, null, null, null)
         {
         }
 
@@ -318,7 +380,8 @@ namespace Opc.Ua.Server
             IStoredMonitoredItem storedMonitoredItem,
             TimeProvider? timeProvider,
             IAsyncNodeManager? nodeManager,
-            object? managerHandle)
+            object? managerHandle,
+            NodeManagerGeneration? sourceGeneration)
         {
             if (storedMonitoredItem == null)
             {
@@ -337,11 +400,11 @@ namespace Opc.Ua.Server
                 if (storedMonitoredItem.IsDetached ||
                     storedMonitoredItem is IStoredMonitoredItemInvalidation { IsTerminal: true })
                 {
-                    m_slot = NodeManagerGenerationRegistry.GetOrCreate(nodeManager).Slot;
+                    m_slot = (sourceGeneration ?? MasterNodeManager.GetSourceGeneration(server, nodeManager)).Slot;
                 }
                 else
                 {
-                    NodeManager = nodeManager;
+                    SetNodeManager(nodeManager, sourceGeneration);
                 }
             }
             else
@@ -464,26 +527,7 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager? NodeManager
         {
             get => m_nodeManager;
-            private set
-            {
-                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(
-                    value ?? throw new ArgumentNullException(nameof(value)));
-                if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
-                {
-                    previous!.MonitoredItems.TryRemove(this, out _);
-                }
-                if (m_slot is { } previousSlot && !ReferenceEquals(previousSlot, generation.Slot))
-                {
-                    previousSlot.UnresolvedItems.TryRemove(this, out _);
-                }
-                m_slot = generation.Slot;
-                m_nodeManager = value;
-                Generation = generation.Reference;
-                if (m_subscriptionOwnership == SubscriptionOwnership.Bound)
-                {
-                    generation.MonitoredItems[this] = m_subscription!;
-                }
-            }
+            private set => SetNodeManager(value, null);
         }
 
         /// <summary>
@@ -503,6 +547,10 @@ namespace Opc.Ua.Server
         private void SetLostNodeState(bool isDeleted)
         {
             m_isDeleted = isDeleted;
+            if (!isDeleted)
+            {
+                m_pendingDeletedSourceStatus = false;
+            }
 
             UpdateUnresolvedOwnership();
         }
@@ -513,7 +561,9 @@ namespace Opc.Ua.Server
         private void UpdateUnresolvedOwnership()
         {
             if (m_subscriptionOwnership == SubscriptionOwnership.Bound &&
-                !m_isDisposed && !m_isTerminal && (Generation is null || m_isDeleted))
+                !m_isDisposed &&
+                !m_isTerminal &&
+                (Generation is null || m_isDeleted))
             {
                 m_slot.UnresolvedItems[this] = m_subscription!;
             }
@@ -672,10 +722,10 @@ namespace Opc.Ua.Server
         bool IReadySignalingMonitoredItem.HasPendingNotifications =>
             !IsReadinessPending() &&
             (Volatile.Read(ref m_readyToPublish) ||
-            Volatile.Read(ref m_readyToTrigger) ||
-            Volatile.Read(ref m_resendData) ||
+                Volatile.Read(ref m_readyToTrigger) ||
+                Volatile.Read(ref m_resendData) ||
             // an aggregate becomes ready when its processing interval ends, without a new value.
-            AggregateFilter != null);
+                AggregateFilter != null);
 
         /// <summary>
         /// Re-signals retained samples after this exact bound generation finishes initialization.
@@ -685,7 +735,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (!m_isDisposed && IsBoundToGeneration(generation) &&
+                if (!m_isDisposed &&
+                    IsBoundToGeneration(generation) &&
                     (m_readyToPublish || m_readyToTrigger || m_resendData || AggregateFilter is not null))
                 {
                     SignalReady();
@@ -714,7 +765,8 @@ namespace Opc.Ua.Server
         {
             // the compare-exchange is a full fence: the flags set before it are visible to a
             // subscription that releases the signal and then checks the flags again.
-            if (!IsReadinessPending() && m_subscription is IMonitoredItemReadySink sink &&
+            if (!IsReadinessPending() &&
+                m_subscription is IMonitoredItemReadySink sink &&
                 Interlocked.CompareExchange(ref m_readySignal, 1, 0) == 0)
             {
                 sink.OnMonitoredItemReady(this);
@@ -791,6 +843,86 @@ namespace Opc.Ua.Server
             Invalidate(terminal);
         }
 
+        /// <summary>
+        /// Marks a node deleted only if the expected generation still owns the item.
+        /// </summary>
+        /// <param name="generation">The generation that reported the deletion.</param>
+        /// <param name="owner">The monitored-node owner that reported the deletion.</param>
+        /// <param name="binding">The captured monitored-node binding.</param>
+        /// <param name="itemId">The captured item identifier.</param>
+        /// <param name="isEvent">Whether the owner captured an event item.</param>
+        /// <param name="sourceRevision">The marked source's binding revision.</param>
+        /// <param name="sourceGeneration">The marked source's generation, if bound.</param>
+        /// <returns>Whether a new lost-node notification needs to be queued.</returns>
+        internal bool TryMarkDeletedSource(
+            NodeManagerGenerationReference generation,
+            MonitoredNode2 owner,
+            MonitoredNode2.NodeBinding binding,
+            uint itemId,
+            bool isEvent,
+            out long sourceRevision,
+            out NodeManagerGenerationReference? sourceGeneration)
+        {
+            lock (m_lock)
+            {
+                sourceRevision = m_sourceRevision;
+                sourceGeneration = Generation;
+                if (m_isDisposed ||
+                    !owner.IsCurrentDeletedSource(itemId, this, binding, generation, isEvent) ||
+                    (Generation is not null && !ReferenceEquals(Generation, generation)))
+                {
+                    return false;
+                }
+                if (m_isDeleted)
+                {
+                    SetLostNodeState(isDeleted: true);
+                    return m_pendingDeletedSourceStatus;
+                }
+                // Keep the provisional change local until the owner binding is checked again.
+                m_isDeleted = true;
+                if (!owner.IsCurrentDeletedSource(itemId, this, binding, generation, isEvent))
+                {
+                    m_isDeleted = false;
+                    return false;
+                }
+                m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
+                UpdateUnresolvedOwnership();
+                m_pendingDeletedSourceStatus = true;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Queues a marked deletion only while the same source remains lost.
+        /// </summary>
+        /// <param name="sourceRevision">The marked source's binding revision.</param>
+        /// <param name="sourceGeneration">The marked source's generation, if bound.</param>
+        /// <param name="owner">The monitored-node owner that reported the deletion.</param>
+        /// <param name="binding">The captured monitored-node binding.</param>
+        internal void QueueDeletedSourceStatus(
+            long sourceRevision,
+            NodeManagerGenerationReference? sourceGeneration,
+            MonitoredNode2 owner,
+            MonitoredNode2.NodeBinding binding)
+        {
+            lock (m_lock)
+            {
+                bool released = Generation is null &&
+                    sourceGeneration is not null &&
+                    ReferenceEquals(m_releasedGeneration, sourceGeneration);
+                if (!m_isDisposed &&
+                    m_isDeleted &&
+                    m_pendingDeletedSourceStatus &&
+                    m_sourceRevision == sourceRevision &&
+                    (ReferenceEquals(Generation, sourceGeneration) ||
+                        released) &&
+                    (released || ReferenceEquals(owner.CaptureNodeBinding(), binding)))
+                {
+                    QueueNodeIdUnknown();
+                }
+            }
+        }
+
         /// <inheritdoc/>
         bool IMonitoredItemGenerationBinding.IsTerminal
         {
@@ -811,16 +943,29 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_isTerminal |= terminal;
-                if (m_isDeleted)
+                if (MarkDeleted(terminal))
                 {
-                    SetLostNodeState(isDeleted: true);
-                    return;
+                    QueueNodeIdUnknown();
                 }
-                m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
-                SetLostNodeState(isDeleted: true);
-                QueueNodeIdUnknown();
             }
+        }
+
+        /// <summary>
+        /// Records the lost-node state while the item lock is held.
+        /// </summary>
+        /// <param name="terminal">Whether future adoption is forbidden.</param>
+        /// <returns>Whether this is the first report of the lost node.</returns>
+        private bool MarkDeleted(bool terminal)
+        {
+            m_isTerminal |= terminal;
+            if (m_isDeleted)
+            {
+                SetLostNodeState(isDeleted: true);
+                return false;
+            }
+            m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
+            SetLostNodeState(isDeleted: true);
+            return true;
         }
 
         /// <inheritdoc/>
@@ -882,6 +1027,10 @@ namespace Opc.Ua.Server
                 {
                     previous!.MonitoredItems.TryRemove(this, out _);
                 }
+                if (Generation is not null)
+                {
+                    m_releasedGeneration = Generation;
+                }
                 m_nodeManager = null;
                 Generation = null;
                 ManagerHandle = null;
@@ -919,7 +1068,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return new MonitoredItemSourceSnapshot(Generation, ManagerHandle as NodeHandle, m_sourceRevision);
+                return new MonitoredItemSourceSnapshot(
+                    Generation, ManagerHandle as NodeHandle, m_sourceRevision, m_releasedGeneration);
             }
         }
 
@@ -928,9 +1078,23 @@ namespace Opc.Ua.Server
             long sourceRevision,
             IAsyncNodeManager nodeManager,
             object managerHandle,
+            out long boundRevision,
+            MonitoredItemAdoption? adoption)
+        {
+            return BindSource(nodeManager, managerHandle, sourceRevision, out boundRevision, adoption: adoption);
+        }
+
+        /// <summary>
+        /// Binds a native source using the generation resolved before registration.
+        /// </summary>
+        internal bool TryBindSource(
+            long sourceRevision,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            NodeManagerGeneration sourceGeneration,
             out long boundRevision)
         {
-            return BindSource(nodeManager, managerHandle, sourceRevision, out boundRevision);
+            return BindSource(nodeManager, managerHandle, sourceRevision, out boundRevision, sourceGeneration);
         }
 
         /// <summary>
@@ -940,7 +1104,9 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             object managerHandle,
             long sourceRevision,
-            out long boundRevision)
+            out long boundRevision,
+            NodeManagerGeneration? sourceGeneration = null,
+            MonitoredItemAdoption? adoption = null)
         {
             NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
@@ -958,12 +1124,17 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("A terminal monitored item cannot be rebound.");
                 }
-                NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+                NodeManagerGeneration generation = SetNodeManager(nodeManager, sourceGeneration);
                 ManagerHandle = managerHandle;
                 SourceMetadata = metadata;
                 SetLostNodeState(isDeleted: false);
                 m_finalValuePublished = false;
                 boundRevision = m_sourceRevision = unchecked(m_sourceRevision + 1);
+                if (adoption is not null)
+                {
+                    adoption.SourceRevision = boundRevision;
+                    adoption.Generation = generation;
+                }
                 return true;
             }
         }
@@ -2400,7 +2571,8 @@ namespace Opc.Ua.Server
             }
             bool capturedSourceEmission = admittedGeneration is not null;
             MasterNodeManager.SourceEmissionAdmission? emission = null;
-            bool admitted = capturedSourceEmission || MasterNodeManager.TryCaptureSourceEmission(
+            bool admitted = capturedSourceEmission ||
+                MasterNodeManager.TryCaptureSourceEmission(
                     m_server,
                     NodeManager,
                     out emission,
@@ -2536,7 +2708,8 @@ namespace Opc.Ua.Server
         {
             bool capturedSourceEmission = admittedGeneration is not null;
             MasterNodeManager.SourceEmissionAdmission? emission = null;
-            bool admitted = capturedSourceEmission || MasterNodeManager.TryCaptureSourceEmission(
+            bool admitted = capturedSourceEmission ||
+                MasterNodeManager.TryCaptureSourceEmission(
                     m_server,
                     NodeManager,
                     out emission,
@@ -3326,7 +3499,8 @@ namespace Opc.Ua.Server
 
         private bool CanQueueSourceEmission()
         {
-            return Generation is not null && !m_isTerminal &&
+            return Generation is not null &&
+                !m_isTerminal &&
                 (!m_isDeleted ||
                     (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0));
         }
@@ -3357,6 +3531,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Installs a source binding, optionally using an already resolved generation.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="nodeManager"/> is null.
+        /// </exception>
+        private NodeManagerGeneration SetNodeManager(
+            IAsyncNodeManager? nodeManager,
+            NodeManagerGeneration? sourceGeneration)
+        {
+            IAsyncNodeManager source = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            NodeManagerGeneration generation = sourceGeneration ??
+                MasterNodeManager.GetSourceGeneration(m_server, source);
+            if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
+            {
+                previous!.MonitoredItems.TryRemove(this, out _);
+            }
+            if (m_slot is { } previousSlot && !ReferenceEquals(previousSlot, generation.Slot))
+            {
+                previousSlot.UnresolvedItems.TryRemove(this, out _);
+            }
+            m_slot = generation.Slot;
+            m_nodeManager = source;
+            Generation = generation.Reference;
+            m_releasedGeneration = null;
+            if (m_subscriptionOwnership == SubscriptionOwnership.Bound)
+            {
+                generation.MonitoredItems[this] = m_subscription!;
+            }
+            return generation;
+        }
+
+        /// <summary>
         /// Captures a detached copy of the source node metadata needed to revise and validate item modifications.
         /// </summary>
         /// <param name="server">The server providing the type tree and system context.</param>
@@ -3381,7 +3587,8 @@ namespace Opc.Ua.Server
                 MinimumSamplingInterval = variable.MinimumSamplingInterval
             };
             if (variable.FindChild(server.DefaultSystemContext, QualifiedName.From(BrowseNames.EURange)) is
-                PropertyState property && property.Value.TryGetStructure<Range>(out Range? range))
+                PropertyState property &&
+                property.Value.TryGetStructure<Range>(out Range? range))
             {
                 metadata.AddChild(new PropertyState(metadata)
                 {
@@ -3394,6 +3601,7 @@ namespace Opc.Ua.Server
 
         private void QueueNodeIdUnknown()
         {
+            m_pendingDeletedSourceStatus = false;
             // a disabled item queues nothing (Part 4, 5.13.4.1); m_isDeleted is kept and
             // the notification is queued when the item leaves DISABLED.
             if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0 ||
@@ -3972,6 +4180,7 @@ namespace Opc.Ua.Server
             DeadbandType = (uint)DeadbandType.None,
             DeadbandValue = 0.0
         };
+
         private readonly ILogger m_logger;
         private bool m_isDisposed;
 
@@ -3990,6 +4199,10 @@ namespace Opc.Ua.Server
 
         /// <summary>Changes only when a native source binding is installed, never when sampling or queuing.</summary>
         private long m_sourceRevision;
+
+        /// <summary>Weakly identifies the last released source for retrying its unfinished cleanup.</summary>
+        private NodeManagerGenerationReference? m_releasedGeneration;
+        private bool m_pendingDeletedSourceStatus;
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;

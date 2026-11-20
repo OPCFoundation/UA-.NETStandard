@@ -55,6 +55,54 @@ namespace Opc.Ua.Server.Tests.NodeManager
     {
         private const string TestNamespaceUri = "http://test.org/UA/NodeManagement/";
 
+        [Test]
+        public async Task RemoveRootNotifierPreservesDistinctEqualReplacementAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort namespaceIndex = h.Manager.NamespaceIndexes[0];
+            var original = new EqualRootNotifierState
+            {
+                NodeId = new NodeId("Notifier", namespaceIndex)
+            };
+            var replacement = new EqualRootNotifierState { NodeId = original.NodeId };
+            h.Manager.RootNotifiers[original.NodeId] = replacement;
+
+            Assert.That(original, Is.EqualTo(replacement));
+            await h.Manager.RemoveRootNotifierPublicAsync(original).ConfigureAwait(false);
+
+            Assert.That(h.Manager.RootNotifiers[original.NodeId], Is.SameAs(replacement));
+        }
+
+        [Test]
+        public async Task DeleteAddressSpacePreservesReplacementRootNotifierAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort namespaceIndex = h.Manager.NamespaceIndexes[0];
+            var original = new EqualRootNotifierState();
+            original.CreateAsPredefinedNode(h.Context);
+            original.NodeId = new NodeId("Notifier", namespaceIndex);
+            original.BrowseName = new QualifiedName("Notifier", namespaceIndex);
+            var replacement = new EqualRootNotifierState();
+            replacement.CreateAsPredefinedNode(h.Context);
+            replacement.NodeId = original.NodeId;
+            replacement.BrowseName = original.BrowseName;
+            original.BeforeDelete = () =>
+            {
+                h.Manager.PredefinedNodes[original.NodeId] = replacement;
+                h.Manager.RootNotifiers[original.NodeId] = replacement;
+            };
+            h.Manager.PredefinedNodes[original.NodeId] = original;
+            h.Manager.RootNotifiers[original.NodeId] = original;
+
+            Assert.That(original, Is.EqualTo(replacement));
+            await h.Manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(h.Manager.PredefinedNodes[original.NodeId], Is.SameAs(replacement));
+            Assert.That(h.Manager.RootNotifiers[original.NodeId], Is.SameAs(replacement));
+            Assert.That(original.DeleteCount, Is.EqualTo(1));
+            Assert.That(replacement.DeleteCount, Is.Zero);
+        }
+
         [TestCase("unknownDataType")]
         [TestCase("nonDataType")]
         [TestCase("wrongValue")]
@@ -2112,6 +2160,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private sealed class ConstrainedVariableType : BaseVariableTypeState;
 
+        private sealed class EqualRootNotifierState : BaseObjectState
+        {
+            public EqualRootNotifierState()
+                : base(null)
+            {
+            }
+
+            public Action? BeforeDelete { get; set; }
+
+            public int DeleteCount { get; private set; }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is EqualRootNotifierState;
+            }
+
+            public override int GetHashCode()
+            {
+                return 0;
+            }
+
+            protected override void OnBeforeDelete(ISystemContext context)
+            {
+                DeleteCount++;
+                BeforeDelete?.Invoke();
+                base.OnBeforeDelete(context);
+            }
+        }
+
         private class NodeManagementTestNodeManager : AsyncCustomNodeManager
         {
             public NodeManagementTestNodeManager(
@@ -2123,7 +2200,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
-            public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+            public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
+
+            public new PredefinedNodeDictionary RootNotifiers => base.RootNotifiers;
+
+            public ValueTask RemoveRootNotifierPublicAsync(NodeState node)
+            {
+                return RemoveRootNotifierAsync(node);
+            }
 
             public ValueTask AddPredefinedNodeAsyncPublic(ISystemContext context, NodeState node, CancellationToken ct = default)
             {
@@ -2151,7 +2235,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public void SeedRootNotifier(NodeId nodeId)
             {
-                RootNotifiers[nodeId] = null!;
+                RootNotifiers[nodeId] = new BaseObjectState(null) { NodeId = nodeId };
             }
         }
 

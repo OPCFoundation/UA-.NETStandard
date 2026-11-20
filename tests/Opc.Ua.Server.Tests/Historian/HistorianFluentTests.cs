@@ -834,6 +834,856 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that concurrent builder disposal waits for its capture owner and shares a timeout failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConcurrentBuilderDisposalJoinsCaptureDrainAsync(bool timeoutCapture)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var timeProvider = new FakeTimeProvider();
+            var builders = new List<HistorianBuilder>();
+            var unregistrationSignals =
+                new ConcurrentDictionary<HistorianBuilder, TaskCompletionSource<bool>>();
+            IServerInternal server = CreateServerWithRegistry(builders, timeProvider: timeProvider);
+            Mock<IHistorianBuilderRegistry> lifecycle = Mock.Get(server).As<IHistorianBuilderRegistry>();
+            lifecycle
+                .Setup(value => value.UnregisterHistorianBuilder(It.IsAny<HistorianBuilder>()))
+                .Callback<HistorianBuilder>(builder =>
+                {
+                    builders.Remove(builder);
+                    if (unregistrationSignals.TryGetValue(builder, out TaskCompletionSource<bool>? signal))
+                    {
+                        signal.TrySetResult(true);
+                    }
+                });
+            (NodeManagerBuilder nodeBuilder, BaseDataVariableState variable) = CreateBuilderForServer(server);
+            using var inner = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                RawDataRetentionPeriod = TimeSpan.Zero
+            });
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new Mock<IHistorianProvider>();
+            NodeId capturedNode = default;
+            ArrayOf<DataValue> capturedValues = default;
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.InsertAsync(
+                    It.IsAny<HistorianOperationContext>(), It.IsAny<NodeId>(),
+                    It.IsAny<ArrayOf<DataValue>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (HistorianOperationContext context, NodeId nodeId,
+                    ArrayOf<DataValue> values, CancellationToken _) =>
+                {
+                    capturedNode = nodeId;
+                    capturedValues = values;
+                    entered.TrySetResult(true);
+                    try
+                    {
+                        await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        return await inner.InsertAsync(context, nodeId, values, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        finished.TrySetResult(true);
+                    }
+                });
+            HistorianBuilder historian = nodeBuilder.UseHistorian().UseProvider(provider.Object);
+            var historianUnregistered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            unregistrationSignals[historian] = historianUnregistered;
+            historian.Historize(variable, systemContext: nodeBuilder.Context,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.Zero
+                });
+            variable.Value = 42;
+            variable.ClearChangeMasks(nodeBuilder.Context, includeChildren: false);
+            Task? disposal = null;
+            AggregateException? terminalFailure = null;
+            HistorianBuilder? successorHistorian = null;
+            BaseDataVariableState? successorVariable = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Task disposing = historian.DisposeAsync().AsTask();
+                disposal = disposing;
+                Task joining = historian.DisposeAsync().AsTask();
+
+                Assert.That(disposing.IsCompleted, Is.False);
+                Assert.That(joining.IsCompleted, Is.False,
+                    "A concurrent disposer must join the capture drain, not acknowledge transferred resources.");
+                Assert.That(() => historian.Historize(variable, systemContext: nodeBuilder.Context),
+                    Throws.TypeOf<ObjectDisposedException>());
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await historian.HistorizeEventsAsync(
+                        new BaseObjectState(null) { NodeId = new NodeId("disposing-notifier", 1) },
+                        nodeBuilder.Context,
+                        installConfiguration: false).ConfigureAwait(false)).ConfigureAwait(false);
+                variable.Value = 84;
+                variable.ClearChangeMasks(nodeBuilder.Context, includeChildren: false);
+
+                if (timeoutCapture)
+                {
+                    timeProvider.Advance(TimeSpan.FromSeconds(5));
+                    AggregateException? failure = await Assert.CatchAsync<AggregateException>(
+                        () => disposing).ConfigureAwait(false);
+                    AggregateException? joinedFailure = await Assert.CatchAsync<AggregateException>(
+                        () => joining).ConfigureAwait(false);
+                    Assert.That(failure!.InnerExceptions, Has.Count.EqualTo(1));
+                    Assert.That(failure.InnerExceptions[0], Is.TypeOf<TimeoutException>());
+                    Assert.That(joinedFailure, Is.SameAs(failure));
+                    terminalFailure = failure;
+                    Assert.That(finished.Task.IsCompleted, Is.False,
+                        "Timing out the drain must not claim that the provider has completed.");
+                    Assert.That(builders, Does.Contain(historian),
+                        "A builder with a live provider consumer must remain registered for server shutdown.");
+
+                    (NodeManagerBuilder _, BaseDataVariableState pendingVariable) =
+                        CreateBuilderForServer(server);
+                    pendingVariable.NodeId = new NodeId("successor-var", kNs);
+                    byte accessBefore = pendingVariable.AccessLevel;
+                    byte userAccessBefore = pendingVariable.UserAccessLevel;
+                    successorVariable = pendingVariable;
+                    successorHistorian = new HistorianBuilder(server);
+                    successorHistorian.UseProvider(provider.Object);
+                    Assert.That(
+                        () => successorHistorian.Historize(
+                            pendingVariable,
+                            systemContext: nodeBuilder.Context),
+                        Throws.TypeOf<InvalidOperationException>());
+                    Assert.That(pendingVariable.Historizing, Is.False);
+                    Assert.That(pendingVariable.AccessLevel, Is.EqualTo(accessBefore));
+                    Assert.That(pendingVariable.UserAccessLevel, Is.EqualTo(userAccessBefore));
+                    Assert.That(
+                        () => successorHistorian.CreateCaptureHandlerTargetReference(pendingVariable),
+                        Throws.TypeOf<InvalidOperationException>());
+                }
+                else
+                {
+                    release.TrySetResult(true);
+                    await Task.WhenAll(disposing, joining).WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (timeoutCapture)
+                {
+                    AggregateException? repeatedFailure = await Assert.CatchAsync<AggregateException>(
+                        async () => await historian.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(repeatedFailure, Is.SameAs(terminalFailure));
+                }
+                else
+                {
+                    await historian.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await finished.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (disposal is { IsCompleted: false })
+                {
+                    await disposal.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (disposal is not null && timeoutCapture && disposal.IsFaulted)
+                {
+                    AggregateException? cleanupFailure = await Assert.CatchAsync<AggregateException>(
+                        async () => await historian.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                    if (terminalFailure is not null)
+                    {
+                        Assert.That(cleanupFailure, Is.SameAs(terminalFailure));
+                    }
+                }
+                else
+                {
+                    await historian.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+
+            if (successorHistorian is not null && successorVariable is not null)
+            {
+                await HistorianBuilder.WaitForProviderCaptureCleanupAsync(provider.Object)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                await historianUnregistered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                successorHistorian.Historize(
+                    successorVariable,
+                    systemContext: nodeBuilder.Context,
+                    captureOptions: new HistorianCaptureOptions
+                    {
+                        BatchTarget = 1,
+                        BatchWindow = TimeSpan.Zero
+                    });
+                await successorHistorian.DisposeAsync().ConfigureAwait(false);
+            }
+
+            provider.As<IHistorianDataProvider>().Verify(value => value.InsertAsync(
+                It.IsAny<HistorianOperationContext>(), variable.NodeId,
+                It.IsAny<ArrayOf<DataValue>>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(capturedNode, Is.EqualTo(variable.NodeId));
+            Assert.That(capturedValues.Count, Is.EqualTo(1));
+            Assert.That(capturedValues[0].WrappedValue.TryGetValue(out int capturedValue), Is.True);
+            Assert.That(capturedValue, Is.EqualTo(42));
+
+            Assert.That(() => historian.Historize(variable, systemContext: nodeBuilder.Context),
+                Throws.TypeOf<ObjectDisposedException>());
+            variable.Value = 126;
+            variable.ClearChangeMasks(nodeBuilder.Context, includeChildren: false);
+
+            provider.As<IHistorianDataProvider>().Verify(value => value.InsertAsync(
+                It.IsAny<HistorianOperationContext>(), variable.NodeId,
+                It.IsAny<ArrayOf<DataValue>>(), It.IsAny<CancellationToken>()), Times.Once);
+
+            if (timeoutCapture)
+            {
+                await VerifyEventCaptureTimeoutAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await historianUnregistered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(builders, Is.Empty);
+            lifecycle.Verify(value => value.UnregisterHistorianBuilder(historian), Times.Once);
+
+            async Task VerifyEventCaptureTimeoutAsync()
+            {
+                var eventEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var eventRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var eventFinished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var eventProvider = new Mock<IHistorianProvider>();
+                var eventHistorianUnregistered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                eventProvider.As<IHistorianEventProvider>()
+                    .Setup(value => value.UpdateEventsAsync(
+                        It.IsAny<HistorianOperationContext>(), It.IsAny<NodeId>(),
+                        It.IsAny<ArrayOf<HistorianEventRecord>>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (HistorianOperationContext _, NodeId _,
+                        ArrayOf<HistorianEventRecord> _, CancellationToken _) =>
+                    {
+                        eventEntered.TrySetResult(true);
+                        try
+                        {
+                            await eventRelease.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                            return new HistorianUpdateOutcome<HistorianEventRecord>([StatusCodes.Good]);
+                        }
+                        finally
+                        {
+                            eventFinished.TrySetResult(true);
+                        }
+                    });
+                var eventHistorian = new HistorianBuilder(server);
+                unregistrationSignals[eventHistorian] = eventHistorianUnregistered;
+                eventHistorian.UseProvider(eventProvider.Object);
+                var notifier = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("event-drain", kNs),
+                    BrowseName = new QualifiedName("event-drain", kNs)
+                };
+                int forwarded = 0;
+                notifier.OnReportEventAsync = (_, _, _, _) =>
+                {
+                    forwarded++;
+                    return default;
+                };
+                await eventHistorian.HistorizeEventsAsync(
+                    notifier,
+                    nodeBuilder.Context,
+                    installConfiguration: false,
+                    capabilities: HistorianNodeCapabilities.EventReadWrite with
+                    {
+                        EventTypes = [ObjectTypeIds.BaseEventType]
+                    },
+                    captureOptions: new HistorianCaptureOptions
+                    {
+                        BatchTarget = 1,
+                        BatchWindow = TimeSpan.Zero
+                    },
+                    cancellationToken: timeout.Token).ConfigureAwait(false);
+                var reportedEvent = new BaseEventState(null);
+                reportedEvent.Initialize(
+                    nodeBuilder.Context, notifier, EventSeverity.Medium, new LocalizedText("event drain"));
+                await notifier.ReportEventAsync(nodeBuilder.Context, reportedEvent, timeout.Token).ConfigureAwait(false);
+
+                Task? eventDisposal = null;
+                AggregateException? terminalEventFailure = null;
+                var successorEventHistorian = new HistorianBuilder(server);
+                successorEventHistorian.UseProvider(eventProvider.Object);
+                var successorNotifier = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("successor-event-drain", kNs),
+                    BrowseName = new QualifiedName("successor-event-drain", kNs)
+                };
+                try
+                {
+                    await eventEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Task disposing = eventHistorian.DisposeAsync().AsTask();
+                    eventDisposal = disposing;
+                    Task joining = eventHistorian.DisposeAsync().AsTask();
+                    Assert.That(disposing.IsCompleted, Is.False);
+                    Assert.That(joining.IsCompleted, Is.False);
+                    await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                        await eventHistorian.HistorizeEventsAsync(
+                            notifier, nodeBuilder.Context, installConfiguration: false).ConfigureAwait(false))
+                        .ConfigureAwait(false);
+
+                    timeProvider.Advance(TimeSpan.FromSeconds(5));
+                    AggregateException? failure = await Assert.CatchAsync<AggregateException>(
+                        () => disposing).ConfigureAwait(false);
+                    AggregateException? joinedFailure = await Assert.CatchAsync<AggregateException>(
+                        () => joining).ConfigureAwait(false);
+                    Assert.That(failure!.InnerExceptions, Has.Count.EqualTo(1));
+                    Assert.That(failure.InnerExceptions[0], Is.TypeOf<TimeoutException>());
+                    Assert.That(joinedFailure, Is.SameAs(failure));
+                    terminalEventFailure = failure;
+                    AggregateException? repeatedFailure = await Assert.CatchAsync<AggregateException>(
+                        async () => await eventHistorian.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(repeatedFailure, Is.SameAs(failure));
+                    Assert.That(eventFinished.Task.IsCompleted, Is.False);
+                    Assert.That(builders, Does.Contain(eventHistorian),
+                        "The timed-out event consumer must keep its builder registered.");
+
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await successorEventHistorian.HistorizeEventsAsync(
+                            successorNotifier,
+                            nodeBuilder.Context,
+                            installConfiguration: false,
+                            capabilities: HistorianNodeCapabilities.EventReadWrite with
+                            {
+                                EventTypes = [ObjectTypeIds.BaseEventType]
+                            }).ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(successorNotifier.EventNotifier, Is.Zero);
+
+                    await notifier.ReportEventAsync(nodeBuilder.Context, reportedEvent, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(forwarded, Is.EqualTo(2));
+                }
+                finally
+                {
+                    eventRelease.TrySetResult(true);
+                    if (eventEntered.Task.IsCompleted)
+                    {
+                        await eventFinished.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (eventDisposal is { IsFaulted: true })
+                    {
+                        AggregateException? cleanupFailure = await Assert.CatchAsync<AggregateException>(
+                            async () => await eventHistorian.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                        if (terminalEventFailure is not null)
+                        {
+                            Assert.That(cleanupFailure, Is.SameAs(terminalEventFailure));
+                        }
+                    }
+                    else
+                    {
+                        await eventHistorian.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                await HistorianBuilder.WaitForProviderCaptureCleanupAsync(eventProvider.Object)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                await eventHistorianUnregistered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await successorEventHistorian.HistorizeEventsAsync(
+                    successorNotifier,
+                    nodeBuilder.Context,
+                    installConfiguration: false,
+                    capabilities: HistorianNodeCapabilities.EventReadWrite with
+                    {
+                        EventTypes = [ObjectTypeIds.BaseEventType]
+                    }).ConfigureAwait(false);
+                await successorEventHistorian.DisposeAsync().ConfigureAwait(false);
+                Assert.That(builders, Does.Not.Contain(eventHistorian));
+                lifecycle.Verify(value => value.UnregisterHistorianBuilder(eventHistorian), Times.Once);
+                eventProvider.As<IHistorianEventProvider>().Verify(value => value.UpdateEventsAsync(
+                    It.IsAny<HistorianOperationContext>(), notifier.NodeId,
+                    It.IsAny<ArrayOf<HistorianEventRecord>>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that provider capture admission stays closed until every timed-out consumer completes.
+        /// </summary>
+        [Test]
+        public async Task ProviderCaptureAdmissionWaitsForEveryTimedOutConsumerAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var timeProvider = new FakeTimeProvider();
+            IServerInternal server = CreateServerWithRegistry(timeProvider: timeProvider);
+            (NodeManagerBuilder firstNodeBuilder, BaseDataVariableState firstVariable) =
+                CreateBuilderForServer(server);
+            (NodeManagerBuilder secondNodeBuilder, BaseDataVariableState secondVariable) =
+                CreateBuilderForServer(server);
+            firstVariable.NodeId = new NodeId("first-pending-provider", kNs);
+            secondVariable.NodeId = new NodeId("second-pending-provider", kNs);
+
+            var entered = new TaskCompletionSource<bool>[]
+            {
+                new(TaskCreationOptions.RunContinuationsAsynchronously),
+                new(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            var release = new TaskCompletionSource<bool>[]
+            {
+                new(TaskCreationOptions.RunContinuationsAsynchronously),
+                new(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            var finished = new TaskCompletionSource<bool>[]
+            {
+                new(TaskCreationOptions.RunContinuationsAsynchronously),
+                new(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            int calls = 0;
+            var provider = new Mock<IHistorianProvider>();
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.InsertAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<ArrayOf<DataValue>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (
+                    HistorianOperationContext _,
+                    NodeId _,
+                    ArrayOf<DataValue> _,
+                    CancellationToken _) =>
+                {
+                    int slot = Interlocked.Increment(ref calls) - 1;
+                    entered[slot].TrySetResult(true);
+                    try
+                    {
+                        await release[slot].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        return new HistorianUpdateOutcome<DataValue>([StatusCodes.Good]);
+                    }
+                    finally
+                    {
+                        finished[slot].TrySetResult(true);
+                    }
+                });
+
+            HistorianBuilder firstHistorian = new HistorianBuilder(server).UseProvider(provider.Object);
+            firstHistorian.Historize(
+                firstVariable,
+                systemContext: firstNodeBuilder.Context,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.Zero
+                });
+            HistorianBuilder secondHistorian = new HistorianBuilder(server).UseProvider(provider.Object);
+            secondHistorian.Historize(
+                secondVariable,
+                systemContext: secondNodeBuilder.Context,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.Zero
+                });
+
+            firstVariable.Value = 1;
+            firstVariable.ClearChangeMasks(firstNodeBuilder.Context, includeChildren: false);
+            secondVariable.Value = 2;
+            secondVariable.ClearChangeMasks(secondNodeBuilder.Context, includeChildren: false);
+
+            Task? firstDisposal = null;
+            Task? secondDisposal = null;
+            AggregateException? firstTerminalFailure = null;
+            AggregateException? secondTerminalFailure = null;
+            try
+            {
+                await Task.WhenAll(entered[0].Task, entered[1].Task)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                Task firstDispose = firstHistorian.DisposeAsync().AsTask();
+                Task secondDispose = secondHistorian.DisposeAsync().AsTask();
+                firstDisposal = firstDispose;
+                secondDisposal = secondDispose;
+                timeProvider.Advance(TimeSpan.FromSeconds(5));
+
+                AggregateException? firstFailure = await Assert.CatchAsync<AggregateException>(
+                    () => firstDispose).ConfigureAwait(false);
+                AggregateException? secondFailure = await Assert.CatchAsync<AggregateException>(
+                    () => secondDispose).ConfigureAwait(false);
+                Assert.That(firstFailure!.InnerExceptions, Has.Some.TypeOf<TimeoutException>());
+                Assert.That(secondFailure!.InnerExceptions, Has.Some.TypeOf<TimeoutException>());
+                firstTerminalFailure = firstFailure;
+                secondTerminalFailure = secondFailure;
+
+                release[0].TrySetResult(true);
+                await finished[0].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                var blockedHistorian = new HistorianBuilder(server);
+                blockedHistorian.UseProvider(provider.Object);
+                var blockedVariable = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("still-pending-provider", kNs),
+                    BrowseName = new QualifiedName("still-pending-provider", kNs)
+                };
+                Assert.That(
+                    () => blockedHistorian.Historize(
+                        blockedVariable,
+                        systemContext: firstNodeBuilder.Context),
+                    Throws.TypeOf<InvalidOperationException>());
+                Assert.That(blockedVariable.Historizing, Is.False);
+                await blockedHistorian.DisposeAsync().ConfigureAwait(false);
+
+                release[1].TrySetResult(true);
+                await HistorianBuilder.WaitForProviderCaptureCleanupAsync(provider.Object)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                var successorHistorian = new HistorianBuilder(server);
+                successorHistorian.UseProvider(provider.Object);
+                var successorVariable = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("reopened-provider", kNs),
+                    BrowseName = new QualifiedName("reopened-provider", kNs)
+                };
+                successorHistorian.Historize(
+                    successorVariable,
+                    systemContext: firstNodeBuilder.Context);
+                await successorHistorian.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                release[0].TrySetResult(true);
+                release[1].TrySetResult(true);
+                if (entered[0].Task.IsCompleted)
+                {
+                    await finished[0].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (entered[1].Task.IsCompleted)
+                {
+                    await finished[1].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                foreach (Task? disposal in new[] { firstDisposal, secondDisposal })
+                {
+                    if (disposal is { IsCompleted: false })
+                    {
+                        await disposal.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                await VerifyDisposalResultAsync(firstHistorian, firstDisposal, firstTerminalFailure)
+                    .ConfigureAwait(false);
+                await VerifyDisposalResultAsync(secondHistorian, secondDisposal, secondTerminalFailure)
+                    .ConfigureAwait(false);
+            }
+
+            provider.As<IHistorianDataProvider>().Verify(value => value.InsertAsync(
+                It.IsAny<HistorianOperationContext>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<ArrayOf<DataValue>>(),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+            async Task VerifyDisposalResultAsync(
+                HistorianBuilder historian,
+                Task? disposal,
+                AggregateException? terminalFailure)
+            {
+                if (disposal is { IsFaulted: true })
+                {
+                    AggregateException? repeatedFailure = await Assert.CatchAsync<AggregateException>(
+                        async () => await historian.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                    if (terminalFailure is not null)
+                    {
+                        Assert.That(repeatedFailure, Is.SameAs(terminalFailure));
+                    }
+                }
+                else
+                {
+                    await historian.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that disposing an unused builder also prevents later capture registration.
+        /// </summary>
+        [Test]
+        public async Task EmptyBuilderDisposalRejectsValueAndEventCaptureAsync()
+        {
+            IServerInternal server = CreateServerWithRegistry();
+            (NodeManagerBuilder nodeBuilder, BaseDataVariableState variable) = CreateBuilderForServer(server);
+            using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions());
+            var historian = new HistorianBuilder(server);
+            historian.UseProvider(provider);
+
+            await historian.DisposeAsync().ConfigureAwait(false);
+            await historian.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(() => historian.Historize(variable, systemContext: nodeBuilder.Context),
+                Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => historian.UseProvider(provider), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => historian.RegisterAsDefault(), Throws.TypeOf<ObjectDisposedException>());
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await historian.HistorizeEventsAsync(
+                    new BaseObjectState(null) { NodeId = new NodeId("disposed-notifier", 1) },
+                    nodeBuilder.Context,
+                    installConfiguration: false).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(variable.Historizing, Is.False);
+
+            var registeredBuilders = new List<HistorianBuilder>();
+            IServerInternal reentrantServer = CreateServerWithRegistry(registeredBuilders);
+            (NodeManagerBuilder reentrantNodeBuilder, _) = CreateBuilderForServer(reentrantServer);
+            Task? reentrantDisposal = null;
+            Mock.Get(reentrantServer).As<IHistorianBuilderRegistry>()
+                .Setup(value => value.RegisterHistorianBuilder(It.IsAny<HistorianBuilder>()))
+                .Callback<HistorianBuilder>(builder => reentrantDisposal = builder.DisposeAsync().AsTask());
+            Mock.Get(reentrantServer).SetupGet(value => value.Telemetry)
+                .Throws(new InvalidOperationException("Event capture must not start after disposal."));
+            var eventProvider = new Mock<IHistorianProvider>();
+            eventProvider.As<IHistorianEventProvider>();
+            var reentrantHistorian = new HistorianBuilder(reentrantServer);
+            reentrantHistorian.UseProvider(eventProvider.Object);
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await reentrantHistorian.HistorizeEventsAsync(
+                    new BaseObjectState(null) { NodeId = new NodeId("reentrant-notifier", 1) },
+                    reentrantNodeBuilder.Context,
+                    installConfiguration: false,
+                    capabilities: HistorianNodeCapabilities.EventReadWrite).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.That(reentrantDisposal, Is.Not.Null);
+            await reentrantDisposal!.ConfigureAwait(false);
+
+            await VerifyConstructionDisposalAsync(eventCapture: false, failConstruction: false).ConfigureAwait(false);
+            await VerifyConstructionDisposalAsync(eventCapture: false, failConstruction: true).ConfigureAwait(false);
+            await VerifyConstructionDisposalAsync(eventCapture: true, failConstruction: false).ConfigureAwait(false);
+            await VerifyConstructionDisposalAsync(eventCapture: true, failConstruction: true).ConfigureAwait(false);
+            await VerifyExistingCaptureDetachesDuringConstructionAsync().ConfigureAwait(false);
+            await VerifyNestedConstructionDisposalAsync().ConfigureAwait(false);
+
+            async Task VerifyConstructionDisposalAsync(bool eventCapture, bool failConstruction)
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                IServerInternal constructionServer = CreateServerWithRegistry([]);
+                (NodeManagerBuilder constructionNodeBuilder, BaseDataVariableState constructionVariable) =
+                    CreateBuilderForServer(constructionServer);
+                var constructionProvider = new Mock<IHistorianProvider>();
+                constructionProvider.As<IHistorianDataProvider>();
+                constructionProvider.As<IHistorianEventProvider>();
+                var constructionHistorian = new HistorianBuilder(constructionServer);
+                constructionHistorian.UseProvider(constructionProvider.Object);
+                var failure = new InvalidOperationException("The capture time provider failed.");
+                Task? constructionDisposal = null;
+                bool disposalPendingInCallback = false;
+                Mock.Get(constructionServer).As<ITimeProviderProvider>()
+                    .SetupGet(value => value.TimeProvider)
+                    .Returns(() =>
+                    {
+                        constructionDisposal = constructionHistorian.DisposeAsync().AsTask();
+                        disposalPendingInCallback = !constructionDisposal.IsCompleted;
+                        if (failConstruction)
+                        {
+                            throw failure;
+                        }
+                        return TimeProvider.System;
+                    });
+
+                if (eventCapture)
+                {
+                    var notifier = new BaseObjectState(null)
+                    {
+                        NodeId = new NodeId("construction-notifier", kNs),
+                        EventNotifier = EventNotifiers.SubscribeToEvents
+                    };
+                    if (failConstruction)
+                    {
+                        await Assert.ThatAsync(async () =>
+                            await constructionHistorian.HistorizeEventsAsync(
+                                notifier,
+                                constructionNodeBuilder.Context,
+                                installConfiguration: false,
+                                capabilities: HistorianNodeCapabilities.EventReadWrite).ConfigureAwait(false),
+                            Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                            await constructionHistorian.HistorizeEventsAsync(
+                                notifier,
+                                constructionNodeBuilder.Context,
+                                installConfiguration: false,
+                                capabilities: HistorianNodeCapabilities.EventReadWrite).ConfigureAwait(false))
+                            .ConfigureAwait(false);
+                    }
+                    Assert.That(notifier.EventNotifier, Is.EqualTo(EventNotifiers.SubscribeToEvents));
+                }
+                else if (failConstruction)
+                {
+                    Assert.That(
+                        () => constructionHistorian.Historize(
+                            constructionVariable, systemContext: constructionNodeBuilder.Context),
+                        Throws.Exception.SameAs(failure));
+                }
+                else
+                {
+                    Assert.That(
+                        () => constructionHistorian.Historize(
+                            constructionVariable, systemContext: constructionNodeBuilder.Context),
+                        Throws.TypeOf<ObjectDisposedException>());
+                }
+
+                Assert.That(constructionDisposal, Is.Not.Null);
+                Assert.That(disposalPendingInCallback, Is.True);
+                await constructionDisposal!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await constructionHistorian.DisposeAsync().ConfigureAwait(false);
+                Assert.That(() => constructionHistorian.UseProvider(constructionProvider.Object),
+                    Throws.TypeOf<ObjectDisposedException>());
+                if (!eventCapture)
+                {
+                    Assert.That(
+                        () => constructionHistorian.CreateCaptureHandlerTargetReference(constructionVariable),
+                        Throws.TypeOf<InvalidOperationException>());
+                }
+            }
+
+            async Task VerifyExistingCaptureDetachesDuringConstructionAsync()
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                IServerInternal constructionServer = CreateServerWithRegistry([]);
+                (NodeManagerBuilder constructionNodeBuilder, BaseDataVariableState constructionVariable) =
+                    CreateBuilderForServer(constructionServer);
+                var constructionProvider = new Mock<IHistorianProvider>();
+                Mock<IHistorianDataProvider> dataProvider = constructionProvider.As<IHistorianDataProvider>();
+                constructionProvider.As<IHistorianEventProvider>();
+                dataProvider.Setup(value => value.InsertAsync(
+                    It.IsAny<HistorianOperationContext>(), It.IsAny<NodeId>(),
+                    It.IsAny<ArrayOf<DataValue>>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<HistorianUpdateOutcome<DataValue>>(
+                        new HistorianUpdateOutcome<DataValue>([StatusCodes.Good])));
+                var constructionHistorian = new HistorianBuilder(constructionServer);
+                constructionHistorian.UseProvider(constructionProvider.Object);
+                constructionHistorian.Historize(
+                    constructionVariable,
+                    systemContext: constructionNodeBuilder.Context,
+                    captureOptions: new HistorianCaptureOptions
+                    {
+                        BatchTarget = 1,
+                        BatchWindow = TimeSpan.Zero
+                    });
+                Task? constructionDisposal = null;
+                Mock.Get(constructionServer).As<ITimeProviderProvider>()
+                    .SetupGet(value => value.TimeProvider)
+                    .Returns(() =>
+                    {
+                        constructionDisposal = constructionHistorian.DisposeAsync().AsTask();
+                        constructionVariable.Value = 42;
+                        constructionVariable.ClearChangeMasks(constructionNodeBuilder.Context, includeChildren: false);
+                        return TimeProvider.System;
+                    });
+                var notifier = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("construction-detach-notifier", kNs)
+                };
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await constructionHistorian.HistorizeEventsAsync(
+                        notifier,
+                        constructionNodeBuilder.Context,
+                        installConfiguration: false,
+                        capabilities: HistorianNodeCapabilities.EventReadWrite).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(constructionDisposal, Is.Not.Null);
+                await constructionDisposal!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                dataProvider.Verify(value => value.InsertAsync(
+                    It.IsAny<HistorianOperationContext>(), It.IsAny<NodeId>(),
+                    It.IsAny<ArrayOf<DataValue>>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+
+            async Task VerifyNestedConstructionDisposalAsync()
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                IServerInternal constructionServer = CreateServerWithRegistry([]);
+                (NodeManagerBuilder constructionNodeBuilder, BaseDataVariableState outerVariable) =
+                    CreateBuilderForServer(constructionServer);
+                var innerVariable = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("nested-construction", kNs),
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar
+                };
+                var constructionProvider = new Mock<IHistorianProvider>();
+                constructionProvider.As<IHistorianDataProvider>();
+                var constructionHistorian = new HistorianBuilder(constructionServer);
+                constructionHistorian.UseProvider(constructionProvider.Object);
+                Task? constructionDisposal = null;
+                int timeProviderReads = 0;
+                Mock.Get(constructionServer).As<ITimeProviderProvider>()
+                    .SetupGet(value => value.TimeProvider)
+                    .Returns(() =>
+                    {
+                        if (++timeProviderReads == 1)
+                        {
+                            Assert.That(
+                                () => constructionHistorian.Historize(
+                                    innerVariable, systemContext: constructionNodeBuilder.Context),
+                                Throws.TypeOf<ObjectDisposedException>());
+                            Assert.That(constructionDisposal, Is.Not.Null);
+                            Assert.That(constructionDisposal!.IsCompleted, Is.False);
+                        }
+                        else
+                        {
+                            constructionDisposal = constructionHistorian.DisposeAsync().AsTask();
+                            Assert.That(constructionDisposal.IsCompleted, Is.False);
+                        }
+                        return TimeProvider.System;
+                    });
+                Assert.That(
+                    () => constructionHistorian.Historize(
+                        outerVariable, systemContext: constructionNodeBuilder.Context),
+                    Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(timeProviderReads, Is.EqualTo(2));
+                Assert.That(constructionDisposal, Is.Not.Null);
+                await constructionDisposal!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(
+                    () => constructionHistorian.CreateCaptureHandlerTargetReference(innerVariable),
+                    Throws.TypeOf<InvalidOperationException>());
+                Assert.That(
+                    () => constructionHistorian.CreateCaptureHandlerTargetReference(outerVariable),
+                    Throws.TypeOf<InvalidOperationException>());
+            }
+        }
+
+        /// <summary>
+        /// Prevents an event capture started before disposal from attaching after its capability lookup completes.
+        /// </summary>
+        [Test]
+        public async Task DisposalDuringEventCapabilityLookupPreventsCaptureAttachmentAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            IServerInternal server = CreateServerWithRegistry();
+            (NodeManagerBuilder nodeBuilder, _) = CreateBuilderForServer(server);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var notifier = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("pending-notifier", 1),
+                EventNotifier = EventNotifiers.SubscribeToEvents
+            };
+            var provider = new Mock<IHistorianProvider>();
+            provider.Setup(value => value.GetCapabilitiesAsync(
+                notifier.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(async (NodeId _, CancellationToken cancellationToken) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return HistorianNodeCapabilities.EventReadWrite;
+                });
+            var historian = new HistorianBuilder(server);
+            historian.UseProvider(provider.Object);
+            Task capture = historian.HistorizeEventsAsync(
+                notifier,
+                nodeBuilder.Context,
+                installConfiguration: false,
+                cancellationToken: timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await historian.DisposeAsync().ConfigureAwait(false);
+                Assert.That(capture.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    async () => await capture.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                await historian.DisposeAsync().ConfigureAwait(false);
+            }
+            provider.Verify(value => value.GetCapabilitiesAsync(
+                notifier.NodeId, It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(notifier.EventNotifier, Is.EqualTo(EventNotifiers.SubscribeToEvents));
+        }
+
+        /// <summary>
         /// Verifies that a provider selected by WithHistorian receives automatically captured values.
         /// </summary>
         [Test]
@@ -1051,7 +1901,8 @@ namespace Opc.Ua.Server.Tests.Historian
 
         private static IServerInternal CreateServerWithRegistry(
             List<HistorianBuilder>? builders = null,
-            IHistorianProviderRegistry? registryOverride = null)
+            IHistorianProviderRegistry? registryOverride = null,
+            TimeProvider? timeProvider = null)
         {
             var nsTable = new NamespaceTable();
             nsTable.Append("urn:test:fluent-historian");
@@ -1065,6 +1916,8 @@ namespace Opc.Ua.Server.Tests.Historian
             mockServer.Setup(s => s.TypeTree).Returns(new TypeTable(nsTable));
             mockServer.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
+            mockServer.As<ITimeProviderProvider>()
+                .Setup(value => value.TimeProvider).Returns(timeProvider ?? TimeProvider.System);
             mockServer.As<IHistorianRegistryProvider>()
                 .Setup(p => p.HistorianRegistry).Returns(registry);
             if (builders != null)

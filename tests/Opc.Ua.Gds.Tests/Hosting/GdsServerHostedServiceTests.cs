@@ -135,9 +135,8 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public async Task AddIdentityAuthenticatorRegistersWithRunningGdsIdentityRegistry(bool configureReceipts)
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(GdsServerHostedServiceTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "gds-host-" + Guid.NewGuid().ToString("N"));
             string pkiRoot = Path.Combine(testRoot, "pki");
             Directory.CreateDirectory(testRoot);
 
@@ -229,9 +228,8 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public async Task AddIdentityAugmenterRegistersWithRunningGdsIdentityRegistry()
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(GdsServerHostedServiceTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "gds-host-" + Guid.NewGuid().ToString("N"));
             string pkiRoot = Path.Combine(testRoot, "pki");
             Directory.CreateDirectory(testRoot);
 
@@ -314,9 +312,8 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Func<IGdsServerBuilder, IGdsServerBuilder> configure)
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(GdsServerHostedServiceTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "gds-host-" + Guid.NewGuid().ToString("N"));
             string pkiRoot = Path.Combine(testRoot, "pki");
             Directory.CreateDirectory(testRoot);
 

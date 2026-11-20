@@ -59,9 +59,8 @@ namespace Opc.Ua.Server.Tests.Fluent
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(InlineMethodIntegrationTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-inline-method-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<InlineMethodServer>(
                 telemetry => new InlineMethodServer(telemetry))

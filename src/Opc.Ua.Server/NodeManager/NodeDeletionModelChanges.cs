@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.NodeManager
         internal NodeDeletionModelChanges(
             ISystemContext context,
             NodeId nodeId,
-            NodeIdDictionary<NodeState> nodes,
+            PredefinedNodeDictionary nodes,
             bool enabled,
             bool requireNodeVersion)
         {
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.NodeManager
         }
 
         private readonly ISystemContext m_context;
-        private readonly NodeIdDictionary<NodeState> m_nodes;
+        private readonly PredefinedNodeDictionary m_nodes;
         private readonly List<(NodeId Id, NodeState Node, NodeId Type, bool Eligible)> m_deletedNodes = [];
         private readonly List<(NodeId Id, NodeState Source, NodeId Type, bool Inverse,
             NodeId Target, BaseInstanceState? Child)> m_references = [];

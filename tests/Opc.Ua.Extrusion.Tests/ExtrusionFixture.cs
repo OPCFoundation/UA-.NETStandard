@@ -63,8 +63,7 @@ namespace Opc.Ua.Extrusion.Tests
         /// </summary>
         internal async Task StartAsync(bool shiftedNamespaces = false, bool extrusion = true)
         {
-            m_root = Path.GetFullPath(Path.Combine("artifacts", "extrusion-tests", "pki",
-                Guid.NewGuid().ToString("N")));
+            m_root = Path.Combine(Path.GetTempPath(), "extrusion-model-" + Guid.NewGuid().ToString("N"));
             m_server = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry))
             {
                 AutoAccept = true,

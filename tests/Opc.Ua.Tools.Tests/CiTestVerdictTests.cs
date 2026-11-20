@@ -346,6 +346,122 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// Coverage and native-loader diagnostics preserve large selections through one runsettings delimiter.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ExecutorPreservesLargeSelectionsWithAndWithoutCoverageAsync(bool coverage, bool loaderTrace)
+        {
+            string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
+            string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
+            int start = source.IndexOf("$testArguments = @(", StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0));
+            int end = source.IndexOf("$testBudget =", start, StringComparison.Ordinal);
+            Assert.That(end, Is.GreaterThan(start));
+            const string materialization = "Opc.Ua.WotCon.Tests.Materialization.";
+            await AssertSelectionAsync("Opc.Ua.Security.Pkcs11.Tests", "FullyQualifiedName~Selected", false)
+                .ConfigureAwait(false);
+            await AssertSelectionAsync(
+                "Opc.Ua.WotCon.Tests",
+                "FullyQualifiedName!~" + materialization + "&TestCategory!=Integration",
+                true).ConfigureAwait(false);
+            await AssertSelectionAsync(
+                "Opc.Ua.WotCon.Tests",
+                "FullyQualifiedName~" + materialization,
+                false).ConfigureAwait(false);
+
+            async Task AssertSelectionAsync(string stem, string filter, bool expectDetailedLogger)
+            {
+                string command =
+                    "$ErrorActionPreference = 'Stop'; " +
+                    "$project = 'selection.csproj'; $projectResults = 'results'; " +
+                    "$Configuration = 'Release'; $Framework = 'net10.0'; $CustomTestTarget = 'net10.0'; " +
+                    $"$HangTimeout = '10m'; $Filter = {Quote(filter)}; $stem = {Quote(stem)}; " +
+                    $"$Coverage = ${coverage.ToString().ToLowerInvariant()}; " +
+                    $"Set-Variable IsMacOS -Value ${loaderTrace.ToString().ToLowerInvariant()} -Force; " +
+                    "$env:OPCUA_CAPTURE_MACOS_NATIVE_LOADER_DIAGNOSTICS = 'true'; " +
+                    source[start..end] +
+                    "; ConvertTo-Json -InputObject @($testArguments) -Compress";
+                string output = await RunPowerShellAsync(command, "CI test argument construction")
+                    .ConfigureAwait(false);
+                string[] arguments = JsonSerializer.Deserialize<string[]>(output.Trim()) ??
+                    throw new InvalidOperationException("The executor emitted no test arguments.");
+                int delimiter = Array.IndexOf(arguments, "--");
+                int detailedLogger = Array.IndexOf(arguments, "console;verbosity=detailed");
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(arguments.Count(value => value == "--"), Is.EqualTo(1));
+                    Assert.That(delimiter, Is.GreaterThan(Array.IndexOf(arguments, "--filter")));
+                    Assert.That(arguments[delimiter + 1], Is.EqualTo("NUnit.AssemblySelectLimit=2147483647"));
+                    Assert.That(arguments.Contains("--collect:XPlat Code Coverage"), Is.EqualTo(coverage));
+                    Assert.That(arguments.Contains("--settings"), Is.EqualTo(coverage));
+                    Assert.That(
+                        arguments.Contains("RunConfiguration.EnvironmentVariables.DYLD_PRINT_LIBRARIES=1"),
+                        Is.EqualTo(loaderTrace && stem == "Opc.Ua.Security.Pkcs11.Tests"));
+                    Assert.That(arguments[Array.IndexOf(arguments, "--filter") + 1], Is.EqualTo(filter));
+                    Assert.That(
+                        arguments.Count(value => value == "console;verbosity=detailed"),
+                        Is.EqualTo(expectDetailedLogger ? 1 : 0));
+                    if (detailedLogger >= 0)
+                    {
+                        Assert.That(detailedLogger, Is.GreaterThan(0));
+                        if (detailedLogger > 0)
+                        {
+                            Assert.That(arguments[detailedLogger - 1], Is.EqualTo("--logger"));
+                        }
+                        Assert.That(detailedLogger, Is.LessThan(delimiter));
+                    }
+                    if (coverage)
+                    {
+                        Assert.That(Array.IndexOf(arguments, "--settings"), Is.LessThan(delimiter));
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Direct NUnit and stress runs inherit selection settings without assigning them to TUnit applications.
+        /// </summary>
+        [TestCase("Opc.Ua.Server.Tests", true)]
+        [TestCase("Opc.Ua.Stress.Tests", true)]
+        [TestCase("Opc.Ua.Aot.Tests", false)]
+        public async Task NUnitProjectsInheritSelectionSettingsWithoutChangingAotAsync(string project, bool nunit)
+        {
+            string path = Path.Combine(FindRepositoryRoot(), "tests", project, project + ".csproj");
+            string output = await RunPowerShellAsync(
+                $"& dotnet msbuild {Quote(path)} -p:CustomTestTarget=net10.0 " +
+                "-target:_SetNUnitRunSettings -getProperty:RunSettingsFilePath; " +
+                "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+                "NUnit project settings evaluation").ConfigureAwait(false);
+            if (nunit)
+            {
+                Assert.That(Path.GetFullPath(output.Trim()),
+                    Is.EqualTo(Path.Combine(FindRepositoryRoot(), "tests", "nunit.runsettings.xml")));
+            }
+            else
+            {
+                Assert.That(output.Trim(), Is.Empty);
+            }
+        }
+
+        /// <summary>
+        /// Both default and explicitly selected coverage settings preserve the same engine selection limit.
+        /// </summary>
+        [TestCase("nunit.runsettings.xml")]
+        [TestCase("coverlet.runsettings.xml")]
+        public void NUnitSelectionLimitIsPresentInDefaultAndCoverageSettings(string file)
+        {
+            var settings = XDocument.Load(Path.Combine(FindRepositoryRoot(), "tests", file));
+            Assert.That((int?)settings.Root?.Element("NUnit")?.Element("AssemblySelectLimit"),
+                Is.EqualTo(int.MaxValue));
+            Assert.That(settings.Root?.Element("DataCollectionRunSettings") is not null,
+                Is.EqualTo(file == "coverlet.runsettings.xml"));
+        }
+
+        /// <summary>
         /// A run that produced no TRX at all is a broken run, not an empty one.
         /// Every mainline project runs on VSTest and must emit one, so silence
         /// here means the suite stopped executing.

@@ -848,7 +848,40 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CachedEventPermissionHonorsRestrictionsAndInvalidationOnNativeSessionAsync()
         {
-            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            const string namespaceUri = "urn:opcfoundation:server:tests:native-event-permission";
+            int validations = 0;
+            var notifier = new BaseObjectState(null)
+            {
+                AccessRestrictions = AccessRestrictionType.None
+            };
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager.SetupGet(value => value.NamespaceUris).Returns([namespaceUri]);
+            nodeManager.Setup(value => value.GetManagerHandleAsync(
+                    It.Is<NodeId>(id => id == notifier.NodeId), It.IsAny<CancellationToken>()))
+                .Returns<NodeId, CancellationToken>((id, _) => new ValueTask<object>(new NodeHandle(id, notifier)));
+            nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref validations);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.SetupGet(value => value.NamespacesUris).Returns([namespaceUri]);
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal instance, ApplicationConfiguration _, CancellationToken _) =>
+                {
+                    notifier.NodeId = new NodeId(
+                        "NativeEventPermissionSource", instance.NamespaceUris.GetIndexOrAppend(namespaceUri));
+                    return new ValueTask<IAsyncNodeManager>(nodeManager.Object);
+                });
+            var fixture = new ServerFixture<StandardServer>(telemetry =>
+            {
+                var instance = new ReferenceServer(telemetry);
+                instance.AddNodeManager(factory.Object);
+                return instance;
+            });
             StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
             try
             {
@@ -857,24 +890,10 @@ namespace Opc.Ua.Server.Tests
                 ISession? session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
                 Assert.That(session, Is.InstanceOf<global::Opc.Ua.Server.Session>());
 
-                int validations = 0;
-                var nodeManager = new Mock<IAsyncNodeManager>();
-                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
-                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
-                    .Returns(() =>
-                    {
-                        Interlocked.Increment(ref validations);
-                        return new ValueTask<ServiceResult>(ServiceResult.Good);
-                    });
                 var item = new Mock<IEventMonitoredItem>();
                 item.Setup(value => value.Id).Returns(1);
                 item.Setup(value => value.Session).Returns(session);
 
-                var notifier = new BaseObjectState(null)
-                {
-                    NodeId = ObjectIds.Server,
-                    AccessRestrictions = AccessRestrictionType.None
-                };
                 await using var monitored = new MonitoredNode2(nodeManager.Object, server.CurrentInstance, notifier);
                 monitored.Add(item.Object);
 
@@ -885,7 +904,7 @@ namespace Opc.Ua.Server.Tests
                 };
                 notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
                 {
-                    Value = ObjectIds.Server
+                    Value = notifier.NodeId
                 };
 
                 async Task ReportAsync()

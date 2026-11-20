@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -149,6 +150,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_authenticationToken = authenticationToken;
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -295,6 +297,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// Managed-resource disposal was requested and more than one session resource cleanup fails.
+        /// </exception>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -308,15 +313,41 @@ namespace Opc.Ua.Server
                     retired = ReplaceUserTokenNonce(null);
                     prepared = TakePreparedUserTokenNonce();
                 }
-                retired?.Dispose();
-                prepared?.Dispose();
-                m_continuationPoints.Clear();
-
+                List<Exception>? failures = null;
+                Cleanup(() => retired?.Dispose());
+                Cleanup(() => prepared?.Dispose());
+                Cleanup(m_continuationPoints.Clear);
                 IdentityToken = null!;
+                Cleanup(() => ClientCertificate?.Dispose());
+                Cleanup(() => m_clientIssuerCertificates?.Dispose());
+                try
+                {
+                    m_serverCertificate.Dispose();
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+                if (failures is { Count: 1 })
+                {
+                    ExceptionDispatchInfo.Capture(failures[0]).Throw();
+                }
+                if (failures is { Count: > 1 })
+                {
+                    throw new AggregateException("Session disposal failed.", failures);
+                }
 
-                ClientCertificate?.Dispose();
-                m_clientIssuerCertificates?.Dispose();
-                m_serverCertificate.Dispose();
+                void Cleanup(Action action)
+                {
+                    try
+                    {
+                        action();
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        (failures ??= []).Add(failure);
+                    }
+                }
             }
         }
 
@@ -324,6 +355,14 @@ namespace Opc.Ua.Server
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
         public NodeId Id { get; private set; }
+
+        /// <summary>
+        /// Checks exact membership in the stock manager without publishing the private session token.
+        /// </summary>
+        internal bool IsRegisteredWith(SessionManager manager)
+        {
+            return ReferenceEquals(manager.GetSession(m_authenticationToken), this);
+        }
 
         /// <summary>
         /// The SessionId <see cref="InitializeAsync"/> asks the diagnostics node manager
@@ -2358,6 +2397,7 @@ namespace Opc.Ua.Server
         private int m_closing;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
+        private readonly NodeId m_authenticationToken;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
 

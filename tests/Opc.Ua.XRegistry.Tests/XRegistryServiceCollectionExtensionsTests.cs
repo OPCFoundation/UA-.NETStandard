@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.XRegistry.Server;
 
@@ -44,6 +47,79 @@ namespace Opc.Ua.XRegistry.Tests
     [SetUICulture("en-us")]
     public sealed class XRegistryServiceCollectionExtensionsTests
     {
+        /// <summary>
+        /// Both composition paths use the supplied host for publication and removal.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RefreshEnginePublishesAndRetiresWithSuppliedHostAsync(bool useContainer)
+        {
+            const string xid = "/groups/example/resources/pump";
+            var member = new XRegistryRefreshMember(xid)
+            {
+                VersionId = "v1",
+                ContentDigest = ByteString.From(new byte[] { 1, 2, 3 })
+            };
+            var closure = new XRegistryDependencyClosure(
+                xid, [member], [member], [], [], hasCycle: false, hasMissingDependency: false);
+            var document = new XRegistryProjectionDocument(
+                xid, [new XRegistryProjectionSource("pump", ["urn:example:pump"], ByteString.Empty)]);
+            var handle = new XRegistryProjectionHandle(xid, 1, null, [], 1);
+            var strategy = new Mock<IXRegistryRefreshStrategy>(MockBehavior.Strict);
+            var host = new Mock<IXRegistryProjectionHost>(MockBehavior.Strict);
+
+            var sequence = new MockSequence();
+            strategy.InSequence(sequence).Setup(value => value.EnumerateClosuresAsync(
+                    It.IsAny<XRegistryRefreshRequest>(), CancellationToken.None))
+                .ReturnsAsync([closure]);
+            strategy.InSequence(sequence).Setup(value => value.PrepareClosureAsync(
+                    It.Is<XRegistryClosurePreparationContext>(context => ReferenceEquals(context.Closure, closure)),
+                    CancellationToken.None))
+                .ReturnsAsync(XRegistryClosurePreparation.Ready(document));
+            host.InSequence(sequence).Setup(value => value.AddAsync(document, CancellationToken.None))
+                .ReturnsAsync(handle);
+            strategy.InSequence(sequence).Setup(value => value.CommitClosureAsync(
+                    It.Is<XRegistryClosureCommitContext>(context => ReferenceEquals(context.Handle, handle)),
+                    CancellationToken.None))
+                .ReturnsAsync(new XRegistryClosureCommitResult());
+            strategy.InSequence(sequence).Setup(value => value.ApplyResultsAsync(
+                    It.Is<ArrayOf<XRegistryRefreshItemResult>>(items =>
+                        items.Count == 1 && items[0].Outcome == XRegistryRefreshOutcome.Success),
+                    CancellationToken.None))
+                .Returns(default(ValueTask));
+            host.InSequence(sequence).Setup(value => value.RemoveAsync(handle, CancellationToken.None))
+                .Returns(default(ValueTask));
+
+            using ServiceProvider? provider = useContainer
+                ? new ServiceCollection()
+                    .AddXRegistryServer()
+                    .AddSingleton(strategy.Object)
+                    .AddSingleton(host.Object)
+                    .AddScoped(static services => new XRegistryRefreshEngine(
+                        services.GetRequiredService<IXRegistryRefreshStrategy>(),
+                        services.GetRequiredService<IXRegistryProjectionHost>()))
+                    .BuildServiceProvider()
+                : null;
+            using IServiceScope? scope = provider?.CreateScope();
+            using XRegistryRefreshEngine? direct = useContainer ? null : new(strategy.Object, host.Object);
+            XRegistryRefreshEngine engine = direct ?? scope!.ServiceProvider.GetRequiredService<XRegistryRefreshEngine>();
+
+            XRegistryRefreshResult result = await engine.RefreshAsync(new XRegistryRefreshRequest())
+                .ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Summary.Outcome, Is.EqualTo(XRegistryRefreshOutcome.Success));
+                Assert.That(result.NewGeneration, Is.EqualTo(1u));
+                Assert.That(result.Results.Count, Is.EqualTo(1));
+                Assert.That(result.Results[0].Xid, Is.EqualTo(xid));
+            }
+
+            await engine.RemoveAllAsync().ConfigureAwait(false);
+            await engine.RemoveAllAsync().ConfigureAwait(false);
+            host.Verify(value => value.AddAsync(document, CancellationToken.None), Times.Once);
+            host.Verify(value => value.RemoveAsync(handle, CancellationToken.None), Times.Once);
+        }
+
         [Test]
         public void AddXRegistryServerSuppliesTheDefaultInProcessStore()
         {

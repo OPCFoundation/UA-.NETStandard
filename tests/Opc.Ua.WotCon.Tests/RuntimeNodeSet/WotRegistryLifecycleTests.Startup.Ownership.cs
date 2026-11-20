@@ -103,8 +103,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 }
                 m_server = await startup.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(runtime.AddTask, Is.Not.Null);
-                NodeManagerRegistration registration = await runtime.AddTask!
+                LifecycleResult publication = await runtime.AddTask!
                     .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                NodeManagerRegistration registration = RequireStartupRegistration(publication);
                 (m_requestHeader, m_secureChannelContext) = await m_server
                     .CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name).ConfigureAwait(false);
                 DataValue initialValue = await ReadStartupMembershipValueAsync(initial).ConfigureAwait(false);
@@ -124,8 +125,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     .Where(candidate => !ReferenceEquals(candidate, registration)).ToList();
 
                 using var removal = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                await m_server.NodeManagerLifecycle.RemoveAsync(registration, null, removal.Token)
-                    .ConfigureAwait(false);
+                await RemoveRegistryAndRetireAsync(registration, removal.Token).ConfigureAwait(false);
                 Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(),
                     Is.EquivalentTo(retainedRegistrations),
                     "Removing the runtime generation must preserve the adopted initial registrations.");
@@ -210,7 +210,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             /// <summary>
             /// Gets or sets the add task for <c>StartupMembershipProbe</c>.
             /// </summary>
-            public Task<NodeManagerRegistration>? AddTask { get; set; }
+            public Task<LifecycleResult>? AddTask { get; set; }
 
             /// <summary>
             /// Gets or sets the manager for <c>StartupMembershipProbe</c>.
@@ -330,10 +330,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 base.SetServerState(state);
                 if (state == ServerState.Running && runtime.AddTask is null)
                 {
-                    runtime.AddTask = synchronousFactory
-                        ? NodeManagerLifecycle.AddAsync((INodeManagerFactory)runtime, null, cancellationToken).AsTask()
-                        : NodeManagerLifecycle.AddAsync((IAsyncNodeManagerFactory)runtime, null, cancellationToken)
-                            .AsTask();
+                    IAsyncNodeManagerFactory factory = synchronousFactory
+                        ? ((INodeManagerFactory)runtime).AsAsync()
+                        : runtime;
+                    runtime.AddTask = NodeManagerLifecycle.ApplyAsync(
+                        [LifecycleChange.Add(factory)], cancellationToken).AsTask();
                     runtime.PublishedAtHookReturn = NodeManagerLifecycle.Registrations.Find(
                         registration => registration.NamespaceUris.Contains(runtime.NamespaceUri)) is not null;
                 }

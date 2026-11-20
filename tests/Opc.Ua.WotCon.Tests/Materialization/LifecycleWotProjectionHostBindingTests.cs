@@ -37,6 +37,7 @@ using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
 
@@ -62,11 +63,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             using var cancellation = new CancellationTokenSource();
             var failure = new InvalidOperationException("candidate rejected");
-            ArrayOf<NodeManagerBatchChange> captured = default;
+            ArrayOf<LifecycleChange> captured = default;
             var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
-            lifecycle.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
-                .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
+            Mock<ILifecycleWriter> writer = SetupPublication(lifecycle, cancellation.Token);
+            writer.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<LifecycleChange>>(), cancellation.Token))
+                .Callback<ArrayOf<LifecycleChange>, CancellationToken>((changes, _) => captured = changes)
                 .Throws(failure);
             var host = new LifecycleWotProjectionHost(lifecycle.Object);
             var document = new WotProjectionDocument("direct",
@@ -94,8 +96,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(actual, Is.SameAs(failure));
             Assert.That(captured.Count, Is.EqualTo(1));
-            Assert.That(captured[0].Current, Is.Null);
-            Assert.That(captured[0].Factory, Is.InstanceOf<RuntimeNodeSetNodeManagerFactory>());
+            Assert.That(captured[0].Slot, Is.Null);
+            Assert.That(captured[0].Factory, Is.Not.Null);
+            writer.VerifyAll();
             lifecycle.VerifyAll();
             lifecycle.VerifyNoOtherCalls();
         }
@@ -110,12 +113,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             using var cancellation = new CancellationTokenSource();
             var failure = new InvalidOperationException("Candidate preparation failed.");
-            ArrayOf<NodeManagerBatchChange> captured = default;
+            ArrayOf<LifecycleChange> captured = default;
             var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
-            lifecycle.SetupGet(owner => owner.SupportsPreparedPublication).Returns(true);
-            lifecycle.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
-                .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
+            Mock<ILifecycleWriter> writer = SetupPublication(lifecycle, cancellation.Token);
+            writer.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<LifecycleChange>>(), cancellation.Token))
+                .Callback<ArrayOf<LifecycleChange>, CancellationToken>((changes, _) => captured = changes)
                 .Throws(failure);
             var host = new LifecycleWotProjectionHost(lifecycle.Object);
             var document = new WotProjectionDocument("context-free-preparation",
@@ -134,10 +137,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .ConfigureAwait(false);
 
             Assert.That(captured.Count, Is.EqualTo(1));
-            Assert.That(captured[0].Current, Is.Null);
+            Assert.That(captured[0].Slot, Is.Null);
             Assert.That(captured[0].Factory, Is.Not.Null);
             Assert.That(captured[0].TransitionMode, Is.EqualTo(NodeManagerMonitoredItemTransitionMode.Migrate));
             lifecycle.VerifyAll();
+            writer.VerifyAll();
         }
 
         /// <summary>
@@ -149,18 +153,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task CapturedPublicationUsesContextFreeLifecycleAdmissionAsync(bool hasContext)
         {
             using var cancellation = new CancellationTokenSource();
-            var invocation = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            var invocation = new Mock<ILifecycleWriter>(MockBehavior.Strict);
             invocation.SetupGet(owner => owner.IsCurrent).Returns(true);
             invocation.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
-            var capture = new Mock<INodeManagerPublicationCapture>(MockBehavior.Strict);
+            var capture = new Mock<ILifecycleCapture>(MockBehavior.Strict);
             capture.Setup(owner => owner.BeginAsync(cancellation.Token))
-                .Returns(new ValueTask<INodeManagerPublication>(invocation.Object));
+                .Returns(new ValueTask<ILifecycleWriter>(invocation.Object));
             var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
-            lifecycle.SetupGet(owner => owner.SupportsPublicationIsolation).Returns(true);
-            lifecycle.Setup(owner => owner.CapturePublication()).Returns(capture.Object);
+            lifecycle.Setup(owner => owner.CaptureChanges()).Returns(capture.Object);
             var host = new LifecycleWotProjectionHost(lifecycle.Object);
             IOperationContext? context = hasContext ? Mock.Of<IOperationContext>() : null;
 
+            Assert.That(host.SupportedAtomicities.Span.ToArray(), Is.EqualTo(new[]
+            {
+                WoTAtomicityEnum.PerResource,
+                WoTAtomicityEnum.PerGroup,
+                WoTAtomicityEnum.PerClosure,
+                WoTAtomicityEnum.PerRegistry
+            }));
             await using (IWotProjectionPublication publication = await host.CapturePublication()
                 .BeginAsync(context, cancellation.Token).ConfigureAwait(false))
             {
@@ -168,9 +178,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             lifecycle.VerifyAll();
+            lifecycle.Verify(owner => owner.CaptureChanges(), Times.Once);
+            lifecycle.VerifyNoOtherCalls();
             capture.Verify(owner => owner.BeginAsync(cancellation.Token), Times.Once);
             invocation.Verify(owner => owner.DisposeAsync(), Times.Once);
             invocation.VerifyAll();
+        }
+
+        /// <summary>
+        /// Preserves a provider's capture rejection instead of manufacturing an isolated writer.
+        /// </summary>
+        [Test]
+        public void PublicationCaptureRequiresLifecycleIsolation()
+        {
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            var failure = new NotSupportedException("The provider cannot capture changes.");
+            lifecycle.Setup(owner => owner.CaptureChanges()).Throws(failure);
+            var host = new LifecycleWotProjectionHost(lifecycle.Object);
+
+            NotSupportedException? actual = Assert.Throws<NotSupportedException>(() => host.CapturePublication());
+            Assert.That(actual, Is.SameAs(failure));
+            lifecycle.Verify(owner => owner.CaptureChanges(), Times.Once);
+            lifecycle.VerifyNoOtherCalls();
         }
 
         /// <summary>
@@ -358,14 +387,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <param name="lifecycle">The lifecycle provider mock.</param>
         /// <param name="cancellationToken">The expected admission token.</param>
         /// <returns>The provider invocation used by the writer.</returns>
-        private static Mock<INodeManagerPublication> SetupPublication(
+        private static Mock<ILifecycleWriter> SetupPublication(
             Mock<INodeManagerLifecycle> lifecycle, CancellationToken cancellationToken)
         {
-            var publication = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            var publication = new Mock<ILifecycleWriter>(MockBehavior.Strict);
+            publication.SetupGet(owner => owner.IsCurrent).Returns(true);
             publication.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
-            var capture = new Mock<INodeManagerPublicationCapture>(MockBehavior.Strict);
+            var capture = new Mock<ILifecycleCapture>(MockBehavior.Strict);
             capture.Setup(owner => owner.BeginAsync(cancellationToken)).ReturnsAsync(publication.Object);
-            lifecycle.Setup(owner => owner.CapturePublication()).Returns(capture.Object);
+            lifecycle.Setup(owner => owner.CaptureChanges()).Returns(capture.Object);
             return publication;
         }
 

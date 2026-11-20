@@ -34,15 +34,16 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Optional mirror for best-effort continuation point envelopes.
+    /// Optional store for mirrored continuation-point envelopes.
     /// </summary>
     /// <remarks>
-    /// Continuation points are mirrored as a best-effort envelope. Built-in node managers' opaque
-    /// <see cref="ContinuationPoint.Data"/> is not reconstructed on a backup replica, so after failover a client
-    /// re-issues Browse or HistoryRead when a mirrored continuation point returns
-    /// <see cref="StatusCodes.BadContinuationPointInvalid"/>. This behavior is permitted by OPC UA Part 4 §6.6.2.2,
-    /// which requires clients to be prepared for lost continuation points. Node managers may opt in to full
-    /// continuation point data serialization by storing reconstructable data through this seam.
+    /// The envelope records the continuation and session identifiers; Browse envelopes also include request
+    /// parameters. It does not carry the node manager's <see cref="ContinuationPoint.Data"/>. The built-in Session
+    /// store records mirrored identifiers on a backup but cannot reconstruct a Browse or history cursor from this
+    /// envelope. If lookup completes with only this envelope, a resume returns
+    /// <see cref="StatusCodes.BadContinuationPointInvalid"/>. The client must issue a new Browse or HistoryRead to
+    /// continue, as permitted by OPC UA Part 4 §6.6.2.2. A store failure can prevent lookup. Portable historian
+    /// continuations use a separate <see cref="IHistoryContinuationPointStore"/>.
     /// </remarks>
     public interface IContinuationPointStore
     {

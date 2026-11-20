@@ -78,17 +78,33 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 "RequireAuthorization policy instead.");
         }
 
+        /// <summary>
+        /// Resolves the listener from the configured checkout or assembly ancestors.
+        /// </summary>
+        /// <exception cref="DirectoryNotFoundException">The configured checkout lacks the listener source.</exception>
         private static string LocateHttpsTransportListenerSource()
         {
+            string relativePath = Path.Combine(
+                "src", "Opc.Ua.Bindings.Https", "Https", "HttpsTransportListener.cs");
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                string source = Path.Combine(root, relativePath);
+                if (!File.Exists(Path.Combine(root, "UA.slnx")) || !File.Exists(source))
+                {
+                    throw new DirectoryNotFoundException("The configured checkout lacks the HTTPS listener source.");
+                }
+                return source;
+            }
+
             // Walk up from the test assembly to find the repo root,
             // then locate the listener source. Works whether the test
             // runs from bin/Debug or from a flat publish output.
             string? path = Path.GetDirectoryName(typeof(HttpsTransportListenerMutualTlsModeTests).Assembly.Location);
             for (int i = 0; i < 10 && path != null; i++)
             {
-                string candidate = Path.Combine(
-                    path,
-                    "src", "Opc.Ua.Bindings.Https", "Https", "HttpsTransportListener.cs");
+                string candidate = Path.Combine(path, relativePath);
                 if (File.Exists(candidate))
                 {
                     return candidate;

@@ -345,6 +345,117 @@ namespace Opc.Ua.Server.Tests
             Assert.That(released, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Checks that browse cleanup reports both failures for each point and releases all owners.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BrowseCleanupReportsStoreAndDisposalFailures(bool clearSession)
+        {
+            var store = new Mock<IContinuationPointStore>();
+            var holder = new SessionContinuationPoints(() => new NodeId(1), 3, 2, store.Object);
+            var manager = new Mock<IAsyncNodeManager>();
+            var firstData = new Mock<IDisposable>();
+            var secondData = new Mock<IDisposable>();
+            var successfulData = new DisposalCounter();
+            var firstStoreFailure = new IOException("The first store removal failed.");
+            var secondStoreFailure = new IOException("The second store removal failed.");
+            var firstDisposalFailure = new IOException("The first cursor disposal failed.");
+            var secondDisposalFailure = new IOException("The second cursor disposal failed.");
+            bool injectFailures = false;
+            firstData.Setup(value => value.Dispose()).Callback(() =>
+            {
+                if (injectFailures)
+                {
+                    throw firstDisposalFailure;
+                }
+            });
+            secondData.Setup(value => value.Dispose()).Callback(() =>
+            {
+                if (injectFailures)
+                {
+                    throw secondDisposalFailure;
+                }
+            });
+            using ContinuationPoint first = CreatePoint(manager.Object, firstData.Object);
+            using ContinuationPoint second = CreatePoint(manager.Object, secondData.Object);
+            using ContinuationPoint successful = CreatePoint(manager.Object, successfulData);
+            holder.SaveBrowse(first);
+            holder.SaveBrowse(second);
+            holder.SaveBrowse(successful);
+            Assert.That(holder.HasBrowseForManager(manager.Object), Is.True);
+            store.Setup(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.Browse, first.Id)).Callback(() =>
+                {
+                    if (injectFailures)
+                    {
+                        throw firstStoreFailure;
+                    }
+                });
+            store.Setup(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.Browse, second.Id)).Callback(() =>
+                {
+                    if (injectFailures)
+                    {
+                        throw secondStoreFailure;
+                    }
+                });
+            int released = 0;
+            holder.BrowseContinuationPointsReleased += () => released++;
+
+            try
+            {
+                injectFailures = true;
+                AggregateException failure = Assert.Throws<AggregateException>(() =>
+                {
+                    if (clearSession)
+                    {
+                        holder.Clear();
+                    }
+                    else
+                    {
+                        holder.RemoveBrowseForManager(manager.Object);
+                    }
+                });
+                firstData.Verify(value => value.Dispose(), Times.Once);
+                secondData.Verify(value => value.Dispose(), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.Browse, first.Id), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.Browse, second.Id), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.Browse, successful.Id), Times.Once);
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failures, Has.Count.EqualTo(4));
+                    Assert.That(failures, Has.Exactly(1).SameAs(firstStoreFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(firstDisposalFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(secondStoreFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(secondDisposalFailure));
+                    Assert.That(holder.HasBrowseForManager(manager.Object), Is.False);
+                    Assert.That(successfulData.Count, Is.EqualTo(1));
+                    Assert.That(released, Is.EqualTo(3));
+                }
+            }
+            finally
+            {
+                injectFailures = false;
+            }
+
+            holder.Clear();
+            firstData.Verify(value => value.Dispose(), Times.Once);
+            secondData.Verify(value => value.Dispose(), Times.Once);
+            store.Verify(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.Browse, successful.Id), Times.Once);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(successfulData.Count, Is.EqualTo(1));
+                Assert.That(released, Is.EqualTo(3));
+            }
+        }
+
         [Test]
         public void DataDisposalFailureStillReleasesOwnershipExactlyOnce()
         {

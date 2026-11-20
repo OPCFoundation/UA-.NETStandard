@@ -440,18 +440,12 @@ namespace Opc.Ua.Tools.Tests
             }
         }
 
+        /// <summary>
+        /// Resolves the checkout containing the GitHub test runner.
+        /// </summary>
         private static string FindRepositoryRoot()
         {
-            string? current = TestContext.CurrentContext.TestDirectory;
-            while (!string.IsNullOrWhiteSpace(current))
-            {
-                if (File.Exists(Path.Combine(current, ".github", "scripts", "run-dotnet-tests.ps1")))
-                {
-                    return current;
-                }
-                current = Directory.GetParent(current)?.FullName;
-            }
-            throw new InvalidOperationException("Could not find the GitHub test runner.");
+            return RepositoryTestRoot.Find(Path.Combine(".github", "scripts", "run-dotnet-tests.ps1"));
         }
 
         private static string QuotePowerShell(string value)

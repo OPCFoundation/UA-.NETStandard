@@ -247,19 +247,12 @@ namespace Opc.Ua.Tools.Tests
         [GeneratedRegex(@"<Import\s+[^>]*Project\s*=\s*""(?<path>[^""]+)""")]
         private static partial Regex ImportProjectRegex();
 
+        /// <summary>
+        /// Resolves the checkout containing the package build conventions.
+        /// </summary>
         private static string FindRepositoryRoot()
         {
-            string? current = TestContext.CurrentContext.TestDirectory;
-            while (!string.IsNullOrWhiteSpace(current))
-            {
-                if (File.Exists(Path.Combine(current, "version.targets")))
-                {
-                    return current;
-                }
-                current = Directory.GetParent(current)?.FullName;
-            }
-
-            throw new InvalidOperationException("Could not find the repository root.");
+            return RepositoryTestRoot.Find("version.targets");
         }
     }
 }

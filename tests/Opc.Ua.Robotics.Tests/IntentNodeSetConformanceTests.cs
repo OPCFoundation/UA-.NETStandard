@@ -554,8 +554,29 @@ namespace Opc.Ua.Robotics.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Resolves the model from the configured checkout or the test assembly's ancestry.
+        /// </summary>
+        /// <exception cref="FileNotFoundException">The selected checkout does not contain the model.</exception>
         private static string NodeSetPath()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string path = Path.Combine(
+                    Path.GetFullPath(configured),
+                    "src",
+                    "Opc.Ua.Robotics",
+                    "Model",
+                    "Opc.Ua.RobotIntent.NodeSet2.xml");
+                if (!File.Exists(path))
+                {
+                    throw new FileNotFoundException("The configured checkout has no RobotIntent NodeSet.", path);
+                }
+
+                return path;
+            }
+
             DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
             while (directory != null)
             {

@@ -525,22 +525,11 @@ namespace Opc.Ua.Server.TestFramework
             // SubscriptionManager.ShutdownAsync and
             // NodeManager.ShutdownAsync).
             //
-            // GLOBAL FAST-PATH: once any fixture's teardown exceeds the
-            // watchdog in this test process, set a static "give up
-            // teardown" flag and short-circuit subsequent fixtures'
-            // teardowns to a no-op. This converts the worst case from
-            // (27 fixtures x N watchdog operations x 5s) into a single
-            // ~10s teardown stall: only the first hung fixture pays the
-            // watchdog cost; the rest skip directly to the next test
-            // host shutdown step. We accept the resource leak as the
-            // test process is about to exit.
-            if (s_skipRemainingTeardowns)
+            // A timed-out fixture may bound its own repeated teardown, but
+            // independent fixtures still need to release their live servers.
+            if (m_skipRemainingTeardown)
             {
-                m_logger.LogWarning(
-                    "ServerFixture.StopAsync: a prior fixture teardown timed out; " +
-                    "skipping the remaining server / application disposal in this process to " +
-                    "avoid pinning the dotnet test host past --blame-hang-timeout. " +
-                    "References will be released to the runtime for finalization.");
+                m_logger.FixtureTeardownSkipped();
                 DisposeCertificateManagers();
                 Server = null!;
                 Application = null!;
@@ -602,22 +591,11 @@ namespace Opc.Ua.Server.TestFramework
             }
         }
 
-        private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);
-
-        /// <summary>
-        /// Set by the first <see cref="RunWithTeardownWatchdogAsync"/> or
-        /// <see cref="RunSyncWithTeardownWatchdog"/> invocation that
-        /// exceeds the watchdog. Subsequent fixtures' <see cref="StopAsync"/>
-        /// calls short-circuit to a no-op so we do not stack N x watchdog
-        /// timeouts during a known-bad teardown chain.
-        /// </summary>
-        private static volatile bool s_skipRemainingTeardowns;
-
         /// <summary>
         /// Runs <paramref name="taskFactory"/> bounded by
         /// <see cref="s_teardownTimeout"/>. If the task does not complete
-        /// in time, logs a warning, sets <see cref="s_skipRemainingTeardowns"/>
-        /// so subsequent fixtures short-circuit, and returns; the
+        /// in time, logs a warning, sets <see cref="m_skipRemainingTeardown"/>
+        /// so this fixture's repeated teardown short-circuits, and returns; the
         /// underlying task is abandoned (it is a background continuation
         /// in the runtime thread pool, so it does not block process
         /// exit). Cross-TFM compatible: avoids
@@ -647,12 +625,8 @@ namespace Opc.Ua.Server.TestFramework
                 .ConfigureAwait(false);
             if (winner != work)
             {
-                s_skipRemainingTeardowns = true;
-                m_logger.LogWarning(
-                    "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog. " +
-                    "Continuing with the rest of the fixture teardown; subsequent fixtures will short-circuit.",
-                    operationName,
-                    s_teardownTimeout.TotalSeconds);
+                m_skipRemainingTeardown = true;
+                m_logger.FixtureAsyncTeardownTimedOut(operationName, s_teardownTimeout.TotalSeconds);
                 return;
             }
 
@@ -704,12 +678,8 @@ namespace Opc.Ua.Server.TestFramework
 
             if (!done.Wait(s_teardownTimeout))
             {
-                s_skipRemainingTeardowns = true;
-                m_logger.LogWarning(
-                    "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog (sync). " +
-                    "Continuing with the rest of the fixture teardown; subsequent fixtures will short-circuit.",
-                    operationName,
-                    s_teardownTimeout.TotalSeconds);
+                m_skipRemainingTeardown = true;
+                m_logger.FixtureSyncTeardownTimedOut(operationName, s_teardownTimeout.TotalSeconds);
                 return;
             }
 
@@ -737,5 +707,51 @@ namespace Opc.Ua.Server.TestFramework
         private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);
+
+        /// <summary>Whether this fixture already exhausted its bounded teardown attempt.</summary>
+        private volatile bool m_skipRemainingTeardown;
+    }
+
+    /// <summary>
+    /// Reports bounded teardown outcomes without changing other fixtures' ownership.
+    /// </summary>
+    internal static partial class ServerFixtureLog
+    {
+        /// <summary>
+        /// Reports that this fixture already exhausted its teardown budget.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerTestFrameworkEventIds.ServerFixture + 0,
+            Level = LogLevel.Warning,
+            Message = "ServerFixture.StopAsync: this fixture's prior teardown timed out; " +
+                "skipping its repeated server / application disposal. Other fixtures still run their cleanup.")]
+        public static partial void FixtureTeardownSkipped(this ILogger logger);
+
+        /// <summary>
+        /// Reports an asynchronous operation that exceeded this fixture's teardown budget.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerTestFrameworkEventIds.ServerFixture + 1,
+            Level = LogLevel.Warning,
+            Message = "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog. " +
+                "Continuing this fixture's teardown without disabling cleanup of other fixtures.")]
+        public static partial void FixtureAsyncTeardownTimedOut(
+            this ILogger logger,
+            string operation,
+            double timeoutSeconds);
+
+        /// <summary>
+        /// Reports a synchronous operation that exceeded this fixture's teardown budget.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerTestFrameworkEventIds.ServerFixture + 2,
+            Level = LogLevel.Warning,
+            Message = "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog (sync). " +
+                "Continuing this fixture's teardown without disabling cleanup of other fixtures.")]
+        public static partial void FixtureSyncTeardownTimedOut(
+            this ILogger logger,
+            string operation,
+            double timeoutSeconds);
     }
 }

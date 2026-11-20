@@ -170,7 +170,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <inheritdoc cref="IWotProjectionHost.RemoveAsync"/>
-        public ValueTask RemoveAsync(
+        public ValueTask<Opc.Ua.Server.LifecycleResult?> RemoveAsync(
             WotProjectionHandle handle, CancellationToken cancellationToken = default)
         {
             RemoveCount++;

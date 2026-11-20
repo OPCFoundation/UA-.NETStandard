@@ -106,9 +106,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     m_registry,
                     new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                     documentConverter: converter);
-                await m_server.NodeManagerLifecycle.AddAsync(
-                    new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator),
-                    callerContext: null).ConfigureAwait(false);
+                await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator))])
+                    .ConfigureAwait(false);
                 Assert.That(m_coordinator.Generation, Is.EqualTo(1u));
 
                 m_client = new ClientFixture(false, true, NUnitTelemetryContext.Create());

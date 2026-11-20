@@ -191,39 +191,62 @@ namespace Opc.Ua.Server
                 return decisionResponse;
             }
             ThrowIfNodeManagementFromDecision(isLifecycleDecision);
-            bool mutationAdmissionHeld = false;
-            bool invalidatePermissionCache = false;
             if (HasActiveCallbackPermit(
                     CaptureLifecycleCallbackPermit(),
-                    NodeManagerAdmissionCapability.AddressSpaceMutation))
+                    NodeManagerAdmissionCapability.AddressSpaceMutation) ||
+                HasActiveCallbackPermit(
+                    CaptureLifecycleCallbackPermit(),
+                    NodeManagerAdmissionCapability.ServerLifecycle))
             {
-                await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
+                using INodeManagerBatchAdmission mutationAdmission =
+                    await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
+                return await DispatchAdmittedAddNodesAsync(
+                    context, nodesToAdd, mutationAdmission, cancellationToken).ConfigureAwait(false);
             }
-            else
+            while (true)
             {
-                while (true)
+                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+                if (decisionWindow is null)
                 {
-                    await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
-                    if (decisionWindow is null)
-                    {
-                        mutationAdmissionHeld = true;
-                        break;
-                    }
-                    try
-                    {
-                        if (TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var preRoutingResponse))
-                        {
-                            return preRoutingResponse;
-                        }
-                    }
-                    finally
-                    {
-                        m_dynamicMutationSemaphore.Release();
-                    }
-                    await decisionWindow.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    using INodeManagerBatchAdmission mutationAdmission =
+                        new BatchAdmission(m_dynamicMutationSemaphore, null);
+                    return await DispatchAdmittedAddNodesAsync(
+                        context, nodesToAdd, mutationAdmission, cancellationToken).ConfigureAwait(false);
                 }
+                try
+                {
+                    if (TryCreatePreRoutingAddNodesResponse(
+                        context, nodesToAdd,
+                        out (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) preRoutingResponse))
+                    {
+                        return preRoutingResponse;
+                    }
+                }
+                finally
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
+                await decisionWindow.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Dispatches AddNodes while its caller retains address-space mutation admission.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="nodesToAdd">The nodes to add.</param>
+        /// <param name="mutationAdmission">The admission owned by the awaiting caller.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        /// <returns>The per-node results and diagnostic information.</returns>
+        private async ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
+            DispatchAdmittedAddNodesAsync(
+                OperationContext context,
+                ArrayOf<AddNodesItem> nodesToAdd,
+                INodeManagerBatchAdmission mutationAdmission,
+                CancellationToken cancellationToken)
+        {
+            bool invalidatePermissionCache = false;
             try
             {
                 using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
@@ -245,7 +268,7 @@ namespace Opc.Ua.Server
                     try
                     {
                         (result, addedNodeId) = await DispatchAddNodeAsync(
-                            context, item, cancellationToken).ConfigureAwait(false);
+                            context, item, mutationAdmission, cancellationToken).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
@@ -283,10 +306,6 @@ namespace Opc.Ua.Server
                     // Retire verdicts resolved while the address-space mutation was in progress.
                     NodeState.InvalidateRolePermissionsCache();
                 }
-                if (mutationAdmissionHeld)
-                {
-                    m_dynamicMutationSemaphore.Release();
-                }
             }
         }
 
@@ -297,7 +316,8 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteNodesItem> nodesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
+            using INodeManagerBatchAdmission mutationAdmission = await AcquireDynamicMutationAdmissionAsync(
+                    cancellationToken)
                 .ConfigureAwait(false);
             bool invalidatePermissionCache = false;
             try
@@ -320,7 +340,7 @@ namespace Opc.Ua.Server
                     try
                     {
                         result = await DispatchDeleteNodeAsync(
-                            context, item, cancellationToken).ConfigureAwait(false);
+                            context, item, mutationAdmission, cancellationToken).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
@@ -353,10 +373,6 @@ namespace Opc.Ua.Server
                 {
                     // Retire verdicts resolved while the address-space mutation was in progress.
                     NodeState.InvalidateRolePermissionsCache();
-                }
-                if (mutationAdmissionHeld)
-                {
-                    m_dynamicMutationSemaphore.Release();
                 }
             }
         }
@@ -552,6 +568,7 @@ namespace Opc.Ua.Server
         private async ValueTask<(ServiceResult result, NodeId addedNodeId)> DispatchAddNodeAsync(
             OperationContext context,
             AddNodesItem item,
+            INodeManagerBatchAdmission admission,
             CancellationToken cancellationToken)
         {
             StatusCode preRoutingStatus = GetPreRoutingAddNodeStatus(item);
@@ -697,7 +714,7 @@ namespace Opc.Ua.Server
             {
                 await using var callbackPermit = new NodeManagerCallbackPermit(
                     m_lifecycleCallbackPermit,
-                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                    GetAdmissionCapabilities(admission)).ConfigureAwait(false);
                 return await nodeManagement.AddNodeAsync(context, item, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -710,6 +727,7 @@ namespace Opc.Ua.Server
         private async ValueTask<ServiceResult> DispatchDeleteNodeAsync(
             OperationContext context,
             DeleteNodesItem item,
+            INodeManagerBatchAdmission admission,
             CancellationToken cancellationToken)
         {
             if (item == null)
@@ -752,7 +770,7 @@ namespace Opc.Ua.Server
             {
                 await using var callbackPermit = new NodeManagerCallbackPermit(
                     m_lifecycleCallbackPermit,
-                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                    GetAdmissionCapabilities(admission)).ConfigureAwait(false);
                 return await owner.DeleteNodeAsync(context, item, cancellationToken)
                     .ConfigureAwait(false);
             }

@@ -843,13 +843,12 @@ namespace Opc.Ua.Server
         /// metadata, reference descriptions) otherwise clone the system context once for
         /// every call or node of a request. The copies are equal for one request and
         /// node manager, so one copy is kept per template. A request that touches several
-        /// node managers keeps one copy for each template, so they do not evict each other.
-        /// Ordinary operations live for one service request and are disposed at its end: they
-        /// retain the first copy directly and the others in a lock-free list, which allocates one
-        /// entry per further template and nothing the garbage collector has to finalize or track
-        /// with a handle. Shared subscriber operations are retained by sessions and monitored
-        /// items, so they weakly key every copy and retired templates can be collected while the
-        /// operation remains live. Disposing releases the cache.
+        /// node managers keeps one copy for each live template, so they do not evict each other.
+        /// An ordinary request owning a routing pin retains its copies until disposal, alongside
+        /// its pinned manager generations. Unpinned and borrowed operations weakly key copies
+        /// beyond the first. Shared subscriber operations weakly key every copy so retired
+        /// templates can be collected while the operation remains live. Copies cached before
+        /// pinning keep their identity and weak ownership. Disposing releases the cache.
         /// </remarks>
         /// <param name="template">The node manager's system context.</param>
         internal ServerSystemContext GetSystemContext(ServerSystemContext template)
@@ -858,7 +857,7 @@ namespace Opc.Ua.Server
             {
                 // Ordinary request contexts keep their first copy directly, avoiding a cache entry
                 // on the single-manager hot path. Shared subscriber contexts use weak keys instead.
-                ServerSystemContext? first = m_firstSystemContext;
+                ServerSystemContext? first = Volatile.Read(ref m_firstSystemContext);
                 if (first != null && ReferenceEquals(first.CopiedFrom, template))
                 {
                     return first;
@@ -871,13 +870,21 @@ namespace Opc.Ua.Server
 
                     // a concurrent caller may have published a copy for another template.
                     first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
+                    if (Volatile.Read(ref m_weakSystemContextCache) != 0)
+                    {
+                        Interlocked.CompareExchange(ref m_firstSystemContext, null, firstCopy);
+                    }
                     if (first == null || ReferenceEquals(first.CopiedFrom, template))
                     {
                         return first ?? firstCopy;
                     }
                 }
 
-                return GetListedSystemContext(template);
+                if (Volatile.Read(ref m_routingPinState) == kRoutingPinActive &&
+                    Volatile.Read(ref m_systemContextCache) is null)
+                {
+                    return GetListedSystemContext(template);
+                }
             }
 
             SystemContextCache? cache = Volatile.Read(ref m_systemContextCache);
@@ -907,7 +914,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns the copy for a template after the first of an ordinary request context.
+        /// Returns the copy for a template after the first of a request owning its routing pin.
         /// </summary>
         /// <remarks>
         /// A per-request <see cref="ConditionalWeakTable{TKey, TValue}"/> made every request
@@ -940,6 +947,10 @@ namespace Opc.Ua.Server
                 SystemContextEntry? current = Interlocked.CompareExchange(ref m_systemContextList, added, head);
                 if (ReferenceEquals(current, head))
                 {
+                    if (Volatile.Read(ref m_weakSystemContextCache) != 0)
+                    {
+                        Interlocked.CompareExchange(ref m_systemContextList, null, added);
+                    }
                     return copy;
                 }
 
@@ -977,7 +988,7 @@ namespace Opc.Ua.Server
         private ServerSystemContext? m_firstSystemContext;
 
         /// <summary>
-        /// The copies after the first of an ordinary request context, newest first.
+        /// The copies after the first of a request owning its routing pin, newest first.
         /// </summary>
         private SystemContextEntry? m_systemContextList;
 

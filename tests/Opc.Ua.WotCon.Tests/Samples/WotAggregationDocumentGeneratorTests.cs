@@ -1193,31 +1193,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         private static string PumpSourcePath => Path.Combine(
-            RepositoryRoot, "samples", "WotCon", "AggregationClient", "Documents", "SamplePump.NodeSet2.xml");
-
-        private static string RepositoryRoot
-        {
-            get
-            {
-                string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
-                if (!string.IsNullOrEmpty(configuredRoot))
-                {
-                    string root = Path.GetFullPath(configuredRoot);
-                    if (!File.Exists(Path.Combine(root, "UA.slnx")))
-                    {
-                        throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
-                    }
-                    return root;
-                }
-                DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
-                while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
-                {
-                    directory = directory.Parent;
-                }
-                return directory?.FullName
-                    ?? throw new DirectoryNotFoundException("Could not locate the repository root.");
-            }
-        }
+            WotAggregationDocumentGenerator.RepositoryRoot,
+            "samples", "WotCon", "AggregationClient", "Documents", "SamplePump.NodeSet2.xml");
 
         private static readonly string[] s_independentOrder = ["z-model", "a-view", "b-independent", "c-independent"];
         private static readonly string[] s_modelDependency = ["z-model"];

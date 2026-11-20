@@ -67,9 +67,8 @@ namespace Opc.Ua.ISA95.Tests.Integration
         public async Task ServerFixtureAndTypedClientExerciseIsa95Async()
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(Isa95EndToEndTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-isa95-e2e-" + Guid.NewGuid().ToString("N"));
             using var locationProvider = new InMemoryGeoLocationProvider();
             locationProvider.Update(
                 "plant",

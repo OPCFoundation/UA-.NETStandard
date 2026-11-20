@@ -176,9 +176,12 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             using ServiceProvider provider = services.BuildServiceProvider();
             IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
             await registry.InitializeAsync().ConfigureAwait(false);
-            NodeManagerRegistration registration = await runtime.Lifecycle
-                .AddAsync(provider.GetRequiredService<WotRegistryNodeManagerFactory>(), null)
+            LifecycleResult publication = await runtime.Lifecycle
+                .ApplyAsync([LifecycleChange.Add(provider.GetRequiredService<WotRegistryNodeManagerFactory>())])
                 .ConfigureAwait(false);
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
             await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = "plans",
@@ -205,8 +208,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                     """))
             }).ConfigureAwait(false);
             Assert.That(registered.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
-            Assert.That(registration.NodeManager, Is.InstanceOf<IWotRegistryRecoveryProjection>());
-            await ((IWotRegistryRecoveryProjection)registration.NodeManager)
+            Assert.That(registration!.NodeManager, Is.InstanceOf<IWotRegistryRecoveryProjection>());
+            await ((IWotRegistryRecoveryProjection)registration!.NodeManager)
                 .SynchronizeAsync(registry.Current, CancellationToken.None).ConfigureAwait(false);
             WotMaterializationCoordinator coordinator = provider.GetRequiredService<WotMaterializationCoordinator>();
             coordinator.ServerNamespaceUris = runtime.Namespaces;

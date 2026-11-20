@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -327,6 +328,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// least one round must allocate nothing at all, so an allocation on a rare path still fails.
         /// </remarks>
         [Test]
+#if NET8_0_OR_GREATER
+        // Exclude tiered loop instrumentation from the allocation measurement.
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void RequestOwnedRoutingCaptureAddsNoManagedAllocations()
         {
             const int iterations = 10000;
@@ -663,6 +668,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             table.Add(earlier, InitialNamespaceIndexes);
             table.Add(first, InitialNamespaceIndexes);
             table.Add(second, InitialNamespaceIndexes);
+            NodeManagerGeneration generation = table.GetGeneration(first);
 
             NodeManagerRoutingTable.NodeManagerRoutingPosition position =
                 table.RemoveAndCapturePosition(first);
@@ -675,6 +681,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(table.NamespaceManagers[2][1], Is.SameAs(second));
             Assert.That(table.NamespaceManagers[3][0], Is.SameAs(first));
             Assert.That(table.NamespaceManagers[3][1], Is.SameAs(second));
+            Assert.That(table.GetGeneration(first), Is.SameAs(generation));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(generation.Slot.Current, Is.SameAs(generation));
         }
 
         [Test]
@@ -683,9 +692,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             INodeManager syncManager = new Mock<INodeManager>().Object;
             IAsyncNodeManager registeredAdapter =
-                CreateManagerWithSync(syncManager);
+                new AsyncNodeManagerAdapter(syncManager);
             IAsyncNodeManager lookupAdapter =
-                CreateManagerWithSync(syncManager);
+                new AsyncNodeManagerAdapter(syncManager);
             table.Add(registeredAdapter, [2]);
 
             table.RegisterNamespace(3, lookupAdapter);
@@ -702,11 +711,42 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// While one writer alternates replacing the single lifecycle-managed slot between
-        /// two manager instances (~200 times) and several readers loop concurrently, every
+        /// Opaque facades over one synchronous resource keep independent namespace and registration owners.
+        /// </summary>
+        [Test]
+        public void OpaqueSynchronousFacadesKeepIndependentNamespaceAndRegistrationOwners()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            INodeManager resource = Mock.Of<INodeManager>();
+            IAsyncNodeManager registered = CreateManagerWithSync(resource);
+            IAsyncNodeManager other = CreateManagerWithSync(resource);
+            table.Add(registered, BatchNamespaceIndexes);
+            table.Add(other, BatchNamespaceIndexes);
+            NodeManagerGeneration registeredGeneration = table.GetGeneration(registered);
+            NodeManagerGeneration otherGeneration = table.GetGeneration(other);
+            table.RegisterNamespace(3, other);
+            AssertSingleManagerRoute(table.NamespaceManagers, 3, other);
+
+            table.RemoveNamespaceManager(other);
+            AssertSingleManagerRoute(table.NamespaceManagers, 2, registered);
+            Assert.That(table.NamespaceManagers.ContainsKey(3), Is.False);
+            Assert.That(table.Contains(other), Is.True);
+            Assert.That(otherGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+
+            table.Remove(other);
+            Assert.That(table.Contains(other), Is.False);
+            Assert.That(table.Contains(registered), Is.True);
+            AssertSingleManagerRoute(table.NamespaceManagers, 2, registered);
+            Assert.That(registeredGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(otherGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+        }
+
+        /// <summary>
+        /// While one writer replaces a single lifecycle-managed slot with fresh exact generations
+        /// (~200 times) and several readers loop concurrently, every
         /// individually captured manager-list snapshot (via <see cref="NodeManagerRoutingTable.GetEnumerator"/>)
         /// must remain structurally complete - three managers, the first two always the
-        /// same permanent instances, and the third always exactly one of the two lifecycle
+        /// same permanent instances, and the third always exactly one of the known lifecycle
         /// generations, never anything else - and every individually captured
         /// <see cref="NodeManagerRoutingTable.NamespaceManagers"/> snapshot must show exactly
         /// one non-null route to the same namespace index, pointing at exactly one valid
@@ -718,131 +758,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task ConcurrentReadersObserveOnlyCompleteRoutingSnapshotsAsync()
         {
-            const int ReaderIterations = 100;
-            const int ReaderCount = 4;
+            await RunConcurrentSnapshotReadersAsync().ConfigureAwait(false);
+        }
 
-            NodeManagerRoutingTable table = CreateTable(
-                out IAsyncNodeManager firstPermanent,
-                out IAsyncNodeManager secondPermanent);
-            IAsyncNodeManager generationA = CreateManager();
-            IAsyncNodeManager generationB = CreateManager();
-            table.Add(generationA, ConcurrentNamespaceIndexes);
-
-            var managerSnapshotFailures = new ConcurrentBag<string>();
-            var namespaceSnapshotFailures = new ConcurrentBag<string>();
-            using var startBarrier = new Barrier(ReaderCount + 1);
-            using var writerStarted = new ManualResetEventSlim();
-            using var readersReadyForConcurrentWrite = new CountdownEvent(ReaderCount);
-            using var concurrentWriteCompleted = new ManualResetEventSlim();
-            using var stopWriter = new CancellationTokenSource();
-            int writerIterations = 0;
-
-            var writerTask = Task.Run(() =>
-            {
-                IAsyncNodeManager current = generationA;
-                startBarrier.SignalAndWait();
-
-                ReplaceCurrent();
-                writerStarted.Set();
-                readersReadyForConcurrentWrite.Wait();
-                ReplaceCurrent();
-                concurrentWriteCompleted.Set();
-
-                while (!stopWriter.IsCancellationRequested)
+        /// <summary>
+        /// A writer failure before either startup notification cancels every waiting reader and preserves the cause.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ConcurrentSnapshotWriterFailureReleasesEveryParticipantAsync(int failedWrite)
+        {
+            var failure = new InvalidOperationException("The coordinated writer failed.");
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => RunConcurrentSnapshotReadersAsync(beforeWrite: write =>
                 {
-                    ReplaceCurrent();
-                    Thread.Yield();
-                }
+                    if (write == failedWrite)
+                    {
+                        throw failure;
+                    }
+                })).ConfigureAwait(false);
+            Assert.That(observed, Is.SameAs(failure));
+        }
 
-                void ReplaceCurrent()
+        /// <summary>
+        /// A reader failure before readiness or during a snapshot round releases the writer and its peer readers.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConcurrentSnapshotReaderFailureReleasesEveryParticipantAsync(bool duringRound)
+        {
+            var failure = new InvalidOperationException("The coordinated reader failed.");
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => RunConcurrentSnapshotReadersAsync(beforeRead: (reader, iteration) =>
                 {
-                    IAsyncNodeManager next = ReferenceEquals(current, generationA)
-                            ? generationB
-                            : generationA;
-                    table.Replace(current, next, ConcurrentNamespaceIndexes);
-                    current = next;
-                    Interlocked.Increment(ref writerIterations);
-                }
-            });
-
-            Task[] readerTasks = [.. Enumerable.Range(0, ReaderCount).Select(_ => Task.Run(() =>
-            {
-                startBarrier.SignalAndWait();
-                writerStarted.Wait();
-                readersReadyForConcurrentWrite.Signal();
-                concurrentWriteCompleted.Wait();
-
-                for (int iteration = 0; iteration < ReaderIterations; iteration++)
-                {
-                    var pinned = table.PinCurrent();
-                    try
+                    if (reader == 0 && iteration == (duringRound ? 0 : -1))
                     {
-                        var pinnedManagers = pinned.Snapshot.NodeManagers;
-                        if (pinnedManagers.Length != 3 ||
-                            !ReferenceEquals(pinnedManagers[0], firstPermanent) ||
-                            !ReferenceEquals(pinnedManagers[1], secondPermanent) ||
-                            (!ReferenceEquals(pinnedManagers[2], generationA) &&
-                                !ReferenceEquals(pinnedManagers[2], generationB)))
-                        {
-                            managerSnapshotFailures.Add(
-                                $"iteration {iteration}: pinned manager count {pinnedManagers.Length}");
-                        }
+                        throw failure;
                     }
-                    finally
-                    {
-                        pinned.Epoch.Exit(pinned.Slot);
-                    }
-
-                    using IEnumerator<IAsyncNodeManager> managerSnapshot = table.GetEnumerator();
-                    var managers = new List<IAsyncNodeManager>();
-                    while (managerSnapshot.MoveNext())
-                    {
-                        managers.Add(managerSnapshot.Current);
-                    }
-
-                    if (managers.Count != 3 ||
-                        !ReferenceEquals(managers[0], firstPermanent) ||
-                        !ReferenceEquals(managers[1], secondPermanent) ||
-                        (!ReferenceEquals(managers[2], generationA) &&
-                            !ReferenceEquals(managers[2], generationB)))
-                    {
-                        managerSnapshotFailures.Add(
-                            $"iteration {iteration}: manager count {managers.Count}");
-                    }
-
-                    IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceRoutes =
-                        table.NamespaceManagers;
-                    int namespaceIndex = ConcurrentNamespaceIndexes[0];
-                    bool hasRoute = namespaceRoutes.TryGetValue(
-                        namespaceIndex,
-                        out IReadOnlyList<IAsyncNodeManager>? route);
-                    if (!hasRoute ||
-                        route!.Count != 1 ||
-                        (!ReferenceEquals(route[0], generationA) &&
-                            !ReferenceEquals(route[0], generationB)))
-                    {
-                        namespaceSnapshotFailures.Add(
-                            $"iteration {iteration}: hasRoute {hasRoute}, " +
-                            $"count {(hasRoute ? route!.Count : -1)}");
-                    }
-
-                    Thread.Yield();
-                }
-            }))];
-
-            try
-            {
-                await Task.WhenAll(readerTasks).ConfigureAwait(false);
-            }
-            finally
-            {
-                stopWriter.Cancel();
-                await writerTask.ConfigureAwait(false);
-            }
-
-            Assert.That(writerIterations, Is.GreaterThan(2));
-            Assert.That(managerSnapshotFailures, Is.Empty);
-            Assert.That(namespaceSnapshotFailures, Is.Empty);
+                })).ConfigureAwait(false);
+            Assert.That(observed, Is.SameAs(failure));
         }
 
         [Test]
@@ -1109,8 +1063,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var table = new NodeManagerRoutingTable();
             INodeManager syncManager = new Mock<INodeManager>().Object;
-            IAsyncNodeManager registeredManager = CreateManagerWithSync(syncManager);
-            IAsyncNodeManager lookupManager = CreateManagerWithSync(syncManager);
+            IAsyncNodeManager registeredManager = new AsyncNodeManagerAdapter(syncManager);
+            IAsyncNodeManager lookupManager = new AsyncNodeManagerAdapter(syncManager);
             IAsyncNodeManager unrelated = CreateManager();
             table.RegisterNamespace(2, registeredManager);
             table.RegisterNamespace(3, registeredManager);
@@ -1218,6 +1172,180 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             Assert.That(managers, Is.EqualTo([firstPermanent, secondPermanent]));
+        }
+
+        /// <summary>
+        /// Joins one bounded writer and every reader, canceling all synchronization waits on the first actor failure.
+        /// </summary>
+        private static async Task RunConcurrentSnapshotReadersAsync(
+            Action<int>? beforeWrite = null,
+            Action<int, int>? beforeRead = null)
+        {
+            const int ReaderIterations = 100;
+            const int ReaderCount = 4;
+            const int ReplacementCount = (ReaderIterations * 2) + 2;
+
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstPermanent,
+                out IAsyncNodeManager secondPermanent);
+            IAsyncNodeManager[] generations =
+                [.. Enumerable.Range(0, ReplacementCount + 1).Select(_ => CreateManager())];
+            var expectedManagers = new HashSet<IAsyncNodeManager>(generations, RefEqualityComparer.Default);
+            table.Add(generations[0], ConcurrentNamespaceIndexes);
+
+            var managerSnapshotFailures = new ConcurrentBag<string>();
+            var namespaceSnapshotFailures = new ConcurrentBag<string>();
+            using var startBarrier = new Barrier(ReaderCount + 1);
+            using var roundBarrier = new Barrier(ReaderCount + 1);
+            using var writerStarted = new ManualResetEventSlim();
+            using var readersReadyForConcurrentWrite = new CountdownEvent(ReaderCount);
+            using var concurrentWriteCompleted = new ManualResetEventSlim();
+            using var stopWorkers = new CancellationTokenSource();
+            CancellationToken stop = stopWorkers.Token;
+            int writerIterations = 0;
+            ExceptionDispatchInfo? firstFailure = null;
+
+            Task writerTask = Task.Factory.StartNew(() =>
+            {
+                int currentIndex = 0;
+                try
+                {
+                    startBarrier.SignalAndWait(stop);
+                    ReplaceCurrent();
+                    writerStarted.Set();
+                    readersReadyForConcurrentWrite.Wait(stop);
+                    ReplaceCurrent();
+                    concurrentWriteCompleted.Set();
+
+                    for (int iteration = 0; iteration < ReaderIterations; iteration++)
+                    {
+                        roundBarrier.SignalAndWait(stop);
+                        ReplaceCurrent();
+                        Thread.Yield();
+                        ReplaceCurrent();
+                        roundBarrier.SignalAndWait(stop);
+                    }
+                }
+                catch (Exception failure)
+                {
+                    Interlocked.CompareExchange(ref firstFailure, ExceptionDispatchInfo.Capture(failure), null);
+                    stopWorkers.Cancel();
+                    throw;
+                }
+                finally
+                {
+                    writerStarted.Set();
+                    concurrentWriteCompleted.Set();
+                }
+
+                void ReplaceCurrent()
+                {
+                    int nextIndex = currentIndex + 1;
+                    beforeWrite?.Invoke(nextIndex);
+                    table.Replace(generations[currentIndex], generations[nextIndex], ConcurrentNamespaceIndexes);
+                    currentIndex = nextIndex;
+                    Interlocked.Increment(ref writerIterations);
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+            Task[] readerTasks = [.. Enumerable.Range(0, ReaderCount).Select(reader => Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    startBarrier.SignalAndWait(stop);
+                    writerStarted.Wait(stop);
+                    beforeRead?.Invoke(reader, -1);
+                    readersReadyForConcurrentWrite.Signal();
+                    concurrentWriteCompleted.Wait(stop);
+
+                    for (int iteration = 0; iteration < ReaderIterations; iteration++)
+                    {
+                        roundBarrier.SignalAndWait(stop);
+                        beforeRead?.Invoke(reader, iteration);
+                        (NodeManagerRoutingTable.RoutingSnapshot pinnedSnapshot, AddressSpaceEpoch pinnedEpoch,
+                            int pinnedSlot) = table.PinCurrent();
+                        try
+                        {
+                            IAsyncNodeManager[] pinnedManagers = pinnedSnapshot.NodeManagers;
+                            if (pinnedManagers.Length != 3 ||
+                                !ReferenceEquals(pinnedManagers[0], firstPermanent) ||
+                                !ReferenceEquals(pinnedManagers[1], secondPermanent) ||
+                                !expectedManagers.Contains(pinnedManagers[2]) ||
+                                pinnedSnapshot.Generations.Length != 3 ||
+                                !ReferenceEquals(pinnedSnapshot.Generations[2].NodeManager, pinnedManagers[2]))
+                            {
+                                managerSnapshotFailures.Add(
+                                    $"iteration {iteration}: pinned manager count {pinnedManagers.Length}");
+                            }
+                        }
+                        finally
+                        {
+                            pinnedEpoch.Exit(pinnedSlot);
+                        }
+
+                        using IEnumerator<IAsyncNodeManager> managerSnapshot = table.GetEnumerator();
+                        var managers = new List<IAsyncNodeManager>();
+                        while (managerSnapshot.MoveNext())
+                        {
+                            managers.Add(managerSnapshot.Current);
+                        }
+
+                        if (managers.Count != 3 ||
+                            !ReferenceEquals(managers[0], firstPermanent) ||
+                            !ReferenceEquals(managers[1], secondPermanent) ||
+                            !expectedManagers.Contains(managers[2]))
+                        {
+                            managerSnapshotFailures.Add(
+                                $"iteration {iteration}: manager count {managers.Count}");
+                        }
+
+                        IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceRoutes =
+                            table.NamespaceManagers;
+                        int namespaceIndex = ConcurrentNamespaceIndexes[0];
+                        bool hasRoute = namespaceRoutes.TryGetValue(
+                            namespaceIndex,
+                            out IReadOnlyList<IAsyncNodeManager>? route);
+                        if (namespaceRoutes.Count != 1 ||
+                            !hasRoute ||
+                            route!.Count != 1 ||
+                            !expectedManagers.Contains(route[0]))
+                        {
+                            namespaceSnapshotFailures.Add(
+                                $"iteration {iteration}: hasRoute {hasRoute}, " +
+                                $"count {(hasRoute ? route!.Count : -1)}");
+                        }
+
+                        Thread.Yield();
+                        roundBarrier.SignalAndWait(stop);
+                    }
+                }
+                catch (Exception failure)
+                {
+                    Interlocked.CompareExchange(ref firstFailure, ExceptionDispatchInfo.Capture(failure), null);
+                    stopWorkers.Cancel();
+                    throw;
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default))];
+
+            var completion = Task.WhenAll([writerTask, .. readerTasks]);
+            try
+            {
+                await completion.ConfigureAwait(false);
+            }
+            catch
+            {
+                Volatile.Read(ref firstFailure)?.Throw();
+                throw;
+            }
+            finally
+            {
+                writerStarted.Set();
+                concurrentWriteCompleted.Set();
+            }
+
+            Assert.That(writerIterations, Is.EqualTo(ReplacementCount));
+            Assert.That(managerSnapshotFailures, Is.Empty);
+            Assert.That(namespaceSnapshotFailures, Is.Empty);
         }
 
         private static NodeManagerRoutingTable CreateTable(

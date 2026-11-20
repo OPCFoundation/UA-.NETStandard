@@ -61,9 +61,8 @@ namespace Opc.Ua.AMB.Tests
         public async Task AClientFindsTheAssetAndSeesItMoveAsync()
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(AmbDiscoverySessionTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "amb-discovery-" + Guid.NewGuid().ToString("N"));
             DeviceState? device = null;
             await using AmbHostedServer server = await AmbHostedServer.StartAsync(
                 nameof(AmbDiscoverySessionTests),

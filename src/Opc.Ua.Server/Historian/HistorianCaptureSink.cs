@@ -93,11 +93,15 @@ namespace Opc.Ua.Server.Historian
         /// via <see cref="ITimeProviderProvider"/> is used, falling back
         /// to <see cref="TimeProvider.System"/>.
         /// </param>
+        /// <param name="cleanupStarted">
+        /// Invoked when the provider consumer exceeds the shutdown deadline and remains active.
+        /// </param>
         public HistorianCaptureSink(
             IHistorianProvider provider,
             ServerSystemContext systemContext,
             HistorianCaptureOptions? options = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            Action<Task>? cleanupStarted = null)
         {
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
             if (provider is not IHistorianBulkInsertProvider and
@@ -109,48 +113,26 @@ namespace Opc.Ua.Server.Historian
             }
             m_systemContext = systemContext ?? throw new ArgumentNullException(nameof(systemContext));
             m_options = options ?? new HistorianCaptureOptions();
-            if (m_options.MaxQueuedSamples <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "MaxQueuedSamples must be positive.");
-            }
-            if (m_options.BatchTarget <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "BatchTarget must be positive.");
-            }
-            if (m_options.BatchWindow < TimeSpan.Zero)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "BatchWindow must not be negative.");
-            }
-            if (m_options.FullMode is not CaptureFullMode.DropOldest and
-                not CaptureFullMode.DropNewest)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "FullMode is not supported.");
-            }
+            BoundedChannelOptions channelOptions = CreateChannelOptions(m_options);
             m_logger = systemContext.Server?.Telemetry?.CreateLogger<HistorianCaptureSink>();
             m_timeProvider = timeProvider
                 ?? (systemContext.Server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
+            m_cleanupStarted = cleanupStarted;
 
-            var channelOptions = new BoundedChannelOptions(m_options.MaxQueuedSamples)
-            {
-                FullMode = MapFullMode(m_options.FullMode),
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            };
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions, OnSampleDropped);
             m_shutdownCts = new CancellationTokenSource();
-            CancellationToken shutdownToken = m_shutdownCts.Token;
-            m_consumer = Task.Run(() => ConsumeAsync(shutdownToken));
+            try
+            {
+                CancellationToken shutdownToken = m_shutdownCts.Token;
+                m_consumer = Task.Run(() => ConsumeAsync(shutdownToken));
+            }
+            catch
+            {
+                m_shutdownCts.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -215,52 +197,27 @@ namespace Opc.Ua.Server.Historian
         /// A timeout cancels capture and is surfaced to the caller. Token resources remain alive
         /// until an in-flight provider completes; its eventual failure is still observed.
         /// </remarks>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            TaskCompletionSource<bool> completion;
+            bool ownsDisposal = false;
+            lock (m_disposalLock)
             {
-                return;
-            }
-            // Close the writer; the consumer drains remaining items and
-            // exits its async-foreach loop normally.
-            m_channel.Writer.TryComplete();
-            try
-            {
-                // Bound the wait — if the consumer is stuck the host
-                // shutdown should not block forever.
-                await m_consumer
-                    .WaitAsync(TimeSpan.FromSeconds(5), m_timeProvider)
-                    .ConfigureAwait(false);
-            }
-            catch (TimeoutException)
-            {
-                m_logger?.HistorianCaptureSinkConsumerDidNotDrainWithin5s();
-                m_shutdownCts.Cancel();
-                throw;
-            }
-            finally
-            {
-                if (m_consumer.IsCompleted)
+                if (m_disposalFinished is null)
                 {
-                    _ = m_consumer.Exception;
-                    m_shutdownCts.Dispose();
+                    if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                    {
+                        return default;
+                    }
+                    m_disposalFinished = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    ownsDisposal = true;
                 }
-                else
-                {
-                    // A timed-out provider still owns the token. This one-shot cleanup
-                    // only observes completion and disposes its source; it cannot capture this.
-                    _ = m_consumer.ContinueWith(
-                        static (completed, state) =>
-                        {
-                            _ = completed.Exception;
-                            ((CancellationTokenSource)state!).Dispose();
-                        },
-                        m_shutdownCts,
-                        CancellationToken.None,
-                        TaskContinuationOptions.ExecuteSynchronously,
-                        TaskScheduler.Default);
-                }
+                completion = m_disposalFinished;
             }
+            return ownsDisposal
+                ? DisposeCoreAsync(completion)
+                : new ValueTask(completion.Task);
         }
 
         /// <summary>
@@ -291,6 +248,177 @@ namespace Opc.Ua.Server.Historian
                     TaskScheduler.Default);
             }
         }
+
+        /// <summary>
+        /// Validates shared capture settings and configures bounded value and event queues.
+        /// </summary>
+        /// <param name="options">The normalized capture settings.</param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// A queue capacity, batch size, batch window or overflow mode is invalid.
+        /// </exception>
+        internal static BoundedChannelOptions CreateChannelOptions(HistorianCaptureOptions options)
+        {
+            if (options.MaxQueuedSamples <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "MaxQueuedSamples must be positive.");
+            }
+            if (options.BatchTarget <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "BatchTarget must be positive.");
+            }
+            if (options.BatchWindow < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "BatchWindow must not be negative.");
+            }
+            BoundedChannelFullMode fullMode = options.FullMode switch
+            {
+                CaptureFullMode.DropOldest => BoundedChannelFullMode.DropOldest,
+                CaptureFullMode.DropNewest => BoundedChannelFullMode.DropNewest,
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "FullMode is not supported.")
+            };
+            return new BoundedChannelOptions(options.MaxQueuedSamples)
+            {
+                FullMode = fullMode,
+                SingleReader = true,
+                SingleWriter = false,
+                AllowSynchronousContinuations = false
+            };
+        }
+
+        /// <summary>
+        /// Requests asynchronous shutdown and completes cancellation notification before token resources are released.
+        /// </summary>
+        /// <param name="shutdown">The cancellation source owned by a capture consumer.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="shutdown"/> is <c>null</c>.</exception>
+        internal static async Task RequestShutdownAsync(CancellationTokenSource shutdown)
+        {
+            _ = shutdown ?? throw new ArgumentNullException(nameof(shutdown));
+            // CancelAsync can leave notification incomplete when there are no registrations, preventing
+            // disposal of an existing token wait handle. Keep a registration until notification completes.
+            // TODO: Remove the marker once all supported runtimes complete the empty-registration path.
+            using CancellationTokenRegistration completion = shutdown.Token.Register(static () => { });
+            await shutdown.CancelAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Completes a capture consumer's shared disposal while retaining deferred cancellation and token ownership.
+        /// </summary>
+        /// <typeparam name="T">The queued capture record type.</typeparam>
+        /// <param name="writer">The capture queue closed before draining the consumer.</param>
+        /// <param name="consumer">The consumer whose actual completion releases its provider dependency.</param>
+        /// <param name="shutdown">The capture-owned cancellation source.</param>
+        /// <param name="timeProvider">The clock used for the shutdown deadline.</param>
+        /// <param name="completion">The original terminal disposal completion joined by overlapping callers.</param>
+        /// <param name="timedOut">The capture-specific timeout notification.</param>
+        /// <param name="cleanupStarted">The owner notified of separately tracked deferred cleanup.</param>
+        internal static async ValueTask CompleteDisposalAsync<T>(
+            ChannelWriter<T> writer,
+            Task consumer,
+            CancellationTokenSource shutdown,
+            TimeProvider timeProvider,
+            TaskCompletionSource<bool> completion,
+            Action? timedOut,
+            Action<Task>? cleanupStarted)
+        {
+            Task cleanup = consumer;
+            try
+            {
+                writer.TryComplete();
+                try
+                {
+                    await consumer.WaitAsync(TimeSpan.FromSeconds(5), timeProvider).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    timedOut?.Invoke();
+                    Task cancellation = RequestShutdownAsync(shutdown);
+                    cleanup = Task.WhenAll(consumer, cancellation);
+                    cleanupStarted?.Invoke(cleanup);
+#if NETFRAMEWORK
+                    await WaitForCancellationRequestAsync(cancellation, shutdown.Token).ConfigureAwait(false);
+#endif
+                    throw;
+                }
+                finally
+                {
+                    if (cleanup.IsCompleted)
+                    {
+                        _ = cleanup.Exception;
+                        shutdown.Dispose();
+                    }
+                    else
+                    {
+                        // The consumer and cancellation callbacks own the token until both complete.
+                        _ = cleanup.ContinueWith(
+                            static (completed, state) =>
+                            {
+                                _ = completed.Exception;
+                                ((CancellationTokenSource)state!).Dispose();
+                            },
+                            shutdown,
+                            CancellationToken.None,
+                            TaskContinuationOptions.ExecuteSynchronously,
+                            TaskScheduler.Default);
+                    }
+                }
+                completion.TrySetResult(true);
+            }
+            catch (Exception failure)
+            {
+                completion.TrySetException(failure);
+                _ = completion.Task.Exception;
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Closes value capture and joins the common consumer disposal protocol.
+        /// </summary>
+        private ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
+        {
+            return CompleteDisposalAsync(
+                m_channel.Writer, m_consumer, m_shutdownCts, m_timeProvider, completion,
+                m_logger is null ? null : m_logger.HistorianCaptureSinkConsumerDidNotDrainWithin5s,
+                m_cleanupStarted);
+        }
+
+#if NETFRAMEWORK
+        /// <summary>
+        /// Joins the legacy cancellation request transition without waiting for provider callbacks.
+        /// </summary>
+        /// <param name="cancellation">The separately owned callback-completion task.</param>
+        /// <param name="token">The capture token whose wait handle is signaled before callbacks run.</param>
+        private static async Task WaitForCancellationRequestAsync(Task cancellation, CancellationToken token)
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            var requested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            RegisteredWaitHandle registration = ThreadPool.RegisterWaitForSingleObject(
+                token.WaitHandle,
+                static (state, _) => ((TaskCompletionSource<bool>)state!).TrySetResult(true),
+                requested,
+                Timeout.Infinite,
+                executeOnlyOnce: true);
+            try
+            {
+                await Task.WhenAny(requested.Task, cancellation).ConfigureAwait(false);
+            }
+            finally
+            {
+                registration.Unregister(null);
+            }
+        }
+#endif
 
         private async Task ConsumeAsync(CancellationToken ct)
         {
@@ -517,16 +645,6 @@ namespace Opc.Ua.Server.Historian
             m_logger?.HistorianCaptureSinkDroppedSampleForNodeIdMode(ev.NodeId, m_options.FullMode);
         }
 
-        private static BoundedChannelFullMode MapFullMode(CaptureFullMode mode)
-        {
-            return mode switch
-            {
-                CaptureFullMode.DropOldest => BoundedChannelFullMode.DropOldest,
-                CaptureFullMode.DropNewest => BoundedChannelFullMode.DropNewest,
-                _ => throw new ArgumentOutOfRangeException(nameof(mode))
-            };
-        }
-
         private readonly record struct CaptureEvent(NodeId NodeId, DataValue Value);
 
         private readonly IHistorianProvider m_provider;
@@ -537,6 +655,9 @@ namespace Opc.Ua.Server.Historian
         private readonly Task m_consumer;
         private readonly CancellationTokenSource m_shutdownCts;
         private readonly TimeProvider m_timeProvider;
+        private readonly Action<Task>? m_cleanupStarted;
+        private readonly Lock m_disposalLock = new();
+        private TaskCompletionSource<bool>? m_disposalFinished;
         private long m_droppedSamples;
         private long m_rejectedSamples;
         private long m_lastFailureReport;

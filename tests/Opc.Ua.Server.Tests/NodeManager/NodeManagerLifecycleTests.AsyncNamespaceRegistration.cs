@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
-        /// Asynchronous namespace changes wait for a durable decision without blocking a caller thread.
+        /// Asynchronous conflicting namespace changes wait for a decision without blocking a caller thread.
         /// </summary>
         [TestCase(false, false, false)]
         [TestCase(true, false, false)]
@@ -56,15 +56,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
-            await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value),
-                null,
+            await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value))],
                 timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(manager);
             IServerInternal server = m_server.CurrentInstance;
             IMasterNodeManager master = server.NodeManager;
             var host = (IDynamicNodeManagerBatchHost)master;
-            const string AliasUri = kModelNamespaceUri + ":AsyncDecisionAlias";
+            const string AliasUri = kSecondModelNamespaceUri;
             if (namespaceAlreadyExists)
             {
                 server.NamespaceUris.GetIndexOrAppend(AliasUri);
@@ -77,13 +77,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var decisionFailure = new InvalidOperationException("The durable decision was rejected.");
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            await using IPreparedNodeManagerBatch prepared =
-                await ((INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
-                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
-                    null,
-                    timeout.Token).ConfigureAwait(false);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            await using IPreparedChanges prepared =
+                await m_server.NodeManagerLifecycle.PrepareAsync([LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))], timeout.Token).ConfigureAwait(false);
+            Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -118,7 +115,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 release.TrySetResult(true);
                 try
                 {
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(decisionFails, Is.False);
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
@@ -164,26 +161,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
-            await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value),
-                null,
+            await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value))],
                 timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(manager);
             IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
-            const string AliasUri = kModelNamespaceUri + ":AsyncDecisionAlias";
+            const string AliasUri = kSecondModelNamespaceUri;
             if (unregister)
             {
                 master.RegisterNamespaceManager(AliasUri, manager);
             }
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            await using IPreparedNodeManagerBatch prepared =
-                await ((INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
-                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
-                    null,
-                    timeout.Token).ConfigureAwait(false);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            await using IPreparedChanges prepared =
+                await m_server.NodeManagerLifecycle.PrepareAsync([LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))], timeout.Token).ConfigureAwait(false);
+            Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -213,7 +207,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 release.TrySetResult(true);
                 try
                 {
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
                 finally
@@ -248,20 +242,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
-            await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value),
-                null,
+            await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(kGeneration1Value, value => manager = value))],
                 timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(manager);
             IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
             const string AliasUri = kModelNamespaceUri + ":AsyncOwnDecisionAlias";
-            await using IPreparedNodeManagerBatch prepared =
-                await ((INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
-                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
-                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
-                    null,
-                    timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult result = await prepared.CommitAsync(async _ =>
+            await using IPreparedChanges prepared =
+                await m_server.NodeManagerLifecycle.PrepareAsync([LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))], timeout.Token).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync(async _ =>
             {
                 await Task.Yield();
                 InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(

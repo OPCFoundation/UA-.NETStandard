@@ -101,6 +101,263 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A propagated origin cannot authorize another custom facade merely through shared resource association.
+        /// </summary>
+        [Test]
+        public void SourceOriginRejectsAnotherFacadeButAcceptsItsOwnerAliases()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var resource = new Mock<IAsyncNodeManager>();
+                var synchronous = new SyncNodeManagerAdapter(resource.Object);
+                resource.SetupGet(value => value.SyncNodeManager).Returns(synchronous);
+                var owner = new Mock<IAsyncNodeManager>();
+                owner.SetupGet(value => value.SyncNodeManager).Returns(synchronous);
+                var candidate = new Mock<IAsyncNodeManager>();
+                candidate.SetupGet(value => value.SyncNodeManager).Returns(synchronous);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [owner.Object]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner.Object);
+                _ = NodeManagerGenerationRegistry.CreateAddition(candidate.Object);
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, owner.Object, out MasterNodeManager.SourceEmissionAdmission? parent), Is.True);
+                using MasterNodeManager.SourceEmissionOrigin origin = parent!.Value.TransferToOrigin();
+                IAsyncNodeManager ownerAlias =
+                    new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(owner.Object));
+                IAsyncNodeManager candidateAlias =
+                    new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(candidate.Object));
+                MasterNodeManager.SourceEmissionAdmission? ownerAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? rawAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? aliasAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? candidateAdmission = null;
+                MasterNodeManager.SourceEmissionAdmission? candidateAliasAdmission = null;
+                try
+                {
+                    bool ownerAccepted = origin.TryCapture(
+                        master, owner.Object, generation.Reference, false, out ownerAdmission);
+                    bool rawAccepted = origin.TryCapture(
+                        master, resource.Object, generation.Reference, false, out rawAdmission);
+                    bool aliasAccepted = origin.TryCapture(
+                        master, ownerAlias, generation.Reference, false, out aliasAdmission);
+                    bool candidateAccepted = origin.TryCapture(
+                        master, candidate.Object, generation.Reference, false, out candidateAdmission);
+                    bool candidateAliasAccepted = origin.TryCapture(
+                        master, candidateAlias, generation.Reference, false, out candidateAliasAdmission);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(ownerAccepted, Is.True);
+                        Assert.That(rawAccepted, Is.True);
+                        Assert.That(aliasAccepted, Is.True);
+                        Assert.That(candidateAccepted, Is.False);
+                        Assert.That(candidateAliasAccepted, Is.False);
+                    });
+                }
+                finally
+                {
+                    ownerAdmission?.Dispose();
+                    rawAdmission?.Dispose();
+                    aliasAdmission?.Dispose();
+                    candidateAdmission?.Dispose();
+                    candidateAliasAdmission?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Exact facade aliases remain resolvable even when an unbound physical source is ambiguous.
+        /// </summary>
+        [Test]
+        public void RoutingResolvesDerivedFacadesAndTheirStandardAliasesSeparately()
+        {
+            INodeManager resource = Mock.Of<INodeManager>();
+            var first = new DerivedAsyncAdapter(resource);
+            var second = new DerivedAsyncAdapter(resource);
+            IAsyncNodeManager firstAlias = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(first));
+            IAsyncNodeManager secondAlias = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(second));
+            IAsyncNodeManager raw = resource.ToAsyncNodeManager();
+            IAsyncNodeManager rawAlias = new AsyncNodeManagerAdapter(resource);
+            var snapshot = new NodeManagerRoutingTable.RoutingSnapshot(
+                [first, second],
+                new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(),
+                []);
+            try
+            {
+                Assert.That(snapshot.TryGetSourceGeneration(first, out NodeManagerGeneration? firstGeneration),
+                    Is.True);
+                Assert.That(snapshot.TryGetSourceGeneration(second, out NodeManagerGeneration? secondGeneration),
+                    Is.True);
+                Assert.That(firstGeneration, Is.Not.SameAs(secondGeneration));
+                Assert.That(snapshot.TryGetSourceGeneration(firstAlias, out NodeManagerGeneration? firstResolved),
+                    Is.True);
+                Assert.That(snapshot.TryGetSourceGeneration(secondAlias, out NodeManagerGeneration? secondResolved),
+                    Is.True);
+                Assert.That(firstResolved, Is.SameAs(firstGeneration));
+                Assert.That(secondResolved, Is.SameAs(secondGeneration));
+                Assert.That(snapshot.TryGetSourceGeneration(raw, out _), Is.False);
+                Assert.That(snapshot.TryGetSourceGeneration(rawAlias, out _), Is.False);
+            }
+            finally
+            {
+                snapshot.Epoch.Close();
+            }
+        }
+
+        /// <summary>
+        /// An item capture admitted before revocation keeps its parent until the child joins the readiness drain.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RevokedOriginDrainsInFlightItemCaptureBeforeReadinessAsync(bool retireBeforeCapture)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                IAsyncNodeManager source = Mock.Of<IAsyncNodeManager>();
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [source]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(source);
+                generation.ReadinessPending = true;
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, source, out MasterNodeManager.SourceEmissionAdmission? parent), Is.True);
+                long eventId = parent!.Value.ReadinessEventId;
+                using MasterNodeManager.SourceEmissionOrigin origin = parent.Value.TransferToOrigin();
+                int deliveries = 0;
+                Assert.That(generation.TryDeferEvent(eventId, () =>
+                {
+                    Interlocked.Increment(ref deliveries);
+                    return Task.CompletedTask;
+                }, 1, out _), Is.True);
+
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var release = new ManualResetEventSlim();
+                var item = new Mock<IEventMonitoredItem>();
+                item.SetupGet(value => value.NodeManager).Returns(() =>
+                {
+                    entered.TrySetResult(true);
+                    if (!release.Wait(TimeSpan.FromSeconds(30)))
+                    {
+                        throw new TimeoutException("The test did not release the item capture.");
+                    }
+                    return source;
+                });
+                if (retireBeforeCapture)
+                {
+                    generation.Gate.Retire();
+                }
+
+                Task<(bool Accepted, MasterNodeManager.SourceEmissionAdmission? Admission)> capture =
+                    Task.Factory.StartNew(() =>
+                    {
+                        bool accepted = origin.TryCaptureForItem(
+                            item.Object, out MasterNodeManager.SourceEmissionAdmission? child);
+                        return (accepted, child);
+                    }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                Task? flush = null;
+                bool childDisposed = false;
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    origin.Dispose();
+                    origin.Dispose();
+                    generation.ReadinessPending = false;
+                    flush = generation.FlushDeferredEventsAsync();
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(origin.IsActive, Is.False);
+                        Assert.That(flush.IsCompleted, Is.False);
+                        Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1));
+                        Assert.That(Volatile.Read(ref deliveries), Is.Zero);
+                    }
+                    Assert.That(origin.TryCaptureForItem(
+                        item.Object, out MasterNodeManager.SourceEmissionAdmission? rejected), Is.False);
+                    Assert.That(rejected.HasValue, Is.False);
+                    item.VerifyGet(value => value.NodeManager, Times.Once);
+
+                    release.Set();
+                    (bool accepted, MasterNodeManager.SourceEmissionAdmission? child) =
+                        await capture.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Assert.That(accepted, Is.True);
+                    Assert.That(child.HasValue, Is.True);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(child!.Value.Generation, Is.SameAs(generation));
+                        Assert.That(child.Value.ReadinessPending, Is.True);
+                        Assert.That(child.Value.ReadinessEventId, Is.EqualTo(eventId));
+                        Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1));
+                        Assert.That(flush.IsCompleted, Is.False);
+                        Assert.That(Volatile.Read(ref deliveries), Is.Zero);
+                    }
+                    Assert.That(generation.TryDeferEvent(child.Value.ReadinessEventId, () =>
+                    {
+                        Interlocked.Increment(ref deliveries);
+                        return Task.CompletedTask;
+                    }, 1, out _), Is.True);
+                    child.Value.Dispose();
+                    childDisposed = true;
+                    await flush.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Assert.That(Volatile.Read(ref deliveries), Is.EqualTo(2));
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                }
+                finally
+                {
+                    release.Set();
+                    try
+                    {
+                        (bool Accepted, MasterNodeManager.SourceEmissionAdmission? Admission) result =
+                            await capture.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        if (!childDisposed)
+                        {
+                            result.Admission?.Dispose();
+                        }
+                    }
+                    finally
+                    {
+                        origin.Dispose();
+                        generation.ReadinessPending = false;
+                    }
+                    await (flush ?? generation.FlushDeferredEventsAsync())
+                        .WaitAsync(TimeSpan.FromSeconds(10))
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A failed source validation releases its capture claim and does not strand readiness or the gate.
+        /// </summary>
+        [Test]
+        public async Task FailedSourceValidationReleasesOriginCaptureClaimAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                IAsyncNodeManager source = Mock.Of<IAsyncNodeManager>();
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [source]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(source);
+                generation.ReadinessPending = true;
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, source, out MasterNodeManager.SourceEmissionAdmission? parent), Is.True);
+                using MasterNodeManager.SourceEmissionOrigin origin = parent!.Value.TransferToOrigin();
+                var failure = new InvalidOperationException("Source identity lookup failed.");
+                var other = new Mock<IAsyncNodeManager>();
+                other.SetupGet(value => value.SyncNodeManager).Throws(failure);
+
+                InvalidOperationException? actual = Assert.Throws<InvalidOperationException>(
+                    () => origin.TryCapture(master, other.Object, null, false, out _));
+                Assert.That(actual, Is.SameAs(failure));
+                origin.Dispose();
+                generation.ReadinessPending = false;
+                await generation.FlushDeferredEventsAsync().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(origin.IsActive, Is.False);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                    Assert.That(generation.IsDeferringEvents, Is.False);
+                }
+                Assert.That(origin.TryCapture(master, source, null, false, out _), Is.False);
+            }
+        }
+
+        /// <summary>
         /// Prepared generations refuse entry, while retirement closes a live gate and drains prior work.
         /// </summary>
         [Test]
@@ -131,6 +388,65 @@ namespace Opc.Ua.Server.Tests.NodeManager
             aborted.Abort();
             Assert.That(aborted.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
             Assert.That(() => aborted.Activate(), Throws.InvalidOperationException);
+        }
+
+        /// <summary>
+        /// Retirement waits for admitted work in every stripe before disposal.
+        /// </summary>
+        [Test]
+        public async Task RetirementWaitsForEveryCounterStripeAsync()
+        {
+            const int stripeStride = 16;
+            var counter = new StripedCounter();
+            var gate = new GenerationGate(NodeManagerGenerationState.Live, counter);
+            var leases = new List<GenerationGate.Lease>();
+            GenerationGate.Lease? rejected = null;
+            for (int slot = stripeStride; slot <= counter.LastSlot; slot += stripeStride)
+            {
+                counter.Enter(slot);
+                leases.Add(new GenerationGate.Lease(gate, slot));
+            }
+
+            try
+            {
+                Assert.That(leases, Is.Not.Empty);
+                Assert.That(gate.ActiveCount, Is.EqualTo(leases.Count));
+                gate.Retire();
+                Task drained = gate.WaitForDrainAsync();
+                bool admittedAfterRetirement = gate.TryEnter(out rejected);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(drained.IsCompleted, Is.False);
+                    Assert.That(gate.WaitForDrainAsync(), Is.SameAs(drained));
+                    Assert.That(gate.DisposeGeneration, Throws.InvalidOperationException);
+                    Assert.That(admittedAfterRetirement, Is.False);
+                    Assert.That(rejected, Is.Null);
+                }
+
+                for (int ii = 0; ii < leases.Count; ii++)
+                {
+                    leases[ii].Dispose();
+                    int remaining = leases.Count - ii - 1;
+                    Assert.That(gate.ActiveCount, Is.EqualTo(remaining));
+                    Assert.That(drained.IsCompleted, Is.EqualTo(remaining == 0));
+                    if (remaining > 0)
+                    {
+                        Assert.That(gate.DisposeGeneration, Throws.InvalidOperationException);
+                    }
+                }
+
+                await drained.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                gate.DisposeGeneration();
+                Assert.That(gate.State, Is.EqualTo(NodeManagerGenerationState.Disposed));
+            }
+            finally
+            {
+                rejected?.Dispose();
+                foreach (GenerationGate.Lease lease in leases)
+                {
+                    lease.Dispose();
+                }
+            }
         }
 
         /// <summary>
@@ -331,6 +647,38 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             gate.DisposeGeneration();
             Assert.That(gate.State, Is.EqualTo(NodeManagerGenerationState.Disposed));
+        }
+
+        /// <summary>
+        /// An open view cannot drain, even when it has no pins when the wait starts.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AddressSpaceEpochDrainWaitsForClosureAndLaterPinsAsync(bool pinAfterWait)
+        {
+            var epoch = new AddressSpaceEpoch();
+            Task drained = epoch.WaitForDrainAsync();
+            Assert.That(drained.IsCompleted, Is.False);
+
+            int slot = -1;
+            if (pinAfterWait)
+            {
+                Assert.That(epoch.TryPin(out slot), Is.True);
+            }
+            try
+            {
+                epoch.Close();
+                Assert.That(drained.IsCompleted, Is.EqualTo(!pinAfterWait));
+            }
+            finally
+            {
+                if (pinAfterWait)
+                {
+                    epoch.Exit(slot);
+                }
+            }
+            await drained.ConfigureAwait(false);
+            Assert.That(epoch.IsDrained, Is.True);
         }
 
         /// <summary>
@@ -602,6 +950,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [manager],
                 new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(),
                 []);
+        }
+
+        /// <summary>
+        /// Represents a customized facade over a synchronous manager.
+        /// </summary>
+        private sealed class DerivedAsyncAdapter(INodeManager manager) : AsyncNodeManagerAdapter(manager)
+        {
         }
     }
 }

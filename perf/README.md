@@ -8,7 +8,7 @@ part of the product build (not in `UA.slnx`) and target `net10.0` and `net11.0` 
 | `ServerLoadHarness/` | Starts a reference server in a child process and drives load against it from the parent process, which is also the measured client. |
 | `regression/` | Nightly load floors: delivered %, server bytes per operation and rate ratios checked against fixed bounds; see [regression/README.md](regression/README.md). |
 | `TraceAnalyzer/` | Aggregates the `dotnet-trace` files the harness records (CPU, allocations, lock contention, garbage collections). |
-| `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, and the median summary. |
+| `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, with per-round results and a median and range summary. |
 | `variants.sh`, `variants-summary.ps1` | Paired runs of one build under several configurations (GC mode, affinity), and the median and range summary. |
 | `benchmarks/` | The variant and scenario files of the published tables in [docs/Benchmarks.md](../docs/Benchmarks.md#reproducing-the-results). |
 | `server-scenarios.txt`, `client-scenarios.txt` | The scenario lists used for the server and client comparisons. |
@@ -85,6 +85,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention` or `gc`. |
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
 | `--out <file>` | | Append the result block to a file. |
+| `--server-harness <executable>` | this harness | Start another compatible harness executable as the measured server child. This keeps the client executable and assemblies fixed when comparing server builds. The selected child must implement the same READY/MARKED/REPORT control protocol; this is not the native-worker `--server-exe` option. |
 | `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
 | `--inject-alloc`, `--inject-spin-us` | 0 | Simulated regression in the server child: bytes allocated and microseconds of CPU per written value and per reported event, for validating the [load floors](regression/README.md#validating-a-floor). |
 | `--client-cores` | all | Windows only. Relaunch the client with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) and affinity to the last N allowed processors. If processors remain, pin the server to them. On Linux the process-affinity API changes only the main thread's affinity; use a cgroup (`docker --cpuset-cpus`) or launch under `taskset` instead. |
@@ -192,6 +193,8 @@ publishing interval (or per sample when sampling is slower), and the `server:` l
 `samplesTaken`. `per-op` divides the server's allocation and CPU by notifications and
 `per-op2` by samples taken. These values describe one run; compare client modes only from
 controlled runs with the same server, workload and timing settings on an otherwise idle host.
+The managed `counters` run prints its result and exits with status 1 if any item
+progresses below 99% of its expected sample count or has no measurable progress window.
 
 `--server-affinity` (Windows and Linux) is applied after the server started, when the .NET
 runtime has already sized the thread pool and the GC heaps for all processors. Set
@@ -327,20 +330,53 @@ the measurement.
 
 Build the baseline harness in a second worktree, then alternate the two builds. `SCENARIOS`
 selects the scenario list (`server-scenarios.txt` by default, `client-scenarios.txt` for the
-client), `ROUNDS` the rounds per scenario and `OUT` the result file:
+client), `ROUNDS` the rounds per scenario (1 through 100000), and `OUT` the result file:
 
 ```bash
 git worktree add --detach C:/uabase origin/master
 cp -r perf C:/uabase/ && (cd C:/uabase && CustomTestTarget=net10.0 dotnet build perf/ServerLoadHarness -c Release)
 cd perf && BASELINE=C:/uabase/perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe SCENARIOS=client-scenarios.txt ROUNDS=5 ./ab.sh
-pwsh -File ab-summary.ps1
+pwsh -File ab-summary.ps1 -ExpectedRounds 5 -RequireExitStatus
 ```
 
-The summary prints medians as
-`baseline -> candidate (change)`: throughput, latency percentiles, client allocated bytes and CPU
-per operation (`calloc`, `ccpu`), GC pause and lock contention in the window (`cpause`,
-`ccont`), and the same for the server (`alloc`, `cpu`, `pause`, `cont`). It prints medians
-only; take the ranges from the result blocks in `ab-results.txt`.
+The summary prints the `RESULT` line, received and expected counts, delivery, rate and server CPU
+per operation for each side of every round, followed by their paired differences. Delivery is
+calculated from the counts when available; `reported-rounded` identifies an older result that
+contains only the rounded percentage. The delivery comparison is marked if either side uses that
+rounded input. A zero expected count has no delivery percentage. The comparison also prints the
+median and range as `baseline -> candidate (change)` for throughput,
+delivery, latency percentiles, client allocated bytes and CPU per operation (`calloc`, `ccpu`),
+GC pause and lock contention (`cpause`, `ccont`), and the same server metrics (`alloc`, `cpu`,
+`pause`, `cont`). Use the counts, not a displayed percentage, when checking a delivery threshold.
+
+`ab.sh` records the status returned by `timeout` for each harness invocation and exits with status
+1 if any of those statuses is nonzero. The summary rejects nonzero statuses.
+`-RequireExitStatus` also rejects older blocks without an exit status; without it those blocks
+show `exit=n/a`. `-ExpectedRounds 5` requires five paired rounds for each scenario present in the
+file. The summary rejects incomplete or duplicate blocks, mismatched `RESULT` lines or units, and
+missing rounds. Compare the scenarios in the file with the requested scenario list: the summary
+cannot detect an entirely omitted scenario.
+
+The harness records `cpuTicks` alongside `cpuMs`. A tick is a `TimeSpan` tick (100 ns), not a
+statement of the operating system CPU counter's resolution. For `sub` and `events`, the summary
+divides server ticks by the received notification count and labels the result
+`cpuSource=ticks/counts`. It retains both inputs and the rounded `reportedCpuUs`. A paired
+`serverCpuDirection` compares the raw ratios by integer cross-multiplication, so its direction
+remains visible even when the displayed difference rounds to zero.
+
+The displayed CPU differences, medians and ranges are rounded to eight decimal places.
+`serverCpuMedianDirection` compares the two sides' median raw tick/count ratios, averaging the two
+middle ratios for an even number of rounds. It reports `unavailable` if any round lacks a usable
+ratio. A direction alone does not establish an acceptance verdict; also consider each pair, the
+counter resolution and measurement noise. Older blocks and other workloads use the reported
+per-operation CPU; comparisons containing those values are marked `reported-per-op input`.
+`-RequireRawCpu` rejects blocks without a usable tick/count ratio, including zero received counts
+and scenarios other than `sub` and `events`. Use it only when every result is a `sub` or `events` run.
+
+`variants-summary.ps1` does not report raw ticks and rounds displayed CPU values to two decimal
+places, or to whole numbers at 100 and above. `ab.sh` does not detect competing processes or
+record source and harness SHAs. Record the identities and check for competing load separately;
+discard contaminated rounds.
 
 ## Configuration comparison
 
@@ -438,20 +474,27 @@ the scenario and all arguments.
 | Metric | Line and field |
 |---|---|
 | Throughput | `client:` `req/s` (requests), `notif/s` (`sub`), `events/s` and `generated/s` (`events`), `samples/s` (`native-counters`) |
-| Delivery, completeness | `client:` `received/expected` (`sub`, `events`); `PASS`/`FAIL` for `native-counters` |
+| Delivery, completeness | `client:` `received/expected` percentage and `received` and `expected` counts (`sub`, `events`); `PASS`/`FAIL` for `native-counters` |
 | Latency | `client:` percentiles `p50`/`p90`/`p99`; `write->notify latency` (`sub`), `event->notify latency` (`events`) |
 | CPU and allocation per operation | `per-op:` `cpuUs`, `allocB` per request or notification; `per-op2:` per written value or generated event |
 | GC | `server:` `gen0`/`gen1`/`gen2` collections and `pauseMs` in the window; `client-process:` the same for the client |
-| CPU use | `server:` `cpuMs` and `cpuCores` (average busy cores), `userMs` (user-mode part of `cpuMs`); `client-process:` the same for the client |
+| CPU use | `server:`, `client-process:` `cpuTicks`, `cpuMs` and `cpuCores` (average busy cores), `userMs` (user-mode part of `cpuMs`) |
 | Thread-pool hand-offs | `server:`, `client-process:` `workItems` (`ThreadPool.CompletedWorkItemCount` in the window); divide by the operations for the work items per operation. Thread-pool spinning shows as user-mode CPU that grows without more work items, see [Thread-pool spinning on .NET 11](../docs/ServerScalability.md#thread-pool-spinning-on-net-11) |
+
+For `sub`, `expected` is the number of successfully written values multiplied by the number of
+sessions and by the subscriptions per session. For `events`, it is the number of generated
+events multiplied by the same counts. A run with no expected notifications reports a 0 % ratio
+and does not demonstrate delivery. The percentage is rounded to one decimal place; calculate
+acceptance thresholds from the counts. Earlier result blocks include the percentage but not
+these count fields.
 
 ### Artifacts
 
 | Artifact | Produced by | Content |
 |---|---|---|
 | Result file | `run --out <file>` | `RESULT` blocks, one per run |
-| `ab-results.txt` | `ab.sh` (`OUT`) | `### side=<A/B> round=<n> <scenario>` headers with the result blocks |
-| Summary | `ab-summary.ps1` | medians per scenario, `baseline -> candidate (change)` |
+| `ab-results.txt` | `ab.sh` (`OUT`) | `### side=<A/B> round=<n> <scenario>` headers, result blocks and per-run exit statuses |
+| Summary | `ab-summary.ps1` | paired results and differences, plus medians and ranges per scenario |
 | `variants-results.txt` | `variants.sh` (`OUT`) | `### variant=<name> round=<n> <scenario>` headers with the result blocks; `<OUT>.discarded` lists the repeated runs |
 | Variant summary | `variants-summary.ps1` | median and range per scenario and variant |
 | `.nettrace` | `run --trace <file>` | `dotnet-trace` recording of the measurement window, input of `TraceAnalyzer` |

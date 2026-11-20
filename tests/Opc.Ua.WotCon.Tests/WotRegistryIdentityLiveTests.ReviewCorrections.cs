@@ -36,6 +36,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -43,6 +44,7 @@ using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
 using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -597,13 +599,21 @@ namespace Opc.Ua.WotCon.Tests
                 registry = m_typedServices.GetRequiredService<IWotRegistryService>();
                 Assert.That(m_typedServices.GetRequiredService<IWotTypedRegistryService>(), Is.SameAs(typed.Object));
             }
-            await m_server.NodeManagerLifecycle.RemoveAsync(m_registration, null).ConfigureAwait(false);
+            LifecycleResult removal = await m_server.NodeManagerLifecycle
+                .ApplyAsync([LifecycleChange.Remove(m_registration.Slot)]).ConfigureAwait(false);
+            Assert.That(removal.CleanupFailure, Is.Null);
+            await removal.Retired.ConfigureAwait(false);
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
                 registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                 documentConverter: new FakeWotDocumentConverter());
-            m_registration = await m_server.NodeManagerLifecycle.AddAsync(
-                new WotRegistryNodeManagerFactory(m_options, registry, m_coordinator), null).ConfigureAwait(false);
+            LifecycleResult publication = await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(m_options, registry, m_coordinator))])
+                .ConfigureAwait(false);
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            m_registration = registration!;
             m_manager = (WotRegistryNodeManager)m_registration.NodeManager;
             m_client = m_typedServices is not null
                 ? await m_typedServices

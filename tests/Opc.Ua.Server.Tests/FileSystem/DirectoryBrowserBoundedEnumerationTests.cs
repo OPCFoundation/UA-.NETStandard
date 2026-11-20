@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.FileSystem;
@@ -617,6 +618,646 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(entries.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Deletion closes cursor admission and waits for every previously admitted cursor.
+        /// </summary>
+        [Test]
+        public async Task DeletionWaitsForAdmittedCursorsAndRejectsLateEnumerationAsync()
+        {
+            var entries = new CountingEntries(4);
+            SetEntries(entries);
+            var sentinelNode = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("CursorAdmissionSentinel", m_manager.NamespaceIndex),
+                BrowseName = new QualifiedName("CursorAdmissionSentinel", m_manager.NamespaceIndex)
+            };
+            await m_manager.AddPredefinedNodeAsync(sentinelNode).ConfigureAwait(false);
+            using INodeBrowser first = CreateBrowser();
+            using INodeBrowser second = CreateBrowser();
+            using INodeBrowser late = CreateBrowser();
+            Task? deletion = null;
+            try
+            {
+                Assert.That(await ReadNextProviderTargetAsync(first).ConfigureAwait(false), Is.Not.Null);
+                Assert.That(await ReadNextProviderTargetAsync(second).ConfigureAwait(false), Is.Not.Null);
+                Assert.That(entries.EnumerationCount, Is.EqualTo(2));
+
+                deletion = m_manager.DeleteAddressSpaceAsync(CancellationToken.None).AsTask();
+                Assert.That(deletion.IsCompleted, Is.False);
+                Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.SameAs(sentinelNode));
+                await Assert.ThatAsync(
+                    () => ReadNextProviderTargetAsync(late),
+                    Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
+                Assert.That(entries.EnumerationCount, Is.EqualTo(2));
+
+                await ((IAsyncDisposable)first).DisposeAsync().ConfigureAwait(false);
+                Assert.That(entries.DisposeCount, Is.EqualTo(1));
+                Assert.That(deletion.IsCompleted, Is.False);
+                Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.SameAs(sentinelNode));
+
+                await ((IAsyncDisposable)second).DisposeAsync().ConfigureAwait(false);
+                await deletion.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(entries.DisposeCount, Is.EqualTo(2));
+                Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.Null);
+            }
+            finally
+            {
+                first.Dispose();
+                second.Dispose();
+                if (deletion is not null)
+                {
+                    await deletion.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A provider cannot give one live enumerator to two browsers for independent disposal.
+        /// </summary>
+        [Test]
+        public async Task DuplicateProviderCursorIsRejectedWithoutDisposingTheExistingCursorAsync()
+        {
+            var cursor = new Mock<IAsyncEnumerator<FileSystemEntry>>(MockBehavior.Strict);
+            cursor.Setup(value => value.MoveNextAsync()).Returns(new ValueTask<bool>(true));
+            cursor.SetupGet(value => value.Current).Returns(new FileSystemEntry(
+                "entry", "entry", true, 0, false,
+                new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), string.Empty));
+            cursor.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            var entries = new Mock<IAsyncEnumerable<FileSystemEntry>>(MockBehavior.Strict);
+            entries.Setup(value => value.GetAsyncEnumerator(It.IsAny<CancellationToken>())).Returns(cursor.Object);
+            m_provider.Setup(value => value.EnumerateAsync(string.Empty, It.IsAny<CancellationToken>()))
+                .Returns(entries.Object);
+            using INodeBrowser first = CreateBrowser();
+            using INodeBrowser second = CreateBrowser();
+            try
+            {
+                Assert.That(await ReadNextProviderTargetAsync(first).ConfigureAwait(false), Is.Not.Null);
+                await Assert.ThatAsync(
+                    () => ReadNextProviderTargetAsync(second),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                cursor.Verify(value => value.DisposeAsync(), Times.Never);
+            }
+            finally
+            {
+                await ((IAsyncDisposable)first).DisposeAsync().ConfigureAwait(false);
+                await ((IAsyncDisposable)second).DisposeAsync().ConfigureAwait(false);
+            }
+            cursor.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
+        /// <summary>
+        /// A failed cursor keeps its physical identity claimed until its retained failure is confirmed.
+        /// </summary>
+        [Test]
+        public void FailedCursorKeepsItsPhysicalIdentityUntilConfirmation()
+        {
+            var cursor = new Mock<IAsyncDisposable>(MockBehavior.Strict);
+            var owner = new DirectoryCursorOwnership();
+            var other = new DirectoryCursorOwnership();
+            var failure = new InvalidOperationException("Cursor cleanup failed.");
+            Assert.That(owner.TrySetCursor(cursor.Object), Is.True);
+            owner.Complete(failure);
+            Assert.That(owner.TryGetFailure(out IAsyncDisposable? retained, out Exception? retainedFailure), Is.True);
+            Assert.That(retained, Is.SameAs(cursor.Object));
+            Assert.That(retainedFailure, Is.SameAs(failure));
+            Assert.That(other.TrySetCursor(cursor.Object), Is.False);
+            Assert.That(owner.TryConfirm(), Is.True);
+            Assert.That(owner.TryConfirm(), Is.False);
+            Assert.That(other.TrySetCursor(cursor.Object), Is.True);
+            other.Complete(null);
+            cursor.Verify(value => value.DisposeAsync(), Times.Never);
+        }
+
+        /// <summary>
+        /// A logging failure does not leave browser disposal pending or hide the retained cursor failure.
+        /// </summary>
+        [Test]
+        public Task LoggerFailureCompletesDisposalAndFaultsTrackedCleanupAsync()
+        {
+            return AssertCursorAndLoggerFailuresAsync(confirmBeforeTrackingCompletes: false);
+        }
+
+        /// <summary>
+        /// Confirmation during completion must not add the cursor error to the tracked cleanup task.
+        /// </summary>
+        [Test]
+        public Task ConfirmedCursorFailureIsExcludedFromTrackedCleanupAsync()
+        {
+            return AssertCursorAndLoggerFailuresAsync(confirmBeforeTrackingCompletes: true);
+        }
+
+        private async Task AssertCursorAndLoggerFailuresAsync(bool confirmBeforeTrackingCompletes)
+        {
+            var cursorFailure = new InvalidOperationException("The cursor did not close.");
+            var loggingFailure = new InvalidOperationException("The logger failed.");
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            logger.Setup(value => value.Log(
+                    LogLevel.Error,
+                    It.Is<EventId>(id => id.Id == ServerEventIds.DirectoryBrowser &&
+                        id.Name == nameof(DirectoryBrowserLog.DirectoryCursorCleanupFailed)),
+                    It.IsAny<It.IsAnyType>(),
+                    It.Is<Exception>(exception => ReferenceEquals(exception, cursorFailure)),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+                .Throws(loggingFailure);
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+            var telemetry = new Mock<ITelemetryContext>();
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+            var context = new SystemContext(telemetry.Object);
+            var cursor = new Mock<IAsyncEnumerator<FileSystemEntry>>(MockBehavior.Strict);
+            cursor.Setup(value => value.MoveNextAsync()).Returns(new ValueTask<bool>(true));
+            cursor.SetupGet(value => value.Current).Returns(new FileSystemEntry(
+                "entry", "entry", true, 0, false,
+                new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), string.Empty));
+            cursor.Setup(value => value.DisposeAsync())
+                .Returns(() => new ValueTask(Task.FromException(cursorFailure)));
+            var entries = new Mock<IAsyncEnumerable<FileSystemEntry>>(MockBehavior.Strict);
+            entries.Setup(value => value.GetAsyncEnumerator(It.IsAny<CancellationToken>())).Returns(cursor.Object);
+            var provider = new Mock<IFileSystemProvider>(MockBehavior.Strict);
+            provider.Setup(value => value.EnumerateAsync(string.Empty, It.IsAny<CancellationToken>()))
+                .Returns(entries.Object);
+            DirectoryCursorOwnership? ownership = null;
+            Task? cleanup = null;
+            var host = new Mock<IFileSystemHost>(MockBehavior.Strict);
+            host.SetupGet(value => value.Provider).Returns(provider.Object);
+            host.Setup(value => value.RegisterDirectoryCursor(It.IsAny<DirectoryCursorOwnership>()))
+                .Callback<DirectoryCursorOwnership>(value => ownership = value);
+            host.Setup(value => value.CompleteDirectoryCursor(It.IsAny<DirectoryCursorOwnership>()))
+                .Callback<DirectoryCursorOwnership>(value =>
+                {
+                    if (confirmBeforeTrackingCompletes)
+                    {
+                        Assert.That(value.TryGetFailure(out _, out Exception? retained), Is.True);
+                        Assert.That(retained, Is.SameAs(cursorFailure));
+                        Assert.That(value.TryConfirm(), Is.True);
+                    }
+                });
+            host.Setup(value => value.TrackCursorCleanup(It.IsAny<Task>())).Callback<Task>(value => cleanup = value);
+            host.Setup(value => value.BuildDirectoryNodeId(It.IsAny<string>()))
+                .Returns((string path) => FileSystemNodeId.BuildDirectory(path, m_manager.NamespaceIndex));
+            var browser = new DirectoryBrowser(
+                context, null, ReferenceTypeIds.HasComponent, true, BrowseDirection.Forward,
+                default, null, false, host.Object, m_directory);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                Assert.That(await browser.NextAsync(timeout.Token).ConfigureAwait(false), Is.Not.Null);
+                AggregateException? error = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await browser.DisposeAsync().AsTask().WaitAsync(timeout.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(error!.Flatten().InnerExceptions, Has.Count.EqualTo(2));
+                Assert.That(error.Flatten().InnerExceptions[0], Is.SameAs(cursorFailure));
+                Assert.That(error.Flatten().InnerExceptions[1], Is.SameAs(loggingFailure));
+                Task tracked = cleanup ?? throw new InvalidOperationException("Cleanup was not tracked.");
+                await Assert.ThatAsync(
+                    async () => await tracked.WaitAsync(timeout.Token).ConfigureAwait(false),
+                    Throws.Exception.SameAs(loggingFailure)).ConfigureAwait(false);
+                DirectoryCursorOwnership retained = ownership
+                    ?? throw new InvalidOperationException("Cursor ownership was not registered.");
+                Assert.That(retained.TryGetFailure(out IAsyncDisposable? resource, out Exception? failure),
+                    Is.EqualTo(!confirmBeforeTrackingCompletes));
+                if (!confirmBeforeTrackingCompletes)
+                {
+                    Assert.That(resource, Is.SameAs(cursor.Object));
+                    Assert.That(failure, Is.SameAs(cursorFailure));
+                }
+                AggregateException? repeatedError = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await browser.DisposeAsync().AsTask().WaitAsync(timeout.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(repeatedError, Is.SameAs(error));
+                logger.Verify(value => value.Log(
+                    LogLevel.Error,
+                    It.Is<EventId>(id => id.Id == ServerEventIds.DirectoryBrowser &&
+                        id.Name == nameof(DirectoryBrowserLog.DirectoryCursorCleanupFailed)),
+                    It.IsAny<It.IsAnyType>(),
+                    It.Is<Exception>(exception => ReferenceEquals(exception, cursorFailure)),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+                host.Verify(value => value.TrackCursorCleanup(It.IsAny<Task>()), Times.Once);
+                cursor.Verify(value => value.DisposeAsync(), Times.Once);
+            }
+            finally
+            {
+                try
+                {
+                    await browser.DisposeAsync().AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                catch (AggregateException exception) when (
+                    exception.Flatten().InnerExceptions.Contains(cursorFailure))
+                {
+                }
+                if (cleanup is not null)
+                {
+                    try
+                    {
+                        await cleanup.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    catch (InvalidOperationException exception) when (ReferenceEquals(exception, loggingFailure))
+                    {
+                    }
+                    catch (AggregateException exception) when (confirmBeforeTrackingCompletes &&
+                        exception.InnerExceptions.Count == 2 &&
+                        ReferenceEquals(exception.InnerExceptions[0], cursorFailure) &&
+                        ReferenceEquals(exception.InnerExceptions[1], loggingFailure))
+                    {
+                    }
+                }
+                if (ownership is not null && ownership.TryGetFailure(out _, out _))
+                {
+                    Assert.That(ownership.TryConfirm(), Is.True);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A failed cleanup task is reported only after the remaining cursor has finished.
+        /// </summary>
+        [Test]
+        public async Task FaultedCleanupTaskWaitsForCursorAndPreventsNodeDeletionAsync()
+        {
+            var entries = new CountingEntries(4);
+            SetEntries(entries);
+            var sentinelNode = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("FaultedCursorCleanupSentinel", m_manager.NamespaceIndex),
+                BrowseName = new QualifiedName("FaultedCursorCleanupSentinel", m_manager.NamespaceIndex)
+            };
+            await m_manager.AddPredefinedNodeAsync(sentinelNode).ConfigureAwait(false);
+            using INodeBrowser browser = CreateBrowser();
+            var failure = new InvalidOperationException("The tracked cleanup task failed.");
+            try
+            {
+                Assert.That(await ReadNextProviderTargetAsync(browser).ConfigureAwait(false), Is.Not.Null);
+                ((IFileSystemHost)m_manager).TrackCursorCleanup(Task.FromException(failure));
+                Task deletion = m_manager.DeleteAddressSpaceAsync(CancellationToken.None).AsTask();
+                Assert.That(deletion.IsCompleted, Is.False);
+                Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.SameAs(sentinelNode));
+
+                await ((IAsyncDisposable)browser).DisposeAsync().ConfigureAwait(false);
+                AggregateException? error = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await deletion.ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(error!.Flatten().InnerExceptions, Does.Contain(failure));
+                Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.SameAs(sentinelNode));
+                AggregateException? disposalError = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await m_manager.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(disposalError!.Flatten().InnerExceptions, Does.Contain(failure));
+            }
+            finally
+            {
+                browser.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Verifies node deletion waits for asynchronous cursor cleanup after BrowseNext releases the continuation.
+        /// </summary>
+        [Test]
+        public async Task ReleasedBrowseCursorDelaysFileSystemAddressSpaceDeletionAsync()
+        {
+            var entries = new CountingEntries(4);
+            SetEntries(entries);
+            m_provider.Setup(value => value.GetEntryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<FileSystemEntry?>((FileSystemEntry?)null));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task? providerDisposal = null;
+            var disposalObserved = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            entries.OnDisposeTask = task =>
+            {
+                Volatile.Write(ref providerDisposal, task);
+                disposalObserved.TrySetResult(task);
+            };
+            var deletionStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int deleteCount = 0;
+            var sentinelNode = new DeleteObservingNode(() =>
+            {
+                Interlocked.Increment(ref deleteCount);
+                deletionStarted.TrySetResult(Volatile.Read(ref providerDisposal)?.IsCompleted == true);
+            });
+            sentinelNode.NodeId = new NodeId("CursorDeletionSentinel", m_manager.NamespaceIndex);
+            sentinelNode.BrowseName = new QualifiedName("CursorDeletionSentinel", m_manager.NamespaceIndex);
+            await m_manager.AddPredefinedNodeAsync(sentinelNode).ConfigureAwait(false);
+            Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.SameAs(sentinelNode));
+
+            var points = new SessionContinuationPoints(() => new NodeId(99, 1), 10, 10, null);
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.ContinuationPoints).Returns(points);
+            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+            await using MasterNodeManager master =
+                DeterministicServerMock.CreateMasterNodeManager(m_server, [m_manager]);
+            using var point = new ContinuationPoint
+            {
+                Id = Guid.NewGuid(),
+                Manager = m_manager,
+                NodeToBrowse = new NodeHandle
+                {
+                    NodeId = m_directory.NodeId,
+                    Node = m_directory,
+                    Validated = true
+                },
+                MaxResultsToReturn = 1,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
+            var references = new List<ReferenceDescription>();
+            ContinuationPoint? continuation = await m_manager.BrowseAsync(context, point, references)
+                .ConfigureAwait(false);
+            Assert.That(continuation, Is.SameAs(point));
+            points.SaveBrowse(continuation!);
+
+            var cleanupEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCleanup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            entries.OnDisposeAsync = async () =>
+            {
+                cleanupEntered.TrySetResult(true);
+                await releaseCleanup.Task.ConfigureAwait(false);
+            };
+            Task? deletion = null;
+            try
+            {
+                ByteString token = point.Id.ToByteArray().ToByteString();
+                using var releaseContext = new OperationContext(
+                    new RequestHeader(), null!, RequestType.BrowseNext, RequestLifetime.None, session.Object);
+                (ArrayOf<BrowseResult> released, _) = await master.BrowseNextAsync(
+                    releaseContext, true, [token]).ConfigureAwait(false);
+                Assert.That(released.Count, Is.EqualTo(1));
+                Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(released[0].ContinuationPoint.IsEmpty, Is.True);
+                Assert.That(points.RestoreBrowse(token), Is.Null);
+                await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Task disposal = await disposalObserved.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(disposal.IsCompleted, Is.False);
+
+                deletion = m_manager.DeleteAddressSpaceAsync(CancellationToken.None).AsTask();
+                Assert.That(deletion.IsCompleted, Is.False);
+                Assert.That(deletionStarted.Task.IsCompleted, Is.False,
+                    "The registered node must not start deletion while cursor cleanup is blocked.");
+                Assert.That(
+                    m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId),
+                    Is.SameAs(sentinelNode));
+            }
+            finally
+            {
+                releaseCleanup.TrySetResult(true);
+                try
+                {
+                    if (deletion is not null)
+                    {
+                        await deletion.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    points.Clear();
+                }
+            }
+
+            Assert.That(await deletionStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.True,
+                "The registered node must not start deletion before cursor cleanup completes.");
+            Assert.That(Volatile.Read(ref deleteCount), Is.EqualTo(1));
+            Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.Null);
+            Assert.That(entries.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies retirement drains routing and cursor cleanup when a continuation is released before or during it.
+        /// </summary>
+        /// <param name="releaseContinuationFirst">
+        /// Whether BrowseNext releases the continuation before retirement starts.
+        /// </param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task GenerationRetirementWaitsForDirectoryCursorCleanupAsync(bool releaseContinuationFirst)
+        {
+            var entries = new CountingEntries(4);
+            SetEntries(entries);
+            m_provider.Setup(value => value.GetEntryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<FileSystemEntry?>((FileSystemEntry?)null));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task? providerDisposal = null;
+            var disposalObserved = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            entries.OnDisposeTask = task =>
+            {
+                Volatile.Write(ref providerDisposal, task);
+                disposalObserved.TrySetResult(task);
+            };
+            var deletionStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int deleteCount = 0;
+            var sentinelNode = new DeleteObservingNode(() =>
+            {
+                Interlocked.Increment(ref deleteCount);
+                deletionStarted.TrySetResult(Volatile.Read(ref providerDisposal)?.IsCompleted == true);
+            });
+            sentinelNode.NodeId = new NodeId("CursorRetirementSentinel", m_manager.NamespaceIndex);
+            sentinelNode.BrowseName = new QualifiedName("CursorRetirementSentinel", m_manager.NamespaceIndex);
+            await m_manager.AddPredefinedNodeAsync(sentinelNode).ConfigureAwait(false);
+            Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.SameAs(sentinelNode));
+            var points = new SessionContinuationPoints(() => new NodeId(99, 1), 10, 10, null);
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.ContinuationPoints).Returns(points);
+            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+            var sessions = new Mock<ISessionManager>();
+            sessions.Setup(value => value.GetSessions()).Returns([session.Object]);
+            m_server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+            var routing = new NodeManagerRoutingTable();
+            MasterNodeManager? routingOwner = null;
+            if (releaseContinuationFirst)
+            {
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(m_server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(m_server.Object.CoreNodeManager);
+                m_server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                routingOwner = new MasterNodeManager(
+                    m_server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    routing);
+                routing.Add(m_manager, [m_manager.NamespaceIndex]);
+                m_server.SetupGet(value => value.NodeManager).Returns(routingOwner);
+            }
+            await using MasterNodeManager? master = routingOwner;
+
+            using var point = new ContinuationPoint
+            {
+                Id = Guid.NewGuid(),
+                Manager = m_manager,
+                NodeToBrowse = new NodeHandle
+                {
+                    NodeId = m_directory.NodeId,
+                    Node = m_directory,
+                    Validated = true
+                },
+                MaxResultsToReturn = 1,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
+            var references = new List<ReferenceDescription>();
+            ContinuationPoint? continuation = await m_manager.BrowseAsync(context, point, references)
+                .ConfigureAwait(false);
+            Assert.That(continuation, Is.SameAs(point));
+            points.SaveBrowse(continuation!);
+
+            var cleanupEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCleanup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            entries.OnDisposeAsync = async () =>
+            {
+                cleanupEntered.TrySetResult(true);
+                await releaseCleanup.Task.ConfigureAwait(false);
+            };
+            var destructionInvoked = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var destroyCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool destroyedWhileCursorCleanupWasHeld = false;
+            var host = new Mock<IDynamicNodeManagerHost>();
+            host.Setup(value => value.DestroyAddressSpaceAsync(
+                    m_manager, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    ValueTask destruction = m_manager.DeleteAddressSpaceAsync(CancellationToken.None);
+                    destructionInvoked.TrySetResult(true);
+                    await destruction.ConfigureAwait(false);
+                    destroyedWhileCursorCleanupWasHeld = !entries.Disposed.Task.IsCompleted;
+                    destroyCompleted.TrySetResult(true);
+                });
+            host.Setup(value => value.RemoveDestroyedExternalReferencesAsync(
+                    m_manager, It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(m_manager);
+            var retired = new GenerationReclaimer.RetiredGeneration(
+                m_server.Object,
+                host.Object,
+                generation,
+                [],
+                needsDetachment: false);
+            using var reclaimer = new GenerationReclaimer();
+            Task? reclamation = null;
+            try
+            {
+                if (releaseContinuationFirst)
+                {
+                    ByteString token = point.Id.ToByteArray().ToByteString();
+                    using var releaseContext = new OperationContext(
+                        new RequestHeader(), null!, RequestType.BrowseNext, RequestLifetime.None, session.Object);
+                    (ArrayOf<BrowseResult> released, _) = await master!.BrowseNextAsync(
+                        releaseContext, true, [token]).ConfigureAwait(false);
+                    Assert.That(released.Count, Is.EqualTo(1));
+                    Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(released[0].ContinuationPoint.IsEmpty, Is.True);
+                    Assert.That(points.RestoreBrowse(token), Is.Null);
+                    Assert.That(points.HasBrowseForManager(m_manager), Is.False);
+                    await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(entries.DisposeCount, Is.EqualTo(1));
+                    Assert.That(entries.Disposed.Task.IsCompleted, Is.False);
+                }
+
+                generation.Gate.Retire();
+                Task quiescence = generation.WaitForQuiescenceAsync(timeout.Token).AsTask();
+                if (releaseContinuationFirst)
+                {
+                    await generation.Gate.WaitForDrainAsync().WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero,
+                        "BrowseNext has released its generation admission while provider cleanup remains pending.");
+                    Assert.That(quiescence.IsCompleted, Is.False,
+                        "The Master's published routing epoch must still prevent generation quiescence.");
+                }
+                reclaimer.Enqueue([retired]);
+                reclaimer.Activate([retired]);
+                reclaimer.Schedule();
+                reclamation = reclaimer.ReclaimReadyAsync([retired]).AsTask();
+                if (releaseContinuationFirst)
+                {
+                    Assert.That(destructionInvoked.Task.IsCompleted, Is.False,
+                        "Address-space destruction must not start while the generation is still published.");
+                    routing.Remove(m_manager);
+                    Assert.That(routing.Contains(m_manager), Is.False);
+                }
+                await quiescence.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(generation.IsQuiescent, Is.True);
+                if (!releaseContinuationFirst)
+                {
+                    await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                Task disposal = await disposalObserved.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(disposal.IsCompleted, Is.False);
+                await destructionInvoked.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(points.HasBrowseForManager(m_manager), Is.False);
+                Assert.That(destroyCompleted.Task.IsCompleted, Is.False,
+                    "Address-space destruction must wait for the cursor cleanup.");
+                Assert.That(deletionStarted.Task.IsCompleted, Is.False,
+                    "The registered node must not start deletion while cursor cleanup is blocked.");
+                Assert.That(
+                    m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId),
+                    Is.SameAs(sentinelNode));
+                Assert.That(retired.Retirement.IsCompleted, Is.False,
+                    "Retirement must remain pending while the cursor cleanup is blocked.");
+            }
+            finally
+            {
+                if (releaseContinuationFirst && routing.Contains(m_manager))
+                {
+                    routing.Remove(m_manager);
+                }
+                releaseCleanup.TrySetResult(true);
+                try
+                {
+                    if (reclamation is not null)
+                    {
+                        await reclamation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        await retired.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    points.Clear();
+                }
+            }
+
+            Assert.That(destroyCompleted.Task.IsCompleted, Is.True);
+            Assert.That(destroyedWhileCursorCleanupWasHeld, Is.False,
+                "The address space must not finish deletion while its Browse cursor cleanup is still running.");
+            Assert.That(await deletionStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.True,
+                "The registered node must not start deletion before cursor cleanup completes.");
+            Assert.That(Volatile.Read(ref deleteCount), Is.EqualTo(1));
+            Assert.That(m_manager.FindPredefinedNode<BaseObjectState>(sentinelNode.NodeId), Is.Null);
+            host.Verify(value => value.DestroyAddressSpaceAsync(
+                m_manager, It.IsAny<CancellationToken>()), Times.Once);
+            await entries.Disposed.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(entries.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies retirement waits while continuation removal and cursor cleanup are pending.
+        /// </summary>
+        /// <param name="sessionVisibleDuringRetirement">
+        /// Whether the reclaimer can find the closing session.
+        /// </param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public Task GenerationRetirementWaitsForCursorCleanupRegistrationAsync(
+            bool sessionVisibleDuringRetirement)
+        {
+            return VerifyRetirementDuringCursorReleaseAsync(sessionVisibleDuringRetirement, pauseBeforeTracking: false);
+        }
+
+        /// <summary>
+        /// Verifies retirement waits when cursor cleanup starts before the host records it.
+        /// </summary>
+        /// <param name="sessionVisibleDuringRetirement">
+        /// Whether the reclaimer can find the closing session.
+        /// </param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public Task GenerationRetirementWaitsForStartedCursorCleanupRegistrationAsync(
+            bool sessionVisibleDuringRetirement)
+        {
+            return VerifyRetirementDuringCursorReleaseAsync(sessionVisibleDuringRetirement, pauseBeforeTracking: true);
+        }
+
         [Test]
         public async Task LegacyNextContinuesAnAsyncDirectoryCursorWithoutReenumerationAsync()
         {
@@ -720,12 +1361,233 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
                 Assert.That(stale[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
                 Assert.That(stale[0].References, Is.Empty);
+                await entries.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Assert.That(entries.MoveNextCount, Is.EqualTo(cursorPosition));
                 Assert.That(entries.DisposeCount, Is.EqualTo(1));
             }
             finally
             {
                 points.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Holds one continuation-release boundary while its generation retires.
+        /// </summary>
+        /// <param name="sessionVisibleDuringRetirement">
+        /// Whether the reclaimer can find the closing session.
+        /// </param>
+        /// <param name="pauseBeforeTracking">
+        /// Whether to pause before tracking cursor cleanup instead of before browser disposal.
+        /// </param>
+        /// <exception cref="TimeoutException"></exception>
+        private async Task VerifyRetirementDuringCursorReleaseAsync(
+            bool sessionVisibleDuringRetirement,
+            bool pauseBeforeTracking)
+        {
+            var entries = new CountingEntries(4);
+            SetEntries(entries);
+            m_provider.Setup(value => value.GetEntryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<FileSystemEntry?>((FileSystemEntry?)null));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var releaseEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var trackingEntered = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var resumeRelease = new ManualResetEventSlim();
+
+            void PauseRelease()
+            {
+                releaseEntered.TrySetResult(true);
+                if (!resumeRelease.Wait(TimeSpan.FromSeconds(15)))
+                {
+                    throw new TimeoutException("Continuation release was not resumed.");
+                }
+            }
+
+            var sessionId = new NodeId(99, 1);
+            var store = new Mock<IContinuationPointStore>();
+            store.Setup(value => value.RemoveContinuationPoint(
+                    sessionId, ContinuationPointKind.Browse, It.IsAny<Guid>()))
+                .Callback<NodeId, ContinuationPointKind, Guid>((_, _, _) =>
+                {
+                    if (!pauseBeforeTracking)
+                    {
+                        PauseRelease();
+                    }
+                });
+            IFileSystemHost realHost = m_manager;
+            var trackingHost = new Mock<IFileSystemHost>();
+            DirectoryObjectState directory = m_directory;
+            if (pauseBeforeTracking)
+            {
+                trackingHost.SetupGet(value => value.Provider).Returns(realHost.Provider);
+                trackingHost.SetupGet(value => value.UsesVirtualDirectoryBrowsing).Returns(true);
+                trackingHost.Setup(value => value.BuildDirectoryNodeId(It.IsAny<string>()))
+                    .Returns((string path) => realHost.BuildDirectoryNodeId(path));
+                trackingHost.Setup(value => value.BuildFileNodeId(It.IsAny<string>()))
+                    .Returns((string path) => realHost.BuildFileNodeId(path));
+                trackingHost.Setup(value => value.RegisterDirectoryCursor(It.IsAny<DirectoryCursorOwnership>()))
+                    .Callback<DirectoryCursorOwnership>(realHost.RegisterDirectoryCursor);
+                trackingHost.Setup(value => value.CompleteDirectoryCursor(It.IsAny<DirectoryCursorOwnership>()))
+                    .Callback<DirectoryCursorOwnership>(realHost.CompleteDirectoryCursor);
+                trackingHost.Setup(value => value.TrackCursorCleanup(It.IsAny<Task>()))
+                    .Callback<Task>(cleanup =>
+                    {
+                        trackingEntered.TrySetResult(cleanup);
+                        PauseRelease();
+                        realHost.TrackCursorCleanup(cleanup);
+                    });
+                directory = new DirectoryObjectState(
+                    m_manager.SystemContext,
+                    m_directory.NodeId,
+                    string.Empty,
+                    "BoundedDirectory",
+                    isRoot: true,
+                    host: trackingHost.Object);
+            }
+
+            var points = new SessionContinuationPoints(() => sessionId, 10, 10, store.Object);
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.ContinuationPoints).Returns(points);
+            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+            var sessions = new Mock<ISessionManager>();
+            sessions.Setup(value => value.GetSessions()).Returns(
+                sessionVisibleDuringRetirement ? new List<ISession> { session.Object } : new List<ISession>());
+            m_server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+
+            using var point = new ContinuationPoint
+            {
+                Id = Guid.NewGuid(),
+                Manager = m_manager,
+                NodeToBrowse = new NodeHandle
+                {
+                    NodeId = directory.NodeId,
+                    Node = directory,
+                    Validated = true
+                },
+                MaxResultsToReturn = 1,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
+            var references = new List<ReferenceDescription>();
+            ContinuationPoint? continuation = await m_manager.BrowseAsync(context, point, references)
+                .ConfigureAwait(false);
+            Assert.That(continuation, Is.SameAs(point));
+            points.SaveBrowse(continuation!);
+
+            var cleanupEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCleanup = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            entries.OnDisposeAsync = async () =>
+            {
+                cleanupEntered.TrySetResult(true);
+                await releaseCleanup.Task.ConfigureAwait(false);
+            };
+            var destroyCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool destroyedWhileCursorCleanupWasHeld = false;
+            var host = new Mock<IDynamicNodeManagerHost>();
+            host.Setup(value => value.DestroyAddressSpaceAsync(
+                    m_manager, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    await m_manager.DeleteAddressSpaceAsync(CancellationToken.None).ConfigureAwait(false);
+                    destroyedWhileCursorCleanupWasHeld = !entries.Disposed.Task.IsCompleted;
+                    destroyCompleted.TrySetResult(true);
+                });
+            host.Setup(value => value.RemoveDestroyedExternalReferencesAsync(
+                    m_manager, It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(m_manager);
+            var retired = new GenerationReclaimer.RetiredGeneration(
+                m_server.Object,
+                host.Object,
+                generation,
+                [],
+                needsDetachment: false);
+            using var reclaimer = new GenerationReclaimer();
+            var releasePoint = Task.Run(points.Clear);
+            Task reclamation = Task.CompletedTask;
+            bool retirementStarted = false;
+            bool retiredBeforeRegistration = false;
+            bool retiredBeforeCleanup = false;
+            try
+            {
+                await releaseEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(releasePoint.IsCompleted, Is.False);
+                if (pauseBeforeTracking)
+                {
+                    Task pendingCleanup = await trackingEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(pendingCleanup.IsCompleted, Is.False);
+                    Assert.That(entries.DisposeCount, Is.Zero,
+                        "Provider cleanup must not start before its task is registered.");
+                }
+                else
+                {
+                    Assert.That(entries.DisposeCount, Is.Zero);
+                }
+
+                generation.Gate.Retire();
+                reclaimer.Enqueue([retired]);
+                retirementStarted = true;
+                reclaimer.Activate([retired]);
+                reclaimer.Schedule();
+                reclamation = reclaimer.ReclaimReadyAsync([retired]).AsTask();
+
+                _ = await Task.WhenAny(destroyCompleted.Task, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
+                    .ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+                retiredBeforeRegistration = retired.Retirement.IsCompleted;
+
+                resumeRelease.Set();
+                await releasePoint.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await cleanupEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(entries.Disposed.Task.IsCompleted, Is.False);
+
+                _ = await Task.WhenAny(destroyCompleted.Task, Task.Delay(TimeSpan.FromSeconds(1), timeout.Token))
+                    .ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+                retiredBeforeCleanup = retired.Retirement.IsCompleted;
+            }
+            finally
+            {
+                resumeRelease.Set();
+                releaseCleanup.TrySetResult(true);
+                try
+                {
+                    await releasePoint.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    await entries.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    if (retirementStarted)
+                    {
+                        await reclamation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        await retired.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    points.Clear();
+                }
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(retiredBeforeRegistration, Is.False,
+                    "Retirement completed while continuation release was blocked.");
+                Assert.That(retiredBeforeCleanup, Is.False,
+                    "Retirement completed while cursor cleanup was blocked.");
+                Assert.That(destroyedWhileCursorCleanupWasHeld, Is.False,
+                    "Address space deletion completed before cursor cleanup.");
+                Assert.That(destroyCompleted.Task.IsCompleted, Is.True,
+                    "Address space deletion did not complete.");
+                Assert.That(entries.DisposeCount, Is.EqualTo(1));
+            }
+            host.Verify(value => value.DestroyAddressSpaceAsync(
+                m_manager, It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.RemoveContinuationPoint(
+                sessionId, ContinuationPointKind.Browse, point.Id), Times.Once);
+            if (pauseBeforeTracking)
+            {
+                trackingHost.Verify(value => value.TrackCursorCleanup(It.IsAny<Task>()), Times.Once);
             }
         }
 
@@ -775,6 +1637,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return null;
         }
 
+        private sealed class DeleteObservingNode(Action onDelete) : BaseObjectState(null)
+        {
+            public override void Delete(ISystemContext context)
+            {
+                onDelete();
+                base.Delete(context);
+            }
+        }
+
         private sealed class CountingEntries : IAsyncEnumerable<FileSystemEntry>
         {
             public CountingEntries(int entryCount)
@@ -802,6 +1673,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             public Func<CancellationToken, Task>? BeforeMoveNextAsync { get; set; }
 
             public Func<Task>? OnDisposeAsync { get; set; }
+
+            public Action<Task>? OnDisposeTask { get; set; }
 
             public int CountRetainedMetadata()
             {
@@ -865,7 +1738,19 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     return true;
                 }
 
-                public async ValueTask DisposeAsync()
+                public ValueTask DisposeAsync()
+                {
+                    ValueTask disposal = DisposeCoreAsync();
+                    if (m_owner.OnDisposeTask is { } observer)
+                    {
+                        Task task = disposal.AsTask();
+                        observer(task);
+                        return new ValueTask(task);
+                    }
+                    return disposal;
+                }
+
+                private async ValueTask DisposeCoreAsync()
                 {
                     m_owner.DisposeCount++;
                     if (m_owner.OnDisposeAsync is { } onDispose)

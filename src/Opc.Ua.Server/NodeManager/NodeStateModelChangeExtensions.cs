@@ -48,7 +48,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <see cref="EnableModelChangeTracking"/> does not re-enter and
         /// double-fire a model-change event for framework-driven bumps.
         /// </summary>
-        private static readonly AsyncLocal<bool> s_isFrameworkBump = new();
+        private static readonly AsyncLocal<NodeManagerAmbientScope<bool>?> s_isFrameworkBump = new();
 
         /// <summary>
         /// True when execution is inside a framework-driven NodeVersion
@@ -56,7 +56,8 @@ namespace Opc.Ua.Server.NodeManager
         /// <c>GeneralModelChangeEvent</c> and the OnWriteValue hook must
         /// not echo it as a <c>BaseModelChangeEvent</c>).
         /// </summary>
-        public static bool IsInsideFrameworkNodeVersionBump => s_isFrameworkBump.Value;
+        public static bool IsInsideFrameworkNodeVersionBump =>
+            NodeManagerAmbientScope<bool>.GetValue(s_isFrameworkBump);
 
         /// <summary>
         /// Returns <c>true</c> when <paramref name="node"/> has a child
@@ -127,18 +128,12 @@ namespace Opc.Ua.Server.NodeManager
                 }
             }
 
-            bool previous = s_isFrameworkBump.Value;
-            s_isFrameworkBump.Value = true;
-            try
+            using (new NodeManagerAmbientScope<bool>(s_isFrameworkBump, true))
             {
                 nodeVersion.Value = current.ToString(CultureInfo.InvariantCulture);
                 nodeVersion.Timestamp = DateTime.UtcNow;
                 nodeVersion.StatusCode = StatusCodes.Good;
                 nodeVersion.ClearChangeMasks(context, false);
-            }
-            finally
-            {
-                s_isFrameworkBump.Value = previous;
             }
         }
 

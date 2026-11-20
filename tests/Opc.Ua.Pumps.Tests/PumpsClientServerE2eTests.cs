@@ -185,9 +185,8 @@ namespace Opc.Ua.Pumps.Tests
                 using var clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
                 await clientFixture.LoadClientConfigurationAsync(
                     System.IO.Path.Combine(
-                        TestContext.CurrentContext.WorkDirectory,
-                        nameof(ClientReadsBackEverythingTheServerPublishesAsync),
-                        "client-pki"));
+                        System.IO.Path.GetTempPath(),
+                        "ua-pumps-client-" + Guid.NewGuid().ToString("N")));
                 using Opc.Ua.Client.ISession session = await clientFixture.ConnectAsync(
                     new Uri(s_endpointUrl),
                     SecurityPolicies.None);
@@ -442,9 +441,8 @@ namespace Opc.Ua.Pumps.Tests
             string applicationName = nameof(PumpsClientServerE2eTests);
             // Leave room for ECC certificate filenames under deep net48 artifact paths.
             string testRoot = System.IO.Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                "pumps",
-                Guid.NewGuid().ToString("N"));
+                System.IO.Path.GetTempPath(),
+                "ua-pumps-server-" + Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
             options.ProductUri = "urn:localhost:" + applicationName + ":product";

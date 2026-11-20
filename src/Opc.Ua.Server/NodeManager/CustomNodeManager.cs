@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -396,7 +397,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        protected PredefinedNodeDictionary PredefinedNodes { get; }
 
         /// <summary>
         /// The root notifiers for the node manager.
@@ -451,7 +452,10 @@ namespace Opc.Ua.Server
             ServiceResult result;
             using (BeginNodeManagerOperation())
             {
-                await NodeManagerGenerationRegistry.GetOrCreate(this.ToAsyncNodeManager())
+                NodeManagerGeneration generation = monitoredItem is IMonitoredItemGenerationBinding binding
+                    ? MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding)
+                    : MasterNodeManager.GetSourceGeneration(Server, this.ToAsyncNodeManager());
+                await generation
                     .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
                 result = ReleaseMonitoredItemSource(monitoredItem, sourceRevision);
             }
@@ -468,7 +472,8 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this.ToAsyncNodeManager());
+            NodeManagerGeneration generation =
+                MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding);
             MonitoredItemSourceSnapshot source;
             MonitoredNode2? monitoredNode;
             NodeState? eventSource;
@@ -608,7 +613,10 @@ namespace Opc.Ua.Server
             ServiceResult result;
             using (BeginNodeManagerOperation())
             {
-                await NodeManagerGenerationRegistry.GetOrCreate(this.ToAsyncNodeManager())
+                NodeManagerGeneration generation = monitoredItem is IMonitoredItemGenerationBinding binding
+                    ? MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding)
+                    : MasterNodeManager.GetSourceGeneration(Server, this.ToAsyncNodeManager());
+                await generation
                     .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
                 result = AdoptMonitoredItemSource(monitoredItem, adoption);
             }
@@ -691,6 +699,7 @@ namespace Opc.Ua.Server
             NodeState? eventSource = null;
             NodeHandle? eventHandle = null;
             MonitoredNode2? monitoredNode = null;
+            NodeManagerGeneration? boundGeneration = null;
             long boundRevision = 0;
             ServiceResult result;
             lock (Lock)
@@ -755,6 +764,8 @@ namespace Opc.Ua.Server
                     RemoveNodeFromComponentCache,
                     sourceRevision,
                     adoption);
+                boundGeneration = adoption.Generation;
+                adoption.Generation = null;
                 if (ServiceResult.IsGood(result) && changed && !isEvent)
                 {
                     if (sampledMonitoredItem is MonitoredItem concreteItem &&
@@ -786,6 +797,10 @@ namespace Opc.Ua.Server
             bool providerInvoked = false;
             try
             {
+                if (boundGeneration is null)
+                {
+                    throw new InvalidOperationException("The adopted source has no generation.");
+                }
                 lock (Lock)
                 {
                     if (!OwnsNativeSource())
@@ -852,8 +867,7 @@ namespace Opc.Ua.Server
                         compensationException is not OutOfMemoryException)
                     {
                         compensationFailures.Add(compensationException);
-                        NodeManagerGeneration generation =
-                            NodeManagerGenerationRegistry.GetOrCreate(this.ToAsyncNodeManager());
+                        NodeManagerGeneration generation = boundGeneration!;
                         generation.RetainSourceRelease(monitoredItem, boundRevision, _ =>
                         {
                             lock (Lock)
@@ -1535,7 +1549,7 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
-            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+            if (!PredefinedNodes.TryRemove(node.NodeId, node))
             {
                 return;
             }
@@ -1928,6 +1942,7 @@ namespace Opc.Ua.Server
         public virtual void DeleteAddressSpace()
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
+            NodeState[] notifiers = RootNotifiers?.ToArray() ?? [];
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
             List<LocalReference> referencesToRemove =
@@ -1948,11 +1963,10 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                if (!PredefinedNodes.ContainsKey(node.NodeId))
+                if (!PredefinedNodes.TryRemove(node.NodeId, node))
                 {
                     continue;
                 }
-                PredefinedNodes.Remove(node.NodeId);
 
                 OnNodeRemoved(node);
                 if (node is BaseTypeState type &&
@@ -1976,12 +1990,9 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (RootNotifiers != null)
+            foreach (NodeState notifier in notifiers)
             {
-                foreach (NodeState notifier in RootNotifiers.ToArray())
-                {
-                    RemoveRootNotifier(notifier);
-                }
+                RemoveRootNotifier(notifier);
             }
         }
 
@@ -3862,6 +3873,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves a data historian only for a variable node.
+        /// </summary>
+        private bool TryResolveDataHistorianProvider(
+            NodeState node,
+            [NotNullWhen(true)] out IHistorianProvider? provider)
+        {
+            provider = node is BaseVariableState ? ResolveHistorianProvider(node) : null;
+            return provider != null;
+        }
+
+        /// <summary>
         /// Releases the continuation points.
         /// </summary>
         protected virtual void HistoryReleaseContinuationPoints(
@@ -3930,14 +3952,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -3973,14 +3988,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4022,14 +4030,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4493,14 +4494,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4565,15 +4559,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    if (source is not BaseVariableState)
-                    {
-                        errors[handle.Index] =
-                            StatusCodes.BadHistoryOperationUnsupported;
-                        continue;
-                    }
-                    IHistorianProvider? provider =
-                        ResolveHistorianProvider(source);
-                    if (provider == null)
+                    if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                     {
                         errors[handle.Index] =
                             StatusCodes.BadHistoryOperationUnsupported;
@@ -4650,14 +4636,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4691,14 +4670,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;

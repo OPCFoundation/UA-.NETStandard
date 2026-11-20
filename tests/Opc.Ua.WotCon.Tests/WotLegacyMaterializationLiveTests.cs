@@ -38,12 +38,15 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Tests.Providers;
 using Quickstarts.ReferenceServer;
+
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -90,8 +93,9 @@ namespace Opc.Ua.WotCon.Tests
                     }
                 };
                 options.Bindings.Add(new SimulatedWotAssetProviderFactory());
-                await server.NodeManagerLifecycle.AddAsync(
-                    new WotConnectivityNodeManagerFactory(options), callerContext: null).ConfigureAwait(false);
+                await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotConnectivityNodeManagerFactory(options).AsAsync())])
+                    .ConfigureAwait(false);
                 clientFixture = new ClientFixture(false, false, telemetry);
                 await clientFixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 session = await clientFixture.ConnectAsync(

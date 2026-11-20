@@ -95,11 +95,14 @@ namespace Opc.Ua.WotCon.Tests
                 }
             };
             var factory = new WotRegistryNodeManagerFactory(options, legacy, coordinator);
-            Ua.Server.NodeManagerRegistration registration =
+            LifecycleResult publication =
                 await server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null)
+                .ApplyAsync([LifecycleChange.Add(factory)])
                 .ConfigureAwait(false);
-            var nodeManager = (WotRegistryNodeManager)registration.NodeManager;
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            var nodeManager = (WotRegistryNodeManager)registration!.NodeManager;
             using var clientFixture = new ClientFixture(false, false, telemetry);
             await clientFixture.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
             string url = $"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}";

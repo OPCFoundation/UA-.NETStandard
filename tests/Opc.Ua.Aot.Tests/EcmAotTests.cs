@@ -145,7 +145,12 @@ namespace Opc.Ua.Aot.Tests
             await using var binding = new EcmPowerBinding(context, standby, provider, wol, provider,
                 authorize: static (_, _) => new ValueTask<bool>(true));
             await binding.RefreshAsync().ConfigureAwait(false);
-            await Assert.That(standby.StandbyManagementStatus!.Value)
+            ArgumentNullException.ThrowIfNull(standby.StandbyManagementStatus);
+            ArgumentNullException.ThrowIfNull(standby.StartPause);
+            ArgumentNullException.ThrowIfNull(standby.PauseTime);
+            ArgumentNullException.ThrowIfNull(wol.WOLMagicPacket);
+            ArgumentNullException.ThrowIfNull(wol.SwitchOffWOL);
+            await Assert.That(standby.StandbyManagementStatus.Value)
                 .IsEqualTo((byte)EcmStandbyStatus.ReadyToOperate);
             await Assert.That(wol.WOLMagicPacket!.Value.Length).IsEqualTo(6);
 
@@ -202,7 +207,8 @@ namespace Opc.Ua.Aot.Tests
                 browseName: new QualifiedName("StandaloneSleep", instances));
             await using var standaloneBinding = new EcmWolBinding(context, standalone, provider,
                 authorize: static (_, _) => new ValueTask<bool>(true));
-            var standaloneCall = await standalone.SwitchOffWOL!.OnCallAsync!(
+            ArgumentNullException.ThrowIfNull(standalone.SwitchOffWOL);
+            var standaloneCall = await standalone.SwitchOffWOL.OnCallAsync!(
                 context, standalone.SwitchOffWOL, standalone.NodeId, CancellationToken.None).ConfigureAwait(false);
             await Assert.That(standaloneCall.ServiceResult.StatusCode).IsEqualTo(StatusCodes.Good);
             await Assert.That(standaloneCall.ModeID).IsEqualTo((byte)0xFE);

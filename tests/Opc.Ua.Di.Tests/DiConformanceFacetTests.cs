@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -220,38 +221,55 @@ namespace Opc.Ua.Di.Tests
             method.NodeId = manager.SystemContext.NodeIdFactory.New(manager.SystemContext, method);
         }
 
+        /// <summary>
+        /// Starts a real server with a private short PKI root and reads its declared profiles.
+        /// </summary>
+        /// <param name="configure">The optional device configuration.</param>
         private static async Task<IReadOnlyList<string>> ReadProfilesAsync(
             Func<IDiPostSetupContext, ValueTask>? configure)
         {
-            CaptureServer.Reset();
-            var services = new ServiceCollection();
-            services.AddLogging();
-            IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
-                .AddServer<CaptureServer>(ConfigureServer)
-                .AddOpcUaDi();
-            if (configure != null)
-            {
-                serverBuilder.ConfigureDevicesFor<DiNodeManager>(configure);
-            }
-
-            await using ServiceProvider provider = services.BuildServiceProvider();
-            IHostedService hostedService = provider.GetServices<IHostedService>().Single();
-            await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            string testRoot = Path.Combine(Path.GetTempPath(), "di-facet-" + Guid.NewGuid().ToString("N"));
             try
             {
-                Assert.That(
-                    await WaitForAsync(
-                        () => CaptureServer.StartedInstance != null,
-                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
-                    Is.True,
-                    "The server did not start.");
+                CaptureServer.Reset();
+                var services = new ServiceCollection();
+                services.AddLogging();
+                IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
+                    .AddServer<CaptureServer>(options => ConfigureServer(options, testRoot))
+                    .AddOpcUaDi();
+                if (configure != null)
+                {
+                    serverBuilder.ConfigureDevicesFor<DiNodeManager>(configure);
+                }
 
-                return await ReadServerProfileArrayAsync(CaptureServer.StartedInstance!)
-                    .ConfigureAwait(false);
+                await using ServiceProvider provider = services.BuildServiceProvider();
+                IHostedService hostedService = provider.GetServices<IHostedService>().Single();
+                try
+                {
+                    await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                    bool started = await WaitForAsync(
+                        () => CaptureServer.StartedInstance != null,
+                        TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                    if (!started && hostedService is BackgroundService { ExecuteTask: { IsFaulted: true } execution })
+                    {
+                        await execution.ConfigureAwait(false);
+                    }
+                    Assert.That(started, Is.True, "The server did not start.");
+
+                    return await ReadServerProfileArrayAsync(CaptureServer.StartedInstance!)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
             }
             finally
             {
-                await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                if (Directory.Exists(testRoot))
+                {
+                    Directory.Delete(testRoot, recursive: true);
+                }
             }
         }
 
@@ -283,17 +301,18 @@ namespace Opc.Ua.Di.Tests
             return values[0].GetValue<string[]>([]).ToList();
         }
 
-        private static void ConfigureServer(OpcUaServerOptions options)
+        /// <summary>
+        /// Configures the server using the fixture-owned PKI root without changing NUnit's working directory.
+        /// </summary>
+        /// <param name="options">The server configuration.</param>
+        /// <param name="testRoot">The fixture-owned temporary root.</param>
+        private static void ConfigureServer(OpcUaServerOptions options, string testRoot)
         {
             string applicationName = nameof(DiConformanceFacetTests);
-            string testRoot = System.IO.Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                applicationName,
-                Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
             options.ProductUri = "urn:localhost:" + applicationName + ":product";
-            options.PkiRoot = System.IO.Path.Combine(testRoot, "pki");
+            options.PkiRoot = Path.Combine(testRoot, "pki");
             options.AutoAcceptUntrustedCertificates = true;
             options.IncludeUnsecurePolicyNone = true;
             options.EndpointUrls.Clear();

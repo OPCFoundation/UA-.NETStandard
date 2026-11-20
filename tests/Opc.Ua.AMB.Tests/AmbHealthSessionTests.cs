@@ -56,9 +56,8 @@ namespace Opc.Ua.AMB.Tests
         public async Task AClientReceivesAndAcknowledgesAHealthAlarmAsync()
         {
             string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(AmbHealthSessionTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "amb-health-" + Guid.NewGuid().ToString("N"));
             (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
                 await HealthAlarmTests.StartWithSensorAsync(
                     nameof(AmbHealthSessionTests),

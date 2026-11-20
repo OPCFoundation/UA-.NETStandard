@@ -734,8 +734,19 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            await m_server.ServerInternal.NodeManager.SessionActivatedAsync(
-                                context, activatedSession.Id, CancellationToken.None).ConfigureAwait(false);
+                            IMasterNodeManager managers = m_server.ServerInternal.NodeManager;
+                            if (managers is MasterNodeManager master &&
+                                master.GetType() == typeof(MasterNodeManager) &&
+                                m_server.ServerInternal.SessionManager.GetType() == typeof(SessionManager))
+                            {
+                                await master.NotifyRegisteredSessionActivatedAsync(
+                                    context, activatedSession, CancellationToken.None).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await managers.SessionActivatedAsync(
+                                    context, activatedSession.Id, CancellationToken.None).ConfigureAwait(false);
+                            }
                         }
                         catch (Exception e)
                         {

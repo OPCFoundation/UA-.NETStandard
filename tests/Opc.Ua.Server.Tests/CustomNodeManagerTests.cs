@@ -328,7 +328,7 @@ namespace Opc.Ua.Server.Tests
             return base.LookupNodeInComponentCache(context, handle)!;
         }
 
-        public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+        public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
         public new virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {

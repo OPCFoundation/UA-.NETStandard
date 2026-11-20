@@ -283,11 +283,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Task<ReadMethodStateResult> read = harness.File.Read!.OnCallAsync!(
                 harness.Manager.SystemContext, harness.File.Read, harness.File.NodeId, id, 1, CancellationToken.None)
                 .AsTask();
+            NodeManagerCleanupDeferredException? deferred = null;
             try
             {
                 if (shutdown)
                 {
-                    await harness.Manager.DisposeAsync().ConfigureAwait(false);
+                    deferred = await Assert.ThrowsAsync<NodeManagerCleanupDeferredException>(
+                        async () => await harness.Manager.DisposeAsync().ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                    Assert.That(deferred!.Completion.IsCompleted, Is.False);
                 }
                 else
                 {
@@ -304,6 +308,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 stream.Release.TrySetResult(true);
                 await read.ConfigureAwait(false);
                 await handles.CleanupCompletion.ConfigureAwait(false);
+                if (deferred is not null)
+                {
+                    await deferred.Completion.ConfigureAwait(false);
+                }
             }
             Assert.That(stream.CanRead, Is.False);
         }

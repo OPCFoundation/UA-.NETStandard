@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
@@ -121,7 +122,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private async Task<WotResource> AddClientDiscoveryResourceAsync()
         {
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions
                 {
                     AutoRefresh = false,
@@ -131,7 +132,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         AllowAnonymous = true,
                         RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                     }
-                }, m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+                }, m_registry, m_coordinator))]).ConfigureAwait(false);
             WotResource resource = await AddAsync("implicit-client-resource").ConfigureAwait(false);
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
             await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
