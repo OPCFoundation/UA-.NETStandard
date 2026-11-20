@@ -41,7 +41,7 @@ namespace Opc.Ua.Server.Hosting
     /// singleton before a server exists, so it stays valid across host restarts and reports a
     /// clear error while no server is attached.
     /// </summary>
-    internal sealed class HostedNodeManagerLifecycle : INodeManagerLifecycle
+    internal sealed class HostedNodeManagerLifecycle : INodeManagerCallbackLifecycle
     {
         /// <summary>
         /// Creates a host lifecycle with recovery unavailable unless trusted adapters are supplied.
@@ -106,12 +106,12 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <inheritdoc/>
-        public ValueTask<IPreparedChanges> PrepareAsync(
+        public ValueTask<IPreparedChanges> PrepareFromDecisionAsync(
             ArrayOf<LifecycleChange> changes,
             NodeManagerDecisionContext decisionContext,
             CancellationToken cancellationToken)
         {
-            return Current.PrepareAsync(changes, decisionContext, cancellationToken);
+            return CallbackLifecycle.PrepareFromDecisionAsync(changes, decisionContext, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -120,8 +120,11 @@ namespace Opc.Ua.Server.Hosting
             OperationContext context,
             CancellationToken cancellationToken = default)
         {
-            return Current.PrepareFromCallbackAsync(changes, context, cancellationToken);
+            return CallbackLifecycle.PrepareFromCallbackAsync(changes, context, cancellationToken);
         }
+
+        private INodeManagerCallbackLifecycle CallbackLifecycle => Current as INodeManagerCallbackLifecycle ??
+            throw new NotSupportedException("The attached lifecycle does not support callback admission.");
 
         /// <summary>
         /// Attaches the lifecycle of the server that just started, so injected consumers are

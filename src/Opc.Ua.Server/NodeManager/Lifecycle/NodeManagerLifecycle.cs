@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
-    public sealed partial class NodeManagerLifecycle : INodeManagerLifecycle, IDisposable
+    public sealed partial class NodeManagerLifecycle : INodeManagerCallbackLifecycle, IDisposable
     {
         /// <summary>
         /// Creates the server-owned lifecycle provider with its time source.
@@ -1902,7 +1902,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<IPreparedChanges> PrepareAsync(
+        public ValueTask<IPreparedChanges> PrepareFromDecisionAsync(
             ArrayOf<LifecycleChange> changes,
             NodeManagerDecisionContext decisionContext,
             CancellationToken cancellationToken)
@@ -1921,6 +1921,10 @@ namespace Opc.Ua.Server
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
+            }
+            if (context.PublicationDecision is { } decision)
+            {
+                ThrowIfDecisionCallbackActive(decision);
             }
             NodeManagerCallbackPermit? permit = m_server.CurrentInstance.NodeManager is MasterNodeManager master
                 ? master.GetExplicitCallbackPermit(context)

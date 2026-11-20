@@ -37,11 +37,11 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <remarks>
     /// Prepare an addition, replacement, removal, or batch with
-    /// <see cref="PrepareAsync(ArrayOf{LifecycleChange}, CancellationToken)"/>, then commit
+    /// <see cref="PrepareAsync"/>, then commit
     /// the returned owner. Commit waits through reconciliation and readiness, but not generation drain.
     /// Its result describes the authoritative published revision, registrations, slots, post-commit
     /// failures, and asynchronous retirement. Dispose an uncommitted owner to release its candidates.
-    /// Request callbacks use the same context-free transaction API as external callers.
+    /// Callback re-entry uses <see cref="INodeManagerCallbackLifecycle"/> when admission must be passed explicitly.
     /// Capture revisions before acquiring application inputs with <see cref="CaptureChanges"/>.
     /// A writer advances its evidence only through its own commits; stale work never retries factories or decisions.
     /// </remarks>
@@ -87,7 +87,13 @@ namespace Opc.Ua.Server
         ValueTask<IPreparedChanges> PrepareAsync(
             ArrayOf<LifecycleChange> changes,
             CancellationToken cancellationToken = default);
+    }
 
+    /// <summary>
+    /// Prepares lifecycle changes from callbacks with explicitly supplied admission.
+    /// </summary>
+    public interface INodeManagerCallbackLifecycle : INodeManagerLifecycle
+    {
         /// <summary>
         /// Prepares changes requested by a durable decision, rejecting re-entry into that decision's lifecycle.
         /// </summary>
@@ -95,7 +101,7 @@ namespace Opc.Ua.Server
         /// <param name="decisionContext">The context supplied to the durable decision.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>
         /// <returns>The unpublished prepared changes.</returns>
-        ValueTask<IPreparedChanges> PrepareAsync(
+        ValueTask<IPreparedChanges> PrepareFromDecisionAsync(
             ArrayOf<LifecycleChange> changes,
             NodeManagerDecisionContext decisionContext,
             CancellationToken cancellationToken);

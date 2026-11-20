@@ -119,8 +119,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleChange change,
             CancellationToken cancellationToken)
         {
-            await using IPreparedChanges prepared = await lifecycle.PrepareFromCallbackAsync(
-                [change], context, cancellationToken).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await ((INodeManagerCallbackLifecycle)lifecycle)
+                .PrepareFromCallbackAsync([change], context, cancellationToken).ConfigureAwait(false);
             LifecycleResult result = await prepared.CommitAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);

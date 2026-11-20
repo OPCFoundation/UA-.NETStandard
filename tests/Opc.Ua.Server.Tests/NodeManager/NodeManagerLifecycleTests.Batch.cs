@@ -1349,7 +1349,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     {
-                        await lifecycle.PrepareAsync([
+                        await ((INodeManagerCallbackLifecycle)lifecycle).PrepareFromDecisionAsync([
                                 LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                                     CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
                             ], decision, timeout.Token).ConfigureAwait(false);

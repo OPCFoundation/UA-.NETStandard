@@ -70,8 +70,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <inheritdoc/>
         public IWotProjectionPublicationCapture CapturePublication(NodeManagerReadinessContext readiness)
         {
-            return new PublicationCapture(this,
-                (readiness ?? throw new ArgumentNullException(nameof(readiness))).CaptureChanges(m_lifecycle));
+            if (readiness is null)
+            {
+                throw new ArgumentNullException(nameof(readiness));
+            }
+            return new PublicationCapture(this, readiness.CaptureChanges(m_lifecycle), readiness);
         }
 
         /// <inheritdoc/>
@@ -101,7 +104,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             try
             {
                 PreparedPublication prepared = await PrepareCoreAsync(
-                    changes, views, writer, cancellationToken).ConfigureAwait(false);
+                    changes, views, writer, null, cancellationToken).ConfigureAwait(false);
                 prepared.OwnedWriter = writer;
                 return prepared;
             }
@@ -123,13 +126,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views,
             ILifecycleWriter publication,
+            NodeManagerReadinessContext? readiness,
             CancellationToken cancellationToken)
         {
             if (!publication.IsCurrent)
             {
                 throw new InvalidOperationException("A stale publication cannot prepare a candidate.");
             }
-            PreparedChanges candidate = CreatePreparedChanges(changes, views);
+            PreparedChanges candidate = CreatePreparedChanges(changes, views, readiness);
             IPreparedChanges batch = await publication.PrepareAsync(candidate.Changes, cancellationToken)
                 .ConfigureAwait(false);
             try
@@ -155,6 +159,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask> inspectAsync,
             IWotPreparedViewPublication? views,
             ILifecycleWriter publication,
+            NodeManagerReadinessContext? readiness,
             CancellationToken cancellationToken)
         {
             _ = inspectAsync ?? throw new ArgumentNullException(nameof(inspectAsync));
@@ -162,7 +167,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 throw new InvalidOperationException("A stale publication cannot validate a candidate.");
             }
-            PreparedChanges candidate = CreatePreparedChanges(changes, views);
+            PreparedChanges candidate = CreatePreparedChanges(changes, views, readiness);
             await publication.ValidateAsync(candidate.Changes, async (batch, token) =>
             {
                 PreparedPublication prepared = BindPreparedPublication(candidate, views, batch);
@@ -200,12 +205,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private PreparedChanges CreatePreparedChanges(
-            ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views)
+            ArrayOf<WotProjectionChange> changes,
+            IWotPreparedViewPublication? views,
+            NodeManagerReadinessContext? readiness)
         {
             var lifecycleChanges = new List<LifecycleChange>();
             var documents = new List<WotProjectionDocument>();
             var runtimePublications = new List<WotProjectionRuntimePublication>();
-            var sourceImage = new WotPreparedSourceImage();
+            var sourceImage = new WotPreparedSourceImage(readiness);
             foreach (WotProjectionChange change in changes)
             {
                 _ = change ?? throw new ArgumentException("A projection change is null.", nameof(changes));
@@ -286,7 +293,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotPreparedSourceImage? SourceImage);
 
         private sealed class PublicationCapture(
-            LifecycleWotProjectionHost owner, ILifecycleCapture capture) : IWotProjectionPublicationCapture
+            LifecycleWotProjectionHost owner,
+            ILifecycleCapture capture,
+            NodeManagerReadinessContext? readiness = null) : IWotProjectionPublicationCapture
         {
             /// <summary>
             /// Begins a publication invocation for the executing request on the captured source-owner revisions.
@@ -299,12 +308,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 ILifecycleWriter invocation = await capture.BeginAsync(cancellationToken)
                     .ConfigureAwait(false);
-                return new PublicationInvocation(owner, invocation);
+                return new PublicationInvocation(owner, invocation, readiness);
             }
         }
 
         private sealed class PublicationInvocation(
-            LifecycleWotProjectionHost owner, ILifecycleWriter publication) : IWotProjectionValidationPublication
+            LifecycleWotProjectionHost owner,
+            ILifecycleWriter publication,
+            NodeManagerReadinessContext? readiness) : IWotProjectionValidationPublication
         {
             /// <summary>
             /// Gets the is current for <c>PublicationInvocation</c>.
@@ -322,7 +333,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IWotPreparedViewPublication? views = null,
                 CancellationToken cancellationToken = default)
             {
-                return await owner.PrepareCoreAsync(changes, views, publication, cancellationToken)
+                return await owner.PrepareCoreAsync(changes, views, publication, readiness, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -353,7 +364,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IWotPreparedViewPublication? views = null,
                 CancellationToken cancellationToken = default)
             {
-                return owner.ValidateCoreAsync(changes, inspectAsync, views, publication, cancellationToken);
+                return owner.ValidateCoreAsync(changes, inspectAsync, views, publication, readiness, cancellationToken);
             }
 
             public ValueTask DisposeAsync()

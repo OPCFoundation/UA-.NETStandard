@@ -1034,7 +1034,9 @@ scope against the pending generation selected by the request's pinned view. Neit
 lookup nor a routing pin grants readiness.
 
 `AddNodeAsync` and `DeleteNodeAsync` callbacks carry admission in their `OperationContext`.
-Pass that context to `PrepareFromCallbackAsync` for nested lifecycle changes. For a separate local
+Pass that context to `INodeManagerCallbackLifecycle.PrepareFromCallbackAsync` for nested lifecycle
+changes. Use `PrepareFromDecisionAsync` on the same interface when passing a durable decision
+context. For a separate local
 node-management operation, use `InheritNodeManagerAdmission` to pass admission to its context.
 Only the issuing host accepts the permit, and callback exit revokes it before draining borrows.
 
