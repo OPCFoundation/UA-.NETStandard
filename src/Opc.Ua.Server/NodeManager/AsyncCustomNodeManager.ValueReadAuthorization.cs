@@ -641,7 +641,9 @@ namespace Opc.Ua.Server
                 return await custom.ValidateMonitoredReadAsync(context, node, attributeId, cancellationToken)
                     .ConfigureAwait(false);
             }
+#pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners keep their monitored-read check.
             if (manager is AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 synchronous })
+#pragma warning restore CS0618, UA0031
             {
                 return synchronous.ValidateMonitoredRead(context, node, attributeId);
             }

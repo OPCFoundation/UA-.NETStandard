@@ -715,7 +715,9 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
+#pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners support batch handles.
                     if ((owner is not AsyncCustomNodeManager && owner.SyncNodeManager is not CustomNodeManager2) ||
+#pragma warning restore CS0618, UA0031
                         handle is not NodeHandle { Validated: true, Node: { } node })
                     {
                         hasUnsupportedOwner = true;

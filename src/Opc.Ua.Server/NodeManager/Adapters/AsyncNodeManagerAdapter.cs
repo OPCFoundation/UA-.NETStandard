@@ -45,6 +45,13 @@ namespace Opc.Ua.Server
         /// if the NodeManager does not implement the interface uses the <see cref="AsyncNodeManagerAdapter"/>
         /// to create an IAsyncNodeManager compatible object
         /// </summary>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.AsyncNodeManagerAdapter,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.AsyncNodeManagerAdapter)]
+#endif
         public static IAsyncNodeManager ToAsyncNodeManager(this INodeManager nodeManager)
         {
             if (nodeManager is null)
@@ -59,7 +66,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>Preserves one async facade without keeping retired synchronous managers alive.</summary>
+#pragma warning disable CS0618, UA0031 // Cache of the obsolete legacy adapter.
         private static readonly ConditionalWeakTable<INodeManager, AsyncNodeManagerAdapter> s_adapters = new();
+#pragma warning restore CS0618, UA0031
     }
 
     /// <summary>
@@ -69,6 +78,13 @@ namespace Opc.Ua.Server
     /// This allows synchronous, or only partially asynchronous node managers to be treated as asynchronous, which can help
     /// unify the calling logic within the MasterNodeManager.
     /// </remarks>
+#if NET5_0_OR_GREATER
+    [Obsolete(SyncNodeManagerDeprecation.AsyncNodeManagerAdapter,
+        DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+        UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+    [Obsolete(SyncNodeManagerDeprecation.AsyncNodeManagerAdapter)]
+#endif
     public class AsyncNodeManagerAdapter :
         IAsyncNodeManager,
         IDisposable,

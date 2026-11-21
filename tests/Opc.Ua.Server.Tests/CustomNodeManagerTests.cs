@@ -1,3 +1,5 @@
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;

@@ -407,7 +407,7 @@ namespace Opc.Ua.SourceGeneration
             namespace {{Tokens.NamespacePrefix}}
             {
                 /// <summary>
-                /// Source-generated <see cref="global::Opc.Ua.Server.INodeManagerFactory"/>
+                /// Source-generated <see cref="global::Opc.Ua.Server.IAsyncNodeManagerFactory"/>
                 /// for the <c>{{Tokens.NamespaceUri}}</c> namespace.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]

@@ -193,14 +193,11 @@ namespace Opc.Ua.Sessions.Tests
             NodeId methodId = ToNodeId(new ExpandedNodeId("Methods_Void", Constants.ReferenceServerNamespaceUri));
             Server.IMasterNodeManager master = ReferenceServer.CurrentInstance.NodeManager;
             MethodState? method = null;
-            foreach (object manager in master.AsyncNodeManagers.Cast<object>().Concat(master.NodeManagers))
+            foreach (Server.IAsyncNodeManager manager in master.AsyncNodeManagers)
             {
-                NodeState? node = manager switch
-                {
-                    Server.AsyncCustomNodeManager asyncManager => asyncManager.Find(methodId),
-                    Server.CustomNodeManager2 syncManager => syncManager.Find(methodId),
-                    _ => null
-                };
+                NodeState? node = manager is Server.AsyncCustomNodeManager asyncManager
+                    ? asyncManager.Find(methodId)
+                    : null;
                 if (node is MethodState found)
                 {
                     method = found;

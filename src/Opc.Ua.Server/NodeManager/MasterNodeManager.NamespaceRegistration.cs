@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#pragma warning disable CS0618, UA0031 // Namespace registration still accepts legacy synchronous node managers.
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;

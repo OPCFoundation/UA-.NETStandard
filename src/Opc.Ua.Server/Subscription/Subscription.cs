@@ -710,8 +710,8 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            INodeManager? monitoredItemSync = monitoredItemOwner.SyncNodeManager;
-            INodeManager? nodeManagerSync = nodeManager.SyncNodeManager;
+            object? monitoredItemSync = monitoredItemOwner.SyncNodeManager;
+            object? nodeManagerSync = nodeManager.SyncNodeManager;
             return monitoredItemSync is not null &&
                 nodeManagerSync is not null &&
                 ReferenceEquals(monitoredItemSync, nodeManagerSync);

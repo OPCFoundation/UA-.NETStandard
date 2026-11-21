@@ -47,7 +47,7 @@ namespace Boiler
     /// <remarks>
     /// The <c>[NodeManager]</c> attribute opts this partial class in to
     /// source generation: the generator emits a sibling partial that
-    /// derives from <c>CustomNodeManager2</c>, owns the predefined-node
+    /// derives from <c>FluentNodeManagerBase</c>, owns the predefined-node
     /// load, and calls back into <see cref="Configure"/> below. No
     /// MSBuild flag is required; the attribute alone selects the class
     /// and (since this project carries a single design) the single

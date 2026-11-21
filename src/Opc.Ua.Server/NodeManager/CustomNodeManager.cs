@@ -49,6 +49,13 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
+#if NET5_0_OR_GREATER
+    [Obsolete(SyncNodeManagerDeprecation.CustomNodeManager2,
+        DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+        UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+    [Obsolete(SyncNodeManagerDeprecation.CustomNodeManager2)]
+#endif
     public partial class CustomNodeManager2 :
         INodeManager3,
         INodeIdFactory,
