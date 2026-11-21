@@ -369,9 +369,33 @@ namespace Opc.Ua.Recycling
                 ?? throw new InvalidOperationException("The compiled sample model identity resource is missing.");
             await using var modelLifetime = model.ConfigureAwait(false);
             byte[] modelHash = await SHA256.HashDataAsync(model, cancellationToken).ConfigureAwait(false);
-            hash.AppendData(modelHash);
+            hash.AppendData(JournalModelHash(modelHash));
             return Convert.ToHexString(hash.GetHashAndReset());
         }
+
+        /// <summary>
+        /// Maps the hash of the embedded model to the hash that existing journals record.
+        /// A revision that only changed the license comment keeps the identity of the model it replaced,
+        /// so journals written before the change still open.
+        /// </summary>
+        internal static byte[] JournalModelHash(byte[] modelHash)
+        {
+            return s_headerOnlyModelRevisions.TryGetValue(Convert.ToHexString(modelHash), out string? legacy)
+                ? Convert.FromHexString(legacy)
+                : modelHash;
+        }
+
+        /// <summary>
+        /// Model hashes (LF and CRLF checkouts) whose only change was replacing the license banner with the SPDX
+        /// header, mapped to the hash of the same checkout before that change.
+        /// </summary>
+        private static readonly Dictionary<string, string> s_headerOnlyModelRevisions = new(StringComparer.Ordinal)
+        {
+            ["EC77150443F931C59763C8EB69CEE4C86CFB7E8207059DF7F928FF007BD03557"] =
+                "C6DEB4B037F05F83E541E1851C82FE166A3D22E163B732544C5AB9C570777D51",
+            ["2060988C6B818657303433FDF8D6AB67C1ECDF5911BB075C7CE24FA25BFE304C"] =
+                "7E331A9A4370B2F70C5135140DC83D8D92AFAF40641D2607AF17D8CF6B8DDA7A",
+        };
 
         private async Task DisposeCoreAsync()
         {
