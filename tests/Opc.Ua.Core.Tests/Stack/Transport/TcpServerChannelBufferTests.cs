@@ -923,6 +923,95 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// A peer without a session decides how fast it reads a response. A write
+        /// it keeps outstanding must not hold the channel slot for longer than the
+        /// grace period, or slow readers could hold every slot without a credential.
+        /// </summary>
+        [Test]
+        public async Task AdmissionReclaimsSessionlessChannelWhoseResponseWriteOutlastsTheGraceAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock);
+            var transport = new GateByteTransport(expectedSendCount: 1);
+            channel.SetTransport(transport);
+            try
+            {
+                using (channel.TrackPendingRequest())
+                {
+                    Assert.That(await channel.SendResponseAsync(1, CreateResponse()).ConfigureAwait(false), Is.False);
+                    await transport.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                Assert.That(channel.HasPendingWrites, Is.True);
+
+                clock.Advance(TcpListenerChannel.SessionlessWriteGrace);
+                Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TcpListenerChannel.SessionlessWriteGrace));
+                Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(channel.TryIdleCleanupForAdmission(), Is.True);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+
+                transport.Complete();
+                Assert.That(await WaitForOutstandingCountAsync(pool, 0, 5).ConfigureAwait(false), Is.True);
+                Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            }
+            finally
+            {
+                transport.Complete();
+            }
+        }
+
+        /// <summary>
+        /// The age of outstanding writes restarts once the queue ran empty.
+        /// </summary>
+        [Test]
+        public async Task PendingWriteAgeRestartsAfterTheQueueRanEmptyAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock);
+            var first = new GateByteTransport(expectedSendCount: 1);
+            channel.SetTransport(first);
+            try
+            {
+                Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TimeSpan.Zero));
+                Assert.That(await channel.SendResponseAsync(1, CreateResponse()).ConfigureAwait(false), Is.False);
+                await first.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromSeconds(3));
+                Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TimeSpan.FromSeconds(3)));
+
+                first.Complete();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                while (channel.HasPendingWrites)
+                {
+                    await Task.Delay(1, timeout.Token).ConfigureAwait(false);
+                }
+                Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TimeSpan.Zero));
+
+                clock.Advance(TimeSpan.FromSeconds(10));
+                var second = new GateByteTransport(expectedSendCount: 1);
+                channel.SetTransport(second);
+                try
+                {
+                    Assert.That(await channel.SendResponseAsync(2, CreateResponse()).ConfigureAwait(false), Is.False);
+                    await second.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TimeSpan.Zero));
+                    Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+                }
+                finally
+                {
+                    second.Complete();
+                }
+            }
+            finally
+            {
+                first.Complete();
+            }
+        }
+
+        /// <summary>
         /// OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel messages are always a single final
         /// chunk, so an intermediate or abort chunk faults the channel with Bad_TcpMessageTypeInvalid before it
         /// is security checked or kept for reassembly.

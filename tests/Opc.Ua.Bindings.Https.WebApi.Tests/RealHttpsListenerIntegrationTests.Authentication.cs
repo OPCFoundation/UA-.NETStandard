@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Linq;
@@ -555,11 +556,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         {
             await using AuthListener listener = await OpenAuthListenerAsync(
                 "basic",
-                configureSettings: settings => settings.MaxChannelCount = 1).ConfigureAwait(false);
+                configureSettings: settings => settings.MaxChannelCount = 2).ConfigureAwait(false);
             using HttpMessageInvoker first = AuthListener.CreateHttp2Connection();
 
-            // Refuse an upgrade on an HTTP/2 connection. The readiness probe
-            // may still hold the only connection slot for a moment.
+            // Refuse an upgrade on an HTTP/2 connection. The upgrade is admitted
+            // on a slot of its own next to its connection, and the readiness
+            // probe may still hold one for a moment.
             HttpStatusCode refusal = default;
             DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
             while (refusal != HttpStatusCode.Unauthorized && DateTime.UtcNow < deadline)
@@ -576,17 +578,27 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
             Assert.That(refusal, Is.EqualTo(HttpStatusCode.Unauthorized));
 
+            // The refused stream returned its own slot, which a second
+            // connection takes.
+            using HttpMessageInvoker second = AuthListener.CreateHttp2Connection();
+            using (HttpResponseMessage admitted = await listener
+                .PostAsync("/read", CreateReadRequest(1), CreateAuthorizationHeader("basic-valid"), second)
+                .ConfigureAwait(false))
+            {
+                Assert.That(admitted.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            }
+
             // The HTTP/2 connection outlives the refused stream, so it keeps
-            // its connection slot: another connection is not admitted ...
+            // its connection slot: a third connection is not admitted ...
             // Linux can surface the transport abort directly while HttpClient
             // reads the disconnected socket's RemoteEndPoint.
-            using (HttpMessageInvoker second = AuthListener.CreateHttp2Connection())
+            using (HttpMessageInvoker third = AuthListener.CreateHttp2Connection())
             {
                 Assert.That(
                     async () =>
                     {
                         using HttpResponseMessage rejected = await listener
-                            .PostAsync("/read", CreateReadRequest(1), CreateAuthorizationHeader("basic-valid"), second)
+                            .PostAsync("/read", CreateReadRequest(1), CreateAuthorizationHeader("basic-valid"), third)
                             .ConfigureAwait(false);
                     },
                     Throws.InstanceOf<HttpRequestException>()
@@ -601,6 +613,138 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             {
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
                 Assert.That(response.Version, Is.EqualTo(HttpVersion.Version20));
+            }
+        }
+
+        /// <summary>
+        /// Every WebSocket of an HTTP/2 connection takes a channel slot of its
+        /// own, so the streams of one connection cannot exceed the channel
+        /// limit, and reclaiming a slot closes the socket that held it.
+        /// </summary>
+        [Test]
+        public async Task WebSocketsOfOneHttp2ConnectionAreCountedAndReclaimedOneByOneAsync()
+        {
+            const int kMaxChannelCount = 3;
+            const int kSockets = 6;
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                "basic",
+                configureSettings: settings => settings.MaxChannelCount = kMaxChannelCount).ConfigureAwait(false);
+            using HttpMessageInvoker connection = AuthListener.CreateHttp2Connection();
+            var sockets = new List<ClientWebSocket>();
+            var receives = new List<Task>();
+            using var stop = new CancellationTokenSource();
+            try
+            {
+                for (int i = 0; i < kSockets; i++)
+                {
+                    ClientWebSocket socket = await listener
+                        .ConnectWebSocketAsync(Profiles.OpcUaWsSubProtocolUaJson, authorization: null, connection)
+                        .ConfigureAwait(false);
+                    sockets.Add(socket);
+                    if (socket.State == WebSocketState.Open)
+                    {
+                        // completes once the server ends the stream.
+                        receives.Add(socket.ReceiveAsync(new ArraySegment<byte>(new byte[16]), stop.Token));
+                    }
+                }
+                Assert.That(receives, Is.Not.Empty, "No WebSocket was accepted over HTTP/2.");
+
+                // Once the slots are taken a further socket is admitted only
+                // by closing an idle one, so no more sockets than slots stay
+                // open however many streams the one connection carries.
+                Assert.That(receives, Has.Count.GreaterThan(kMaxChannelCount));
+                DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+                int open = int.MaxValue;
+                while (DateTime.UtcNow < deadline)
+                {
+                    open = receives.Count(receive => !receive.IsCompleted);
+                    if (open <= kMaxChannelCount)
+                    {
+                        break;
+                    }
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+                Assert.That(open, Is.LessThanOrEqualTo(kMaxChannelCount));
+            }
+            finally
+            {
+                stop.Cancel();
+                foreach (ClientWebSocket socket in sockets)
+                {
+                    socket.Dispose();
+                }
+                try
+                {
+                    await Task.WhenAll(receives).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // aborted or cancelled receives.
+                }
+            }
+        }
+
+        [Test]
+        public async Task WebSocketsOverHttp1AndHttp2ShareOneChannelLimitAsync()
+        {
+            const int kMaxChannelCount = 3;
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                "basic",
+                configureSettings: settings => settings.MaxChannelCount = kMaxChannelCount).ConfigureAwait(false);
+            using HttpMessageInvoker connection = AuthListener.CreateHttp2Connection();
+            var sockets = new List<ClientWebSocket>();
+            var receives = new List<Task>();
+            using var stop = new CancellationTokenSource();
+            try
+            {
+                // two sockets on connections of their own, then three on one
+                // HTTP/2 connection.
+                for (int i = 0; i < 5; i++)
+                {
+                    ClientWebSocket socket = await listener
+                        .ConnectWebSocketAsync(
+                            Profiles.OpcUaWsSubProtocolUaJson,
+                            authorization: null,
+                            i < 2 ? null : connection)
+                        .ConfigureAwait(false);
+                    sockets.Add(socket);
+                    if (socket.State == WebSocketState.Open)
+                    {
+                        receives.Add(socket.ReceiveAsync(new ArraySegment<byte>(new byte[16]), stop.Token));
+                    }
+                }
+
+                // A socket over HTTP/2 is admitted only by closing an idle
+                // one, whichever protocol that one was opened with.
+                Assert.That(receives, Has.Count.GreaterThan(2), "No WebSocket was accepted over HTTP/2.");
+                DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+                int open = int.MaxValue;
+                while (DateTime.UtcNow < deadline)
+                {
+                    open = receives.Count(receive => !receive.IsCompleted);
+                    if (open <= kMaxChannelCount)
+                    {
+                        break;
+                    }
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+                Assert.That(open, Is.LessThanOrEqualTo(kMaxChannelCount));
+            }
+            finally
+            {
+                stop.Cancel();
+                foreach (ClientWebSocket socket in sockets)
+                {
+                    socket.Dispose();
+                }
+                try
+                {
+                    await Task.WhenAll(receives).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // aborted or cancelled receives.
+                }
             }
         }
 
