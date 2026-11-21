@@ -91,13 +91,13 @@ namespace Opc.Ua.SourceGeneration
                 AggregateFunctionIdsTemplates.Entry,
                 aggregates,
                 null,
-                context => WriteTemplate_Entry(context, namespacePrefix));
+                context => WriteTemplateEntry(context, namespacePrefix));
 
             template.Render();
             return [fileName.AsTextFileResource()];
         }
 
-        private static bool WriteTemplate_Entry(IWriteContext context, string namespacePrefix)
+        private static bool WriteTemplateEntry(IWriteContext context, string namespacePrefix)
         {
             // Emit only ever renders the list of ObjectDesign collected below.
             var aggregate = (ObjectDesign)context.Target!;

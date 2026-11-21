@@ -52,14 +52,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private const string kUaNamespaceUri = "http://opcfoundation.org/UA/";
 
         [Test]
-        public void Constructor_NullContext_ThrowsArgumentNullException()
+        public void ConstructorNullContextThrowsArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>(
                 () => new AggregateFunctionIdsGenerator(null!));
         }
 
         [Test]
-        public void Emit_NonCoreModel_ReturnsEmpty()
+        public void EmitNonCoreModelReturnsEmpty()
         {
             var mockFileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
             GeneratorContext context = CreateContext(
@@ -75,7 +75,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void Emit_CoreModelWithoutAggregateFunctions_ReturnsEmpty()
+        public void EmitCoreModelWithoutAggregateFunctionsReturnsEmpty()
         {
             var mockFileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
             GeneratorContext context = CreateContext(
@@ -91,7 +91,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void Emit_CoreModel_ListsAggregateFunctionsInModelOrder()
+        public void EmitCoreModelListsAggregateFunctionsInModelOrder()
         {
             using var fileSystem = new VirtualFileSystem();
             GeneratorContext context = CreateContext(
@@ -121,7 +121,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void Emit_ExcludedOrUnnamedAggregateFunctions_AreNotListed()
+        public void EmitExcludedOrUnnamedAggregateFunctionsAreNotListed()
         {
             using var fileSystem = new VirtualFileSystem();
             ObjectDesign listed = CreateAggregateFunction(
@@ -171,7 +171,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void Emit_InstanceOfAggregateFunctionSubtype_IsListed()
+        public void EmitInstanceOfAggregateFunctionSubtypeIsListed()
         {
             using var fileSystem = new VirtualFileSystem();
             var aggregateFunctionType = new ObjectTypeDesign
