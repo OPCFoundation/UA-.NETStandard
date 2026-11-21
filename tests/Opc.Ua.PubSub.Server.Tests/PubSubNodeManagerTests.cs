@@ -146,6 +146,62 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        public async Task SecurityGroupNodeGrantsCallToAdministratorsWithoutChangingKeyAccess()
+        {
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true);
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            var outputs = new List<Variant>();
+
+            // The permissions of the group name its key consumers only.
+            ArrayOf<ExtensionObject> rolePermissions =
+            [
+                new ExtensionObject(new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_Operator,
+                    Permissions = (uint)PermissionType.Call
+                })
+            ];
+            ServiceResult addResult = harness.AddSecurityGroupMethod.OnCallMethod!(
+                harness.Context,
+                harness.AddSecurityGroupMethod,
+                BuildArray(
+                    Variant.From("consumer-group"),
+                    Variant.From(60_000.0),
+                    Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                    Variant.From(1U),
+                    Variant.From(1U),
+                    Variant.From(rolePermissions)),
+                outputs);
+            Assert.That(ServiceResult.IsGood(addResult), Is.True);
+            Assert.That(outputs[1].TryGetValue(out NodeId groupNodeId), Is.True);
+            BaseObjectState groupNode = harness.Manager.FindPredefinedNode<BaseObjectState>(groupNodeId);
+            SksSecurityGroup? group = await harness.SksServer
+                .GetSecurityGroupAsync("consumer-group").ConfigureAwait(false);
+
+            // The Call service checks Call on the Object as well as on the
+            // Method, so the roles that manage the group need it on the node.
+            var callers = new List<NodeId>();
+            foreach (RolePermissionType permission in groupNode.RolePermissions.Span)
+            {
+                if (((PermissionType)permission.Permissions & PermissionType.Call) != 0)
+                {
+                    callers.Add(permission.RoleId);
+                }
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(callers, Has.Member(ObjectIds.WellKnownRole_Operator));
+                Assert.That(callers, Has.Member(ObjectIds.WellKnownRole_SecurityAdmin));
+                Assert.That(callers, Has.Member(ObjectIds.WellKnownRole_SecurityKeyServerAdmin));
+                // Key access is decided by the group itself and is unchanged.
+                Assert.That(group, Is.Not.Null);
+                Assert.That(group!.RolePermissions.Count, Is.EqualTo(1));
+                Assert.That(group.RolePermissions[0].RoleId, Is.EqualTo(ObjectIds.WellKnownRole_Operator));
+            });
+        }
+
+        [Test]
         [TestSpec("8.3.4", Summary = "AddSecurityGroup returns a browseable SecurityGroupType node")]
         [TestSpec("8.4.2", Summary = "SecurityGroupType InvalidateKeys is callable")]
         [TestSpec("8.4.3", Summary = "SecurityGroupType ForceKeyRotation is callable")]
@@ -208,7 +264,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Assert.That(StatusCode.IsGood(addResult.StatusCode), Is.True);
                 Assert.That(groupNode, Is.Not.Null);
                 Assert.That(groupNode.TypeDefinitionId, Is.EqualTo(new NodeId(15471u)));
-                Assert.That(groupNode.RolePermissions, Has.Count.EqualTo(1));
+                // SecurityAdmin from the group plus SecurityKeyServerAdmin.
+                Assert.That(groupNode.RolePermissions, Has.Count.EqualTo(2));
                 Assert.That(StatusCode.IsGood(rotateResult.StatusCode), Is.True);
                 Assert.That(afterRotate.FirstTokenId, Is.Not.EqualTo(before.FirstTokenId));
                 Assert.That(StatusCode.IsGood(invalidateResult.StatusCode), Is.True);
@@ -301,6 +358,139 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             Assert.That(harness.Manager.StatusBinding, Is.Null);
             Assert.That(harness.Manager.AreMethodsBound, Is.True);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task DynamicConfigurationMethodsAreRestrictedToAdministrativeRoles()
+        {
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true);
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            ushort ns = harness.Manager.AddressSpaceNamespaceIndex;
+
+            await harness.Application.AddConnectionAsync(new PubSubConnectionDataType
+            {
+                Name = "conn-acl",
+                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                {
+                    Url = "opc.udp://224.0.0.22:4840"
+                })
+            }).ConfigureAwait(false);
+
+            // The Call service evaluates only the Method node's own RolePermissions,
+            // so every Method created in the PubSub namespace must carry them.
+            BaseObjectState fileNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId("pubsub:configuration", ns))!;
+            BaseObjectState connectionNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId("pubsub:connection:conn-acl", ns))!;
+            BaseObjectState statusNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
+                new NodeId("pubsub:connection:conn-acl:Status", ns))!;
+            int checkedMethods = 0;
+            foreach (BaseObjectState parent in new[] { fileNode, connectionNode, statusNode })
+            {
+                var children = new List<BaseInstanceState>();
+                parent.GetChildren(harness.Context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    if (child is MethodState method)
+                    {
+                        AssertRestrictedTo(method, ObjectIds.WellKnownRole_ConfigureAdmin);
+                        checkedMethods++;
+                    }
+                }
+            }
+            // 8 file methods, 3 connection methods, Enable and Disable.
+            Assert.That(checkedMethods, Is.EqualTo(13));
+
+            var outputs = new List<Variant>();
+            ArrayOf<ExtensionObject> rolePermissions =
+            [
+                new ExtensionObject(new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    Permissions = (uint)PermissionType.Call
+                })
+            ];
+            ServiceResult addResult = harness.AddSecurityGroupMethod.OnCallMethod!(
+                harness.Context,
+                harness.AddSecurityGroupMethod,
+                BuildArray(
+                    Variant.From("acl-group"),
+                    Variant.From(60_000.0),
+                    Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                    Variant.From(1U),
+                    Variant.From(1U),
+                    Variant.From(rolePermissions)),
+                outputs);
+            Assert.That(ServiceResult.IsGood(addResult), Is.True);
+            Assert.That(outputs[1].TryGetValue(out NodeId groupNodeId), Is.True);
+            BaseObjectState groupNode = harness.Manager.FindPredefinedNode<BaseObjectState>(groupNodeId);
+            // A key consumer of the group (here every authenticated user) must
+            // not thereby be able to invalidate or rotate its keys.
+            foreach (string name in new[] { "InvalidateKeys", "ForceKeyRotation" })
+            {
+                var method = (MethodState)groupNode.FindChild(harness.Context, new QualifiedName(name, ns))!;
+                AssertRestrictedTo(method, ObjectIds.WellKnownRole_SecurityKeyServerAdmin);
+            }
+        }
+
+        private static void AssertRestrictedTo(MethodState method, NodeId administrativeRole)
+        {
+            string name = method.NodeId.ToString();
+            bool administratorMayCall = false;
+            foreach (RolePermissionType permission in method.RolePermissions.Span)
+            {
+                Assert.That(permission.RoleId, Is.Not.EqualTo(ObjectIds.WellKnownRole_Anonymous), name);
+                Assert.That(permission.RoleId, Is.Not.EqualTo(ObjectIds.WellKnownRole_AuthenticatedUser), name);
+                administratorMayCall |= permission.RoleId == administrativeRole &&
+                    (permission.Permissions & (uint)PermissionType.Call) != 0;
+            }
+            Assert.That(administratorMayCall, Is.True, name);
+            Assert.That(method.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired), name);
+        }
+
+        [Test]
+        public async Task ConnectionAddWriterGroupMethodInjectsItsOwnerAndIsRestricted()
+        {
+            using var harness = new Harness();
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            NodeId connectionId = await harness.Application.AddConnectionAsync(new PubSubConnectionDataType
+            {
+                Name = "conn-inject",
+                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                {
+                    Url = "opc.udp://224.0.0.22:4840"
+                })
+            }).ConfigureAwait(false);
+            BaseObjectState connectionNode = harness.Manager.FindPredefinedNode<BaseObjectState>(connectionId);
+            var addWriterGroup = (MethodState)connectionNode.FindChild(
+                harness.Context,
+                new QualifiedName("AddWriterGroup", harness.Manager.AddressSpaceNamespaceIndex))!;
+
+            // The caller passes the configuration only; the owning connection
+            // is injected in front of it, so a single argument is enough to get
+            // past the argument count check and reach the type check of the
+            // configuration argument.
+            ServiceResult result = addWriterGroup.OnCallMethod!(
+                harness.Context,
+                addWriterGroup,
+                BuildArray(Variant.From("not a writer group")),
+                []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(result.LocalizedText.Text, Does.Contain("argument 1"));
+                Assert.That(
+                    addWriterGroup.AccessRestrictions,
+                    Is.EqualTo(AccessRestrictionType.SigningRequired));
+                Assert.That(addWriterGroup.RolePermissions.Count, Is.GreaterThan(0));
+            });
         }
 
         [Test]

@@ -216,8 +216,17 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
             services.TryAddSingleton<IDataSetMetaDataRegistry>(
-                sp => new DataSetMetaDataRegistry(
-                    sp.GetService<ILogger<DataSetMetaDataRegistry>>()));
+                sp =>
+                {
+                    PubSubApplicationOptions opts =
+                        sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value;
+                    return new DataSetMetaDataRegistry(
+                        sp.GetService<ILogger<DataSetMetaDataRegistry>>())
+                    {
+                        MaxUnauthenticatedCost = opts.MaxUnauthenticatedMetaDataCost,
+                        UnauthenticatedIdleTimeout = opts.UnauthenticatedMetaDataIdleTimeout
+                    };
+                });
             services.TryAddSingleton<IPubSubDiagnostics>(sp =>
             {
                 PubSubApplicationOptions opts =
@@ -303,6 +312,8 @@ namespace Microsoft.Extensions.DependencyInjection
                         .AsTask().GetAwaiter().GetResult();
                 var snapshot =
                     PubSubConfigurationSnapshot.Create(config, clock);
+                PubSubApplicationOptions options =
+                    sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value;
                 return new PubSubApplication(
                     snapshot,
                     sp.GetServices<IPubSubTransportFactory>(),
@@ -325,7 +336,12 @@ namespace Microsoft.Extensions.DependencyInjection
                     activationCoordinator:
                         sp.GetRequiredService<IPubSubActivationCoordinator>(),
                     writerCheckpointStore:
-                        sp.GetRequiredService<IPubSubWriterCheckpointStore>());
+                        sp.GetRequiredService<IPubSubWriterCheckpointStore>(),
+                    unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
+                    {
+                        MaxCost = options.MaxUnauthenticatedMetaDataCost,
+                        IdleTimeout = options.UnauthenticatedMetaDataIdleTimeout
+                    });
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

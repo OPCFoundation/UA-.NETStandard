@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
@@ -71,6 +73,257 @@ namespace Opc.Ua.PubSub.Tests.MetaData
             Assert.That(host.TryGet(in key, out stored), Is.EqualTo(MetaDataMatchResult.Match));
             Assert.That(stored, Is.SameAs(configured),
                 "Even an authenticated connection announcement must not mutate the host or sibling scopes.");
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public void UnauthenticatedMetadataIsBoundedByCostNotOnlyByIdentityCount()
+        {
+            var scope = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = 4096 };
+            DataSetMetaDataKey first = NewKey(dataSetWriterId: 1);
+            DataSetMetaDataKey second = NewKey(dataSetWriterId: 2);
+            DataSetMetaDataKey third = NewKey(dataSetWriterId: 3);
+
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.False,
+                "A second large announcement must not fit in the remaining budget.");
+            Assert.That(scope.TryGet(in second, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+
+            // Replacing an entry releases what the replaced announcement was charged.
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 100),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+
+            // Elements that are tiny on the wire are charged as objects.
+            var manyFields = new FieldMetaData[64];
+            for (int i = 0; i < manyFields.Length; i++)
+            {
+                manyFields[i] = new FieldMetaData();
+            }
+            DataSetMetaDataType wide = NewMeta();
+            wide.Fields = manyFields;
+            scope.Remove(in second);
+            Assert.That(
+                scope.RegisterReceived(in third, wide, authenticated: false, frameLength: 200),
+                Is.False);
+
+            // Type descriptions are charged per description and per member.
+            var enumFields = new EnumField[40];
+            for (int i = 0; i < enumFields.Length; i++)
+            {
+                enumFields[i] = new EnumField { Name = "E", Value = i };
+            }
+            DataSetMetaDataType typed = NewMeta();
+            typed.EnumDataTypes =
+            [
+                new EnumDescription
+                {
+                    EnumDefinition = new EnumDefinition { Fields = enumFields }
+                }
+            ];
+            typed.StructureDataTypes =
+            [
+                new StructureDescription
+                {
+                    StructureDefinition = new StructureDefinition
+                    {
+                        Fields = [new StructureField { Name = "F" }]
+                    }
+                }
+            ];
+            Assert.That(
+                scope.RegisterReceived(in third, typed, authenticated: false, frameLength: 200),
+                Is.False);
+
+            // Authenticated metadata is not subject to the budget.
+            Assert.That(
+                scope.RegisterReceived(in third, wide, authenticated: true, frameLength: 1_000_000),
+                Is.True);
+        }
+
+        [Test]
+        public void UnauthenticatedMetadataChargesWhatPropertyValuesRetain()
+        {
+            var scope = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = 64 * 1024 };
+            DataSetMetaDataKey key = NewKey(dataSetWriterId: 1);
+
+            // A null DataValue is one byte on the wire and a full struct once
+            // decoded, so the frame length alone understates what is retained.
+            ArrayOf<DataValue> dataValues = new DataValue[4000];
+            DataSetMetaDataType nested = WithProperty(Variant.From(dataValues));
+            Assert.That(
+                scope.RegisterReceived(in key, nested, authenticated: false, frameLength: 4100),
+                Is.False);
+
+            // Arrays of reference-like values are charged per element.
+            ArrayOf<string> strings = new string[2000];
+            DataSetMetaDataType references = WithProperty(Variant.From(strings));
+            Assert.That(
+                scope.RegisterReceived(in key, references, authenticated: false, frameLength: 100),
+                Is.False);
+            Assert.That(scope.RejectedUnauthenticatedCount, Is.EqualTo(2));
+
+            // A scalar property and an array of primitives cost what the frame carried.
+            ArrayOf<int> numbers = new int[2000];
+            Assert.That(
+                scope.RegisterReceived(
+                    in key, WithProperty(Variant.From(numbers)), authenticated: false, frameLength: 8100),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(
+                    in key, WithProperty(Variant.From("unit")), authenticated: false, frameLength: 100),
+                Is.True);
+
+            // Authenticated metadata is not subject to the budget.
+            Assert.That(
+                scope.RegisterReceived(in key, nested, authenticated: true, frameLength: 4100),
+                Is.True);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public void IdleUnauthenticatedMetadataIsEvictedToMakeRoom()
+        {
+            var clock = new FakeTimeProvider();
+            var evicted = new List<DataSetMetaDataKey>();
+            var scope = new DataSetMetaDataRegistry
+            {
+                MaxUnauthenticatedCost = 4096,
+                Clock = clock,
+                UnauthenticatedEvicted = (in DataSetMetaDataKey key) => evicted.Add(key)
+            };
+            DataSetMetaDataKey first = NewKey(dataSetWriterId: 1);
+            DataSetMetaDataKey second = NewKey(dataSetWriterId: 2);
+            DataSetMetaDataKey third = NewKey(dataSetWriterId: 3);
+
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.False,
+                "An entry that was just announced is not evicted.");
+
+            // An entry that is looked up is in use, however old its announcement.
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(scope.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.False);
+            Assert.That(evicted, Is.Empty);
+
+            // Once nobody announced or used it for the idle timeout it makes room.
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            Assert.That(evicted, Is.EqualTo(new[] { first }));
+            Assert.That(scope.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+
+            // Authenticated metadata is never evicted.
+            Assert.That(
+                scope.RegisterReceived(in third, NewMeta(), authenticated: true, frameLength: 1_000_000),
+                Is.True);
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            Assert.That(evicted, Is.EqualTo(new[] { first, second }));
+            Assert.That(scope.TryGet(in third, out _), Is.EqualTo(MetaDataMatchResult.Match));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public void RefusedLargeAnnouncementDoesNotKeepSmallerOnesFromEvicting()
+        {
+            var clock = new FakeTimeProvider();
+            var scope = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = 16000, Clock = clock };
+            DataSetMetaDataKey active = NewKey(dataSetWriterId: 1);
+            DataSetMetaDataKey idle = NewKey(dataSetWriterId: 2);
+            DataSetMetaDataKey large = NewKey(dataSetWriterId: 3);
+            DataSetMetaDataKey small = NewKey(dataSetWriterId: 4);
+
+            // The budget is full: 10000 in use and 6000 idle.
+            Assert.That(
+                scope.RegisterReceived(in active, NewMeta(), authenticated: false, frameLength: 9872),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(in idle, NewMeta(), authenticated: false, frameLength: 5872),
+                Is.True);
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(scope.TryGet(in active, out _), Is.EqualTo(MetaDataMatchResult.Match));
+
+            // An announcement that needs more than what is idle is refused,
+            // repeatedly, without anyone losing metadata for it.
+            for (int i = 0; i < 3; i++)
+            {
+                Assert.That(
+                    scope.RegisterReceived(in large, NewMeta(), authenticated: false, frameLength: 7872),
+                    Is.False);
+            }
+            Assert.That(scope.TryGet(in idle, out _), Is.EqualTo(MetaDataMatchResult.Match));
+
+            // That refusal must not keep an announcement that fits into the
+            // idle space from evicting. The lookup above made the idle entry
+            // current again, so it has to become idle once more first.
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(scope.TryGet(in active, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(
+                scope.RegisterReceived(in large, NewMeta(), authenticated: false, frameLength: 7872),
+                Is.False);
+            Assert.That(
+                scope.RegisterReceived(in small, NewMeta(), authenticated: false, frameLength: 872),
+                Is.True);
+            Assert.That(scope.TryGet(in idle, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+            Assert.That(scope.TryGet(in active, out _), Is.EqualTo(MetaDataMatchResult.Match));
+        }
+
+        [Test]
+        public void IdleEvictionOfUnauthenticatedMetadataCanBeDisabled()
+        {
+            var clock = new FakeTimeProvider();
+            var scope = new DataSetMetaDataRegistry
+            {
+                MaxUnauthenticatedCost = 4096,
+                UnauthenticatedIdleTimeout = TimeSpan.Zero,
+                Clock = clock
+            };
+            DataSetMetaDataKey first = NewKey(dataSetWriterId: 1);
+            DataSetMetaDataKey second = NewKey(dataSetWriterId: 2);
+
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            clock.Advance(TimeSpan.FromHours(1));
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.False);
+            Assert.That(scope.EvictIdleUnauthenticated(1), Is.False);
+            Assert.That(scope.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.Match));
+        }
+
+        private static DataSetMetaDataType WithProperty(Variant value)
+        {
+            DataSetMetaDataType metaData = NewMeta();
+            metaData.Fields =
+            [
+                new FieldMetaData
+                {
+                    Name = "F",
+                    Properties =
+                    [
+                        new KeyValuePair { Key = new QualifiedName("P"), Value = value }
+                    ]
+                }
+            ];
+            return metaData;
         }
 
         private static DataSetMetaDataKey NewKey(

@@ -79,6 +79,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly IPubSubScheduler m_scheduler;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
+        private readonly UnauthenticatedMetaDataLimits? m_unauthenticatedMetaDataLimits;
         private readonly TimeProvider m_timeProvider;
 
         private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
@@ -165,6 +166,8 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
+        /// <param name="unauthenticatedMetaDataLimits">Optional limits for DataSetMetaData received
+        /// without verified message security; the limits of the registry apply when omitted.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -183,7 +186,8 @@ namespace Opc.Ua.PubSub.Application
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -204,7 +208,8 @@ namespace Opc.Ua.PubSub.Application
                 dataSetSourceProvider: null,
                 dataSetSinkProvider: null,
                 activationCoordinator: activationCoordinator,
-                writerCheckpointStore: writerCheckpointStore)
+                writerCheckpointStore: writerCheckpointStore,
+                unauthenticatedMetaDataLimits: unauthenticatedMetaDataLimits)
         {
         }
 
@@ -243,6 +248,8 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
+        /// <param name="unauthenticatedMetaDataLimits">Optional limits for DataSetMetaData received
+        /// without verified message security; the limits of the registry apply when omitted.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -263,7 +270,8 @@ namespace Opc.Ua.PubSub.Application
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -284,7 +292,8 @@ namespace Opc.Ua.PubSub.Application
                 dataSetSourceProvider,
                 dataSetSinkProvider,
                 activationCoordinator,
-                writerCheckpointStore)
+                writerCheckpointStore,
+                unauthenticatedMetaDataLimits)
         {
         }
 
@@ -308,7 +317,8 @@ namespace Opc.Ua.PubSub.Application
             IDataSetSourceProvider? dataSetSourceProvider = null,
             IDataSetSinkProvider? dataSetSinkProvider = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits = null)
         {
             if (snapshot is null)
             {
@@ -357,6 +367,7 @@ namespace Opc.Ua.PubSub.Application
             m_scheduler = scheduler;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
+            m_unauthenticatedMetaDataLimits = unauthenticatedMetaDataLimits;
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;
@@ -584,7 +595,8 @@ namespace Opc.Ua.PubSub.Application
                 requiredSecurityMode,
                 m_scheduler,
                 m_activationCoordinator,
-                m_writerCheckpointStore);
+                m_writerCheckpointStore,
+                m_unauthenticatedMetaDataLimits);
             lock (m_gate)
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)

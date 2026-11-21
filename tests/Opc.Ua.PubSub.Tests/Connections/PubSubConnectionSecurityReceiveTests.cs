@@ -35,8 +35,10 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Microsoft.Extensions.Time.Testing;
 using Opc.Ua.PubSub.Connections;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
@@ -288,6 +290,46 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 "a secured frame when a security wrapper is available.");
         }
 
+        [TestCase(UadpSecurityWrapOptions.EncryptOnly, false)]
+        [TestCase(UadpSecurityWrapOptions.SignAndEncrypt, true)]
+        [Category("SecurityRegression")]
+        public async Task OpportunisticReaderTreatsOnlySignedFramesAsAuthenticatedAsync(
+            UadpSecurityWrapOptions options,
+            bool expectAuthenticated)
+        {
+            // A reader that does not require security unwraps a frame that
+            // carries the security flag and a known SecurityTokenId even when
+            // it has no signature. Such a frame proves nothing about its
+            // sender, so the metadata it carries stays unauthenticated.
+            (UadpSecurityWrapper publisher, UadpSecurityWrapper subscriber) =
+                CreateMatchingWrapperPair(tokenId: 1U);
+            byte[] frame = await BuildSecuredFrameAsync(publisher, options).ConfigureAwait(false);
+            var metaData = new JsonMetaDataMessage
+            {
+                PublisherId = PublisherId.FromByte(1),
+                DataSetWriterId = 1,
+                MetaDataPayload = new DataSetMetaDataType
+                {
+                    Name = "Inbound",
+                    ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 7 }
+                }
+            };
+            var transport = new ProgrammableTransport([frame]);
+
+            await using PubSubConnection conn = NewConnection(
+                transport, new FixedMessageDecoder(metaData), subscriber,
+                MessageSecurityMode.None, withReader: true);
+
+            await conn.EnableAsync().ConfigureAwait(false);
+            await transport.WaitUntilDrainedAsync().ConfigureAwait(false);
+            await conn.DisableAsync().ConfigureAwait(false);
+
+            var registry = (DataSetMetaDataRegistry)conn.InboundMetaDataRegistry;
+            var key = new DataSetMetaDataKey(PublisherId.FromByte(1), 0, 1, Uuid.Empty, 7);
+            Assert.That(registry.TryGet(in key, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(registry.IsAuthenticated(in key), Is.EqualTo(expectAuthenticated));
+        }
+
         [Test]
         public async Task SecuredReaderRejectsChunkedMessageWithOneTamperedChunkAsync()
         {
@@ -364,7 +406,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             ProgrammableTransport transport,
             INetworkMessageDecoder decoder,
             UadpSecurityWrapper? securityWrapper,
-            MessageSecurityMode requiredSecurityMode)
+            MessageSecurityMode requiredSecurityMode,
+            bool withReader = false)
         {
             var cfg = new PubSubConnectionDataType
             {
@@ -374,7 +417,16 @@ namespace Opc.Ua.PubSub.Tests.Connections
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var readerGroup = new ReaderGroup(
                 new ReaderGroupDataType { Name = "rg" },
-                Array.Empty<DataSetReader>(),
+                withReader
+                    ?
+                    [
+                        new DataSetReader(
+                            new DataSetReaderDataType { Name = "any-publisher" },
+                            new Moq.Mock<ISubscribedDataSetSink>().Object,
+                            telemetry,
+                            TimeProvider.System)
+                    ]
+                    : Array.Empty<DataSetReader>(),
                 telemetry);
 
             return new PubSubConnection(
@@ -420,7 +472,9 @@ namespace Opc.Ua.PubSub.Tests.Connections
             return encoded.ToArray();
         }
 
-        private static async Task<byte[]> BuildSecuredFrameAsync(UadpSecurityWrapper publisher)
+        private static async Task<byte[]> BuildSecuredFrameAsync(
+            UadpSecurityWrapper publisher,
+            UadpSecurityWrapOptions options = UadpSecurityWrapOptions.SignAndEncrypt)
         {
             var msg = new UadpNetworkMessage
             {
@@ -443,7 +497,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
             ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
             ReadOnlyMemory<byte> wrapped = await publisher
-                .WrapAsync(prefix, inner, UadpSecurityWrapOptions.SignAndEncrypt)
+                .WrapAsync(prefix, inner, options)
                 .ConfigureAwait(false);
             return wrapped.ToArray();
         }
@@ -543,6 +597,26 @@ namespace Opc.Ua.PubSub.Tests.Connections
             {
                 Interlocked.Increment(ref m_callCount);
                 return new ValueTask<PubSubNetworkMessage?>((PubSubNetworkMessage?)null);
+            }
+        }
+
+        private sealed class FixedMessageDecoder : INetworkMessageDecoder
+        {
+            private readonly PubSubNetworkMessage m_message;
+
+            public FixedMessageDecoder(PubSubNetworkMessage message)
+            {
+                m_message = message;
+            }
+
+            public string TransportProfileUri => UdpProfile;
+
+            public ValueTask<PubSubNetworkMessage?> TryDecodeAsync(
+                ReadOnlyMemory<byte> frame,
+                PubSubNetworkMessageContext context,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<PubSubNetworkMessage?>(m_message);
             }
         }
 

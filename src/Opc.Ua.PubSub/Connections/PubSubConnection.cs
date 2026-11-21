@@ -90,6 +90,13 @@ namespace Opc.Ua.PubSub.Connections
         private readonly Dictionary<ActionCorrelationKey, PendingActionRequest> m_pendingActions = [];
         private readonly Dictionary<ActionHandlerKey, ActionResponder> m_actionHandlers = [];
         private readonly HashSet<InboundMetaDataIdentity> m_inboundMetaDataIdentities = [];
+        private readonly HashSet<InboundMetaDataIdentity> m_evictedMetaDataIdentities = [];
+        private readonly Queue<InboundMetaDataIdentity> m_evictedMetaDataOrder = new();
+        private readonly HashSet<ushort> m_metaDataRecoveryWriterIds = [];
+        private volatile bool m_metaDataRecoveryPending;
+        private bool m_metaDataRecoveryRequested;
+        private long m_lastMetaDataRecovery;
+        private long m_actionResponsesNotSent;
         private int m_chunkSequenceNumber;
         private int m_discoverySequenceNumber;
         private int m_actionRequestId;
@@ -185,6 +192,8 @@ namespace Opc.Ua.PubSub.Connections
         /// </param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
+        /// <param name="unauthenticatedMetaDataLimits">Optional limits for DataSetMetaData received
+        /// without verified message security; the limits of the registry apply when omitted.</param>
         /// <exception cref="PubSubConfigurationException">
         /// A required security wrapper is missing or the connection requests distinct SecurityGroups.
         /// </exception>
@@ -205,7 +214,8 @@ namespace Opc.Ua.PubSub.Connections
             MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None,
             IPubSubScheduler? scheduler = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits = null)
         {
             if (configuration is null)
             {
@@ -269,7 +279,24 @@ namespace Opc.Ua.PubSub.Connections
             ReaderGroups = readerGroups.ToArrayOf<ReaderGroup, IReaderGroup>(static group => group);
             m_metaDataRegistry = metaDataRegistry;
             m_inboundMetaDataRegistry = new DataSetMetaDataRegistry(
-                metaDataRegistry, telemetry.CreateLogger<DataSetMetaDataRegistry>());
+                metaDataRegistry, telemetry.CreateLogger<DataSetMetaDataRegistry>())
+            {
+                // Received metadata is kept per connection and the limits apply
+                // to each of them. Limits passed to the connection hold for any
+                // registry implementation; without them the ones configured on
+                // the in-memory registry of the host apply.
+                MaxUnauthenticatedCost = unauthenticatedMetaDataLimits?.MaxCost ??
+                    (metaDataRegistry is DataSetMetaDataRegistry configured
+                        ? configured.MaxUnauthenticatedCost
+                        : DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost),
+                UnauthenticatedIdleTimeout = unauthenticatedMetaDataLimits?.IdleTimeout ??
+                    (metaDataRegistry is DataSetMetaDataRegistry configuredIdle
+                        ? configuredIdle.UnauthenticatedIdleTimeout
+                        : DataSetMetaDataRegistry.DefaultUnauthenticatedIdleTimeout),
+                Clock = timeProvider,
+                UnauthenticatedEvicted = OnInboundMetaDataEvicted,
+                LookupMissed = OnInboundMetaDataLookupMissed
+            };
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
@@ -967,6 +994,7 @@ namespace Opc.Ua.PubSub.Connections
                     ReadOnlyMemory<byte> framePayload = frame.Payload;
                     ReadOnlyMemory<byte> rawFrame = frame.Payload;
                     bool frameSecured = false;
+                    bool frameVerified = false;
                     bool singleFrame = true;
 
                     if (UadpDecoder.TryReadPrefix(framePayload, out UadpPrefixInfo framePrefix))
@@ -995,29 +1023,38 @@ namespace Opc.Ua.PubSub.Connections
                                 m_logger.DroppingUnsecuredInboundFrame(Name, m_requiredSecurityMode);
                                 continue;
                             }
-                            ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
-                                framePayload, prefixLength,
-                                framePublisherId, frameWriterGroupId,
-                                m_requiredSecurityMode, cancellationToken)
-                                .ConfigureAwait(false);
+                            (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
+                                await TryUnwrapInboundAsync(
+                                    framePayload, prefixLength,
+                                    framePublisherId, frameWriterGroupId,
+                                    m_requiredSecurityMode, cancellationToken)
+                                    .ConfigureAwait(false);
                             if (unwrapped is null)
                             {
                                 continue;
                             }
-                            framePayload = unwrapped.Value;
+                            framePayload = unwrapped.Value.Payload;
+                            frameVerified = unwrapped.Value.SignatureVerified;
                         }
                         else if (m_securityWrapper is not null && securityEnabled)
                         {
-                            ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
-                                framePayload, prefixLength,
-                                framePublisherId, frameWriterGroupId,
-                                MessageSecurityMode.None, cancellationToken)
-                                .ConfigureAwait(false);
+                            (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
+                                await TryUnwrapInboundAsync(
+                                    framePayload, prefixLength,
+                                    framePublisherId, frameWriterGroupId,
+                                    MessageSecurityMode.None, cancellationToken)
+                                    .ConfigureAwait(false);
                             if (unwrapped is null)
                             {
                                 continue;
                             }
-                            framePayload = unwrapped.Value;
+                            framePayload = unwrapped.Value.Payload;
+
+                            // No SecurityMode is required here, so a frame
+                            // without a signature unwraps too. A message put
+                            // together from chunks is not treated as verified
+                            // either: unsigned chunks can be mixed into it.
+                            frameVerified = unwrapped.Value.SignatureVerified && !framePrefix.ChunkMessage;
                         }
 
                         if (framePrefix.ChunkMessage)
@@ -1073,8 +1110,10 @@ namespace Opc.Ua.PubSub.Connections
                         continue;
                     }
 
-                    // Only a frame whose security wrapper was verified above is authenticated.
-                    bool frameAuthenticated = frameSecured && m_securityWrapper is not null;
+                    // Only a frame whose signature was verified above is
+                    // authenticated. The security flag of the frame and a known
+                    // SecurityTokenId are not enough: both are sender-controlled.
+                    bool frameAuthenticated = frameVerified;
                     PubSubNetworkMessage? message;
                     try
                     {
@@ -1090,6 +1129,10 @@ namespace Opc.Ua.PubSub.Connections
                         m_logger.DecoderThrewOnInboundFrame(ex);
                         continue;
                     }
+                    if (m_metaDataRecoveryPending)
+                    {
+                        await TryRecoverEvictedMetaDataAsync(cancellationToken).ConfigureAwait(false);
+                    }
                     if (message is null)
                     {
                         continue;
@@ -1103,7 +1146,7 @@ namespace Opc.Ua.PubSub.Connections
                     if (message is UadpDiscoveryResponseMessage discoveryResponse)
                     {
                         RouteInboundDiscoveryResponse(discoveryResponse);
-                        _ = TryRouteInboundMetaData(message, frameAuthenticated);
+                        _ = TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length);
                         continue;
                     }
                     if (message is UadpActionRequestMessage actionRequest)
@@ -1122,7 +1165,7 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
-                    if (TryRouteInboundMetaData(message, frameAuthenticated))
+                    if (TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length))
                     {
                         continue;
                     }
@@ -1172,6 +1215,9 @@ namespace Opc.Ua.PubSub.Connections
         /// <param name="message">Decoded inbound NetworkMessage.</param>
         /// <param name="authenticated"><see langword="true"/> when the
         /// frame carried verified message security.</param>
+        /// <param name="frameLength">Length in bytes of the frame that
+        /// carried the metadata; charged to the budget for unauthenticated
+        /// metadata of the registry.</param>
         /// <returns><see langword="true"/> when the message was a
         /// metadata frame (so callers should skip the data-side
         /// dispatch).</returns>
@@ -1186,14 +1232,18 @@ namespace Opc.Ua.PubSub.Connections
         /// </remarks>
         internal bool TryRouteInboundMetaData(
             PubSubNetworkMessage message,
-            bool authenticated = false)
+            bool authenticated = false,
+            int frameLength = 0)
         {
             return TryRouteInboundMetaData(
                 m_inboundMetaDataRegistry,
                 message,
                 m_logger,
                 authenticated,
-                AdmitInboundMetaDataIdentity);
+                AdmitInboundMetaDataIdentity,
+                frameLength,
+                ReleaseInboundMetaDataIdentity,
+                CommitInboundMetaDataIdentity);
         }
 
         /// <summary>
@@ -1224,12 +1274,187 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     return true;
                 }
-                if (m_inboundMetaDataIdentities.Count >= MaxInboundMetaDataIdentities)
+                if (m_inboundMetaDataIdentities.Count < MaxInboundMetaDataIdentities)
                 {
-                    return false;
+                    m_inboundMetaDataIdentities.Add(identity);
+                    return true;
                 }
+            }
+
+            // All identity slots are taken. An unauthenticated entry that
+            // nobody announced or used for a while can give up its slot, so
+            // that a sender that filled them and went silent does not keep
+            // later publishers out. Nothing is evicted here: the announcement
+            // may still be refused, and then nobody may lose metadata for it.
+            // The identity takes a slot above the limit, which
+            // CommitInboundMetaDataIdentity settles once it is registered and
+            // ReleaseInboundMetaDataIdentity gives back when it is not.
+            if (!m_inboundMetaDataRegistry.HasIdleUnauthenticated())
+            {
+                return false;
+            }
+            lock (m_gate)
+            {
                 m_inboundMetaDataIdentities.Add(identity);
-                return true;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Called once an admitted announcement is registered. When its
+        /// identity took a slot above the limit, the longest idle
+        /// unauthenticated entry is evicted now; when there is none any more,
+        /// the announcement is withdrawn instead.
+        /// </summary>
+        private void CommitInboundMetaDataIdentity(in DataSetMetaDataKey key)
+        {
+            var identity = new InboundMetaDataIdentity(
+                key.PublisherId,
+                key.WriterGroupId,
+                key.DataSetWriterId);
+            bool aboveLimit;
+            lock (m_gate)
+            {
+                if (m_evictedMetaDataIdentities.Remove(identity))
+                {
+                    // Its metadata is back, so it is not requested any more.
+                    m_metaDataRecoveryWriterIds.Remove(key.DataSetWriterId);
+                }
+                aboveLimit = m_inboundMetaDataIdentities.Count > MaxInboundMetaDataIdentities;
+            }
+            if (aboveLimit && !m_inboundMetaDataRegistry.EvictIdleUnauthenticated(1, in key))
+            {
+                m_inboundMetaDataRegistry.Remove(in key);
+                lock (m_gate)
+                {
+                    m_inboundMetaDataIdentities.Remove(identity);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called for every unauthenticated entry the registry evicted
+        /// because it was idle: its identity slot is released and the
+        /// identity is remembered, so that its metadata can be requested
+        /// again when its publisher resumes.
+        /// </summary>
+        private void OnInboundMetaDataEvicted(in DataSetMetaDataKey key)
+        {
+            ReleaseInboundMetaDataIdentity(in key);
+            var identity = new InboundMetaDataIdentity(key.PublisherId, 0, key.DataSetWriterId);
+            lock (m_gate)
+            {
+                if (m_evictedMetaDataIdentities.Add(identity))
+                {
+                    m_evictedMetaDataOrder.Enqueue(identity);
+                    while (m_evictedMetaDataOrder.Count > MaxInboundMetaDataIdentities)
+                    {
+                        m_evictedMetaDataIdentities.Remove(m_evictedMetaDataOrder.Dequeue());
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called when a lookup finds no metadata. When the metadata of that
+        /// identity was evicted, a DataSetMessage of its publisher cannot be
+        /// decoded any more, so its DataSetWriterId is noted for
+        /// <see cref="TryRecoverEvictedMetaDataAsync"/>.
+        /// </summary>
+        private void OnInboundMetaDataLookupMissed(in DataSetMetaDataKey key)
+        {
+            var identity = new InboundMetaDataIdentity(key.PublisherId, 0, key.DataSetWriterId);
+            lock (m_gate)
+            {
+                if (m_evictedMetaDataIdentities.Contains(identity) &&
+                    m_metaDataRecoveryWriterIds.Count < MaxMetaDataRecoveryWriterIds)
+                {
+                    m_metaDataRecoveryWriterIds.Add(key.DataSetWriterId);
+                    m_metaDataRecoveryPending = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Maximum number of DataSetWriterIds one metadata recovery request names.
+        /// </summary>
+        internal const int MaxMetaDataRecoveryWriterIds = 16;
+
+        /// <summary>
+        /// Minimum time between two metadata recovery requests of a connection.
+        /// </summary>
+        internal static readonly TimeSpan MetaDataRecoveryInterval = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Requests the DataSetMetaData of publishers whose metadata was
+        /// evicted and that send again (Part 14 §7.2.4.6.4 discovery request).
+        /// Bounded: at most one request per
+        /// <see cref="MetaDataRecoveryInterval"/> naming at most
+        /// <see cref="MaxMetaDataRecoveryWriterIds"/> writers, because the
+        /// messages that trigger it are not authenticated.
+        /// </summary>
+        internal async ValueTask TryRecoverEvictedMetaDataAsync(CancellationToken cancellationToken)
+        {
+            ushort[] writerIds;
+            lock (m_gate)
+            {
+                if (m_metaDataRecoveryWriterIds.Count == 0)
+                {
+                    m_metaDataRecoveryPending = false;
+                    return;
+                }
+                long now = m_timeProvider.GetTimestamp();
+                if (m_metaDataRecoveryRequested &&
+                    m_timeProvider.GetElapsedTime(m_lastMetaDataRecovery, now) < MetaDataRecoveryInterval)
+                {
+                    return;
+                }
+                m_metaDataRecoveryRequested = true;
+                m_lastMetaDataRecovery = now;
+                writerIds = [.. m_metaDataRecoveryWriterIds];
+                m_metaDataRecoveryWriterIds.Clear();
+                m_metaDataRecoveryPending = false;
+            }
+            try
+            {
+                var request = new UadpDiscoveryRequestMessage
+                {
+                    PublisherId = PublisherId,
+                    DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                    DataSetWriterIds = writerIds
+                };
+                await SendNetworkMessageAsync(request, cancellationToken).ConfigureAwait(false);
+                m_logger.RequestedEvictedMetadata(Name, writerIds.Length);
+            }
+            catch (Exception ex) when (
+                ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                // Not every transport and encoding can carry a discovery
+                // request; the metadata then returns with the next announcement.
+                m_logger.EvictedMetadataRequestFailed(ex, Name);
+            }
+        }
+
+        /// <summary>
+        /// Gives back the identity slot reserved by
+        /// <see cref="AdmitInboundMetaDataIdentity"/> when the announcement was
+        /// not registered, so that rejected announcements cannot use up the
+        /// identity budget of the connection.
+        /// </summary>
+        private void ReleaseInboundMetaDataIdentity(in DataSetMetaDataKey key)
+        {
+            if (m_inboundMetaDataRegistry.ContainsLocal(in key))
+            {
+                // An earlier announcement of this identity is registered.
+                return;
+            }
+            var identity = new InboundMetaDataIdentity(
+                key.PublisherId,
+                key.WriterGroupId,
+                key.DataSetWriterId);
+            lock (m_gate)
+            {
+                m_inboundMetaDataIdentities.Remove(identity);
             }
         }
 
@@ -1271,7 +1496,13 @@ namespace Opc.Ua.PubSub.Connections
         internal delegate bool InboundMetaDataAdmission(in DataSetMetaDataKey key);
 
         /// <summary>
-        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage, bool)"/>
+        /// Notified when an admitted inbound metadata identity was not registered.
+        /// </summary>
+        /// <param name="key">Identity of the inbound metadata.</param>
+        internal delegate void InboundMetaDataRelease(in DataSetMetaDataKey key);
+
+        /// <summary>
+        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage, bool, int)"/>
         /// used by tests and by the receive loop. Dispatches the
         /// JSON / UADP metadata variants into the supplied registry.
         /// </summary>
@@ -1288,6 +1519,12 @@ namespace Opc.Ua.PubSub.Connections
         /// </param>
         /// <param name="admit">Optional admission check; identities it
         /// rejects are not registered.</param>
+        /// <param name="frameLength">Length in bytes of the frame that
+        /// carried the metadata.</param>
+        /// <param name="release">Optional notification that an admitted
+        /// identity was not registered.</param>
+        /// <param name="registered">Optional notification that an admitted
+        /// identity was registered.</param>
         /// <returns>Whether the message was recognised as metadata.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         internal static bool TryRouteInboundMetaData(
@@ -1295,7 +1532,10 @@ namespace Opc.Ua.PubSub.Connections
             PubSubNetworkMessage message,
             ILogger logger,
             bool authenticated = false,
-            InboundMetaDataAdmission? admit = null)
+            InboundMetaDataAdmission? admit = null,
+            int frameLength = 0,
+            InboundMetaDataRelease? release = null,
+            InboundMetaDataRelease? registered = null)
         {
             if (registry is null)
             {
@@ -1362,8 +1602,9 @@ namespace Opc.Ua.PubSub.Connections
             {
                 if (registry is DataSetMetaDataRegistry scopedRegistry)
                 {
-                    if (!scopedRegistry.RegisterReceived(in key, meta, authenticated))
+                    if (!scopedRegistry.RegisterReceived(in key, meta, authenticated, frameLength))
                     {
+                        release?.Invoke(in key);
                         return true;
                     }
                 }
@@ -1371,11 +1612,13 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     registry.Register(in key, meta);
                 }
+                registered?.Invoke(in key);
                 logger?.RegisteredInboundMetadata(writerId, key.MajorVersion);
             }
             catch (Exception ex)
             {
                 logger?.InboundMetadataRegistrationFailed(ex, writerId);
+                release?.Invoke(in key);
             }
             return true;
         }
@@ -1699,7 +1942,8 @@ namespace Opc.Ua.PubSub.Connections
                 ActionState = ActionState.Done,
                 Payload = result.OutputFields
             };
-            await SendNetworkMessageAsync(response, request.ResponseAddress, cancellationToken)
+            await SendActionResponseAsync(
+                response, request.ResponseAddress, request.DataSetWriterId, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -1775,8 +2019,43 @@ namespace Opc.Ua.PubSub.Connections
                 CorrelationData = message.CorrelationData,
                 Messages = [new ExtensionObject(responseBody)]
             };
-            await SendNetworkMessageAsync(response, message.ResponseAddress, cancellationToken)
+            await SendActionResponseAsync(
+                response, message.ResponseAddress, request.DataSetWriterId, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Sends an Action response from the receive loop. The response is built
+        /// from requestor-controlled input (CorrelationData, ResponseAddress), so a
+        /// response that cannot be encoded, secured or sent is dropped and logged:
+        /// it must never end the receive loop of the connection.
+        /// </summary>
+        private async ValueTask SendActionResponseAsync(
+            PubSubNetworkMessage response,
+            string? responseAddress,
+            ushort dataSetWriterId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await SendNetworkMessageAsync(response, responseAddress, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (
+                ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                // An encoder or transport may cancel its own operation (for
+                // example on a send timeout); only cancellation of the
+                // connection itself ends the receive loop. The requestor is
+                // not necessarily authenticated and can repeat a request that
+                // cannot be answered at packet rate, so the warning is emitted
+                // for the 1st, 2nd, 4th, 8th ... dropped response only.
+                long dropped = Interlocked.Increment(ref m_actionResponsesNotSent);
+                if ((dropped & (dropped - 1)) == 0)
+                {
+                    m_logger.ActionResponseNotSent(ex, dataSetWriterId, Name, dropped);
+                }
+            }
         }
 
         private async ValueTask<PubSubActionHandlerResult> InvokeActionHandlerAsync(
@@ -3012,7 +3291,7 @@ namespace Opc.Ua.PubSub.Connections
                 frame.Span, prefix, reassembled.Value.Span);
         }
 
-        private async ValueTask<ReadOnlyMemory<byte>?> TryUnwrapInboundAsync(
+        private async ValueTask<(ReadOnlyMemory<byte> Payload, bool SignatureVerified)?> TryUnwrapInboundAsync(
             ReadOnlyMemory<byte> frame,
             int prefixLength,
             PublisherId publisherId,
@@ -3045,7 +3324,7 @@ namespace Opc.Ua.PubSub.Connections
                 byte[] combined = new byte[totalLength];
                 prefix.Span.CopyTo(combined);
                 cleartext.Span.CopyTo(combined.AsSpan(prefix.Length));
-                return combined;
+                return (combined, result.SignatureVerified);
             }
             catch (OperationCanceledException)
             {
@@ -3484,6 +3763,18 @@ namespace Opc.Ua.PubSub.Connections
                 "expects it or the connection's metadata identity budget is exhausted.")]
         public static partial void IgnoringUnexpectedInboundMetadata(this ILogger logger, ushort writerId);
 
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 24, Level = LogLevel.Information,
+            Message = "Connection {Connection} requested the DataSetMetaData of {Count} DataSetWriters " +
+                "whose metadata had been evicted while they were idle.")]
+        public static partial void RequestedEvictedMetadata(this ILogger logger, string connection, int count);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 25, Level = LogLevel.Debug,
+            Message = "Connection {Connection} could not request evicted DataSetMetaData.")]
+        public static partial void EvictedMetadataRequestFailed(
+            this ILogger logger,
+            Exception exception,
+            string connection);
+
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 13, Level = LogLevel.Error,
             Message = "Inbound metadata registration failed for writer {WriterId}.")]
         public static partial void InboundMetadataRegistrationFailed(
@@ -3530,6 +3821,16 @@ namespace Opc.Ua.PubSub.Connections
             Exception exception,
             UadpDiscoveryType discoveryType,
             string connection);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 23, Level = LogLevel.Warning,
+            Message = "Could not send the Action response of DataSetWriter {WriterId} on connection '{Connection}'. " +
+                "{Dropped} Action responses were dropped so far.")]
+        public static partial void ActionResponseNotSent(
+            this ILogger logger,
+            Exception exception,
+            ushort writerId,
+            string connection,
+            long dropped);
     }
 
 }
