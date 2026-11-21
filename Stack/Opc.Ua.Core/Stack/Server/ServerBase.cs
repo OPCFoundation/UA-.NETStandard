@@ -1690,9 +1690,12 @@ namespace Opc.Ua
                     }
                     m_cts.Cancel();
 
-                    if (m_totalThreadCount > 0)
+                    // Read the count once: workers leave as soon as the token is cancelled,
+                    // so a second read may return 0, which Release rejects.
+                    int workerCount = Volatile.Read(ref m_totalThreadCount);
+                    if (workerCount > 0)
                     {
-                        m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
+                        m_queueSignal.Release(workerCount); // Unblock all workers
                     }
 
                     // m_queueSignal and m_cts are deliberately not disposed: workers stop
