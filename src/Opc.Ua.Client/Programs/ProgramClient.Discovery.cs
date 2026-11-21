@@ -146,7 +146,7 @@ namespace Opc.Ua.Client.Programs
         private async ValueTask<bool> IsTypeOfAsync(NodeId typeId, NodeId expected, CancellationToken ct)
         {
             var pending = new Queue<NodeId>();
-            var visited = new HashSet<NodeId>();
+            var visited = new HashSet<NodeId> { typeId };
             pending.Enqueue(typeId);
             while (pending.Count > 0)
             {
@@ -155,21 +155,17 @@ namespace Opc.Ua.Client.Programs
                 {
                     return true;
                 }
-                if (!visited.Add(current))
-                {
-                    continue;
-                }
-                EnsureWalkBudget(visited.Count, MaxDiscoveryNodes);
                 ArrayOf<ReferenceDescription> parents = await BrowseAllAsync(
                     current, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse, NodeClass.ObjectType, ct)
                     .ConfigureAwait(false);
                 foreach (ReferenceDescription parent in parents)
                 {
                     NodeId parentId = LocalNodeId(parent.NodeId);
-                    // a parent already followed is not queued again, so the queue stays
-                    // within what one node may return per unvisited type.
-                    if (parentId == expected || !visited.Contains(parentId))
+                    // a type is marked when it is queued, not when it is followed, so
+                    // the queue holds each type once and stays within the budget.
+                    if (visited.Add(parentId))
                     {
+                        EnsureWalkBudget(visited.Count, MaxDiscoveryNodes);
                         pending.Enqueue(parentId);
                     }
                 }

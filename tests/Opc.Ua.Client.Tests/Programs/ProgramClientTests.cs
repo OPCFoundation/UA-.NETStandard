@@ -485,6 +485,47 @@ namespace Opc.Ua.Client.Tests.Programs
         }
 
         /// <summary>
+        /// Ancestors shared by many types are queued and browsed once.
+        /// </summary>
+        [Test]
+        public async Task TypeAncestryFollowsSharedAncestorsOnceAsync()
+        {
+            const int width = 40;
+            NodeId root = new("unrelated-type", 2);
+            ReferenceDescription[] middle = [.. Enumerable.Range(0, width)
+                .Select(i => Child(new NodeId("middle-" + i, 2), "Middle" + i, NodeClass.ObjectType, 2))];
+            ReferenceDescription[] shared = [.. Enumerable.Range(0, width)
+                .Select(i => Child(new NodeId("shared-" + i, 2), "Shared" + i, NodeClass.ObjectType, 2))];
+            m_browse[(root, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse)] = middle;
+            for (int i = 0; i < width; i++)
+            {
+                m_browse[(new NodeId("middle-" + i, 2), ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse)] =
+                    shared;
+            }
+            await AssertStatus(
+                async () => await m_client.DiscoverTypesAsync(root).ConfigureAwait(false),
+                StatusCodes.BadTypeMismatch).ConfigureAwait(false);
+            Assert.That(m_browsed, Has.Count.EqualTo(1 + width + width));
+            Assert.That(m_browsed, Is.Unique);
+        }
+
+        /// <summary>
+        /// A type reporting more ancestors than the walk budget fails before any of them is followed.
+        /// </summary>
+        [Test]
+        public async Task TypeAncestryRejectsMoreAncestorsThanBudgetBeforeFollowingAsync()
+        {
+            NodeId root = new("wide-type", 2);
+            m_browse[(root, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse)] =
+                [.. Enumerable.Range(0, ProgramClient.MaxDiscoveryNodes)
+                    .Select(i => Child(new NodeId((uint)(i + 1), 2), "Parent", NodeClass.ObjectType, 2))];
+            await AssertStatus(
+                async () => await m_client.DiscoverTypesAsync(root).ConfigureAwait(false),
+                StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
+            Assert.That(m_browsed, Is.EqualTo(new[] { root }));
+        }
+
+        /// <summary>
         /// A result hierarchy nested deeper than the client follows fails instead of growing a path per level.
         /// </summary>
         [Test]
