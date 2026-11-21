@@ -994,35 +994,59 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void PromoteReadyMonitoredItems()
         {
+            TakeReadyIntake();
+
             // an item the subscription does not know to signal: a custom IMonitoredItem.
             if (m_monitoredItems.Count != m_signalingItemCount)
             {
+                DropPublishListCandidates();
                 ScanAllMonitoredItems();
                 return;
             }
 
-            TakeReadyIntake();
+            // a configuration change may have made a ready-to-report signal stale.
+            // so does a change an item made to itself outside of a publish.
+            bool recheck = m_recheckReadyCandidates |
+                Interlocked.Exchange(ref m_readinessInvalidated, 0) != 0;
+            m_recheckReadyCandidates = false;
 
             // compacts the candidates in place; triggered items may be appended while the
             // list is walked and are checked in the same pass.
             int kept = 0;
             for (int ii = 0; ii < m_readyCandidates.Count; ii++)
             {
-                IMonitoredItem monitoredItem = m_readyCandidates[ii];
-                var signaling = (IReadySignalingMonitoredItem)monitoredItem;
+                ReadyCandidate candidate = m_readyCandidates[ii];
+                IMonitoredItem monitoredItem = candidate.Item;
 
                 if (!m_monitoredItems.TryGetValue(
-                        monitoredItem.Id,
+                        candidate.Id,
                         out LinkedListNode<IMonitoredItem>? node) ||
-                    !ReferenceEquals(node.Value, monitoredItem) ||
-                    !ReferenceEquals(node.List, m_itemsToCheck))
+                    !ReferenceEquals(node.Value, monitoredItem))
                 {
-                    // deleted, or already in the publish list, which checks it again when
-                    // the item leaves the list.
-                    signaling.ReleaseReadySignal();
+                    // deleted.
+                    ((IReadySignalingMonitoredItem)monitoredItem).ReleaseReadySignal();
                     continue;
                 }
 
+                if (!ReferenceEquals(node.List, m_itemsToCheck))
+                {
+                    // already in the publish list, which holds the signal and checks the
+                    // item again when it leaves the list.
+                    continue;
+                }
+
+                // The item said it was ready to report when it signalled, and a value or the
+                // passing time does not take that back: move it without reading it, so the
+                // publish step is its only cold touch. The publish list keeps the signal.
+                if (candidate.ReadyToReport && !recheck)
+                {
+                    m_itemsToCheck.Remove(node);
+                    m_itemsToPublish.AddLast(node);
+                    TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
+                    continue;
+                }
+
+                var signaling = (IReadySignalingMonitoredItem)monitoredItem;
                 bool ready = IsReadyToReport(monitoredItem);
                 if (ready)
                 {
@@ -1033,20 +1057,24 @@ namespace Opc.Ua.Server
                 // update any triggered items; ready ones are appended to the publish list.
                 TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
 
-                if (!ready && signaling.HasPendingNotifications)
+                if (ready)
                 {
-                    m_readyCandidates[kept++] = monitoredItem;
+                    continue;
+                }
+
+                if (signaling.HasPendingNotifications)
+                {
+                    m_readyCandidates[kept++] = new ReadyCandidate(monitoredItem, candidate.Id, false);
                     continue;
                 }
 
                 // a value queued after the flags were read signals again; one queued before
                 // the release is seen by the second check.
                 signaling.ReleaseReadySignal();
-                if (!ready &&
-                    signaling.HasPendingNotifications &&
+                if (signaling.HasPendingNotifications &&
                     signaling.TryAcquireReadySignal())
                 {
-                    m_readyCandidates[kept++] = monitoredItem;
+                    m_readyCandidates[kept++] = new ReadyCandidate(monitoredItem, candidate.Id, false);
                 }
             }
 
@@ -1054,12 +1082,54 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Drops the candidates whose item is in the publish list or deleted while the
+        /// subscription scans all items, so the candidates stay bounded until the
+        /// subscription uses them again.
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. The publish list releases the signal of an item
+        /// when the item leaves it and adds a new candidate when something is pending, so
+        /// the entries of those items are not needed.
+        /// </remarks>
+        private void DropPublishListCandidates()
+        {
+            int kept = 0;
+            for (int ii = 0; ii < m_readyCandidates.Count; ii++)
+            {
+                ReadyCandidate candidate = m_readyCandidates[ii];
+                if (!m_monitoredItems.TryGetValue(
+                        candidate.Id,
+                        out LinkedListNode<IMonitoredItem>? node) ||
+                    !ReferenceEquals(node.Value, candidate.Item))
+                {
+                    ((IReadySignalingMonitoredItem)candidate.Item).ReleaseReadySignal();
+                    continue;
+                }
+                if (!ReferenceEquals(node.List, m_itemsToCheck))
+                {
+                    continue;
+                }
+                m_readyCandidates[kept++] = candidate;
+            }
+            m_readyCandidates.RemoveRange(kept, m_readyCandidates.Count - kept);
+        }
+
+        /// <summary>
+        /// A monitored item that signalled it has something to report.
+        /// </summary>
+        /// <param name="Item">The item.</param>
+        /// <param name="Id">The id of the item, read by the item when it signalled.</param>
+        /// <param name="ReadyToReport">Whether the item was ready to report when it
+        /// signalled.</param>
+        private readonly record struct ReadyCandidate(IMonitoredItem Item, uint Id, bool ReadyToReport);
+
+        /// <summary>
         /// Moves the ready signals received from the monitored items to the candidates.
         /// </summary>
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
         private void TakeReadyIntake()
         {
-            List<IMonitoredItem> taken;
+            List<ReadyCandidate> taken;
             lock (m_readyIntakeLock)
             {
                 taken = m_readyIntake;
@@ -1076,12 +1146,21 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemReadySink.OnMonitoredItemReady(IMonitoredItem monitoredItem)
+        void IMonitoredItemReadySink.OnMonitoredItemReady(
+            IMonitoredItem monitoredItem,
+            uint monitoredItemId,
+            bool readyToReport)
         {
             lock (m_readyIntakeLock)
             {
-                m_readyIntake.Add(monitoredItem);
+                m_readyIntake.Add(new ReadyCandidate(monitoredItem, monitoredItemId, readyToReport));
             }
+        }
+
+        /// <inheritdoc/>
+        void IMonitoredItemReadySink.OnMonitoredItemReadinessInvalidated()
+        {
+            Interlocked.Exchange(ref m_readinessInvalidated, 1);
         }
 
         /// <summary>
@@ -1090,26 +1169,73 @@ namespace Opc.Ua.Server
         /// mode or triggering links changed).
         /// </summary>
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
-        private void MarkReadyCandidate(IMonitoredItem monitoredItem)
+        private void MarkReadyCandidate(IMonitoredItem monitoredItem, bool configurationChanged = true)
         {
-            if (monitoredItem is IReadySignalingMonitoredItem signaling &&
-                signaling.TryAcquireReadySignal())
+            if (monitoredItem is not IReadySignalingMonitoredItem signaling)
             {
-                m_readyCandidates.Add(monitoredItem);
+                return;
+            }
+
+            if (signaling.TryAcquireReadySignal())
+            {
+                m_readyCandidates.Add(new ReadyCandidate(monitoredItem, monitoredItem.Id, false));
+            }
+            else if (configurationChanged)
+            {
+                // the candidate that holds the signal may say the item is ready to report
+                // from before the change; the next pass checks every candidate.
+                m_recheckReadyCandidates = true;
             }
         }
 
         /// <summary>
-        /// Marks a monitored item that left the publish list as a candidate when it still has
-        /// something pending.
+        /// Moves a monitored item that was found ready to report from the check list to the
+        /// publish list, outside of a candidate that holds its ready signal.
         /// </summary>
-        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. The publish list holds the signal while the item
+        /// is in it. When a candidate holds the signal instead, the candidate may say the
+        /// item is ready to report although this publish takes the value, so the next pass
+        /// checks every candidate.
+        /// </remarks>
+        private void MoveCheckedToPublishList(LinkedListNode<IMonitoredItem> node)
+        {
+            m_itemsToCheck.Remove(node);
+            m_itemsToPublish.AddLast(node);
+
+            if (node.Value is IReadySignalingMonitoredItem signaling &&
+                !signaling.TryAcquireReadySignal())
+            {
+                m_recheckReadyCandidates = true;
+            }
+        }
+
+        /// <summary>
+        /// Releases the ready signal of a monitored item that left the publish list and
+        /// marks it as a candidate when it still has something pending.
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. The publish list holds the signal of the items
+        /// the publish timer moved to it. The item was just published, so reading it here
+        /// is cheap and the candidate says whether it is ready to report.
+        /// </remarks>
         private void MarkPendingCandidate(IMonitoredItem monitoredItem)
         {
-            if (monitoredItem is IReadySignalingMonitoredItem signaling &&
-                signaling.HasPendingNotifications)
+            if (monitoredItem is not IReadySignalingMonitoredItem signaling)
             {
-                MarkReadyCandidate(monitoredItem);
+                return;
+            }
+
+            // a value queued after the release signals again; one queued before it is seen
+            // by the check.
+            signaling.ReleaseReadySignal();
+            if (signaling.HasPendingNotifications &&
+                signaling.TryAcquireReadySignal())
+            {
+                m_readyCandidates.Add(new ReadyCandidate(
+                    monitoredItem,
+                    monitoredItem.Id,
+                    IsReadyToReport(monitoredItem)));
             }
         }
 
@@ -1142,16 +1268,16 @@ namespace Opc.Ua.Server
             int kept = 0;
             for (int ii = 0; ii < m_readyCandidates.Count; ii++)
             {
-                IMonitoredItem monitoredItem = m_readyCandidates[ii];
+                ReadyCandidate candidate = m_readyCandidates[ii];
                 if (!m_monitoredItems.TryGetValue(
-                        monitoredItem.Id,
+                        candidate.Id,
                         out LinkedListNode<IMonitoredItem>? node) ||
-                    !ReferenceEquals(node.Value, monitoredItem))
+                    !ReferenceEquals(node.Value, candidate.Item))
                 {
-                    ((IReadySignalingMonitoredItem)monitoredItem).ReleaseReadySignal();
+                    ((IReadySignalingMonitoredItem)candidate.Item).ReleaseReadySignal();
                     continue;
                 }
-                m_readyCandidates[kept++] = monitoredItem;
+                m_readyCandidates[kept++] = candidate;
             }
             m_readyCandidates.RemoveRange(kept, m_readyCandidates.Count - kept);
         }
@@ -1253,8 +1379,7 @@ namespace Opc.Ua.Server
                 // check if the item is ready to publish.
                 if (IsReadyToReport(monitoredItem))
                 {
-                    m_itemsToCheck.Remove(current);
-                    m_itemsToPublish.AddLast(current);
+                    MoveCheckedToPublishList(current);
                 }
 
                 // update any triggered items.
@@ -1278,8 +1403,7 @@ namespace Opc.Ua.Server
 
                     if (IsReadyToReport(monitoredItem))
                     {
-                        m_itemsToCheck.Remove(current);
-                        m_itemsToPublish.AddLast(current);
+                        MoveCheckedToPublishList(current);
                     }
 
                     current = next;
@@ -1353,12 +1477,11 @@ namespace Opc.Ua.Server
                 {
                     if (IsReadyToReport(triggeredNode.Value))
                     {
-                        m_itemsToCheck.Remove(triggeredNode);
-                        m_itemsToPublish.AddLast(triggeredNode);
+                        MoveCheckedToPublishList(triggeredNode);
                     }
                     else
                     {
-                        MarkReadyCandidate(triggeredNode.Value);
+                        MarkReadyCandidate(triggeredNode.Value, configurationChanged: false);
                     }
                 }
             }
@@ -4443,9 +4566,11 @@ namespace Opc.Ua.Server
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
         private readonly LinkedList<IMonitoredItem> m_itemsToPublish;
         private readonly Lock m_readyIntakeLock = new();
-        private List<IMonitoredItem> m_readyIntake = [];
-        private List<IMonitoredItem> m_readyIntakeSpare = [];
-        private readonly List<IMonitoredItem> m_readyCandidates = [];
+        private List<ReadyCandidate> m_readyIntake = [];
+        private List<ReadyCandidate> m_readyIntakeSpare = [];
+        private readonly List<ReadyCandidate> m_readyCandidates = [];
+        private bool m_recheckReadyCandidates;
+        private int m_readinessInvalidated;
         private int m_signalingItemCount;
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;

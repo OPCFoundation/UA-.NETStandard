@@ -47,6 +47,12 @@ namespace Opc.Ua.Server
     /// fence after it set its flags, so no notification is missed in between.
     /// </para>
     /// <para>
+    /// The item says with the signal whether it was ready to report when it signalled. The
+    /// publish timer moves such an item to the publish list without reading the item, so
+    /// the publish step is the only one that touches it. The signal stays held while the
+    /// item is in the publish list and is released when the item leaves the list.
+    /// </para>
+    /// <para>
     /// Monitored items that do not implement this interface are found by scanning all items
     /// of the subscription on every publishing cycle, as before.
     /// </para>
@@ -81,6 +87,20 @@ namespace Opc.Ua.Server
         /// holds its own lock, so the sink must not take locks that are held while calling
         /// into monitored items.
         /// </summary>
-        void OnMonitoredItemReady(IMonitoredItem monitoredItem);
+        /// <param name="monitoredItem">The item that has something to report.</param>
+        /// <param name="monitoredItemId">The id of the item, so the subscription can look
+        /// it up without reading the item.</param>
+        /// <param name="readyToReport">Whether the item was ready to report (REPORTING, with
+        /// a value or a resend due now) when it signalled; <c>false</c> when the
+        /// subscription has to check the item itself.</param>
+        void OnMonitoredItemReady(IMonitoredItem monitoredItem, uint monitoredItemId, bool readyToReport);
+
+        /// <summary>
+        /// Called by a monitored item after a change outside of a publish that can take
+        /// back a ready-to-report flag it signalled earlier (cleared notifications on an
+        /// identity change, a rolled-back resend, a new sampling interval, monitoring mode,
+        /// queue or filter). Called while the item holds its own lock.
+        /// </summary>
+        void OnMonitoredItemReadinessInvalidated();
     }
 }

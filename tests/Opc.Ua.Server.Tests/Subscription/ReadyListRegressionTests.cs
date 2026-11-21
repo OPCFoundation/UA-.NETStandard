@@ -197,6 +197,57 @@ namespace Opc.Ua.Server.Tests
                 "a published item without pending values is not tracked");
         }
 
+        [Test]
+        public async Task SignalledItemClearedBeforePromotionIsNotPublishedAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+
+            // the item signals ready to report, then an identity change drops its value.
+            scenario.Queue(2, 20);
+            scenario.Item(2).ClearQueuedNotifications();
+            scenario.Tick("cleared");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]").And.Not.Contain("2=20"),
+                "an item without notifications must not be promoted");
+
+            scenario.Queue(2, 21);
+            scenario.Tick("new value");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Contain("[2=21]"));
+        }
+
+        [Test]
+        public async Task RolledBackResendIsNotPublishedAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+            scenario.Queue(2, 20);
+            scenario.Tick("drained");
+
+            // a failed transfer sets up the resend and then rolls it back.
+            scenario.Item(2).SetupResendDataTrigger();
+            ((IMonitoredItemTransferState)scenario.Item(2)).RestoreResendDataTrigger(false);
+            scenario.Tick("rolled back");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]"),
+                "a rolled-back resend must not be promoted");
+        }
+
+        [Test]
+        public async Task LongerSamplingIntervalTakesBackReadinessAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+
+            // the value signals ready to report, then a modification moves the deadline out.
+            scenario.Queue(2, 20);
+            scenario.Item(2).SetSamplingInterval(1e9);
+            scenario.Tick("deadline ahead");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]").And.Not.Contain("2=20"),
+                "an item whose sampling deadline is ahead must not be promoted");
+        }
+
         private static async Task AssertSameAsScanAsync(
             Func<Scenario, Task> run,
             uint maxNotificationsPerPublish = 0,
@@ -289,7 +340,7 @@ namespace Opc.Ua.Server.Tests
 
             public List<string> Trace { get; } = [];
 
-            public int ReadyCandidateCount => ((List<IMonitoredItem>)typeof(Subscription)
+            public int ReadyCandidateCount => ((System.Collections.ICollection)typeof(Subscription)
                 .GetField("m_readyCandidates", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
                 .GetValue(Subscription)!).Count;
 
@@ -365,6 +416,8 @@ namespace Opc.Ua.Server.Tests
                     requests,
                     CancellationToken.None).ConfigureAwait(false);
             }
+
+            public MonitoredItem Item(uint id) => m_items[id];
 
             public void Queue(uint id, int value)
             {
