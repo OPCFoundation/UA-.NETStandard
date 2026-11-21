@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -50,6 +51,17 @@ namespace Opc.Ua
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// The time in milliseconds that the Like elements of one evaluation may
+        /// take together. A Like element that runs out of it is no match.
+        /// </summary>
+        private const int kMaxLikeMatchTimeMs = 100;
+
+        /// <summary>
+        /// What is left of the time for Like elements in the current evaluation.
+        /// </summary>
+        private TimeSpan m_likeTimeLeft;
 
         /// <summary>
         /// Create evaluator
@@ -82,6 +94,8 @@ namespace Opc.Ua
                 {
                     return true;
                 }
+
+                m_likeTimeLeft = TimeSpan.FromMilliseconds(kMaxLikeMatchTimeMs);
 
                 bool? result = Evaluate(0) as bool?;
                 return result ?? false;
@@ -516,8 +530,11 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="target">String to check for a pattern match.</param>
         /// <param name="pattern">Pattern to match with the target string.</param>
-        /// <returns>true if the target string matches the pattern, otherwise false.</returns>
-        private static bool Match(string target, string pattern)
+        /// <returns>
+        /// true if the target string matches the pattern, otherwise false. Also false
+        /// if the time for Like elements in this evaluation ran out.
+        /// </returns>
+        private bool Match(string target, string pattern)
         {
             string expression = pattern;
 
@@ -539,7 +556,40 @@ namespace Opc.Ua
             // replace all "[!" with "[^", except "\[!"
             expression = ReplaceBrackets.Replace(expression, "[^");
 
-            return Regex.IsMatch(target, expression);
+            // The Client chooses the pattern, and some patterns take the regular
+            // expression engine very long. All Like elements of one evaluation share
+            // one time limit, so their number does not multiply it.
+            if (m_likeTimeLeft <= TimeSpan.Zero)
+            {
+                return false;
+            }
+
+            long start = Stopwatch.GetTimestamp();
+            try
+            {
+                // The engine always gets the full limit: its clock is too coarse
+                // to measure a remainder of a few milliseconds.
+                bool isMatch = Regex.IsMatch(
+                    target,
+                    expression,
+                    RegexOptions.None,
+                    TimeSpan.FromMilliseconds(kMaxLikeMatchTimeMs));
+
+                long elapsed = Stopwatch.GetTimestamp() - start;
+                m_likeTimeLeft -= TimeSpan.FromSeconds((double)elapsed / Stopwatch.Frequency);
+                return isMatch;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                m_likeTimeLeft = TimeSpan.Zero;
+                m_logger.LogDebug(
+                    "A Like element was not evaluated within {Limit} ms and is treated as no match " +
+                    "(pattern length {PatternLength}, string length {TargetLength}).",
+                    kMaxLikeMatchTimeMs,
+                    pattern.Length,
+                    target.Length);
+                return false;
+            }
         }
 
         /// <summary>
