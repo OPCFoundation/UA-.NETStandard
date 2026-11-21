@@ -352,9 +352,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Verifies that a deferred handle which cannot be resolved for the access checks
         /// is not passed on, although a second resolution would succeed.
         /// </summary>
-        [Test]
-        public async Task HistoryOnDeferredAnnotationsHandleStopsWhenResolutionFailsOnceAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HistoryOnDeferredAnnotationsHandleStopsWhenResolutionFailsOnceAsync(bool missingNode)
         {
+            StatusCode expected = missingNode ? StatusCodes.BadNodeIdUnknown : StatusCodes.BadResourceUnavailable;
             using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
             (BaseDataVariableState parent, PropertyState annotProp) =
                 await AddAnnotatedVariableAsync(h, "FailOnceParent").ConfigureAwait(false);
@@ -367,16 +369,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             ];
             h.Manager.DeferHandles = true;
+            h.Manager.FailWithMissingNode = missingNode;
 
             h.Manager.FailNextValidation = true;
             (ServiceResult readError, HistoryReadResult readResult) =
                 await ReadAnnotationsAsync(h, annotProp.NodeId).ConfigureAwait(false);
-            Assert.That(readError.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+            Assert.That(readError.StatusCode, Is.EqualTo(expected));
             Assert.That(readResult.HistoryData.IsNull, Is.True);
 
             h.Manager.FailNextValidation = true;
             ServiceResult updateError = await InsertAnnotationAsync(h, annotProp.NodeId).ConfigureAwait(false);
-            Assert.That(updateError.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+            Assert.That(updateError.StatusCode, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1223,6 +1226,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public bool FailNextValidation { get; set; }
 
+            /// <summary>
+            /// Whether a failing validation finds no node instead of throwing.
+            /// </summary>
+            public bool FailWithMissingNode { get; set; }
+
             protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
                 ServerSystemContext context,
                 NodeId nodeId,
@@ -1248,6 +1256,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (FailNextValidation)
                 {
                     FailNextValidation = false;
+                    if (FailWithMissingNode)
+                    {
+                        return default;
+                    }
                     throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
                 }
                 if (handle.Node == null && base.PredefinedNodes.TryGetValue(handle.NodeId, out NodeState? node))

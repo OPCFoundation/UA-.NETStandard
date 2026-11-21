@@ -6811,6 +6811,14 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                if (source == null)
+                {
+                    // same for a handle that resolves to no node: the error set
+                    // when the request was scanned (BadNodeIdUnknown) stands.
+                    nodesToProcess.Remove(handle);
+                    continue;
+                }
+
                 if (source is not BaseVariableState variable ||
                     !HistorianDispatcher.IsAnnotationsProperty(variable))
                 {
