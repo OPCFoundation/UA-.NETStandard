@@ -1181,11 +1181,16 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         internal TimeSpan GetPendingWriteAge()
         {
-            if (Volatile.Read(ref m_activeWriteRequests) == 0)
+            long since;
+            lock (m_writeBacklogLock)
             {
-                return TimeSpan.Zero;
+                if (m_activeWriteRequests == 0)
+                {
+                    return TimeSpan.Zero;
+                }
+                since = m_writesPendingSince;
             }
-            TimeSpan elapsed = TimeProvider.GetElapsedTime(Volatile.Read(ref m_writesPendingSince));
+            TimeSpan elapsed = TimeProvider.GetElapsedTime(since);
             return elapsed > TimeSpan.Zero ? elapsed : TimeSpan.Zero;
         }
 
@@ -1194,32 +1199,29 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void NoteWriteQueued()
         {
-            // Stamped before the count leaves zero, so a reader never pairs a
-            // new write with the start time of an earlier, long finished one.
-            // NoteWriteCompleting covers the write that is queued while the
-            // last outstanding one completes and so does not see a zero here.
-            if (Volatile.Read(ref m_activeWriteRequests) == 0)
+            // The count and the start of the backlog change together: writes
+            // complete on other threads, several at a time when the transport
+            // fails, and a write queued while the last ones complete must not
+            // inherit the start of the backlog that just ended.
+            lock (m_writeBacklogLock)
             {
-                Volatile.Write(ref m_writesPendingSince, TimeProvider.GetTimestamp());
+                if (m_activeWriteRequests == 0)
+                {
+                    m_writesPendingSince = TimeProvider.GetTimestamp();
+                }
+                Interlocked.Increment(ref m_activeWriteRequests);
             }
-            Interlocked.Increment(ref m_activeWriteRequests);
         }
 
         /// <summary>
         /// Completes a write counted by <see cref="NoteWriteQueued"/>.
         /// </summary>
-        private void NoteWriteCompleting()
+        private void NoteWriteCompleted()
         {
-            // The queue is about to run empty. A write queued concurrently may
-            // have seen this write outstanding and left the start time alone,
-            // so it is restarted here, before the count can reach zero and
-            // leave it again. If that write was counted already the backlog
-            // continues with a later start, which only extends the grace.
-            if (Volatile.Read(ref m_activeWriteRequests) <= 1)
+            lock (m_writeBacklogLock)
             {
-                Volatile.Write(ref m_writesPendingSince, TimeProvider.GetTimestamp());
+                Interlocked.Decrement(ref m_activeWriteRequests);
             }
-            Interlocked.Decrement(ref m_activeWriteRequests);
         }
 
         /// <summary>
@@ -2655,7 +2657,7 @@ namespace Opc.Ua.Bindings
             UpdateLastActiveTime();
 
             buffers?.Release(BufferManager, "WriteOperation");
-            NoteWriteCompleting();
+            NoteWriteCompleted();
             SignalWriteCapacity();
         }
 
@@ -3127,10 +3129,14 @@ namespace Opc.Ua.Bindings
         private int m_sendWaiting;
 
         /// <summary>
-        /// When <see cref="m_activeWriteRequests"/> last left zero or was about to reach it
+        /// When <see cref="m_activeWriteRequests"/> last left zero
         /// (see <see cref="GetPendingWriteAge"/>).
         /// </summary>
         private long m_writesPendingSince;
+
+        // Guards the transitions of m_activeWriteRequests together with
+        // m_writesPendingSince. Other readers of the count do not take it.
+        private readonly object m_writeBacklogLock = new();
 
         /// <summary>
         /// The transport on which the queued responses exceeded the hard limit, faulted once.
