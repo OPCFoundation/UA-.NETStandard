@@ -186,8 +186,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     await attackTask.ConfigureAwait(false);
                 }
-                catch (OperationCanceledException)
+                catch (Exception)
                 {
+                    // Cancelled, or a send to a channel the server reclaimed
+                    // failed just before the cancellation: the attack loop
+                    // then no longer ignores it.
                 }
                 foreach (RawPeer peer in peers)
                 {

@@ -124,6 +124,36 @@ namespace Opc.Ua.Client.Programs
         }
 
         /// <summary>
+        /// Fails a walk over server-supplied references that visited more nodes than
+        /// <paramref name="limit"/>. The visited set and the results are kept in memory and the
+        /// server decides how many nodes there are, so a walk has to end.
+        /// </summary>
+        private static void EnsureWalkBudget(int visited, int limit)
+        {
+            if (visited > limit)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                    "The server returned more nodes than the Program client follows in one operation.");
+            }
+        }
+
+        /// <summary>
+        /// Nodes one type or invocation discovery visits.
+        /// </summary>
+        internal const int MaxDiscoveryNodes = 100_000;
+
+        /// <summary>
+        /// Nodes read beneath one FinalResultData object.
+        /// </summary>
+        internal const int MaxFinalResultNodes = 10_000;
+
+        /// <summary>
+        /// Levels followed beneath one FinalResultData object. Every result keeps its browse
+        /// path, so the depth bounds the memory per result.
+        /// </summary>
+        internal const int MaxFinalResultDepth = 32;
+
+        /// <summary>
         /// Resolves only local references using the current session's namespace mapping.
         /// </summary>
         private NodeId LocalNodeId(ExpandedNodeId id)
@@ -161,6 +191,10 @@ namespace Opc.Ua.Client.Programs
             ];
             ByteString continuationPoint = default;
             var references = new List<ReferenceDescription>();
+            // The server decides how many pages follow; the pages are kept in
+            // memory, so the chain is followed within the browser's default limits.
+            BrowsePagingLimits limits = BrowsePagingLimits.StartDefault();
+            var pages = new BrowsePageCounter();
             bool failed = false;
             try
             {
@@ -180,9 +214,16 @@ namespace Opc.Ua.Client.Programs
                     {
                         references.Add(reference);
                     }
-                    if (continuationPoint.IsNull || continuationPoint.Length == 0)
+                    bool more = !continuationPoint.IsNull && continuationPoint.Length > 0;
+                    ServiceResult? stop = pages.Record(in limits, result.References.Count, more);
+                    if (!more)
                     {
                         return ArrayOf.Wrapped(references.ToArray());
+                    }
+                    if (stop != null)
+                    {
+                        // the continuation point is released in the finally block.
+                        throw new ServiceResultException(stop);
                     }
                     ArrayOf<ByteString> points = [continuationPoint];
                     BrowseNextResponse next = await Session.BrowseNextAsync(null, false, points, ct)

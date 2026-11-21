@@ -463,6 +463,9 @@ existing `IFileSystemProvider` model through the shared
 `Opc.Ua.Server.FileSystem.IFileDirectoryBinder`, so any node manager — not just
 the dedicated file-system manager — can serve a Part 5 directory. Binding runs
 after the Robotics tree is registered, and is disposed if the build rolls back.
+Anonymous sessions can read the bound directory but cannot create, write,
+delete, move or copy in it; set `FileDirectoryBindingOptions.AllowAnonymousWrite`
+through `WithOptions` only when every client may modify the programs.
 
 ### Validation
 

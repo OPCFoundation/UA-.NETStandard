@@ -1145,6 +1145,60 @@ namespace Opc.Ua.Bindings
         internal bool HasPendingWrites => Volatile.Read(ref m_activeWriteRequests) != 0;
 
         /// <summary>
+        /// How long writes have been outstanding without the queue running empty,
+        /// or zero when no write is outstanding.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <see cref="GetWriteStallTime"/>, which restarts with every batch the
+        /// transport takes, this keeps growing while a peer reads slowly enough that a
+        /// response is always queued or in the socket.
+        /// </remarks>
+        internal TimeSpan GetPendingWriteAge()
+        {
+            long since;
+            lock (m_writeBacklogLock)
+            {
+                if (m_activeWriteRequests == 0)
+                {
+                    return TimeSpan.Zero;
+                }
+                since = m_writesPendingSince;
+            }
+            TimeSpan elapsed = TimeProvider.GetElapsedTime(since);
+            return elapsed > TimeSpan.Zero ? elapsed : TimeSpan.Zero;
+        }
+
+        /// <summary>
+        /// Counts a write that <see cref="HandleWriteComplete"/> will complete.
+        /// </summary>
+        private void NoteWriteQueued()
+        {
+            // The count and the start of the backlog change together: writes
+            // complete on other threads, several at a time when the transport
+            // fails, and a write queued while the last ones complete must not
+            // inherit the start of the backlog that just ended.
+            lock (m_writeBacklogLock)
+            {
+                if (m_activeWriteRequests == 0)
+                {
+                    m_writesPendingSince = TimeProvider.GetTimestamp();
+                }
+                Interlocked.Increment(ref m_activeWriteRequests);
+            }
+        }
+
+        /// <summary>
+        /// Completes a write counted by <see cref="NoteWriteQueued"/>.
+        /// </summary>
+        private void NoteWriteCompleted()
+        {
+            lock (m_writeBacklogLock)
+            {
+                Interlocked.Decrement(ref m_activeWriteRequests);
+            }
+        }
+
+        /// <summary>
         /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
         /// transport's receive loop into the channel pipeline.
         /// </summary>
@@ -1518,7 +1572,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadConnectionClosed,
                     "The transport was closed by the remote application.");
 
-            Interlocked.Increment(ref m_activeWriteRequests);
+            NoteWriteQueued();
             var chunk = new ArraySegment<byte>(buffer.GetArray(), buffer.Offset, buffer.Count);
 
             // Queued rather than started inline. The write completes by calling
@@ -1538,7 +1592,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
-            Interlocked.Increment(ref m_activeWriteRequests);
+            NoteWriteQueued();
 
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
@@ -1574,7 +1628,7 @@ namespace Opc.Ua.Bindings
                 BeginWriteMessage(buffers, state);
                 return false;
             }
-            Interlocked.Increment(ref m_activeWriteRequests);
+            NoteWriteQueued();
             return TryQueueWrite(new PendingWrite(transport, buffers, state));
         }
 
@@ -1655,7 +1709,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            Interlocked.Increment(ref m_activeWriteRequests);
+            NoteWriteQueued();
             var write = new PendingWrite(transport, in message, state);
             long retained = write.RetainedBytes;
 
@@ -2577,7 +2631,7 @@ namespace Opc.Ua.Bindings
             UpdateLastActiveTime();
 
             buffers?.Release(BufferManager, "WriteOperation");
-            Interlocked.Decrement(ref m_activeWriteRequests);
+            NoteWriteCompleted();
             SignalWriteCapacity();
         }
 
@@ -3047,6 +3101,16 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private long m_sendWaitStarted;
         private int m_sendWaiting;
+
+        /// <summary>
+        /// When <see cref="m_activeWriteRequests"/> last left zero
+        /// (see <see cref="GetPendingWriteAge"/>).
+        /// </summary>
+        private long m_writesPendingSince;
+
+        // Guards the transitions of m_activeWriteRequests together with
+        // m_writesPendingSince. Other readers of the count do not take it.
+        private readonly object m_writeBacklogLock = new();
 
         /// <summary>
         /// The transport on which the queued responses exceeded the hard limit, faulted once.

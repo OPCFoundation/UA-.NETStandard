@@ -3972,7 +3972,7 @@ namespace Opc.Ua.Server.Tests
                 subscription.SetupGet(value => value.Session).Returns(session);
                 subscription.SetupGet(value => value.EffectiveIdentity).Returns(identity);
                 subscription.As<IMonitoredItemReadySink>()
-                    .Setup(value => value.OnMonitoredItemReady(item))
+                    .Setup(value => value.OnMonitoredItemReady(item, item.Id, It.IsAny<bool>()))
                     .Callback(() => queued.TrySetResult(true));
                 item.SubscriptionCallback = subscription.Object;
                 var state = (IMonitoredItemGenerationBinding)item;

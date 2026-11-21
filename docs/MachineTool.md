@@ -466,7 +466,9 @@ in the provider and is exposed with the MachineTool-qualified browse name.
 An absent directory or inadequate materialization limits fail setup.
 
 The provider owns storage and access decisions. Operation flags and
-`MaxEntries`/`MaxDepth` bound the shared directory binding. The runtime owns
+`MaxEntries`/`MaxDepth` bound the shared directory binding. Anonymous sessions
+cannot modify the bound directory unless
+`FileDirectoryBindingOptions.AllowAnonymousWrite` is set. The runtime owns
 materialized nodes and session-bound file handles, not the application-supplied
 provider. Remote paths are scoped UA paths, not permission to read host-local
 files. Reading a program file does not execute it.

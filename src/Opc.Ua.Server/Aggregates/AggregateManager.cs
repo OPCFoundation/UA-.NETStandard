@@ -180,59 +180,24 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The aggregate functions of OPC 10000-13 that a server registers by default,
-        /// all calculated by the standard calculator of <see cref="Aggregators"/>, in the
-        /// order they are added to the server's AggregateFunctions folder.
+        /// Registers every aggregate function the core model declares
+        /// (<see cref="AggregateFunctionIds.All"/>, OPC 10000-13) with the standard
+        /// calculator of <see cref="Aggregators"/>, in model order, which is the
+        /// Browse order of the server's AggregateFunctions folders.
         /// </summary>
-        internal static readonly (NodeId AggregateId, string AggregateName)[] StandardAggregates =
-        [
-            (ObjectIds.AggregateFunction_Interpolative, BrowseNames.AggregateFunction_Interpolative),
-            (ObjectIds.AggregateFunction_Average, BrowseNames.AggregateFunction_Average),
-            (ObjectIds.AggregateFunction_TimeAverage, BrowseNames.AggregateFunction_TimeAverage),
-            (ObjectIds.AggregateFunction_TimeAverage2, BrowseNames.AggregateFunction_TimeAverage2),
-            (ObjectIds.AggregateFunction_Total, BrowseNames.AggregateFunction_Total),
-            (ObjectIds.AggregateFunction_Total2, BrowseNames.AggregateFunction_Total2),
-            (ObjectIds.AggregateFunction_Minimum, BrowseNames.AggregateFunction_Minimum),
-            (ObjectIds.AggregateFunction_Maximum, BrowseNames.AggregateFunction_Maximum),
-            (ObjectIds.AggregateFunction_MinimumActualTime, BrowseNames.AggregateFunction_MinimumActualTime),
-            (ObjectIds.AggregateFunction_MaximumActualTime, BrowseNames.AggregateFunction_MaximumActualTime),
-            (ObjectIds.AggregateFunction_Range, BrowseNames.AggregateFunction_Range),
-            (ObjectIds.AggregateFunction_Minimum2, BrowseNames.AggregateFunction_Minimum2),
-            (ObjectIds.AggregateFunction_Maximum2, BrowseNames.AggregateFunction_Maximum2),
-            (ObjectIds.AggregateFunction_MinimumActualTime2, BrowseNames.AggregateFunction_MinimumActualTime2),
-            (ObjectIds.AggregateFunction_MaximumActualTime2, BrowseNames.AggregateFunction_MaximumActualTime2),
-            (ObjectIds.AggregateFunction_Range2, BrowseNames.AggregateFunction_Range2),
-            (ObjectIds.AggregateFunction_Count, BrowseNames.AggregateFunction_Count),
-            (ObjectIds.AggregateFunction_AnnotationCount, BrowseNames.AggregateFunction_AnnotationCount),
-            (ObjectIds.AggregateFunction_DurationInStateZero, BrowseNames.AggregateFunction_DurationInStateZero),
-            (ObjectIds.AggregateFunction_DurationInStateNonZero, BrowseNames.AggregateFunction_DurationInStateNonZero),
-            (ObjectIds.AggregateFunction_NumberOfTransitions, BrowseNames.AggregateFunction_NumberOfTransitions),
-            (ObjectIds.AggregateFunction_Start, BrowseNames.AggregateFunction_Start),
-            (ObjectIds.AggregateFunction_End, BrowseNames.AggregateFunction_End),
-            (ObjectIds.AggregateFunction_Delta, BrowseNames.AggregateFunction_Delta),
-            (ObjectIds.AggregateFunction_StartBound, BrowseNames.AggregateFunction_StartBound),
-            (ObjectIds.AggregateFunction_EndBound, BrowseNames.AggregateFunction_EndBound),
-            (ObjectIds.AggregateFunction_DeltaBounds, BrowseNames.AggregateFunction_DeltaBounds),
-            (ObjectIds.AggregateFunction_DurationGood, BrowseNames.AggregateFunction_DurationGood),
-            (ObjectIds.AggregateFunction_DurationBad, BrowseNames.AggregateFunction_DurationBad),
-            (ObjectIds.AggregateFunction_PercentGood, BrowseNames.AggregateFunction_PercentGood),
-            (ObjectIds.AggregateFunction_PercentBad, BrowseNames.AggregateFunction_PercentBad),
-            (ObjectIds.AggregateFunction_WorstQuality, BrowseNames.AggregateFunction_WorstQuality),
-            (ObjectIds.AggregateFunction_WorstQuality2, BrowseNames.AggregateFunction_WorstQuality2),
-            (ObjectIds.AggregateFunction_StandardDeviationPopulation, BrowseNames.AggregateFunction_StandardDeviationPopulation),
-            (ObjectIds.AggregateFunction_VariancePopulation, BrowseNames.AggregateFunction_VariancePopulation),
-            (ObjectIds.AggregateFunction_StandardDeviationSample, BrowseNames.AggregateFunction_StandardDeviationSample),
-            (ObjectIds.AggregateFunction_VarianceSample, BrowseNames.AggregateFunction_VarianceSample),
-        ];
-
-        /// <summary>
-        /// Registers the <see cref="StandardAggregates"/> with the standard calculator.
-        /// </summary>
+        /// <remarks>
+        /// Every declared aggregate function must have a standard calculator;
+        /// AggregatorsTests checks that, so a model update that adds one fails a
+        /// test instead of the server advertising an aggregate it cannot calculate.
+        /// </remarks>
         /// <param name="cancellationToken">A cancellation token.</param>
         internal async ValueTask RegisterStandardAggregatesAsync(CancellationToken cancellationToken = default)
         {
-            foreach ((NodeId aggregateId, string aggregateName) in StandardAggregates)
+            // Indexed: the span enumerator of ArrayOf cannot cross an await.
+            ArrayOf<(NodeId AggregateId, string BrowseName)> aggregates = AggregateFunctionIds.All;
+            for (int ii = 0; ii < aggregates.Count; ii++)
             {
+                (NodeId aggregateId, string aggregateName) = aggregates[ii];
                 await RegisterFactoryAsync(
                     aggregateId,
                     aggregateName,

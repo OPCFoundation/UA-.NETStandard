@@ -111,6 +111,67 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        /// <summary>
+        /// The materialised nodes carry no RolePermissions, so an anonymous session
+        /// cannot modify the bound directory unless the options allow it.
+        /// </summary>
+        [Test]
+        public async Task AnonymousUserCannotModifyTheBoundDirectoryAsync()
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddFile("program.mod", "old");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+
+            await using IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root, provider, context).ConfigureAwait(false);
+            FileState file = Find<FileState>(root, context, "program.mod")!;
+            context.UserIdentity = new UserIdentity();
+
+            CreateFileMethodStateResult create = await root.CreateFile!.OnCallAsync!(
+                context, root.CreateFile!, root.NodeId, "denied.txt", false, CancellationToken.None)
+                .ConfigureAwait(false);
+            DeleteFileMethodStateResult delete = await root.DeleteFileSystemObject!.OnCallAsync!(
+                context, root.DeleteFileSystemObject!, root.NodeId, file.NodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            uint handle = 0;
+            ServiceResult openWrite = file.Open!.OnCall!(context, file.Open!, file.NodeId, 0x6, ref handle);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(create.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(delete.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(openWrite.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(provider.ReadText("program.mod"), Is.EqualTo("old"));
+                Assert.That(Encoding.UTF8.GetString(ReadAll(context, file)), Is.EqualTo("old"));
+            });
+        }
+
+        /// <summary>
+        /// Authenticated users, and anonymous users when explicitly allowed, can modify the bound directory.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AuthenticatedOrExplicitlyAllowedUserCanModifyTheBoundDirectoryAsync(bool anonymousAllowed)
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddFile("program.mod", "old");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            var options = new FileDirectoryBindingOptions { AllowAnonymousWrite = anonymousAllowed };
+
+            await using IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root, provider, context, options).ConfigureAwait(false);
+            FileState file = Find<FileState>(root, context, "program.mod")!;
+            context.UserIdentity = anonymousAllowed
+                ? new UserIdentity()
+                : new UserIdentity("operator", "secret"u8);
+
+            WriteAll(context, file, "new-content");
+
+            Assert.That(provider.ReadText("program.mod"), Is.EqualTo("new-content"));
+        }
+
         [Test]
         public async Task CreateReturnsAccessDeniedWhenOptionsWithholdCreateAsync()
         {

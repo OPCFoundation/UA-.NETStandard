@@ -31,6 +31,16 @@ namespace Opc.Ua.Server.FileSystem
         public bool AllowMoveOrCopy { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets a value indicating whether anonymous sessions may modify the bound
+        /// directory (open for writing, create, delete, move or copy). Defaults to
+        /// <c>false</c>: only sessions with a non-anonymous user identity may modify it.
+        /// The nodes materialised below the bound directory carry no RolePermissions of
+        /// their own, so enable this only when the directory is meant to be writable by
+        /// every client.
+        /// </summary>
+        public bool AllowAnonymousWrite { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum number of entries materialised per directory.
         /// </summary>
         public int MaxEntries { get; set; } = DefaultMaxEntries;
@@ -490,12 +500,14 @@ namespace Opc.Ua.Server.FileSystem
 
             /// <inheritdoc/>
             /// <remarks>
-            /// The bound directory lives in the integrator's address space, which
-            /// controls user access through its RolePermissions and the binding options.
+            /// The bound directory lives in the integrator's address space, but the
+            /// nodes materialised below it carry no RolePermissions, so anonymous
+            /// sessions are denied unless the binding options allow them.
             /// </remarks>
             public bool CanUserWrite(ISystemContext context)
             {
-                return true;
+                return m_options.AllowAnonymousWrite ||
+                    FileSystemDirectoryOperations.IsNonAnonymousOrInternal(context);
             }
 
             /// <inheritdoc/>

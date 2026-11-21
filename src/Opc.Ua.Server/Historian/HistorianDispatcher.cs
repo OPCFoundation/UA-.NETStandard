@@ -51,6 +51,32 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
+        /// Checks that the effective user access level of <paramref name="variable"/>
+        /// includes <paramref name="requiredAccessLevel"/>. A failure reported by the
+        /// <see cref="BaseVariableState.OnReadUserAccessLevel"/> callback is returned
+        /// as is, so a callback that cannot determine the access level denies access.
+        /// </summary>
+        internal static ServiceResult ValidateUserAccessLevel(
+            ISystemContext context,
+            BaseVariableState variable,
+            byte requiredAccessLevel)
+        {
+            byte userAccessLevel = variable.UserAccessLevel;
+            if (variable.OnReadUserAccessLevel is { } onReadUserAccessLevel)
+            {
+                ServiceResult result = onReadUserAccessLevel(context, variable, ref userAccessLevel);
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+            }
+
+            return (userAccessLevel & requiredAccessLevel) == 0
+                ? StatusCodes.BadUserAccessDenied
+                : ServiceResult.Good;
+        }
+
+        /// <summary>
         /// Resolves the provider for a given node using the node-manager
         /// override first, then the server-wide registry.
         /// </summary>

@@ -504,9 +504,9 @@ namespace Opc.Ua.Server.Tests
 
             public OperationContext Context { get; }
 
-            public int ReadyCandidateCount => GetField<List<IMonitoredItem>>("m_readyCandidates").Count;
+            public int ReadyCandidateCount => GetField<System.Collections.ICollection>("m_readyCandidates").Count;
 
-            public int ReadyIntakeCount => GetField<List<IMonitoredItem>>("m_readyIntake").Count;
+            public int ReadyIntakeCount => GetField<System.Collections.ICollection>("m_readyIntake").Count;
 
             /// <summary>
             /// Creates monitored items that the next <see cref="RegisterAllAsync"/> adds.

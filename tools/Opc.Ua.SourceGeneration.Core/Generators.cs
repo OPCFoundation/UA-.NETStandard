@@ -1354,6 +1354,10 @@ namespace Opc.Ua.SourceGeneration
             var nodeIdGenerator = new NodeIdGenerator(context);
             nodeIdGenerator.Emit();
             ct.ThrowIfCancellationRequested();
+            // References the ObjectIds and BrowseNames emitted above; only the
+            // core model declares aggregate functions, so other models emit nothing.
+            new AggregateFunctionIdsGenerator(context).Emit();
+            ct.ThrowIfCancellationRequested();
             var nodeStateCodeGenerator = new NodeStateGenerator(context)
             {
                 // The provider references Opc.Ua.Server contracts, so it is
