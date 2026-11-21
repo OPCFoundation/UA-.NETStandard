@@ -968,20 +968,29 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void PromoteReadyMonitoredItems()
         {
+            // a change an item made to itself outside of a publish may have made a
+            // ready-to-report signal stale. Invalidations are consumed before the intake is
+            // taken, so the candidate of an item that signalled and then invalidated is in
+            // this pass; a newer invalidation is also honoured now but kept for the next pass.
+            bool invalidated = Interlocked.Exchange(ref m_readinessInvalidated, 0) != 0;
+
             TakeReadyIntake();
 
             // an item the subscription does not know to signal: a custom IMonitoredItem.
             if (m_monitoredItems.Count != m_signalingItemCount)
             {
+                // the scan reads every item, but the candidates it leaves keep their flags
+                // for when the subscription stops scanning.
+                m_recheckReadyCandidates |= invalidated;
                 DropPublishListCandidates();
                 ScanAllMonitoredItems();
                 return;
             }
 
-            // a configuration change may have made a ready-to-report signal stale.
-            // so does a change an item made to itself outside of a publish.
-            bool recheck = m_recheckReadyCandidates |
-                Interlocked.Exchange(ref m_readinessInvalidated, 0) != 0;
+            // so may a configuration change.
+            bool recheck = invalidated ||
+                m_recheckReadyCandidates ||
+                Volatile.Read(ref m_readinessInvalidated) != 0;
             m_recheckReadyCandidates = false;
 
             // compacts the candidates in place; triggered items may be appended while the

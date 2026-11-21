@@ -1786,7 +1786,10 @@ namespace Opc.Ua.Server
                 m_readyToTrigger = false;
                 m_resendData = false;
                 m_triggered = false;
-                Interlocked.Exchange(ref m_readySignal, 0);
+
+                // the signal stays with its holder (a candidate or the publish list), which
+                // checks the item again and releases it; resetting it here would let a later
+                // value add a second candidate for the item.
                 InvalidateReadiness();
             }
         }
