@@ -733,17 +733,16 @@ namespace Opc.Ua.Server
 
             try
             {
-                NodeManagerCallbackPermit? previous = context.NodeManagerCallbackPermit;
                 var permit = new NodeManagerCallbackPermit(GetAdmissionCapabilities(admission),
                     GetExplicitCallbackPermit(context) ?? CaptureLifecycleCallbackPermit(), m_nodeManagementHostId);
-                context.NodeManagerCallbackPermit = permit;
+                using var callbackContext = new OperationContext(context, permit);
                 try
                 {
-                    return await nodeManagement.AddNodeAsync(context, item, cancellationToken).ConfigureAwait(false);
+                    return await nodeManagement.AddNodeAsync(callbackContext, item, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 finally
                 {
-                    context.NodeManagerCallbackPermit = previous;
                     await permit.DisposeAsync().ConfigureAwait(false);
                 }
             }
@@ -797,17 +796,16 @@ namespace Opc.Ua.Server
 
             try
             {
-                NodeManagerCallbackPermit? previous = context.NodeManagerCallbackPermit;
                 var permit = new NodeManagerCallbackPermit(GetAdmissionCapabilities(admission),
                     GetExplicitCallbackPermit(context) ?? CaptureLifecycleCallbackPermit(), m_nodeManagementHostId);
-                context.NodeManagerCallbackPermit = permit;
+                using var callbackContext = new OperationContext(context, permit);
                 try
                 {
-                    return await owner.DeleteNodeAsync(context, item, cancellationToken).ConfigureAwait(false);
+                    return await owner.DeleteNodeAsync(callbackContext, item, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 finally
                 {
-                    context.NodeManagerCallbackPermit = previous;
                     await permit.DisposeAsync().ConfigureAwait(false);
                 }
             }

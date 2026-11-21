@@ -1735,6 +1735,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<OpcUaServerAliasNameStartupTask>();
             services.TryAddSingleton<INodeManagerLifecycle>(services =>
                 services.GetRequiredService<HostedNodeManagerLifecycle>());
+            services.TryAddSingleton<INodeManagerCallbackLifecycle>(services =>
+                services.GetRequiredService<HostedNodeManagerLifecycle>());
             services.TryAddSingleton<INodeManagerCleanupRecovery>(services =>
             {
                 HostedNodeManagerLifecycle lifecycle = services.GetRequiredService<HostedNodeManagerLifecycle>();

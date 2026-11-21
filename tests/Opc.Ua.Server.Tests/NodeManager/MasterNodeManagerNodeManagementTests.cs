@@ -428,6 +428,77 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Each node callback has its own permit but uses the batch's routing view and diagnostics.
+        /// </summary>
+        [TestCase(RequestType.AddNodes)]
+        [TestCase(RequestType.DeleteNodes)]
+        [Category("Server")]
+        [Category("NodeManagerLifecycle")]
+        public async Task CompletedNodeCallbackCannotBorrowNextItemsAdmissionAsync(RequestType requestType)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            OperationContext request = requestType == RequestType.AddNodes
+                ? harness.AddNodesContext
+                : harness.DeleteNodesContext;
+            OperationContext? first = null;
+            NodeManagerCallbackPermit? firstPermit = null;
+            int calls = 0;
+
+            void ObserveCallback(OperationContext callback)
+            {
+                calls++;
+                Assert.That(callback.RoutingSnapshot, Is.Not.Null.And.SameAs(request.RoutingSnapshot));
+                Assert.That(callback.StringTable, Is.SameAs(request.StringTable));
+                NodeManagerCallbackPermit? current = harness.Sut.GetExplicitCallbackPermit(callback);
+                Assert.That(current?.IsActive, Is.True);
+                if (first is null)
+                {
+                    first = callback;
+                    firstPermit = current;
+                    return;
+                }
+
+                Assert.That(firstPermit?.IsActive, Is.False);
+                Assert.That(first, Is.Not.SameAs(callback));
+                Assert.That(harness.Sut.GetExplicitCallbackPermit(first)?.IsActive, Is.Not.True);
+                Assert.That(first.RoutingSnapshot, Is.Null);
+            }
+
+            if (requestType == RequestType.AddNodes)
+            {
+                harness.SourceManager.Setup(manager => manager.AddNodeAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext callback, AddNodesItem _, CancellationToken _) =>
+                    {
+                        ObserveCallback(callback);
+                        return new ValueTask<(ServiceResult, NodeId)>((ServiceResult.Good, harness.SourceNodeId));
+                    });
+                (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                    request, [harness.CreateAddNodesItem(), harness.CreateAddNodesItem()], CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(results.Count, Is.EqualTo(2));
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            else
+            {
+                harness.SourceManager.Setup(manager => manager.DeleteNodeAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext callback, DeleteNodesItem _, CancellationToken _) =>
+                    {
+                        ObserveCallback(callback);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+                var item = new DeleteNodesItem { NodeId = harness.SourceNodeId };
+                (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
+                    request, [item, item], CancellationToken.None).ConfigureAwait(false);
+                Assert.That(results.ToList(), Is.All.EqualTo(StatusCodes.Good));
+            }
+            Assert.That(calls, Is.EqualTo(2));
+        }
+
+        /// <summary>
         /// An admitted AddNodes callback can re-enter lifecycle admission after its parent callback closes.
         /// </summary>
         /// <exception cref="InvalidOperationException">A callback did not capture its admission permit.</exception>
@@ -1145,7 +1216,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.AddNodeAsync(
-                    harness.AddNodesContext,
+                    It.Is<OperationContext>(callback =>
+                        MatchesNodeManagementRequest(callback, harness.AddNodesContext)),
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -1218,7 +1290,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.TargetManager.Verify(
                 manager => manager.AddNodeAsync(
-                    harness.AddNodesContext,
+                    It.Is<OperationContext>(callback =>
+                        MatchesNodeManagementRequest(callback, harness.AddNodesContext)),
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -1250,7 +1323,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.TargetManager.Verify(
                 manager => manager.AddNodeAsync(
-                    harness.AddNodesContext,
+                    It.Is<OperationContext>(callback =>
+                        MatchesNodeManagementRequest(callback, harness.AddNodesContext)),
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -1335,7 +1409,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.DeleteNodeAsync(
-                    harness.DeleteNodesContext,
+                    It.Is<OperationContext>(callback =>
+                        MatchesNodeManagementRequest(callback, harness.DeleteNodesContext)),
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -1955,7 +2030,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.AddNodeAsync(
-                    contextWithoutSession,
+                    It.Is<OperationContext>(callback => MatchesNodeManagementRequest(callback, contextWithoutSession)),
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -2580,6 +2655,16 @@ namespace Opc.Ua.Server.Tests
                 ChildNodeIds(afterDelete[0]),
                 Has.No.Member(new ExpandedNodeId(childId)),
                 "deleted child must no longer be visible when browsing the parent through the master");
+        }
+
+        private static bool MatchesNodeManagementRequest(OperationContext callback, OperationContext request)
+        {
+            return !ReferenceEquals(callback, request) &&
+                callback.RequestId == request.RequestId &&
+                callback.RequestType == request.RequestType &&
+                ReferenceEquals(callback.Session, request.Session) &&
+                ReferenceEquals(callback.UserIdentity, request.UserIdentity) &&
+                ReferenceEquals(callback.RequestLifetime, request.RequestLifetime);
         }
 
         private static async Task<ArrayOf<StatusCode>> DispatchFailingNodeManagementBatchAsync(

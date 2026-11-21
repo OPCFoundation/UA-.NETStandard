@@ -30,7 +30,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server
 {
@@ -135,17 +134,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Binds optimistic publication to the same initializer through preparation and commit.
+        /// Lets a readiness-aware lifecycle bind optimistic publication to this initializer.
+        /// Providers implementing only the primary contract keep their ordinary capture path.
         /// </summary>
-        /// <exception cref="NotSupportedException">The lifecycle does not support readiness-bound capture.</exception>
+        /// <exception cref="InvalidOperationException">The initializer has already ended.</exception>
         internal ILifecycleCapture CaptureChanges(INodeManagerLifecycle lifecycle)
         {
-            return lifecycle switch
+            if (!Scope.IsActive)
             {
-                NodeManagerLifecycle stock => stock.CaptureChanges(Scope, bindReadiness: true),
-                HostedNodeManagerLifecycle hosted => hosted.CaptureChanges(Scope),
-                _ => throw new NotSupportedException("The lifecycle does not support readiness-bound capture.")
-            };
+                throw new InvalidOperationException("The readiness initializer has already ended.");
+            }
+            return lifecycle is INodeManagerCallbackLifecycle callbacks
+                ? callbacks.CaptureFromReadiness(this)
+                : lifecycle.CaptureChanges();
         }
 
         /// <summary>

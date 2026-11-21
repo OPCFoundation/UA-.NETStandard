@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Readiness grants survive an ended inner scope only while their own enclosing initializer is active.
+        /// A captured child cannot use readiness after its own initializer ends.
         /// </summary>
         [TestCase(0)]
         [TestCase(1)]
@@ -338,9 +338,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             work.Release();
             (bool ParentGeneration, bool InnerGeneration, bool ParentServer, bool InnerServer) observed =
                 await work.Result.WaitAsync(kDeadline).ConfigureAwait(false);
-            Assert.That(observed.ParentGeneration, Is.EqualTo(scopeState != 2));
+            Assert.That(observed.ParentGeneration, Is.EqualTo(scopeState == 0));
             Assert.That(observed.InnerGeneration, Is.EqualTo(scopeState == 0));
-            Assert.That(observed.ParentServer, Is.EqualTo(scopeState != 2));
+            Assert.That(observed.ParentServer, Is.EqualTo(scopeState == 0));
             Assert.That(observed.InnerServer, Is.EqualTo(scopeState == 0));
             parent.Dispose();
             Assert.That(parent.Includes(parentGeneration), Is.False);

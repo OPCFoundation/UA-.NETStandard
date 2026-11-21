@@ -1036,21 +1036,25 @@ lookup nor a routing pin grants readiness.
 `AddNodeAsync` and `DeleteNodeAsync` callbacks carry admission in their `OperationContext`.
 Pass that context to `INodeManagerCallbackLifecycle.PrepareFromCallbackAsync` for nested lifecycle
 changes. Use `PrepareFromDecisionAsync` on the same interface when passing a durable decision
-context. For a separate local
+context. The default host registers both lifecycle interfaces on the same instance. For a separate local
 node-management operation, use `InheritNodeManagerAdmission` to pass admission to its context.
-Only the issuing host accepts the permit, and callback exit revokes it before draining borrows.
+Each item has its own callback context and permit, while the request keeps its routing view
+and diagnostic string table. Only the issuing host accepts the permit, and callback exit
+revokes it before draining borrows.
 
 `INodeManagerReadinessInitializer` receives a `NodeManagerReadinessContext` explicitly, including
 through a supported manager adapter. Use `ReadAsync` on that context for an authenticated local
 read of pending nodes, or `PublishAsync` for dependent lifecycle changes. Neither method grants
 admission to a different server. The lifecycle revokes admission when initialization ends.
 `INodeManagerReadinessNotification` still runs callbacks that do not need initializer admission.
+Lifecycle providers can implement `INodeManagerCallbackLifecycle.CaptureFromReadiness` to
+carry the initializer into optimistic capture and publication. A provider implementing only
+`INodeManagerLifecycle` keeps its ordinary capture path and receives no added admission.
 
-When an intermediate readiness scope is disposed while a descendant remains active,
-it clears its link to the grandparent. The descendant cannot reach the grandparent's
-generation through that scope. It retains authority for its own server and generation,
-including when its server is shared with the grandparent. A separately captured context
-whose current scope is the still-active grandparent retains that grandparent's authority.
+A completed readiness scope cannot grant access to its own generation or to an enclosing
+initializer. An active descendant keeps access to its own server and generation but cannot
+reach an ancestor through a completed scope. A caller holding the active ancestor's own
+context can still use that context.
 
 Restoring an `AsyncLocal` value alone cannot revoke a scope copied into another
 execution context. Readers therefore check the shared active flag or completion

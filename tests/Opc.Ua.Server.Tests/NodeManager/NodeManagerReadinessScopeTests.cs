@@ -47,6 +47,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class NodeManagerReadinessScopeTests
     {
         /// <summary>
+        /// A custom lifecycle that manages its own readiness can capture publication at startup.
+        /// </summary>
+        [Test]
+        public void ReadinessCaptureSupportsPrimaryOnlyLifecycle()
+        {
+            using var scope = new NodeManagerReadinessScope(Mock.Of<IServerInternal>(), CreateGeneration());
+            var readiness = new NodeManagerReadinessContext(scope);
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            ILifecycleCapture capture = Mock.Of<ILifecycleCapture>();
+            lifecycle.Setup(owner => owner.CaptureChanges()).Returns(capture);
+
+            Assert.That(readiness.CaptureChanges(lifecycle.Object), Is.SameAs(capture));
+            lifecycle.Verify(owner => owner.CaptureChanges(), Times.Once);
+        }
+
+        /// <summary>
+        /// Readiness-aware providers receive the exact live context, never a context-free retry.
+        /// </summary>
+        [Test]
+        public void ReadinessCaptureForwardsOnlyAnActiveContext()
+        {
+            using var scope = new NodeManagerReadinessScope(Mock.Of<IServerInternal>(), CreateGeneration());
+            var readiness = new NodeManagerReadinessContext(scope);
+            var lifecycle = new Mock<INodeManagerCallbackLifecycle>(MockBehavior.Strict);
+            ILifecycleCapture capture = Mock.Of<ILifecycleCapture>();
+            lifecycle.Setup(owner => owner.CaptureFromReadiness(readiness)).Returns(capture);
+
+            Assert.That(readiness.CaptureChanges(lifecycle.Object), Is.SameAs(capture));
+            scope.Dispose();
+            Assert.That(() => readiness.CaptureChanges(lifecycle.Object), Throws.InvalidOperationException);
+            lifecycle.Verify(owner => owner.CaptureFromReadiness(readiness), Times.Once);
+        }
+
+        /// <summary>
         /// Readiness grants access only to the exact server and generation, not a shared slot.
         /// </summary>
         [Test]

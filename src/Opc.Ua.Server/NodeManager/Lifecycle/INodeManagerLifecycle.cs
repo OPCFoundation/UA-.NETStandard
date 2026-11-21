@@ -90,10 +90,17 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Prepares lifecycle changes from callbacks with explicitly supplied admission.
+    /// Captures and prepares lifecycle changes from callbacks with explicitly supplied admission.
     /// </summary>
     public interface INodeManagerCallbackLifecycle : INodeManagerLifecycle
     {
+        /// <summary>
+        /// Captures changes using the readiness initializer's explicit admission.
+        /// </summary>
+        /// <param name="readiness">The context supplied to the initializer.</param>
+        /// <returns>The optimistic publication capture.</returns>
+        ILifecycleCapture CaptureFromReadiness(NodeManagerReadinessContext readiness);
+
         /// <summary>
         /// Prepares changes requested by a durable decision, rejecting re-entry into that decision's lifecycle.
         /// </summary>

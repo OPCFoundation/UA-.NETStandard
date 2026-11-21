@@ -4128,22 +4128,27 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ILifecycleCapture CaptureChanges()
         {
-            return CaptureChanges(null, bindReadiness: false);
+            return CaptureChangesCore(null);
+        }
+
+        /// <inheritdoc/>
+        public ILifecycleCapture CaptureFromReadiness(NodeManagerReadinessContext readiness)
+        {
+            return CaptureChangesCore((readiness ?? throw new ArgumentNullException(nameof(readiness))).Scope);
         }
 
         /// <summary>
         /// Captures a publication whose writer and prepared changes use the same revocable initializer.
         /// </summary>
         /// <exception cref="InvalidOperationException">The initializer is not active for this server.</exception>
-        internal ILifecycleCapture CaptureChanges(NodeManagerReadinessScope? readiness, bool bindReadiness)
+        private LifecycleCapture CaptureChangesCore(NodeManagerReadinessScope? readiness)
         {
             (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer(readiness);
-            if (bindReadiness && readiness?.Includes(server) != true)
+            if (readiness is not null && !readiness.Includes(server))
             {
                 throw new InvalidOperationException("The initializer is not active for this server.");
             }
-            return new LifecycleCapture(
-                this, m_writer.CaptureRevision(server, host), bindReadiness ? readiness : null);
+            return new LifecycleCapture(this, m_writer.CaptureRevision(server, host), readiness);
         }
 
         /// <summary>
