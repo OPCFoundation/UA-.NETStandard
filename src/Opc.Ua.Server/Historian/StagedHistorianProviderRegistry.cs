@@ -299,7 +299,7 @@ namespace Opc.Ua.Server.Historian
                 {
                     ArrayOf<IHistorianProvider> serving = m_servingRegistry.Providers;
                     ArrayOf<IHistorianProvider> candidate = m_candidateRegistry.Providers;
-                    var providers = new HashSet<IHistorianProvider>();
+                    var providers = new HashSet<IHistorianProvider>(RefEqualityComparer.Default);
                     for (int index = 0; index < serving.Count; index++)
                     {
                         providers.Add(serving[index]);
@@ -540,7 +540,7 @@ namespace Opc.Ua.Server.Historian
             if (registrations.Length != 0)
             {
                 m_candidateRegistry.TransferProviderOwnership(registrations);
-                var transferredProviders = new HashSet<IHistorianProvider>();
+                var transferredProviders = new HashSet<IHistorianProvider>(RefEqualityComparer.Default);
                 foreach (HistorianProviderRegistration registration in registrations)
                 {
                     if (registration.OwnsProvider && transferredProviders.Add(registration.Provider))

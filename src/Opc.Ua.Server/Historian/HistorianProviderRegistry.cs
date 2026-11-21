@@ -752,7 +752,7 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(owner));
             }
-            var sharedProviders = new HashSet<IHistorianProvider>();
+            var sharedProviders = new HashSet<IHistorianProvider>(RefEqualityComparer.Default);
             ArrayOf<IHistorianProvider> registeredProviders = sharedRegistry.Providers;
             for (int index = 0; index < registeredProviders.Count; index++)
             {
@@ -790,7 +790,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public void Dispose()
         {
-            HashSet<IHistorianProvider> providers;
+            IHistorianProvider[] providers;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -1546,8 +1546,8 @@ namespace Opc.Ua.Server.Historian
             new(RefEqualityComparer.Default);
         private readonly Dictionary<IHistorianProvider, HashSet<object>> m_stagedProviderOwners =
             new(RefEqualityComparer.Default);
-        private readonly HashSet<IHistorianProvider> m_providers = [];
-        private readonly HashSet<IHistorianProvider> m_ownedProviders = [];
+        private readonly HashSet<IHistorianProvider> m_providers = new(RefEqualityComparer.Default);
+        private readonly HashSet<IHistorianProvider> m_ownedProviders = new(RefEqualityComparer.Default);
         private IHistorianProvider? m_default;
 
         /// <summary>Whether shutdown invalidated all registrations and pending replacements.</summary>

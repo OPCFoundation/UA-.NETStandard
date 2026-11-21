@@ -5134,7 +5134,7 @@ namespace Opc.Ua.Server
                     (remove, ct) => owner.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
                     unsubscribe: true,
                     cancellationToken,
-                    retainFailedRelease: false).ConfigureAwait(false) ?? ServiceResult.Good;
+                    retainFailedRelease: true).ConfigureAwait(false) ?? ServiceResult.Good;
                 if (result.StatusCode == StatusCodes.BadNotSupported)
                 {
                     return ServiceResult.Good;

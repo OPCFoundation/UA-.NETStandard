@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.StateMachines
 {
@@ -97,7 +99,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <see cref="StateMachineBuilder{TState}.WithSubStateMachine"/>
         /// lifecycle hooks via <see cref="SetSuspended"/>.
         /// </summary>
-        public bool IsSuspended { get; private set; }
+        public bool IsSuspended => CurrentState?.StatusCode == StatusCodes.BadStateNotActive;
 
         /// <summary>
         /// Suspends or resumes the machine. Per OPC 10000-16 §4.4.6, an
@@ -108,8 +110,19 @@ namespace Opc.Ua.Server.StateMachines
         /// </summary>
         internal void SetSuspended(ISystemContext context, bool suspended)
         {
-            IsSuspended = suspended;
             SetActive(context, !suspended);
+        }
+
+        /// <summary>
+        /// Applies suspension and optional state selection through native asynchronous child notification delivery.
+        /// </summary>
+        internal async ValueTask SetSuspendedAsync(
+            ISystemContext context,
+            bool suspended,
+            uint? stateId,
+            CancellationToken cancellationToken = default)
+        {
+            await SetStateAndActiveAsync(context, stateId, !suspended, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -133,6 +146,10 @@ namespace Opc.Ua.Server.StateMachines
             ArrayOf<Variant> inputArguments,
             System.Collections.Generic.List<Variant> outputArguments)
         {
+            if (IsAsyncTransitionActive)
+            {
+                return StatusCodes.BadInvalidState;
+            }
             if (IsSuspended)
             {
                 return StatusCodes.BadStateNotActive;
@@ -148,11 +165,49 @@ namespace Opc.Ua.Server.StateMachines
             ArrayOf<Variant> inputArguments,
             System.Collections.Generic.List<Variant> outputArguments)
         {
+            if (IsAsyncTransitionActive)
+            {
+                return StatusCodes.BadInvalidState;
+            }
             if (IsSuspended)
             {
                 return StatusCodes.BadStateNotActive;
             }
             return base.DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
+        }
+
+        /// <inheritdoc/>
+        public override ValueTask<ServiceResult> DoCauseAsync(
+            ISystemContext context,
+            MethodState? causeMethod,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            System.Collections.Generic.List<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (IsSuspended)
+            {
+                return new ValueTask<ServiceResult>(StatusCodes.BadStateNotActive);
+            }
+            return base.DoCauseAsync(
+                context, causeMethod, causeId, inputArguments, outputArguments, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public override ValueTask<ServiceResult> DoTransitionAsync(
+            ISystemContext context,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            System.Collections.Generic.List<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (IsSuspended)
+            {
+                return new ValueTask<ServiceResult>(StatusCodes.BadStateNotActive);
+            }
+            return base.DoTransitionAsync(
+                context, transitionId, causeId, inputArguments, outputArguments, cancellationToken);
         }
 
         /// <summary>

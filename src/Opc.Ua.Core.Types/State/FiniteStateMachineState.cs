@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -448,6 +450,11 @@ namespace Opc.Ua
         public StateMachineTransitionHandler? OnAfterTransition;
 
         /// <summary>
+        /// Replaces the synchronous post-transition callback on the native asynchronous path when supplied.
+        /// </summary>
+        public StateMachineTransitionAsyncHandler? OnAfterTransitionAsync;
+
+        /// <summary>
         /// If true transition events will not be produced by the state machine.
         /// </summary>
         public bool SuppressTransitionEvents { get; set; }
@@ -458,9 +465,19 @@ namespace Opc.Ua
         internal StateMachineTransitionCallbackFactory? TransitionCallbackFactory { get; set; }
 
         /// <summary>
+        /// Creates native asynchronous post-transition callbacks without invoking synchronous coordinators.
+        /// </summary>
+        internal StateMachineAsyncTransitionCallbackFactory? AsyncTransitionCallbackFactory { get; set; }
+
+        /// <summary>
         /// Synchronizes attached child machines after an owner's initial state selection.
         /// </summary>
         internal event Action<ISystemContext, uint>? InitialStateSynchronization;
+
+        /// <summary>
+        /// Synchronizes attached children through native asynchronous notification delivery.
+        /// </summary>
+        internal event Func<ISystemContext, uint, ValueTask>? InitialStateSynchronizationAsync;
 
         /// <summary>
         /// Marks attached children for initial-state entry on the next activation of a new Program run.
@@ -487,6 +504,20 @@ namespace Opc.Ua
         /// Gets the revision used to reject work armed before the current state was entered.
         /// </summary>
         internal long StateRevision => Interlocked.Read(ref m_stateRevision);
+
+        /// <summary>
+        /// Gets whether native delivery currently excludes synchronous state mutations.
+        /// </summary>
+        internal bool IsAsyncTransitionActive
+        {
+            get
+            {
+                lock (m_transitionLock)
+                {
+                    return m_asyncTransitionActive;
+                }
+            }
+        }
 
         /// <summary>
         /// Invokes the callback function if it has been specified.
@@ -567,6 +598,10 @@ namespace Opc.Ua
         {
             lock (m_transitionLock)
             {
+                if (m_asyncTransitionActive && !CanSetCompositeState())
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
                 uint transitionId = GetTransitionToState(context, newState);
                 UpdateStateVariable(context, newState, CurrentState);
                 UpdateTransitionVariable(context, transitionId, LastTransition);
@@ -588,13 +623,214 @@ namespace Opc.Ua
         /// </summary>
         internal void SetActive(ISystemContext context, bool active)
         {
-            StatusCode status = active ? StatusCodes.Good : StatusCodes.BadStateNotActive;
-            ApplyStateQuality(context, CurrentState, status);
-            ApplyStateQuality(context, LastTransition, status);
+            lock (m_transitionLock)
+            {
+                if (m_asyncTransitionActive)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+                StatusCode status = active ? StatusCodes.Good : StatusCodes.BadStateNotActive;
+                ApplyStateQuality(context, CurrentState, status);
+                ApplyStateQuality(context, LastTransition, status);
+            }
+        }
+
+        /// <summary>
+        /// Applies nested-machine activation and optional state selection under one asynchronous admission.
+        /// </summary>
+        internal async ValueTask SetStateAndActiveAsync(
+            ISystemContext context,
+            uint? stateId,
+            bool active,
+            CancellationToken cancellationToken = default)
+        {
+            AsyncTransitionAdmission? admission = await EnterAsyncTransitionAsync(
+                cancellationToken, allowCompositeNested: true)
+                .ConfigureAwait(false);
+            if (admission == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState);
+            }
+            m_asyncAdmission.Value = admission;
+            var failures = new List<Exception>();
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    if (stateId.HasValue)
+                    {
+                        uint transition = GetTransitionToState(context, stateId.Value);
+                        UpdateStateVariable(context, stateId.Value, CurrentState);
+                        UpdateTransitionVariable(context, transition, LastTransition);
+                        m_stateRevision++;
+                    }
+                    StatusCode status = active ? StatusCodes.Good : StatusCodes.BadStateNotActive;
+                    ApplyStateQuality(context, CurrentState, status, publish: false);
+                    ApplyStateQuality(context, LastTransition, status, publish: false);
+                }
+                catch (Exception ex)
+                {
+                    AddFailure(failures, ex);
+                }
+                Func<ISystemContext, uint, ValueTask>? synchronizers = InitialStateSynchronizationAsync;
+                if (synchronizers != null)
+                {
+                    uint current = active ? GetCurrentStateId() : 0;
+                    foreach (Delegate synchronizer in synchronizers.GetInvocationList())
+                    {
+                        try
+                        {
+                            await ((Func<ISystemContext, uint, ValueTask>)synchronizer)(context, current)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            AddFailure(failures, ex);
+                        }
+                    }
+                }
+                await PublishChangeMasksAsync(context, this, failures).ConfigureAwait(false);
+                ThrowFailures(failures);
+            }
+            finally
+            {
+                ExitAsyncTransition(admission);
+            }
+        }
+
+        /// <summary>
+        /// Publishes pending state changes and awaits their notifications before another state operation can run.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous causes, transitions and state assignments are rejected during notification delivery.
+        /// Callbacks must not await another operation on this machine or its participating descendants.
+        /// Cancellation is checked before publication; delivery that has started finishes without the caller's token.
+        /// This method does not report transition events or roll back state changes when a notification fails.
+        /// </remarks>
+        /// <param name="context">The system context used to deliver notifications.</param>
+        /// <param name="includeChildren">Whether to publish changes on descendant nodes as well.</param>
+        /// <param name="cancellationToken">The cancellation token observed before publication starts.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// Reentry from a notification or an already-active descendant is rejected with <c>BadInvalidState</c>.
+        /// </exception>
+        public async ValueTask PublishStateChangesAsync(
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            AsyncTransitionAdmission? admission = await EnterAsyncTransitionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (admission == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState);
+            }
+            m_asyncAdmission.Value = admission;
+            var failures = new List<Exception>();
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (includeChildren)
+                {
+                    await PublishChangeMasksAsync(context, this, failures).ConfigureAwait(false);
+                }
+                else
+                {
+                    await ClearChangeMasksAsync(context, false, CancellationToken.None).ConfigureAwait(false);
+                }
+                ThrowFailures(failures);
+            }
+            finally
+            {
+                ExitAsyncTransition(admission);
+            }
+        }
+
+        /// <summary>
+        /// Executes a composite state operation on this machine and its descendants.
+        /// </summary>
+        /// <remarks>
+        /// Other state operations wait until the supplied operation and its awaited notifications finish.
+        /// Synchronous writes from outside the operation are rejected. The operation may invoke native asynchronous
+        /// causes and transitions, each of which publishes its live state before returning. Publish non-transition
+        /// changes with <see cref="PublishStateChangesAsync"/> before returning from the operation.
+        /// Await each state change before starting the next; do not schedule writes that outlive the operation.
+        /// Notification callbacks must not await another operation on any participating machine.
+        /// Cancellation is checked before invoking the operation and its token is passed to the operation.
+        /// The returned result and exceptions are propagated without rolling back changes already applied.
+        /// </remarks>
+        /// <param name="context">The system context used to discover descendant machines.</param>
+        /// <param name="operation">The operation to execute, including notification delivery.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the operation.</param>
+        /// <returns>
+        /// The operation's result, or <c>BadInvalidState</c> when called reentrantly from an active operation.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/> or <paramref name="operation"/> is null.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// An already-active descendant prevents the composite operation with <c>BadInvalidState</c>.
+        /// </exception>
+        public async ValueTask<ServiceResult> ExecuteStateOperationAsync(
+            ISystemContext context,
+            Func<CancellationToken, ValueTask<ServiceResult>> operation,
+            CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            if (m_asyncAdmission.Value is { Active: true })
+            {
+                return StatusCodes.BadInvalidState;
+            }
+            AsyncTransitionAdmission? admission = await EnterAsyncTransitionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (admission == null)
+            {
+                return StatusCodes.BadInvalidState;
+            }
+            var admissions = new List<(FiniteStateMachineState Machine, AsyncTransitionAdmission Admission)>();
+            var composite = new CompositeStateAdmission();
+            admission.Composite = composite;
+            m_asyncAdmission.Value = admission;
+            try
+            {
+                ReserveDescendantAdmissions(context, this, admissions, composite);
+                cancellationToken.ThrowIfCancellationRequested();
+                return await operation(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                for (int ii = admissions.Count - 1; ii >= 0; ii--)
+                {
+                    (FiniteStateMachineState machine, AsyncTransitionAdmission childAdmission) = admissions[ii];
+                    machine.ReleaseAsyncTransition(childAdmission);
+                }
+                ReleaseAsyncTransition(admission);
+            }
+        }
+
+        /// <summary>
+        /// Allows only the composite owner's state assignments between native notification intervals.
+        /// </summary>
+        private bool CanSetCompositeState()
+        {
+            return m_asyncAdmission.Value is { Active: true, Composite: not null } admission &&
+                Volatile.Read(ref admission.Composite.OperationDepth) == 0;
         }
 
         private static void ApplyStateQuality(
-            ISystemContext context, BaseVariableState? variable, StatusCode status)
+            ISystemContext context, BaseVariableState? variable, StatusCode status, bool publish = true)
         {
             if (variable is null)
             {
@@ -610,7 +846,10 @@ namespace Opc.Ua
                     childVariable.StatusCode = status;
                 }
             }
-            variable.ClearChangeMasks(context, true);
+            if (publish)
+            {
+                variable.ClearChangeMasks(context, true);
+            }
         }
 
         /// <summary>
@@ -623,16 +862,120 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
+            return ExecuteSynchronousTransition(
+                () => DoCauseCore(context, causeMethod, causeId, inputArguments, outputArguments));
+        }
+
+        /// <summary>
+        /// Invokes the specified cause and awaits the publication of its
+        /// events and change notifications with
+        /// <see cref="NodeState.ReportEventAsync"/> and
+        /// <see cref="NodeState.ClearChangeMasksAsync"/>.
+        /// </summary>
+        /// <remarks>
+        /// Uses the protected cause mapping and virtual <see cref="DoTransitionAsync"/>,
+        /// not synchronous cause or transition overrides. Subclasses must customize the
+        /// asynchronous counterparts separately. Synchronous state changes are refused
+        /// while this invocation owns admission. Callback self-reentrancy is refused
+        /// with BadInvalidState instead of awaiting this invocation. Cancellation is
+        /// observed before mutation; committed notifications finish without cancellation.
+        /// Legacy synchronous transition callbacks and completion observers still run
+        /// synchronously; they must not perform asynchronous notification work.
+        /// </remarks>
+        public virtual async ValueTask<ServiceResult> DoCauseAsync(
+            ISystemContext context,
+            MethodState? causeMethod,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (outputArguments == null)
+            {
+                throw new ArgumentNullException(nameof(outputArguments));
+            }
+            AsyncTransitionAdmission? admission = await EnterAsyncTransitionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (admission == null)
+            {
+                return StatusCodes.BadInvalidState;
+            }
+            m_asyncAdmission.Value = admission;
+            var failures = new List<Exception>();
+            ServiceResult result = ServiceResult.Good;
+            bool transitioned = false;
             try
             {
-                lock (m_transitionLock)
+                try
                 {
-                    return DoCauseCore(context, causeMethod, causeId, inputArguments, outputArguments);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    uint transitionId = GetTransitionForCause(context, causeId);
+                    result = transitionId == 0
+                        ? StatusCodes.BadNotSupported
+                        : OnCheckUserPermission?.Invoke(
+                            context, this, transitionId, causeId, inputArguments, outputArguments)
+                            ?? ServiceResult.Good;
+                    if (ServiceResult.IsGood(result))
+                    {
+                        admission.ForwardingTransition = true;
+                        long revision = StateRevision;
+                        try
+                        {
+                            result = await DoTransitionAsync(
+                                context, transitionId, causeId, inputArguments, outputArguments, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            transitioned = StateRevision != revision;
+                            admission.ForwardingTransition = false;
+                        }
+                    }
                 }
+                catch (Exception ex)
+                {
+                    AddFailure(failures, ex);
+                    result = ServiceResult.Create(
+                        ex, StatusCodes.BadUnexpectedError, "Unexpected error processing a state machine cause.");
+                }
+
+                if (AreEventsMonitored && causeMethod != null)
+                {
+                    try
+                    {
+                        AuditUpdateStateEventState e = CreateAuditEvent(context, causeMethod, causeId);
+                        UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
+                        await ReportEventAsync(context, e, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddFailure(failures, ex);
+                    }
+                    if (m_causeId != causeId && transitioned)
+                    {
+                        try
+                        {
+                            await ReportAuditProgramTransitionEventAsync(
+                                context, causeMethod, causeId, inputArguments, result, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            AddFailure(failures, ex);
+                        }
+                        m_causeId = causeId;
+                    }
+                }
+                ThrowFailures(failures);
+                return result;
             }
             finally
             {
-                DispatchTransitionCompletions();
+                ExitAsyncTransition(admission);
             }
         }
 
@@ -675,12 +1018,7 @@ namespace Opc.Ua
                 }
 
                 // do the transition.
-                result = DoTransition(
-                    context,
-                    transitionId,
-                    causeId,
-                    inputArguments,
-                    outputArguments);
+                result = DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -791,22 +1129,54 @@ namespace Opc.Ua
         {
             try
             {
-                var e = new AuditProgramTransitionEventState(null);
-
-                UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
-
-                e.SetChildValue(
+                ReportEvent(
                     context,
-                    BrowseNames.TransitionNumber,
-                    LastTransition?.Number?.Value ?? 0,
-                    false);
-
-                ReportEvent(context, e);
+                    CreateAuditProgramTransitionEvent(context, causeMethod, causeId, inputArguments, result));
             }
             catch (Exception ex)
             {
                 m_logger.ReportAuditProgramTransitionError(ex);
             }
+        }
+
+        /// <summary>
+        /// Reports the program audit event using native asynchronous notification.
+        /// </summary>
+        /// <remarks>
+        /// Asynchronous causes use this counterpart rather than the synchronous
+        /// reporting override. Failures are retained by the cause invocation.
+        /// </remarks>
+        protected virtual ValueTask ReportAuditProgramTransitionEventAsync(
+            ISystemContext context,
+            MethodState causeMethod,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            ServiceResult? result,
+            CancellationToken cancellationToken = default)
+        {
+            return ReportEventAsync(
+                context,
+                CreateAuditProgramTransitionEvent(context, causeMethod, causeId, inputArguments, result),
+                cancellationToken);
+        }
+
+        private AuditProgramTransitionEventState CreateAuditProgramTransitionEvent(
+            ISystemContext context,
+            MethodState causeMethod,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            ServiceResult? result)
+        {
+            var e = new AuditProgramTransitionEventState(null);
+
+            UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
+
+            e.SetChildValue(
+                context,
+                BrowseNames.TransitionNumber,
+                LastTransition?.Number?.Value ?? 0,
+                false);
+            return e;
         }
 
         /// <summary>
@@ -818,6 +1188,10 @@ namespace Opc.Ua
         {
             lock (m_transitionLock)
             {
+                if (m_asyncTransitionActive)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
                 CompleteCauseCore(context, causeId);
             }
         }
@@ -862,17 +1236,410 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
+            return ExecuteSynchronousTransition(
+                () => DoTransitionCore(context, transitionId, causeId, inputArguments, outputArguments));
+        }
+
+        /// <summary>
+        /// Causes the specified transition to occur and awaits the
+        /// publication of its transition event and live state changes with
+        /// <see cref="NodeState.ReportEventAsync"/> and <see cref="NodeState.ClearChangeMasksAsync"/>.
+        /// </summary>
+        /// <remarks>
+        /// The state remains live and unchanged until notification delivery completes.
+        /// Concurrent asynchronous invocations wait for admission; synchronous writes
+        /// and callback self-reentrancy return BadInvalidState. Synchronous overrides
+        /// are not invoked. Legacy callbacks still run synchronously and must not
+        /// publish asynchronous work themselves. Cancellation is checked before
+        /// mutation. After mutation every node notification is attempted, failures
+        /// are retained together, and the state is not rolled back. NodeState's
+        /// per-node sink short-circuiting is unchanged; only observed failures are retained.
+        /// </remarks>
+        public virtual async ValueTask<ServiceResult> DoTransitionAsync(
+            ISystemContext context,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (outputArguments == null)
+            {
+                throw new ArgumentNullException(nameof(outputArguments));
+            }
+            AsyncTransitionAdmission? admission = m_asyncAdmission.Value;
+            bool forwarded = admission is { Active: true, ForwardingTransition: true };
+            if (forwarded)
+            {
+                admission!.ForwardingTransition = false;
+            }
+            else
+            {
+                admission = await EnterAsyncTransitionAsync(cancellationToken).ConfigureAwait(false);
+                if (admission == null)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+                m_asyncAdmission.Value = admission;
+            }
+            var failures = new List<Exception>();
+            bool mutated = false;
+            TransitionEventState? transitionEvent = null;
+            try
+            {
+                ServiceResult result;
+                PreparedStateMachineTransition prepared;
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (m_transitionLock)
+                {
+                    result = PrepareTransitionCore(
+                        context, transitionId, causeId, inputArguments, outputArguments, out prepared,
+                        nativeAsync: true);
+                }
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+                try
+                {
+                    lock (m_transitionLock)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (m_stateRevision != prepared.Revision || GetCurrentStateId() != prepared.FromState)
+                        {
+                            return StatusCodes.BadInvalidState;
+                        }
+                        LastState = CoreUtils.Clone(CurrentState);
+                        // Treat a partially failed variable update as committed for notification delivery.
+                        mutated = true;
+                        UpdateStateVariable(context, prepared.ToState, CurrentState);
+                        UpdateTransitionVariable(context, prepared.TransitionId, LastTransition);
+                        m_stateRevision++;
+                    }
+                    if (AreEventsMonitored && !SuppressTransitionEvents)
+                    {
+                        transitionEvent = CreateTransitionEvent(context, prepared.TransitionId, prepared.CauseId);
+                        if (transitionEvent != null)
+                        {
+                            UpdateTransitionEvent(context, prepared.TransitionId, prepared.CauseId, transitionEvent);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddFailure(failures, ex);
+                }
+                if (mutated)
+                {
+                    try
+                    {
+                        if (prepared.AfterAsync != null)
+                        {
+                            result = await prepared.AfterAsync(
+                                context, this, prepared.TransitionId, prepared.CauseId,
+                                prepared.InputArguments, prepared.OutputArguments, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            result = prepared.After?.Invoke(
+                                context, this, prepared.TransitionId, prepared.CauseId,
+                                prepared.InputArguments, prepared.OutputArguments) ?? ServiceResult.Good;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddFailure(failures, ex);
+                    }
+                    if (transitionEvent != null)
+                    {
+                        try
+                        {
+                            await ReportEventAsync(context, transitionEvent, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            AddFailure(failures, ex);
+                        }
+                    }
+                    try
+                    {
+                        await DispatchTransitionCompletionsAsync(failures).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddFailure(failures, ex);
+                    }
+                    await PublishChangeMasksAsync(context, this, failures).ConfigureAwait(false);
+                }
+                ThrowFailures(failures);
+                return result;
+            }
+            finally
+            {
+                if (!forwarded)
+                {
+                    ExitAsyncTransition(admission!);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Visits live children in NodeState order, retaining failures without skipping later nodes.
+        /// </summary>
+        private static async ValueTask PublishChangeMasksAsync(
+            ISystemContext context,
+            NodeState node,
+            List<Exception> failures)
+        {
+            var admissions = new List<(FiniteStateMachineState Machine, AsyncTransitionAdmission Admission)>();
+            try
+            {
+                ReserveDescendantAdmissions(context, node, admissions);
+                await PublishNodeChangeMasksAsync(context, node, failures).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddFailure(failures, ex);
+            }
+            finally
+            {
+                for (int ii = admissions.Count - 1; ii >= 0; ii--)
+                {
+                    (FiniteStateMachineState machine, AsyncTransitionAdmission admission) = admissions[ii];
+                    machine.ExitAsyncTransition(admission);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reserves every descendant machine before any recursive sink is invoked.
+        /// </summary>
+        private static void ReserveDescendantAdmissions(
+            ISystemContext context,
+            NodeState node,
+            List<(FiniteStateMachineState Machine, AsyncTransitionAdmission Admission)> admissions,
+            CompositeStateAdmission? composite = null)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is FiniteStateMachineState machine)
+                {
+                    if (machine.m_asyncAdmission.Value is { Active: true, Composite: not null })
+                    {
+                        ReserveDescendantAdmissions(context, child, admissions, composite);
+                        continue;
+                    }
+                    AsyncTransitionAdmission admission;
+                    lock (machine.m_transitionLock)
+                    {
+                        if (machine.m_asyncTransitionActive ||
+                            machine.m_synchronousAdmissions != 0 || machine.m_dispatchingCompletions)
+                        {
+                            // Waiting here can deadlock an already-admitted child's callback against its parent.
+                            throw new ServiceResultException(StatusCodes.BadInvalidState);
+                        }
+                        machine.m_asyncTransitionActive = true;
+                        admission = new AsyncTransitionAdmission { Composite = composite };
+                    }
+                    machine.m_asyncAdmission.Value = admission;
+                    admissions.Add((machine, admission));
+                }
+                ReserveDescendantAdmissions(context, child, admissions, composite);
+            }
+        }
+
+        /// <summary>
+        /// Delivers children before their owner while the entire machine subtree retains admission.
+        /// </summary>
+        private static async ValueTask PublishNodeChangeMasksAsync(
+            ISystemContext context,
+            NodeState node,
+            List<Exception> failures)
+        {
+            try
+            {
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    await PublishNodeChangeMasksAsync(context, child, failures).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                AddFailure(failures, ex);
+            }
+            try
+            {
+                await node.ClearChangeMasksAsync(context, false, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AddFailure(failures, ex);
+            }
+        }
+
+        /// <summary>
+        /// Retains individual failures from nested asynchronous operations in delivery order.
+        /// </summary>
+        private static void AddFailure(List<Exception> failures, Exception failure)
+        {
+            if (failure is AggregateException aggregate)
+            {
+                foreach (Exception inner in aggregate.InnerExceptions)
+                {
+                    AddFailure(failures, inner);
+                }
+            }
+            else
+            {
+                failures.Add(failure);
+            }
+        }
+
+        /// <summary>
+        /// Preserves a single original exception or reports every retained failure.
+        /// </summary>
+        private static void ThrowFailures(List<Exception> failures)
+        {
+            if (failures.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException("State machine processing or notification delivery failed.", failures);
+            }
+        }
+
+        /// <summary>
+        /// Preserves legacy synchronous reentrancy while excluding awaited asynchronous notifications.
+        /// </summary>
+        private ServiceResult ExecuteSynchronousTransition(Func<ServiceResult> operation)
+        {
+            lock (m_transitionLock)
+            {
+                if (m_asyncTransitionActive)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+                m_synchronousAdmissions++;
+            }
             try
             {
                 lock (m_transitionLock)
                 {
-                    return DoTransitionCore(context, transitionId, causeId, inputArguments, outputArguments);
+                    return operation();
                 }
             }
             finally
             {
-                DispatchTransitionCompletions();
+                try
+                {
+                    DispatchTransitionCompletions();
+                }
+                finally
+                {
+                    lock (m_transitionLock)
+                    {
+                        m_synchronousAdmissions--;
+                        SignalAdmissionChanged();
+                    }
+                }
             }
+        }
+
+        /// <summary>
+        /// Waits without holding a synchronous lock and refuses callback self-reentrancy.
+        /// </summary>
+        private async ValueTask<AsyncTransitionAdmission?> EnterAsyncTransitionAsync(
+            CancellationToken cancellationToken,
+            bool allowCompositeNested = false)
+        {
+            if (m_asyncAdmission.Value is { Active: true, Composite: not null } owned)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (m_transitionLock)
+                {
+                    if (!owned.Active)
+                    {
+                        return null;
+                    }
+                    if (allowCompositeNested)
+                    {
+                        Interlocked.Increment(ref owned.Composite.OperationDepth);
+                    }
+                    else if (Interlocked.CompareExchange(ref owned.Composite.OperationDepth, 1, 0) != 0)
+                    {
+                        return null;
+                    }
+                    return owned;
+                }
+            }
+            if (m_asyncAdmission.Value is { Active: true } || m_transitionLock.IsHeldByCurrentThread)
+            {
+                return null;
+            }
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Task changed;
+                lock (m_transitionLock)
+                {
+                    if (!m_asyncTransitionActive && m_synchronousAdmissions == 0 && !m_dispatchingCompletions)
+                    {
+                        m_asyncTransitionActive = true;
+                        return new AsyncTransitionAdmission();
+                    }
+                    changed = m_admissionChanged.Task;
+                }
+                await changed.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Releases logical admission only after the live transition's notifications have completed.
+        /// </summary>
+        private void ExitAsyncTransition(AsyncTransitionAdmission admission)
+        {
+            if (admission.Composite != null)
+            {
+                Interlocked.Decrement(ref admission.Composite.OperationDepth);
+                return;
+            }
+            ReleaseAsyncTransition(admission);
+        }
+
+        /// <summary>
+        /// Releases a native or composite reservation after all of its operation scopes have finished.
+        /// </summary>
+        private void ReleaseAsyncTransition(AsyncTransitionAdmission admission)
+        {
+            admission.Active = false;
+            m_asyncAdmission.Value = null;
+            lock (m_transitionLock)
+            {
+                m_asyncTransitionActive = false;
+                SignalAdmissionChanged();
+            }
+        }
+
+        /// <summary>
+        /// Wakes asynchronous admission waiters while mutation metadata is protected.
+        /// </summary>
+        private void SignalAdmissionChanged()
+        {
+            TaskCompletionSource<bool> changed = m_admissionChanged;
+            m_admissionChanged = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            changed.TrySetResult(true);
         }
 
         /// <summary>
@@ -886,23 +1653,16 @@ namespace Opc.Ua
             uint causeId,
             Func<bool> isCurrent)
         {
-            try
+            return ExecuteSynchronousTransition(() =>
             {
-                lock (m_transitionLock)
+                if (m_stateRevision != stateRevision || GetCurrentStateId() != fromState || !isCurrent())
                 {
-                    if (m_stateRevision != stateRevision || GetCurrentStateId() != fromState || !isCurrent())
-                    {
-                        return StatusCodes.BadInvalidState;
-                    }
-                    return transitionId == 0
-                        ? DoCause(context, null, causeId, default, [])
-                        : DoTransition(context, transitionId, causeId, default, []);
+                    return StatusCodes.BadInvalidState;
                 }
-            }
-            finally
-            {
-                DispatchTransitionCompletions();
-            }
+                return transitionId == 0
+                    ? DoCause(context, null, causeId, default, [])
+                    : DoTransition(context, transitionId, causeId, default, []);
+            });
         }
 
         /// <summary>
@@ -916,18 +1676,12 @@ namespace Opc.Ua
             List<Variant> outputArguments,
             out PreparedStateMachineTransition prepared)
         {
-            try
-            {
-                lock (m_transitionLock)
-                {
-                    return PrepareTransitionCore(
-                        context, transitionId, causeId, inputArguments, outputArguments, out prepared);
-                }
-            }
-            finally
-            {
-                DispatchTransitionCompletions();
-            }
+            PreparedStateMachineTransition captured = default;
+            ServiceResult result = ExecuteSynchronousTransition(
+                () => PrepareTransitionCore(
+                    context, transitionId, causeId, inputArguments, outputArguments, out captured));
+            prepared = captured;
+            return result;
         }
 
         /// <summary>
@@ -938,17 +1692,8 @@ namespace Opc.Ua
             PreparedStateMachineTransition prepared,
             Action committed)
         {
-            try
-            {
-                lock (m_transitionLock)
-                {
-                    return CommitTransitionCore(context, prepared, committed, suppressEvents: true);
-                }
-            }
-            finally
-            {
-                DispatchTransitionCompletions();
-            }
+            return ExecuteSynchronousTransition(
+                () => CommitTransitionCore(context, prepared, committed, suppressEvents: true));
         }
 
         /// <summary>
@@ -974,6 +1719,55 @@ namespace Opc.Ua
             lock (m_transitionLock)
             {
                 m_transitionObserverQueue.Enqueue(observer);
+            }
+        }
+
+        /// <summary>
+        /// Schedules native child synchronization before asynchronous lifecycle observers.
+        /// </summary>
+        internal void ScheduleAsyncTransitionCompletion(NodeId nodeId, Func<ValueTask> completion)
+        {
+            if (!m_asyncTransitionCompletions.ContainsKey(nodeId))
+            {
+                m_asyncTransitionCompletionOrder.Enqueue(nodeId);
+            }
+            m_asyncTransitionCompletions[nodeId] = completion;
+        }
+
+        /// <summary>
+        /// Schedules an awaited lifecycle observer after native child synchronization.
+        /// </summary>
+        internal void ScheduleAsyncTransitionObserver(Func<ValueTask> observer)
+        {
+            m_asyncTransitionObservers.Enqueue(observer);
+        }
+
+        /// <summary>
+        /// Attempts each asynchronous completion and observer, retaining every observed failure.
+        /// </summary>
+        private async ValueTask DispatchTransitionCompletionsAsync(List<Exception> failures)
+        {
+            while (m_asyncTransitionCompletionOrder.Count != 0 || m_asyncTransitionObservers.Count != 0)
+            {
+                Func<ValueTask> completion;
+                if (m_asyncTransitionCompletionOrder.Count != 0)
+                {
+                    NodeId nodeId = m_asyncTransitionCompletionOrder.Dequeue();
+                    completion = m_asyncTransitionCompletions[nodeId];
+                    m_asyncTransitionCompletions.Remove(nodeId);
+                }
+                else
+                {
+                    completion = m_asyncTransitionObservers.Dequeue();
+                }
+                try
+                {
+                    await completion().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    AddFailure(failures, ex);
+                }
             }
         }
 
@@ -1057,7 +1851,8 @@ namespace Opc.Ua
             uint causeId,
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments,
-            out PreparedStateMachineTransition prepared)
+            out PreparedStateMachineTransition prepared,
+            bool nativeAsync = false)
         {
             prepared = default;
             if (CurrentState?.StatusCode == StatusCodes.BadStateNotActive)
@@ -1081,17 +1876,26 @@ namespace Opc.Ua
             }
 
             // do any pre-transition processing.
-            (StateMachineTransitionHandler? before, StateMachineTransitionHandler? after) =
-                TransitionCallbackFactory?.Invoke(fromState, newState, OnBeforeTransition, OnAfterTransition)
-                ?? (OnBeforeTransition, OnAfterTransition);
-            ServiceResult result = InvokeCallback(
-                before,
-                context,
-                this,
-                transitionId,
-                causeId,
-                inputArguments,
-                outputArguments);
+            StateMachineTransitionHandler? before;
+            StateMachineTransitionHandler? after = OnAfterTransition;
+            StateMachineTransitionAsyncHandler? afterAsync = nativeAsync ? OnAfterTransitionAsync : null;
+            if (nativeAsync && AsyncTransitionCallbackFactory != null)
+            {
+                (before, afterAsync) = AsyncTransitionCallbackFactory(
+                    fromState, newState, OnBeforeTransition, OnAfterTransition, OnAfterTransitionAsync);
+                after = null;
+            }
+            else
+            {
+                (before, after) =
+                    TransitionCallbackFactory?.Invoke(fromState, newState, OnBeforeTransition, OnAfterTransition)
+                    ?? (OnBeforeTransition, OnAfterTransition);
+            }
+            ServiceResult result = nativeAsync
+                ? before?.Invoke(
+                    context, this, transitionId, causeId, inputArguments, outputArguments) ?? ServiceResult.Good
+                : InvokeCallback(
+                    before, context, this, transitionId, causeId, inputArguments, outputArguments);
 
             if (ServiceResult.IsBad(result))
             {
@@ -1104,7 +1908,7 @@ namespace Opc.Ua
 
             prepared = new PreparedStateMachineTransition(
                 this, revision, fromState, newState, transitionId, causeId,
-                inputArguments, outputArguments, after);
+                inputArguments, outputArguments, after, afterAsync);
             return ServiceResult.Good;
         }
 
@@ -1203,9 +2007,45 @@ namespace Opc.Ua
         /// Serializes state changes and the checks that reject superseded transitions.
         /// </summary>
         private readonly Lock m_transitionLock = new();
+
+        /// <summary>
+        /// Identifies callbacks executing within one asynchronous invocation.
+        /// </summary>
+        private readonly AsyncLocal<AsyncTransitionAdmission?> m_asyncAdmission = new();
+
+        /// <summary>
+        /// Signals completion of a logical admission without retaining a lock across awaits.
+        /// </summary>
+        private TaskCompletionSource<bool> m_admissionChanged =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Excludes synchronous mutations until asynchronous notification delivery finishes.
+        /// </summary>
+        private bool m_asyncTransitionActive;
+
+        /// <summary>
+        /// Keeps admission closed through synchronous outer-invocation completion dispatch.
+        /// </summary>
+        private int m_synchronousAdmissions;
         private readonly Dictionary<NodeId, Action> m_transitionCompletions = [];
         private readonly Queue<NodeId> m_transitionCompletionOrder = [];
         private readonly Queue<Action> m_transitionObserverQueue = [];
+
+        /// <summary>
+        /// Native completion work owned exclusively by the current asynchronous admission.
+        /// </summary>
+        private readonly Dictionary<NodeId, Func<ValueTask>> m_asyncTransitionCompletions = [];
+
+        /// <summary>
+        /// Preserves native child-completion ordering.
+        /// </summary>
+        private readonly Queue<NodeId> m_asyncTransitionCompletionOrder = [];
+
+        /// <summary>
+        /// Preserves native lifecycle-observer ordering after child synchronization.
+        /// </summary>
+        private readonly Queue<Func<ValueTask>> m_asyncTransitionObservers = [];
         private bool m_dispatchingCompletions;
 
         /// <summary>
@@ -1213,6 +2053,38 @@ namespace Opc.Ua
         /// </summary>
         private long m_stateRevision;
         private ILogger m_logger = LoggerUtils.Null.Logger;
+
+        /// <summary>
+        /// Tracks logical ownership and the single internal cause-to-transition forwarding call.
+        /// </summary>
+        private sealed class AsyncTransitionAdmission
+        {
+            /// <summary>
+            /// Indicates that notifications belonging to this invocation are still being delivered.
+            /// </summary>
+            public bool Active { get; set; } = true;
+
+            /// <summary>
+            /// Authorizes only the cause's direct call into its virtual asynchronous transition.
+            /// </summary>
+            public bool ForwardingTransition { get; set; }
+
+            /// <summary>
+            /// Shares operation depth across all machines reserved by one composite owner.
+            /// </summary>
+            public CompositeStateAdmission? Composite { get; set; }
+        }
+
+        /// <summary>
+        /// Distinguishes owned sequential operations from callback reentrancy throughout a composite subtree.
+        /// </summary>
+        private sealed class CompositeStateAdmission
+        {
+            /// <summary>
+            /// Counts native operations, including trusted internal child synchronization.
+            /// </summary>
+            public int OperationDepth;
+        }
     }
 
     /// <summary>
@@ -1227,7 +2099,8 @@ namespace Opc.Ua
         uint CauseId,
         ArrayOf<Variant> InputArguments,
         List<Variant> OutputArguments,
-        StateMachineTransitionHandler? After);
+        StateMachineTransitionHandler? After,
+        StateMachineTransitionAsyncHandler? AfterAsync = null);
 
     /// <summary>
     /// A delegate used to receive notifications when a state machine transition occurs.
@@ -1249,6 +2122,29 @@ namespace Opc.Ua
             uint toState,
             StateMachineTransitionHandler? before,
             StateMachineTransitionHandler? after);
+
+    /// <summary>
+    /// Awaits a transition-local coordinator while logical admission remains owned.
+    /// </summary>
+    public delegate ValueTask<ServiceResult> StateMachineTransitionAsyncHandler(
+        ISystemContext context,
+        StateMachineState machine,
+        uint transitionId,
+        uint causeId,
+        ArrayOf<Variant> inputArguments,
+        List<Variant>? outputArguments,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Creates native callbacks without routing through synchronous builder completion or observer dispatch.
+    /// </summary>
+    internal delegate (StateMachineTransitionHandler? Before, StateMachineTransitionAsyncHandler? After)
+        StateMachineAsyncTransitionCallbackFactory(
+            uint fromState,
+            uint toState,
+            StateMachineTransitionHandler? before,
+            StateMachineTransitionHandler? after,
+            StateMachineTransitionAsyncHandler? afterAsync);
 
     /// <summary>
     /// Source-generated log messages for <see cref="FiniteStateMachineState"/>.

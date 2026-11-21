@@ -678,8 +678,9 @@ Runtimes use these public `DiNodeManager` members:
   atomically with its last batch; later registrations throw `ObjectDisposedException`.
   An ordinary explicit drain leaves registration open for new batches. The Machinery-named
   registration and disposal extensions forward to these neutral members.
-- `RegisterRootNotifierAsync` registers an event source and attaches existing
-  event subscriptions.
+- `RegisterRootNotifierAsync`, inherited from `AsyncCustomNodeManager`,
+  registers an event source as a Server root and attaches existing event
+  subscriptions. Deleting the node removes the registration.
 - `TryOrganizeUnder` adds both directions of an `Organizes` reference and
   returns `false` when the folder is not owned. Resolve
   `Machinery.ObjectIds.Machines` through the namespace table; a matching BrowseName

@@ -425,6 +425,74 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         /// <summary>
+        /// Removes the captured registration after a reserved publication commits or aborts.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CapturedTypeRemovalWaitsForPublicationDecision(bool publish)
+        {
+            long registration = m_typeTable.GetRegistrationVersion(s_childTypeId);
+            TypeTable staged = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            staged.AddSubtype(new NodeId(6000), s_rootTypeId);
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(staged, source, revision);
+            TypeTable immutable = m_typeTable.CaptureImmutableSnapshot();
+
+            using (TypeTable.Publication publication = m_typeTable.BeginPublication(source, revision))
+            {
+                Assert.That(m_typeTable.TryRemoveRegistration(s_childTypeId, registration), Is.False);
+                Assert.That(m_typeTable.IsKnown(s_childTypeId), Is.True);
+                if (publish)
+                {
+                    publication.Complete(merged);
+                }
+            }
+
+            Assert.That(m_typeTable.TryRemoveRegistration(s_childTypeId, registration), Is.True);
+            Assert.That(m_typeTable.IsKnown(s_childTypeId), Is.False);
+            Assert.That(immutable.IsKnown(s_childTypeId), Is.True);
+        }
+
+        /// <summary>
+        /// Keeps a later registration when an earlier removal is retried.
+        /// </summary>
+        [Test]
+        public void CapturedTypeRemovalPreservesLaterRegistration()
+        {
+            long original = m_typeTable.GetRegistrationVersion(s_childTypeId);
+            m_typeTable.AddSubtype(s_childTypeId, s_rootTypeId);
+            long replacement = m_typeTable.GetRegistrationVersion(s_childTypeId);
+
+            Assert.That(replacement, Is.Not.EqualTo(original));
+            Assert.That(m_typeTable.TryRemoveRegistration(s_childTypeId, original), Is.True);
+            Assert.That(m_typeTable.IsKnown(s_childTypeId), Is.True);
+            Assert.That(m_typeTable.TryRemoveRegistration(s_childTypeId, replacement), Is.True);
+            Assert.That(m_typeTable.IsKnown(s_childTypeId), Is.False);
+        }
+
+        /// <summary>
+        /// Keeps a candidate's same-identifier registration when an earlier removal is retried.
+        /// </summary>
+        [Test]
+        public void CapturedTypeRemovalPreservesPublishedCandidateRegistration()
+        {
+            long original = m_typeTable.GetRegistrationVersion(s_childTypeId);
+            TypeTable staged = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            staged.AddSubtype(s_childTypeId, s_rootTypeId);
+            long replacement = staged.GetRegistrationVersion(s_childTypeId);
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(staged, source, revision);
+
+            using (TypeTable.Publication publication = m_typeTable.BeginPublication(source, revision))
+            {
+                Assert.That(m_typeTable.TryRemoveRegistration(s_childTypeId, original), Is.False);
+                publication.Complete(merged);
+            }
+
+            Assert.That(m_typeTable.GetRegistrationVersion(s_childTypeId), Is.EqualTo(replacement));
+            Assert.That(m_typeTable.TryRemoveRegistration(s_childTypeId, original), Is.True);
+            Assert.That(m_typeTable.IsKnown(s_childTypeId), Is.True);
+        }
+
+        /// <summary>
         /// Verifies that publication allows idempotent encoding registration.
         /// </summary>
         [Test]

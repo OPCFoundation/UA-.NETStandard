@@ -41,10 +41,9 @@ namespace Opc.Ua.Server
     /// Routes Nodes to the NodeManagers that own them and lets NodeManagers be added, replaced,
     /// and removed while the server is running.
     /// <para>
-    /// Readers never take the lock. Every mutation builds a complete new
-    /// <c>RoutingSnapshot</c> under the lock and publishes it with a single volatile write, so a
-    /// service call in flight always observes either the state before or the state after a
-    /// lifecycle operation, never a half updated table.
+    /// Every mutation builds a complete new <c>RoutingSnapshot</c> and publishes it with a single
+    /// volatile write. A service call observes either the state before or the state after a lifecycle
+    /// operation. Source emissions register their view with publication before accessing a resource.
     /// </para>
     /// <para>
     /// A NodeManager can be registered but hidden. Hidden NodeManagers are resolvable by the
@@ -98,39 +97,227 @@ namespace Opc.Ua.Server
         /// Closes the prior view, transitions its removed generations, and publishes the next immutable view.
         /// </summary>
         /// <param name="next">The view to publish.</param>
-        private bool PublishSnapshot(RoutingSnapshot next)
+        /// <param name="preparedSourceEpochs">
+        /// Reserved source transitions, or <see langword="null"/> to prepare them for this publication.
+        /// </param>
+        private bool PublishSnapshot(
+            RoutingSnapshot next,
+            SourceEpochTransition[]? preparedSourceEpochs = null)
         {
-            RoutingSnapshot previous = m_snapshot;
-            bool historianRegistrationsRetired = false;
-            foreach (NodeManagerGeneration generation in previous.Generations)
+            SourceEpochTransition[]? sourceEpochs = null;
+            bool published = false;
+            try
             {
-                if (!next.Generations.Contains(generation))
+                sourceEpochs = preparedSourceEpochs ?? PrepareSourceEpochs(m_snapshot, next);
+                lock (m_sourceEpochLock)
                 {
-                    historianRegistrationsRetired |=
-                        ChangePreparer.RetireHistorianRegistrations(generation.NodeManager);
-                    generation.Gate.Retire();
-                    generation.Slot.Unpublish(generation);
+                    RoutingSnapshot previous = m_snapshot;
+                    bool historianRegistrationsRetired = false;
+                    foreach (NodeManagerGeneration generation in previous.Generations)
+                    {
+                        if (!next.Generations.Contains(generation))
+                        {
+                            historianRegistrationsRetired |=
+                                ChangePreparer.RetireHistorianRegistrations(generation.NodeManager);
+                            generation.Gate.Retire();
+                            generation.Slot.Unpublish(generation);
+                        }
+                    }
+                    foreach (NodeManagerGeneration generation in next.Generations)
+                    {
+                        bool wasHidden = ContainsManager(previous.HiddenNodeManagers, generation.NodeManager);
+                        bool isHidden = ContainsManager(next.HiddenNodeManagers, generation.NodeManager);
+                        if (generation.Gate.State == NodeManagerGenerationState.Prepared &&
+                            !isHidden &&
+                            (!previous.Generations.Contains(generation) || wasHidden))
+                        {
+                            generation.Gate.Activate();
+                        }
+                        if (generation.Gate.State == NodeManagerGenerationState.Live)
+                        {
+                            generation.Slot.Publish(generation);
+                        }
+                    }
+                    next.SetRevision(Interlocked.Increment(ref m_revision));
+                    // A failed retirement or activation must not advance the serving source epochs.
+                    foreach (SourceEpochTransition transition in sourceEpochs)
+                    {
+                        transition.Publish();
+                    }
+                    Volatile.Write(ref m_snapshot, next);
+                    published = true;
+                    previous.Epoch.Close();
+                    return historianRegistrationsRetired;
                 }
             }
-            foreach (NodeManagerGeneration generation in next.Generations)
+            finally
             {
-                bool wasHidden = ContainsManager(previous.HiddenNodeManagers, generation.NodeManager);
-                bool isHidden = ContainsManager(next.HiddenNodeManagers, generation.NodeManager);
-                if (generation.Gate.State == NodeManagerGenerationState.Prepared &&
-                    !isHidden &&
-                    (!previous.Generations.Contains(generation) || wasHidden))
+                if (!published && preparedSourceEpochs is null)
                 {
-                    generation.Gate.Activate();
-                }
-                if (generation.Gate.State == NodeManagerGenerationState.Live)
-                {
-                    generation.Slot.Publish(generation);
+                    if (sourceEpochs is not null)
+                    {
+                        foreach (SourceEpochTransition transition in sourceEpochs)
+                        {
+                            transition.Abandon();
+                        }
+                    }
+                    next.Epoch.Close();
                 }
             }
-            next.SetRevision(Interlocked.Increment(ref m_revision));
-            Volatile.Write(ref m_snapshot, next);
-            previous.Epoch.Close();
-            return historianRegistrationsRetired;
+        }
+
+        /// <summary>
+        /// Pins source work for a resource only if its captured view is still serving.
+        /// </summary>
+        /// <param name="snapshot">The captured routing view.</param>
+        /// <param name="resource">The physical resource issuing the work.</param>
+        /// <param name="legacyFallback">Whether admission would use an unrouted legacy source.</param>
+        /// <param name="epoch">The resource epoch owned by the caller when admitted.</param>
+        /// <param name="slot">The counter slot for the resource epoch.</param>
+        /// <returns>The admission decision.</returns>
+        internal SourceEpochAdmission TryPinSourceEpoch(
+            RoutingSnapshot snapshot,
+            IAsyncNodeManager resource,
+            bool legacyFallback,
+            out AddressSpaceEpoch? epoch,
+            out int slot)
+        {
+            lock (m_sourceEpochLock)
+            {
+                if (!ReferenceEquals(snapshot, m_snapshot))
+                {
+                    epoch = null;
+                    slot = -1;
+                    return SourceEpochAdmission.StaleView;
+                }
+                SourceEpochs epochs = m_sourceEpochs.GetValue(resource, static _ => new SourceEpochs());
+                if (legacyFallback && epochs.PublishedFacade)
+                {
+                    epoch = null;
+                    slot = -1;
+                    return SourceEpochAdmission.RetiredSource;
+                }
+                epoch = epochs.Current;
+                if (!epoch.TryPin(out slot))
+                {
+                    epoch = null;
+                    throw new InvalidOperationException("The current resource source epoch is closed.");
+                }
+                return SourceEpochAdmission.Admitted;
+            }
+        }
+
+        /// <summary>
+        /// Checks whether an unrouted legacy source remains eligible in the captured view.
+        /// </summary>
+        internal bool IsLegacySourceAllowed(RoutingSnapshot snapshot, IAsyncNodeManager resource)
+        {
+            lock (m_sourceEpochLock)
+            {
+                return ReferenceEquals(snapshot, m_snapshot) &&
+                    (!m_sourceEpochs.TryGetValue(resource, out SourceEpochs? epochs) || !epochs.PublishedFacade);
+            }
+        }
+
+        /// <summary>
+        /// Reserves resource epoch transitions before a routing publication becomes durable.
+        /// </summary>
+        private SourceEpochTransition[] PrepareSourceEpochs(RoutingSnapshot previous, RoutingSnapshot next)
+        {
+            var affected = new HashSet<IAsyncNodeManager>(ReadImageOwnerComparer.Instance);
+            for (int index = 0; index < previous.Generations.Length; index++)
+            {
+                if (!ContainsResourceRoute(
+                    next,
+                    previous.Generations[index],
+                    previous.ResourceOwners[index],
+                    ContainsManager(previous.HiddenNodeManagers, previous.NodeManagers[index])))
+                {
+                    affected.Add(previous.ResourceOwners[index]);
+                }
+            }
+            for (int index = 0; index < next.Generations.Length; index++)
+            {
+                if (!ContainsResourceRoute(
+                    previous,
+                    next.Generations[index],
+                    next.ResourceOwners[index],
+                    ContainsManager(next.HiddenNodeManagers, next.NodeManagers[index])))
+                {
+                    affected.Add(next.ResourceOwners[index]);
+                }
+            }
+            if (affected.Count == 0)
+            {
+                return [];
+            }
+
+            var transitions = new List<SourceEpochTransition>(affected.Count);
+            lock (m_sourceEpochLock)
+            {
+                try
+                {
+                    foreach (IAsyncNodeManager resource in affected)
+                    {
+                        SourceEpochs epochs = m_sourceEpochs.GetValue(resource, static _ => new SourceEpochs());
+                        bool publishedFacade = false;
+                        for (int index = 0; index < next.Generations.Length; index++)
+                        {
+                            if (ReferenceEquals(next.ResourceOwners[index], resource) &&
+                                !ReferenceEquals(next.NodeManagers[index], resource) &&
+                                !ContainsManager(next.HiddenNodeManagers, next.NodeManagers[index]))
+                            {
+                                publishedFacade = true;
+                                break;
+                            }
+                        }
+                        SourceEpochTransition transition = epochs.PrepareTransition(publishedFacade);
+                        transitions.Add(transition);
+                        for (int index = 0; index < next.Generations.Length; index++)
+                        {
+                            if (ReferenceEquals(next.ResourceOwners[index], resource) &&
+                                !ContainsResourceRoute(
+                                    previous,
+                                    next.Generations[index],
+                                    resource,
+                                    ContainsManager(next.HiddenNodeManagers, next.NodeManagers[index])))
+                            {
+                                epochs.RegisterWith(next.Generations[index], transition);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    foreach (SourceEpochTransition transition in transitions)
+                    {
+                        transition.Abandon();
+                    }
+                    throw;
+                }
+            }
+            return [.. transitions];
+        }
+
+        /// <summary>
+        /// Checks whether a view contains the same generation, resource, and visibility.
+        /// </summary>
+        private static bool ContainsResourceRoute(
+            RoutingSnapshot snapshot,
+            NodeManagerGeneration generation,
+            IAsyncNodeManager resource,
+            bool hidden)
+        {
+            for (int index = 0; index < snapshot.Generations.Length; index++)
+            {
+                if (ReferenceEquals(snapshot.Generations[index], generation) &&
+                    ReferenceEquals(snapshot.ResourceOwners[index], resource) &&
+                    ContainsManager(snapshot.HiddenNodeManagers, snapshot.NodeManagers[index]) == hidden)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -1062,6 +1249,10 @@ namespace Opc.Ua.Server
             {
                 return true;
             }
+            if (ChangePreparer.IsBorrowedCandidate(left) || ChangePreparer.IsBorrowedCandidate(right))
+            {
+                return false;
+            }
 #pragma warning disable CS0618, UA0031 // Identity comparison through the legacy view.
             INodeManager? leftSyncNodeManager = left.SyncNodeManager;
             INodeManager? rightSyncNodeManager = right.SyncNodeManager;
@@ -1143,8 +1334,123 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly Lock m_sourceEpochLock = new();
+        private readonly ConditionalWeakTable<IAsyncNodeManager, SourceEpochs> m_sourceEpochs = new();
         private RoutingSnapshot m_snapshot = RoutingSnapshot.Empty;
         private long m_revision;
+
+        /// <summary>
+        /// Describes whether source work entered its resource epoch.
+        /// </summary>
+        internal enum SourceEpochAdmission
+        {
+            /// <summary>The source entered the epoch.</summary>
+            Admitted,
+
+            /// <summary>The captured routing view was replaced.</summary>
+            StaleView,
+
+            /// <summary>A retired forwarding route cannot fall back to an unrouted source.</summary>
+            RetiredSource
+        }
+
+        /// <summary>
+        /// Tracks source epochs for one resource on this routing table.
+        /// </summary>
+        private sealed class SourceEpochs
+        {
+            /// <summary>
+            /// Gets the epoch that accepts source work in the current routing view.
+            /// </summary>
+            internal AddressSpaceEpoch Current => m_current;
+
+            /// <summary>
+            /// Gets whether a forwarding facade has been published for this resource.
+            /// </summary>
+            internal bool PublishedFacade { get; private set; }
+
+            /// <summary>
+            /// Reserves storage and creates the next epoch before publication.
+            /// </summary>
+            internal SourceEpochTransition PrepareTransition(bool publishedFacade)
+            {
+                m_previous.RemoveAll(static epoch => epoch.IsDrained);
+                if (m_previous.Capacity <= m_previous.Count)
+                {
+                    m_previous.Capacity = m_previous.Count + 1;
+                }
+                return new SourceEpochTransition(this, m_current, new AddressSpaceEpoch(), publishedFacade);
+            }
+
+            /// <summary>
+            /// Retains prior source work in a newly routed generation.
+            /// </summary>
+            internal void RegisterWith(
+                NodeManagerGeneration generation,
+                SourceEpochTransition transition)
+            {
+                foreach (AddressSpaceEpoch epoch in m_previous)
+                {
+                    transition.Register(generation, epoch);
+                }
+                transition.Register(generation, m_current);
+            }
+
+            /// <summary>
+            /// Installs a reserved epoch and closes the previous epoch.
+            /// </summary>
+            internal void Publish(AddressSpaceEpoch previous, AddressSpaceEpoch next, bool publishedFacade)
+            {
+                m_previous.Add(previous);
+                m_current = next;
+                PublishedFacade |= publishedFacade;
+                previous.Close();
+            }
+
+            private readonly List<AddressSpaceEpoch> m_previous = [];
+            private AddressSpaceEpoch m_current = new();
+        }
+
+        /// <summary>
+        /// Holds the resource epoch objects and storage reserved for one routing change.
+        /// </summary>
+        private sealed class SourceEpochTransition(
+            SourceEpochs epochs,
+            AddressSpaceEpoch previous,
+            AddressSpaceEpoch next,
+            bool publishedFacade)
+        {
+            /// <summary>
+            /// Reserves one source epoch for a generation before publication.
+            /// </summary>
+            internal void Register(NodeManagerGeneration generation, AddressSpaceEpoch epoch)
+            {
+                generation.RegisterSourceEpoch(epoch);
+                m_registrations.Add((generation, epoch));
+            }
+
+            /// <summary>
+            /// Installs the reserved epoch without allocating.
+            /// </summary>
+            internal void Publish()
+            {
+                epochs.Publish(previous, next, publishedFacade);
+            }
+
+            /// <summary>
+            /// Releases source epochs reserved by a routing view that was not published.
+            /// </summary>
+            internal void Abandon()
+            {
+                foreach ((NodeManagerGeneration generation, AddressSpaceEpoch epoch) in m_registrations)
+                {
+                    generation.UnregisterSourceEpoch(epoch);
+                }
+                m_registrations.Clear();
+            }
+
+            private readonly List<(NodeManagerGeneration Generation, AddressSpaceEpoch Epoch)> m_registrations = [];
+        }
 
         /// <summary>
         /// An immutable view of the routing table. Every mutation publishes a new instance, which
@@ -1180,12 +1486,29 @@ namespace Opc.Ua.Server
                     : readImages.Where(entry => Array.Exists(nodeManagers, owner => ReferenceEquals(owner, entry.Key)))
                         .ToDictionary(entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
                 Generations = [.. nodeManagers.Select(NodeManagerGenerationRegistry.GetOrCreate)];
+                ResourceOwners = [.. nodeManagers.Select(MasterNodeManager.GetReferenceOwnerIdentity)];
+                for (int index = 0; index < Generations.Length; index++)
+                {
+                    NodeManagerGeneration generation = Generations[index];
+                    IAsyncNodeManager resource = ResourceOwners[index];
+                    NodeManagerGeneration? source = generation.PrivateSourceGeneration;
+                    if (source is null &&
+                        !ReferenceEquals(nodeManagers[index], resource) &&
+                        NodeManagerGenerationRegistry.TryGet(resource, out NodeManagerGeneration? existing) &&
+                        existing is { AllowsLegacySource: true } &&
+                        existing.Gate.State == NodeManagerGenerationState.Live &&
+                        ReferenceEquals(existing.NodeManager, resource))
+                    {
+                        source = existing;
+                    }
+                    if (source is not null && !generation.TryRetainForwardedSource(source))
+                    {
+                        throw new InvalidOperationException(
+                            "A forwarding generation cannot change its source incarnation.");
+                    }
+                }
                 m_pendingReadiness = [.. Generations.Where(generation => generation.ReadinessPending)];
                 Epoch = new AddressSpaceEpoch();
-                foreach (NodeManagerGeneration generation in Generations)
-                {
-                    generation.RegisterViewEpoch(Epoch);
-                }
                 VisibleNodeManagers =
                 [
                     .. nodeManagers.Where(manager =>
@@ -1196,6 +1519,18 @@ namespace Opc.Ua.Server
                     CreateVisibleNamespaceManagers(
                         namespaceManagers,
                         hiddenNodeManagers);
+                try
+                {
+                    foreach (NodeManagerGeneration generation in Generations)
+                    {
+                        generation.RegisterViewEpoch(Epoch);
+                    }
+                }
+                catch
+                {
+                    Epoch.Close();
+                    throw;
+                }
             }
 
             /// <summary>
@@ -1211,6 +1546,11 @@ namespace Opc.Ua.Server
             /// Gets the generations routed by this immutable view in dispatch order.
             /// </summary>
             public NodeManagerGeneration[] Generations { get; }
+
+            /// <summary>
+            /// Gets the physical resource identity captured for each routed manager.
+            /// </summary>
+            internal IAsyncNodeManager[] ResourceOwners { get; }
 
             /// <summary>
             /// Gets the monotonic revision assigned when this view is published.
@@ -1537,9 +1877,13 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 RoutingSnapshot current = m_snapshot;
-                HashSet<IAsyncNodeManager> removals = [.. removed];
-                HashSet<IAsyncNodeManager> publishing = [];
-                var replacements = new Dictionary<IAsyncNodeManager, IAsyncNodeManager>();
+                var removals = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+                foreach (IAsyncNodeManager manager in removed)
+                {
+                    removals.Add(manager);
+                }
+                var publishing = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+                var replacements = new Dictionary<IAsyncNodeManager, IAsyncNodeManager>(RefEqualityComparer.Default);
                 foreach (PreparedNodeManager candidate in candidates)
                 {
                     candidate.ValidateForPublication();
@@ -1553,14 +1897,14 @@ namespace Opc.Ua.Server
                         removals.Add(replaced);
                         replacements.Add(replaced, candidate.NodeManager);
                     }
-                    if (current.NodeManagers.Contains(candidate.NodeManager))
+                    if (ContainsManager(current.NodeManagers, candidate.NodeManager))
                     {
                         throw new InvalidOperationException("A batch candidate is already registered.");
                     }
                 }
                 foreach (IAsyncNodeManager removedManager in removals)
                 {
-                    if (Array.IndexOf(current.NodeManagers, removedManager) < 0)
+                    if (!ContainsManager(current.NodeManagers, removedManager))
                     {
                         throw new InvalidOperationException("A batch retirement is not registered.");
                     }
@@ -1611,7 +1955,11 @@ namespace Opc.Ua.Server
                 }
                 foreach (int index in routes.Keys.ToArray())
                 {
-                    routes[index] = [.. routes[index].OrderBy(manager => managers.IndexOf(manager))];
+                    routes[index] =
+                    [
+                        .. routes[index].OrderBy(manager =>
+                            managers.FindIndex(candidate => ReferenceEquals(candidate, manager)))
+                    ];
                 }
                 Dictionary<IAsyncNodeManager, INodeManagerReadImage> images =
                     current.ReadImages.ToDictionary(
@@ -1773,6 +2121,7 @@ namespace Opc.Ua.Server
                     }
                     m_owner.EnsureMutable();
                     ValidatePublicationTransitions(m_previous, m_next);
+                    m_sourceEpochs = m_owner.PrepareSourceEpochs(m_previous, m_next);
                     m_owner.m_reservedRoutes = this;
                 }
             }
@@ -1799,6 +2148,7 @@ namespace Opc.Ua.Server
                         return false;
                     }
                     ValidatePublicationTransitions(m_previous, m_next);
+                    m_sourceEpochs = m_owner.PrepareSourceEpochs(m_previous, m_next);
                     m_owner.m_reservedRoutes = this;
                     return true;
                 }
@@ -1819,7 +2169,7 @@ namespace Opc.Ua.Server
                     {
                         throw new InvalidOperationException("The routing publication has not been reserved.");
                     }
-                    m_historianRegistrationsChanged = m_owner.PublishSnapshot(m_next);
+                    m_historianRegistrationsChanged = m_owner.PublishSnapshot(m_next, m_sourceEpochs);
                     m_published = true;
                     return m_historianRegistrationsChanged;
                 }
@@ -1828,28 +2178,34 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public void Dispose()
             {
-                TaskCompletionSource<bool>? released;
-                lock (m_owner.m_lock)
-                {
-                    if (ReferenceEquals(m_owner.m_reservedRoutes, this))
-                    {
-                        m_owner.m_reservedRoutes = null;
-                    }
-                    m_disposed = true;
-                    released = m_released;
-                }
+                TaskCompletionSource<bool>? released = null;
                 try
                 {
-                    if (!m_published)
+                    lock (m_owner.m_lock)
                     {
-                        m_next.Epoch.Close();
-                        foreach (NodeManagerGeneration generation in m_next.Generations)
+                        if (m_disposed)
                         {
-                            if (!m_previous.Generations.Contains(generation) &&
-                                generation.Gate.State == NodeManagerGenerationState.Prepared)
+                            return;
+                        }
+                        m_disposed = true;
+                        try
+                        {
+                            if (!m_published)
                             {
-                                generation.Gate.Abort();
+                                foreach (SourceEpochTransition transition in m_sourceEpochs)
+                                {
+                                    transition.Abandon();
+                                }
+                                m_next.Epoch.Close();
                             }
+                        }
+                        finally
+                        {
+                            if (ReferenceEquals(m_owner.m_reservedRoutes, this))
+                            {
+                                m_owner.m_reservedRoutes = null;
+                            }
+                            released = m_released;
                         }
                     }
                 }
@@ -1862,6 +2218,7 @@ namespace Opc.Ua.Server
             private readonly NodeManagerRoutingTable m_owner;
             private readonly RoutingSnapshot m_previous;
             private readonly RoutingSnapshot m_next;
+            private SourceEpochTransition[] m_sourceEpochs = [];
             private bool m_published;
             private bool m_disposed;
             private bool m_historianRegistrationsChanged;

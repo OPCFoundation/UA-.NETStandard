@@ -82,6 +82,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var mockTelemetry = new Mock<ITelemetryContext>();
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
+            mockServer.Setup(s => s.MessageContext).Returns(new ServiceMessageContext(
+                mockTelemetry.Object,
+                mockServer.Object.Factory)
+            {
+                NamespaceUris = namespaceTable,
+                ServerUris = mockServer.Object.ServerUris
+            });
 
             queueFactory = new MonitoredItemQueueFactory(mockTelemetry.Object);
             mockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);

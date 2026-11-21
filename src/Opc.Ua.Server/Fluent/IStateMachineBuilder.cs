@@ -149,7 +149,7 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Wires the supplied method node so calling it invokes
-        /// <see cref="FiniteStateMachineState.DoCause"/> with the
+        /// <c>FiniteStateMachineState.DoCause</c> with the
         /// supplied cause ID. The cause-to-transition lookup happens
         /// inside the stack via the subclass's
         /// <c>CauseMappings</c>.
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Fluent
             bool reportExecutable = true);
 
         /// <summary>
-        /// Auto-fires <see cref="FiniteStateMachineState.DoCause"/> for
+        /// Auto-fires <c>FiniteStateMachineState.DoCause</c> for
         /// <paramref name="causeId"/> when the machine has been in
         /// <paramref name="fromStateId"/> for at least
         /// <paramref name="timeout"/>. Uses the owning manager's
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Fluent
         /// be positive.
         /// </param>
         /// <param name="causeId">
-        /// Cause ID passed to <see cref="FiniteStateMachineState.DoCause"/>
+        /// Cause ID passed to <c>FiniteStateMachineState.DoCause</c>
         /// when the timeout elapses.
         /// </param>
         /// <exception cref="InvalidOperationException">

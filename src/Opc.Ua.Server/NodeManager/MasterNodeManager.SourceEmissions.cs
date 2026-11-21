@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -41,10 +42,16 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when the source generation is live.</returns>
         internal bool IsSourceEmissionAllowed(IAsyncNodeManager? nodeManager)
         {
-            return nodeManager is not null && m_nodeManagers.Revision.TryGetGeneration(
-                    nodeManager,
-                    out NodeManagerGeneration? generation) &&
-                generation!.Gate.State == NodeManagerGenerationState.Live;
+            if (nodeManager is null)
+            {
+                return false;
+            }
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = m_nodeManagers.Revision;
+            return TryResolveSource(
+                    snapshot, nodeManager, null, out NodeManagerGeneration? generation, out bool legacyFallback) &&
+                generation.Gate.State == NodeManagerGenerationState.Live &&
+                (!legacyFallback ||
+                    m_nodeManagers.IsLegacySourceAllowed(snapshot, GetReferenceOwnerIdentity(nodeManager)));
         }
 
         /// <summary>
@@ -71,26 +78,17 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            NodeManagerGeneration? generation;
+            NodeManagerGeneration? boundGeneration = null;
             if (generationReference is not null)
             {
-                if (!generationReference.TryGetGeneration(out generation) ||
-                    generation is null ||
-                    !ReferenceEquals(generation.NodeManager, nodeManager))
+                if (!generationReference.TryGetGeneration(out boundGeneration) ||
+                    boundGeneration is null)
                 {
                     return false;
                 }
             }
-            else if (!master.m_nodeManagers.Revision.TryGetGeneration(nodeManager, out generation))
-            {
-                return false;
-            }
-            if (!generation!.Gate.TryEnter(out int slot))
-            {
-                return false;
-            }
-            emission = new SourceEmissionAdmission(master, generation, slot, trackReadinessEvents: false);
-            return true;
+            return TryAdmitSource(
+                master, nodeManager, boundGeneration, false, out emission);
         }
 
         /// <summary>
@@ -135,34 +133,339 @@ namespace Opc.Ua.Server
                     master, nodeManager, generationReference, isGlobalServerEventSink, out emission);
             }
 
-            NodeManagerGeneration generation;
+            NodeManagerGeneration? boundGeneration = null;
             if (generationReference is not null)
             {
-                if (!generationReference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) ||
-                    boundGeneration is null ||
-                    !ReferenceEquals(boundGeneration.NodeManager, nodeManager))
+                if (!generationReference.TryGetGeneration(out boundGeneration) ||
+                    boundGeneration is null)
                 {
                     return false;
                 }
-                generation = boundGeneration;
             }
-            else
+            return TryAdmitSource(
+                master, nodeManager, boundGeneration, true, out emission);
+        }
+
+        /// <summary>
+        /// Pins the routing view and admits a source against that same view.
+        /// </summary>
+        private static bool TryAdmitSource(
+            MasterNodeManager master,
+            IAsyncNodeManager nodeManager,
+            NodeManagerGeneration? boundGeneration,
+            bool trackReadinessEvents,
+            out SourceEmissionAdmission? emission)
+        {
+            emission = null;
+            while (true)
             {
-                if (!master.m_nodeManagers.Revision.TryGetGeneration(
-                        nodeManager,
-                        out NodeManagerGeneration? currentGeneration))
+                (NodeManagerRoutingTable.RoutingSnapshot snapshot, AddressSpaceEpoch viewEpoch, int viewSlot) =
+                    master.m_nodeManagers.PinCurrent();
+                try
                 {
-                    return false;
+                    if (!TryResolveSource(
+                            snapshot,
+                            nodeManager,
+                            boundGeneration,
+                            out NodeManagerGeneration? generation,
+                            out bool legacyFallback) ||
+                        !generation.Gate.TryEnter(out int generationSlot))
+                    {
+                        if (ReferenceEquals(snapshot, master.m_nodeManagers.Revision))
+                        {
+                            return false;
+                        }
+                        continue;
+                    }
+                    AddressSpaceEpoch? sourceEpoch = null;
+                    int sourceSlot = -1;
+                    NodeManagerGeneration? issuer = null;
+                    int issuerSlot = -1;
+                    bool transferred = false;
+                    try
+                    {
+                        IAsyncNodeManager resource = GetReferenceOwnerIdentity(nodeManager);
+                        issuer = boundGeneration ?? generation;
+                        if ((boundGeneration is null || ReferenceEquals(boundGeneration, generation)) &&
+                            (ReferenceEquals(nodeManager, resource) || IsLegacyAdapter(nodeManager)) &&
+                            !ReferenceEquals(generation.NodeManager, resource))
+                        {
+                            issuer = generation.PrivateSourceGeneration ??
+                                generation.ForwardedSourceGeneration ??
+                                NodeManagerGenerationRegistry.GetOrCreate(resource);
+                        }
+                        if (!ReferenceEquals(issuer, generation))
+                        {
+                            if (!IsPrivateForwardedSource(generation, issuer, nodeManager) &&
+                                !IsPrivateFacadeSource(generation, issuer, nodeManager) &&
+                                !IsLegacyForwardedSource(generation, issuer, nodeManager))
+                            {
+                                return false;
+                            }
+                            if (!ReferenceEquals(issuer.Gate, generation.Gate) &&
+                                !issuer.Gate.TryEnter(out issuerSlot))
+                            {
+                                return false;
+                            }
+                        }
+                        NodeManagerRoutingTable.SourceEpochAdmission sourceAdmission =
+                            master.m_nodeManagers.TryPinSourceEpoch(
+                                snapshot, resource, legacyFallback, out sourceEpoch, out sourceSlot);
+                        if (sourceAdmission == NodeManagerRoutingTable.SourceEpochAdmission.StaleView)
+                        {
+                            continue;
+                        }
+                        if (sourceAdmission == NodeManagerRoutingTable.SourceEpochAdmission.RetiredSource)
+                        {
+                            return false;
+                        }
+                        if (!IsPrivateFacadeSource(generation, issuer, nodeManager) &&
+                            !generation.TryRetainForwardedSource(issuer))
+                        {
+                            return false;
+                        }
+                        emission = new SourceEmissionAdmission(
+                            master,
+                            generation,
+                            generationSlot,
+                            sourceEpoch,
+                            sourceSlot,
+                            trackReadinessEvents,
+                            issuer,
+                            issuerSlot);
+                        transferred = true;
+                        return true;
+                    }
+                    finally
+                    {
+                        if (!transferred)
+                        {
+                            generation.Gate.Exit(generationSlot);
+                            if (issuerSlot >= 0)
+                            {
+                                issuer!.Gate.Exit(issuerSlot);
+                            }
+                            sourceEpoch?.Exit(sourceSlot);
+                        }
+                    }
                 }
-                generation = currentGeneration!;
+                finally
+                {
+                    viewEpoch.Exit(viewSlot);
+                }
             }
-            if (!generation.Gate.TryEnter(out int slot))
+        }
+
+        /// <summary>
+        /// Resolves a source against one captured routing view.
+        /// </summary>
+        /// <remarks>
+        /// A registered emitter must be visible and route its bound generation, or the private source
+        /// generation retained by that facade. A raw resource needs exactly one visible facade. An exact
+        /// bound owner can emit outside routing only while no facade is registered for its resource.
+        /// </remarks>
+        private static bool TryResolveSource(
+            NodeManagerRoutingTable.RoutingSnapshot routing,
+            IAsyncNodeManager nodeManager,
+            NodeManagerGeneration? boundGeneration,
+            [NotNullWhen(true)] out NodeManagerGeneration? generation,
+            out bool legacyFallback)
+        {
+            generation = null;
+            legacyFallback = false;
+            if (boundGeneration is not null && !IsCanonicalBoundSource(boundGeneration, nodeManager))
             {
                 return false;
             }
+            for (int ii = 0; ii < routing.NodeManagers.Length; ii++)
+            {
+                if (ReferenceEquals(routing.NodeManagers[ii], nodeManager))
+                {
+                    NodeManagerGeneration exact = routing.Generations[ii];
+                    if (IsHidden(routing, nodeManager) ||
+                        (boundGeneration is not null &&
+                            !ReferenceEquals(exact, boundGeneration) &&
+                            !IsPrivateFacadeSource(exact, boundGeneration, nodeManager)))
+                    {
+                        return false;
+                    }
+                    if (ReferenceEquals(GetReferenceOwnerIdentity(nodeManager), nodeManager))
+                    {
+                        for (int jj = 0; jj < routing.NodeManagers.Length; jj++)
+                        {
+                            IAsyncNodeManager other = routing.NodeManagers[jj];
+                            if (jj != ii && !IsHidden(routing, other) &&
+                                ReferenceEquals(GetReferenceOwnerIdentity(other), nodeManager))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    generation = exact;
+                    return true;
+                }
+            }
 
-            emission = new SourceEmissionAdmission(master, generation, slot);
-            return true;
+            IAsyncNodeManager resource = GetReferenceOwnerIdentity(nodeManager);
+            bool rawResource = ReferenceEquals(resource, nodeManager);
+            if (!rawResource && !IsLegacyAdapter(nodeManager))
+            {
+                return false;
+            }
+            NodeManagerGeneration? routed = null;
+            bool routedAllowed = false;
+            int visibleRoutes = 0;
+            bool registeredResource = false;
+            for (int ii = 0; ii < routing.NodeManagers.Length; ii++)
+            {
+                IAsyncNodeManager facade = routing.NodeManagers[ii];
+                NodeManagerGeneration candidate = routing.Generations[ii];
+                NodeManagerGeneration? privateSource = boundGeneration ?? candidate.PrivateSourceGeneration;
+                bool privateAlias = privateSource is not null &&
+                    IsPrivateForwardedSource(candidate, privateSource, nodeManager);
+                bool identityAlias = ReferenceEquals(GetReferenceOwnerIdentity(facade), resource);
+                bool legacyAlias = boundGeneration is not null &&
+                    IsLegacyForwardedSource(candidate, boundGeneration, nodeManager);
+                if (!identityAlias && !privateAlias)
+                {
+                    continue;
+                }
+                registeredResource = true;
+                if (IsHidden(routing, facade))
+                {
+                    continue;
+                }
+                visibleRoutes++;
+                routed = candidate;
+                routedAllowed = boundGeneration is null
+                    ? true
+                    : ReferenceEquals(candidate, boundGeneration) || privateAlias || legacyAlias;
+            }
+            if (visibleRoutes > 0)
+            {
+                if (visibleRoutes != 1 || routed is null || !routedAllowed)
+                {
+                    return false;
+                }
+                generation = routed;
+                return true;
+            }
+            if (!registeredResource &&
+                boundGeneration is not null &&
+                boundGeneration.AllowsLegacySource &&
+                ReferenceEquals(boundGeneration.NodeManager, nodeManager))
+            {
+                generation = boundGeneration;
+                legacyFallback = true;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Matches the current live raw issuer of an explicitly forwarding facade.
+        /// </summary>
+        private static bool IsLegacyForwardedSource(
+            NodeManagerGeneration facade,
+            NodeManagerGeneration source,
+            IAsyncNodeManager nodeManager)
+        {
+            IAsyncNodeManager resource = NodeManagerGenerationRegistry.GetIdentity(nodeManager);
+            return source.AllowsLegacySource &&
+                source.Gate.State == NodeManagerGenerationState.Live &&
+                ReferenceEquals(source.NodeManager, resource) &&
+                (ReferenceEquals(resource, nodeManager) || IsLegacyAdapter(nodeManager)) &&
+                ReferenceEquals(GetReferenceOwnerIdentity(facade.NodeManager), resource) &&
+                NodeManagerGenerationRegistry.TryGet(resource, out NodeManagerGeneration? current) &&
+                ReferenceEquals(source, current);
+        }
+
+        /// <summary>
+        /// Matches the exact raw generation retained by a privately prepared forwarding facade.
+        /// </summary>
+        private static bool IsPrivateForwardedSource(
+            NodeManagerGeneration facade,
+            NodeManagerGeneration boundGeneration,
+            IAsyncNodeManager nodeManager)
+        {
+            IAsyncNodeManager resource = NodeManagerGenerationRegistry.GetIdentity(nodeManager);
+            return ReferenceEquals(facade.PrivateSourceGeneration, boundGeneration) &&
+                ReferenceEquals(boundGeneration.NodeManager, resource) &&
+                (ReferenceEquals(resource, nodeManager) || IsLegacyAdapter(nodeManager)) &&
+                ReferenceEquals(GetReferenceOwnerIdentity(facade.NodeManager), resource);
+        }
+
+        /// <summary>
+        /// Matches the exact facade binding retained before its replacement slot was assigned.
+        /// </summary>
+        private static bool IsPrivateFacadeSource(
+            NodeManagerGeneration candidate,
+            NodeManagerGeneration boundGeneration,
+            IAsyncNodeManager nodeManager)
+        {
+            return ReferenceEquals(candidate.PrivateFacadeGeneration, boundGeneration) &&
+                ReferenceEquals(candidate.NodeManager, nodeManager) &&
+                ReferenceEquals(boundGeneration.NodeManager, nodeManager) &&
+                ReferenceEquals(candidate.Gate, boundGeneration.Gate);
+        }
+
+        /// <summary>
+        /// Matches the exact owner, a stack adapter alias of the owner's resource, or that raw resource.
+        /// </summary>
+        /// <remarks>
+        /// A distinct custom facade that is neither the resource nor a stack adapter is not accepted
+        /// unless it owns the generation.
+        /// </remarks>
+        private static bool IsCanonicalBoundSource(NodeManagerGeneration generation, IAsyncNodeManager nodeManager)
+        {
+            if (ReferenceEquals(generation.NodeManager, nodeManager))
+            {
+                return true;
+            }
+            if (generation.PrivateSourceGeneration is { } privateSource &&
+                IsPrivateForwardedSource(generation, privateSource, nodeManager))
+            {
+                return true;
+            }
+            if (generation.ForwardedSourceGeneration is { } forwarded &&
+                ReferenceEquals(forwarded.NodeManager, nodeManager) &&
+                forwarded.Gate.State == NodeManagerGenerationState.Live &&
+                NodeManagerGenerationRegistry.TryGet(nodeManager, out NodeManagerGeneration? current) &&
+                ReferenceEquals(forwarded, current))
+            {
+                return true;
+            }
+            IAsyncNodeManager resource = GetReferenceOwnerIdentity(nodeManager);
+            if (!ReferenceEquals(GetReferenceOwnerIdentity(generation.NodeManager), resource))
+            {
+                return false;
+            }
+            return ReferenceEquals(resource, nodeManager) || IsLegacyAdapter(nodeManager);
+        }
+
+        /// <summary>
+        /// Identifies the stack-owned adapter without accepting arbitrary forwarding facades.
+        /// </summary>
+        private static bool IsLegacyAdapter(IAsyncNodeManager nodeManager)
+        {
+#pragma warning disable CS0618, UA0031 // Existing adapter identity check; TODO: remove with synchronous manager support.
+            return nodeManager is AsyncNodeManagerAdapter;
+#pragma warning restore CS0618, UA0031
+        }
+
+        /// <summary>
+        /// Checks whether a registered facade is unreachable by Clients in a routing view.
+        /// </summary>
+        private static bool IsHidden(NodeManagerRoutingTable.RoutingSnapshot routing, IAsyncNodeManager facade)
+        {
+            foreach (IAsyncNodeManager hiddenManager in routing.HiddenNodeManagers)
+            {
+                if (ReferenceEquals(hiddenManager, facade))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -183,20 +486,7 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            if (!master.m_nodeManagers.Revision.TryGetGeneration(
-                    nodeManager,
-                    out NodeManagerGeneration? generation))
-            {
-                return false;
-            }
-            NodeManagerGeneration currentGeneration = generation!;
-            if (!currentGeneration.Gate.TryEnter(out int slot))
-            {
-                return false;
-            }
-            admission = new SourceEmissionAdmission(
-                master, currentGeneration, slot, trackReadinessEvents: false);
-            return true;
+            return TryAdmitSource(master, nodeManager, null, false, out admission);
         }
 
         /// <summary>
@@ -212,23 +502,37 @@ namespace Opc.Ua.Server
                 MasterNodeManager owner,
                 NodeManagerGeneration generation,
                 int slot,
-                bool trackReadinessEvents = true)
+                AddressSpaceEpoch? epoch = null,
+                int epochSlot = -1,
+                bool trackReadinessEvents = true,
+                NodeManagerGeneration? issuer = null,
+                int issuerSlot = -1)
             {
                 m_owner = owner;
                 Generation = generation;
+                IssuerGeneration = issuer ?? generation;
                 m_slot = slot;
+                m_issuerSlot = issuerSlot;
+                m_epoch = epoch;
+                m_epochSlot = epochSlot;
                 if (trackReadinessEvents)
                 {
-                    ReadinessEventId = generation.IsDeferringEvents ? NextReadinessEventId() : 0;
+                    ReadinessEventId = generation.IsDeferringEvents || IssuerGeneration.IsDeferringEvents
+                        ? NextReadinessEventId()
+                        : 0;
                     m_tracksReadiness = generation.CaptureSourceEmission(
                         ReadinessEventId, out bool readinessPending);
-                    ReadinessPending = readinessPending;
+                    bool issuerPending = false;
+                    m_tracksIssuerReadiness = !ReferenceEquals(IssuerGeneration, generation) &&
+                        IssuerGeneration.CaptureSourceEmission(ReadinessEventId, out issuerPending);
+                    ReadinessPending = readinessPending || issuerPending;
                 }
                 else
                 {
                     ReadinessEventId = 0;
                     m_tracksReadiness = false;
-                    ReadinessPending = generation.ReadinessPending;
+                    m_tracksIssuerReadiness = false;
+                    ReadinessPending = generation.ReadinessPending || IssuerGeneration.ReadinessPending;
                 }
             }
 
@@ -241,13 +545,23 @@ namespace Opc.Ua.Server
                 int slot,
                 long readinessEventId,
                 bool readinessPending,
-                bool tracksReadiness)
+                bool tracksReadiness,
+                NodeManagerGeneration issuer,
+                int issuerSlot,
+                bool tracksIssuerReadiness,
+                AddressSpaceEpoch? epoch,
+                int epochSlot)
             {
                 m_owner = owner;
                 Generation = generation;
+                IssuerGeneration = issuer;
                 m_slot = slot;
+                m_issuerSlot = issuerSlot;
+                m_epoch = epoch;
+                m_epochSlot = epochSlot;
                 ReadinessEventId = readinessEventId == 0 &&
-                    (tracksReadiness || generation.IsDeferringEvents)
+                    (tracksReadiness || tracksIssuerReadiness ||
+                        generation.IsDeferringEvents || issuer.IsDeferringEvents)
                         ? NextReadinessEventId()
                         : readinessEventId;
                 bool tracksGeneration = generation.CaptureSourceEmission(
@@ -256,14 +570,27 @@ namespace Opc.Ua.Server
                 {
                     generation.TrackSourceEmission(ReadinessEventId);
                 }
-                ReadinessPending = readinessPending || generationReadinessPending;
+                bool issuerReadinessPending = false;
+                bool tracksIssuer = !ReferenceEquals(issuer, generation) &&
+                    issuer.CaptureSourceEmission(ReadinessEventId, out issuerReadinessPending);
+                if (tracksIssuerReadiness && !tracksIssuer)
+                {
+                    issuer.TrackSourceEmission(ReadinessEventId);
+                }
+                ReadinessPending = readinessPending || generationReadinessPending || issuerReadinessPending;
                 m_tracksReadiness = tracksReadiness || tracksGeneration;
+                m_tracksIssuerReadiness = tracksIssuerReadiness || tracksIssuer;
             }
 
             /// <summary>
             /// Gets the exact generation admitted by the source emission.
             /// </summary>
             internal NodeManagerGeneration Generation { get; }
+
+            /// <summary>
+            /// Gets the exact source generation that issued this admission.
+            /// </summary>
+            internal NodeManagerGeneration IssuerGeneration { get; }
 
             /// <summary>
             /// Gets whether the generation was still initializing when the emission was admitted.
@@ -292,7 +619,17 @@ namespace Opc.Ua.Server
             internal SourceEmissionOrigin TransferToOrigin()
             {
                 return new SourceEmissionOrigin(
-                    m_owner, Generation, m_slot, ReadinessEventId, ReadinessPending, m_tracksReadiness);
+                    m_owner,
+                    Generation,
+                    m_slot,
+                    ReadinessEventId,
+                    ReadinessPending,
+                    m_tracksReadiness,
+                    IssuerGeneration,
+                    m_issuerSlot,
+                    m_tracksIssuerReadiness,
+                    m_epoch,
+                    m_epochSlot);
             }
 
             /// <inheritdoc/>
@@ -302,7 +639,16 @@ namespace Opc.Ua.Server
                 {
                     Generation.ReleaseSourceEmission(ReadinessEventId);
                 }
+                if (m_tracksIssuerReadiness)
+                {
+                    IssuerGeneration.ReleaseSourceEmission(ReadinessEventId);
+                }
                 Generation.Gate.Exit(m_slot);
+                if (m_issuerSlot >= 0)
+                {
+                    IssuerGeneration.Gate.Exit(m_issuerSlot);
+                }
+                m_epoch?.Exit(m_epochSlot);
             }
 
             /// <summary>The process-wide event identity sequence.</summary>
@@ -310,7 +656,11 @@ namespace Opc.Ua.Server
 
             private readonly MasterNodeManager m_owner;
             private readonly int m_slot;
+            private readonly int m_issuerSlot;
+            private readonly AddressSpaceEpoch? m_epoch;
+            private readonly int m_epochSlot;
             private readonly bool m_tracksReadiness;
+            private readonly bool m_tracksIssuerReadiness;
         }
 
         /// <summary>
@@ -327,20 +677,34 @@ namespace Opc.Ua.Server
             /// <param name="readinessEventId">The source event identity.</param>
             /// <param name="readinessPending">Whether readiness was pending at source admission.</param>
             /// <param name="tracksReadiness">Whether this origin owns a readiness-drain admission.</param>
+            /// <param name="issuer">The exact source that issued the admission.</param>
+            /// <param name="issuerSlot">The source gate slot, or -1 when it shares the admitted gate.</param>
+            /// <param name="tracksIssuerReadiness">Whether the source owns a readiness-drain admission.</param>
+            /// <param name="epoch">The resource source epoch pinned by the source, when applicable.</param>
+            /// <param name="epochSlot">The counter slot for the resource source epoch.</param>
             internal SourceEmissionOrigin(
                 MasterNodeManager owner,
                 NodeManagerGeneration generation,
                 int slot,
                 long readinessEventId,
                 bool readinessPending,
-                bool tracksReadiness)
+                bool tracksReadiness,
+                NodeManagerGeneration issuer,
+                int issuerSlot,
+                bool tracksIssuerReadiness,
+                AddressSpaceEpoch? epoch,
+                int epochSlot)
             {
                 m_owner = owner;
                 m_generation = generation;
+                m_issuer = issuer;
                 m_lease = new GenerationGate.Lease(generation.Gate, slot);
+                m_issuerLease = issuerSlot < 0 ? null : new GenerationGate.Lease(issuer.Gate, issuerSlot);
                 m_readinessEventId = readinessEventId;
                 m_readinessPending = readinessPending;
                 m_tracksReadiness = tracksReadiness;
+                m_tracksIssuerReadiness = tracksIssuerReadiness;
+                m_epochLease = epoch is null ? null : new AddressSpaceEpoch.Lease(epoch, epochSlot);
             }
 
             /// <summary>
@@ -399,31 +763,89 @@ namespace Opc.Ua.Server
             {
                 emission = null;
                 NodeManagerGeneration? generation = Volatile.Read(ref m_generation);
+                NodeManagerGeneration? issuer = Volatile.Read(ref m_issuer);
                 if (generation is null ||
+                    issuer is null ||
                     !ReferenceEquals(Volatile.Read(ref m_owner), owner) ||
                     (!(globalSink || ReferenceEquals(nodeManager, owner.CoreNodeManager)) &&
-                        (!ReferenceEquals(nodeManager, generation.NodeManager) ||
+                        ((!IsCanonicalBoundSource(generation, nodeManager) &&
+                                !IsCanonicalBoundSource(issuer, nodeManager)) ||
                             (reference is not null &&
                                 (!reference.TryGetGeneration(out NodeManagerGeneration? bound) ||
-                                    !ReferenceEquals(bound, generation))))) ||
+                                    bound is null ||
+                                    (!ReferenceEquals(bound, generation) &&
+                                        !ReferenceEquals(bound, issuer) &&
+                                        !IsPrivateFacadeSource(generation, bound, nodeManager) &&
+                                        !IsPrivateForwardedSource(generation, bound, nodeManager)))))) ||
                     !m_lease.TryFork(out int slot))
                 {
                     return false;
                 }
-                emission = new SourceEmissionAdmission(
-                    owner, generation, slot, m_readinessEventId, m_readinessPending, m_tracksReadiness);
-                return true;
+                int issuerSlot = -1;
+                if (m_issuerLease is not null && !m_issuerLease.TryFork(out issuerSlot))
+                {
+                    generation.Gate.Exit(slot);
+                    return false;
+                }
+                AddressSpaceEpoch? epoch = null;
+                int epochSlot = -1;
+                if (m_epochLease is not null && !m_epochLease.TryFork(out epoch, out epochSlot))
+                {
+                    generation.Gate.Exit(slot);
+                    if (issuerSlot >= 0)
+                    {
+                        issuer.Gate.Exit(issuerSlot);
+                    }
+                    return false;
+                }
+                bool transferred = false;
+                try
+                {
+                    emission = new SourceEmissionAdmission(
+                        owner,
+                        generation,
+                        slot,
+                        m_readinessEventId,
+                        m_readinessPending,
+                        m_tracksReadiness,
+                        issuer,
+                        issuerSlot,
+                        m_tracksIssuerReadiness,
+                        epoch,
+                        epochSlot);
+                    transferred = true;
+                    return true;
+                }
+                finally
+                {
+                    if (!transferred)
+                    {
+                        generation.Gate.Exit(slot);
+                        if (issuerSlot >= 0)
+                        {
+                            issuer.Gate.Exit(issuerSlot);
+                        }
+                        epoch?.Exit(epochSlot);
+                    }
+                }
             }
 
             /// <inheritdoc/>
             public void Dispose()
             {
                 NodeManagerGeneration? generation = Interlocked.Exchange(ref m_generation, null);
+                NodeManagerGeneration? issuer = Interlocked.Exchange(ref m_issuer, null);
                 if (m_tracksReadiness && generation is not null)
                 {
                     generation.ReleaseSourceEmission(m_readinessEventId);
                 }
+                if (m_tracksIssuerReadiness && issuer is not null)
+                {
+                    issuer.ReleaseSourceEmission(m_readinessEventId);
+                }
                 m_lease.Dispose();
+                m_issuerLease?.Dispose();
+                m_epochLease?.Dispose();
                 Volatile.Write(ref m_owner, null);
             }
 
@@ -433,8 +855,17 @@ namespace Opc.Ua.Server
             /// <summary>The exact source, released when the source callback finishes.</summary>
             private NodeManagerGeneration? m_generation;
 
+            /// <summary>The original issuer, released when the source callback finishes.</summary>
+            private NodeManagerGeneration? m_issuer;
+
             /// <summary>The existing generation gate admission, not a separate retention counter.</summary>
             private readonly GenerationGate.Lease m_lease;
+
+            /// <summary>The issuer gate admission when it differs from the routed gate.</summary>
+            private readonly GenerationGate.Lease? m_issuerLease;
+
+            /// <summary>The resource source epoch pinned by the source, when captured.</summary>
+            private readonly AddressSpaceEpoch.Lease? m_epochLease;
 
             /// <summary>The unique source-event identity inherited by child emissions.</summary>
             private readonly long m_readinessEventId;
@@ -444,6 +875,9 @@ namespace Opc.Ua.Server
 
             /// <summary>Whether this origin owns one readiness-drain admission.</summary>
             private readonly bool m_tracksReadiness;
+
+            /// <summary>Whether the issuer owns one readiness-drain admission.</summary>
+            private readonly bool m_tracksIssuerReadiness;
         }
 
         /// <summary>

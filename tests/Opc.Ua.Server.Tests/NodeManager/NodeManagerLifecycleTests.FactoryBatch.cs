@@ -39,6 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Schema;
@@ -539,6 +540,129 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A raw binding created by a private factory follows its facade through publication or abort.
+        /// </summary>
+        /// <param name="publish">Whether the candidate is published instead of abandoned.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PrivateForwardedRawBindingFollowsCandidateLifetimeAsync(bool publish)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            const string uri = kModelNamespaceUri + ":PrivateForwardedBinding";
+            Mock<IAsyncNodeManager> facade = CreateLifecycleNodeManager(uri);
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            TestableAsyncCustomNodeManager? resource = null;
+            MonitoredNode2? monitored = null;
+            IServerInternal? staged = null;
+            bool admittedDuringFactory = true;
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((
+                    IServerInternal candidateServer,
+                    ApplicationConfiguration configuration,
+                    CancellationToken _) =>
+                {
+                    staged = candidateServer;
+                    var owner = new TestableAsyncCustomNodeManager(
+                        candidateServer, configuration, false, NullLogger.Instance, uri);
+                    resource = owner;
+                    facade.SetupGet(value => value.SyncNodeManager).Returns(owner.SyncNodeManager);
+                    var root = new BaseObjectState(null)
+                    {
+                        NodeId = new NodeId("private-forwarded-root", owner.NamespaceIndex)
+                    };
+                    monitored = new MonitoredNode2(owner, candidateServer, root);
+                    admittedDuringFactory = MasterNodeManager.TryCaptureItemEmission(
+                        candidateServer, owner, monitored.Generation, out var admission);
+                    admission?.Dispose();
+                    return new ValueTask<IAsyncNodeManager>(facade.Object);
+                });
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            NodeManagerRegistration? registration = null;
+            try
+            {
+                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(factory.Object)], null, timeout.Token).ConfigureAwait(false))
+                {
+                    MonitoredNode2 source = RequireLifecycleValue(monitored);
+                    TestableAsyncCustomNodeManager owner = RequireLifecycleValue(resource);
+                    IServerInternal candidateServer = RequireLifecycleValue(staged);
+                    NodeManagerGeneration candidate = NodeManagerGenerationRegistry.GetOrCreate(facade.Object);
+                    Assert.That(source.Generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(admittedDuringFactory, Is.False);
+                        Assert.That(bound!.NodeManager, Is.SameAs(owner));
+                        Assert.That(bound, Is.Not.SameAs(candidate));
+                        Assert.That(candidate.NodeManager, Is.SameAs(facade.Object));
+                        Assert.That(bound!.Gate, Is.SameAs(candidate.Gate));
+                        Assert.That(candidate.Gate.State, Is.EqualTo(NodeManagerGenerationState.Prepared));
+                    });
+                    bool beforePublication = MasterNodeManager.TryCaptureItemEmission(
+                        candidateServer, owner, source.Generation, out var before);
+                    before?.Dispose();
+                    Assert.That(beforePublication, Is.False);
+
+                    if (publish)
+                    {
+                        NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                            .ConfigureAwait(false);
+                        Assert.That(result.CleanupFailure, Is.Null);
+                        registration = result.Registrations[0];
+                        Assert.That(candidate.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                        bool afterPublication = MasterNodeManager.TryCaptureItemEmission(
+                            candidateServer, owner, source.Generation, out var after);
+                        try
+                        {
+                            Assert.That(afterPublication, Is.True);
+                            Assert.That(after?.Generation, Is.SameAs(candidate));
+                            Assert.That(after?.Generation.Gate, Is.SameAs(candidate.Gate));
+                        }
+                        finally
+                        {
+                            after?.Dispose();
+                        }
+                    }
+                }
+
+                if (!publish)
+                {
+                    MonitoredNode2 source = RequireLifecycleValue(monitored);
+                    Assert.That(source.Generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                    Assert.That(bound!.Gate.TryEnter(out int _), Is.False);
+                    facade.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (registration is not null)
+                    {
+                        await RemoveAndRetireAsync(lifecycle, registration, timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (monitored is not null)
+                        {
+                            await monitored.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        if (resource is not null)
+                        {
+                            await resource.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// A factory cannot restore a retired owner while an admitted operation still prevents its reclamation.
         /// </summary>
         /// <param name="synchronous">Whether a fresh adapter returns the same synchronous resource identity.</param>
@@ -607,9 +731,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(reused);
 
-                await Assert.ThatAsync(() => lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Replace(current, reuseFactory.Object)], timeout.Token).AsTask(),
-                    Throws.TypeOf<NodeManagerAlreadyRegisteredException>()).ConfigureAwait(false);
+                if (synchronous || roundtrip)
+                {
+                    await Assert.ThatAsync(() => lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Replace(current, reuseFactory.Object)], timeout.Token).AsTask(),
+                        Throws.TypeOf<NodeManagerBorrowedResourceException>()).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Assert.ThatAsync(() => lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Replace(current, reuseFactory.Object)], timeout.Token).AsTask(),
+                        Throws.TypeOf<NodeManagerAlreadyRegisteredException>()).ConfigureAwait(false);
+                }
 
                 reuseFactory.Verify(value => value.CreateAsync(
                     It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()),

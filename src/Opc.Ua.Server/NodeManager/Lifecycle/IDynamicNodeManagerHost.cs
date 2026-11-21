@@ -235,6 +235,7 @@ namespace Opc.Ua.Server
             {
                 throw new InvalidOperationException("The candidate has no prepared generation or has been consumed.");
             }
+            ChangePreparer.GetBorrowedLease(NodeManager)?.ValidateForPublication();
         }
 
         /// <summary>
@@ -250,6 +251,7 @@ namespace Opc.Ua.Server
             {
                 throw new InvalidOperationException("Only an unpublished live generation can cross publication.");
             }
+            ChangePreparer.GetBorrowedLease(NodeManager)?.MarkPublished();
             m_replacedNodeManager = null;
         }
 

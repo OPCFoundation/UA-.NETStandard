@@ -120,8 +120,12 @@ namespace Opc.Ua.Server
             bool enableMultipleEventConsumers,
             TimeProvider? timeProvider)
         {
-            NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            NodeManager = nodeManager;
             Node = node ?? throw new ArgumentNullException(nameof(node));
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
@@ -149,8 +153,11 @@ namespace Opc.Ua.Server
             get => m_nodeManager;
             set
             {
-                m_nodeManager = value ?? throw new ArgumentNullException(nameof(value));
-                Generation = NodeManagerGenerationRegistry.GetOrCreate(value).Reference;
+                IAsyncNodeManager nodeManager = value ?? throw new ArgumentNullException(nameof(value));
+                NodeManagerGenerationReference generation =
+                    NodeManagerGenerationRegistry.GetOrCreate(nodeManager, m_server).Reference;
+                m_nodeManager = nodeManager;
+                Generation = generation;
             }
         }
 

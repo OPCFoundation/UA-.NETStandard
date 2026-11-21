@@ -732,6 +732,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Determines whether the exact facade is already owned by the lifecycle or routing table.
+        /// </summary>
+        private bool IsExactlyOwnedNodeManager(IAsyncNodeManager nodeManager)
+        {
+            lock (m_registrationLock)
+            {
+                if (m_registrations.Values.Any(state =>
+                        ReferenceEquals(state.Registration.NodeManager, nodeManager)) ||
+                    m_reclaimer.Snapshot().Any(retired =>
+                        ReferenceEquals(retired.NodeManager, nodeManager)))
+                {
+                    return true;
+                }
+            }
+            return m_server.CurrentInstance.NodeManager is MasterNodeManager master &&
+                master.IsExactlyRegisteredNodeManager(nodeManager);
+        }
+
+        /// <summary>
         /// Verifies that a registration-bound factory belongs to the operation being prepared.
         /// </summary>
         /// <param name="factory">The factory to validate.</param>
@@ -983,34 +1002,60 @@ namespace Opc.Ua.Server
         {
             ct.ThrowIfCancellationRequested();
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
-            var ownedItems = new HashSet<IMonitoredItem>(generation.MonitoredItems.Keys.Where(item =>
-                (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                item is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true }),
-                MonitoredItemReferenceComparer.Instance);
-            foreach (IMonitoredItem item in generation.CapturePendingSourceItems())
+            var sources = new List<(NodeManagerGeneration Generation, IAsyncNodeManager Owner)>
             {
-                if ((item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                    item is IMonitoredItemGenerationBinding { IsRemoved: false, IsTerminal: false } binding &&
-                    binding.CaptureSource().Generation is null &&
-                    item.SubscriptionCallback is ISubscriptionMonitoredItemLifecycle subscription &&
-                    subscription.ContainsMonitoredItem(item))
+                (generation, nodeManager)
+            };
+            IAsyncNodeManager resource = MasterNodeManager.GetReferenceOwnerIdentity(nodeManager);
+            if (!ReferenceEquals(resource, nodeManager) &&
+                NodeManagerGenerationRegistry.TryGet(resource, out NodeManagerGeneration? resourceGeneration) &&
+                resourceGeneration is not null &&
+                !ReferenceEquals(resourceGeneration, generation))
+            {
+                sources.Add((resourceGeneration, resource));
+            }
+
+            var ownedItems = new HashSet<IMonitoredItem>(MonitoredItemReferenceComparer.Instance);
+            INodeManagerMonitoredItemSource? lifecycle = null;
+            foreach ((NodeManagerGeneration sourceGeneration, IAsyncNodeManager sourceOwner) in sources)
+            {
+                var sourceItems = new HashSet<IMonitoredItem>(sourceGeneration.MonitoredItems.Keys.Where(item =>
+                    (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
+                    item is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true }),
+                    MonitoredItemReferenceComparer.Instance);
+                foreach (IMonitoredItem item in sourceGeneration.CapturePendingSourceItems())
                 {
-                    ownedItems.Add(item);
+                    if ((item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
+                        item is IMonitoredItemGenerationBinding { IsRemoved: false, IsTerminal: false } binding &&
+                        binding.CaptureSource().Generation is null &&
+                        item.SubscriptionCallback is ISubscriptionMonitoredItemLifecycle subscription &&
+                        subscription.ContainsMonitoredItem(item))
+                    {
+                        sourceItems.Add(item);
+                    }
                 }
+
+                if (sourceItems.Count > 0)
+                {
+                    if (sourceOwner is not INodeManagerMonitoredItemSource sourceLifecycle)
+                    {
+                        throw new NotSupportedException(
+                            "The NodeManager does not support monitored-item transitions.");
+                    }
+                    if (lifecycle is not null && !ReferenceEquals(lifecycle, sourceLifecycle))
+                    {
+                        throw new NotSupportedException(
+                            "The NodeManager's borrowed resources require separate monitored-item transitions.");
+                    }
+                    lifecycle = sourceLifecycle;
+                }
+                ownedItems.UnionWith(sourceItems);
             }
             IMonitoredItem[] items = [.. ownedItems];
-
-            if (nodeManager is not INodeManagerMonitoredItemSource nodeManagerLifecycle)
-            {
-                if (items.Length > 0)
-                {
-                    throw new NotSupportedException(
-                        "The NodeManager does not support monitored-item transitions.");
-                }
-                nodeManagerLifecycle = UnsupportedMonitoredItemLifecycle.Instance;
-            }
+            lifecycle ??= nodeManager as INodeManagerMonitoredItemSource ??
+                UnsupportedMonitoredItemLifecycle.Instance;
             return new ValueTask<(INodeManagerMonitoredItemSource, IReadOnlyList<IMonitoredItem>)>(
-                (nodeManagerLifecycle, items));
+                (lifecycle, items));
         }
 
         private static bool AreSameNodeManager(
@@ -1020,6 +1065,10 @@ namespace Opc.Ua.Server
             if (ReferenceEquals(first, second))
             {
                 return true;
+            }
+            if (ChangePreparer.IsBorrowedCandidate(first) || ChangePreparer.IsBorrowedCandidate(second))
+            {
+                return false;
             }
 #pragma warning disable CS0618, UA0031 // Identity comparison through the legacy view.
             INodeManager? firstSyncNodeManager = first.SyncNodeManager;
@@ -1075,6 +1124,20 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
+            if (HasActiveMonitoredItems(generation))
+            {
+                return true;
+            }
+            IAsyncNodeManager resource = MasterNodeManager.GetReferenceOwnerIdentity(nodeManager);
+            return !ReferenceEquals(resource, nodeManager) &&
+                NodeManagerGenerationRegistry.TryGet(resource, out NodeManagerGeneration? resourceGeneration) &&
+                resourceGeneration is not null &&
+                !ReferenceEquals(resourceGeneration, generation) &&
+                HasActiveMonitoredItems(resourceGeneration);
+        }
+
+        private static bool HasActiveMonitoredItems(NodeManagerGeneration generation)
+        {
             foreach (IMonitoredItem item in generation.MonitoredItems.Keys)
             {
                 if ((item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
@@ -1413,6 +1476,11 @@ namespace Opc.Ua.Server
         private static async ValueTask DisposeNodeManagerAsync(
             IAsyncNodeManager nodeManager)
         {
+            if (ChangePreparer.GetBorrowedLease(nodeManager) is { } borrowed)
+            {
+                await borrowed.RollbackAsync().ConfigureAwait(false);
+                return;
+            }
             ChangePreparer.Detach(nodeManager);
             Exception? managerFailure = null;
             if (nodeManager is IAsyncDisposable asyncDisposable)
@@ -1726,7 +1794,8 @@ namespace Opc.Ua.Server
             private readonly Dictionary<IMonitoredItem, long> m_reconciledItems =
                 new(MonitoredItemReferenceComparer.Instance);
             private readonly List<IMonitoredItem> m_failedItems = [];
-            private readonly HashSet<IMonitoredItem> m_markedDeletedItems = [];
+            private readonly HashSet<IMonitoredItem> m_markedDeletedItems =
+                new(MonitoredItemReferenceComparer.Instance);
 
             /// <summary>Whether the source consumers have already completed this transition's fences.</summary>
             private bool m_sourceNotificationsDrained;
@@ -1981,6 +2050,7 @@ namespace Opc.Ua.Server
                             m_server.CurrentConfiguration,
                             current is not null,
                             IsOwnedNodeManager,
+                            IsExactlyOwnedNodeManager,
                             cancellationToken).ConfigureAwait(false);
                         ChangePreparer.StagingServer stagingServer = ChangePreparer.GetServer(entry.Manager)!;
                         try
@@ -2386,6 +2456,19 @@ namespace Opc.Ua.Server
                     {
                         await committedReferences.ReconcileAdditionsAsync(reconciliation).ConfigureAwait(false);
                     }
+                    for (int index = 0; index < candidates.Count; index++)
+                    {
+                        PreparedNodeManager candidate = candidates[index];
+                        if (MasterNodeManager.GetReferenceOwnerIdentity(candidate.NodeManager)
+                            is AsyncCustomNodeManager manager)
+                        {
+                            await reconciliation.RunAsync(
+                                NodeManagerReconciliationStage.References,
+                                [candidate.Generation],
+                                () => manager.PublishRootNotifierReferencesAsync(CancellationToken.None))
+                                .ConfigureAwait(false);
+                        }
+                    }
                     foreach (MonitoredItemTransition transition in monitoredItemTransitions)
                     {
                         try
@@ -2758,6 +2841,10 @@ namespace Opc.Ua.Server
                     if (failure is not null)
                     {
                         failures.Add(failure);
+                    }
+                    else
+                    {
+                        generation.ReleaseForwardedSource();
                     }
                 }
             }

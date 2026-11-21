@@ -39,6 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -52,6 +53,435 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static readonly int[] InitialNamespaceIndexes = [2, 3];
         private static readonly int[] ConcurrentNamespaceIndexes = [9];
         private static readonly int[] BatchNamespaceIndexes = [2];
+
+        /// <summary>
+        /// A failed routing publication preserves the serving source epoch and legacy source admission.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedRoutingPublicationPreservesSourceAdmissionAsync(bool prepared)
+        {
+            var historian = new Mock<IHistorianProviderRegistry>();
+            Mock<IHistorianOwnedProviderRegistry> ownedHistorian =
+                historian.As<IHistorianOwnedProviderRegistry>();
+            var server = new Mock<IServerInternal>();
+            server.As<IHistorianRegistryProvider>()
+                .SetupGet(value => value.HistorianRegistry)
+                .Returns(historian.Object);
+            var namespaces = new NamespaceTable();
+            var serverUris = new StringTable();
+            var telemetry = new Mock<ITelemetryContext>().Object;
+            var encodeableFactory = (EncodeableFactory)EncodeableFactory.Create();
+            server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            server.SetupGet(value => value.ServerUris).Returns(serverUris);
+            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
+            server.SetupGet(value => value.Factory).Returns(encodeableFactory);
+            server.SetupGet(value => value.Telemetry).Returns(telemetry);
+            server.SetupGet(value => value.MessageContext)
+                .Returns(new ServiceMessageContext(telemetry, encodeableFactory)
+                {
+                    NamespaceUris = namespaces,
+                    ServerUris = serverUris
+                });
+            server.SetupGet(value => value.DefaultSystemContext)
+                .Returns(() => new ServerSystemContext(server.Object));
+
+            var configurationManager = new Mock<IConfigurationNodeManager>();
+            var coreManager = new Mock<ICoreNodeManager>();
+            var mainFactory = new Mock<IMainNodeManagerFactory>();
+            mainFactory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(configurationManager.Object);
+            mainFactory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(coreManager.Object);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(mainFactory.Object);
+            server.SetupGet(value => value.CoreNodeManager).Returns(coreManager.Object);
+            var table = new NodeManagerRoutingTable();
+            await using var master = new MasterNodeManager(
+                server.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                table);
+            server.SetupGet(value => value.NodeManager).Returns(master);
+
+            var manager = new Mock<IAsyncNodeManager>();
+            _ = manager.As<INodeManagerReadinessNotification>();
+            manager.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            IAsyncNodeManager candidate = await new ChangePreparer(server.Object).CreateNodeManagerAsync(
+                factory.Object, null!, false, _ => false, CancellationToken.None).ConfigureAwait(false);
+            var resource = new Mock<IAsyncNodeManager>();
+            resource.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+            resource.SetupGet(value => value.SyncNodeManager)
+                .Returns(new SyncNodeManagerAdapter(resource.Object));
+            NodeManagerGeneration raw = NodeManagerGenerationRegistry.GetOrCreate(resource.Object);
+            var failure = new InvalidOperationException("Historian retirement failed.");
+            bool failRetirement = true;
+            bool registered = false;
+            NodeManagerRoutingTable.PreparedRoutes? routes = null;
+            MasterNodeManager.SourceEmissionAdmission? beforeEmission = null;
+            MasterNodeManager.SourceEmissionAdmission? afterEmission = null;
+            AddressSpaceEpoch? beforeFailure = null;
+            AddressSpaceEpoch? afterFailure = null;
+            int beforeSlot = -1;
+            int afterSlot = -1;
+            ownedHistorian.Setup(value => value.RemoveOwnedRegistrations(It.IsAny<object>()))
+                .Callback<object>(_ =>
+                {
+                    if (failRetirement)
+                    {
+                        throw failure;
+                    }
+                });
+            try
+            {
+                ChangePreparer.StagingServer staging = ChangePreparer.GetServer(candidate)!;
+                ((IHistorianRegistryProvider)staging).HistorianRegistry.RegisterDefault(
+                    new Mock<IHistorianProvider>().Object);
+                ChangePreparer.Bind(candidate);
+                Assert.That(ChangePreparer.PublishHistorianRegistrations(candidate), Is.True);
+                table.Add(candidate, BatchNamespaceIndexes);
+                registered = true;
+                NodeManagerGeneration generation = table.GetGeneration(candidate);
+                NodeManagerRoutingTable.RoutingSnapshot serving = table.Revision;
+                Assert.That(
+                    table.TryPinSourceEpoch(serving, candidate, false, out beforeFailure, out beforeSlot),
+                    Is.EqualTo(NodeManagerRoutingTable.SourceEpochAdmission.Admitted));
+                Assert.That(
+                    MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, resource.Object, out beforeEmission, raw.Reference),
+                    Is.True);
+
+                if (prepared)
+                {
+                    var facade = new Mock<IAsyncNodeManager>();
+                    facade.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                    facade.SetupGet(value => value.SyncNodeManager)
+                        .Returns(new SyncNodeManagerAdapter(resource.Object));
+                    NodeManagerGeneration facadeGeneration =
+                        NodeManagerGenerationRegistry.CreateAddition(facade.Object);
+                    var preparedFacade = new PreparedNodeManager(facade.Object, [], facadeGeneration);
+                    routes = table.PrepareBatch(
+                        [preparedFacade], [candidate], _ => BatchNamespaceIndexes,
+                        new TypeTable(new NamespaceTable()), encodeableFactory);
+                    routes.Reserve();
+                }
+
+                InvalidOperationException? actual = Assert.Throws<InvalidOperationException>(
+                    () =>
+                    {
+                        if (routes is null)
+                        {
+                            table.Remove(candidate);
+                        }
+                        else
+                        {
+                            routes.Publish();
+                        }
+                    });
+                routes?.Dispose();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(actual, Is.SameAs(failure));
+                    Assert.That(table.Revision, Is.SameAs(serving));
+                    Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                });
+                Assert.That(
+                    table.TryPinSourceEpoch(serving, candidate, false, out afterFailure, out afterSlot),
+                    Is.EqualTo(NodeManagerRoutingTable.SourceEpochAdmission.Admitted));
+                bool admittedAfterFailure = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, resource.Object, out afterEmission, raw.Reference);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(afterFailure, Is.SameAs(beforeFailure));
+                    Assert.That(admittedAfterFailure, Is.True,
+                        "A failed facade publication must not disable the serving legacy source.");
+                });
+
+                beforeFailure!.Exit(beforeSlot);
+                beforeSlot = -1;
+                afterFailure!.Exit(afterSlot);
+                afterSlot = -1;
+                failRetirement = false;
+                table.Remove(candidate);
+                registered = false;
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await generation.WaitForQuiescenceAsync(timeout.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                failRetirement = false;
+                routes?.Dispose();
+                beforeEmission?.Dispose();
+                afterEmission?.Dispose();
+                if (beforeSlot >= 0)
+                {
+                    beforeFailure?.Exit(beforeSlot);
+                }
+                if (afterSlot >= 0)
+                {
+                    afterFailure?.Exit(afterSlot);
+                }
+                if (registered)
+                {
+                    table.Remove(candidate);
+                }
+                await ChangePreparer.DisposeAsync(candidate).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A failed batch retirement preserves every generation and historian registration in the serving view.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedBatchRoutingPublicationPreservesEarlierServingGenerationAsync(
+            bool preferredRemovedFirst)
+        {
+            var namespaces = new NamespaceTable();
+            using var servingHistorian = new HistorianProviderRegistry(namespaces);
+            IHistorianOwnedProviderRegistry ownedServingHistorian = servingHistorian;
+            var historian = new Mock<IHistorianProviderRegistry>();
+            Mock<IHistorianOwnedProviderRegistry> ownedHistorian =
+                historian.As<IHistorianOwnedProviderRegistry>();
+            historian.SetupGet(value => value.Providers).Returns(() => servingHistorian.Providers);
+            ownedHistorian.Setup(value => value.OwnsProvider(It.IsAny<IHistorianProvider>()))
+                .Returns<IHistorianProvider>(ownedServingHistorian.OwnsProvider);
+            ownedHistorian.Setup(value => value.RetainStagedProviderOwnership(
+                    It.IsAny<object>(), It.IsAny<IHistorianProvider>()))
+                .Callback<object, IHistorianProvider>(ownedServingHistorian.RetainStagedProviderOwnership);
+            ownedHistorian.Setup(value => value.ReleaseStagedProviderOwnership(
+                    It.IsAny<object>(), It.IsAny<IHistorianProvider>()))
+                .Returns<object, IHistorianProvider>(ownedServingHistorian.ReleaseStagedProviderOwnership);
+            var servingOwners = new List<object>();
+            ownedHistorian.Setup(value => value.ReplaceOwnedRegistrations(
+                    It.IsAny<object>(), It.IsAny<HistorianProviderRegistration[]>()))
+                .Callback<object, HistorianProviderRegistration[]>((owner, registrations) =>
+                {
+                    ownedServingHistorian.ReplaceOwnedRegistrations(owner, registrations);
+                    servingOwners.RemoveAll(existing => ReferenceEquals(existing, owner));
+                    if (registrations.Length != 0)
+                    {
+                        servingOwners.Add(owner);
+                    }
+                });
+                var failure = new InvalidOperationException("The second historian retirement failed.");
+                var probeNodeId = new NodeId("failed-batch-historian", 0);
+                bool failRetirement = true;
+                int retirementCalls = 0;
+            ownedHistorian.Setup(value => value.RemoveOwnedRegistrations(It.IsAny<object>()))
+                .Callback<object>(owner =>
+                {
+                    if (failRetirement && ++retirementCalls == 2)
+                    {
+                        throw failure;
+                    }
+                    ownedServingHistorian.RemoveOwnedRegistrations(owner);
+                    servingOwners.RemoveAll(existing => ReferenceEquals(existing, owner));
+                });
+
+            var server = new Mock<IServerInternal>();
+            server.As<IHistorianRegistryProvider>()
+                .SetupGet(value => value.HistorianRegistry)
+                .Returns(historian.Object);
+            var serverUris = new StringTable();
+            var telemetry = new Mock<ITelemetryContext>().Object;
+            var encodeableFactory = (EncodeableFactory)EncodeableFactory.Create();
+            server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            server.SetupGet(value => value.ServerUris).Returns(serverUris);
+            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
+            server.SetupGet(value => value.Factory).Returns(encodeableFactory);
+            server.SetupGet(value => value.Telemetry).Returns(telemetry);
+            server.SetupGet(value => value.MessageContext)
+                .Returns(new ServiceMessageContext(telemetry, encodeableFactory)
+                {
+                    NamespaceUris = namespaces,
+                    ServerUris = serverUris
+                });
+            server.SetupGet(value => value.DefaultSystemContext)
+                .Returns(() => new ServerSystemContext(server.Object));
+
+            var table = new NodeManagerRoutingTable();
+            var staged = new List<IAsyncNodeManager>();
+            var registered = new List<IAsyncNodeManager>();
+            var providers = new List<IHistorianProvider>();
+            NodeManagerRoutingTable.PreparedRoutes? routes = null;
+            try
+            {
+                for (int index = 0; index < 2; index++)
+                {
+                    var manager = new Mock<IAsyncNodeManager>();
+                    _ = manager.As<INodeManagerReadinessNotification>();
+                    manager.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                    var factory = new Mock<IAsyncNodeManagerFactory>();
+                    factory.Setup(value => value.CreateAsync(
+                            It.IsAny<IServerInternal>(),
+                            It.IsAny<ApplicationConfiguration>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+                    IAsyncNodeManager candidate = await new ChangePreparer(server.Object).CreateNodeManagerAsync(
+                        factory.Object, null!, false, _ => false, CancellationToken.None).ConfigureAwait(false);
+                    staged.Add(candidate);
+                    IHistorianProvider provider = new Mock<IHistorianProvider>().Object;
+                    providers.Add(provider);
+                    ChangePreparer.StagingServer staging = ChangePreparer.GetServer(candidate)!;
+                    ((IHistorianRegistryProvider)staging).HistorianRegistry.RegisterDefault(provider);
+                    ChangePreparer.Bind(candidate);
+                }
+
+                int firstPublication = preferredRemovedFirst ? 1 : 0;
+                int secondPublication = preferredRemovedFirst ? 0 : 1;
+                Assert.That(ChangePreparer.PublishHistorianRegistrations(staged[firstPublication]), Is.True);
+                Assert.That(ChangePreparer.PublishHistorianRegistrations(staged[secondPublication]), Is.True);
+                foreach (IAsyncNodeManager candidate in staged)
+                {
+                    table.Add(candidate, BatchNamespaceIndexes);
+                    registered.Add(candidate);
+                }
+
+                Assert.That(servingOwners, Has.Count.EqualTo(2));
+                IHistorianProvider expectedProvider = providers[secondPublication];
+                Assert.That(servingHistorian.Resolve(probeNodeId), Is.SameAs(expectedProvider));
+                object[] initialOwners = [.. servingOwners];
+                NodeManagerRoutingTable.RoutingSnapshot serving = table.Revision;
+                NodeManagerGeneration[] generations = [.. registered.Select(table.GetGeneration)];
+                routes = table.PrepareBatch(
+                    [], [.. registered], _ => BatchNamespaceIndexes,
+                    new TypeTable(new NamespaceTable()), encodeableFactory);
+                routes.Reserve();
+
+                InvalidOperationException? actual = Assert.Throws<InvalidOperationException>(
+                    () => routes.Publish());
+                routes.Dispose();
+                var admitted = new bool[generations.Length];
+                for (int index = 0; index < generations.Length; index++)
+                {
+                    admitted[index] = generations[index].Gate.TryEnter(out int slot);
+                    if (admitted[index])
+                    {
+                        generations[index].Gate.Exit(slot);
+                    }
+                }
+                Assert.Multiple(() =>
+                {
+                    Assert.That(actual, Is.SameAs(failure));
+                    Assert.That(table.Revision, Is.SameAs(serving));
+                    Assert.That(servingOwners, Has.Count.EqualTo(2));
+                    foreach (object owner in initialOwners)
+                    {
+                        Assert.That(servingOwners.Exists(current => ReferenceEquals(current, owner)), Is.True);
+                    }
+                    Assert.That(servingHistorian.Resolve(probeNodeId), Is.SameAs(expectedProvider));
+                    Assert.That(generations.Select(generation => generation.Gate.State),
+                        Is.All.EqualTo(NodeManagerGenerationState.Live));
+                    foreach (NodeManagerGeneration generation in generations)
+                    {
+                        Assert.That(generation.Slot.Current, Is.SameAs(generation));
+                    }
+                    Assert.That(admitted, Is.All.True);
+                });
+            }
+            finally
+            {
+                failRetirement = false;
+                routes?.Dispose();
+                foreach (IAsyncNodeManager manager in registered)
+                {
+                    table.Remove(manager);
+                }
+                foreach (IAsyncNodeManager manager in staged)
+                {
+                    await ChangePreparer.DisposeAsync(manager).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Replacing one manager preserves an equal peer and the original namespace dispatch order.
+        /// </summary>
+        [Test]
+        public void BatchReplacementPreservesEqualPeerAndRouteOrder()
+        {
+            var table = new NodeManagerRoutingTable();
+            var original = new EqualNodeManager();
+            var peer = new EqualNodeManager();
+            var replacement = new EqualNodeManager();
+            table.Add(original, BatchNamespaceIndexes);
+            table.Add(peer, BatchNamespaceIndexes);
+            NodeManagerGeneration originalGeneration = table.GetGeneration(original);
+            NodeManagerGeneration peerGeneration = table.GetGeneration(peer);
+            NodeManagerGeneration replacementGeneration =
+                NodeManagerGenerationRegistry.CreateReplacement(originalGeneration, replacement);
+            var candidate = new PreparedNodeManager(replacement, [], replacementGeneration, original);
+            using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
+                [candidate], [], _ => BatchNamespaceIndexes,
+                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
+
+            routes.Reserve();
+            routes.Publish();
+
+            NodeManagerRoutingTable.RoutingSnapshot published = table.Revision;
+            Assert.That(published.NodeManagers, Has.Length.EqualTo(2));
+            Assert.That(published.NodeManagers[0], Is.SameAs(replacement));
+            Assert.That(published.NodeManagers[1], Is.SameAs(peer));
+            Assert.That(published.NamespaceManagers[2], Has.Count.EqualTo(2));
+            Assert.That(published.NamespaceManagers[2][0], Is.SameAs(replacement));
+            Assert.That(published.NamespaceManagers[2][1], Is.SameAs(peer));
+            Assert.That(originalGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+            Assert.That(peerGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(replacementGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+        }
+
+        /// <summary>
+        /// A manager that only compares equal to a registered instance cannot retire it.
+        /// </summary>
+        [Test]
+        public void BatchRejectsUnregisteredEqualManager()
+        {
+            var table = new NodeManagerRoutingTable();
+            var registered = new EqualNodeManager();
+            var unrelated = new EqualNodeManager();
+            table.Add(registered, BatchNamespaceIndexes);
+            NodeManagerRoutingTable.RoutingSnapshot serving = table.Revision;
+            NodeManagerGeneration generation = table.GetGeneration(registered);
+
+            Assert.Throws<InvalidOperationException>(() => table.PrepareBatch(
+                [], [unrelated], _ => BatchNamespaceIndexes,
+                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create()));
+
+            Assert.That(table.Revision, Is.SameAs(serving));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+        }
+
+        /// <summary>
+        /// Retiring one manager does not withdraw a distinct equal manager.
+        /// </summary>
+        [Test]
+        public void BatchRetirementPreservesEqualPeer()
+        {
+            var table = new NodeManagerRoutingTable();
+            var retiring = new EqualNodeManager();
+            var peer = new EqualNodeManager();
+            table.Add(retiring, BatchNamespaceIndexes);
+            table.Add(peer, BatchNamespaceIndexes);
+            NodeManagerGeneration peerGeneration = table.GetGeneration(peer);
+            using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
+                [], [retiring], _ => BatchNamespaceIndexes,
+                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
+
+            routes.Reserve();
+            routes.Publish();
+
+            NodeManagerRoutingTable.RoutingSnapshot published = table.Revision;
+            Assert.That(published.NodeManagers, Has.Length.EqualTo(1));
+            Assert.That(published.NodeManagers[0], Is.SameAs(peer));
+            Assert.That(published.NamespaceManagers[2], Has.Count.EqualTo(1));
+            Assert.That(published.NamespaceManagers[2][0], Is.SameAs(peer));
+            Assert.That(peerGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+        }
 
         /// <summary>
         /// Prepared routing preserves captured requests and reveals only the candidates assigned to the unit.
@@ -1266,6 +1696,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(routes.ContainsKey(namespaceIndex), Is.True);
             Assert.That(routes[namespaceIndex], Has.Count.EqualTo(1));
             Assert.That(routes[namespaceIndex][0], Is.SameAs(expected));
+        }
+
+        private sealed class EqualNodeManager() : AsyncNodeManagerAdapter(new Mock<INodeManager>().Object)
+        {
+            public override bool Equals(object? obj)
+            {
+                return obj is EqualNodeManager;
+            }
+
+            public override int GetHashCode()
+            {
+                return 0;
+            }
         }
     }
 }
