@@ -138,18 +138,16 @@ namespace Opc.Ua
 
             if (TypeSystemId == Objects.XmlSchema_TypeSystem)
             {
-                imports ??= [];
-                if (!imports.ContainsKey(Namespaces.OpcUaXsd))
-                {
-                    byte[] schema = XmlSchemas.TypesXsd.ToArray();
-                    imports.Add(Namespaces.OpcUaXsd, schema);
-                    imports.Add(Namespaces.OpcUa, schema);
-                }
-                var validator = new Schema.Xml.XmlSchemaValidator(imports);
+                // The dictionary comes from the server and is only kept to hand
+                // out its text again: it is read, never compiled. The schema
+                // compiler recurses without a bound over base type chains, so a
+                // server could end the process with a stack overflow.
+                var validator = new Schema.Xml.XmlSchemaValidator(
+                    imports ?? new Dictionary<string, byte[]>());
 
                 try
                 {
-                    validator.Validate(istrm, logger);
+                    validator.Read(istrm, logger);
                 }
                 catch (Exception e) when (!throwOnError)
                 {
