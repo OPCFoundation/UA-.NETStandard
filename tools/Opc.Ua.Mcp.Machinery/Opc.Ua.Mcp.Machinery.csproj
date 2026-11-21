@@ -9,7 +9,7 @@
     <RootNamespace>Opc.Ua.Mcp</RootNamespace>
     <Description>Bounded OPC UA Machinery MCP discovery, monitoring, result downloads and explicit zero adjustment.</Description>
     <Company>OPC Foundation</Company>
-    <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2005-2026, OPC Federation AISBL</Copyright>
     <PackageTags>OPCFoundation OPC UA MCP Machinery</PackageTags>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

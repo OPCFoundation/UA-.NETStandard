@@ -15,12 +15,12 @@
       "loader": "AddOpcUaPlasticsRubber",
       "nodeSet": {
         "kind": "independently-authored-interface-implementation",
-        "sha256": "6a67e0a713add07af0f92fe13ec76686d21af4887ed223497f49f7c5d36da62e",
+        "sha256": "53d473ca033490aafc0f68455270e2f487e89c08582c708a71ade9f4f80b2ecb",
         "basis": {
           "source": "PlasticsRubber/GeneralTypes/1.02/Opc.Ua.PlasticsRubber.GeneralTypes.NodeSet2.xml",
-          "sha256": "5fe4469bf64ebab5a828d2f888dca85e985cf2d48286029d37565c09e4ac9ba8",
+          "sha256": "c4e2c75ef4e1edadc2e0ca7a568879ea4d08ddac8d2638c3402fef77e16ef776",
           "version": "1.02",
-          "license": "OPC Foundation MIT License 1.00",
+          "license": "MIT",
           "localPath": "Basis/Opc.Ua.PlasticsRubber.GeneralTypes.1.02.NodeSet2.xml"
         },
         "implementation": {
@@ -75,8 +75,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/GeneralTypes/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.GeneralTypes.NodeSet2.xml",
-        "sha256": "20f4ce69b4701646ccbbedfb64450097d699d9eeae23496918e1fea9da4d1fe6",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "16a6e59e7bac0967b840e6c798ba9d9f9870794925917c241e4d26190e6828e6",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/GeneralTypes/2.00/NodeIds.csv",
@@ -329,8 +329,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/ExtrusionLine/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.ExtrusionLine.NodeSet2.xml",
-        "sha256": "21dcf568e4a819343c88741bb33ad89323b0e21cdc7935d70d19e44d5f0d9319",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "36a96d80c961297fb1f36150c67b81f79b35f197d9df58529a6dfb675ba1a667",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/ExtrusionLine/2.00/NodeIds.csv",
@@ -395,8 +395,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/Extruder/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Extruder.NodeSet2.xml",
-        "sha256": "b6ec3dd6ce6ade02ccecf1ff4daf5042b998096809ff81130ba5e3b864afd3ca",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "d08931fb4c153505ecf472d1b2ab751ad9aa481d9b4d3ad29febc85f9b59b7f9",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/Extruder/2.00/NodeIds.csv",
@@ -461,8 +461,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/HaulOff/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.HaulOff.NodeSet2.xml",
-        "sha256": "3b784aafb2b85714d53a3dadf0a2f2f5c4de86934be791f925385b269305f96e",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "21be9b6430fea16cffa47ff1f255e1c7fbb25b08da1b4894fb428da3b6f27f01",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/HaulOff/2.00/NodeIds.csv",
@@ -526,8 +526,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/MeltPump/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.MeltPump.NodeSet2.xml",
-        "sha256": "28a729dea897f30fd97c2722559e7e0906e0344fde633a36670bc7aff9f9d33b",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "a23e47180c499b814d5f1c0a70ed22806ea915ba8a0a67b9b37886a76eab654a",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/MeltPump/2.00/NodeIds.csv",
@@ -591,8 +591,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/Filter/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Filter.NodeSet2.xml",
-        "sha256": "a777d81f671827181d4a3a37e988d007159098dbf3becd7b1e81ae6726d3556c",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "3e1f785a932598f5672ae294e7cd69715cd847d7c7ad0704afd9e642a9be4ffc",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/Filter/2.00/NodeIds.csv",
@@ -657,8 +657,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/Die/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Die.NodeSet2.xml",
-        "sha256": "5c46894382556ebbb4baf07f60cde54a66f97e96dfae6517e9e3ed45354b2b5b",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "be76fd7dd8f7d797af40e5c2acbbac2c90147390f20aa48dcee27332a91cde3f",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/Die/2.00/NodeIds.csv",
@@ -722,8 +722,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/Pelletizer/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Pelletizer.NodeSet2.xml",
-        "sha256": "f595f187af91bce55d29ebe528a516553e92e86b4c9a68c0ea4901a1393cc64f",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "077b1ded088eba69b75413ba36fb228332c68b40b8e9d86139de13968c08d9ac",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/Pelletizer/2.00/NodeIds.csv",
@@ -787,8 +787,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/Cutter/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Cutter.NodeSet2.xml",
-        "sha256": "b6c709b004033ce5bd3fd156c87bf75d2f4e060a6b8ed75c00b3a4f53641c5da",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "e69d9232163baf00e589ce9b3977b8f5829a8454bdef06a6e90c1f00926920dc",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/Cutter/2.00/NodeIds.csv",
@@ -853,8 +853,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/Calibrator/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Calibrator.NodeSet2.xml",
-        "sha256": "18f872bd54680fe599919445730f1b561b829ab871b1c29d30cede1cb48bb775",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "cb017530f4f651488a8534d0ebc7f0f89479fd4c3ec2e3ca7218c384dc225355",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/Calibrator/2.00/NodeIds.csv",
@@ -918,8 +918,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/Corrugator/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Corrugator.NodeSet2.xml",
-        "sha256": "149eac84eaaed3fc95f1e9d3b4215ad35a963af8410ecba9e5694819f3fb7f14",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "96ac3c54b0f4395488bb7159360cb77451e5d4b01f70dc7aec2952ab3678006f",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/Corrugator/2.00/NodeIds.csv",
@@ -987,8 +987,8 @@
       "nodeSet": {
         "kind": "unmodified-upstream-publication",
         "source": "PlasticsRubber/Extrusion_v2/Calender/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.Calender.NodeSet2.xml",
-        "sha256": "d196cb4d38ecfe9adf7b32285a9fb71f968ebfdb87bcae1ee4c72e87057bbd8b",
-        "license": "OPC Foundation MIT License 1.00"
+        "sha256": "5a526aa845b5b13b07f431af09efbb75c817fb7da6cf25c6858a2ec50bc68a6f",
+        "license": "MIT"
       },
       "upstreamIdentifiers": {
         "source": "PlasticsRubber/Extrusion_v2/Calender/2.00/NodeIds.csv",
