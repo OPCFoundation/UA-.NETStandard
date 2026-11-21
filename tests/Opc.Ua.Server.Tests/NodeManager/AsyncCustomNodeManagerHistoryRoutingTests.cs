@@ -349,6 +349,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Verifies that a deferred handle which cannot be resolved for the access checks
+        /// is not passed on, although a second resolution would succeed.
+        /// </summary>
+        [Test]
+        public async Task HistoryOnDeferredAnnotationsHandleStopsWhenResolutionFailsOnceAsync()
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (BaseDataVariableState parent, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "FailOnceParent").ConfigureAwait(false);
+            parent.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                    Permissions = (uint)(PermissionType.ReadHistory | PermissionType.InsertHistory)
+                }
+            ];
+            h.Manager.DeferHandles = true;
+
+            h.Manager.FailNextValidation = true;
+            (ServiceResult readError, HistoryReadResult readResult) =
+                await ReadAnnotationsAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(readError.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+            Assert.That(readResult.HistoryData.IsNull, Is.True);
+
+            h.Manager.FailNextValidation = true;
+            ServiceResult updateError = await InsertAnnotationAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(updateError.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+        }
+
+        /// <summary>
         /// Verifies that a failing user access level callback of the parent variable denies
         /// the operation although it leaves the stored history bits untouched.
         /// </summary>
@@ -1187,6 +1218,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public bool DeferHandles { get; set; }
 
+            /// <summary>
+            /// Whether the next validation of a handle fails; later validations succeed.
+            /// </summary>
+            public bool FailNextValidation { get; set; }
+
             protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
                 ServerSystemContext context,
                 NodeId nodeId,
@@ -1209,6 +1245,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IDictionary<NodeId, NodeState> cache,
                 CancellationToken cancellationToken = default)
             {
+                if (FailNextValidation)
+                {
+                    FailNextValidation = false;
+                    throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+                }
                 if (handle.Node == null && base.PredefinedNodes.TryGetValue(handle.NodeId, out NodeState? node))
                 {
                     handle.Node = node;

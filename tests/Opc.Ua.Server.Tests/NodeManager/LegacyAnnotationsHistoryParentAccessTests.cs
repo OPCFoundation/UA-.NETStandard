@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task LegacyNodeManagerAppliesParentAccessToAnnotationsHistoryAsync(
+        public Task LegacyNodeManagerAppliesParentAccessToAnnotationsHistoryAsync(
             [Values] ParentAccess parentAccess,
             [Values] bool deferredHandle)
         {
@@ -72,6 +72,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ParentAccess.AccessCallbackFails => StatusCodes.BadConfigurationError,
                 _ => StatusCodes.BadUserAccessDenied
             };
+            return RunAsync(parentAccess, deferredHandle, false, expectedRead, expectedUpdate);
+        }
+
+        /// <summary>
+        /// A deferred handle which cannot be resolved for the access checks is not passed
+        /// on to the history hooks, although a second resolution would succeed.
+        /// </summary>
+        [Test]
+        public Task LegacyNodeManagerStopsWhenDeferredResolutionFailsOnceAsync()
+        {
+            return RunAsync(
+                ParentAccess.RolePermissionsDenied,
+                true,
+                true,
+                StatusCodes.BadResourceUnavailable,
+                StatusCodes.BadResourceUnavailable);
+        }
+
+        private static async Task RunAsync(
+            ParentAccess parentAccess,
+            bool deferredHandle,
+            bool failFirstValidation,
+            StatusCode expectedRead,
+            StatusCode expectedUpdate)
+        {
             LegacyAnnotationsNodeManager? nodeManager = null;
             var fixture = new ServerFixture<StandardServer>(telemetry =>
             {
@@ -94,6 +119,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .GetIndex(LegacyAnnotationsNodeManager.NamespaceUri);
                 var annotationsId = new NodeId(LegacyAnnotationsNodeManager.AnnotationsName, namespaceIndex);
                 nodeManager!.DeferHandles = deferredHandle;
+                nodeManager.FailNextValidation = failFirstValidation;
 
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 HistoryReadResponse readResponse = await server.HistoryReadAsync(
@@ -113,6 +139,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(expectedRead));
                 Assert.That(nodeManager.Reads, Is.EqualTo(expectedRead == StatusCodes.Good ? 1 : 0));
 
+                nodeManager.FailNextValidation = failFirstValidation;
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 HistoryUpdateResponse updateResponse = await server.HistoryUpdateAsync(
                     secureChannelContext,
@@ -249,6 +276,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public bool DeferHandles { get; set; }
 
+            /// <summary>
+            /// Whether the next validation of a handle fails; later validations succeed.
+            /// </summary>
+            public bool FailNextValidation { get; set; }
+
             protected override NodeHandle? GetManagerHandle(
                 ServerSystemContext context,
                 NodeId nodeId,
@@ -268,6 +300,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeHandle handle,
                 IDictionary<NodeId, NodeState> cache)
             {
+                if (FailNextValidation)
+                {
+                    FailNextValidation = false;
+                    throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+                }
                 if (handle.Node == null && PredefinedNodes.TryGetValue(handle.NodeId, out NodeState? node))
                 {
                     handle.Node = node;

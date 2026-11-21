@@ -6802,9 +6802,12 @@ namespace Opc.Ua.Server
                     source = await ValidateNodeAsync(context, handle, cache, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (ServiceResultException)
+                catch (ServiceResultException exception)
                 {
-                    // the history hook validates the node again and reports the failure.
+                    // a handle that could not be resolved was not checked: it must
+                    // not reach a history hook that may resolve it on a second try.
+                    errors[handle.Index] = new ServiceResult(exception);
+                    nodesToProcess.Remove(handle);
                     continue;
                 }
 
