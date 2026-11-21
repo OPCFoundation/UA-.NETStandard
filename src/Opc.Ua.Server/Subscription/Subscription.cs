@@ -1005,6 +1005,9 @@ namespace Opc.Ua.Server
             // an item the subscription does not know to signal: a custom IMonitoredItem.
             if (m_monitoredItems.Count != m_signalingItemCount)
             {
+                // the scan reads every item, but the candidates it leaves keep their flags
+                // for when the subscription stops scanning.
+                m_recheckReadyCandidates |= invalidated;
                 DropPublishListCandidates();
                 ScanAllMonitoredItems();
                 return;
