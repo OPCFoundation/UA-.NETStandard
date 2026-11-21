@@ -526,6 +526,31 @@ namespace Opc.Ua.Client.Tests.Programs
         }
 
         /// <summary>
+        /// The ancestry checks of one invocation discovery share a budget, so several types
+        /// with a large unrelated ancestry fail together although each alone stays below it.
+        /// </summary>
+        [Test]
+        public async Task InvocationDiscoverySharesAncestryBudgetAcrossTypesAsync()
+        {
+            const int ancestors = 40_000;
+            NodeId scope = new("my-area", 2);
+            ArrayOf<ReferenceDescription> unrelated = [.. Enumerable.Range(0, ancestors)
+                .Select(i => Child(new NodeId((uint)(i + 1), 2), "Unrelated", NodeClass.ObjectType, 2))];
+            NodeId[] types = [new("type-a", 2), new("type-b", 2), new("type-c", 2)];
+            m_browse[(scope, ReferenceTypeIds.HasTypeDefinition, BrowseDirection.Forward)] =
+                [.. types.Select(type => Child(type, "Type", NodeClass.ObjectType, 2))];
+            foreach (NodeId type in types)
+            {
+                m_browse[(type, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse)] = unrelated;
+            }
+            await AssertStatus(
+                async () => await m_client.DiscoverInvocationsAsync(scope).ConfigureAwait(false),
+                StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
+            Assert.That(m_browsed, Does.Contain(types[1]));
+            Assert.That(m_browsed, Has.Count.LessThanOrEqualTo(ProgramClient.MaxDiscoveryNodes + 2));
+        }
+
+        /// <summary>
         /// A result hierarchy nested deeper than the client follows fails instead of growing a path per level.
         /// </summary>
         [Test]

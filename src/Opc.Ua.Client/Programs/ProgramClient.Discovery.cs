@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -47,7 +48,8 @@ namespace Opc.Ua.Client.Programs
             {
                 rootTypeId = ObjectTypeIds.ProgramStateMachineType;
             }
-            if (!await IsTypeOfAsync(rootTypeId, ObjectTypeIds.ProgramStateMachineType, ct).ConfigureAwait(false))
+            if (!await IsTypeOfAsync(rootTypeId, ObjectTypeIds.ProgramStateMachineType, new StrongBox<int>(), ct)
+                .ConfigureAwait(false))
             {
                 throw new ServiceResultException(StatusCodes.BadTypeMismatch, "The root is not a Program type.");
             }
@@ -91,7 +93,11 @@ namespace Opc.Ua.Client.Programs
             {
                 typeId = ObjectTypeIds.ProgramStateMachineType;
             }
-            if (!await IsTypeOfAsync(typeId, ObjectTypeIds.ProgramStateMachineType, ct).ConfigureAwait(false))
+            // one budget for every ancestry check of this discovery, so the types
+            // the server reports cannot each start a walk with a budget of its own.
+            var ancestry = new StrongBox<int>();
+            if (!await IsTypeOfAsync(typeId, ObjectTypeIds.ProgramStateMachineType, ancestry, ct)
+                .ConfigureAwait(false))
             {
                 throw new ServiceResultException(StatusCodes.BadTypeMismatch, "The requested type is not a Program.");
             }
@@ -114,7 +120,8 @@ namespace Opc.Ua.Client.Programs
                     if (!typeMatches.TryGetValue(actualType, out bool matches))
                     {
                         matches = actualType == typeId ||
-                            (includeSubtypes && await IsTypeOfAsync(actualType, typeId, ct).ConfigureAwait(false));
+                            (includeSubtypes &&
+                                await IsTypeOfAsync(actualType, typeId, ancestry, ct).ConfigureAwait(false));
                         typeMatches.Add(actualType, matches);
                         EnsureWalkBudget(typeMatches.Count, MaxDiscoveryNodes);
                     }
@@ -141,12 +148,19 @@ namespace Opc.Ua.Client.Programs
         }
 
         /// <summary>
-        /// Tests type ancestry without requiring a prepopulated NodeCache.
+        /// Tests type ancestry without requiring a prepopulated NodeCache. The types
+        /// followed are counted in <paramref name="followed"/>, which the checks of one
+        /// operation share.
         /// </summary>
-        private async ValueTask<bool> IsTypeOfAsync(NodeId typeId, NodeId expected, CancellationToken ct)
+        private async ValueTask<bool> IsTypeOfAsync(
+            NodeId typeId,
+            NodeId expected,
+            StrongBox<int> followed,
+            CancellationToken ct)
         {
             var pending = new Queue<NodeId>();
             var visited = new HashSet<NodeId> { typeId };
+            EnsureWalkBudget(++followed.Value, MaxDiscoveryNodes);
             pending.Enqueue(typeId);
             while (pending.Count > 0)
             {
@@ -165,7 +179,7 @@ namespace Opc.Ua.Client.Programs
                     // the queue holds each type once and stays within the budget.
                     if (visited.Add(parentId))
                     {
-                        EnsureWalkBudget(visited.Count, MaxDiscoveryNodes);
+                        EnsureWalkBudget(++followed.Value, MaxDiscoveryNodes);
                         pending.Enqueue(parentId);
                     }
                 }
