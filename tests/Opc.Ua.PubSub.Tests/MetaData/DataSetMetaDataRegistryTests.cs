@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
@@ -183,6 +185,82 @@ namespace Opc.Ua.PubSub.Tests.MetaData
             Assert.That(
                 scope.RegisterReceived(in key, nested, authenticated: true, frameLength: 4100),
                 Is.True);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public void IdleUnauthenticatedMetadataIsEvictedToMakeRoom()
+        {
+            var clock = new FakeTimeProvider();
+            var evicted = new List<DataSetMetaDataKey>();
+            var scope = new DataSetMetaDataRegistry
+            {
+                MaxUnauthenticatedCost = 4096,
+                Clock = clock,
+                UnauthenticatedEvicted = (in DataSetMetaDataKey key) => evicted.Add(key)
+            };
+            DataSetMetaDataKey first = NewKey(dataSetWriterId: 1);
+            DataSetMetaDataKey second = NewKey(dataSetWriterId: 2);
+            DataSetMetaDataKey third = NewKey(dataSetWriterId: 3);
+
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.False,
+                "An entry that was just announced is not evicted.");
+
+            // An entry that is looked up is in use, however old its announcement.
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(scope.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.False);
+            Assert.That(evicted, Is.Empty);
+
+            // Once nobody announced or used it for the idle timeout it makes room.
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            Assert.That(evicted, Is.EqualTo(new[] { first }));
+            Assert.That(scope.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+
+            // Authenticated metadata is never evicted.
+            Assert.That(
+                scope.RegisterReceived(in third, NewMeta(), authenticated: true, frameLength: 1_000_000),
+                Is.True);
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            Assert.That(evicted, Is.EqualTo(new[] { first, second }));
+            Assert.That(scope.TryGet(in third, out _), Is.EqualTo(MetaDataMatchResult.Match));
+        }
+
+        [Test]
+        public void IdleEvictionOfUnauthenticatedMetadataCanBeDisabled()
+        {
+            var clock = new FakeTimeProvider();
+            var scope = new DataSetMetaDataRegistry
+            {
+                MaxUnauthenticatedCost = 4096,
+                UnauthenticatedIdleTimeout = TimeSpan.Zero,
+                Clock = clock
+            };
+            DataSetMetaDataKey first = NewKey(dataSetWriterId: 1);
+            DataSetMetaDataKey second = NewKey(dataSetWriterId: 2);
+
+            Assert.That(
+                scope.RegisterReceived(in first, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.True);
+            clock.Advance(TimeSpan.FromHours(1));
+            Assert.That(
+                scope.RegisterReceived(in second, NewMeta(), authenticated: false, frameLength: 3000),
+                Is.False);
+            Assert.That(scope.EvictIdleUnauthenticated(1), Is.False);
+            Assert.That(scope.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.Match));
         }
 
         private static DataSetMetaDataType WithProperty(Variant value)

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
@@ -491,6 +492,36 @@ namespace Opc.Ua.PubSub.Tests.Connections
             Assert.That(registry.Keys, Has.Count.EqualTo(1));
         }
 
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task IdleInboundMetaDataGivesUpItsIdentitySlot()
+        {
+            var clock = new FakeTimeProvider();
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out IDataSetMetaDataRegistry registry,
+                timeProvider: clock);
+
+            // A sender takes every identity slot and then goes silent.
+            for (int i = 0; i < PubSubConnection.MaxInboundMetaDataIdentities; i++)
+            {
+                _ = conn.TryRouteInboundMetaData(NewInboundMeta(PublisherId.FromString("P" + i), 1));
+            }
+            var late = new DataSetMetaDataKey(PublisherId.FromString("late"), 0, 1, Uuid.Empty, 7);
+            _ = conn.TryRouteInboundMetaData(NewInboundMeta(late.PublisherId, 1));
+            Assert.That(registry.TryGet(in late, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+
+            // After the idle timeout a publisher that arrives later is admitted.
+            clock.Advance(DataSetMetaDataRegistry.DefaultUnauthenticatedIdleTimeout + TimeSpan.FromMinutes(1));
+            _ = conn.TryRouteInboundMetaData(NewInboundMeta(late.PublisherId, 1));
+            Assert.That(registry.TryGet(in late, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(registry.Keys, Has.Count.EqualTo(PubSubConnection.MaxInboundMetaDataIdentities));
+
+            var later = new DataSetMetaDataKey(PublisherId.FromString("later"), 0, 1, Uuid.Empty, 7);
+            _ = conn.TryRouteInboundMetaData(NewInboundMeta(later.PublisherId, 1));
+            Assert.That(registry.TryGet(in later, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(registry.Keys, Has.Count.EqualTo(PubSubConnection.MaxInboundMetaDataIdentities));
+        }
+
         private static JsonMetaDataMessage NewInboundMeta(
             PublisherId publisherId,
             ushort writerId,
@@ -559,7 +590,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
         private static PubSubConnection NewConnectionWithOwnRegistry(
             out IDataSetMetaDataRegistry registry,
             DataSetReaderDataType? readerConfiguration = null,
-            long maxUnauthenticatedCost = DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost)
+            long maxUnauthenticatedCost = DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost,
+            TimeProvider? timeProvider = null)
         {
             var hostRegistry = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = maxUnauthenticatedCost };
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -578,7 +610,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 hostRegistry,
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 NUnitTelemetryContext.Create(),
-                TimeProvider.System);
+                timeProvider ?? TimeProvider.System);
             registry = connection.InboundMetaDataRegistry;
             return connection;
         }

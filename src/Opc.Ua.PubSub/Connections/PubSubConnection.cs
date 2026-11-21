@@ -276,7 +276,12 @@ namespace Opc.Ua.PubSub.Connections
                 // configured on its registry applies to each of them.
                 MaxUnauthenticatedCost = metaDataRegistry is DataSetMetaDataRegistry configured
                     ? configured.MaxUnauthenticatedCost
-                    : DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost
+                    : DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost,
+                UnauthenticatedIdleTimeout = metaDataRegistry is DataSetMetaDataRegistry configuredIdle
+                    ? configuredIdle.UnauthenticatedIdleTimeout
+                    : DataSetMetaDataRegistry.DefaultUnauthenticatedIdleTimeout,
+                Clock = timeProvider,
+                UnauthenticatedEvicted = ReleaseInboundMetaDataIdentity
             };
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
@@ -975,6 +980,7 @@ namespace Opc.Ua.PubSub.Connections
                     ReadOnlyMemory<byte> framePayload = frame.Payload;
                     ReadOnlyMemory<byte> rawFrame = frame.Payload;
                     bool frameSecured = false;
+                    bool frameVerified = false;
                     bool singleFrame = true;
 
                     if (UadpDecoder.TryReadPrefix(framePayload, out UadpPrefixInfo framePrefix))
@@ -1003,29 +1009,38 @@ namespace Opc.Ua.PubSub.Connections
                                 m_logger.DroppingUnsecuredInboundFrame(Name, m_requiredSecurityMode);
                                 continue;
                             }
-                            ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
-                                framePayload, prefixLength,
-                                framePublisherId, frameWriterGroupId,
-                                m_requiredSecurityMode, cancellationToken)
-                                .ConfigureAwait(false);
+                            (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
+                                await TryUnwrapInboundAsync(
+                                    framePayload, prefixLength,
+                                    framePublisherId, frameWriterGroupId,
+                                    m_requiredSecurityMode, cancellationToken)
+                                    .ConfigureAwait(false);
                             if (unwrapped is null)
                             {
                                 continue;
                             }
-                            framePayload = unwrapped.Value;
+                            framePayload = unwrapped.Value.Payload;
+                            frameVerified = unwrapped.Value.SignatureVerified;
                         }
                         else if (m_securityWrapper is not null && securityEnabled)
                         {
-                            ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
-                                framePayload, prefixLength,
-                                framePublisherId, frameWriterGroupId,
-                                MessageSecurityMode.None, cancellationToken)
-                                .ConfigureAwait(false);
+                            (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
+                                await TryUnwrapInboundAsync(
+                                    framePayload, prefixLength,
+                                    framePublisherId, frameWriterGroupId,
+                                    MessageSecurityMode.None, cancellationToken)
+                                    .ConfigureAwait(false);
                             if (unwrapped is null)
                             {
                                 continue;
                             }
-                            framePayload = unwrapped.Value;
+                            framePayload = unwrapped.Value.Payload;
+
+                            // No SecurityMode is required here, so a frame
+                            // without a signature unwraps too. A message put
+                            // together from chunks is not treated as verified
+                            // either: unsigned chunks can be mixed into it.
+                            frameVerified = unwrapped.Value.SignatureVerified && !framePrefix.ChunkMessage;
                         }
 
                         if (framePrefix.ChunkMessage)
@@ -1081,8 +1096,10 @@ namespace Opc.Ua.PubSub.Connections
                         continue;
                     }
 
-                    // Only a frame whose security wrapper was verified above is authenticated.
-                    bool frameAuthenticated = frameSecured && m_securityWrapper is not null;
+                    // Only a frame whose signature was verified above is
+                    // authenticated. The security flag of the frame and a known
+                    // SecurityTokenId are not enough: both are sender-controlled.
+                    bool frameAuthenticated = frameVerified;
                     PubSubNetworkMessage? message;
                     try
                     {
@@ -1232,18 +1249,29 @@ namespace Opc.Ua.PubSub.Connections
                 key.PublisherId,
                 key.WriterGroupId,
                 key.DataSetWriterId);
-            lock (m_gate)
+            for (int attempt = 0; ; attempt++)
             {
-                if (m_inboundMetaDataIdentities.Contains(identity))
+                lock (m_gate)
                 {
-                    return true;
+                    if (m_inboundMetaDataIdentities.Contains(identity))
+                    {
+                        return true;
+                    }
+                    if (m_inboundMetaDataIdentities.Count < MaxInboundMetaDataIdentities)
+                    {
+                        m_inboundMetaDataIdentities.Add(identity);
+                        return true;
+                    }
                 }
-                if (m_inboundMetaDataIdentities.Count >= MaxInboundMetaDataIdentities)
+
+                // All identity slots are taken. An unauthenticated entry that
+                // nobody announced or used for a while gives up its slot, so
+                // that a sender that filled them and went silent does not keep
+                // later publishers out.
+                if (attempt > 0 || !m_inboundMetaDataRegistry.EvictIdleUnauthenticated(1))
                 {
                     return false;
                 }
-                m_inboundMetaDataIdentities.Add(identity);
-                return true;
             }
         }
 
@@ -3099,7 +3127,7 @@ namespace Opc.Ua.PubSub.Connections
                 frame.Span, prefix, reassembled.Value.Span);
         }
 
-        private async ValueTask<ReadOnlyMemory<byte>?> TryUnwrapInboundAsync(
+        private async ValueTask<(ReadOnlyMemory<byte> Payload, bool SignatureVerified)?> TryUnwrapInboundAsync(
             ReadOnlyMemory<byte> frame,
             int prefixLength,
             PublisherId publisherId,
@@ -3132,7 +3160,7 @@ namespace Opc.Ua.PubSub.Connections
                 byte[] combined = new byte[totalLength];
                 prefix.Span.CopyTo(combined);
                 cleartext.Span.CopyTo(combined.AsSpan(prefix.Length));
-                return combined;
+                return (combined, result.SignatureVerified);
             }
             catch (OperationCanceledException)
             {

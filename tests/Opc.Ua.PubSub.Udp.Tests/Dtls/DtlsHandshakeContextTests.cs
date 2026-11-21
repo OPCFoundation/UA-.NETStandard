@@ -208,6 +208,28 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
             Task serverTask = server.OpenAsync(network.Server, cts.Token).AsTask();
 
+            // A peer that sends a ClientHello and nothing else: the server
+            // answers it statelessly, which must not shift the message
+            // sequence of the peers that follow.
+            using DtlsHandshakeContext probing = CreateContext(
+                profile, DtlsEndpointRole.Client, NewOptions(), validator.Object);
+            using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+            var probeAnswered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var probe = new InterceptingChannel(
+                network.CreatePeer(new IPEndPoint(IPAddress.Loopback, 55000)),
+                (index, _, _) =>
+                {
+                    if (index > 0)
+                    {
+                        probeAnswered.TrySetResult(true);
+                    }
+                    return new ValueTask<bool>(index == 0);
+                });
+            Task probeTask = probing.OpenAsync(probe, probeCts.Token).AsTask();
+            await probeAnswered.Task.WaitAsync(cts.Token).ConfigureAwait(false);
+            await probeCts.CancelAsync().ConfigureAwait(false);
+            Assert.That(async () => await probeTask.ConfigureAwait(false), Throws.Exception);
+
             // The first peer passes the cookie exchange and then never delivers
             // its Finished, which holds the accept for one flight timeout.
             var dropFinished = new InterceptingChannel(
@@ -217,8 +239,19 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
             // The second peer handshakes meanwhile. Its ClientHello is not
             // retransmitted, so the server must answer and keep it.
-            await waiting.OpenAsync(waitingChannel, cts.Token).ConfigureAwait(false);
+            var recordWaiting = new InterceptingChannel(
+                waitingChannel,
+                (_, _, _) => new ValueTask<bool>(true));
+            await waiting.OpenAsync(recordWaiting, cts.Token).ConfigureAwait(false);
             await serverTask.ConfigureAwait(false);
+
+            // RFC 9147 §5.2: every peer sees its own message sequence, with
+            // the HelloRetryRequest at 0 and the flight after it starting at 1,
+            // whether the peer was answered directly or waited in the queue.
+            ushort[] expectedSequences = [0, 1, 2, 3, 4, 5];
+            Assert.That(probe.ReceivedSequences, Is.EqualTo(new ushort[] { 0 }));
+            Assert.That(dropFinished.ReceivedSequences, Is.EqualTo(expectedSequences));
+            Assert.That(recordWaiting.ReceivedSequences, Is.EqualTo(expectedSequences));
 
             Assert.That(network.Server.AuthenticatedPeer, Is.EqualTo(new IPEndPoint(IPAddress.Loopback, 55002)));
             byte[] payload = [0x55, 0x41, 0x44, 0x50];
@@ -658,6 +691,70 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public async Task ServerDiscardsForgedClientAuthenticationDuringAnAttemptAsync()
+        {
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
+            using Certificate clientCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            using Certificate serverCertificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair =
+                InMemoryDtlsDatagramChannel.CreatePair();
+            var clientOptions = new DtlsTransportOptions
+            {
+                PeerCertificateValidator = validator.Object,
+                RequireHelloRetryRequestCookie = true
+            };
+            clientOptions.LocalCertificates.Add(clientCertificate);
+            var serverOptions = new DtlsTransportOptions
+            {
+                PeerCertificateValidator = validator.Object,
+                RequireHelloRetryRequestCookie = true,
+                RequireClientCertificate = true
+            };
+            serverOptions.LocalCertificates.Add(serverCertificate);
+            using DtlsHandshakeContext client = CreateContext(
+                profile, DtlsEndpointRole.Client, clientOptions, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(
+                profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            // The client sends ClientHello, ClientHello with cookie, Certificate,
+            // CertificateVerify and Finished. Ahead of its Certificate a
+            // Certificate frame with a truncated body arrives under its source
+            // address, and ahead of its CertificateVerify one that does not
+            // verify. Neither may cost the client its handshake.
+            var injecting = new InterceptingChannel(pair.Client, async (index, inner, ct) =>
+            {
+                if (index == 2)
+                {
+                    await inner.SendAsync(
+                        DtlsHandshakeCodec.EncodeFrame(DtlsHandshakeType.Certificate, 2, new byte[] { 0x00, 0x00 }),
+                        null,
+                        ct).ConfigureAwait(false);
+                }
+                else if (index == 3)
+                {
+                    await inner.SendAsync(
+                        DtlsHandshakeCodec.EncodeFrame(DtlsHandshakeType.CertificateVerify, 3, new byte[8]),
+                        null,
+                        ct).ConfigureAwait(false);
+                }
+                return true;
+            });
+
+            await Task.WhenAll(
+                client.OpenAsync(injecting, cts.Token).AsTask(),
+                server.OpenAsync(pair.Server, cts.Token).AsTask()).ConfigureAwait(false);
+
+            Assert.That(pair.Server.AuthenticatedPeer, Is.EqualTo(pair.Server.RemoteEndpoint));
+            byte[] payload = [0x55, 0x41, 0x44, 0x50];
+            ReadOnlyMemory<byte> record = await client.ProtectAsync(payload, cts.Token).ConfigureAwait(false);
+            ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, cts.Token).ConfigureAwait(false);
+            Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
+        }
+
+        [Test]
         [TestSpec("RFC 8446 §4.3.2")]
         public async Task MutualAuthenticationFailsClosedWhenClientHasNoCertificateAsync()
         {
@@ -1084,10 +1181,17 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 }
             }
 
+            /// <summary>
+            /// Message sequence of every handshake frame the peer received.
+            /// </summary>
+            public List<ushort> ReceivedSequences { get; } = [];
+
             /// <inheritdoc/>
-            public ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default)
+            public async ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default)
             {
-                return m_inner.ReceiveAsync(cancellationToken);
+                DtlsDatagram datagram = await m_inner.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+                ReceivedSequences.Add(DtlsHandshakeCodec.DecodeFrame(datagram.Payload.Span).MessageSequence);
+                return datagram;
             }
 
             private readonly IDtlsDatagramChannel m_inner;

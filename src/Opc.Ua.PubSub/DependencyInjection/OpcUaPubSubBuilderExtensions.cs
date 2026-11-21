@@ -216,8 +216,17 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
             services.TryAddSingleton<IDataSetMetaDataRegistry>(
-                sp => new DataSetMetaDataRegistry(
-                    sp.GetService<ILogger<DataSetMetaDataRegistry>>()));
+                sp =>
+                {
+                    PubSubApplicationOptions opts =
+                        sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value;
+                    return new DataSetMetaDataRegistry(
+                        sp.GetService<ILogger<DataSetMetaDataRegistry>>())
+                    {
+                        MaxUnauthenticatedCost = opts.MaxUnauthenticatedMetaDataCost,
+                        UnauthenticatedIdleTimeout = opts.UnauthenticatedMetaDataIdleTimeout
+                    };
+                });
             services.TryAddSingleton<IPubSubDiagnostics>(sp =>
             {
                 PubSubApplicationOptions opts =

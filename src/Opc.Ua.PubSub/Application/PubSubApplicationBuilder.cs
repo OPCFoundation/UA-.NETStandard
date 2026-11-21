@@ -609,7 +609,11 @@ namespace Opc.Ua.PubSub.Application
                     PubSubConfigurationSnapshot.Create(configuration, m_timeProvider);
                 Dictionary<string, IPublishedDataSetSource> sources = ResolveSources(configuration);
                 var diagnostics = new PubSubDiagnostics(m_options.DiagnosticsLevel, m_timeProvider);
-                var metaDataRegistry = new DataSetMetaDataRegistry();
+                var metaDataRegistry = new DataSetMetaDataRegistry
+                {
+                    MaxUnauthenticatedCost = m_options.MaxUnauthenticatedMetaDataCost,
+                    UnauthenticatedIdleTimeout = m_options.UnauthenticatedMetaDataIdleTimeout
+                };
                 var scheduler = new PubSubScheduler(m_telemetry, m_timeProvider);
                 IPubSubSecurityWrapperResolver? resolver = ResolveSecurityWrapperResolver();
 
