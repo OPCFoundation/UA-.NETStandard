@@ -54,9 +54,16 @@ namespace Opc.Ua
 
         /// <summary>
         /// The time in milliseconds that the Like elements of one evaluation may
-        /// take together. A Like element that runs out of it is no match.
+        /// take together. A Like element that runs out of it evaluates to NULL.
         /// </summary>
         private const int kMaxLikeMatchTimeMs = 100;
+
+        /// <summary>
+        /// The shortest time in milliseconds that the regular expression engine is
+        /// given for one match. Its clock can be as coarse as 16 ms, so a shorter
+        /// time could cut off a match that has only just started.
+        /// </summary>
+        private const int kMinLikeEngineTimeMs = 32;
 
         /// <summary>
         /// What is left of the time for Like elements in the current evaluation.
@@ -531,11 +538,21 @@ namespace Opc.Ua
         /// <param name="target">String to check for a pattern match.</param>
         /// <param name="pattern">Pattern to match with the target string.</param>
         /// <returns>
-        /// true if the target string matches the pattern, otherwise false. Also false
-        /// if the time for Like elements in this evaluation ran out.
+        /// true if the target string matches the pattern, otherwise false. null if
+        /// the time for Like elements in this evaluation ran out.
         /// </returns>
-        private bool Match(string target, string pattern)
+        private bool? Match(string target, string pattern)
         {
+            // The Client chooses the pattern, and some patterns take the regular
+            // expression engine very long. All Like elements of one evaluation share
+            // one time limit, so their number does not multiply it.
+            if (m_likeTimeLeft <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
+            long start = Stopwatch.GetTimestamp();
+
             string expression = pattern;
 
             // 1) Suppress unused regular expression characters with special meaning
@@ -556,25 +573,21 @@ namespace Opc.Ua
             // replace all "[!" with "[^", except "\[!"
             expression = ReplaceBrackets.Replace(expression, "[^");
 
-            // The Client chooses the pattern, and some patterns take the regular
-            // expression engine very long. All Like elements of one evaluation share
-            // one time limit, so their number does not multiply it.
-            if (m_likeTimeLeft <= TimeSpan.Zero)
-            {
-                return false;
-            }
+            // the engine gets what is left of the time, but not less than its clock
+            // can measure.
+            double engineTimeMs = Math.Max(
+                Math.Ceiling(m_likeTimeLeft.TotalMilliseconds),
+                kMinLikeEngineTimeMs);
 
-            long start = Stopwatch.GetTimestamp();
             try
             {
-                // The engine always gets the full limit: its clock is too coarse
-                // to measure a remainder of a few milliseconds.
                 bool isMatch = Regex.IsMatch(
                     target,
                     expression,
                     RegexOptions.None,
-                    TimeSpan.FromMilliseconds(kMaxLikeMatchTimeMs));
+                    TimeSpan.FromMilliseconds(engineTimeMs));
 
+                // the time to convert the pattern counts as well.
                 long elapsed = Stopwatch.GetTimestamp() - start;
                 m_likeTimeLeft -= TimeSpan.FromSeconds((double)elapsed / Stopwatch.Frequency);
                 return isMatch;
@@ -583,12 +596,12 @@ namespace Opc.Ua
             {
                 m_likeTimeLeft = TimeSpan.Zero;
                 m_logger.LogDebug(
-                    "A Like element was not evaluated within {Limit} ms and is treated as no match " +
+                    "The Like elements of a filter were not evaluated within {Limit} ms and are treated as NULL " +
                     "(pattern length {PatternLength}, string length {TargetLength}).",
                     kMaxLikeMatchTimeMs,
                     pattern.Length,
                     target.Length);
-                return false;
+                return null;
             }
         }
 
@@ -1980,7 +1993,7 @@ namespace Opc.Ua
         /// <summary>
         /// Like FilterOperator
         /// </summary>
-        private bool Like(ContentFilterElement element)
+        private bool? Like(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 

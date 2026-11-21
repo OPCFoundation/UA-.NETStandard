@@ -126,6 +126,48 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A Like element that was cut off is neither true nor false. Negating it must
+        /// not report the event, and neither must a Like element that was skipped
+        /// because an earlier one used up the time.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LikeThatWasCutOffIsNotNegated(bool negateALaterLike)
+        {
+            var whereClause = new ContentFilter();
+            if (negateALaterLike)
+            {
+                // Or(slow Like, Not("x" Like "x")): "x" matches "x", so the Not is false.
+                ContentFilterElement later = whereClause.Push(
+                    FilterOperator.Like,
+                    new LiteralOperand { Value = new Variant("x") },
+                    new LiteralOperand { Value = new Variant("x") });
+                ContentFilterElement not = whereClause.Push(FilterOperator.Not, later);
+                ContentFilterElement slow = PushLike(whereClause, 10);
+                whereClause.Push(FilterOperator.Or, slow, not);
+            }
+            else
+            {
+                // Not(slow Like)
+                ContentFilterElement slow = PushLike(whereClause, 10);
+                whereClause.Push(FilterOperator.Not, slow);
+            }
+
+            MonitoredItem monitoredItem = CreateMonitoredItem(whereClause);
+
+            Task report = Task.Run(() => monitoredItem.QueueEvent(new BaseEventState(null)));
+
+            Assert.That(
+                report.Wait(s_timeLimit),
+                Is.True,
+                $"The event was still being evaluated after {s_timeLimit.TotalSeconds} s.");
+            Assert.That(
+                monitoredItem.ItemsInQueue,
+                Is.Zero,
+                "the filter did not evaluate to true");
+        }
+
+        /// <summary>
         /// Adds a Like element that matches "baaa...a" against "%a%a...%a%b".
         /// </summary>
         private static ContentFilterElement PushLike(ContentFilter whereClause, int wildcardGroups)
