@@ -184,6 +184,28 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
 
         [Test]
+        public void AddPubSubFluentAppliesUnauthenticatedMetaDataLimits()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddOpcUa().AddPubSub(
+                pubsub =>
+                    pubsub.AddSubscriber().Configure(
+                        options =>
+                        {
+                            options.MaxUnauthenticatedMetaDataCost = 4096;
+                            options.UnauthenticatedMetaDataIdleTimeout = TimeSpan.Zero;
+                        }));
+            ServiceProvider sp = services.BuildServiceProvider();
+
+            IPubSubApplication app = sp.GetRequiredService<IPubSubApplication>();
+            var registry = (DataSetMetaDataRegistry)app.MetaDataRegistry;
+            Assert.That(registry.MaxUnauthenticatedCost, Is.EqualTo(4096));
+            Assert.That(registry.UnauthenticatedIdleTimeout, Is.EqualTo(TimeSpan.Zero));
+        }
+
+        [Test]
         public void AddPubSubFluent_AddSecurityKeyProvider_RegistersProvider()
         {
             var keyProvider = new Mock<IPubSubSecurityKeyProvider>();

@@ -632,7 +632,12 @@ namespace Opc.Ua.PubSub.Application
                     m_dataSetSinks,
                     m_dataSetSourceProvider,
                     m_dataSetSinkProvider,
-                    securityWrapperResolver: resolver);
+                    securityWrapperResolver: resolver,
+                    unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
+                    {
+                        MaxCost = m_options.MaxUnauthenticatedMetaDataCost,
+                        IdleTimeout = m_options.UnauthenticatedMetaDataIdleTimeout
+                    });
                 for (int i = 0; i < m_actionResponders.Count; i++)
                 {
                     application.RegisterActionHandler(

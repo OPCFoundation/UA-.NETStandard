@@ -312,6 +312,8 @@ namespace Microsoft.Extensions.DependencyInjection
                         .AsTask().GetAwaiter().GetResult();
                 var snapshot =
                     PubSubConfigurationSnapshot.Create(config, clock);
+                PubSubApplicationOptions options =
+                    sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value;
                 return new PubSubApplication(
                     snapshot,
                     sp.GetServices<IPubSubTransportFactory>(),
@@ -334,7 +336,12 @@ namespace Microsoft.Extensions.DependencyInjection
                     activationCoordinator:
                         sp.GetRequiredService<IPubSubActivationCoordinator>(),
                     writerCheckpointStore:
-                        sp.GetRequiredService<IPubSubWriterCheckpointStore>());
+                        sp.GetRequiredService<IPubSubWriterCheckpointStore>(),
+                    unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
+                    {
+                        MaxCost = options.MaxUnauthenticatedMetaDataCost,
+                        IdleTimeout = options.UnauthenticatedMetaDataIdleTimeout
+                    });
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

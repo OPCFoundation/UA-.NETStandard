@@ -406,7 +406,12 @@ namespace Microsoft.Extensions.DependencyInjection
                         telemetry,
                         sp.GetService<IPubSubSecurityPolicyRegistry>())
                     .WithTimeProvider(clock)
-                    .WithDiagnosticsLevel(options.DiagnosticsLevel);
+                    .WithDiagnosticsLevel(options.DiagnosticsLevel)
+                    .Configure(o =>
+                    {
+                        o.MaxUnauthenticatedMetaDataCost = options.MaxUnauthenticatedMetaDataCost;
+                        o.UnauthenticatedMetaDataIdleTimeout = options.UnauthenticatedMetaDataIdleTimeout;
+                    });
                 IDataSetSourceProvider? sourceProvider = sp.GetService<IDataSetSourceProvider>();
                 if (sourceProvider is not null)
                 {

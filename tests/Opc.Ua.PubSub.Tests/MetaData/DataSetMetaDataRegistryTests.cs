@@ -240,6 +240,52 @@ namespace Opc.Ua.PubSub.Tests.MetaData
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public void RefusedLargeAnnouncementDoesNotKeepSmallerOnesFromEvicting()
+        {
+            var clock = new FakeTimeProvider();
+            var scope = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = 16000, Clock = clock };
+            DataSetMetaDataKey active = NewKey(dataSetWriterId: 1);
+            DataSetMetaDataKey idle = NewKey(dataSetWriterId: 2);
+            DataSetMetaDataKey large = NewKey(dataSetWriterId: 3);
+            DataSetMetaDataKey small = NewKey(dataSetWriterId: 4);
+
+            // The budget is full: 10000 in use and 6000 idle.
+            Assert.That(
+                scope.RegisterReceived(in active, NewMeta(), authenticated: false, frameLength: 9872),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(in idle, NewMeta(), authenticated: false, frameLength: 5872),
+                Is.True);
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(scope.TryGet(in active, out _), Is.EqualTo(MetaDataMatchResult.Match));
+
+            // An announcement that needs more than what is idle is refused,
+            // repeatedly, without anyone losing metadata for it.
+            for (int i = 0; i < 3; i++)
+            {
+                Assert.That(
+                    scope.RegisterReceived(in large, NewMeta(), authenticated: false, frameLength: 7872),
+                    Is.False);
+            }
+            Assert.That(scope.TryGet(in idle, out _), Is.EqualTo(MetaDataMatchResult.Match));
+
+            // That refusal must not keep an announcement that fits into the
+            // idle space from evicting. The lookup above made the idle entry
+            // current again, so it has to become idle once more first.
+            clock.Advance(TimeSpan.FromMinutes(6));
+            Assert.That(scope.TryGet(in active, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(
+                scope.RegisterReceived(in large, NewMeta(), authenticated: false, frameLength: 7872),
+                Is.False);
+            Assert.That(
+                scope.RegisterReceived(in small, NewMeta(), authenticated: false, frameLength: 872),
+                Is.True);
+            Assert.That(scope.TryGet(in idle, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+            Assert.That(scope.TryGet(in active, out _), Is.EqualTo(MetaDataMatchResult.Match));
+        }
+
+        [Test]
         public void IdleEvictionOfUnauthenticatedMetadataCanBeDisabled()
         {
             var clock = new FakeTimeProvider();

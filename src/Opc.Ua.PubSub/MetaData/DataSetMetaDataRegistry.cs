@@ -174,6 +174,41 @@ namespace Opc.Ua.PubSub.MetaData
         }
 
         /// <summary>
+        /// Like <see cref="EvictIdleUnauthenticated(int)"/>, but never
+        /// removes the entry of <paramref name="keep"/>.
+        /// </summary>
+        internal bool EvictIdleUnauthenticated(int entries, in DataSetMetaDataKey keep)
+        {
+            var kept = new IdentityKey(keep.PublisherId, keep.WriterGroupId, keep.DataSetWriterId);
+            List<DataSetMetaDataKey>? evicted;
+            lock (m_lock)
+            {
+                evicted = EvictIdleUnauthenticatedLocked(kept, 0, entries, Clock.GetTimestamp());
+            }
+            NotifyEvicted(evicted);
+            return evicted is not null;
+        }
+
+        /// <summary>
+        /// Whether at least one unauthenticated entry was idle for
+        /// <see cref="UnauthenticatedIdleTimeout"/> and could be evicted.
+        /// Removes nothing.
+        /// </summary>
+        internal bool HasIdleUnauthenticated()
+        {
+            lock (m_lock)
+            {
+                return CollectIdleLocked(null, 0, 1, Clock.GetTimestamp()) is not null;
+            }
+        }
+
+        /// <summary>
+        /// Notified, outside the lock of the registry, when a lookup finds
+        /// no metadata for a key.
+        /// </summary>
+        internal UnauthenticatedEvictedHandler? LookupMissed { get; init; }
+
+        /// <summary>
         /// Number of unauthenticated announcements that were not registered
         /// because they would have exceeded <see cref="MaxUnauthenticatedCost"/>.
         /// </summary>
@@ -257,6 +292,7 @@ namespace Opc.Ua.PubSub.MetaData
             if (!found)
             {
                 metaData = null;
+                LookupMissed?.Invoke(in key);
                 return MetaDataMatchResult.NotFound;
             }
             if (entry.LastUse is { } lastUse)
@@ -447,37 +483,12 @@ namespace Opc.Ua.PubSub.MetaData
             int entriesToFree,
             long now)
         {
-            TimeSpan idleTimeout = UnauthenticatedIdleTimeout;
-            if (idleTimeout <= TimeSpan.Zero || now < m_nextIdleScan)
+            List<(IdentityKey Identity, long LastUse, long Cost, DataSetMetaDataKey Key)>? idle =
+                CollectIdleLocked(keep, costToFree, entriesToFree, now);
+            if (idle is null)
             {
                 return null;
             }
-            List<(IdentityKey Identity, long LastUse, long Cost, DataSetMetaDataKey Key)>? idle = null;
-            long idleCost = 0;
-            foreach (KeyValuePair<IdentityKey, RegisteredEntry> pair in m_entries)
-            {
-                if (pair.Value.LastUse is not { } stamp || (keep is { } kept && kept.Equals(pair.Key)))
-                {
-                    continue;
-                }
-                long lastUse = Volatile.Read(ref stamp.Timestamp);
-                if (Clock.GetElapsedTime(lastUse, now) >= idleTimeout)
-                {
-                    idle ??= [];
-                    idle.Add((pair.Key, lastUse, pair.Value.Cost, pair.Value.Key));
-                    idleCost += pair.Value.Cost;
-                }
-            }
-            if (idle is null || idleCost < costToFree || idle.Count < entriesToFree)
-            {
-                // The sender that is refused is unauthenticated and can repeat
-                // its announcement at packet rate, so the entries are not
-                // walked again for a fraction of the idle timeout.
-                m_nextIdleScan = now +
-                    (long)(idleTimeout.TotalSeconds / kIdleScanDivisor * Clock.TimestampFrequency);
-                return null;
-            }
-            idle.Sort(static (a, b) => a.LastUse.CompareTo(b.LastUse));
             var evicted = new List<DataSetMetaDataKey>();
             foreach ((IdentityKey identity, long _, long cost, DataSetMetaDataKey key) in idle)
             {
@@ -492,6 +503,71 @@ namespace Opc.Ua.PubSub.MetaData
                 evicted.Add(key);
             }
             return evicted;
+        }
+
+        /// <summary>
+        /// Returns the unauthenticated entries that were idle for at least
+        /// <see cref="UnauthenticatedIdleTimeout"/>, the longest idle first,
+        /// or <see langword="null"/> when they do not free the requested
+        /// cost and number of entries. Must be called with the lock held.
+        /// </summary>
+        private List<(IdentityKey Identity, long LastUse, long Cost, DataSetMetaDataKey Key)>? CollectIdleLocked(
+            IdentityKey? keep,
+            long costToFree,
+            int entriesToFree,
+            long now)
+        {
+            TimeSpan idleTimeout = UnauthenticatedIdleTimeout;
+            if (idleTimeout <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
+            // The sender that is refused is unauthenticated and can repeat its
+            // announcement at packet rate. A scan that found too little to
+            // evict leaves a summary of what is idle; until it expires, a
+            // request that needs more than that is refused without walking
+            // the entries again, while a smaller one still scans and evicts.
+            if (now < m_idleSummaryValidUntil &&
+                (costToFree > m_idleSummaryCost || entriesToFree > m_idleSummaryCount))
+            {
+                return null;
+            }
+            List<(IdentityKey Identity, long LastUse, long Cost, DataSetMetaDataKey Key)>? idle = null;
+            long idleCost = 0;
+            long allIdleCost = 0;
+            int allIdleCount = 0;
+            foreach (KeyValuePair<IdentityKey, RegisteredEntry> pair in m_entries)
+            {
+                if (pair.Value.LastUse is not { } stamp)
+                {
+                    continue;
+                }
+                long lastUse = Volatile.Read(ref stamp.Timestamp);
+                if (Clock.GetElapsedTime(lastUse, now) < idleTimeout)
+                {
+                    continue;
+                }
+                allIdleCost += pair.Value.Cost;
+                allIdleCount++;
+                if (keep is { } kept && kept.Equals(pair.Key))
+                {
+                    continue;
+                }
+                idle ??= [];
+                idle.Add((pair.Key, lastUse, pair.Value.Cost, pair.Value.Key));
+                idleCost += pair.Value.Cost;
+            }
+            if (idle is null || idleCost < costToFree || idle.Count < entriesToFree)
+            {
+                m_idleSummaryCost = allIdleCost;
+                m_idleSummaryCount = allIdleCount;
+                m_idleSummaryValidUntil = now +
+                    (long)(idleTimeout.TotalSeconds / kIdleScanDivisor * Clock.TimestampFrequency);
+                return null;
+            }
+            idle.Sort(static (a, b) => a.LastUse.CompareTo(b.LastUse));
+            return idle;
         }
 
         private void NotifyEvicted(List<DataSetMetaDataKey>? evicted)
@@ -648,7 +724,9 @@ namespace Opc.Ua.PubSub.MetaData
         private const int kReferenceElementCost = 48;
         private const int kOpaqueExpansion = 64;
         private const int kIdleScanDivisor = 16;
-        private long m_nextIdleScan = long.MinValue;
+        private long m_idleSummaryValidUntil = long.MinValue;
+        private long m_idleSummaryCost;
+        private int m_idleSummaryCount;
         private long m_unauthenticatedCost;
         private long m_rejectedUnauthenticatedCount;
 
