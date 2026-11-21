@@ -1005,7 +1005,9 @@ namespace Opc.Ua.Server
             }
 
             // a configuration change may have made a ready-to-report signal stale.
-            bool recheck = m_recheckReadyCandidates;
+            // so does an item that dropped its notifications on an identity change.
+            bool recheck = m_recheckReadyCandidates |
+                Interlocked.Exchange(ref m_readinessInvalidated, 0) != 0;
             m_recheckReadyCandidates = false;
 
             // compacts the candidates in place; triggered items may be appended while the
@@ -1153,6 +1155,12 @@ namespace Opc.Ua.Server
             {
                 m_readyIntake.Add(new ReadyCandidate(monitoredItem, monitoredItemId, readyToReport));
             }
+        }
+
+        /// <inheritdoc/>
+        void IMonitoredItemReadySink.OnMonitoredItemReadinessInvalidated()
+        {
+            Interlocked.Exchange(ref m_readinessInvalidated, 1);
         }
 
         /// <summary>
@@ -4564,6 +4572,7 @@ namespace Opc.Ua.Server
         private List<ReadyCandidate> m_readyIntakeSpare = [];
         private readonly List<ReadyCandidate> m_readyCandidates = [];
         private bool m_recheckReadyCandidates;
+        private int m_readinessInvalidated;
         private int m_signalingItemCount;
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;

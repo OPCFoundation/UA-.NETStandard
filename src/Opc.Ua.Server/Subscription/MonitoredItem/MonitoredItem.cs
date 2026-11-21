@@ -1790,6 +1790,7 @@ namespace Opc.Ua.Server
                 m_resendData = false;
                 m_triggered = false;
                 Interlocked.Exchange(ref m_readySignal, 0);
+                (m_subscription as IMonitoredItemReadySink)?.OnMonitoredItemReadinessInvalidated();
             }
         }
 

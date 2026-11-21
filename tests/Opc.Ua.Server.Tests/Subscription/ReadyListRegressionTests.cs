@@ -197,6 +197,25 @@ namespace Opc.Ua.Server.Tests
                 "a published item without pending values is not tracked");
         }
 
+        [Test]
+        public async Task SignalledItemClearedBeforePromotionIsNotPublishedAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+
+            // the item signals ready to report, then an identity change drops its value.
+            scenario.Queue(2, 20);
+            scenario.Item(2).ClearQueuedNotifications();
+            scenario.Tick("cleared");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]").And.Not.Contain("2=20"),
+                "an item without notifications must not be promoted");
+
+            scenario.Queue(2, 21);
+            scenario.Tick("new value");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Contain("[2=21]"));
+        }
+
         private static async Task AssertSameAsScanAsync(
             Func<Scenario, Task> run,
             uint maxNotificationsPerPublish = 0,
@@ -365,6 +384,8 @@ namespace Opc.Ua.Server.Tests
                     requests,
                     CancellationToken.None).ConfigureAwait(false);
             }
+
+            public MonitoredItem Item(uint id) => m_items[id];
 
             public void Queue(uint id, int value)
             {

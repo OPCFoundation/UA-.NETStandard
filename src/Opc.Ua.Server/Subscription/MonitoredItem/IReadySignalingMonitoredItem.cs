@@ -94,5 +94,12 @@ namespace Opc.Ua.Server
         /// a value or a resend due now) when it signalled; <c>false</c> when the
         /// subscription has to check the item itself.</param>
         void OnMonitoredItemReady(IMonitoredItem monitoredItem, uint monitoredItemId, bool readyToReport);
+
+        /// <summary>
+        /// Called by a monitored item that dropped its queued notifications outside of a
+        /// publish (an identity change), so a ready-to-report flag it signalled earlier may
+        /// be stale. Called while the item holds its own lock.
+        /// </summary>
+        void OnMonitoredItemReadinessInvalidated();
     }
 }
