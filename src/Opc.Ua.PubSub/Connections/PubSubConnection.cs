@@ -2790,7 +2790,14 @@ namespace Opc.Ua.PubSub.Connections
             ushort id = writerGroupId != 0
                 ? writerGroupId
                 : response.DataSetWriterId;
-            return new DiscoveryThrottleKey(response.DiscoveryType, id);
+
+            // DataSetMetaData is one response per DataSetWriter. Keyed by the
+            // WriterGroup alone, the responses of all but its first writer
+            // would be suppressed as repetitions.
+            ushort dataSetWriterId = response.DiscoveryType == UadpDiscoveryType.DataSetMetaData
+                ? response.DataSetWriterId
+                : (ushort)0;
+            return new DiscoveryThrottleKey(response.DiscoveryType, id, dataSetWriterId);
         }
 
         private UadpDiscoveryResponseMessage CreateStatusDiscoveryMessage(PubSubState state, bool isCyclic)
@@ -3458,7 +3465,8 @@ namespace Opc.Ua.PubSub.Connections
 
         private readonly record struct DiscoveryThrottleKey(
             UadpDiscoveryType DiscoveryType,
-            ushort Id);
+            ushort Id,
+            ushort DataSetWriterId = 0);
 
         private sealed class PubSubDiscoveryCollector : IDisposable
         {

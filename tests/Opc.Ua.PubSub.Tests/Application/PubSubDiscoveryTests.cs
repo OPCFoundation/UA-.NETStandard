@@ -58,6 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         private const ushort PublisherIdValue = 17;
         private const ushort WriterGroupIdValue = 7;
         private const ushort DataSetWriterIdValue = 42;
+        private const ushort SecondDataSetWriterIdValue = 43;
         private const string PublishedDataSetName = "pds-1";
         private const string SecurityGroupIdValue = "discovery-group";
 
@@ -255,16 +256,20 @@ namespace Opc.Ua.PubSub.Tests.Application
             var bus = new LoopbackBus { AnnounceRate = 50 };
             await using IPubSubApplication publisher = BuildPublisherApp(
                 "opc.udp://239.0.0.1:49322",
-                new LoopbackTransportFactory(bus));
+                new LoopbackTransportFactory(bus),
+                secondDataSetWriterId: SecondDataSetWriterIdValue);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await publisher.StartAsync(cts.Token).ConfigureAwait(false);
 
-            // More than the announcement at start-up: it is repeated.
-            while (bus.MetaDataAnnouncementCount < 3)
+            // More than the announcement at start-up: it is repeated, and for
+            // every DataSetWriter of the WriterGroup, not only its first one.
+            while (bus.MetaDataCount(DataSetWriterIdValue) < 3 ||
+                bus.MetaDataCount(SecondDataSetWriterIdValue) < 3)
             {
                 await Task.Delay(20, cts.Token).ConfigureAwait(false);
             }
-            Assert.That(bus.MetaDataAnnouncementCount, Is.GreaterThanOrEqualTo(3));
+            Assert.That(bus.MetaDataCount(DataSetWriterIdValue), Is.GreaterThanOrEqualTo(3));
+            Assert.That(bus.MetaDataCount(SecondDataSetWriterIdValue), Is.GreaterThanOrEqualTo(3));
         }
 
         /// <summary>
@@ -368,7 +373,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         private static IPubSubApplication BuildPublisherApp(
             string url,
             IPubSubTransportFactory factory,
-            IPubSubSecurityKeyProvider? securityKeyProvider = null)
+            IPubSubSecurityKeyProvider? securityKeyProvider = null,
+            ushort secondDataSetWriterId = 0)
         {
             DataSetMetaDataType metaData = NewMetaData();
             var writerGroup = new WriterGroupDataType
@@ -386,6 +392,19 @@ namespace Opc.Ua.PubSub.Tests.Application
                     }
                 ]
             };
+            if (secondDataSetWriterId != 0)
+            {
+                writerGroup.DataSetWriters =
+                [
+                    .. writerGroup.DataSetWriters.ToArray()!,
+                    new DataSetWriterDataType
+                    {
+                        Name = "second-writer",
+                        DataSetWriterId = secondDataSetWriterId,
+                        DataSetName = PublishedDataSetName
+                    }
+                ];
+            }
             var readerGroup = new ReaderGroupDataType
             {
                 Name = "discovery-listener"
@@ -664,6 +683,18 @@ namespace Opc.Ua.PubSub.Tests.Application
             /// </summary>
             public int MetaDataAnnouncementCount => Volatile.Read(ref m_metaDataAnnouncementCount);
 
+            /// <summary>
+            /// Number of DataSetMetaData messages seen for a DataSetWriter.
+            /// </summary>
+            public int MetaDataCount(ushort dataSetWriterId)
+            {
+                lock (m_gate)
+                {
+                    return m_metaDataPerWriter.TryGetValue(dataSetWriterId, out int count) ? count : 0;
+                }
+            }
+
+            private readonly Dictionary<ushort, int> m_metaDataPerWriter = [];
             private int m_metaDataAnnouncementCount;
 
             public IReadOnlyList<string> PlaintextFrames
@@ -698,9 +729,14 @@ namespace Opc.Ua.PubSub.Tests.Application
                         if (UadpDecoder.Decode(payload, NewContext()) is UadpDiscoveryResponseMessage
                             {
                                 DiscoveryType: UadpDiscoveryType.DataSetMetaData
-                            })
+                            } metaData)
                         {
                             Interlocked.Increment(ref m_metaDataAnnouncementCount);
+                            lock (m_gate)
+                            {
+                                m_metaDataPerWriter.TryGetValue(metaData.DataSetWriterId, out int count);
+                                m_metaDataPerWriter[metaData.DataSetWriterId] = count + 1;
+                            }
                         }
                     }
                     catch (Exception)
