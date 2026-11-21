@@ -309,8 +309,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
         /// <summary>
         /// Registers the bounded pull-DCA workflow. Hosts register <see cref="IPullDcaIdentityProvider"/> and
-        /// <see cref="IPullDcaCredentialProvider"/> for real certificate selection and installation, and optionally
-        /// discovery and software-update providers. The existing managed-session accessor owns every session.
+        /// <see cref="IPullDcaCredentialProvider"/> for real certificate selection and installation.
+        /// A separate <see cref="IPullDcaNewKeyPairCredentialProvider"/> or the credential provider handles
+        /// requested private-key output. Discovery, software-update and signing-journal providers are optional.
+        /// The existing managed-session accessor owns every session.
         /// A multi-endpoint host may register a registrar-aware session accessor before resolving the workflow.
         /// </summary>
         public static IGdsClientBuilder AddPullDcaWorkflow(
@@ -342,7 +344,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetService<IPullDcaSoftwareUpdateProvider>(),
                 sp.GetService<IPullDcaRegistrarDiscovery>(),
                 sp.GetService<IPullDcaCertificateReceiptStore>(),
-                sp.GetService<IPullDcaSigningRecoveryProvider>()));
+                sp.GetService<IPullDcaSigningRecoveryProvider>(),
+                sp.GetService<IPullDcaSigningJournal>(),
+                sp.GetService<IPullDcaNewKeyPairCredentialProvider>()));
             return builder;
         }
 

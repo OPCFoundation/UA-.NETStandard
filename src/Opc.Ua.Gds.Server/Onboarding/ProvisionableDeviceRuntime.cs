@@ -94,11 +94,35 @@ namespace Opc.Ua.Gds.Server.Onboarding
             IOnboardingTicketValidator validator,
             IProvisionableDeviceRegistrarStore registrars,
             IProvisionableDeviceSecurity? security = null)
+            : this(isSingleton, ticketIds, tickets, validator, registrars, security, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a runtime with an independently injected registrar coordinator bound to the selected security owner.
+        /// </summary>
+        public ProvisionableDeviceRuntime(
+            bool isSingleton,
+            ArrayOf<string> ticketIds,
+            ITicketStore tickets,
+            IOnboardingTicketValidator validator,
+            IProvisionableDeviceRegistrarStore registrars,
+            IProvisionableDeviceSecurity? security,
+            IProvisionableDeviceRegistrarConfiguration? registrarConfiguration)
         {
             m_tickets = tickets ?? throw new ArgumentNullException(nameof(tickets));
             m_validator = validator ?? throw new ArgumentNullException(nameof(validator));
             m_registrars = registrars ?? throw new ArgumentNullException(nameof(registrars));
             m_security = security;
+            m_registrarConfiguration = registrarConfiguration ?? security as IProvisionableDeviceRegistrarConfiguration;
+            if (m_registrarConfiguration != null &&
+                !ReferenceEquals(m_registrarConfiguration, security) &&
+                (security == null || !ReferenceEquals(m_registrarConfiguration.Security, security)))
+            {
+                throw new ArgumentException(
+                    "The registrar coordinator must coordinate the selected device security owner.",
+                    nameof(registrarConfiguration));
+            }
             var identifiers = new HashSet<string>(StringComparer.Ordinal);
             foreach (string id in ticketIds)
             {
@@ -166,7 +190,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
             ArrayOf<ApplicationDescription> detached = SnapshotRegistrars(registrars);
-            if (m_security is IProvisionableDeviceRegistrarConfiguration configuration)
+            if (m_registrarConfiguration is { } configuration)
             {
                 await configuration.ReplaceRegistrarEndpointsAsync(context, m_registrars, detached, cancellationToken)
                     .ConfigureAwait(false);
@@ -233,6 +257,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The optional host-selected device trust and reset gate.</summary>
         private readonly IProvisionableDeviceSecurity? m_security;
+
+        /// <summary>The optional coordinator bound to the selected security owner's transitions.</summary>
+        private readonly IProvisionableDeviceRegistrarConfiguration? m_registrarConfiguration;
 
         /// <summary>The strict decoder preserves signed envelopes without replacement characters.</summary>
         private static readonly UTF8Encoding s_utf8 = new(false, true);

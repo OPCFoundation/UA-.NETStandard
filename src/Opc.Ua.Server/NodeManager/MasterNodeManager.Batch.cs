@@ -498,6 +498,7 @@ namespace Opc.Ua.Server
                                         Enumerable.Empty<string>())
                                     .Select(uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri)),
                                 originalTypes, originalFactory, readImages);
+                        OverrideBrowsePublicationValidator.Validate(m_nodeManagers.Revision, routes.Next);
                         routes.Reserve();
                         using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
                         using EncodeableFactory.Publication registrations =
@@ -519,7 +520,7 @@ namespace Opc.Ua.Server
                             typeTree,
                             factory,
                             candidates,
-                            referenceUpdates,
+                            referenceOwners,
                             historianRegistrationsChanged =>
                             {
                                 commit.Publish(historianRegistrationsChanged);

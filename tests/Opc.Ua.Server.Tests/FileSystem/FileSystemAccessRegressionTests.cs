@@ -253,7 +253,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(eraseWithoutWrite.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(reservedBits.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(readWhileWriting.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
-                Assert.That(writeWhileWriting.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(writeWhileWriting.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             });
         }
 

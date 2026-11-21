@@ -752,7 +752,9 @@ namespace Opc.Ua.Server.Tests
         /// transaction in that race window. All other members delegate to the
         /// inner coordinator unchanged.
         /// </summary>
-        private sealed class StageBAfterApplyCoordinator : IPushConfigurationTransactionCoordinator
+        private sealed class StageBAfterApplyCoordinator :
+            IPushConfigurationTransactionCoordinator,
+            IPushConfigurationFileWriteCoordinator
         {
             public StageBAfterApplyCoordinator(
                 IPushConfigurationTransactionCoordinator inner,
@@ -776,6 +778,19 @@ namespace Opc.Ua.Server.Tests
 
             public void SetTrustListWriteOpen(NodeId trustListId, bool isOpen)
                 => m_inner.SetTrustListWriteOpen(trustListId, isOpen);
+
+            public void OpenConfigurationFileWrite(NodeId configurationFileId, NodeId sessionId)
+            {
+                if (m_inner is IPushConfigurationFileWriteCoordinator fileWriteCoordinator)
+                {
+                    fileWriteCoordinator.OpenConfigurationFileWrite(configurationFileId, sessionId);
+                }
+                else
+                {
+                    m_inner.ValidateSessionCanParticipate(sessionId);
+                    m_inner.SetTrustListWriteOpen(configurationFileId, true);
+                }
+            }
 
             public ArrayOf<PushConfigurationOperation> GetStagedOperations()
                 => m_inner.GetStagedOperations();

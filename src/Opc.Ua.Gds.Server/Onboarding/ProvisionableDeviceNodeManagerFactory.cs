@@ -121,7 +121,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             device.SetRegistrarEndpoints = new SetRegistrarEndpointsMethodState(device);
             device.Create(
                 context,
-                new NodeId("ProvisionableDevice", namespaceIndex),
+                new NodeId(29878),
                 new QualifiedName("ProvisionableDevice", 0),
                 new LocalizedText("Provisionable Device"),
                 assignNodeIds: false);
@@ -136,7 +136,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 new RolePermissionType
                 {
                     RoleId = Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
-                    Permissions = (uint)PermissionType.Browse
+                    Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
                 }
             ];
             PropertyState<bool> singleton = device.IsSingleton ??
@@ -174,7 +174,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
             Dictionary<NodeId, NodeId> mapping,
             HashSet<NodeId> assigned)
         {
-            var identifier = new NodeId(path, namespaceIndex);
+            NodeId identifier = path switch
+            {
+                "ProvisionableDevice" => new NodeId(29878),
+                "ProvisionableDevice/IsSingleton" => new NodeId(29879),
+                "ProvisionableDevice/RequestTickets" => new NodeId(29880),
+                "ProvisionableDevice/RequestTickets/OutputArguments" => new NodeId(29881),
+                _ => new NodeId(path, namespaceIndex)
+            };
             if (!assigned.Add(identifier))
             {
                 throw new ServiceResultException(StatusCodes.BadConfigurationError);
@@ -215,7 +222,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Owns the generated device and its application components while leaving Resources to its standard manager.
         /// </summary>
-        private sealed class ProvisionableDeviceNodeManager : AsyncCustomNodeManager, INodeManagerShutdown
+        private sealed class ProvisionableDeviceNodeManager :
+            AsyncCustomNodeManager, INodeManagerShutdown, INodeManagerNodeOverrides
         {
             /// <summary>
             /// Creates the namespace-specific manager for one provisionable device.
@@ -238,6 +246,15 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
 
             /// <inheritdoc/>
+            public ArrayOf<NodeId> OverriddenNodeIds => s_nodeOverrides;
+
+            /// <inheritdoc/>
+            protected override bool IsNodeIdInNamespace(NodeId nodeId)
+            {
+                return base.IsNodeIdInNamespace(nodeId) || OverriddenNodeIds.Contains(nodeId);
+            }
+
+            /// <inheritdoc/>
             protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
                 ISystemContext context,
                 CancellationToken cancellationToken = default)
@@ -254,6 +271,29 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 CancellationToken cancellationToken = default)
             {
                 await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                ProvisionableDeviceState device = m_device ??
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError);
+                AddExternalReference(
+                    sourceId: Ua.ObjectIds.Resources,
+                    referenceTypeId: ReferenceTypeIds.Organizes,
+                    isInverse: false,
+                    targetId: device.NodeId,
+                    externalReferences: externalReferences);
+                foreach (NodeId nodeId in s_nodeOverrides)
+                {
+                    if (FindPredefinedNode<NodeState>(nodeId) is null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError, $"The required device node {nodeId} is missing.");
+                    }
+                }
+                NodeState? resources = Server.DiagnosticsNodeManager.FindPredefinedNode<NodeState>(
+                    Ua.ObjectIds.Resources);
+                if (resources is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "The standard Resources node is missing.");
+                }
                 if (m_applicationsProvider == null)
                 {
                     return;
@@ -275,8 +315,6 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,
                         "Application components require a provisionable-device security provider.");
-                ProvisionableDeviceState device = m_device ??
-                    throw new ServiceResultException(StatusCodes.BadConfigurationError);
                 var applicationUris = new HashSet<string>(StringComparer.Ordinal);
                 try
                 {
@@ -520,6 +558,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
             /// <summary>The device instance loaded into this manager's namespace.</summary>
             private ProvisionableDeviceState? m_device;
+
+            /// <summary>The well-known instance nodes owned by this generation.</summary>
+            private static readonly ArrayOf<NodeId> s_nodeOverrides =
+                [new NodeId(29878), new NodeId(29879), new NodeId(29880), new NodeId(29881)];
         }
     }
 }

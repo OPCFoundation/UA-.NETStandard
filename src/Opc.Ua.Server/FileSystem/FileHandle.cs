@@ -472,7 +472,7 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     if (m_write != null || (wantsWrite && m_reads.Count != 0))
                     {
-                        error = ServiceResult.Create(StatusCodes.BadInvalidState,
+                        error = ServiceResult.Create(StatusCodes.BadNotWritable,
                             "File already open with incompatible access.");
                         return false;
                     }
@@ -500,6 +500,15 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         private ServiceResult CompleteOpen(OpenFile pending, Stream stream)
         {
+            if ((pending.Mode & 0x9) == 0x9 && (pending.Mode & 0x2) == 0)
+            {
+                if (!stream.CanSeek)
+                {
+                    return ServiceResult.Create(StatusCodes.BadNotSupported,
+                        "Read with Append requires a stream that can seek to the end of the file.");
+                }
+                stream.Seek(0, SeekOrigin.End);
+            }
             lock (m_lock)
             {
                 if (pending.Closing || (!ReferenceEquals(m_write, pending) &&

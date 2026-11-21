@@ -107,7 +107,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             }
             (ServiceResult blocked, _) = await handles.OpenAsync(s_other, 7, CancellationToken.None)
                 .ConfigureAwait(false);
-            Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             provider.Verify(value => value.OpenReadWriteAsync(
                 It.IsAny<string>(), It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -429,7 +429,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 (ServiceResult blocked, _) = await handles.OpenAsync(s_other, 3, CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(blocked.StatusCode,
-                    Is.EqualTo(shutdown ? StatusCodes.BadShutdown : StatusCodes.BadInvalidState));
+                    Is.EqualTo(shutdown ? StatusCodes.BadShutdown : StatusCodes.BadNotWritable));
             }
             finally
             {
@@ -472,7 +472,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(handles.TryBlockOpens(), Is.False);
                 (ServiceResult blocked, _) = await handles.OpenAsync(s_other, 7, CancellationToken.None)
                     .ConfigureAwait(false);
-                Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
                 provider.Verify(value => value.OpenReadWriteAsync(
                     "file", It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()), Times.Once);
             }
@@ -619,7 +619,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(handles.TryBlockOpens(), Is.False);
                 (ServiceResult result, _) = await handles.OpenAsync(s_other, 7, CancellationToken.None)
                     .ConfigureAwait(false);
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             }
             finally
             {

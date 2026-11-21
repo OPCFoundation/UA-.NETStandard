@@ -97,6 +97,36 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
+    /// Installs credentials using the key retained for one validated pull attempt.
+    /// </summary>
+    public interface IProvisionableDevicePullSecurityInstaller
+    {
+        /// <summary>
+        /// Verifies that the attempt's private key can be reopened without consuming it.
+        /// </summary>
+        ValueTask RequirePullKeyAsync(
+            Guid attemptId,
+            ByteString certificate,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Verifies that the installed certificate and its private key remain in the application store.
+        /// </summary>
+        ValueTask VerifyInstalledPullKeyAsync(
+            ByteString certificate,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Installs the received credentials without consuming the attempt's only recoverable signing key.
+        /// The security owner validates the attempt and excludes reset before calling this method.
+        /// </summary>
+        ValueTask InstallForPullAsync(
+            Guid attemptId,
+            ProvisionableDeviceCredentials credentials,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Retains factory security defaults before any network configuration handler can replace them.
     /// </summary>
     public interface IProvisionableDeviceSecurityDefaults
@@ -192,6 +222,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
     public interface IProvisionableDeviceRegistrarConfiguration
     {
         /// <summary>
+        /// Gets the security owner whose transitions serialize candidate publication.
+        /// </summary>
+        IProvisionableDeviceSecurity Security { get; }
+
+        /// <summary>
         /// Authorizes the administrative channel and replaces the candidates using the supplied store.
         /// Publication must not change pending or installed registrar ownership.
         /// </summary>
@@ -203,6 +238,75 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
+    /// Installs credentials for an exact retained pull signing attempt.
+    /// </summary>
+    public interface IProvisionableDevicePullInstallation
+    {
+        /// <summary>
+        /// Requires the received credentials to match the retained attempt before applying them.
+        /// </summary>
+        ValueTask InstallFromPullAsync(
+            ClientSession registrarSession,
+            string expectedRegistrarApplicationUri,
+            ProvisionableDeviceCredentials credentials,
+            Guid attemptId,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Completes an interrupted pull installation without applying credentials again.
+    /// </summary>
+    public interface IProvisionableDevicePullInstallationRecovery
+    {
+        /// <summary>
+        /// Requires the installed security checkpoint and current certificate and trust stores to match the
+        /// original registrar certificate and received credentials, then records completion in the pull journal.
+        /// The operation does not change the certificate or trust stores.
+        /// </summary>
+        ValueTask CompleteInterruptedPullAsync(
+            Guid attemptId,
+            ByteString registrarCertificate,
+            ProvisionableDeviceCredentials credentials,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Records that the device security owner verified an installed pull credential.
+    /// </summary>
+    public interface IProvisionableDevicePullInstallationJournal
+    {
+        /// <summary>
+        /// Requires complete received credentials for the exact active attempt before installation.
+        /// </summary>
+        ValueTask RequireReceivedAsync(
+            Guid attemptId,
+            ByteString registrarCertificate,
+            ProvisionableDeviceCredentials credentials,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Records installation only when the registrar and credentials match the retained pull request.
+        /// </summary>
+        ValueTask RecordInstalledAsync(
+            Guid attemptId,
+            ByteString registrarCertificate,
+            ProvisionableDeviceCredentials credentials,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Retains and invalidates the current pull attempt before device security is reset.
+        /// New signing dispatches must be rejected until reset completion is recorded.
+        /// </summary>
+        ValueTask BeginResetAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Records completion of a previously started reset.
+        /// An active pull attempt without a reset record must remain unchanged.
+        /// </summary>
+        ValueTask CompleteResetAsync(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Serializes device installation, startup recovery, and security reset using an explicit secret-store scope.
     /// One instance exclusively owns the scope. The secret store must publish complete values before returning;
     /// restart durability is a property of the selected store, not of ISecretStore itself.
@@ -211,6 +315,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
     public sealed class ProvisionableDeviceSecurity :
         IProvisionableDeviceSecurity,
         IProvisionableDeviceRegistrarConfiguration,
+        IProvisionableDevicePullInstallation,
+        IProvisionableDevicePullInstallationRecovery,
         IPushConfigurationAuthorization,
         IPushConfigurationCompletion,
         IDisposable
@@ -226,10 +332,26 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ICertificateManager certificates,
             IProvisionableDeviceSecurityInstaller installer,
             ITelemetryContext telemetry)
+            : this(secrets, scope, applicationUri, certificates, installer, telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Borrows host-owned stores, installation, and an optional pull installation journal.
+        /// </summary>
+        public ProvisionableDeviceSecurity(
+            ISecretStore secrets,
+            string scope,
+            string applicationUri,
+            ICertificateManager certificates,
+            IProvisionableDeviceSecurityInstaller installer,
+            ITelemetryContext telemetry,
+            IProvisionableDevicePullInstallationJournal? pullJournal)
         {
             m_secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
             m_certificates = certificates ?? throw new ArgumentNullException(nameof(certificates));
             m_installer = installer ?? throw new ArgumentNullException(nameof(installer));
+            m_pullJournal = pullJournal;
             if (string.IsNullOrWhiteSpace(scope))
             {
                 throw new ArgumentException("An exclusive device security scope is required.", nameof(scope));
@@ -248,6 +370,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 secrets.StoreType);
             m_context = ServiceMessageContext.Create(telemetry);
         }
+
+        /// <inheritdoc/>
+        IProvisionableDeviceSecurity IProvisionableDeviceRegistrarConfiguration.Security => this;
 
         /// <summary>
         /// Reads the persisted transition without treating it as proof that startup recovery has executed.
@@ -428,11 +553,38 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <inheritdoc/>
-        public async ValueTask InstallFromPullAsync(
+        public ValueTask InstallFromPullAsync(
             ClientSession registrarSession,
             string expectedRegistrarApplicationUri,
             ProvisionableDeviceCredentials credentials,
             CancellationToken cancellationToken = default)
+        {
+            return InstallFromPullCoreAsync(
+                registrarSession, expectedRegistrarApplicationUri, credentials, Guid.Empty, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask InstallFromPullAsync(
+            ClientSession registrarSession,
+            string expectedRegistrarApplicationUri,
+            ProvisionableDeviceCredentials credentials,
+            Guid attemptId,
+            CancellationToken cancellationToken = default)
+        {
+            if (attemptId == Guid.Empty)
+            {
+                throw new ArgumentException("A retained pull attempt identifier is required.", nameof(attemptId));
+            }
+            return InstallFromPullCoreAsync(
+                registrarSession, expectedRegistrarApplicationUri, credentials, attemptId, cancellationToken);
+        }
+
+        private async ValueTask InstallFromPullCoreAsync(
+            ClientSession registrarSession,
+            string expectedRegistrarApplicationUri,
+            ProvisionableDeviceCredentials credentials,
+            Guid attemptId,
+            CancellationToken cancellationToken)
         {
             ThrowIfDisposed();
             if (registrarSession == null)
@@ -448,12 +600,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(credentials));
             }
-            var detached = new ProvisionableDeviceCredentials(
-                ByteString.From(credentials.Certificate.Span),
-                credentials.IssuerCertificates.ToList()
-                    .Select(static issuer => ByteString.From(issuer.Span)).ToArrayOf(),
-                CoreUtils.Clone(credentials.TrustList) ??
-                    throw new ArgumentException("A complete trust list is required.", nameof(credentials)));
+            if (m_pullJournal != null && attemptId == Guid.Empty)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The retained pull attempt identifier is required.");
+            }
+            ProvisionableDeviceCredentials detached = SnapshotCredentials(credentials);
             SessionRequestContext dispatch = await SessionRequestContext.CaptureConfidentialAsync(
                 registrarSession, cancellationToken).ConfigureAwait(false);
             await using var lifetime = dispatch.ConfigureAwait(false);
@@ -475,7 +627,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid);
             }
-            var pending = new Checkpoint(ProvisionableDeviceSecurityStage.Installing, peer, detached);
+            var pending = new Checkpoint(
+                ProvisionableDeviceSecurityStage.Installing, peer, detached, PullAttemptId: attemptId);
             byte[] proposed = Encode(pending);
             await ExecuteSecurityTransitionAsync(async () =>
             {
@@ -500,6 +653,38 @@ namespace Opc.Ua.Gds.Server.Onboarding
         {
             ThrowIfDisposed();
             return ExecuteSecurityTransitionAsync(() => RecoverCoreAsync(cancellationToken), cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask CompleteInterruptedPullAsync(
+            Guid attemptId,
+            ByteString registrarCertificate,
+            ProvisionableDeviceCredentials credentials,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            if (attemptId == Guid.Empty)
+            {
+                throw new ArgumentException("A retained pull attempt identifier is required.", nameof(attemptId));
+            }
+            if (registrarCertificate.IsEmpty)
+            {
+                throw new ArgumentException("The original registrar certificate is required.",
+                    nameof(registrarCertificate));
+            }
+            if (credentials == null)
+            {
+                throw new ArgumentNullException(nameof(credentials));
+            }
+            if (m_pullJournal == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "No pull installation journal is registered.");
+            }
+            Checkpoint expected = Decode(Encode(new(
+                ProvisionableDeviceSecurityStage.Installing, registrarCertificate, credentials)));
+            return ExecuteSecurityTransitionAsync(
+                () => CompleteInterruptedPullCoreAsync(attemptId, expected, cancellationToken), cancellationToken);
         }
 
         /// <summary>
@@ -548,8 +733,67 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }
                 await ValidateCredentialsAsync(pending.Credentials!, cancellationToken).ConfigureAwait(false);
                 await PrepareDefaultsAsync(current.Stage, cancellationToken).ConfigureAwait(false);
+                if (pending.PullAttemptId != Guid.Empty)
+                {
+                    IProvisionableDevicePullInstallationJournal journal = m_pullJournal ??
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported, "No pull installation journal is registered.");
+                    if (m_installer is not IProvisionableDeviceAppliedSecurity)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported, "The device installer cannot verify applied security.");
+                    }
+                    if (m_installer is not IProvisionableDevicePullSecurityInstaller pullInstaller)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported, "The device installer cannot retain a pull signing key.");
+                    }
+                    await journal.RequireReceivedAsync(
+                        pending.PullAttemptId, peer, pending.Credentials!, cancellationToken).ConfigureAwait(false);
+                    await pullInstaller.RequirePullKeyAsync(
+                        pending.PullAttemptId, pending.Credentials!.Certificate, cancellationToken)
+                        .ConfigureAwait(false);
+                    m_stateRequiresRecovery = true;
+                }
                 await m_secrets.SetAsync(m_identifier, proposed, cancellationToken).ConfigureAwait(false);
                 await CompleteInstallationAsync(pending, cancellationToken).ConfigureAwait(false);
+                if (pending.PullAttemptId != Guid.Empty)
+                {
+                    await m_pullJournal!.RecordInstalledAsync(
+                        pending.PullAttemptId, peer, pending.Credentials!, cancellationToken).ConfigureAwait(false);
+                    m_stateRequiresRecovery = false;
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        private async ValueTask CompleteInterruptedPullCoreAsync(
+            Guid attemptId,
+            Checkpoint expected,
+            CancellationToken ct)
+        {
+            IProvisionableDevicePullInstallationJournal journal = m_pullJournal ??
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                Checkpoint installed = await LoadAsync(ct).ConfigureAwait(false);
+                if (installed.Stage != ProvisionableDeviceSecurityStage.Installed ||
+                    installed.PullAttemptId != attemptId || !installed.StoreApplied ||
+                    installed.Peer != expected.Peer || installed.Credentials == null ||
+                    !SameCredentials(installed.Credentials, expected.Credentials!))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The installed security does not match the pull receipt.");
+                }
+                m_stateRequiresRecovery = true;
+                await VerifyAppliedSecurityAsync(installed, ct).ConfigureAwait(false);
+                await journal.RecordInstalledAsync(attemptId, installed.Peer, installed.Credentials, ct)
+                    .ConfigureAwait(false);
+                m_stateRequiresRecovery = false;
             }
             finally
             {
@@ -574,6 +818,18 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     case ProvisionableDeviceSecurityStage.Installed:
                         await ValidateCredentialsAsync(checkpoint.Credentials!, cancellationToken)
                             .ConfigureAwait(false);
+                        IProvisionableDevicePullInstallationJournal? journal = null;
+                        if (checkpoint.PullAttemptId != Guid.Empty)
+                        {
+                            journal = m_pullJournal ?? throw new ServiceResultException(
+                                StatusCodes.BadNotSupported, "No pull installation journal is registered.");
+                            if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Installing)
+                            {
+                                await journal.RequireReceivedAsync(
+                                    checkpoint.PullAttemptId, checkpoint.Peer, checkpoint.Credentials!,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                        }
                         if (checkpoint.StoreApplied)
                         {
                             await VerifyAppliedSecurityAsync(checkpoint, cancellationToken).ConfigureAwait(false);
@@ -582,12 +838,23 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         {
                             await CompleteInstallationAsync(checkpoint, cancellationToken).ConfigureAwait(false);
                         }
+                        if (journal != null)
+                        {
+                            await journal.RecordInstalledAsync(
+                                checkpoint.PullAttemptId, checkpoint.Peer, checkpoint.Credentials!,
+                                cancellationToken).ConfigureAwait(false);
+                        }
                         break;
                     case ProvisionableDeviceSecurityStage.Resetting:
                         Volatile.Write(ref m_applicationEpoch, new ApplicationEpoch());
                         await CompleteResetAsync(cancellationToken).ConfigureAwait(false);
                         break;
                     case ProvisionableDeviceSecurityStage.Unconfigured:
+                        if (m_pullJournal != null)
+                        {
+                            await m_pullJournal.CompleteResetAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        break;
                     case ProvisionableDeviceSecurityStage.Configuring:
                         if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Configuring &&
                             m_installer is IProvisionableDeviceAppliedSecurity)
@@ -615,6 +882,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_stateRequiresRecovery = true;
                 await LoadAsync(cancellationToken).ConfigureAwait(false);
                 await SaveAsync(new(ProvisionableDeviceSecurityStage.Resetting, default, null), cancellationToken)
                     .ConfigureAwait(false);
@@ -747,9 +1015,33 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private async ValueTask CompleteInstallationAsync(Checkpoint checkpoint, CancellationToken ct)
         {
             ProvisionableDeviceCredentials detached = Decode(Encode(checkpoint)).Credentials!;
-            await m_installer.InstallAsync(detached, ct).ConfigureAwait(false);
-            await SaveAsync(checkpoint with { Stage = ProvisionableDeviceSecurityStage.Installed }, ct)
-                .ConfigureAwait(false);
+            if (checkpoint.PullAttemptId != Guid.Empty && m_installer is not IProvisionableDeviceAppliedSecurity)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The device installer cannot verify applied security.");
+            }
+            if (checkpoint.PullAttemptId != Guid.Empty)
+            {
+                IProvisionableDevicePullSecurityInstaller pullInstaller =
+                    m_installer as IProvisionableDevicePullSecurityInstaller ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "The device installer cannot retain a pull signing key.");
+                await pullInstaller.InstallForPullAsync(checkpoint.PullAttemptId, detached, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                await m_installer.InstallAsync(detached, ct).ConfigureAwait(false);
+            }
+            Checkpoint installed = checkpoint with
+            {
+                Stage = ProvisionableDeviceSecurityStage.Installed,
+                StoreApplied = checkpoint.StoreApplied || checkpoint.PullAttemptId != Guid.Empty
+            };
+            if (installed.PullAttemptId != Guid.Empty)
+            {
+                await VerifyAppliedSecurityAsync(installed, ct).ConfigureAwait(false);
+            }
+            await SaveAsync(installed, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -784,23 +1076,93 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         private async ValueTask VerifyAppliedSecurityAsync(Checkpoint checkpoint, CancellationToken ct)
         {
-            IProvisionableDeviceAppliedSecurity applied = m_installer as IProvisionableDeviceAppliedSecurity ??
-                throw new ServiceResultException(
-                    StatusCodes.BadNotSupported, "The device installer cannot verify standard push configuration.");
-            ProvisionableDeviceCredentials? current = await applied.CaptureAsync(ct).ConfigureAwait(false);
-            ProvisionableDeviceCredentials expected = checkpoint.Credentials!;
-            if (current == null || current.Certificate != expected.Certificate ||
-                !current.IssuerCertificates.Span.SequenceEqual(expected.IssuerCertificates.Span) ||
-                current.TrustList.SpecifiedLists != expected.TrustList.SpecifiedLists ||
-                !SameTrustEntries(current.TrustList.TrustedCertificates, expected.TrustList.TrustedCertificates) ||
-                !SameTrustEntries(current.TrustList.TrustedCrls, expected.TrustList.TrustedCrls) ||
-                !SameTrustEntries(current.TrustList.IssuerCertificates, expected.TrustList.IssuerCertificates) ||
-                !SameTrustEntries(current.TrustList.IssuerCrls, expected.TrustList.IssuerCrls))
+            if (!await IsAppliedSecurityAsync(checkpoint, ct).ConfigureAwait(false))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
                     "Recorded device security does not match the committed certificate and trust stores.");
             }
+            if (checkpoint.PullAttemptId != Guid.Empty)
+            {
+                IProvisionableDevicePullSecurityInstaller pullInstaller =
+                    m_installer as IProvisionableDevicePullSecurityInstaller ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "The device installer cannot verify a persisted pull key.");
+                await pullInstaller.VerifyInstalledPullKeyAsync(checkpoint.Credentials!.Certificate, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Compares the actual certificate, issuer chain, and trust stores with a retained checkpoint.
+        /// </summary>
+        private async ValueTask<bool> IsAppliedSecurityAsync(Checkpoint checkpoint, CancellationToken ct)
+        {
+            IProvisionableDeviceAppliedSecurity applied = m_installer as IProvisionableDeviceAppliedSecurity ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The device installer cannot verify standard push configuration.");
+            ProvisionableDeviceCredentials? current = await applied.CaptureAsync(ct).ConfigureAwait(false);
+            ProvisionableDeviceCredentials expected = checkpoint.Credentials!;
+            return current != null && SameCredentials(current, expected);
+        }
+
+        private static bool SameCredentials(
+            ProvisionableDeviceCredentials left,
+            ProvisionableDeviceCredentials right)
+        {
+            return left.TrustList != null && right.TrustList != null &&
+                left.Certificate == right.Certificate &&
+                left.IssuerCertificates.Span.SequenceEqual(right.IssuerCertificates.Span) &&
+                left.TrustList.SpecifiedLists == right.TrustList.SpecifiedLists &&
+                SameTrustEntries(left.TrustList.TrustedCertificates, right.TrustList.TrustedCertificates) &&
+                SameTrustEntries(left.TrustList.TrustedCrls, right.TrustList.TrustedCrls) &&
+                SameTrustEntries(left.TrustList.IssuerCertificates, right.TrustList.IssuerCertificates) &&
+                SameTrustEntries(left.TrustList.IssuerCrls, right.TrustList.IssuerCrls);
+        }
+
+        /// <summary>
+        /// Copies the certificate and each trust entry before the installation can yield to its caller.
+        /// </summary>
+        private static ProvisionableDeviceCredentials SnapshotCredentials(ProvisionableDeviceCredentials credentials)
+        {
+            TrustListDataType trust = credentials.TrustList ??
+                throw new ArgumentException("A complete trust list is required.", nameof(credentials));
+            return new ProvisionableDeviceCredentials(
+                CopyByteString(credentials.Certificate),
+                CopyByteStrings(credentials.IssuerCertificates),
+                new TrustListDataType
+                {
+                    SpecifiedLists = trust.SpecifiedLists,
+                    TrustedCertificates = CopyByteStrings(trust.TrustedCertificates),
+                    TrustedCrls = CopyByteStrings(trust.TrustedCrls),
+                    IssuerCertificates = CopyByteStrings(trust.IssuerCertificates),
+                    IssuerCrls = CopyByteStrings(trust.IssuerCrls)
+                });
+        }
+
+        /// <summary>
+        /// Copies byte strings without replacing an OPC UA null value with an empty value.
+        /// </summary>
+        private static ByteString CopyByteString(ByteString value)
+        {
+            return value.IsNull ? default : ByteString.From(value.Span);
+        }
+
+        /// <summary>
+        /// Copies a nullable array and each byte string it contains.
+        /// </summary>
+        private static ArrayOf<ByteString> CopyByteStrings(ArrayOf<ByteString> values)
+        {
+            if (values.IsNull)
+            {
+                return default;
+            }
+            var copy = new ByteString[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                copy[i] = CopyByteString(values[i]);
+            }
+            return copy;
         }
 
         /// <summary>
@@ -816,9 +1178,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         private async ValueTask CompleteResetAsync(CancellationToken ct)
         {
+            if (m_pullJournal != null)
+            {
+                await m_pullJournal.BeginResetAsync(ct).ConfigureAwait(false);
+            }
             await m_installer.ResetToServerDefaultsAsync(ct).ConfigureAwait(false);
             await SaveAsync(new(ProvisionableDeviceSecurityStage.Unconfigured, default, null), ct)
                 .ConfigureAwait(false);
+            if (m_pullJournal != null)
+            {
+                await m_pullJournal.CompleteResetAsync(ct).ConfigureAwait(false);
+            }
             m_stateRequiresRecovery = false;
         }
 
@@ -969,7 +1339,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using var buffer = new MemoryStream();
             using (var encoder = new BinaryEncoder(buffer, m_context, leaveOpen: true))
             {
-                encoder.WriteUInt32(null, 3);
+                encoder.WriteUInt32(null, 4);
                 encoder.WriteString(null, m_applicationUri);
                 encoder.WriteInt32(null, (int)checkpoint.Stage);
                 if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Configuring)
@@ -994,6 +1364,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     encoder.WriteByteStringArray(null, credentials.IssuerCertificates);
                     encoder.WriteEncodeable(null, credentials.TrustList);
                     encoder.WriteBoolean(null, checkpoint.StoreApplied);
+                    encoder.WriteGuid(null, checkpoint.PullAttemptId);
                 }
             }
             if (buffer.Length > kMaximumCheckpointBytes)
@@ -1017,7 +1388,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 using var buffer = new MemoryStream(bytes.ToArray(), writable: false);
                 using var decoder = new BinaryDecoder(buffer, m_context);
                 uint version = decoder.ReadUInt32(null);
-                if (version is not (1 or 2 or 3) || decoder.ReadString(null) != m_applicationUri)
+                if (version is not (1 or 2 or 3 or 4) || decoder.ReadString(null) != m_applicationUri)
                 {
                     throw new InvalidDataException("The device security checkpoint version or application is invalid.");
                 }
@@ -1031,6 +1402,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 ByteString peer = default;
                 ProvisionableDeviceCredentials? credentials = null;
                 bool storeApplied = false;
+                Guid pullAttemptId = Guid.Empty;
                 if (stage == ProvisionableDeviceSecurityStage.Configuring)
                 {
                     peer = decoder.ReadByteString(null);
@@ -1055,12 +1427,18 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     {
                         throw new InvalidDataException("Only installed standard push state may skip installation.");
                     }
+                    pullAttemptId = version >= 4 ? decoder.ReadGuid(null) : Guid.Empty;
+                    if (pullAttemptId != Guid.Empty &&
+                        stage == ProvisionableDeviceSecurityStage.Installed && !storeApplied)
+                    {
+                        throw new InvalidDataException("Installed pull security must have verified applied stores.");
+                    }
                 }
                 if (decoder.Position != buffer.Length)
                 {
                     throw new InvalidDataException("The device security checkpoint contains trailing content.");
                 }
-                return new(stage, peer, credentials, storeApplied);
+                return new(stage, peer, credentials, storeApplied, pullAttemptId);
             }
             catch (Exception error) when (error is ServiceResultException or EndOfStreamException or ArgumentException)
             {
@@ -1086,7 +1464,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ProvisionableDeviceSecurityStage Stage,
             ByteString Peer,
             ProvisionableDeviceCredentials? Credentials,
-            bool StoreApplied = false);
+            bool StoreApplied = false,
+            Guid PullAttemptId = default);
 
         /// <summary>The checkpoint byte limit in addition to standard codec quotas.</summary>
         private const int kMaximumCheckpointBytes = 16 * 1024 * 1024;
@@ -1106,6 +1485,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>The host's idempotent platform operations.</summary>
         private readonly IProvisionableDeviceSecurityInstaller m_installer;
 
+        /// <summary>The optional host-owned pull installation journal.</summary>
+        private readonly IProvisionableDevicePullInstallationJournal? m_pullJournal;
+
         /// <summary>The private codec context retaining standard quotas.</summary>
         private readonly ServiceMessageContext m_context;
 
@@ -1118,7 +1500,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>The current deployment identity, replaced when reset intent becomes durable.</summary>
         private ApplicationEpoch m_applicationEpoch = new();
 
-        /// <summary>Whether an uncertain standard-push checkpoint must be reconciled before further access.</summary>
+        /// <summary>Whether an uncertain security transition must be reconciled before further access.</summary>
         private bool m_stateRequiresRecovery;
 
         /// <summary>Whether this instance has been disposed.</summary>

@@ -813,6 +813,232 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task OverridePublicationPreservesPinnedBrowseAndInvalidatesChangedContinuationAsync(bool immediate)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var source = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            var targetId = new NodeId(kValueNodeId, source.NamespaceIndex);
+            var rootId = new NodeId(kRootNodeId, source.NamespaceIndex);
+            NodeState root = RequireLifecycleValue(source.Manager.Find(rootId));
+            NodeState target = RequireLifecycleValue(source.Manager.Find(targetId));
+            root.AddReference(ReferenceTypeIds.Organizes, false, targetId);
+            root.OnPopulateBrowser = (_, _, browser) =>
+                browser.Add(ReferenceTypeIds.HasProperty, false, target);
+            root.OnCreateBrowser = (context, _, view, type, subtypes, direction, name, additional, internalOnly) =>
+                new OpaqueLazyDependencyBrowser(
+                    context, view, type, subtypes, direction, name,
+                    [
+                        .. (additional ?? []),
+                        new NodeStateReference(ReferenceTypeIds.HasNotifier, false, target)
+                    ],
+                    internalOnly, targetId, () => { });
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            try
+            {
+                BrowseResult saved = await BrowseRootAsync(1).ConfigureAwait(false);
+                Assert.That(saved.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(saved.ContinuationPoint.IsEmpty, Is.False);
+                await AssertTranslationAsync(kValueBrowseName).ConfigureAwait(false);
+                source.Manager.ValidateNodeCallback = async (_, nodeId, token) =>
+                {
+                    if (nodeId == rootId)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(token).ConfigureAwait(false);
+                    }
+                };
+                Task<BrowseResult> pinned = BrowseRootAsync(0);
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                TrackingLifecycleNodeManager? replacement = null;
+                NodeManagerRegistration? registration = null;
+                var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [
+                        NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                            kGeneration2Value,
+                            manager =>
+                            {
+                                manager.OverriddenNodeIds = [targetId];
+                                replacement = manager;
+                            }))
+                    ], null, timeout.Token).ConfigureAwait(false))
+                {
+                    BaseVariableState newTarget = RequireLifecycleValue(
+                        RequireLifecycleValue(replacement).Find(targetId) as BaseVariableState);
+                    newTarget.BrowseName = new QualifiedName("ReplacementTarget", source.NamespaceIndex);
+                    newTarget.DisplayName = LocalizedText.From("ReplacementTarget");
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    registration = result.Registrations[0];
+                }
+
+                release.TrySetResult(true);
+                BrowseResult oldView = await pinned.WaitAsync(timeout.Token).ConfigureAwait(false);
+                source.Manager.ValidateNodeCallback = null!;
+                BrowseResult newView = await BrowseRootAsync(0).ConfigureAwait(false);
+                AssertTargetReferences(oldView, kValueBrowseName);
+                AssertTargetReferences(newView, "ReplacementTarget");
+                await AssertTranslationAsync("ReplacementTarget").ConfigureAwait(false);
+
+                ByteString token = saved.ContinuationPoint;
+                StatusCode status = StatusCodes.Good;
+                while (!token.IsEmpty && status == StatusCodes.Good)
+                {
+                    BrowseNextResponse next = await session.BrowseNextAsync(
+                        null, false, [token], timeout.Token).ConfigureAwait(false);
+                    status = next.Results[0].StatusCode;
+                    token = next.Results[0].ContinuationPoint;
+                }
+                Assert.That(status, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+
+                BrowseResult beforeReplacement = await BrowseRootAsync(1).ConfigureAwait(false);
+                Assert.That(beforeReplacement.ContinuationPoint.IsEmpty, Is.False);
+                var secondEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var secondRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                source.Manager.ValidateNodeCallback = async (_, nodeId, token) =>
+                {
+                    if (nodeId == rootId)
+                    {
+                        secondEntered.TrySetResult(true);
+                        await secondRelease.Task.WaitAsync(token).ConfigureAwait(false);
+                    }
+                };
+                Task<BrowseResult> pinnedReplacement = BrowseRootAsync(0);
+                try
+                {
+                    await secondEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    TrackingLifecycleNodeManager? newest = null;
+                    NodeManagerBatchResult retired;
+                    await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                        [
+                            NodeManagerBatchChange.Replace(
+                                RequireLifecycleValue(registration),
+                                CreateTrackingNodeManagementFactory(
+                                    kGeneration2Value + 1,
+                                    manager =>
+                                    {
+                                        manager.OverriddenNodeIds = [targetId];
+                                        newest = manager;
+                                    }),
+                                immediate)
+                        ], null, timeout.Token).ConfigureAwait(false))
+                    {
+                        BaseVariableState newTarget = RequireLifecycleValue(
+                            RequireLifecycleValue(newest).Find(targetId) as BaseVariableState);
+                        newTarget.BrowseName = new QualifiedName("NewestTarget", source.NamespaceIndex);
+                        newTarget.DisplayName = LocalizedText.From("NewestTarget");
+                        retired = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                    }
+                    Assert.That(retired.CleanupFailure, Is.Null);
+                    Assert.That(RequireLifecycleValue(replacement).DisposeCount, Is.Zero);
+                    secondRelease.TrySetResult(true);
+                    BrowseResult oldReplacement = await pinnedReplacement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    source.Manager.ValidateNodeCallback = null!;
+                    AssertTargetReferences(oldReplacement, "ReplacementTarget");
+                    AssertTargetReferences(await BrowseRootAsync(0).ConfigureAwait(false), "NewestTarget");
+                    await AssertTranslationAsync("NewestTarget").ConfigureAwait(false);
+                    ByteString oldToken = beforeReplacement.ContinuationPoint;
+                    StatusCode oldStatus = StatusCodes.Good;
+                    while (!oldToken.IsEmpty && oldStatus == StatusCodes.Good)
+                    {
+                        BrowseNextResponse next = await session.BrowseNextAsync(
+                            null, false, [oldToken], timeout.Token).ConfigureAwait(false);
+                        oldStatus = next.Results[0].StatusCode;
+                        oldToken = next.Results[0].ContinuationPoint;
+                    }
+                    Assert.That(oldStatus, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    secondRelease.TrySetResult(true);
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                source.Manager.ValidateNodeCallback = null!;
+                root.OnCreateBrowser = null;
+                root.OnPopulateBrowser = null;
+                root.RemoveReference(ReferenceTypeIds.Organizes, false, targetId);
+                await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+            }
+
+            async Task<BrowseResult> BrowseRootAsync(uint maximum)
+            {
+                BrowseResponse response = await session.BrowseAsync(
+                    null, new ViewDescription(), maximum,
+                    [
+                        new BrowseDescription
+                        {
+                            NodeId = rootId,
+                            BrowseDirection = BrowseDirection.Forward,
+                            ReferenceTypeId = ReferenceTypeIds.References,
+                            IncludeSubtypes = true,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    ], timeout.Token).ConfigureAwait(false);
+                return response.Results[0];
+            }
+
+            void AssertTargetReferences(BrowseResult result, string name)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                foreach (NodeId referenceType in new[]
+                {
+                    ReferenceTypeIds.HasComponent,
+                    ReferenceTypeIds.HasProperty,
+                    ReferenceTypeIds.Organizes,
+                    ReferenceTypeIds.HasNotifier
+                })
+                {
+                    Assert.That(result.References.ToList().Any(reference =>
+                        reference.NodeId == (ExpandedNodeId)targetId &&
+                        reference.ReferenceTypeId == referenceType &&
+                        reference.BrowseName == new QualifiedName(name, source.NamespaceIndex)), Is.True,
+                        $"Expected {referenceType} to resolve against {name}.");
+                }
+            }
+
+            async Task AssertTranslationAsync(string name)
+            {
+                TranslateBrowsePathsToNodeIdsResponse response = await session.TranslateBrowsePathsToNodeIdsAsync(
+                    null,
+                    [
+                        new BrowsePath
+                        {
+                            StartingNode = rootId,
+                            RelativePath = new RelativePath
+                            {
+                                Elements =
+                                [
+                                    new RelativePathElement
+                                    {
+                                        ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                                        TargetName = new QualifiedName(name, source.NamespaceIndex)
+                                    }
+                                ]
+                            }
+                        }
+                    ], timeout.Token).ConfigureAwait(false);
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[0].Targets.ToList().Select(value => value.TargetId),
+                    Is.EquivalentTo(new[] { (ExpandedNodeId)targetId }));
+            }
+        }
+
         private static void ConfigureBrowseDependency(
             TrackingLifecycleNodeManager source,
             TrackingLifecycleNodeManager target,
@@ -868,8 +1094,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
-        private sealed partial class TrackingLifecycleNodeManager
+        private sealed partial class TrackingLifecycleNodeManager : INodeManagerNodeOverrides
         {
+            public ArrayOf<NodeId> OverriddenNodeIds { get; set; }
+
             public bool RejectHandleLookupAfterDisposal { get; set; }
 
             public int RejectedHandleLookups => Volatile.Read(ref m_rejectedHandleLookups);

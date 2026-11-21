@@ -71,17 +71,17 @@ namespace Opc.Ua.Server
         bool IsTransactionActive { get; }
 
         /// <summary>
-        /// <see langword="true"/> when at least one <see cref="TrustList"/>
-        /// tracked by this coordinator is currently open for writing.
+        /// <see langword="true"/> when a TrustList or ConfigurationFile
+        /// tracked by this coordinator is open for writing or applying.
         /// </summary>
         bool HasOpenTrustListWriter { get; }
 
         /// <summary>
         /// Validates that <paramref name="sessionId"/> may participate in
         /// the active transaction, without starting one. Used by
-        /// operations (such as opening a <see cref="TrustList"/> for
-        /// writing) that must reject a conflicting Session but should not
-        /// themselves be considered a staged change.
+        /// operations (such as opening a <see cref="TrustList"/> or
+        /// ConfigurationFile for writing) that must reject a conflicting
+        /// Session but should not themselves be considered a staged change.
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// Thrown with <see cref="StatusCodes.BadTransactionPending"/> when
@@ -96,7 +96,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// Thrown with <see cref="StatusCodes.BadTransactionPending"/> when
-        /// another Session already owns the active transaction, or with
+        /// another Session already owns the active transaction, or while a
+        /// tracked file is open for writing; thrown with
         /// <see cref="StatusCodes.BadInvalidState"/> when the owning
         /// Session's own <see cref="ApplyChangesAsync(NodeId, CancellationToken)"/> commit is still in
         /// flight.
@@ -104,8 +105,8 @@ namespace Opc.Ua.Server
         void Stage(NodeId sessionId, PushConfigurationOperation operation);
 
         /// <summary>
-        /// Records that a <see cref="TrustList"/> identified by
-        /// <paramref name="trustListId"/> is now open for writing (
+        /// Records that a <see cref="TrustList"/> or ConfigurationFile
+        /// identified by <paramref name="trustListId"/> is now open for writing (
         /// <paramref name="isOpen"/> is <see langword="true"/>) or has been
         /// closed (<see langword="false"/>).
         /// </summary>
@@ -147,7 +148,8 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <returns>
         /// <see cref="StatusCodes.BadInvalidState"/> when a
-        /// <see cref="TrustList"/> is still open for writing (§7.10.9) - this
+        /// <see cref="TrustList"/> is still open for writing (§7.10.9), or a
+        /// ConfigurationFile update is in progress (§7.10.20) - this
         /// takes precedence over every other result, including when no
         /// transaction is active, so the caller learns to close the writer
         /// and retry rather than receiving <see cref="StatusCodes.BadNothingToDo"/>;
@@ -231,6 +233,25 @@ namespace Opc.Ua.Server
         /// address-space node.
         /// </summary>
         PushConfigurationTransactionSnapshot GetSnapshot();
+    }
+
+    /// <summary>
+    /// Provides atomic ConfigurationFile writer reservation for a PushManagement coordinator.
+    /// </summary>
+    public interface IPushConfigurationFileWriteCoordinator
+    {
+        /// <summary>
+        /// Reserves a ConfigurationFile writer for <paramref name="sessionId"/>
+        /// and checks transaction ownership under the same synchronization as
+        /// <see cref="IPushConfigurationTransactionCoordinator.Stage(NodeId, PushConfigurationOperation)"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadTransactionPending"/> when
+        /// another Session owns the active transaction, or with
+        /// <see cref="StatusCodes.BadInvalidState"/> when the owning Session's
+        /// transaction is being committed.
+        /// </exception>
+        void OpenConfigurationFileWrite(NodeId configurationFileId, NodeId sessionId);
     }
 
     /// <summary>

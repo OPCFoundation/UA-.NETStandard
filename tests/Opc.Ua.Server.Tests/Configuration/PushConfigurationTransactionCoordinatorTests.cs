@@ -262,6 +262,40 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void OpeningConfigurationFileWriterBlocksTransactionStaging()
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            var configurationFileId = new NodeId(42);
+
+            coordinator.OpenConfigurationFileWrite(configurationFileId, s_sessionA);
+
+            Assert.That(coordinator.HasOpenTrustListWriter, Is.True);
+            Assert.DoesNotThrow(() => coordinator.ValidateSessionCanParticipate(s_sessionA));
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                coordinator.Stage(s_sessionA, new PushConfigurationOperation
+                {
+                    CommitAsync = _ => Task.CompletedTask
+                }));
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTransactionPending));
+        }
+
+        [Test]
+        public void OpeningConfigurationFileWriterRejectsAnotherSessionsActiveTransaction()
+        {
+            var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);
+            coordinator.Stage(s_sessionA, new PushConfigurationOperation
+            {
+                CommitAsync = _ => Task.CompletedTask
+            });
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                coordinator.OpenConfigurationFileWrite(new NodeId(42), s_sessionB));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTransactionPending));
+            Assert.That(coordinator.HasOpenTrustListWriter, Is.False);
+        }
+
+        [Test]
         public void StagingSameSlotTwiceSupersedesAndDisposesThePreviousOperation()
         {
             var coordinator = new PushConfigurationTransactionCoordinator(s_telemetry);

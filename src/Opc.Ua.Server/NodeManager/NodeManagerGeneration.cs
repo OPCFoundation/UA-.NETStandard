@@ -732,6 +732,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Captures the epochs still associated with this generation.
+        /// </summary>
+        internal AddressSpaceEpoch[] GetViewEpochs()
+        {
+            lock (m_epochLock)
+            {
+                return [.. m_viewEpochs];
+            }
+        }
+
+        /// <summary>
         /// Gets a cold-path description of the active admissions and pinned view epochs.
         /// </summary>
         /// <returns>The generation identity and current drain blockers.</returns>
@@ -1718,6 +1729,23 @@ namespace Opc.Ua.Server
     internal sealed class AddressSpaceEpoch
     {
         /// <summary>
+        /// Associates this epoch with its routing view without extending the view's lifetime.
+        /// </summary>
+        internal void Attach(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            m_snapshot = new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(snapshot);
+        }
+
+        /// <summary>
+        /// Attempts to recover the view while it remains reachable.
+        /// </summary>
+        internal bool TryGetSnapshot(out NodeManagerRoutingTable.RoutingSnapshot? snapshot)
+        {
+            snapshot = null;
+            return m_snapshot?.TryGetTarget(out snapshot) == true;
+        }
+
+        /// <summary>
         /// Gets the stable diagnostic identity of this published view epoch.
         /// </summary>
         internal long Id { get; } = Interlocked.Increment(ref s_nextId);
@@ -1804,6 +1832,9 @@ namespace Opc.Ua.Server
 
         /// <summary>The striped pin counter.</summary>
         private readonly StripedCounter m_active = new();
+
+        /// <summary>The weak routing view that owns this epoch.</summary>
+        private WeakReference<NodeManagerRoutingTable.RoutingSnapshot>? m_snapshot;
 
         /// <summary>Protects the optional asynchronous drain waiter.</summary>
         private readonly Lock m_waitLock = new();

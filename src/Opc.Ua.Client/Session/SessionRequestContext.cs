@@ -58,8 +58,8 @@ namespace Opc.Ua.Client
             m_generation = generation;
             m_requireConfidentiality = requireConfidentiality;
             SessionConfiguration configuration = session.SaveSessionConfiguration();
-            SessionId = configuration.SessionId;
-            m_authenticationToken = configuration.AuthenticationToken;
+            SessionId = SnapshotNodeId(configuration.SessionId);
+            m_authenticationToken = SnapshotNodeId(configuration.AuthenticationToken);
             if (SessionId.IsNull || m_authenticationToken.IsNull)
             {
                 throw InvalidSession();
@@ -79,12 +79,13 @@ namespace Opc.Ua.Client
             {
                 throw InvalidSession();
             }
-            ValidateConfidentiality();
+            EndpointDescription endpoint = m_transport.EndpointDescription;
+            ValidateConfidentiality(endpoint);
             m_namespaceUris = session.NamespaceUris.ToArrayOf();
             m_serverUris = session.ServerUris.ToArrayOf();
             m_messageContext = new ServiceMessageContext(session.MessageContext, session.MessageContext.Telemetry);
-            m_endpoint = CoreUtils.Clone(session.ConfiguredEndpoint.Description)!;
-            m_endpointConfiguration = CoreUtils.Clone(session.ConfiguredEndpoint.Configuration)
+            m_endpoint = SnapshotEndpoint(endpoint ?? session.ConfiguredEndpoint.Description);
+            m_endpointConfiguration = SnapshotEndpointConfiguration(session.ConfiguredEndpoint.Configuration)
                 ?? EndpointConfiguration.Create();
             m_requestTransport = new RequestContextTransport(this);
             try
@@ -270,7 +271,10 @@ namespace Opc.Ua.Client
                 throw InvalidSession();
             }
             ct.ThrowIfCancellationRequested();
-            ValidateConfidentiality();
+            if (m_requireConfidentiality)
+            {
+                ValidateConfidentiality(m_transport.EndpointDescription);
+            }
             request.RequestHeader.AuthenticationToken = m_authenticationToken;
 
             // A managed lease may wait, swap transports, retry, or reject an already completed
@@ -312,13 +316,12 @@ namespace Opc.Ua.Client
         /// Checks the physical channel, not mutable advertised session metadata, before any confidential send.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateConfidentiality()
+        private void ValidateConfidentiality(EndpointDescription? endpoint)
         {
             if (!m_requireConfidentiality)
             {
                 return;
             }
-            EndpointDescription endpoint = m_transport.EndpointDescription;
             if (endpoint == null ||
                 endpoint.SecurityMode != MessageSecurityMode.SignAndEncrypt ||
                 string.IsNullOrEmpty(endpoint.SecurityPolicyUri) ||
@@ -328,6 +331,95 @@ namespace Opc.Ua.Client
                     StatusCodes.BadSecurityModeInsufficient,
                     "Confidential method arguments require an encrypted channel.");
             }
+        }
+
+        /// <summary>
+        /// Captures the transport endpoint without invoking provider clone overrides.
+        /// </summary>
+        internal static EndpointDescription SnapshotEndpoint(EndpointDescription? source)
+        {
+            if (source == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The captured transport has no endpoint description.");
+            }
+
+            ApplicationDescription application = source.Server ?? new ApplicationDescription();
+            ArrayOf<string> discoveryUrls = application.DiscoveryUrls;
+            LocalizedText applicationName = application.ApplicationName.Copy();
+            ArrayOf<UserTokenPolicy> sourcePolicies = source.UserIdentityTokens;
+            var policies = new UserTokenPolicy[sourcePolicies.Count];
+            for (int i = 0; i < policies.Length; i++)
+            {
+                UserTokenPolicy? policy = sourcePolicies[i];
+                if (policy == null)
+                {
+                    policies[i] = null!;
+                    continue;
+                }
+                policies[i] = new UserTokenPolicy
+                {
+                    PolicyId = policy.PolicyId,
+                    TokenType = policy.TokenType,
+                    IssuedTokenType = policy.IssuedTokenType,
+                    IssuerEndpointUrl = policy.IssuerEndpointUrl,
+                    SecurityPolicyUri = policy.SecurityPolicyUri
+                };
+            }
+
+            ByteString certificate = source.ServerCertificate;
+            return new EndpointDescription
+            {
+                EndpointUrl = source.EndpointUrl,
+                Server = new ApplicationDescription
+                {
+                    ApplicationUri = application.ApplicationUri,
+                    ProductUri = application.ProductUri,
+                    ApplicationName = applicationName,
+                    ApplicationType = application.ApplicationType,
+                    GatewayServerUri = application.GatewayServerUri,
+                    DiscoveryProfileUri = application.DiscoveryProfileUri,
+                    DiscoveryUrls = discoveryUrls.IsNull ? default : discoveryUrls.Span.ToArray().ToArrayOf()
+                },
+                ServerCertificate = certificate.IsNull ? default : ByteString.From(certificate.Span),
+                SecurityMode = source.SecurityMode,
+                SecurityPolicyUri = source.SecurityPolicyUri,
+                UserIdentityTokens = sourcePolicies.IsNull ? default : policies.ToArrayOf(),
+                TransportProfileUri = source.TransportProfileUri,
+                SecurityLevel = source.SecurityLevel,
+                ProxyUrl = source.ProxyUrl
+            };
+        }
+
+        /// <summary>
+        /// Copies all configured transport and decoder limits without invoking provider clone overrides.
+        /// </summary>
+        internal static EndpointConfiguration? SnapshotEndpointConfiguration(EndpointConfiguration? source)
+        {
+            return source == null ? null : new EndpointConfiguration
+            {
+                OperationTimeout = source.OperationTimeout,
+                UseBinaryEncoding = source.UseBinaryEncoding,
+                MaxStringLength = source.MaxStringLength,
+                MaxByteStringLength = source.MaxByteStringLength,
+                MaxArrayLength = source.MaxArrayLength,
+                MaxMessageSize = source.MaxMessageSize,
+                MaxBufferSize = source.MaxBufferSize,
+                ChannelLifetime = source.ChannelLifetime,
+                SecurityTokenLifetime = source.SecurityTokenLifetime,
+                MaxEncodingNestingLevels = source.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = source.MaxDecoderRecoveries
+            };
+        }
+
+        /// <summary>
+        /// Detaches opaque identity storage while preserving all identifier kinds and null semantics.
+        /// </summary>
+        internal static NodeId SnapshotNodeId(NodeId source)
+        {
+            return source.TryGetValue(out ByteString bytes)
+                ? new NodeId(bytes.Copy(), source.NamespaceIndex)
+                : source;
         }
 
         /// <summary>

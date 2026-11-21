@@ -176,8 +176,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(handle.OpenCount, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// An existing reader rejects a synchronous write-open with the Part 20 already-open status.
+        /// </summary>
         [Test]
-        public void OpenWriteWhileReadingReturnsBadInvalidState()
+        public void OpenWriteWhileReadingReturnsBadNotWritable()
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
@@ -185,7 +188,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(s_sessionId, ModeWrite, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
         [Test]
@@ -218,21 +221,22 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(handle.GetStream(s_sessionId, writeHandle), Is.Not.Null);
         }
 
-        [Test]
-        public void OpenWriteWhileAnyHandleAlreadyOpenInternallyReturnsBadInvalidState()
+        /// <summary>
+        /// An existing reader or writer rejects a synchronous write-open before invoking the provider again.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OpenWriteWhileAnyHandleAlreadyOpenInternallyReturnsBadNotWritable(bool existingWriter)
         {
-            // Same rationale as above, but for the write-open guard that
-            // rejects opening for write while any reader or writer holds
-            // the file.
             using var handle = new FileHandle(new NonExclusiveStreamProvider(), "f.txt");
-            handle.Open(s_sessionId, ModeRead, out uint readHandle);
+            handle.Open(s_sessionId, existingWriter ? ModeWrite : ModeRead, out uint originalHandle);
 
             ServiceResult result = handle.Open(s_sessionId, ModeWrite, out uint writeHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(writeHandle, Is.Zero);
             Assert.That(handle.OpenCount, Is.EqualTo(1));
-            Assert.That(handle.GetStream(s_sessionId, readHandle), Is.Not.Null);
+            Assert.That(handle.GetStream(s_sessionId, originalHandle), Is.Not.Null);
         }
 
         [Test]

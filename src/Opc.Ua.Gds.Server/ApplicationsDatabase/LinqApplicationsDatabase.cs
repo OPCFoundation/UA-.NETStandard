@@ -167,7 +167,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             string capabilities = ServerCapabilities(application);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 bool existingApplication = (
                     from ii in Applications
@@ -234,7 +234,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Guid applicationId = GetNodeIdGuid(application.ApplicationId);
             string capabilities = ServerCapabilities(application);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application? record =
                         (from ii in Applications
@@ -316,7 +316,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             var certificates = new List<ByteString>();
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application application =
                     (from ii in Applications where ii.ApplicationId == id select ii)
@@ -365,7 +365,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 IEnumerable<Application> results = from x in Applications
                                                    where x
@@ -427,7 +427,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             base.FindApplications(applicationUri);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 // OPC 10000-12 §6.5.4: the result holds at most the one
                 // application with this ApplicationUri; an empty
@@ -519,7 +519,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             nextRecordId = 0;
             var records = new List<ApplicationDescription>();
 
-            lock (Lock)
+            lock (m_lock)
             {
                 IOrderedEnumerable<Application> results =
                     from x in Applications
@@ -664,7 +664,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     productUri,
                     serverCapabilities);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 lastCounterResetTime = QueryCounterResetTime;
                 if (AssignServerEndpointIds())
@@ -759,7 +759,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 IEnumerable<Application> results = from x in Applications
                                                    where x
@@ -790,7 +790,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application application =
                     (from ii in Applications where ii.ApplicationId == id select ii)
@@ -815,7 +815,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application? result = (from x in Applications where x.ApplicationId == id select x)
                     .SingleOrDefault();
@@ -842,7 +842,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             trustListId = null;
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application? result = (from x in Applications where x.ApplicationId == id select x)
                     .SingleOrDefault();
@@ -891,7 +891,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application application =
                     (from x in Applications where x.ApplicationId == id select x).SingleOrDefault()
@@ -963,7 +963,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application application =
                     (from x in Applications where x.ApplicationId == id select x).SingleOrDefault()
@@ -993,7 +993,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(requestId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 CertificateRequest request =
                     (from x in CertificateRequests where x.RequestId == id select x)
@@ -1020,7 +1020,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(requestId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 CertificateRequest request =
                     (from x in CertificateRequests where x.RequestId == id select x)
@@ -1086,7 +1086,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Guid reqId = GetNodeIdGuid(requestId);
             Guid appId = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 CertificateRequest request = FindApplicationRequest(reqId, appId);
                 if (enforceClientCertificateBinding)
@@ -1142,7 +1142,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Guid reqId = GetNodeIdGuid(requestId);
             Guid appId = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 CertificateRequest request = FindApplicationRequest(reqId, appId);
 
@@ -1175,8 +1175,36 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
 
+        /// <summary>
+        /// Saves a complete database while excluding concurrent changes to its records.
+        /// </summary>
         public virtual void Save()
         {
+            lock (m_lock)
+            {
+                SaveCore();
+            }
+        }
+
+        /// <summary>
+        /// Writes the complete database to its backing store.
+        /// </summary>
+        protected virtual void SaveCore()
+        {
+        }
+
+        /// <summary>
+        /// Assigns missing endpoint identifiers and saves the database if identifiers were added.
+        /// </summary>
+        internal void MigrateServerEndpointIds()
+        {
+            lock (m_lock)
+            {
+                if (AssignServerEndpointIds())
+                {
+                    Save();
+                }
+            }
         }
 
         /// <summary>
@@ -1276,7 +1304,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         private void SaveChanges()
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 QueryCounterResetTime = DateTime.UtcNow;
                 // assign IDs to new apps
@@ -1305,7 +1333,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// identifier. Identifiers are not reused after an endpoint is removed.
         /// </summary>
         /// <returns><c>true</c> if an identifier was assigned.</returns>
-        internal bool AssignServerEndpointIds()
+        private bool AssignServerEndpointIds()
         {
             uint endpointMax = LastServerEndpointId;
             bool unassigned = false;
@@ -1335,15 +1363,15 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             return pattern == null || (!string.IsNullOrEmpty(value) && pattern.IsMatch(value));
         }
 
+        /// <summary>
+        /// Restores nonserialized database state before the deserialized database is used.
+        /// </summary>
         [OnDeserialized]
-        internal void OnDeserializedMethod(StreamingContext context)
+        private void OnDeserializedMethod(StreamingContext context)
         {
-            Lock = new object();
+            m_lock = new System.Threading.Lock();
             QueryCounterResetTime = DateTime.UtcNow;
         }
-
-        [NonSerialized]
-        internal object Lock = new();
 
         [NonSerialized]
         internal DateTime QueryCounterResetTime = DateTime.UtcNow;
@@ -1369,5 +1397,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         [JsonInclude]
         internal ICollection<CertificateStore> CertificateStores = new HashSet<CertificateStore>();
+
+        /// <summary>The private owner of synchronization for database records and persistence.</summary>
+        [NonSerialized]
+        private System.Threading.Lock m_lock = new();
     }
 }

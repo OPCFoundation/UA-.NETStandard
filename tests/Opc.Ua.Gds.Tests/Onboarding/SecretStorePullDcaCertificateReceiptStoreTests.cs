@@ -78,6 +78,59 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A null certificate group is retained as the Part 12 default across adapter recreation.
+        /// </summary>
+        [Test]
+        public async Task DefaultApplicationGroupReceiptSurvivesAdapterRecreation()
+        {
+            var secrets = new InMemorySecretStore();
+            PullDcaCertificateProfile profile = Profile() with { CertificateGroupId = NodeId.Null };
+            int receiveCount = 0;
+            using (var first = Store(secrets))
+            {
+                await first.GetOrCreateAsync(
+                    Registrar(), Id("app"), Id("request"), profile, _ =>
+                    {
+                        receiveCount++;
+                        return new ValueTask<PullDcaCertificateReceipt>(Receipt());
+                    }).ConfigureAwait(false);
+            }
+            using var restarted = Store(secrets, reordered: true);
+
+            PullDcaCertificateReceipt restored = await restarted.GetOrCreateAsync(
+                Registrar(2), Id("app", 2), Id("request", 2),
+                Profile(2) with { CertificateGroupId = NodeId.Null }, _ =>
+                {
+                    receiveCount++;
+                    throw new AssertionException("A retained default-group receipt must not repeat FinishRequest.");
+                }).ConfigureAwait(false);
+
+            Assert.That(receiveCount, Is.EqualTo(1));
+            Assert.That(restored.Certificate, Is.EqualTo(Receipt().Certificate));
+            Assert.That(restored.IssuerCertificates, Is.EqualTo(Receipt().IssuerCertificates));
+        }
+
+        /// <summary>
+        /// An explicit certificate group and the null default group cannot reuse each other's receipt.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DefaultAndExplicitCertificateGroupsRemainDistinct(bool defaultGroupFirst)
+        {
+            using var store = Store(new InMemorySecretStore());
+            PullDcaCertificateProfile defaultGroup = Profile() with { CertificateGroupId = NodeId.Null };
+            PullDcaCertificateProfile initial = defaultGroupFirst ? defaultGroup : Profile();
+            PullDcaCertificateProfile changed = defaultGroupFirst ? Profile() : defaultGroup;
+            await store.GetOrCreateAsync(Registrar(), Id("app"), Id("request"), initial,
+                _ => new ValueTask<PullDcaCertificateReceipt>(Receipt())).ConfigureAwait(false);
+
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await store.GetOrCreateAsync(Registrar(), Id("app"), Id("request"), changed,
+                    _ => throw new AssertionException("A mismatched group must not receive another certificate."))
+                    .ConfigureAwait(false));
+        }
+
+        /// <summary>
         /// Concurrent completions through one adapter cannot invoke two receipt factories.
         /// </summary>
         [Test]

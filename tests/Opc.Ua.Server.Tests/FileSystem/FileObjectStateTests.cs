@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             {
                 OpenMethodStateResult second = await alternate.Open!.OnCallAsync!(
                     m_context, alternate.Open, alternate.NodeId, 6, CancellationToken.None).ConfigureAwait(false);
-                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
                 Assert.That(second.FileHandle, Is.Zero);
             }
 

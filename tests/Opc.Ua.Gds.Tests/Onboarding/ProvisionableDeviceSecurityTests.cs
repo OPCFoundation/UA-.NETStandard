@@ -1475,7 +1475,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             if (legacyVersion)
             {
-                checkpoint = checkpoint.AsSpan(0, checkpoint.Length - 1).ToArray();
+                checkpoint = checkpoint.AsSpan(0, checkpoint.Length - 17).ToArray();
                 BinaryPrimitives.WriteUInt32LittleEndian(checkpoint, 1);
                 await m_secrets.SetAsync(
                     captured ?? throw new AssertionException("Installation did not publish its checkpoint."),
@@ -2241,6 +2241,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(provider.GetRequiredService<IProvisionableDeviceSecurity>(),
                 Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
             Assert.That(provider.GetRequiredService<IProvisionableDeviceRegistrarConfiguration>(),
+                Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
+            Assert.That(provider.GetRequiredService<IProvisionableDevicePullInstallation>(),
+                Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
+            Assert.That(provider.GetRequiredService<IProvisionableDevicePullInstallationRecovery>(),
                 Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
             Assert.That(provider.GetRequiredService<IPushConfigurationAuthorization>(),
                 Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));

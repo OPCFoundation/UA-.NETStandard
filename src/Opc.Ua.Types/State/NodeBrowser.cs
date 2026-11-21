@@ -272,6 +272,12 @@ namespace Opc.Ua
         /// </remarks>
         public virtual void Add(NodeId referenceTypeId, bool isInverse, NodeState target)
         {
+            if (SystemContext is INodeStateReferenceView view && view.IsOverridden(target.NodeId))
+            {
+                AddReference(new NodeStateReference(referenceTypeId, isInverse, target.NodeId));
+                return;
+            }
+
             // do not return add target unless the browse name matches.
             if (!BrowseName.IsNull && target.BrowseName != BrowseName)
             {

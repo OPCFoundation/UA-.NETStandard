@@ -32,9 +32,10 @@ The SDK provides full or partial support for these core areas:
   file transfer and common reference types.
 - Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
   with retained device credentials, security reset, managed Client provisioning,
-  provider-backed Server/ClientAndServer push and a Part 22 `Resources` parent reference.
+  provider-backed Server/ClientAndServer push, durable accepted-work recovery,
+  signing and key-pair pull, and lifecycle-aware Part 22 `Resources` composition.
   FDO protocols and credential installation remain external; the GDS guide
-  describes the remaining recovery and `ConfigurationFile` gaps.
+  describes provider ownership, recovery boundaries and `ConfigurationFile` limits.
 - Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
   an in-memory simulator, including defined optional capabilities when supplied
   by the provider; applications supply production network providers.
@@ -662,21 +663,27 @@ OPC UA Part 12 areas:
   certificate issuance, typed pull/push workflows, and a singleton device host
   with retained factory credentials and security reset. Providers own software
   approval and state retention; restart durability depends on selecting a
-  durable provider. The bounded push scheduler accepts work in process and does
-  not persist the queue. Registrar push provisions managed Client
+  durable provider. The standard push registration requires a work store that
+  persists acceptance and reconciles interrupted attempts before retry.
+  Registrar push provisions managed Client
   applications and supports managed Server/ClientAndServer applications when
   the host supplies authoritative discovery URLs, installed certificates,
   endpoints, user identities and explicit client trust. The default managed-
   application verifier supports UA-TCP and HTTPS with independently validated
   TLS and application identities. The sample can be configured for
   one managed Server or ClientAndServer application after DCA proof. The
-  provisionable-device factory adds a Part 22 `Resources` parent reference, but
-  shared Resources manager integration is not implemented. Registrar push uses
+  provisionable-device factory publishes its standard nodes through lifecycle-aware
+  routing alongside the Part 22 `Resources` manager. Registrar push uses
   the configured certificate type by default and permits a host-selected type
   for each managed application; the selected type must be advertised by its
   certificate group. Per-entry remote `ConfigurationFile`
   update/confirm and restart recovery use optional application-scoped Part 12
-  providers. The originally selected certificate type is retained during recovery.
+  providers; shorter configuration replacements are rejected before writing
+  because FileType supplies no interoperable truncation operation.
+  Pull supports signing and new-key-pair requests for the DCA and managed
+  applications. Signing recovery retains the request and its private key;
+  a consumed key-pair response requires a new request rather than certificate-only recovery.
+  The originally selected certificate type is retained during recovery.
   The optional external-authentication handoff uses an injectable provider for
   dedicated CA trust and configured product/DCA approval; typed external pull
   and registrar push reuse the existing lifecycle. FDO protocols and credential
@@ -929,7 +936,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
 | [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens require `IFileSystemReadWriteProvider`; conflicting write opens can return `Bad_InvalidState` instead of `Bad_NotWritable` |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Initial pull cannot request a new key pair, and §7.2 recovery after a lost accepted response is incomplete. Managed-application updates and restart recovery depend on host providers. The Part 22 `Resources` integration is absent, and `ConfigurationFile` transfer is partial. Push acceptance is process-local. Hosts must reconcile registrar and device state before retrying after a restart or interruption. [Details](GDS.md#opc-10000-21-onboardingclient) |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | DCA and managed-application pull support signing and new-key-pair requests. Durable push acceptance reconciles interrupted work before retry; pull installation and post-DCA continuation use host-owned journals and certificate stores. Lifecycle routing composes provisionable-device nodes with Part 22 `Resources`. `ConfigurationFile` reads existing content and rewinds before writing, but rejects shorter replacements without truncation support. Durability requires persistent providers with exclusive ownership; distributed coordination, software installation and FDO protocols remain external. New recovery and composition cases require exact-head execution evidence. [Details](GDS.md#opc-10000-21-onboardingclient) |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | - |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |

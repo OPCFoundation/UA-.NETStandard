@@ -48,6 +48,7 @@ namespace Opc.Ua.Server
     /// </remarks>
     public sealed class PushConfigurationTransactionCoordinator :
         IPushConfigurationTransactionCoordinator,
+        IPushConfigurationFileWriteCoordinator,
         IPushConfigurationTransactionCompletion
     {
         /// <summary>
@@ -131,6 +132,13 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                if (m_openTrustListWriters.Count > 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTransactionPending,
+                        "A PushManagement transaction cannot be staged while a file is open for writing.");
+                }
+
                 ThrowIfConflictingOwner(sessionId);
 
                 if (m_isCommitting)
@@ -218,6 +226,29 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public void OpenConfigurationFileWrite(NodeId configurationFileId, NodeId sessionId)
+        {
+            lock (m_lock)
+            {
+                if (m_isActive && !m_ownerSessionId.Equals(sessionId))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTransactionPending,
+                        "Another Session owns the active PushManagement transaction.");
+                }
+
+                if (m_isCommitting)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "The active PushManagement transaction is being committed.");
+                }
+
+                m_openTrustListWriters.Add(configurationFileId);
+            }
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<PushConfigurationOperation> GetStagedOperations()
         {
             lock (m_lock)
@@ -282,13 +313,12 @@ namespace Opc.Ua.Server
             {
                 if (m_openTrustListWriters.Count > 0)
                 {
-                    // §7.10.9: ApplyChanges returns Bad_InvalidState if any
-                    // TrustList is still open for writing. This precedence
-                    // holds even when no transaction is active, so the caller
-                    // learns to close the writer and retry rather than
-                    // receiving BadNothingToDo. Do not change transaction
-                    // state: the caller may retry once every open TrustList
-                    // handle has been closed.
+                    // §7.10.9: ApplyChanges returns Bad_InvalidState if a
+                    // TrustList is still open for writing. Part 12 §7.10.20
+                    // also requires file write handles to exclude transactions
+                    // through apply or rollback. This precedence holds even
+                    // when no transaction is active; the caller can close the
+                    // writer and retry without changing transaction state.
                     return StatusCodes.BadInvalidState;
                 }
 

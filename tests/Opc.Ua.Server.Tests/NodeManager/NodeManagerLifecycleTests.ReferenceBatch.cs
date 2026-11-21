@@ -1488,13 +1488,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             bool before = true;
             bool after = true;
+            bool pinnedAfter = true;
+            bool pinnedBrowserAfter = true;
             survivor.ReadCallbackNodeId = value;
-            survivor.ReadCallback = async (_, token) =>
+            survivor.ReadCallback = async (context, token) =>
             {
                 before = objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root);
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
                 after = objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root);
+                var references = new List<IReference>();
+                objects.GetReferences(new ServerSystemContext(m_server.CurrentInstance, context), references);
+                pinnedAfter = references.Any(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !reference.IsInverse &&
+                    reference.TargetId == root);
+                using INodeBrowser browser = objects.CreateBrowser(
+                    new ServerSystemContext(m_server.CurrentInstance, context),
+                    null, ReferenceTypeIds.Organizes, false, BrowseDirection.Forward, default, null, false);
+                pinnedBrowserAfter = false;
+                for (IReference? reference = await browser.NextAsync(token).ConfigureAwait(false);
+                    reference is not null;
+                    reference = await browser.NextAsync(token).ConfigureAwait(false))
+                {
+                    if (reference.TargetId == root)
+                    {
+                        pinnedBrowserAfter = true;
+                    }
+                }
             };
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -1511,6 +1532,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(result.CleanupFailure, Is.Null);
                 Assert.That(read.IsCompleted, Is.False);
                 Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root), Is.True);
+                await AssertNativeReferenceAsync(
+                    session, ObjectIds.ObjectsFolder, root, ReferenceTypeIds.Organizes, true, timeout.Token)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1521,6 +1545,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(response.Results[0].WrappedValue, Is.EqualTo(new Variant(kFirstRegistrationValue)));
             Assert.That(before, Is.False);
             Assert.That(after, Is.True, "Node-owned references are shared even while application values stay pinned.");
+            Assert.That(pinnedAfter, Is.False, "The operation's routing view must retain its prior references.");
+            Assert.That(pinnedBrowserAfter, Is.False, "Browser population must use the operation's prior references.");
             await AssertNativeReferenceAsync(
                 session, ObjectIds.ObjectsFolder, root, ReferenceTypeIds.Organizes, true, timeout.Token)
                 .ConfigureAwait(false);

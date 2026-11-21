@@ -71,6 +71,7 @@ namespace Opc.Ua.Gds.Tests
             using var second = await TestTarget.CreateAsync("urn:managed:channel:second").ConfigureAwait(false);
             string root = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory, "managed-channel", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
             var listener = new TcpListener(IPAddress.Loopback, 0);
             int port;
             try
@@ -1067,7 +1068,7 @@ namespace Opc.Ua.Gds.Tests
 
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-                var deviceNodeId = new NodeId("ProvisionableDevice", namespaceIndex);
+                var deviceNodeId = new NodeId(29878u);
                 var firstNodeId = new NodeId($"Application:{firstApplicationUri}", namespaceIndex);
                 var secondNodeId = new NodeId($"Application:{secondApplicationUri}", namespaceIndex);
                 object firstHandle = await manager.GetManagerHandleAsync(firstNodeId).ConfigureAwait(false);
@@ -1641,5 +1642,130 @@ namespace Opc.Ua.Gds.Tests
 
         /// <summary>The test telemetry context.</summary>
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
+
+        /// <summary>
+        /// A live NodeManagerLifecycle publication adds the generated device's forward reference to Resources.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceResourcesForwardReferenceIsPublishedByNodeManager()
+        {
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(true);
+            var factory = new ProvisionableDeviceNodeManagerFactory(runtime.Object);
+            INodeManagerLifecycle lifecycle = ReferenceServer.NodeManagerLifecycle;
+            NodeState resources = await GetResourcesNodeStateAsync().ConfigureAwait(false);
+            NodeManagerRegistration? registration = null;
+
+            try
+            {
+                registration = await AddProvisionableDeviceNodeManagerAsync(lifecycle, factory)
+                    .ConfigureAwait(false);
+                NodeId deviceNodeId = await GetProvisionableDeviceNodeIdAsync(registration)
+                    .ConfigureAwait(false);
+
+                Assert.That(resources.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, deviceNodeId), Is.True,
+                    "Resources must own a forward Organizes reference to the published device.");
+            }
+            finally
+            {
+                if (registration != null)
+                {
+                    await RemoveProvisionableDeviceNodeManagerAsync(lifecycle, registration)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removing and recreating the live manager removes the old parent reference and republishes the new one.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceResourcesReferenceIsRemovedAndRestoredAfterManagerRecreation()
+        {
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(true);
+            var factory = new ProvisionableDeviceNodeManagerFactory(runtime.Object);
+            INodeManagerLifecycle lifecycle = ReferenceServer.NodeManagerLifecycle;
+            NodeState resources = await GetResourcesNodeStateAsync().ConfigureAwait(false);
+            NodeManagerRegistration? registration = null;
+
+            try
+            {
+                registration = await AddProvisionableDeviceNodeManagerAsync(lifecycle, factory)
+                    .ConfigureAwait(false);
+                NodeId firstDeviceNodeId = await GetProvisionableDeviceNodeIdAsync(registration)
+                    .ConfigureAwait(false);
+                Assert.That(resources.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, firstDeviceNodeId), Is.True,
+                    "The first manager generation must publish its exact device target.");
+
+                await RemoveProvisionableDeviceNodeManagerAsync(lifecycle, registration).ConfigureAwait(false);
+                registration = null;
+                Assert.That(resources.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, firstDeviceNodeId), Is.False,
+                    "Retiring the manager must remove its forward Resources reference.");
+
+                registration = await AddProvisionableDeviceNodeManagerAsync(lifecycle, factory)
+                    .ConfigureAwait(false);
+                NodeId recreatedDeviceNodeId = await GetProvisionableDeviceNodeIdAsync(registration)
+                    .ConfigureAwait(false);
+                Assert.That(resources.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, recreatedDeviceNodeId), Is.True,
+                    "The recreated manager must publish its own generated device target.");
+            }
+            finally
+            {
+                if (registration != null)
+                {
+                    await RemoveProvisionableDeviceNodeManagerAsync(lifecycle, registration)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async Task<NodeState> GetResourcesNodeStateAsync()
+        {
+            (object? handle, _) = await ReferenceServer.CurrentInstance.NodeManager
+                .GetManagerHandleAsync(CoreObjectIds.Resources).ConfigureAwait(false);
+            Assert.That(handle, Is.TypeOf<NodeHandle>());
+            NodeState resources = ((NodeHandle)handle!).Node;
+            Assert.That(resources.NodeId, Is.EqualTo(CoreObjectIds.Resources));
+            return resources;
+        }
+
+        private static async Task<NodeManagerRegistration> AddProvisionableDeviceNodeManagerAsync(
+            INodeManagerLifecycle lifecycle,
+            IAsyncNodeManagerFactory factory)
+        {
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(result.Registrations, Has.Count.EqualTo(1));
+            return result.Registrations[0];
+        }
+
+        private async Task<NodeId> GetProvisionableDeviceNodeIdAsync(NodeManagerRegistration registration)
+        {
+            var expectedNodeId = new NodeId(29878u);
+            object handle = await registration.NodeManager.GetManagerHandleAsync(expectedNodeId)
+                .ConfigureAwait(false);
+            Assert.That(handle, Is.TypeOf<NodeHandle>());
+            NodeState device = ((NodeHandle)handle).Node;
+            Assert.That(device.NodeId, Is.EqualTo(expectedNodeId));
+            return device.NodeId;
+        }
+
+        private static async Task RemoveProvisionableDeviceNodeManagerAsync(
+            INodeManagerLifecycle lifecycle,
+            NodeManagerRegistration registration)
+        {
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(registration)]).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            await result.Retirement.ConfigureAwait(false);
+        }
     }
 }

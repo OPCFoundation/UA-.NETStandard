@@ -130,79 +130,86 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Grants SecurityAdmin Browse and Call permissions on push methods and their containing objects.
+        /// Registers SecurityAdmin Browse and Call permissions without materializing namespace defaults.
         /// </summary>
         private void GrantSecurityAdminCallPermissions(ISystemContext context, NodeState node)
         {
+            RevokeSecurityAdminCallPermissions();
+            ValidateSecurityAdminPermissionDefaults(node);
+            RegisterSecurityAdminCallPermissions(context, node);
+        }
+
+        /// <summary>
+        /// Preserves synchronous startup's default-policy validation without storing inherited permissions.
+        /// </summary>
+        private void ValidateSecurityAdminPermissionDefaults(NodeState node)
+        {
+            if (node is MethodState or BaseObjectState && node.RolePermissions.IsEmpty)
+            {
+                NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                    Server, SystemContext, node.NodeId.NamespaceIndex);
+                if (defaults.Status != StatusCodes.BadWouldBlock && !StatusCode.IsGood(defaults.Status))
+                {
+                    throw new ServiceResultException(defaults.Status);
+                }
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                ValidateSecurityAdminPermissionDefaults(child);
+            }
+        }
+
+        /// <summary>
+        /// Registers the current configuration tree after retiring any previous tree's grants.
+        /// </summary>
+        private void RegisterSecurityAdminCallPermissions(ISystemContext context, NodeState node)
+        {
             if (node is MethodState or BaseObjectState)
             {
-                ArrayOf<RolePermissionType> permissions = node.RolePermissions;
-                bool hasRolePermissionRestrictions = !permissions.IsEmpty;
-                if (!hasRolePermissionRestrictions)
-                {
-                    NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
-                        Server, SystemContext, node.NodeId.NamespaceIndex);
-                    // Unresolved metadata is handled by the async startup pass; keep inheriting defaults here.
-                    if (defaults.Status != StatusCodes.BadWouldBlock)
-                    {
-                        if (!StatusCode.IsGood(defaults.Status))
-                        {
-                            throw new ServiceResultException(defaults.Status);
-                        }
-
-                        hasRolePermissionRestrictions = !defaults.DefaultRolePermissions.IsEmpty;
-                        if (hasRolePermissionRestrictions)
-                        {
-                            permissions = defaults.DefaultRolePermissions;
-                        }
-                    }
-                }
-
-                if (hasRolePermissionRestrictions)
-                {
-                    node.RolePermissions = AddSecurityAdminCallPermissions(permissions);
-                }
+                RegisterSecurityAdminCallPermissions(this, node);
             }
 
             var children = new List<BaseInstanceState>();
             node.GetChildren(context, children);
             foreach (BaseInstanceState child in children)
             {
-                GrantSecurityAdminCallPermissions(context, child);
+                RegisterSecurityAdminCallPermissions(context, child);
             }
         }
 
         /// <summary>
-        /// Adds SecurityAdmin Browse and Call permissions after asynchronously resolving namespace defaults.
+        /// Preserves asynchronous startup's default-policy validation before registering live grants.
         /// </summary>
         private async ValueTask GrantSecurityAdminCallPermissionsAsync(
             ServerSystemContext context,
             NodeState node,
             CancellationToken cancellationToken)
         {
-            if (node is MethodState or BaseObjectState)
+            cancellationToken.ThrowIfCancellationRequested();
+            RevokeSecurityAdminCallPermissions();
+            await ValidateSecurityAdminPermissionDefaultsAsync(context, node, cancellationToken).ConfigureAwait(false);
+            RegisterSecurityAdminCallPermissions(context, node);
+        }
+
+        /// <summary>
+        /// Rejects unresolved or failed inherited policies during asynchronous configuration.
+        /// </summary>
+        private async ValueTask ValidateSecurityAdminPermissionDefaultsAsync(
+            ServerSystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (node is MethodState or BaseObjectState && node.RolePermissions.IsEmpty)
             {
-                ArrayOf<RolePermissionType> permissions = node.RolePermissions;
-                bool hasRolePermissionRestrictions = !permissions.IsEmpty;
-                if (!hasRolePermissionRestrictions)
+                NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                    Server, context, node.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+                if (!StatusCode.IsGood(defaults.Status))
                 {
-                    NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
-                        Server, context, node.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
-                    if (!StatusCode.IsGood(defaults.Status))
-                    {
-                        throw new ServiceResultException(defaults.Status);
-                    }
-
-                    hasRolePermissionRestrictions = !defaults.DefaultRolePermissions.IsEmpty;
-                    if (hasRolePermissionRestrictions)
-                    {
-                        permissions = defaults.DefaultRolePermissions;
-                    }
-                }
-
-                if (hasRolePermissionRestrictions)
-                {
-                    node.RolePermissions = AddSecurityAdminCallPermissions(permissions);
+                    throw new ServiceResultException(defaults.Status);
                 }
             }
 
@@ -210,46 +217,9 @@ namespace Opc.Ua.Server
             node.GetChildren(context, children);
             foreach (BaseInstanceState child in children)
             {
-                await GrantSecurityAdminCallPermissionsAsync(context, child, cancellationToken)
+                await ValidateSecurityAdminPermissionDefaultsAsync(context, child, cancellationToken)
                     .ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Adds SecurityAdmin Browse and Call permissions without replacing other role permissions.
-        /// </summary>
-        private static ArrayOf<RolePermissionType> AddSecurityAdminCallPermissions(
-            ArrayOf<RolePermissionType> permissions)
-        {
-            const uint addedPermissions = (uint)(PermissionType.Browse | PermissionType.Call);
-            NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
-            var updatedPermissions = new List<RolePermissionType>(permissions.Count + 1);
-            bool foundSecurityAdmin = false;
-            for (int index = 0; index < permissions.Count; index++)
-            {
-                RolePermissionType permission = permissions[index];
-                var updatedPermission = new RolePermissionType
-                {
-                    RoleId = permission.RoleId,
-                    Permissions = permission.Permissions
-                };
-                if (updatedPermission.RoleId == roleId)
-                {
-                    updatedPermission.Permissions |= addedPermissions;
-                    foundSecurityAdmin = true;
-                }
-                updatedPermissions.Add(updatedPermission);
-            }
-            if (!foundSecurityAdmin)
-            {
-                updatedPermissions.Add(new RolePermissionType
-                {
-                    RoleId = roleId,
-                    Permissions = addedPermissions
-                });
-            }
-
-            return updatedPermissions.ToArrayOf();
         }
 
         /// <summary>

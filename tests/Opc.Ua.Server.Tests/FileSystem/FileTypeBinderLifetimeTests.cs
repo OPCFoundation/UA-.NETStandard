@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(commit.IsCompleted, Is.False);
                 ServiceResultException? blocked = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await harness.Binding.OpenAsync(harness.OtherSession.Object.Id, 3).ConfigureAwait(false));
-                Assert.That(blocked!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(blocked!.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
                 Assert.That(published.IsNull, Is.True);
             }
             finally

@@ -23,6 +23,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -75,6 +76,244 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 out ArrayOf<ConfigurationUpdateTargetType> targets), Is.True);
             Assert.That(targets, Is.EqualTo(UpdateFixture.Targets));
             Assert.That(fixture.SecondCalls, Is.Empty);
+        }
+
+        /// <summary>
+        /// Short reads do not end the transfer, and the same handle is rewound before the update is written.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UpdateReadsExistingConfigurationAndRewindsBeforeWriting(bool managedApplication)
+        {
+            await using var fixture = new UpdateFixture();
+            fixture.RequiresConfirmation = false;
+            fixture.ConfigurationReadChunks =
+            [
+                ByteString.From(new byte[] { 1 }),
+                ByteString.From(new byte[] { 2 }),
+                ByteString.Empty
+            ];
+            if (managedApplication)
+            {
+                fixture.ApplicationConfigurationId =
+                    new ExpandedNodeId("application", "urn:managed:configuration:namespace");
+                fixture.RegisterApplicationNamespaceOnBothGenerations();
+            }
+            await fixture.ConnectAsync().ConfigureAwait(false);
+
+            ConfigurationFileUpdateResult result = await fixture.UpdateAsync().ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(ConfigurationFileUpdateOutcome.Applied));
+            CallMethodRequest[] calls = fixture.FirstCalls;
+            Assert.That(calls.Select(call => call.MethodId), Is.EqualTo(new[]
+            {
+                Ua.MethodIds.FileType_Open,
+                Ua.MethodIds.FileType_Read,
+                Ua.MethodIds.FileType_Read,
+                Ua.MethodIds.FileType_Read,
+                Ua.MethodIds.FileType_SetPosition,
+                Ua.MethodIds.FileType_Write,
+                Ua.MethodIds.ConfigurationFileType_CloseAndUpdate
+            }));
+            foreach (CallMethodRequest call in calls.Skip(1))
+            {
+                Assert.That(call.InputArguments[0].TryGetValue(out uint handle), Is.True);
+                Assert.That(handle, Is.EqualTo(42u));
+            }
+            CallMethodRequest[] reads = calls.Where(call => call.MethodId == Ua.MethodIds.FileType_Read).ToArray();
+            for (int i = 0; i < reads.Length; i++)
+            {
+                Assert.That(reads[i].InputArguments[1].TryGetValue(out int length), Is.True);
+                Assert.That(length, Is.Positive);
+                if (i < reads.Length - 1 && length > 1)
+                {
+                    Assert.That(fixture.ConfigurationReadChunks[i].Length, Is.LessThan(length));
+                }
+            }
+            CallMethodRequest rewind = calls.Single(call => call.MethodId == Ua.MethodIds.FileType_SetPosition);
+            Assert.That(rewind.InputArguments[1].TryGetValue(out ulong position), Is.True);
+            Assert.That(position, Is.Zero);
+            CallMethodRequest write = calls.Single(call => call.MethodId == Ua.MethodIds.FileType_Write);
+            Assert.That(write.InputArguments[1].TryGetValue(out ByteString content), Is.True);
+            Assert.That(content, Is.EqualTo(UpdateFixture.Content));
+        }
+
+        /// <summary>
+        /// Read and rewind errors close the handle without writing or applying the configuration.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UpdateClosesWithoutWritingWhenReadOrRewindFails(bool failRead)
+        {
+            await using var fixture = new UpdateFixture();
+            fixture.ConfigurationReadChunks = [ByteString.From(new byte[] { 1 }), ByteString.Empty];
+            fixture.FailConfigurationReadAt = failRead ? 1 : -1;
+            fixture.FailConfigurationRewind = !failRead;
+            await fixture.ConnectAsync().ConfigureAwait(false);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.UpdateAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            NodeId[] methods = fixture.FirstCalls.Select(call => call.MethodId).ToArray();
+            Assert.That(methods, Is.EqualTo(failRead
+                ? new[]
+                {
+                    Ua.MethodIds.FileType_Open,
+                    Ua.MethodIds.FileType_Read,
+                    Ua.MethodIds.FileType_Read,
+                    Ua.MethodIds.FileType_Close
+                }
+                : new[]
+                {
+                    Ua.MethodIds.FileType_Open,
+                    Ua.MethodIds.FileType_Read,
+                    Ua.MethodIds.FileType_Read,
+                    Ua.MethodIds.FileType_SetPosition,
+                    Ua.MethodIds.FileType_Close
+                }));
+            CallMethodRequest close = fixture.FirstCalls[^1];
+            Assert.That(close.InputArguments[0].TryGetValue(out uint handle), Is.True);
+            Assert.That(handle, Is.EqualTo(42u));
+            Assert.That(fixture.SecondCalls, Is.Empty);
+        }
+
+        /// <summary>
+        /// File limits take precedence over optional server limits while local and configured bounds still apply.
+        /// </summary>
+        [TestCase(1u, 8u, 8, 256, 1)]
+        [TestCase(8u, 1u, 8, 256, 8)]
+        [TestCase(8u, null, 8, 256, 8)]
+        [TestCase(8u, 0u, 8, 256, 8)]
+        [TestCase(8u, 8u, 1, 256, 1)]
+        [TestCase(8u, 8u, 8, 1, 1)]
+        [TestCase(0u, 2u, 8, 256, 2)]
+        [TestCase(null, 2u, 8, 256, 2)]
+        [TestCase(null, 0u, 8, 256, 8)]
+        [TestCase(null, null, 8, 256, 8)]
+        [TestCase(0u, null, 8, 256, 8)]
+        public async Task UpdateUsesEffectiveByteStringLimit(uint? fileLimit, uint? serverLimit, int localLimit,
+            int configuredLimit, int expectedLimit)
+        {
+            await using var fixture = new UpdateFixture(configuredLimit)
+            {
+                RequiresConfirmation = false,
+                FileByteStringLimit = fileLimit,
+                ServerByteStringLimit = serverLimit,
+                ConfigurationReadChunks = [ByteString.From(new byte[] { 7 }), ByteString.Empty]
+            };
+            ((ServiceMessageContext)fixture.First.InnerSession.MessageContext).MaxByteStringLength = localLimit;
+            await fixture.ConnectAsync().ConfigureAwait(false);
+            ConfigurationFileUpdateResult result = await fixture.UpdateAsync().ConfigureAwait(false);
+            Assert.That(result.Outcome, Is.EqualTo(ConfigurationFileUpdateOutcome.Applied));
+            CallMethodRequest[] reads = fixture.FirstCalls.Where(call => call.MethodId == Ua.MethodIds.FileType_Read)
+                .ToArray();
+            Assert.That(reads, Has.Length.EqualTo(2));
+            foreach (CallMethodRequest read in reads)
+            {
+                Assert.That(read.InputArguments[1].TryGetValue(out int length), Is.True);
+                Assert.That(length, Is.EqualTo(expectedLimit));
+            }
+            var bytes = new List<byte>();
+            foreach (CallMethodRequest write in fixture.FirstCalls.Where(
+                call => call.MethodId == Ua.MethodIds.FileType_Write))
+            {
+                Assert.That(write.InputArguments[1].TryGetValue(out ByteString data), Is.True);
+                Assert.That(data.Length, Is.InRange(1, expectedLimit));
+                bytes.AddRange(data.ToArray());
+            }
+            Assert.That(bytes.ToArray(), Is.EqualTo(UpdateFixture.Content.ToArray()));
+            Assert.That(fixture.First.Requests.OfType<ReadRequest>().SelectMany(
+                request => request.NodesToRead.ToList()).Count(node =>
+                    node.NodeId == Ua.VariableIds.Server_ServerCapabilities_MaxByteStringLength),
+                Is.EqualTo(fileLimit.GetValueOrDefault() > 0 ? 0 : 1));
+        }
+
+        /// <summary>
+        /// Genuine limit errors are surfaced before opening the file.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        public async Task UpdateRejectsInvalidLimitBeforeOpening(bool fileLimitPresent, bool malformed)
+        {
+            await using var fixture = new UpdateFixture
+            {
+                FileByteStringLimit = fileLimitPresent ? 4096u : null,
+                LimitReadStatus = malformed ? StatusCodes.Good : StatusCodes.BadUserAccessDenied,
+                MalformedLimit = malformed
+            };
+            await fixture.ConnectAsync().ConfigureAwait(false);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.UpdateAsync().ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(malformed
+                ? StatusCodes.BadTypeMismatch : StatusCodes.BadUserAccessDenied));
+            Assert.That(fixture.FirstCalls, Is.Empty);
+        }
+
+        /// <summary>
+        /// A shorter replacement is rejected before mutation because the file has no truncation operation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UpdateRejectsShorterReplacementWithoutWritingOrApplying(bool managedApplication)
+        {
+            await using var fixture = new UpdateFixture
+            {
+                RequiresConfirmation = false,
+                ConfigurationReadChunks =
+                [
+                    ByteString.From(new byte[] { 10, 20 }),
+                    ByteString.From(new byte[] { 30, 40 }),
+                    ByteString.Empty
+                ]
+            };
+            if (managedApplication)
+            {
+                fixture.ApplicationConfigurationId =
+                    new ExpandedNodeId("application", "urn:managed:configuration:namespace");
+                fixture.RegisterApplicationNamespaceOnBothGenerations();
+            }
+            await fixture.ConnectAsync().ConfigureAwait(false);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.UpdateAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.FirstCalls.Select(call => call.MethodId), Is.EqualTo(new[]
+            {
+                Ua.MethodIds.FileType_Open,
+                Ua.MethodIds.FileType_Read,
+                Ua.MethodIds.FileType_Read,
+                Ua.MethodIds.FileType_Close
+            }));
+            Assert.That(fixture.FirstCalls[^1].InputArguments[0].TryGetValue(out uint handle), Is.True);
+            Assert.That(handle, Is.EqualTo(42u));
+            Assert.That(fixture.SecondCalls, Is.Empty);
+        }
+
+        /// <summary>
+        /// Empty, equal-length, and shorter existing files allow an exact replacement upload.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public async Task UpdateAcceptsReplacementAtOrAboveExistingLength(int existingLength)
+        {
+            await using var fixture = new UpdateFixture { RequiresConfirmation = false };
+            fixture.ConfigurationReadChunks = existingLength == 0
+                ? [ByteString.Empty]
+                : [ByteString.From(new byte[existingLength]), ByteString.Empty];
+            await fixture.ConnectAsync().ConfigureAwait(false);
+            ConfigurationFileUpdateResult result = await fixture.UpdateAsync().ConfigureAwait(false);
+            Assert.That(result.Outcome, Is.EqualTo(ConfigurationFileUpdateOutcome.Applied));
+            CallMethodRequest write = fixture.FirstCalls.Single(call => call.MethodId == Ua.MethodIds.FileType_Write);
+            Assert.That(write.InputArguments[1].TryGetValue(out ByteString content), Is.True);
+            Assert.That(content, Is.EqualTo(UpdateFixture.Content));
+            Assert.That(fixture.FirstCalls.Count(call =>
+                call.MethodId == Ua.MethodIds.FileType_Read), Is.EqualTo(existingLength == 0 ? 1 : 2));
+            Assert.That(fixture.FirstCalls[^1].MethodId,
+                Is.EqualTo(Ua.MethodIds.ConfigurationFileType_CloseAndUpdate));
+            Assert.That(fixture.FirstCalls.Any(call => call.MethodId == Ua.MethodIds.FileType_Close), Is.False);
         }
 
         /// <summary>
@@ -278,7 +517,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>
             /// Creates independent transport generations with the same authorized identity and controllable clock.
             /// </summary>
-            public UpdateFixture()
+            public UpdateFixture(int configuredLimit = 256)
             {
                 First = new SessionRequestContextTestContext(securityMode: MessageSecurityMode.SignAndEncrypt);
                 First.InnerSession.PublishRequestCancelDelayOnCloseSession = 0;
@@ -313,7 +552,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     });
                 Client = new ServerPushConfigurationClient(
                     new ApplicationConfiguration(First.Telemetry) { ApplicationName = "ConfigurationUpdateTests" },
-                    new GdsClientOptions { MaxConnectAttempts = 1 }, factory.Object,
+                    new GdsClientOptions { MaxConnectAttempts = 1, FileTransferChunkSize = configuredLimit },
+                    factory.Object,
                     timeProvider: m_updateClock)
                 {
                     AdminCredentials = First.InnerSession.Identity
@@ -339,6 +579,41 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// Gets or sets whether the server requires confirmation.
             /// </summary>
             public bool RequiresConfirmation { get; set; } = true;
+
+            /// <summary>
+            /// Gets or sets the chunks returned when the client reads the existing configuration.
+            /// </summary>
+            public ByteString[] ConfigurationReadChunks { get; set; } = [ByteString.Empty];
+
+            /// <summary>
+            /// Gets or sets the read index that fails, or -1 if reads succeed.
+            /// </summary>
+            public int FailConfigurationReadAt { get; set; } = -1;
+
+            /// <summary>
+            /// Gets or sets whether resetting the file position fails.
+            /// </summary>
+            public bool FailConfigurationRewind { get; set; }
+
+            /// <summary>
+            /// Gets or sets the optional file property value, or null when that property is absent.
+            /// </summary>
+            public uint? FileByteStringLimit { get; set; } = 4096;
+
+            /// <summary>
+            /// Gets or sets the optional server maximum ByteString size, or null when absent.
+            /// </summary>
+            public uint? ServerByteStringLimit { get; set; } = 4096;
+
+            /// <summary>
+            /// Gets or sets the status returned when reading a limit property.
+            /// </summary>
+            public StatusCode LimitReadStatus { get; set; } = StatusCodes.Good;
+
+            /// <summary>
+            /// Gets or sets whether a limit property returns an unexpected value type.
+            /// </summary>
+            public bool MalformedLimit { get; set; }
 
             /// <summary>
             /// Gets or sets the update service result.
@@ -455,7 +730,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     Assert.That(translate.BrowsePaths, Has.Count.EqualTo(1));
                     string? child = translate.BrowsePaths[0].RelativePath.Elements[0].TargetName.Name;
-                    Assert.That(child, Is.EqualTo(Ua.BrowseNames.ConfigurationFile).Or.EqualTo("CurrentVersion"));
+                    Assert.That(child, Is.EqualTo(Ua.BrowseNames.ConfigurationFile).Or.EqualTo("CurrentVersion")
+                        .Or.EqualTo(Ua.BrowseNames.MaxByteStringLength));
                     Assert.That(translate.BrowsePaths[0].StartingNode,
                         Is.EqualTo(child == Ua.BrowseNames.ConfigurationFile
                             ? ExpandedNodeId.ToNodeId(
@@ -464,8 +740,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                                     : ApplicationConfigurationId,
                                 reconnected ? m_reconnected.NamespaceUris : First.InnerSession.NamespaceUris)
                             : new NodeId("configuration-file", 1)));
-                    var targetId = new ExpandedNodeId(
-                        child == Ua.BrowseNames.ConfigurationFile ? "configuration-file" : "configuration-version", 1);
+                    if (child == Ua.BrowseNames.MaxByteStringLength && !FileByteStringLimit.HasValue)
+                    {
+                        return new TranslateBrowsePathsToNodeIdsResponse
+                        {
+                            Results = [new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch }]
+                        };
+                    }
+                    var targetId = new ExpandedNodeId(child == Ua.BrowseNames.ConfigurationFile
+                        ? "configuration-file"
+                        : child == Ua.BrowseNames.MaxByteStringLength
+                            ? "configuration-limit" : "configuration-version", 1);
                     return new TranslateBrowsePathsToNodeIdsResponse
                     {
                         Results = [new BrowsePathResult
@@ -481,8 +766,41 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 if (request is ReadRequest read)
                 {
                     Assert.That(read.NodesToRead, Has.Count.EqualTo(1));
-                    Assert.That(read.NodesToRead[0].NodeId, Is.EqualTo(new NodeId("configuration-version", 1)));
-                    return new ReadResponse { Results = [new DataValue(Variant.From(7u))] };
+                    NodeId id = read.NodesToRead[0].NodeId;
+                    uint value;
+                    if (id == new NodeId("configuration-version", 1))
+                    {
+                        value = 7;
+                    }
+                    else if (id == new NodeId("configuration-limit", 1))
+                    {
+                        value = FileByteStringLimit!.Value;
+                    }
+                    else
+                    {
+                        Assert.That(id, Is.EqualTo(Ua.VariableIds.Server_ServerCapabilities_MaxByteStringLength));
+                        if (!ServerByteStringLimit.HasValue)
+                        {
+                            return new ReadResponse
+                            {
+                                Results = [new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)]
+                            };
+                        }
+                        value = ServerByteStringLimit.Value;
+                    }
+                    if (id != new NodeId("configuration-version", 1))
+                    {
+                        return new ReadResponse
+                        {
+                            Results =
+                            [
+                                new DataValue(
+                                    MalformedLimit ? Variant.From("invalid-limit") : Variant.From(value),
+                                    LimitReadStatus)
+                            ]
+                        };
+                    }
+                    return new ReadResponse { Results = [new DataValue(Variant.From(value))] };
                 }
                 if (request is not CallRequest call || call.MethodsToCall.Count != 1)
                 {
@@ -496,6 +814,34 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Assert.That(method.InputArguments[0].TryGetValue(out byte mode), Is.True);
                     Assert.That(mode, Is.EqualTo((byte)(OpenFileMode.Read | OpenFileMode.Write)));
                     outputs = [Variant.From(42u)];
+                }
+                else if (method.MethodId == Ua.MethodIds.FileType_Read)
+                {
+                    Assert.That(method.InputArguments[1].TryGetValue(out int length), Is.True);
+                    Assert.That(length, Is.Positive);
+                    if (m_configurationReadIndex == FailConfigurationReadAt)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                    }
+                    if (m_configurationReadIndex >= ConfigurationReadChunks.Length)
+                    {
+                        throw new InvalidOperationException("The client read beyond the configured end of file.");
+                    }
+                    ByteString chunk = ConfigurationReadChunks[m_configurationReadIndex++];
+                    Assert.That(chunk.Length, Is.LessThanOrEqualTo(length));
+                    outputs = [Variant.From(chunk)];
+                }
+                else if (method.MethodId == Ua.MethodIds.FileType_SetPosition)
+                {
+                    if (FailConfigurationRewind)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                    }
+                    outputs = [];
+                }
+                else if (method.MethodId == Ua.MethodIds.FileType_Close)
+                {
+                    outputs = [];
                 }
                 else if (method.MethodId == Ua.MethodIds.FileType_Write)
                 {
@@ -546,6 +892,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             /// <summary>The clock observing the restart delay rather than session teardown timers.</summary>
             private readonly DelayObservingTimeProvider m_updateClock;
+
+            /// <summary>The next configured read chunk.</summary>
+            private int m_configurationReadIndex;
         }
 
         /// <summary>

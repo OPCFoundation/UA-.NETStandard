@@ -1526,6 +1526,7 @@ namespace Opc.Ua.Server
             // Transactional: snapshot the pre-transaction store contents
             // for rollback, then stage the decoded payload instead of
             // applying it now.
+            ReleaseHandle(fileHandle, strm!);
             CertificateCollection? originalIssuerCertificates = null;
             CertificateCollection? originalTrustedCertificates = null;
             X509CRLCollection? originalIssuerCrls = null;

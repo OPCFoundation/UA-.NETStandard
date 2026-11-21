@@ -82,7 +82,7 @@ namespace Opc.Ua.Gds.Client
             }
             ThrowIfDisposed();
             SecretIdentifier identifier = GetIdentifier(registrar, applicationId, requestId);
-            string group = EncodeId(profile.CertificateGroupId);
+            string group = EncodeCertificateGroupId(profile.CertificateGroupId);
             string type = EncodeId(profile.CertificateTypeId);
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -258,6 +258,14 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Encodes the null certificate group as the Part 12 default without changing explicit group bindings.
+        /// </summary>
+        private string EncodeCertificateGroupId(NodeId id)
+        {
+            return id.IsNull ? kDefaultCertificateGroupBinding : EncodeId(id);
+        }
+
+        /// <summary>
         /// Rejects use after disposal.
         /// </summary>
         private void ThrowIfDisposed()
@@ -270,6 +278,9 @@ namespace Opc.Ua.Gds.Client
 
         /// <summary>The maximum encoded public receipt size.</summary>
         private const int kMaximumReceiptBytes = 16 * 1024 * 1024;
+
+        /// <summary>The version-1 binding for the Part 12 default application certificate group.</summary>
+        private const string kDefaultCertificateGroupBinding = "<default-application-certificate-group>";
 
         /// <summary>The borrowed secret store.</summary>
         private readonly ISecretStore m_secretStore;

@@ -97,15 +97,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
 
             db.FileName = fileName;
-            lock (db.Lock)
-            {
-                if (db.AssignServerEndpointIds())
-                {
-                    // Persist the identifiers of endpoints saved
-                    // before endpoints had an identifier.
-                    db.Save();
-                }
-            }
+            db.MigrateServerEndpointIds();
             return db;
         }
 
@@ -121,6 +113,14 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// single-file bind mount) is written in place instead.
         /// </remarks>
         public override void Save()
+        {
+            base.Save();
+        }
+
+        /// <summary>
+        /// Serializes and writes the database while the base persistence operation excludes record changes.
+        /// </summary>
+        protected override void SaveCore()
         {
             string json = JsonSerializer.Serialize(
                 this, GdsApplicationsDatabaseJsonContext.Default.JsonApplicationsDatabase);

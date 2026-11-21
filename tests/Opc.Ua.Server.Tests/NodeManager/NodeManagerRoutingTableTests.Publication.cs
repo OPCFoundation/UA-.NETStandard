@@ -268,7 +268,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 bool callbackObservedOrderedRemoval = false;
                 var publisher = new AddressSpacePublisher(
                     routes, namespaces, serverUris, types, factory,
-                    preparation.TypeTree, preparation.Factory, [prepared], [references],
+                    preparation.TypeTree, preparation.Factory, [prepared],
+                    new Dictionary<NodeState.ReferenceUpdate, NodeManagerGeneration>
+                    {
+                        [references] = routes.Next.GetGeneration(manager.Object)
+                    },
                     historianRegistrationsChanged =>
                     {
                         callbackObservedCommittedView = !ReferenceEquals(table.Revision, before) &&

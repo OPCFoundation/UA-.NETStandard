@@ -187,13 +187,10 @@ enough information to determine whether the update or confirmation completed;
 accepted.
 
 Part 12 §7.8.5.1 requires a Client to read the existing configuration and set
-the file position to the beginning before writing. The current
-`ServerPushConfigurationClient` opens for Read + Write and writes without
-calling `Read` or `SetPosition`. On this server, a Read + Write open starts
-with an empty stream; a Read-only open loads the provider's configuration.
-That local behavior does not implement the required transfer sequence, and
-the handling of shorter replacement content by other servers has not been
-established. ConfigurationFile transfer support therefore remains Partial.
+the file position to the beginning before writing.
+`ServerPushConfigurationClient` opens for Read + Write, reads existing content
+to the end, and calls `SetPosition(0)` before uploading the replacement. Both
+Read-only and Read + Write opens load the provider's current configuration.
 
 [Part 12 §7.8.5.1](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/7.8.5.1)
 permits only Open modes `0x01` and `0x03`, so the Part 20 `EraseExisting` bit
@@ -203,18 +200,20 @@ defines positional writes but not how a shorter replacement truncates a file.
 describes how a server handles configuration contents that the update does not
 target. It does not establish that the server may ignore trailing bytes in the
 targeted file.
-The shorter-replacement behavior remains unresolved.
+The client rejects a replacement shorter than the existing content with
+`Bad_NotSupported` before any write. Equal-length and longer replacements use
+the standard transfer sequence; the client does not pad configuration data or
+assume that another server discards trailing bytes.
 
 [OPC 10000-20 v1.05.06 §4.2.2](https://reference.opcfoundation.org/specs/OPC-10000-20/v1.05.06/4.2.2)
 permits multiple read handles, requires a write-open to return
 `Bad_NotWritable` while any handle is open, and requires a read-open to return
 `Bad_NotReadable` while a writer is open. Part 12's
 Read/Read + Write mode restriction does not state an exception to those
-FileType rules. `ApplicationConfigurationFile.OpenAsync` instead replaces any
-existing handle when a new open succeeds and resets `OpenCount` to 1. The
-previous handle is therefore lost; a second reader is not retained, and
-incompatible opens do not receive the required busy statuses. This is a
-separate ConfigurationFile support gap.
+FileType rules. `ApplicationConfigurationFile` retains independent read handles,
+counts them in `OpenCount`, and rejects incompatible opens with those statuses.
+Session close and inactivity expire the affected handles without replacing
+another session's open file.
 
 For a managed server, the caller creates a separate owned client and connects
 it to that application's host-selected endpoint, not the registrar endpoint.
@@ -490,13 +489,30 @@ start/stop methods.
 The worker processes one attempt at a time and copies each accepted application
 description. A full queue returns `BadTooManyOperations` without waiting; before
 startup and after shutdown, acceptance returns `BadServerHalted`. Cancelling a
-call after acceptance does not cancel its queued attempt. Host shutdown cancels
-the running processor and reports registrations that were accepted but never
-processed. Processor failures are logged with a classified application identity
-and are not retried automatically: an uncertain certificate operation must first
-be reconciled against the processor's retained request state. Queue acceptance
-does not survive process termination. Hosts requiring durable acceptance must
-supply their own `IDeviceRegistrarPushScheduler`.
+call after acceptance does not cancel its queued attempt. Without a work store,
+host shutdown reports unprocessed registrations and acceptance does not survive
+process termination. Processor failures are logged with a classified application
+identity rather than retried in a loop.
+
+For durable acceptance, register
+`AddFileSystemDeviceRegistrarPushWorkStore(checkpointPath, fileSystem)` before
+`AddDeviceRegistrarPush`. The worker persists each announcement before returning
+from acceptance, records processing before contacting the device, and removes
+the record only after processing completes. Restart restores pending work and
+requires `IDeviceRegistrarPushRecoveryProcessor.ReconcileInterruptedAsync` before
+repeating an interrupted attempt. Failed attempts remain retained for a later
+restart; a failed reconciliation does not authorize another processing attempt.
+The standard processor reads authenticated device state and retained
+enrollment, issuance, trust, and lifecycle evidence before resuming.
+
+One scheduler and store instance must exclusively own the checkpoint path.
+The filesystem store stages and flushes complete binary checkpoints, then
+publishes them through `IFileSystem.Replace`. Corrupt state, unsupported versions,
+and capacity violations reject startup or acceptance instead of discarding work.
+The selected filesystem must publish replacements indivisibly; this adapter
+does not coordinate multiple processes or guarantee power-loss durability of an
+operating-system cache. Distributed hosts need a transactional
+`IDeviceRegistrarPushWorkStore`.
 
 For an existing GDS application, the runtime records the device relation before
 refreshing shared application metadata. A conflicting relation therefore cannot
@@ -678,6 +694,7 @@ gds.AddDeviceRegistrarPushEnrollments(
     Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
     ObjectTypeIds.RsaSha256ApplicationCertificateType);
 services.AddDeviceRegistrarPushConnections(configuration, selectTarget);
+services.AddFileSystemDeviceRegistrarPushWorkStore(pushWorkCheckpointPath, fileSystem);
 services.AddDeviceRegistrarPush(capacity: 32);
 ```
 
@@ -969,11 +986,10 @@ Even with it, the result shows what the application reports; the separate
 secure-channel check is required to prove the certificate actually presented
 by a managed Server.
 
-`AddDeviceRegistrarPush` selects the bounded host-owned queue and one processor;
-register it before `AddDeviceRegistrarRuntime`. Queue acceptance remains
-process-local. After a restart or interrupted attempt, the host must reconcile
-retained registrar and device state before retrying. The queue cannot show
-whether accepted work completed. The device-side installer below supplies local
+`AddDeviceRegistrarPush` selects one processor and a host-owned queue backed by
+the explicitly registered work store; register both before
+`AddDeviceRegistrarRuntime`. Retained work distinguishes pending announcements
+from interrupted attempts that require reconciliation. The device-side installer below supplies local
 credential activation and reset, and the standard push methods bind the security
 transition and transaction-completion providers. Connected recovery fixtures
 are present; their execution status is tracked separately.
@@ -1156,9 +1172,26 @@ defines recovery when a repeated `FinishRequest` returns `Bad_InvalidArgument`
 after a network failure. A client that used `StartSigningRequest` can read the
 currently assigned certificate through `GetCertificates`; a client that used
 `StartNewKeyPairRequest` must start a new key-pair request. `PullDcaWorkflow`
-creates signing requests only. Register an `IPullDcaSigningRecoveryProvider`
+supports both paths. Register an `IPullDcaSigningRecoveryProvider`
 to enable its `GetCertificates` recovery path. Direct construction accepts the
 same optional provider.
+
+Select `PullDcaCertificateRequestMode.NewKeyPairRequest` through
+`PullDcaRequest.DcaCertificateRequestMode` or each managed application's
+`CertificateRequestMode`. The default remains `SigningRequest`.
+Register an `IPullDcaNewKeyPairCredentialProvider` before selecting key-pair
+requests; unsupported requests are rejected before connection admission.
+The workflow requests PFX output over the confidential certificate-directory
+path and passes it directly to the host's installer, then clears its returned
+private-key buffer. The installer must validate the key/certificate binding and
+retain the private key in the selected certificate or secret store. It must not
+retain that material in the public signing receipt store.
+
+`MaximumNewKeyPairRestarts` bounds replacement requests after
+`Bad_InvalidArgument`; the default permits one restart. Key-pair recovery never
+uses `GetCertificates` as a replacement for a lost private key. A process restart
+without retained key-pair output starts a new key-pair request; signing recovery
+instead resumes the original journaled request with its retained key.
 
 The workflow requests certificates for the original application and group,
 requires exactly one assignment for the original certificate type, downloads a
@@ -1197,7 +1230,7 @@ services.AddFileSystemProvisionableDeviceRegistrarStore(candidateCheckpointPath,
 services.AddProvisionableDeviceRuntime(isSingleton, ticketIds);
 ```
 
-``IProvisionableDeviceRegistrarStore.ReadAsync` returns the persisted candidates
+`IProvisionableDeviceRegistrarStore.ReadAsync` returns the persisted candidates
 as detached descriptions for the host's discovery process. The filesystem
 adapter uses the standard UA binary codec, stages and flushes a complete
 checkpoint, then publishes it through `IFileSystem.Replace`. Checkpoints are
@@ -1214,10 +1247,14 @@ Register these services with
 `.AddProvisionableDeviceRuntime(isSingleton, ticketIds)` after registering the
 ticket and persistent registrar-store providers. The owning node manager binds
 an existing `ProvisionableDeviceState` through `BindToRuntime`; singleton binding rejects separate
-`ApplicationConfiguration` components. This registration does not expose a
-device resource. Shared Part 22 Resources integration remains a source gap;
-connected recovery/reset fixtures are present, with execution status tracked
-separately.
+`ApplicationConfiguration` components. Runtime registration alone does not expose
+a device resource. `ProvisionableDeviceNodeManagerFactory` publishes the
+standard namespace-zero device identifiers through lifecycle override routing,
+while the Part 22 manager retains ownership of `Resources`, `Communication`,
+and its network model. Reference snapshots retain the published routing view
+across browse continuations and manager removal or recreation. Connected
+composition fixtures cover both factory registration orders; their presence
+does not establish a passing execution result.
 
 `ProvisionableDeviceSecurity` supplies device-side installation and reset
 orchestration with an explicit `IProvisionableDeviceSecurityInstaller`. Its
@@ -1262,8 +1299,25 @@ selected pull operation after recovery and listener activation. Its credential
 adapter reuses local identity selection and CSR generation but sends received
 material through `InstallFromPullAsync`, not through a second store writer.
 The sample requires a previously persisted registrar candidate and separately
-configured peer trust. It does not resume unfinished signing requests or
-execute a software update required by the registrar.
+configured peer trust. Its pull journal retains dispatch, request, receipt,
+installation, and installed-DCA continuation state. A separate certificate store
+retains attempt-bound signing keys without placing private keys in the public
+journal. Startup resumes a retained signing request or received credential,
+then verifies installed security before continuing `GetManagers` and
+managed-application provisioning on a session authenticated with the installed
+DCA certificate. An uncertain dispatch is not treated as an unused request and
+cannot silently switch to another registrar. The sample does not execute a
+software update required by the registrar.
+
+Hosts using this recovery path register
+`IProvisionableDevicePullInstallationJournal` before device security.
+The fluent security registration injects that journal and exposes the same
+state owner as `IProvisionableDevicePullInstallation` and
+`IProvisionableDevicePullInstallationRecovery`. Installation compares the
+attempt, registrar certificate, and received credentials before applying effects;
+recovery verifies the installed private key before recording completion.
+Reset records its intent in both security and pull state, revokes old
+deployment operations, and retires retained attempt keys after completion.
 
 Use `RequireInstalledRegistrarAsync` when access requires an already configured
 DCA. It checks the installed state and registrar trust together, without
@@ -1442,8 +1496,8 @@ without deleting installed software. Corrupt checkpoints are reported without
 being erased. The connected `OnboardingDevice` sample selects the concrete
 installer and retained factory identity, with public-only security checkpoints,
 standard network reset and an explicit local reset option. Its factory adds a
-Part 22 `Resources` parent reference to the singleton device under the shared
-Base Network manager. Connected recovery/reset fixtures are present; their
+Part 22 `Resources` parent reference to the singleton device through the shared
+lifecycle routing view alongside the Base Network manager. Connected recovery/reset fixtures are present; their
 execution status is tracked separately, and source composition alone does not
 establish successful endpoint switching, restart or reset over real
 connections. See the
@@ -1583,9 +1637,11 @@ of interoperability with an FDO Owner.
 
 ### Part 21 requirements and implementation boundaries
 
-Part 21 support remains partial because the provisionable-device factory adds
-the Part 22 `Resources` reference without integrating the shared `Resources`
-manager. The optional external-authentication handoff uses the provider boundary
+Part 21 support remains partial. Durable recovery depends on explicitly
+selected storage and installation providers, and distributed ownership and
+software installation remain host responsibilities. The provisionable-device
+factory composes with the shared Part 22 `Resources` manager through lifecycle
+routing. The optional external-authentication handoff uses the provider boundary
 described above; FDO itself remains external.
 Registrar push uses the configured certificate type by default, and
 the host can select a different advertised type for each managed application.
@@ -1603,14 +1659,14 @@ gap.
 | §§4.3.6, 7.3: security reset and return to onboarding | `ProvisionableDeviceSecurity`, retained configuration owner, concrete installer and existing `IServerConfigurationResetProvider` path | `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers installed-certificate recovery, factory reset and a replacement registrar; the test's presence does not assert a passing run |
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
-| §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
+| §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | Signing receipts and retained signing keys; bounded replacement of consumed new-key-pair requests; device pull journal, installation recovery and installed-DCA continuation | `PullDcaWorkflowTests`, `DevicePullSigningRecoveryTests`, `DevicePullReceiptRetryTests`, `DevicePullResetGenerationTests` and `ProvisionableDevicePullInstallationRecoveryTests`; exact-head execution and coverage evidence remain required |
 | §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor fixtures cover managed Client, Server and ClientAndServer paths; Server paths require host-authoritative endpoint metadata and two fresh-channel certificate proofs. `ConnectedManagedApplicationRecoveryTests.InterruptedManagedRotationReopensFilesAndResumesOnlyRetainedCertificate` covers process-durable recovery through two live servers, and `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers DCA restart/reset. These fixtures are authored; this map does not assert their execution results. |
 | §7.4: alternate authentication/FDO | Dedicated CA validation and configured product/DCA approval through `IDeviceRegistrarExternalAuthenticationProvider`; typed external pull and registrar push reuse shared registrar/Part 12 lifecycle | `ExternalAuthenticationProviderTests`, `ProvideIdentitiesRuntimeTests`, `PullDcaWorkflowTests`, `DeviceRegistrarPushProcessorTests` and enrollment recovery cases cover the handoff. `PullRegistrarIntegrationTests.ExternalHandoffOnLiveChannelRequiresDeviceApprovalBeforePart12Issuance` exercises the provider boundary on real channels with software approval gating. FDO protocols and credential installation remain external; no FDO interoperability result is asserted |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |
 | §§6.4, 9.2.11-9.2.12: accepted ticket retention across restart | `FileSystemTicketStore`, `AddFileSystemOnboardingTicketStore` | `FileSystemTicketStoreTests`; one instance owns the path, and remote execution remains required |
-| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceRuntimeTests` cover fluent registration; `ManagedApplicationPushTests` exercise the actual device factory, configuration-file recovery and authorization. The Part 22 manager owns the shared `Resources` object; a full hosted composition test remains absent. |
+| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, lifecycle override routing, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceResourcesIntegrationTests` covers connected composition in both registration orders; routing/lifecycle fixtures cover removal, recreation and reference snapshots. `ManagedApplicationPushTests` exercises device configuration-file recovery and authorization. Execution results remain separate from this source map. |
 
 [Section 8.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/8.1)
 permits vendor-specific unprotected metadata, including an RFC 3161
@@ -2341,11 +2397,11 @@ conformance units separately.
 | Item (§) | Status | Notes |
 |----------|--------|-------|
 | `ServerConfiguration.AuthorizationServices` folder (§9.6.2 / *Authorization Service Configuration Server* CU) | ❌ not exposed | A push Server does not expose the configuration folder listing trusted Authorization Services. Client access-token validation is instead handled by the pluggable [Identity Providers](IdentityProviders.md). |
-| `ConfigurationFile` transfer and FileType open handles (§7.8.5.1; Part 20 §4.2.2) | ⚠️ partial | The client does not read the existing content or rewind before writing; this server starts a Read + Write stream empty, while Read-only opens load provider content. The server replaces an existing handle on each successful new open instead of retaining multiple readers or rejecting incompatible opens with `Bad_NotWritable` / `Bad_NotReadable`. Replacement behavior for shorter content on other servers is not established. |
+| `ConfigurationFile` transfer and FileType open handles (§7.8.5.1; Part 20 §4.2.2) | ⚠️ partial | The client reads existing content and rewinds before writing. The server loads current content for Read and Read + Write, retains independent readers, and rejects incompatible opens with `Bad_NotWritable` / `Bad_NotReadable`. Shorter replacements are rejected before writing because the permitted modes supply no interoperable truncation operation. |
 | `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | 🔲 provider-gated | Runtime-backed entries bind independent certificate and trust management plus an optional per-application `ConfigurationFile` provider with update, confirmation and restart recovery. `UpdateApplicationConfigurationFileAsync` selects the same application after reconnecting. Metadata-only `IConfigurationDataStore` entries have no push handlers. The shared ConfigurationFile transfer and open-handle limitations above apply to application files too |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
-| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection and registrar runtime bindings are implemented. GDS issuance receipts and the file-backed registrar lifecycle provider retain state across restart for a single-host deployment. Push queue acceptance remains process-local. After a restart or interruption, the host must reconcile registrar and device state before retrying because the queue cannot show whether an accepted attempt completed. Connected recovery fixtures are present; their execution and interoperability results are not asserted here. |
+| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing and new-key-pair pull, ticket-scoped trust, composite-aware selection and registrar runtime bindings are implemented. Durable push work records survive restart and require reconciliation before interrupted processing resumes. Device security, pull journals and certificate stores coordinate installation, installed-DCA continuation and reset for one host. Distributed coordination and software installation remain external. Exact-head recovery and interoperability execution results are not asserted here. |
 
 ## LDS / LDS-ME (§4–5)
 

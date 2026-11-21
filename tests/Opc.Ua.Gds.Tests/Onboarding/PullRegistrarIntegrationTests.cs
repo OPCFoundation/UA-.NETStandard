@@ -24,10 +24,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -39,6 +41,7 @@ using Moq;
 using NUnit.Framework;
 using OnboardingClientSample;
 using OnboardingRegistrar;
+using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Gds.Client;
@@ -581,6 +584,137 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await DirectoryClient(m_session).StartSigningRequestAsync(
                     applicationId, profile.CertificateGroupId, profile.CertificateTypeId, csr)
                     .ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(120_000)]
+        public async Task KeyPairFinishRequiresOriginalClientCertificateAcrossReauthentication(
+            bool rotate,
+            CancellationToken ct)
+        {
+            await using var channelManager = new ClientChannelManager(m_device.Config, m_telemetry);
+            await using ManagedSession session = await new ManagedSessionBuilder(m_device.Config, m_telemetry)
+                .UseEndpoint(m_endpoint.AbsoluteUri)
+                .WithChannelManager(channelManager)
+                .ConnectAsync(ct).ConfigureAwait(false);
+            session.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
+            session.MessageContext.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
+            Assert.That(session.TransportChannel.ClientChannelCertificate, Is.EqualTo(m_identity.ToArray()));
+
+            string ticket = await WriteTicketAsync(m_signer, m_product, m_identity).ConfigureAwait(false);
+            var (_, _, applicationId, _) = await Registrar(session).ProvideIdentitiesAsync(
+                [m_identity], [], [ticket], ct).ConfigureAwait(false);
+            await m_otherSession.CloseAsync(ct).ConfigureAwait(false);
+            m_otherSession.Dispose();
+            m_otherSession = await ConnectAsync(
+                m_other, new UserIdentity("software-admin", Encoding.UTF8.GetBytes(m_password)))
+                .ConfigureAwait(false);
+            await Registrar(m_otherSession).UpdateSoftwareStatusAsync(m_product, true, "approved-keypair", ct)
+                .ConfigureAwait(false);
+
+            var profile = new PullDcaCertificateProfile(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                    session.NamespaceUris),
+                CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
+            var registrar = new PullDcaRegistrar(
+                m_endpoint,
+                ExpandedNodeId.ToNodeId(OnboardingObjectIds.DeviceRegistrar, session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris));
+            var adapter = new PullDcaConnection(session, registrar, m_telemetry, 1024 * 1024);
+            NodeId requestId = await adapter.StartNewKeyPairAsync(applicationId, profile, ct).ConfigureAwait(false);
+            Assert.That(requestId.IsNull, Is.False);
+
+            if (rotate)
+            {
+                NodeId previousSession = session.SessionId;
+                using CertificateEntry replacement = m_other.Config.CertificateManager!
+                    .AcquireApplicationCertificateByType(CoreObjectTypeIds.RsaSha256ApplicationCertificateType)!;
+                await m_device.Config.CertificateManager!.UpdateApplicationCertificateAsync(
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType, replacement.Certificate, ct: ct)
+                    .ConfigureAwait(false);
+                while (session.SessionId == previousSession ||
+                    !session.TransportChannel.ClientChannelCertificate.AsSpan().SequenceEqual(m_otherIdentity.Span))
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
+                }
+                Assert.That(session.TransportChannel.ClientChannelCertificate, Is.EqualTo(m_otherIdentity.ToArray()));
+                Assert.That(m_otherIdentity, Is.Not.EqualTo(m_identity));
+            }
+            else
+            {
+                await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(session.TransportChannel.ClientChannelCertificate, Is.EqualTo(m_identity.ToArray()));
+                });
+            }
+
+            string sourceName = m_telemetry.GetActivitySource(typeof(UaSCUaBinaryClientChannel).Assembly).Name;
+            ActivityTraceId traceId = ActivityTraceId.CreateRandom();
+            int sendEntries = 0;
+            using var listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == sourceName,
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+                ActivityStarted = activity =>
+                {
+                    if (activity.TraceId == traceId && activity.OperationName == "SendRequestAsync")
+                    {
+                        Interlocked.Increment(ref sendEntries);
+                    }
+                }
+            };
+            ActivitySource.AddActivityListener(listener);
+            using var parent = new Activity("keypair-finish");
+            parent.SetParentId(traceId, ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded);
+            parent.Start();
+            if (rotate)
+            {
+                ByteString unexpectedKey = default;
+                try
+                {
+                    ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    {
+                        (_, unexpectedKey, _) = await adapter.FinishNewKeyPairAsync(applicationId, requestId, ct)
+                            .ConfigureAwait(false);
+                    });
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                        Assert.That(Volatile.Read(ref sendEntries), Is.Zero);
+                    });
+                }
+                finally
+                {
+                    ClearReturnedPrivateKey(unexpectedKey);
+                    TestContext.Out.WriteLine(
+                        $"Rotation plus recreation Finish native send entries: {Volatile.Read(ref sendEntries)}");
+                }
+            }
+            else
+            {
+                var (certificate, privateKey, _) = await adapter.FinishNewKeyPairAsync(
+                    applicationId, requestId, ct).ConfigureAwait(false);
+                try
+                {
+                    Assert.That(certificate.IsEmpty, Is.False);
+                    Assert.That(privateKey.IsEmpty, Is.False);
+                    Assert.That(Volatile.Read(ref sendEntries), Is.GreaterThan(0));
+                }
+                finally
+                {
+                    ClearReturnedPrivateKey(privateKey);
+                }
+            }
+        }
+
+        private static void ClearReturnedPrivateKey(ByteString privateKey)
+        {
+            if (MemoryMarshal.TryGetArray(privateKey.Memory, out ArraySegment<byte> bytes) && bytes.Array != null)
+            {
+                Array.Clear(bytes.Array, bytes.Offset, bytes.Count);
+            }
         }
 
         /// <summary>

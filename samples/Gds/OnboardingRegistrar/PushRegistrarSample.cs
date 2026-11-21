@@ -239,6 +239,7 @@ namespace OnboardingRegistrar
                     "sample-push-registrar",
                     Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
                     Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            builder.Services.AddFileSystemDeviceRegistrarPushWorkStore(Path.Combine(pkiRoot, "push-work.bin"));
             builder.Services.AddDeviceRegistrarPush();
             if (sample.m_softwareManager != null)
             {

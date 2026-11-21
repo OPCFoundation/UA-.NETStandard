@@ -48,7 +48,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// proof of their installed certificate on a separate secure channel. This processor never installs software
     /// or grants a singleton authority over managed applications.
     /// </summary>
-    public sealed class DeviceRegistrarPushProcessor : IDeviceRegistrarPushProcessor, IDisposable
+    public sealed class DeviceRegistrarPushProcessor :
+        IDeviceRegistrarPushProcessor,
+        IDeviceRegistrarPushRecoveryProcessor,
+        IDisposable
     {
         /// <summary>
         /// Borrows host-selected connection, enrollment, managed application, policy, and registrar providers.
@@ -128,12 +131,65 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ArgumentNullException(nameof(application));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            ApplicationDescription snapshot = CoreUtils.Clone(application)!;
+            ApplicationDescription snapshot = DeviceRegistrarPushApplicationSnapshot.Create(application);
             ValidateApplication(snapshot);
             await m_attemptGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 await ProcessCoreAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_attemptGate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ReconcileInterruptedAsync(
+            ApplicationDescription application,
+            CancellationToken cancellationToken = default)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(DeviceRegistrarPushProcessor));
+            }
+            if (application == null)
+            {
+                throw new ArgumentNullException(nameof(application));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            ApplicationDescription snapshot = DeviceRegistrarPushApplicationSnapshot.Create(application);
+            ValidateApplication(snapshot);
+            await m_attemptGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await WithConnectionAsync(snapshot, default, async (connection, dispatch) =>
+                {
+                    ValidateConnection(snapshot, connection, dispatch.Session);
+                    _ = await ReadSingletonAsync(
+                        dispatch.Session, connection.IsSingletonId, cancellationToken).ConfigureAwait(false);
+                    ByteString peer = ReadPeer(dispatch.Session);
+                    DeviceRegistrarPushEnrollment? retained = await FindRetainedAsync(
+                        snapshot.ApplicationUri!, peer, cancellationToken).ConfigureAwait(false);
+                    if (retained == null)
+                    {
+                        return;
+                    }
+                    CertificateRequestIssuance issuance = await ReadIssuanceAsync(
+                        retained, cancellationToken).ConfigureAwait(false);
+                    if (issuance.Certificate == peer)
+                    {
+                        DeviceRegistrarDevice current = await RequireDeviceAsync(
+                            retained.Identity.ProductInstanceUri, retained.ApplicationId, cancellationToken)
+                            .ConfigureAwait(false);
+                        if (current.DcaCertificate == peer || current.PendingDcaCertificate == peer)
+                        {
+                            _ = await HoldsTrustListAsync(
+                                dispatch.Session, connection.TrustListId, retained.TrustList, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                }, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

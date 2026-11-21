@@ -46,7 +46,17 @@ namespace OnboardingDevice
         /// <summary>
         /// Opens one attempt and rejects overlapping attempts that could mutate the same device identity.
         /// </summary>
-        public async ValueTask<Attempt> BeginAsync(CancellationToken cancellationToken)
+        public ValueTask<Attempt> BeginAsync(CancellationToken cancellationToken)
+        {
+            return BeginAsync(null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Reserves the attempt before selecting a retained channel identity and opening its session.
+        /// </summary>
+        public async ValueTask<Attempt> BeginAsync(
+            Func<CancellationToken, ValueTask>? prepare,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             lock (m_gate)
@@ -61,6 +71,10 @@ namespace OnboardingDevice
             ManagedSession session;
             try
             {
+                if (prepare != null)
+                {
+                    await prepare(cancellationToken).ConfigureAwait(false);
+                }
                 session = await m_connect(cancellationToken).ConfigureAwait(false);
             }
             catch
@@ -195,5 +209,151 @@ namespace OnboardingDevice
 
         /// <summary>Whether a failed retirement prevents another attempt.</summary>
         private bool m_retirementFailed;
+    }
+
+    /// <summary>
+    /// Keeps the discovery factory's managed session on one registrar for the lifetime of an attempt.
+    /// </summary>
+    internal sealed class DevicePullSessionFactory : IManagedSessionFactory
+    {
+        /// <summary>
+        /// Wraps the standard DI factory without changing discovery or session ownership.
+        /// </summary>
+        public DevicePullSessionFactory(IManagedSessionFactory inner, ReconnectPolicyOptions reconnectOptions)
+        {
+            m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            m_reconnectOptions = reconnectOptions ?? throw new ArgumentNullException(nameof(reconnectOptions));
+        }
+
+        /// <inheritdoc/>
+        public async Task<ManagedSession> ConnectAsync(
+            ConfiguredEndpoint endpoint,
+            CancellationToken ct = default)
+        {
+            var policy = new AttemptConnectionPolicy(m_reconnectOptions);
+            ManagedSession session = await m_inner.ConnectAsync(
+                endpoint,
+                builder => builder.WithReconnectPolicy(policy).WithServerRedundancy(policy),
+                ct).ConfigureAwait(false);
+            policy.EnableReconnect();
+            return session;
+        }
+
+        /// <inheritdoc/>
+        public Task<ManagedSession> ConnectAsync(
+            ConfiguredEndpoint endpoint,
+            Action<ManagedSessionBuilder> configure,
+            CancellationToken ct = default)
+        {
+            return m_inner.ConnectAsync(endpoint, configure, ct);
+        }
+
+        /// <inheritdoc/>
+        public Task<ManagedSession> ConnectReverseAsync(
+            ReverseConnectManager manager,
+            Uri serverUri,
+            ConfiguredEndpoint endpoint,
+            CancellationToken ct = default)
+        {
+            return m_inner.ConnectReverseAsync(manager, serverUri, endpoint, ct);
+        }
+
+        /// <inheritdoc/>
+        public Task<ManagedSession> ConnectReverseAsync(
+            ReverseConnectManager manager,
+            Uri serverUri,
+            ConfiguredEndpoint endpoint,
+            Action<ManagedSessionBuilder> configure,
+            CancellationToken ct = default)
+        {
+            return m_inner.ConnectReverseAsync(manager, serverUri, endpoint, configure, ct);
+        }
+
+        /// <summary>
+        /// Preserves the first connection failure and prevents automatic redundant-server switching.
+        /// </summary>
+        private sealed class AttemptConnectionPolicy : IReconnectPolicy, IServerRedundancyHandler
+        {
+            /// <summary>
+            /// Creates the normal reconnect policy for an established attempt.
+            /// </summary>
+            public AttemptConnectionPolicy(ReconnectPolicyOptions options)
+            {
+                m_reconnect = new ReconnectPolicy(options);
+            }
+
+            /// <summary>
+            /// Enables ordinary reconnection to the already selected server.
+            /// </summary>
+            public void EnableReconnect()
+            {
+                Volatile.Write(ref m_connected, 1);
+            }
+
+            /// <inheritdoc/>
+            public TimeSpan? GetNextDelay(int attempt, CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                return Volatile.Read(ref m_connected) == 0 ? null : m_reconnect.GetNextDelay(attempt, ct);
+            }
+
+            /// <inheritdoc/>
+            public bool TryGetNextDelay(
+                int attempt,
+                StatusCode lastStatus,
+                TimeSpan? serverRetryAfter,
+                out TimeSpan? delay,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (Volatile.Read(ref m_connected) == 0)
+                {
+                    delay = null;
+                    return true;
+                }
+                return m_reconnect.TryGetNextDelay(attempt, lastStatus, serverRetryAfter, out delay, ct);
+            }
+
+            /// <inheritdoc/>
+            public void Reset()
+            {
+                m_reconnect.Reset();
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<ServerRedundancyInfo> FetchRedundancyInfoAsync(
+                ISession session,
+                CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                return new ValueTask<ServerRedundancyInfo>(s_noRedundancy);
+            }
+
+            /// <inheritdoc/>
+            public ConfiguredEndpoint? SelectFailoverTarget(
+                ServerRedundancyInfo redundancyInfo,
+                ConfiguredEndpoint currentEndpoint)
+            {
+                return null;
+            }
+
+            /// <summary>The established-session reconnect policy.</summary>
+            private readonly ReconnectPolicy m_reconnect;
+
+            /// <summary>Whether the factory has returned a connected session.</summary>
+            private int m_connected;
+
+            /// <summary>The sample does not select unconfigured redundant servers.</summary>
+            private static readonly ServerRedundancyInfo s_noRedundancy = new()
+            {
+                Mode = RedundancySupport.None
+            };
+        }
+
+        /// <summary>The standard managed-session factory.</summary>
+        private readonly IManagedSessionFactory m_inner;
+
+        /// <summary>The sample's established-session reconnect settings.</summary>
+        private readonly ReconnectPolicyOptions m_reconnectOptions;
     }
 }

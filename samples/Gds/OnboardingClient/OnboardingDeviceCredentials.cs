@@ -23,12 +23,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using OnboardingDevice;
 using Opc.Ua;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
@@ -80,6 +82,9 @@ namespace OnboardingClientSample
     internal sealed class OnboardingDeviceCredentials :
         IPullDcaIdentityProvider,
         IPullDcaCredentialProvider,
+        IPullDcaNewKeyPairCredentialProvider,
+        IPullDcaBoundCredentialProvider,
+        IPullDcaSigningKeyEvidenceProvider,
         IPullDcaSigningRecoveryProvider,
         IPullDcaSigningRequestObserver
     {
@@ -169,7 +174,44 @@ namespace OnboardingClientSample
                 DefaultCertificateFactory.Instance.CreateSigningRequest(entry.Certificate));
             m_applicationId = applicationId;
             m_profile = profile;
+            m_signingCertificate = ByteString.From(entry.Certificate.RawData.AsSpan());
+            m_signingRequest = ByteString.From(csr.Span);
             return csr;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ByteString> GetSigningKeyCertificateAsync(
+            NodeId applicationId,
+            PullDcaCertificateProfile profile,
+            ByteString signingRequest,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_journal == null)
+            {
+                if (applicationId != m_applicationId || profile != m_profile ||
+                    signingRequest != m_signingRequest || m_signingCertificate.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                }
+                return ByteString.From(m_signingCertificate.Span);
+            }
+            SigningJournal journal = EnterJournal();
+            try
+            {
+                JournalEntry entry = await ReadEntryAsync(journal, cancellationToken).ConfigureAwait(false) ??
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                if (entry.ApplicationId != applicationId || entry.Profile != profile ||
+                    entry.SigningRequest != signingRequest)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                }
+                return ByteString.From(entry.SigningCertificate.Span);
+            }
+            finally
+            {
+                ExitJournal();
+            }
         }
 
         /// <summary>
@@ -265,6 +307,390 @@ namespace OnboardingClientSample
             using Certificate combined = DefaultCertificateFactory.Instance.CreateWithPrivateKey(
                 issued, key.Certificate);
             await InstallCombinedAsync(issued, combined, credentials, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask InstallNewKeyPairAsync(
+            NodeId applicationId,
+            PullDcaCertificateProfile profile,
+            PullDcaCredentials credentials,
+            ByteString privateKeyPfx,
+            CancellationToken cancellationToken = default)
+        {
+            if (profile == null)
+            {
+                throw new ArgumentNullException(nameof(profile));
+            }
+            if (credentials == null)
+            {
+                throw new ArgumentNullException(nameof(credentials));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (applicationId.IsNull || profile.CertificateGroupId.IsNull ||
+                profile.CertificateTypeId != ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                (!m_applicationId.IsNull && (m_applicationId != applicationId || m_profile != profile)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadRequestNotAllowed, "This sample credential provider serves one RSA DCA.");
+            }
+            if (credentials.Certificate.IsEmpty || privateKeyPfx.IsEmpty)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+            }
+
+            using Certificate issued = Certificate.FromRawData(credentials.Certificate);
+            if (!X509Utils.GetApplicationUrisFromCertificate(issued).Contains(m_configuration.ApplicationUri) ||
+                !CertificateIdentifier.ValidateCertificateType(
+                    issued, ObjectTypeIds.RsaSha256ApplicationCertificateType))
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+            byte[] pfxBytes = privateKeyPfx.ToArray();
+            try
+            {
+                using Certificate returnedKeyPair = X509Utils.CreateCertificateFromPKCS12(
+                    pfxBytes, ReadOnlySpan<char>.Empty);
+                if (!returnedKeyPair.HasPrivateKey ||
+                    !returnedKeyPair.RawData.AsSpan().SequenceEqual(issued.RawData))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The returned PFX does not contain the issued certificate and its private key.");
+                }
+                using Certificate combined = DefaultCertificateFactory.Instance.CreateWithPrivateKey(
+                    issued, returnedKeyPair);
+                await InstallCombinedAsync(issued, combined, credentials, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                Array.Clear(pfxBytes, 0, pfxBytes.Length);
+            }
+            m_applicationId = applicationId;
+            m_profile = profile;
+        }
+
+        /// <summary>
+        /// Binds standalone installation to the received attempt and records completion after verifying applied stores.
+        /// </summary>
+        public async ValueTask InstallAsync(
+            PullDcaSigningBinding binding,
+            PullDcaCredentials credentials,
+            CancellationToken cancellationToken = default)
+        {
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            if (credentials == null)
+            {
+                throw new ArgumentNullException(nameof(credentials));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            credentials = SnapshotCredentials(credentials);
+            DevicePullJournal? journal = m_pullJournal;
+            if (journal == null)
+            {
+                await InstallAsync(binding.ApplicationId, credentials, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            EnterPullInstallation();
+            try
+            {
+                using CertificateCollection registrar = DefaultCertificateFactory.Instance.ParseChainBlob(
+                    binding.RegistrarChannelCertificate.Memory);
+                if (registrar.Count == 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                }
+                ByteString leaf = ByteString.From(registrar[0].RawData.AsSpan());
+                await journal.RequireReceivedAsync(binding.AttemptId, leaf, credentials, cancellationToken)
+                    .ConfigureAwait(false);
+                await InstallAsync(binding.ApplicationId, credentials, cancellationToken).ConfigureAwait(false);
+                if (!await HasAppliedPullCredentialsAsync(credentials, cancellationToken).ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed, "The applied credentials do not match the pull receipt.");
+                }
+                await journal.RecordInstalledAsync(binding.AttemptId, leaf, credentials, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                Volatile.Write(ref m_pullInstallationActive, 0);
+            }
+        }
+
+        /// <summary>
+        /// Selects the durable public channel and receipt journal used by this standalone host.
+        /// </summary>
+        internal void UsePullJournal(DevicePullJournal journal)
+        {
+            m_pullJournal = journal ?? throw new ArgumentNullException(nameof(journal));
+        }
+
+        /// <summary>
+        /// Promotes a received receipt only when the application certificate and every trust-store set already match.
+        /// </summary>
+        internal async ValueTask<bool> RecoverAppliedPullReceiptAsync(
+            DevicePullJournalCheckpoint checkpoint,
+            CancellationToken cancellationToken)
+        {
+            if (checkpoint == null)
+            {
+                throw new ArgumentNullException(nameof(checkpoint));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (checkpoint.Stage is not (DevicePullJournalStage.Received or DevicePullJournalStage.Installed))
+            {
+                return false;
+            }
+            PullDcaCredentials credentials = SnapshotCredentials(checkpoint.Credentials ??
+                throw new InvalidDataException("The retained receipt has no complete credentials."));
+            using Certificate receivedCertificate = Certificate.FromRawData(credentials.Certificate);
+            using Certificate retainedSigningKey = Certificate.FromRawData(checkpoint.Binding.SigningKeyCertificate);
+            if (!X509Utils.GetApplicationUrisFromCertificate(receivedCertificate)
+                .Contains(m_configuration.ApplicationUri))
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid);
+            }
+            if (!CertificateIdentifier.ValidateCertificateType(
+                receivedCertificate, ObjectTypeIds.RsaSha256ApplicationCertificateType))
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+            if (!HasSamePublicKey(receivedCertificate, retainedSigningKey))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The retained receipt differs from the signing attempt.");
+            }
+            EnterPullInstallation();
+            try
+            {
+                bool applied = await HasAppliedPullCredentialsAsync(credentials, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!applied)
+                {
+                    applied = await CompleteStoredPullActivationAsync(
+                        checkpoint.Binding, credentials, cancellationToken).ConfigureAwait(false);
+                }
+                if (!applied)
+                {
+                    if (checkpoint.Stage == DevicePullJournalStage.Installed)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The installed pull receipt does not match the stores.");
+                    }
+                    return false;
+                }
+                using CertificateCollection registrar = DefaultCertificateFactory.Instance.ParseChainBlob(
+                    checkpoint.Binding.RegistrarChannelCertificate.Memory);
+                if (registrar.Count == 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                }
+                DevicePullJournal journal = m_pullJournal ??
+                    throw new InvalidOperationException("The durable pull journal is not configured.");
+                await journal.RecordInstalledAsync(
+                    checkpoint.Binding.AttemptId,
+                    ByteString.From(registrar[0].RawData.AsSpan()),
+                    credentials,
+                    cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+            finally
+            {
+                Volatile.Write(ref m_pullInstallationActive, 0);
+            }
+        }
+
+        /// <summary>
+        /// Compares installed public material and the retained private key with the exact received credentials.
+        /// </summary>
+        private async ValueTask<bool> HasAppliedPullCredentialsAsync(
+            PullDcaCredentials credentials,
+            CancellationToken cancellationToken)
+        {
+            using CertificateEntry? identity = m_manager.AcquireApplicationCertificateByType(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            if (identity == null || !identity.Certificate.HasPrivateKey ||
+                !identity.Certificate.RawData.AsSpan().SequenceEqual(credentials.Certificate.Span))
+            {
+                return false;
+            }
+            using Certificate? persisted = await FindPersistedPullIdentityAsync(identity.Certificate, cancellationToken)
+                .ConfigureAwait(false);
+            if (persisted == null || !persisted.HasPrivateKey ||
+                !persisted.RawData.AsSpan().SequenceEqual(credentials.Certificate.Span))
+            {
+                return false;
+            }
+            if (!X509Utils.VerifyKeyPair(identity.Certificate, persisted))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The persisted DCA private key does not match its certificate.");
+            }
+            using CertificateCollection expectedChain = await ValidateChainAsync(
+                identity.Certificate, credentials, cancellationToken).ConfigureAwait(false);
+            using TrustListData applied = await m_manager.ReadTrustListAsync(
+                TrustListIdentifier.Peers, TrustListMasks.All, cancellationToken).ConfigureAwait(false);
+            using TrustListData expected = DecodeTrustList(credentials.TrustList);
+            return SameMaterial(identity.IssuerChain.Select(certificate => certificate.RawData),
+                    expectedChain.Skip(1).Select(certificate => certificate.RawData)) &&
+                SameTrustMaterial(applied, expected);
+        }
+
+        /// <summary>
+        /// Completes interrupted activation only from an exact persisted key pair and matching complete trust stores.
+        /// </summary>
+        private async ValueTask<bool> CompleteStoredPullActivationAsync(
+            PullDcaSigningBinding binding,
+            PullDcaCredentials credentials,
+            CancellationToken cancellationToken)
+        {
+            using Certificate issued = Certificate.FromRawData(credentials.Certificate);
+            CertificateIdentifier current = GetIdentifier();
+            using Certificate? persisted = await FindPersistedPullIdentityAsync(issued, cancellationToken)
+                .ConfigureAwait(false);
+            if (persisted == null || !persisted.HasPrivateKey ||
+                !persisted.RawData.AsSpan().SequenceEqual(credentials.Certificate.Span))
+            {
+                return false;
+            }
+            if (!X509Utils.VerifyKeyPair(issued, persisted))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The persisted DCA private key does not match its certificate.");
+            }
+            using Certificate signingKey = Certificate.FromRawData(binding.SigningKeyCertificate);
+            if (!HasSamePublicKey(persisted, signingKey))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The persisted key pair differs from the signing attempt.");
+            }
+            using CertificateCollection chain = await ValidateChainAsync(
+                issued, credentials, cancellationToken).ConfigureAwait(false);
+            using TrustListData applied = await m_manager.ReadTrustListAsync(
+                TrustListIdentifier.Peers, TrustListMasks.All, cancellationToken).ConfigureAwait(false);
+            using TrustListData expected = DecodeTrustList(credentials.TrustList);
+            if (!SameTrustMaterial(applied, expected))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The persisted issued key pair has different trust stores; recovery did not replace them.");
+            }
+            using var issuers = new CertificateCollection();
+            for (int i = 1; i < chain.Count; i++)
+            {
+                issuers.Add(chain[i]);
+            }
+            await m_manager.UpdateApplicationCertificateAsync(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType, persisted, issuers, cancellationToken)
+                .ConfigureAwait(false);
+            current.RawData = null;
+            current.Thumbprint = persisted.Thumbprint;
+            current.SubjectName = persisted.Subject;
+            if (!await HasAppliedPullCredentialsAsync(credentials, cancellationToken).ConfigureAwait(false))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The completed activation does not match the pull receipt.");
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Reopens the exact receipt identity from the configured application certificate store.
+        /// </summary>
+        private ValueTask<Certificate?> FindPersistedPullIdentityAsync(
+            Certificate issued,
+            CancellationToken cancellationToken)
+        {
+            CertificateIdentifier current = GetIdentifier();
+            var identifier = new CertificateIdentifier
+            {
+                StoreType = current.StoreType,
+                StorePath = current.StorePath,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                Thumbprint = issued.Thumbprint
+            };
+            return m_manager.CertificateProvider.GetPrivateKeyCertificateAsync(
+                identifier, m_configuration.SecurityConfiguration.CertificatePasswordProvider,
+                ct: cancellationToken);
+        }
+
+        /// <summary>
+        /// Compares every certificate and CRL store set without relying on enumeration order.
+        /// </summary>
+        private static bool SameTrustMaterial(TrustListData applied, TrustListData expected)
+        {
+            return SameMaterial(applied.TrustedCertificates.Select(certificate => certificate.RawData),
+                    expected.TrustedCertificates.Select(certificate => certificate.RawData)) &&
+                SameMaterial(applied.IssuerCertificates.Select(certificate => certificate.RawData),
+                    expected.IssuerCertificates.Select(certificate => certificate.RawData)) &&
+                SameMaterial(applied.TrustedCrls.Select(crl => crl.RawData),
+                    expected.TrustedCrls.Select(crl => crl.RawData)) &&
+                SameMaterial(applied.IssuerCrls.Select(crl => crl.RawData),
+                    expected.IssuerCrls.Select(crl => crl.RawData));
+        }
+
+        /// <summary>
+        /// Compares complete certificate or CRL sets independently of store enumeration order.
+        /// </summary>
+        private static bool SameMaterial(IEnumerable<byte[]> actual, IEnumerable<byte[]> expected)
+        {
+            return actual.Select(Convert.ToBase64String).OrderBy(value => value, StringComparer.Ordinal)
+                .SequenceEqual(expected.Select(Convert.ToBase64String)
+                    .OrderBy(value => value, StringComparer.Ordinal));
+        }
+
+        /// <summary>
+        /// Detaches every credential byte array before installation awaits journal or store operations.
+        /// </summary>
+        private static PullDcaCredentials SnapshotCredentials(PullDcaCredentials credentials)
+        {
+            TrustListDataType trust = credentials.TrustList ??
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "A complete trust list is required.");
+            return new PullDcaCredentials(
+                ByteString.From(credentials.Certificate.Span),
+                CopyBytes(credentials.IssuerCertificates),
+                new TrustListDataType
+                {
+                    SpecifiedLists = trust.SpecifiedLists,
+                    TrustedCertificates = CopyBytes(trust.TrustedCertificates),
+                    IssuerCertificates = CopyBytes(trust.IssuerCertificates),
+                    TrustedCrls = CopyBytes(trust.TrustedCrls),
+                    IssuerCrls = CopyBytes(trust.IssuerCrls)
+                });
+        }
+
+        /// <summary>
+        /// Copies each byte string while preserving OPC UA null-array semantics.
+        /// </summary>
+        private static ArrayOf<ByteString> CopyBytes(ArrayOf<ByteString> values)
+        {
+            if (values.IsNull)
+            {
+                return default;
+            }
+            var detached = new ByteString[values.Count];
+            for (int i = 0; i < detached.Length; i++)
+            {
+                detached[i] = values[i].IsNull ? default : ByteString.From(values[i].Span);
+            }
+            return detached;
+        }
+
+        /// <summary>
+        /// Rejects overlapping standalone installation or interrupted-install verification.
+        /// </summary>
+        private void EnterPullInstallation()
+        {
+            if (Interlocked.CompareExchange(ref m_pullInstallationActive, 1, 0) != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "A pull installation is already active.");
+            }
         }
 
         /// <summary>
@@ -966,8 +1392,20 @@ namespace OnboardingClientSample
         /// <summary>The original certificate group/type selected for the retained DCA request.</summary>
         private PullDcaCertificateProfile? m_profile;
 
+        /// <summary>The public certificate of the key used for the last non-journaled CSR.</summary>
+        private ByteString m_signingCertificate;
+
+        /// <summary>The last non-journaled CSR, used to identify its key evidence.</summary>
+        private ByteString m_signingRequest;
+
         /// <summary>The opt-in request journal, or null to keep the identity-key behavior.</summary>
         private SigningJournal? m_journal;
+
+        /// <summary>The retained public channel and credential receipt for this standalone DCA.</summary>
+        private DevicePullJournal? m_pullJournal;
+
+        /// <summary>Excludes another installation while exact applied state is checked and recorded.</summary>
+        private int m_pullInstallationActive;
 
         /// <summary>One while a journal operation runs.</summary>
         private int m_journalBusy;

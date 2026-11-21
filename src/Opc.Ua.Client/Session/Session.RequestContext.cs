@@ -94,8 +94,9 @@ namespace Opc.Ua.Client
                     channel,
                     original.m_configuration,
                     new ConfiguredEndpoint(null,
-                        CoreUtils.Clone(original.ConfiguredEndpoint.Description)!,
-                        CoreUtils.Clone(original.ConfiguredEndpoint.Configuration)),
+                        SessionRequestContext.SnapshotEndpoint(original.ConfiguredEndpoint.Description),
+                        SessionRequestContext.SnapshotEndpointConfiguration(
+                            original.ConfiguredEndpoint.Configuration)),
                     channel.MessageContext,
                     original.SubscriptionEngineFactory,
                     original.m_timeProvider,
@@ -139,8 +140,9 @@ namespace Opc.Ua.Client
                 ServerCapabilities.MaxSelectClauseParameters = original.ServerCapabilities.MaxSelectClauseParameters;
                 ServerCapabilities.MaxWhereClauseParameters = original.ServerCapabilities.MaxWhereClauseParameters;
                 ServerCapabilities.MaxMonitoredItemsQueueSize = original.ServerCapabilities.MaxMonitoredItemsQueueSize;
-                SessionCreated(configuration.SessionId, configuration.AuthenticationToken);
-                m_systemContext.SessionId = configuration.SessionId;
+                NodeId sessionId = SessionRequestContext.SnapshotNodeId(configuration.SessionId);
+                SessionCreated(sessionId, SessionRequestContext.SnapshotNodeId(configuration.AuthenticationToken));
+                m_systemContext.SessionId = sessionId;
                 m_systemContext.UserIdentity = configuration.Identity;
             }
 

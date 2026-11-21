@@ -30,12 +30,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Tests.SessionContexts;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Onboarding;
 using Opc.Ua.Tests;
@@ -116,9 +118,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(fixture.Calls, Is.EqualTo(s_fullWorkflowCalls));
             Assert.That(fixture.Host.ActivatedIdentity, Is.EqualTo(kIdentity));
-            Assert.That(fixture.Host.SoftwareIdentity, Is.SameAs(result.Identity));
-            Assert.That(fixture.Host.SoftwareManager, Is.SameAs(manager));
-            Assert.That(fixture.Host.SoftwareRegistrar, Is.SameAs(kRegistrar));
+            Assert.That(fixture.Host.SoftwareIdentity, Is.Not.SameAs(result.Identity));
+            Assert.That(fixture.Host.SoftwareIdentity!.ApplicationId, Is.EqualTo(result.Identity.ApplicationId));
+            Assert.That(fixture.Host.SoftwareIdentity.SelectedIdentity, Is.EqualTo(result.Identity.SelectedIdentity));
+            Assert.That(fixture.Host.SoftwareManager, Is.Not.SameAs(manager));
+            Assert.That(fixture.Host.SoftwareManager!.PurposeUri, Is.EqualTo(manager.PurposeUri));
+            Assert.That(fixture.Host.SoftwareRegistrar, Is.EqualTo(kRegistrar));
             Assert.That(fixture.Connection.Offer, Is.Not.SameAs(request.IdentityOffer));
             Assert.That(fixture.Connection.Offer, Is.EqualTo(request.IdentityOffer));
             Assert.That(fixture.Connection.RegisteredApplication, Is.Not.SameAs(application));
@@ -127,7 +132,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(application.Application.ApplicationUri));
             Assert.That(fixture.Connection.RegisteredApplication.ProtocolUri, Is.EqualTo(application.ProtocolUri));
             Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
-            Assert.That(result.DcaCredentials.TrustList, Is.SameAs(fixture.Connection.TrustList));
+            Assert.That(result.DcaCredentials.TrustList, Is.Not.SameAs(fixture.Connection.TrustList));
             Assert.That(result.Managers, Is.EqualTo(fixture.Connection.Managers));
             Assert.That(result.ManagedApplications.Count, Is.EqualTo(1));
             Assert.That(result.ManagedApplications[0].ApplicationId, Is.EqualTo(kManagedId));
@@ -136,6 +141,855 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             PullDcaProgress pending = progress.Items.First(p => p.Stage == PullDcaStage.FinishingCertificate);
             Assert.That(pending.ApplicationId, Is.EqualTo(kDcaId));
             Assert.That(pending.RequestId, Is.EqualTo(kRequestId));
+        }
+
+        [Test]
+        public async Task ProgressCannotMutateOpaqueIdentifiersUsedForCertificateCompletion()
+        {
+            var fixture = new Fixture();
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1);
+            int mutations = 0;
+            var progress = new ProgressRecorder
+            {
+                OnReport = value =>
+                {
+                    if (value.Stage == PullDcaStage.FinishingCertificate)
+                    {
+                        MutateOpaqueIdentifier(value.ApplicationId);
+                        MutateOpaqueIdentifier(value.RequestId);
+                        mutations++;
+                    }
+                }
+            };
+
+            await fixture.Create().CompleteCertificateRequestAsync(
+                kRegistrar, applicationId, requestId, kProfile, progress).ConfigureAwait(false);
+
+            Assert.That(mutations, Is.EqualTo(1));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { requestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
+        [Test]
+        public async Task IdentityProviderCannotMutateSelectedIdentity()
+        {
+            var fixture = new Fixture();
+            fixture.Host.OnActivate = MutateBytes;
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            Assert.That(result.Identity.SelectedIdentity, Is.EqualTo(kIdentity));
+        }
+
+        [Test]
+        public async Task SoftwareUpdateProviderCannotMutateActiveRegistrarOrIdentity()
+        {
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(new byte[] { 5, 6 }), 1);
+            var fixture = new Fixture();
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                ApplicationId = applicationId,
+                SoftwareUpdateManager = new ManagerDescription()
+            };
+            fixture.Host.OnSoftwareUpdate = (receivedRegistrar, identity, _) =>
+            {
+                MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
+                MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
+                MutateOpaqueIdentifier(identity.ApplicationId);
+                MutateBytes(identity.SelectedIdentity);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(registrar, CreateRequest()).ConfigureAwait(false);
+
+            Assert.That(fixture.ConnectedRegistrar, Is.EqualTo(registrar));
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+            Assert.That(result.Identity.SelectedIdentity, Is.EqualTo(kIdentity));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
+        /// <summary>
+        /// Connection and provider mutations do not alter the selected software-update manager.
+        /// </summary>
+        [Test]
+        public async Task SoftwareUpdateManagerIsDetachedFromConnectionAndProvider()
+        {
+            var fixture = new Fixture();
+            var translations = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["en"] = "Manager {0}"
+            };
+            object[] arguments = ["original"];
+            string[] endpoints = ["opc.tcp://original:4840"];
+            var manager = new ManagerDescription
+            {
+                Name = new LocalizedText(translations, new TranslationInfo("manager", "en", "Manager {0}", arguments)),
+                IsRequired = true,
+                PurposeUri = "urn:original:purpose",
+                ProtocolUri = "urn:original:protocol",
+                EndpointUrls = endpoints
+            };
+            fixture.Connection.Selection = fixture.Connection.Selection with { SoftwareUpdateManager = manager };
+            fixture.Host.OnActivate = _ =>
+            {
+                translations["en"] = "Changed {0}";
+                arguments[0] = "changed";
+                endpoints[0] = "opc.tcp://changed:4840";
+                manager.PurposeUri = "urn:changed:purpose";
+            };
+            fixture.Host.OnSoftwareUpdate = (_, identity, receivedManager) =>
+            {
+                Assert.That(identity.SoftwareUpdateManager, Is.SameAs(receivedManager));
+                Assert.That(receivedManager.Name.FilterByPreferredLocales(["en"]).Text,
+                    Is.EqualTo("Manager original"));
+                Assert.That(receivedManager.EndpointUrls[0], Is.EqualTo("opc.tcp://original:4840"));
+                Assert.That(receivedManager.PurposeUri, Is.EqualTo("urn:original:purpose"));
+                receivedManager.Name = new LocalizedText("Provider changed");
+                receivedManager.EndpointUrls = ["opc.tcp://provider:4840"];
+                receivedManager.PurposeUri = "urn:provider:purpose";
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            ManagerDescription selected = result.Identity.SoftwareUpdateManager!;
+            Assert.That(selected.Name.FilterByPreferredLocales(["en"]).Text, Is.EqualTo("Manager original"));
+            Assert.That(selected.EndpointUrls[0], Is.EqualTo("opc.tcp://original:4840"));
+            Assert.That(selected.PurposeUri, Is.EqualTo("urn:original:purpose"));
+            Assert.That(selected.ProtocolUri, Is.EqualTo("urn:original:protocol"));
+            Assert.That(selected.IsRequired, Is.True);
+        }
+
+        /// <summary>
+        /// Extended manager descriptions are not silently truncated during snapshotting.
+        /// </summary>
+        [Test]
+        public async Task DerivedSoftwareUpdateManagerIsRejectedBeforeActivation()
+        {
+            var fixture = new Fixture();
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                SoftwareUpdateManager = new DerivedManagerDescription()
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.Calls, Is.EqualTo(s_connectProvideCalls));
+        }
+
+        /// <summary>
+        /// The connection and software-update provider cannot mutate the retained ticket or its nested data.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MatchingTicketIsDetachedFromConnectionAndProvider(bool composite)
+        {
+            var fixture = new Fixture();
+            byte[] authorityBytes = [1, 2];
+            byte[] issuerBytes = [3, 4];
+            string[] devices = ["urn:device"];
+            string[] composites = ["urn:composite"];
+            BaseTicketType ticket = composite
+                ? new CompositeIdentityTicketType
+                {
+                    CompositeInstanceUri = "urn:original",
+                    Devices = devices,
+                    Composites = composites
+                }
+                : new DeviceIdentityTicketType { ProductInstanceUri = "urn:original" };
+            ticket.ManufacturerName = "manufacturer";
+            ticket.ModelName = "model";
+            ticket.ModelVersion = "model version";
+            ticket.HardwareRevision = "hardware";
+            ticket.SoftwareRevision = "software";
+            ticket.SerialNumber = "original";
+            ticket.ManufactureDate = new DateTime(2020, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+            ticket.Authorities = [new CertificateAuthorityType
+            {
+                AuthorityCertificate = ByteString.From(authorityBytes),
+                IssuerCertificates = [ByteString.From(issuerBytes)]
+            }];
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                MatchingTicket = ticket,
+                SoftwareUpdateManager = new ManagerDescription()
+            };
+            fixture.Host.OnActivate = _ =>
+            {
+                ticket.SerialNumber = "connection changed";
+                authorityBytes[0] = 9;
+                issuerBytes[0] = 9;
+                devices[0] = "urn:connection";
+                composites[0] = "urn:connection";
+            };
+            fixture.Host.OnSoftwareUpdate = (_, identity, _) =>
+            {
+                BaseTicketType received = identity.MatchingTicket;
+                Assert.That(received.SerialNumber, Is.EqualTo("original"));
+                Assert.That(received.Authorities[0].AuthorityCertificate,
+                    Is.EqualTo(ByteString.From(new byte[] { 1, 2 })));
+                Assert.That(received.Authorities[0].IssuerCertificates[0],
+                    Is.EqualTo(ByteString.From(new byte[] { 3, 4 })));
+                if (received is CompositeIdentityTicketType receivedComposite)
+                {
+                    Assert.That(receivedComposite.Devices[0], Is.EqualTo("urn:device"));
+                    Assert.That(receivedComposite.Composites[0], Is.EqualTo("urn:composite"));
+                    receivedComposite.Devices = ["urn:provider"];
+                }
+                received.SerialNumber = "provider changed";
+                MutateBytes(received.Authorities[0].AuthorityCertificate);
+                MutateBytes(received.Authorities[0].IssuerCertificates[0]);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            BaseTicketType selected = result.Identity.MatchingTicket;
+            Assert.That(selected.SerialNumber, Is.EqualTo("original"));
+            Assert.That(selected.ManufacturerName, Is.EqualTo("manufacturer"));
+            Assert.That(selected.ModelName, Is.EqualTo("model"));
+            Assert.That(selected.ModelVersion, Is.EqualTo("model version"));
+            Assert.That(selected.HardwareRevision, Is.EqualTo("hardware"));
+            Assert.That(selected.SoftwareRevision, Is.EqualTo("software"));
+            Assert.That(selected.ManufactureDate, Is.EqualTo(new DateTime(2020, 1, 2, 0, 0, 0, DateTimeKind.Utc)));
+            Assert.That(selected.Authorities[0].AuthorityCertificate,
+                Is.EqualTo(ByteString.From(new byte[] { 1, 2 })));
+            Assert.That(selected.Authorities[0].IssuerCertificates[0],
+                Is.EqualTo(ByteString.From(new byte[] { 3, 4 })));
+            if (composite)
+            {
+                Assert.That(selected, Is.TypeOf<CompositeIdentityTicketType>());
+                var selectedComposite = (CompositeIdentityTicketType)selected;
+                Assert.That(selectedComposite.CompositeInstanceUri, Is.EqualTo("urn:original"));
+                Assert.That(selectedComposite.Devices[0], Is.EqualTo("urn:device"));
+                Assert.That(selectedComposite.Composites[0], Is.EqualTo("urn:composite"));
+            }
+            else
+            {
+                Assert.That(selected, Is.TypeOf<DeviceIdentityTicketType>());
+                Assert.That(((DeviceIdentityTicketType)selected).ProductInstanceUri, Is.EqualTo("urn:original"));
+            }
+        }
+
+        /// <summary>
+        /// Ticket and authority extensions must not be silently truncated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DerivedTicketOrAuthorityIsRejectedBeforeActivation(bool derivedAuthority)
+        {
+            var fixture = new Fixture();
+            BaseTicketType ticket = derivedAuthority
+                ? new DeviceIdentityTicketType { Authorities = [new DerivedCertificateAuthority()] }
+                : new DerivedDeviceIdentityTicket();
+            fixture.Connection.Selection = fixture.Connection.Selection with { MatchingTicket = ticket };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.Calls, Is.EqualTo(s_connectProvideCalls));
+        }
+
+        /// <summary>
+        /// An invalid null ticket authority is rejected before identity activation.
+        /// </summary>
+        [Test]
+        public async Task NullTicketAuthorityIsRejectedBeforeActivation()
+        {
+            var fixture = new Fixture();
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                MatchingTicket = new DeviceIdentityTicketType { Authorities = [null!] }
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fixture.Calls, Is.EqualTo(s_connectProvideCalls));
+        }
+
+        /// <summary>
+        /// Ticket array snapshots preserve the values exposed by generated setters.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MatchingTicketPreservesGeneratedArrayValues(bool isNull)
+        {
+            var fixture = new Fixture();
+            var ticket = new CompositeIdentityTicketType
+            {
+                Authorities = isNull ? default : ArrayOf<CertificateAuthorityType>.Empty,
+                Devices = isNull ? default : ArrayOf<string>.Empty,
+                Composites = isNull ? default : ArrayOf<string>.Empty
+            };
+            bool authoritiesAreNull = ticket.Authorities.IsNull;
+            bool devicesAreNull = ticket.Devices.IsNull;
+            bool compositesAreNull = ticket.Composites.IsNull;
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                MatchingTicket = ticket,
+                SoftwareUpdateManager = new ManagerDescription()
+            };
+            fixture.Host.OnSoftwareUpdate = (_, identity, _) =>
+            {
+                var received = (CompositeIdentityTicketType)identity.MatchingTicket;
+                Assert.That(received.Authorities.IsNull, Is.EqualTo(authoritiesAreNull));
+                Assert.That(received.Devices.IsNull, Is.EqualTo(devicesAreNull));
+                Assert.That(received.Composites.IsNull, Is.EqualTo(compositesAreNull));
+                Assert.That(received.Authorities.Count, Is.Zero);
+                Assert.That(received.Devices.Count, Is.Zero);
+                Assert.That(received.Composites.Count, Is.Zero);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            var selected = (CompositeIdentityTicketType)result.Identity.MatchingTicket;
+            Assert.That(selected.Authorities.IsNull, Is.EqualTo(authoritiesAreNull));
+            Assert.That(selected.Devices.IsNull, Is.EqualTo(devicesAreNull));
+            Assert.That(selected.Composites.IsNull, Is.EqualTo(compositesAreNull));
+            Assert.That(selected.Authorities.Count, Is.Zero);
+            Assert.That(selected.Devices.Count, Is.Zero);
+            Assert.That(selected.Composites.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Issuer array snapshots preserve the values exposed by generated setters.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MatchingTicketPreservesGeneratedAuthorityIssuers(bool isNull)
+        {
+            var fixture = new Fixture();
+            var authority = new CertificateAuthorityType
+            {
+                IssuerCertificates = isNull ? default : ArrayOf<ByteString>.Empty
+            };
+            bool issuersAreNull = authority.IssuerCertificates.IsNull;
+            fixture.Connection.Selection = fixture.Connection.Selection with
+            {
+                MatchingTicket = new DeviceIdentityTicketType
+                {
+                    Authorities = [authority]
+                },
+                SoftwareUpdateManager = new ManagerDescription()
+            };
+            fixture.Host.OnSoftwareUpdate = (_, identity, _) =>
+            {
+                ArrayOf<ByteString> issuers = identity.MatchingTicket.Authorities[0].IssuerCertificates;
+                Assert.That(issuers.IsNull, Is.EqualTo(issuersAreNull));
+                Assert.That(issuers.Count, Is.Zero);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false);
+
+            Assert.That(
+                result.Identity.MatchingTicket.Authorities[0].IssuerCertificates.IsNull, Is.EqualTo(issuersAreNull));
+            Assert.That(result.Identity.MatchingTicket.Authorities[0].IssuerCertificates.Count, Is.Zero);
+        }
+
+        [Test]
+        public async Task SigningRequestProviderCannotMutateActiveApplicationOrProfile()
+        {
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 3, 4 }), 1),
+                new NodeId(ByteString.From(new byte[] { 5, 6 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            fixture.Connection.Selection = fixture.Connection.Selection with { ApplicationId = applicationId };
+            fixture.Host.OnCreateSigningRequest = (receivedApplication, receivedProfile) =>
+            {
+                MutateOpaqueIdentifier(receivedApplication);
+                MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(
+                kRegistrar, CreateRequest() with { DcaCertificateProfile = profile }).ConfigureAwait(false);
+
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId }));
+        }
+
+        [Test]
+        public async Task SigningKeyEvidenceProviderCannotMutateDispatchedRequest()
+        {
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 3, 4 }), 1),
+                new NodeId(ByteString.From(new byte[] { 5, 6 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            var binding = new PullDcaSigningBinding(
+                kRegistrar, applicationId, kRequestId, profile, kCsr, kCertificate,
+                default, default, string.Empty, default, Guid.NewGuid());
+            fixture.Connection = new FakeBoundConnection(fixture, binding);
+            fixture.Connection.Selection = fixture.Connection.Selection with { ApplicationId = applicationId };
+            fixture.Host.OnKeyEvidence = (receivedApplication, receivedProfile, csr) =>
+            {
+                MutateOpaqueIdentifier(receivedApplication);
+                MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+                MutateBytes(csr);
+            };
+            var journal = new Mock<IPullDcaSigningJournal>(MockBehavior.Strict);
+            journal.Setup(value => value.GetReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PullDcaCredentials?>((PullDcaCredentials?)null));
+            journal.Setup(value => value.RecordReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<PullDcaCredentials>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            journal.Setup(value => value.RecordInstalledAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            receipts.Setup(store => store.GetOrCreateAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(),
+                    It.IsAny<Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PullDcaRegistrar _, NodeId _, NodeId _, PullDcaCertificateProfile _,
+                    Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>> receive, CancellationToken ct) =>
+                    receive(ct));
+
+            PullDcaResult result = await fixture.Create(receipts: receipts.Object, signingJournal: journal.Object)
+                .RunAsync(kRegistrar, CreateRequest() with { DcaCertificateProfile = profile }).ConfigureAwait(false);
+
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CredentialInstallerCannotMutateWorkflowIdentity(bool newKeyPair)
+        {
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var fixture = new Fixture();
+            fixture.Connection.Selection = fixture.Connection.Selection with { ApplicationId = applicationId };
+            fixture.Host.OnInstall = MutateOpaqueIdentifier;
+            fixture.Host.OnInstallNewKeyPair = (receivedApplication, _) => MutateOpaqueIdentifier(receivedApplication);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = newKeyPair
+                    ? PullDcaCertificateRequestMode.NewKeyPairRequest
+                    : PullDcaCertificateRequestMode.SigningRequest
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CredentialInstallerCannotMutateWorkflowCredentials(bool newKeyPair)
+        {
+            var fixture = new Fixture();
+            fixture.Connection.NewKeyPairCertificate = kCertificate.Copy();
+            fixture.Connection.TrustList.TrustedCertificates = [ByteString.From(new byte[] { 1 })];
+            fixture.Connection.TrustList.TrustedCrls = [ByteString.From(new byte[] { 2 })];
+            fixture.Connection.TrustList.IssuerCertificates = [ByteString.From(new byte[] { 3 })];
+            fixture.Connection.TrustList.IssuerCrls = [ByteString.From(new byte[] { 4 })];
+            fixture.Host.OnCredentialsInstalled = credentials =>
+            {
+                MutateBytes(credentials.Certificate);
+                MutateBytes(credentials.IssuerCertificates[0]);
+                MutateBytes(credentials.TrustList.TrustedCertificates[0]);
+                MutateBytes(credentials.TrustList.TrustedCrls[0]);
+                MutateBytes(credentials.TrustList.IssuerCertificates[0]);
+                MutateBytes(credentials.TrustList.IssuerCrls[0]);
+            };
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = newKeyPair
+                    ? PullDcaCertificateRequestMode.NewKeyPairRequest
+                    : PullDcaCertificateRequestMode.SigningRequest
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(fixture.Connection.InstalledChannelCertificate, Is.EqualTo(kCertificate));
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(result.DcaCredentials.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(result.DcaCredentials.TrustList.TrustedCertificates[0],
+                Is.EqualTo(ByteString.From(new byte[] { 1 })));
+            Assert.That(result.DcaCredentials.TrustList.TrustedCrls[0], Is.EqualTo(ByteString.From(new byte[] { 2 })));
+            Assert.That(result.DcaCredentials.TrustList.IssuerCertificates[0],
+                Is.EqualTo(ByteString.From(new byte[] { 3 })));
+            Assert.That(result.DcaCredentials.TrustList.IssuerCrls[0], Is.EqualTo(ByteString.From(new byte[] { 4 })));
+        }
+
+        [Test]
+        public async Task NewKeyPairCertificateIsDetachedBeforeTrustDownload()
+        {
+            var fixture = new Fixture();
+            byte[] certificate = kCertificate.ToArray();
+            fixture.Connection.NewKeyPairCertificate = ByteString.From(certificate);
+            fixture.Connection.TrustWait = _ =>
+            {
+                certificate[0] ^= 0xff;
+                return Task.CompletedTask;
+            };
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(fixture.Connection.InstalledChannelCertificate, Is.EqualTo(kCertificate));
+        }
+
+        [Test]
+        public async Task SigningJournalCannotMutateActiveBindingOrCredentials()
+        {
+            var applicationId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1);
+            var fixture = new Fixture();
+            var binding = new PullDcaSigningBinding(
+                kRegistrar, applicationId, requestId, kProfile, kCsr, kCertificate,
+                default, default, string.Empty, default, Guid.NewGuid());
+            fixture.Connection = new FakeBoundConnection(fixture, binding);
+            fixture.Connection.TrustList.TrustedCertificates = [ByteString.From(new byte[] { 5 })];
+            var journal = new Mock<IPullDcaSigningJournal>(MockBehavior.Strict);
+            journal.Setup(value => value.GetReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns((PullDcaSigningBinding received, CancellationToken _) =>
+                {
+                    MutateOpaqueIdentifier(received.ApplicationId);
+                    return new ValueTask<PullDcaCredentials?>((PullDcaCredentials?)null);
+                });
+            journal.Setup(value => value.RecordReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<PullDcaCredentials>(), It.IsAny<CancellationToken>()))
+                .Returns((PullDcaSigningBinding received, PullDcaCredentials credentials, CancellationToken _) =>
+                {
+                    Assert.That(received.ApplicationId, Is.EqualTo(applicationId));
+                    MutateOpaqueIdentifier(received.RequestId);
+                    MutateBytes(credentials.Certificate);
+                    MutateBytes(credentials.IssuerCertificates[0]);
+                    MutateBytes(credentials.TrustList.TrustedCertificates[0]);
+                    return default;
+                });
+            journal.Setup(value => value.RecordInstalledAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns((PullDcaSigningBinding received, CancellationToken _) =>
+                {
+                    Assert.That(received.RequestId, Is.EqualTo(requestId));
+                    MutateOpaqueIdentifier(received.RequestId);
+                    return default;
+                });
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            receipts.Setup(store => store.GetOrCreateAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(),
+                    It.IsAny<Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PullDcaRegistrar _, NodeId _, NodeId _, PullDcaCertificateProfile _,
+                    Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>> receive, CancellationToken ct) =>
+                    receive(ct));
+
+            PullDcaCredentials result = await fixture.Create(receipts: receipts.Object, signingJournal: journal.Object)
+                .CompleteCertificateRequestAsync(kRegistrar, applicationId, requestId, kProfile)
+                .ConfigureAwait(false);
+
+            Assert.That(result.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(result.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(result.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 5 })));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+            journal.VerifyAll();
+        }
+
+        [Test]
+        public async Task ResumedCredentialsAreDetachedFromInstallerAndJournal()
+        {
+            var fixture = new Fixture();
+            var binding = new PullDcaSigningBinding(
+                kRegistrar, kDcaId, kRequestId, kProfile, kCsr, kCertificate,
+                default, default, string.Empty, default, Guid.NewGuid());
+            fixture.Connection = new FakeBoundConnection(fixture, binding);
+            var retained = new PullDcaCredentials(
+                kCertificate.Copy(), [kIssuer.Copy()],
+                new TrustListDataType { TrustedCertificates = [ByteString.From(new byte[] { 5 })] });
+            fixture.Host.OnCredentialsInstalled = credentials =>
+            {
+                MutateBytes(credentials.Certificate);
+                MutateBytes(credentials.IssuerCertificates[0]);
+                MutateBytes(credentials.TrustList.TrustedCertificates[0]);
+            };
+            var journal = new Mock<IPullDcaSigningJournal>(MockBehavior.Strict);
+            journal.Setup(value => value.GetReceivedAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PullDcaCredentials?>(retained));
+            journal.Setup(value => value.RecordInstalledAsync(
+                    It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+
+            PullDcaCredentials result = await fixture.Create(signingJournal: journal.Object)
+                .CompleteCertificateRequestAsync(kRegistrar, kDcaId, kRequestId, kProfile).ConfigureAwait(false);
+
+            Assert.That(result.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(result.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(result.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 5 })));
+            Assert.That(retained.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(retained.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(retained.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 5 })));
+            journal.VerifyAll();
+        }
+
+        [Test]
+        public async Task InitialPullCanInstallANewKeyPairWithoutPublishingItToSigningReceipts()
+        {
+            var fixture = new Fixture();
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            PullDcaResult result = await fixture.Create(receipts: receipts.Object)
+                .RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(fixture.Calls, Is.EqualTo(s_initialNewKeyPairCalls));
+            Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kDcaId }));
+            Assert.That(fixture.Host.ReceivedPrivateKeyPfx, Is.EqualTo(kPrivateKeyPfx));
+            Assert.That(
+                fixture.Connection.LastReturnedPrivateKeyPfx.ToArray(),
+                Is.EqualTo(new byte[kPrivateKeyPfx.Length]));
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            receipts.Verify(store => store.GetOrCreateAsync(
+                It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                It.IsAny<PullDcaCertificateProfile>(),
+                It.IsAny<Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task InstalledManagerOperationRejectsDcaKeyPairBeforeConnecting()
+        {
+            var fixture = new Fixture();
+            var managerOperation = new Mock<IPullDcaInstalledManagerOperation>(MockBehavior.Strict);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, request, null, managerOperation.Object)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.Calls, Is.Empty);
+            Assert.That(fixture.Host.KeyPairInstalledIds, Is.Empty);
+            managerOperation.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task ManagedApplicationCanSelectNewKeyPairWithoutChangingDcaSigningPath()
+        {
+            var fixture = new Fixture();
+            PullDcaManagedApplication application = CreateApplication() with
+            {
+                CertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            PullDcaResult result = await fixture.Create().RunAsync(
+                kRegistrar, CreateRequest() with { ManagedApplications = [application] }).ConfigureAwait(false);
+
+            Assert.That(fixture.Calls, Is.EqualTo(s_managedApplicationNewKeyPairCalls));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
+            Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kManagedId }));
+            Assert.That(
+                fixture.Connection.LastReturnedPrivateKeyPfx.ToArray(),
+                Is.EqualTo(new byte[kPrivateKeyPfx.Length]));
+            Assert.That(result.ManagedApplications[0].ApplicationId, Is.EqualTo(kManagedId));
+        }
+
+        /// <summary>
+        /// Missing installers reject both initial and managed-application key-pair modes before connecting.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NewKeyPairModeRequiresInstallerBeforeConnecting(bool managedApplication)
+        {
+            var fixture = new Fixture();
+            var credentialProvider = new Mock<IPullDcaCredentialProvider>(MockBehavior.Strict);
+            Func<PullDcaRegistrar, CancellationToken, ValueTask<IPullDcaConnection>> connectionFactory =
+                (_, _) => throw new AssertionException("The workflow connected without a key-pair installer.");
+            var workflow = new PullDcaWorkflow(
+                new PullDcaOptions(),
+                connectionFactory,
+                fixture.Host,
+                credentialProvider.Object);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = managedApplication
+                    ? PullDcaCertificateRequestMode.SigningRequest
+                    : PullDcaCertificateRequestMode.NewKeyPairRequest,
+                ManagedApplications = managedApplication
+                    ? [
+                        CreateApplication() with
+                        {
+                            CertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+                        }
+                    ]
+                    : []
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await workflow.RunAsync(kRegistrar, request).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(fixture.Calls, Is.Empty);
+            credentialProvider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// External authentication validates the managed key-pair installer before opening a registrar connection.
+        /// </summary>
+        [Test]
+        public async Task ExternalManagedKeyPairModeRequiresInstallerBeforeConnecting()
+        {
+            var fixture = new Fixture();
+            var credentialProvider = new Mock<IPullDcaCredentialProvider>(MockBehavior.Strict);
+            Func<PullDcaRegistrar, CancellationToken, ValueTask<IPullDcaConnection>> connectionFactory =
+                (_, _) => throw new AssertionException("The workflow connected without a key-pair installer.");
+            var workflow = new PullDcaWorkflow(
+                new PullDcaOptions(),
+                connectionFactory,
+                fixture.Host,
+                credentialProvider.Object);
+            PullDcaManagedApplication application = CreateApplication() with
+            {
+                CertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await workflow.RunExternalAuthenticationAsync(kRegistrar, [application]).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(fixture.Calls, Is.Empty);
+            credentialProvider.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task ConsumedKeyPairFinishRestartsWithFreshRequestInsteadOfSigningRecovery()
+        {
+            var fixture = new Fixture();
+            fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(StatusCodes.BadInvalidArgument));
+            var signingRecovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            PullDcaResult result = await fixture.Create(
+                options: new PullDcaOptions { MaximumNewKeyPairRestarts = 1 },
+                signingRecovery: signingRecovery.Object).RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(fixture.Calls.Count(call => call == "start-keypair:dca"), Is.EqualTo(2));
+            Assert.That(fixture.Connection.FinishedRequestIds,
+                Is.EqualTo(new[] { kRequestId, kRestartedRequestId }));
+            Assert.That(fixture.Calls, Does.Not.Contain("certificates:dca"));
+            Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kDcaId }));
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            signingRecovery.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task TransientKeyPairFinishThenConsumedRequestRestartsWithFreshRequest()
+        {
+            var fixture = new Fixture();
+            fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(StatusCodes.BadTimeout));
+            fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(StatusCodes.BadInvalidArgument));
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            var signingRecovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            PullDcaResult result = await fixture.Create(
+                options: new PullDcaOptions
+                {
+                    FinishRetryDelay = TimeSpan.Zero,
+                    MaximumNewKeyPairRestarts = 1
+                },
+                receipts: receipts.Object,
+                signingRecovery: signingRecovery.Object).RunAsync(kRegistrar, request).ConfigureAwait(false);
+
+            Assert.That(fixture.Connection.FinishedRequestIds,
+                Is.EqualTo(new[] { kRequestId, kRequestId, kRestartedRequestId }));
+            Assert.That(fixture.Connection.NewKeyPairRequests, Is.EqualTo(2));
+            Assert.That(fixture.Calls, Is.EqualTo(s_restartedNewKeyPairCalls));
+            Assert.That(fixture.Host.KeyPairInstalledIds, Is.EqualTo(new[] { kDcaId }));
+            Assert.That(fixture.Host.ReceivedPrivateKeyPfx, Is.EqualTo(kPrivateKeyPfx));
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            receipts.VerifyNoOtherCalls();
+            signingRecovery.VerifyNoOtherCalls();
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task NewKeyPairFinishRejectsIncompleteKeyPair(bool missingCertificate)
+        {
+            var fixture = new Fixture();
+            if (missingCertificate)
+            {
+                fixture.Connection.NewKeyPairCertificate = default;
+            }
+            else
+            {
+                fixture.Connection.NewKeyPairPrivateKeyPfx = default;
+            }
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, request).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fixture.Host.KeyPairInstalledIds, Is.Empty);
+        }
+
+        [TestCase("trust:dca", PullDcaStage.ReadingTrustList)]
+        [TestCase("install-keypair:dca", PullDcaStage.InstallingCredentials)]
+        public async Task NewKeyPairFailureAfterFinishReportsInterruptedStage(
+            string operation,
+            PullDcaStage expectedStage)
+        {
+            var fixture = new Fixture { FailingOperation = operation };
+            var progress = new ProgressRecorder();
+            PullDcaRequest request = CreateRequest() with
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+
+            InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await fixture.Create().RunAsync(kRegistrar, request, progress).ConfigureAwait(false));
+
+            Assert.That(failure!.Message, Is.EqualTo("host failure"));
+            Assert.That(fixture.Calls[^1], Is.EqualTo(operation));
+            Assert.That(fixture.Connection.NewKeyPairRequests, Is.EqualTo(1));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId }));
+            Assert.That(progress.Items[^1].Stage, Is.EqualTo(expectedStage));
+            Assert.That(progress.Items[^1].ApplicationId, Is.EqualTo(kDcaId));
+            Assert.That(progress.Items[^1].RequestId, Is.EqualTo(kRequestId));
+            Assert.That(
+                fixture.Connection.LastReturnedPrivateKeyPfx.ToArray(),
+                Is.EqualTo(new byte[kPrivateKeyPfx.Length]));
+            Assert.That(progress.Items.Any(p => p.Stage == PullDcaStage.Completed), Is.False);
         }
 
         [Test]
@@ -173,8 +1027,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             string[] urls = ["opc.tcp://managed:4840"];
             string[] capabilities = ["DA"];
             LocalizedText[] names = [new LocalizedText("Managed application")];
-            PullDcaManagedApplication application = CreateApplication();
-            application.Application.ApplicationId = kManagedId;
+            byte[] applicationIdentifier = [41, 42];
+            byte[] groupIdentifier = [43, 44];
+            var profile = kProfile with
+            {
+                CertificateGroupId = new NodeId(ByteString.From(groupIdentifier), 1)
+            };
+            fixture.ExpectedProfile = kProfile with
+            {
+                CertificateGroupId = new NodeId(ByteString.From(groupIdentifier.AsSpan()), 1)
+            };
+            PullDcaManagedApplication application = CreateApplication() with { CertificateProfile = profile };
+            application.Application.ApplicationId = new NodeId(ByteString.From(applicationIdentifier), 1);
             application.Application.ApplicationType = ApplicationType.ClientAndServer;
             application.Application.ApplicationNames = names;
             application.Application.DiscoveryUrls = urls;
@@ -185,6 +1049,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 IdentityOffer = new PullDcaIdentityOffer(
                     [ByteString.From(identity)], [ByteString.From(issuer)], tickets),
+                DcaCertificateProfile = profile,
                 ManagedApplications = applications
             };
             Task<PullDcaResult> running = fixture.Create().RunAsync(kRegistrar, request).AsTask();
@@ -197,6 +1062,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 urls[0] = "opc.tcp://changed:4840";
                 capabilities[0] = "changed";
                 names[0] = new LocalizedText("Changed");
+                applicationIdentifier[0] = 99;
+                groupIdentifier[0] = 99;
                 application.Application.ApplicationId = NodeId.Null;
                 application.Application.ApplicationUri = "urn:changed:application";
                 application.Application.ApplicationType = ApplicationType.DiscoveryServer;
@@ -213,7 +1080,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Connection.Offer.Issuers[0], Is.EqualTo(kIssuer));
             Assert.That(fixture.Connection.Offer.Tickets, Is.EqualTo(s_expectedTickets));
             PullDcaManagedApplication registered = fixture.Connection.RegisteredApplication!;
-            Assert.That(registered.Application.ApplicationId, Is.EqualTo(kManagedId));
+            Assert.That(registered.Application.ApplicationId,
+                Is.EqualTo(new NodeId(ByteString.From(new byte[] { 41, 42 }), 1)));
+            Assert.That(registered.CertificateProfile, Is.EqualTo(fixture.ExpectedProfile));
             Assert.That(registered.Application.ApplicationUri, Is.EqualTo("urn:managed:application"));
             Assert.That(registered.Application.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
             Assert.That(registered.Application.ProductUri, Is.EqualTo("urn:original:product"));
@@ -225,6 +1094,279 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(registered.ProtocolUri, Is.EqualTo("urn:opcua"));
             Assert.That(result.ManagedApplications.Count, Is.EqualTo(1));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId, kManagedId }));
+        }
+
+        /// <summary>
+        /// Both authentication paths detach translations and formatting arguments before connection admission.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConnectionAdmissionRetainsNestedApplicationNameState(bool externalAuthentication)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var fixture = new Fixture();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.ConnectionWait = async ct =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+            };
+            var translations = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["de"] = "Anwendung {0}",
+                ["en"] = "Application {0}"
+            };
+            object[] arguments = ["original"];
+            PullDcaManagedApplication application = CreateApplication();
+            application.Application.ApplicationNames =
+            [
+                new LocalizedText(translations,
+                    new TranslationInfo("application-name", "en", "Application {0}", arguments))
+            ];
+            PullDcaWorkflow workflow = fixture.Create();
+            Task running = externalAuthentication
+                ? workflow.RunExternalAuthenticationAsync(kRegistrar, [application], cancellationToken: timeout.Token)
+                    .AsTask()
+                : workflow.RunAsync(kRegistrar, CreateRequest() with { ManagedApplications = [application] },
+                    cancellationToken: timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                translations["de"] = "Changed {0}";
+                translations["en"] = "Changed {0}";
+                arguments[0] = "changed";
+                release.TrySetResult(true);
+                await running.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                LocalizedText registered =
+                    fixture.Connection.RegisteredApplication!.Application.ApplicationNames[0];
+                Assert.That(registered.FilterByPreferredLocales(["de"]).Text, Is.EqualTo("Anwendung original"));
+                Assert.That(registered.FilterByPreferredLocales(["en"]).Text, Is.EqualTo("Application original"));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                timeout.Cancel();
+                await running.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Unsupported name ownership is rejected before connection or host effects on either authentication path.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task UnsupportedApplicationNameCopyPrecedesSideEffects(
+            bool externalAuthentication, bool unsupportedDictionary)
+        {
+            var fixture = new Fixture();
+            var argument = new Mock<IFormattable>(MockBehavior.Strict);
+            PullDcaManagedApplication application = CreateApplication();
+            application.Application.ApplicationNames =
+            [
+                unsupportedDictionary
+                    ? new LocalizedText(new SortedDictionary<string, string> { ["en"] = "Application" })
+                    : new LocalizedText("Application {0}").WithTranslationInfo(
+                        new TranslationInfo("application-name", null, "Application {0}", argument.Object))
+            ];
+            PullDcaWorkflow workflow = fixture.Create();
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                if (externalAuthentication)
+                {
+                    await workflow.RunExternalAuthenticationAsync(kRegistrar, [application]).ConfigureAwait(false);
+                }
+                else
+                {
+                    await workflow.RunAsync(kRegistrar,
+                        CreateRequest() with { ManagedApplications = [application] }).ConfigureAwait(false);
+                }
+            });
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fixture.Calls, Is.Empty);
+            Assert.That(fixture.ConnectedRegistrar, Is.Null);
+            Assert.That(fixture.Connection.RegisteredApplication, Is.Null);
+            Assert.That(fixture.Host.InstalledIds, Is.Empty);
+            Assert.That(argument.Invocations, Is.Empty);
+        }
+
+        /// <summary>
+        /// Request snapshotting preserves the application-name value exposed by the generated record.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        public async Task RequestSnapshotPreservesManagedApplicationNameArrayValue(
+            bool nullNames, bool externalAuthentication)
+        {
+            var fixture = new Fixture();
+            PullDcaManagedApplication application = CreateApplication();
+            application.Application.ApplicationNames = nullNames ? default : [];
+            ArrayOf<LocalizedText> suppliedNames = application.Application.ApplicationNames;
+            Assert.That(suppliedNames.IsEmpty, Is.True);
+            PullDcaRequest request = CreateRequest() with { ManagedApplications = [application] };
+
+            PullDcaWorkflow workflow = fixture.Create();
+            if (externalAuthentication)
+            {
+                await workflow.RunExternalAuthenticationAsync(kRegistrar, [application]).ConfigureAwait(false);
+            }
+            else
+            {
+                await workflow.RunAsync(kRegistrar, request).ConfigureAwait(false);
+            }
+
+            ArrayOf<LocalizedText> registeredNames =
+                fixture.Connection.RegisteredApplication!.Application.ApplicationNames;
+            Assert.That(registeredNames.IsNull, Is.EqualTo(suppliedNames.IsNull));
+            Assert.That(registeredNames, Is.EqualTo(suppliedNames));
+        }
+
+        /// <summary>
+        /// Initial, external, and resumed requests retain opaque identifiers across connection admission.
+        /// </summary>
+        [TestCase("fresh")]
+        [TestCase("external")]
+        [TestCase("resume")]
+        public async Task ConnectionAdmissionRetainsOpaqueRequestIdentifiers(string path)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var fixture = new Fixture();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.ConnectionWait = async ct =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+            };
+            byte[] registrarBytes = [21, 22];
+            byte[] directoryBytes = [23, 24];
+            byte[] applicationBytes = [25, 26];
+            byte[] requestBytes = [27, 28];
+            byte[] groupBytes = [29, 30];
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(registrarBytes), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(directoryBytes), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(applicationBytes), 1);
+            var requestId = new NodeId(ByteString.From(requestBytes), 1);
+            var profile = kProfile with
+            {
+                CertificateGroupId = new NodeId(ByteString.From(groupBytes), 1)
+            };
+            fixture.ExpectedProfile = kProfile with
+            {
+                CertificateGroupId = new NodeId(ByteString.From(groupBytes.AsSpan()), 1)
+            };
+            PullDcaManagedApplication application = CreateApplication() with { CertificateProfile = profile };
+            application.Application.ApplicationId = applicationId;
+            PullDcaWorkflow workflow = fixture.Create();
+
+            async Task RunAsync()
+            {
+                if (path == "resume")
+                {
+                    await workflow.CompleteCertificateRequestAsync(
+                        registrar, applicationId, requestId, profile, cancellationToken: timeout.Token)
+                        .ConfigureAwait(false);
+                }
+                else if (path == "external")
+                {
+                    await workflow.RunExternalAuthenticationAsync(
+                        registrar, [application], cancellationToken: timeout.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    await workflow.RunAsync(registrar, CreateRequest() with
+                    {
+                        DcaCertificateProfile = profile,
+                        ManagedApplications = [application]
+                    }, cancellationToken: timeout.Token).ConfigureAwait(false);
+                }
+            }
+
+            Task running = RunAsync();
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                registrarBytes[0] = 99;
+                directoryBytes[0] = 99;
+                applicationBytes[0] = 99;
+                requestBytes[0] = 99;
+                groupBytes[0] = 99;
+                release.TrySetResult(true);
+                await running.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                PullDcaRegistrar connected = fixture.ConnectedRegistrar ??
+                    throw new AssertionException("The workflow did not acquire a connection.");
+                Assert.That(connected.RegistrarId,
+                    Is.EqualTo(new NodeId(ByteString.From(new byte[] { 21, 22 }), 1)));
+                Assert.That(connected.CertificateDirectoryId,
+                    Is.EqualTo(new NodeId(ByteString.From(new byte[] { 23, 24 }), 1)));
+                if (path == "resume")
+                {
+                    Assert.That(fixture.Connection.FinishedRequestIds,
+                        Is.EqualTo(new[] { new NodeId(ByteString.From(new byte[] { 27, 28 }), 1) }));
+                    Assert.That(fixture.Host.InstalledIds,
+                        Is.EqualTo(new[] { new NodeId(ByteString.From(new byte[] { 25, 26 }), 1) }));
+                }
+                else
+                {
+                    PullDcaManagedApplication registered = fixture.Connection.RegisteredApplication ??
+                        throw new AssertionException("The workflow did not register the managed application.");
+                    Assert.That(registered.Application.ApplicationId,
+                        Is.EqualTo(new NodeId(ByteString.From(new byte[] { 25, 26 }), 1)));
+                    Assert.That(registered.CertificateProfile,
+                        Is.EqualTo(fixture.ExpectedProfile));
+                    Assert.That(fixture.Host.InstalledIds,
+                        Is.EqualTo(path == "fresh" ? new[] { kDcaId, kManagedId } : new[] { kManagedId }));
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                timeout.Cancel();
+                await running.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Copying an offer retains OPC UA null and empty values independently of buffer ownership.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public async Task IdentityOfferSnapshotPreservesNullAndEmptyIssuers(int shape)
+        {
+            var fixture = new Fixture();
+            ArrayOf<ByteString> issuers = shape switch
+            {
+                0 => default,
+                1 => [],
+                2 => [default(ByteString)],
+                _ => [ByteString.From(ReadOnlySpan<byte>.Empty)]
+            };
+            await fixture.Create().RunAsync(kRegistrar, CreateRequest() with
+            {
+                IdentityOffer = new PullDcaIdentityOffer([kIdentity], issuers, ["ticket"])
+            }).ConfigureAwait(false);
+
+            ArrayOf<ByteString> captured = fixture.Connection.Offer!.Issuers;
+            Assert.That(captured.IsNull, Is.EqualTo(shape == 0));
+            Assert.That(captured.Count, Is.EqualTo(shape < 2 ? 0 : 1));
+            if (shape >= 2)
+            {
+                Assert.That(captured[0].IsNull, Is.EqualTo(shape == 2));
+                Assert.That(captured[0].IsEmpty, Is.True);
+            }
         }
 
         [Test]
@@ -471,6 +1613,47 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             recovery.VerifyNoOtherCalls();
         }
 
+        [Test]
+        public async Task SigningRequestObserverCannotMutateActiveRequestBinding()
+        {
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(new byte[] { 5, 6 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 7, 8 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 9, 10 }), 1),
+                new NodeId(ByteString.From(new byte[] { 11, 12 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            fixture.Connection.Selection = fixture.Connection.Selection with { ApplicationId = applicationId };
+            fixture.Connection.SigningRequestId = requestId;
+            var recovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            recovery.As<IPullDcaSigningRequestObserver>().Setup(observer => observer.OnSigningRequestStartedAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Callback<PullDcaRegistrar, NodeId, NodeId, PullDcaCertificateProfile, ByteString, CancellationToken>(
+                    (receivedRegistrar, receivedApplication, receivedRequest, receivedProfile, _, _) =>
+                    {
+                        MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
+                        MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
+                        MutateOpaqueIdentifier(receivedApplication);
+                        MutateOpaqueIdentifier(receivedRequest);
+                        MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                        MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+                    })
+                .Returns(default(ValueTask));
+
+            PullDcaResult result = await fixture.Create(signingRecovery: recovery.Object).RunAsync(
+                registrar, CreateRequest() with { DcaCertificateProfile = profile }).ConfigureAwait(false);
+
+            Assert.That(fixture.ConnectedRegistrar, Is.EqualTo(registrar));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { requestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+            Assert.That(result.Identity.ApplicationId, Is.EqualTo(applicationId));
+        }
+
         /// <summary>
         /// A request that could not be journaled is never finished, so its certificate is never left unrecoverable.
         /// </summary>
@@ -626,6 +1809,100 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A receipt provider cannot change installed certificate bytes while trust download is suspended.
+        /// </summary>
+        [Test]
+        public async Task SigningReceiptIsDetachedBeforeTrustDownload()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var fixture = new Fixture();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.Connection.TrustWait = async ct =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+            };
+            byte[] certificate = kCertificate.ToArray();
+            byte[] issuer = kIssuer.ToArray();
+            ByteString[] issuers = [ByteString.From(issuer)];
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            receipts.Setup(store => store.GetOrCreateAsync(
+                    kRegistrar, kDcaId, kRequestId, kProfile,
+                    It.IsAny<Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PullDcaCertificateReceipt(ByteString.From(certificate), issuers));
+            Task<PullDcaCredentials> running = fixture.Create(receipts: receipts.Object)
+                .CompleteCertificateRequestAsync(
+                    kRegistrar, kDcaId, kRequestId, kProfile, cancellationToken: timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                certificate[0] = 99;
+                issuer[0] = 99;
+                issuers[0] = default;
+                release.TrySetResult(true);
+                PullDcaCredentials result = await running.ConfigureAwait(false);
+
+                Assert.That(result.Certificate, Is.EqualTo(kCertificate));
+                Assert.That(result.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
+                Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
+                Assert.That(fixture.Connection.FinishedRequestIds, Is.Empty);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                timeout.Cancel();
+                await running.ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ReceiptStoreCannotMutateActiveRequestBinding()
+        {
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(new byte[] { 5, 6 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 7, 8 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 9, 10 }), 1),
+                new NodeId(ByteString.From(new byte[] { 11, 12 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            var receipts = new Mock<IPullDcaCertificateReceiptStore>(MockBehavior.Strict);
+            receipts.Setup(store => store.GetOrCreateAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(),
+                    It.IsAny<Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PullDcaRegistrar receivedRegistrar,
+                    NodeId receivedApplication,
+                    NodeId receivedRequest,
+                    PullDcaCertificateProfile receivedProfile,
+                    Func<CancellationToken, ValueTask<PullDcaCertificateReceipt>> receive,
+                    CancellationToken ct) =>
+                {
+                    MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
+                    MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
+                    MutateOpaqueIdentifier(receivedApplication);
+                    MutateOpaqueIdentifier(receivedRequest);
+                    MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                    MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+                    return receive(ct);
+                });
+
+            await fixture.Create(receipts: receipts.Object).CompleteCertificateRequestAsync(
+                registrar, applicationId, requestId, profile).ConfigureAwait(false);
+
+            Assert.That(fixture.ConnectedRegistrar, Is.EqualTo(registrar));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { requestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+        }
+
+        /// <summary>
         /// Failure to retain output stops the workflow before trust download or installation.
         /// </summary>
         [Test]
@@ -738,7 +2015,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     fixture.Record("validate-recovery", ct);
                     Assert.That(credentials.Certificate, Is.EqualTo(kCertificate));
                     Assert.That(credentials.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
-                    Assert.That(credentials.TrustList, Is.SameAs(fixture.Connection.TrustList));
+                    Assert.That(credentials.TrustList, Is.Not.SameAs(fixture.Connection.TrustList));
+                    Assert.That(credentials.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
                     Assert.That(fixture.Host.InstalledIds, Is.Empty);
                 })
                 .Returns(default(ValueTask));
@@ -750,6 +2028,66 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Calls, Is.EqualTo(s_recoveryCalls));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
             recovery.VerifyAll();
+        }
+
+        [Test]
+        public async Task SigningRecoveryValidatorCannotMutateActiveBindingOrRecoveredCredentials()
+        {
+            var registrar = kRegistrar with
+            {
+                RegistrarId = new NodeId(ByteString.From(new byte[] { 1, 2 }), 1),
+                CertificateDirectoryId = new NodeId(ByteString.From(new byte[] { 3, 4 }), 1)
+            };
+            var applicationId = new NodeId(ByteString.From(new byte[] { 5, 6 }), 1);
+            var requestId = new NodeId(ByteString.From(new byte[] { 7, 8 }), 1);
+            var profile = new PullDcaCertificateProfile(
+                new NodeId(ByteString.From(new byte[] { 9, 10 }), 1),
+                new NodeId(ByteString.From(new byte[] { 11, 12 }), 1));
+            var fixture = new Fixture { ExpectedProfile = profile };
+            fixture.Connection.CertificateError = StatusCodes.BadInvalidArgument;
+            fixture.Connection.AssignedTypes = [profile.CertificateTypeId];
+            fixture.Connection.TrustList.SpecifiedLists = (uint)TrustListMasks.All;
+            fixture.Connection.TrustList.TrustedCertificates = [ByteString.From(new byte[] { 13, 14 })];
+            fixture.Connection.TrustList.TrustedCrls = [ByteString.From(new byte[] { 15, 16 })];
+            fixture.Connection.TrustList.IssuerCertificates = [kIssuer.Copy()];
+            fixture.Connection.TrustList.IssuerCrls = [ByteString.From(new byte[] { 17, 18 })];
+            var recovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            recovery.Setup(value => value.ValidateAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<PullDcaCertificateProfile>(), It.IsAny<PullDcaCredentials>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<PullDcaRegistrar, NodeId, NodeId, PullDcaCertificateProfile,
+                    PullDcaCredentials, CancellationToken>(
+                    (receivedRegistrar, receivedApplication, receivedRequest, receivedProfile, credentials, _) =>
+                    {
+                        MutateOpaqueIdentifier(receivedRegistrar.RegistrarId);
+                        MutateOpaqueIdentifier(receivedRegistrar.CertificateDirectoryId);
+                        MutateOpaqueIdentifier(receivedApplication);
+                        MutateOpaqueIdentifier(receivedRequest);
+                        MutateOpaqueIdentifier(receivedProfile.CertificateGroupId);
+                        MutateOpaqueIdentifier(receivedProfile.CertificateTypeId);
+                        MutateBytes(credentials.Certificate);
+                        MutateBytes(credentials.IssuerCertificates[0]);
+                        MutateBytes(credentials.TrustList.TrustedCertificates[0]);
+                        MutateBytes(credentials.TrustList.TrustedCrls[0]);
+                        MutateBytes(credentials.TrustList.IssuerCertificates[0]);
+                        MutateBytes(credentials.TrustList.IssuerCrls[0]);
+                        credentials.TrustList.SpecifiedLists = 0;
+                    })
+                .Returns(default(ValueTask));
+
+            PullDcaCredentials result = await fixture.Create(signingRecovery: recovery.Object)
+                .CompleteCertificateRequestAsync(registrar, applicationId, requestId, profile).ConfigureAwait(false);
+
+            Assert.That(fixture.ConnectedRegistrar, Is.EqualTo(registrar));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { applicationId }));
+            Assert.That(result.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(result.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
+            Assert.That(result.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
+            Assert.That(result.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 13, 14 })));
+            Assert.That(result.TrustList.TrustedCrls[0], Is.EqualTo(ByteString.From(new byte[] { 15, 16 })));
+            Assert.That(result.TrustList.IssuerCertificates[0], Is.EqualTo(kIssuer));
+            Assert.That(result.TrustList.IssuerCrls[0], Is.EqualTo(ByteString.From(new byte[] { 17, 18 })));
         }
 
         /// <summary>
@@ -1110,13 +2448,29 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 new ApplicationRecordDataType { ApplicationUri = "urn:managed:application" }, "urn:opcua", kProfile);
         }
 
+        private static void MutateOpaqueIdentifier(NodeId identifier)
+        {
+            Assert.That(identifier.TryGetValue(out ByteString bytes), Is.True);
+            MutateBytes(bytes);
+        }
+
+        private static void MutateBytes(ByteString bytes)
+        {
+            Assert.That(MemoryMarshal.TryGetArray(bytes.Memory, out ArraySegment<byte> segment), Is.True);
+            Assert.That(segment.Array, Is.Not.Null);
+            segment.Array![segment.Offset] ^= 0xff;
+        }
+
         private sealed class ProgressRecorder : IProgress<PullDcaProgress>
         {
             public List<PullDcaProgress> Items { get; } = [];
 
+            public Action<PullDcaProgress>? OnReport { get; init; }
+
             public void Report(PullDcaProgress value)
             {
                 Items.Add(value);
+                OnReport?.Invoke(value);
             }
         }
 
@@ -1129,24 +2483,45 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             public List<string> Calls { get; } = [];
-            public FakeConnection Connection { get; }
+            public FakeConnection Connection { get; set; }
             public FakeHost Host { get; }
             public string? FailingOperation { get; set; }
+
+            /// <summary>
+            /// Suspends connection admission before the workflow can use retained request inputs.
+            /// </summary>
+            public Func<CancellationToken, Task>? ConnectionWait { get; set; }
+
+            /// <summary>
+            /// Gets the registrar passed to the borrowed connection accessor.
+            /// </summary>
+            public PullDcaRegistrar? ConnectedRegistrar { get; private set; }
+
+            /// <summary>
+            /// Gets or sets the certificate profile required by the fixture's signing and trust services.
+            /// </summary>
+            public PullDcaCertificateProfile ExpectedProfile { get; set; } = kProfile;
 
             public PullDcaWorkflow Create(
                 PullDcaOptions? options = null, bool includeSoftware = true, bool includeDiscovery = false,
                 IPullDcaCertificateReceiptStore? receipts = null,
-                IPullDcaSigningRecoveryProvider? signingRecovery = null)
+                IPullDcaSigningRecoveryProvider? signingRecovery = null,
+                IPullDcaSigningJournal? signingJournal = null)
             {
                 return new PullDcaWorkflow(
                     options ?? new PullDcaOptions(),
-                    (_, ct) =>
+                    async (registrar, ct) =>
                     {
                         Record("connect", ct);
-                        return new ValueTask<IPullDcaConnection>(Connection);
+                        ConnectedRegistrar = registrar;
+                        if (ConnectionWait != null)
+                        {
+                            await ConnectionWait(ct).ConfigureAwait(false);
+                        }
+                        return Connection;
                     },
                     Host, Host, includeSoftware ? Host : null, includeDiscovery ? Host : null,
-                    receipts, signingRecovery);
+                    receipts, signingRecovery, signingJournal);
             }
 
             public void Record(string operation, CancellationToken ct)
@@ -1160,7 +2535,28 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
-        private sealed class FakeConnection : IPullDcaConnection
+        /// <summary>
+        /// Represents an extended manager description that cannot be safely snapshotted.
+        /// </summary>
+        private sealed class DerivedManagerDescription : ManagerDescription
+        {
+        }
+
+        /// <summary>
+        /// Represents a ticket extension whose fields cannot be safely snapshotted.
+        /// </summary>
+        private sealed class DerivedDeviceIdentityTicket : DeviceIdentityTicketType
+        {
+        }
+
+        /// <summary>
+        /// Represents an authority extension whose fields cannot be safely snapshotted.
+        /// </summary>
+        private sealed class DerivedCertificateAuthority : CertificateAuthorityType
+        {
+        }
+
+        private class FakeConnection : IPullDcaConnection
         {
             public FakeConnection(Fixture fixture)
             {
@@ -1174,13 +2570,45 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public TrustListDataType TrustList { get; } = new();
             public ArrayOf<ManagerDescription> Managers { get; } =
                 [new ManagerDescription { Name = new LocalizedText("manager") }];
+            /// <summary>
+            /// Gets the certificate supplied for the installed channel.
+            /// </summary>
+            public ByteString InstalledChannelCertificate { get; private set; }
             public int PendingResponses { get; set; }
             public bool EmptyPendingResponse { get; set; }
             public StatusCode CertificateError { get; set; } = StatusCodes.Good;
             public Queue<Exception> FinishFailures { get; } = new();
             public List<NodeId> FinishedRequestIds { get; } = [];
+            public NodeId SigningRequestId { get; set; } = kRequestId;
+
+            /// <summary>
+            /// Gets the number of new key-pair requests started by the workflow.
+            /// </summary>
+            public int NewKeyPairRequests { get; private set; }
+
+            /// <summary>
+            /// Gets or sets the certificate returned by a new key-pair request.
+            /// </summary>
+            public ByteString NewKeyPairCertificate { get; set; } = kCertificate;
+
+            /// <summary>
+            /// Gets or sets the PFX returned by a new key-pair request.
+            /// </summary>
+            public ByteString NewKeyPairPrivateKeyPfx { get; set; } = kPrivateKeyPfx;
+
+            /// <summary>
+            /// Gets the last PFX buffer returned to the workflow.
+            /// </summary>
+            public ByteString LastReturnedPrivateKeyPfx { get; private set; }
+
             public Action? AfterFinish { get; set; }
             public Func<CancellationToken, Task>? IdentityWait { get; set; }
+
+            /// <summary>
+            /// Suspends trust download after a signing receipt has been selected.
+            /// </summary>
+            public Func<CancellationToken, Task>? TrustWait { get; set; }
+
             public ArrayOf<NodeId> AssignedTypes { get; set; } = [kProfile.CertificateTypeId];
             public ArrayOf<ByteString> AssignedCertificates { get; set; } = [kCertificate];
 
@@ -1208,6 +2636,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 return new ValueTask<ArrayOf<ManagerDescription>>(Managers);
             }
 
+            public ValueTask<ArrayOf<ManagerDescription>> GetManagersOnInstalledChannelAsync(
+                PullDcaSigningBinding? binding,
+                ByteString installedCertificate,
+                CancellationToken ct)
+            {
+                m_fixture.Record("managers", ct);
+                InstalledChannelCertificate = installedCertificate.Copy();
+                return new ValueTask<ArrayOf<ManagerDescription>>(Managers);
+            }
+
             public ValueTask<NodeId> RegisterAsync(PullDcaManagedApplication application, CancellationToken ct)
             {
                 m_fixture.Record("register", ct);
@@ -1219,9 +2657,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 NodeId applicationId, PullDcaCertificateProfile profile, ByteString csr, CancellationToken ct)
             {
                 m_fixture.Record("start:" + applicationId.IdentifierAsString, ct);
-                Assert.That(profile, Is.SameAs(kProfile));
+                Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
                 Assert.That(csr, Is.EqualTo(kCsr));
-                return new ValueTask<NodeId>(kRequestId);
+                return new ValueTask<NodeId>(SigningRequestId);
+            }
+
+            public ValueTask<NodeId> StartNewKeyPairAsync(
+                NodeId applicationId, PullDcaCertificateProfile profile, CancellationToken ct)
+            {
+                m_fixture.Record("start-keypair:" + applicationId.IdentifierAsString, ct);
+                Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
+                return new ValueTask<NodeId>(
+                    NewKeyPairRequests++ == 0 ? kRequestId : kRestartedRequestId);
             }
 
             public ValueTask<(ByteString Certificate, ArrayOf<ByteString> Issuers)> FinishAsync(
@@ -1250,19 +2697,45 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 return new ValueTask<(ByteString, ArrayOf<ByteString>)>((kCertificate, new[] { kIssuer }.ToArrayOf()));
             }
 
-            public ValueTask<TrustListDataType> ReadTrustListAsync(
+            public ValueTask<(ByteString Certificate, ByteString PrivateKeyPfx, ArrayOf<ByteString> Issuers)>
+                FinishNewKeyPairAsync(NodeId applicationId, NodeId requestId, CancellationToken ct)
+            {
+                m_fixture.Record("finish-keypair:" + applicationId.IdentifierAsString, ct);
+                FinishedRequestIds.Add(requestId);
+                if (FinishFailures.Count != 0)
+                {
+                    throw FinishFailures.Dequeue();
+                }
+                if (StatusCode.IsBad(CertificateError))
+                {
+                    throw new ServiceResultException(CertificateError);
+                }
+                if (PendingResponses-- > 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNothingToDo);
+                }
+                LastReturnedPrivateKeyPfx = NewKeyPairPrivateKeyPfx.Copy();
+                return new ValueTask<(ByteString, ByteString, ArrayOf<ByteString>)>(
+                    (NewKeyPairCertificate, LastReturnedPrivateKeyPfx, new[] { kIssuer.Copy() }.ToArrayOf()));
+            }
+
+            public async ValueTask<TrustListDataType> ReadTrustListAsync(
                 NodeId applicationId, NodeId certificateGroupId, CancellationToken ct)
             {
                 m_fixture.Record("trust:" + applicationId.IdentifierAsString, ct);
-                Assert.That(certificateGroupId, Is.EqualTo(kProfile.CertificateGroupId));
-                return new ValueTask<TrustListDataType>(TrustList);
+                Assert.That(certificateGroupId, Is.EqualTo(m_fixture.ExpectedProfile.CertificateGroupId));
+                if (TrustWait != null)
+                {
+                    await TrustWait(ct).ConfigureAwait(false);
+                }
+                return TrustList;
             }
 
             public ValueTask<(ArrayOf<NodeId> Types, ArrayOf<ByteString> Certificates)> GetCertificatesAsync(
                 NodeId applicationId, NodeId certificateGroupId, CancellationToken ct)
             {
                 m_fixture.Record("certificates:" + applicationId.IdentifierAsString, ct);
-                Assert.That(certificateGroupId, Is.EqualTo(kProfile.CertificateGroupId));
+                Assert.That(certificateGroupId, Is.EqualTo(m_fixture.ExpectedProfile.CertificateGroupId));
                 return new ValueTask<(ArrayOf<NodeId>, ArrayOf<ByteString>)>(
                     (AssignedTypes, AssignedCertificates));
             }
@@ -1270,9 +2743,45 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             private readonly Fixture m_fixture;
         }
 
+        private sealed class FakeBoundConnection : FakeConnection, IPullDcaBoundSigningConnection
+        {
+            public FakeBoundConnection(Fixture fixture, PullDcaSigningBinding binding)
+                : base(fixture)
+            {
+                m_fixture = fixture;
+                m_binding = binding;
+            }
+
+            public ValueTask<NodeId> StartWithEvidenceAsync(
+                NodeId applicationId,
+                PullDcaCertificateProfile profile,
+                ByteString csr,
+                ByteString signingKeyCertificate,
+                CancellationToken ct)
+            {
+                m_fixture.Record("start:" + applicationId.IdentifierAsString, ct);
+                Assert.That(applicationId, Is.EqualTo(m_binding.ApplicationId));
+                Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
+                Assert.That(csr, Is.EqualTo(kCsr));
+                Assert.That(signingKeyCertificate, Is.EqualTo(kCertificate));
+                return new ValueTask<NodeId>(m_binding.RequestId);
+            }
+
+            public ValueTask<PullDcaSigningBinding> GetSigningBindingAsync(
+                NodeId applicationId, NodeId requestId, CancellationToken ct)
+            {
+                Assert.That(applicationId, Is.EqualTo(m_binding.ApplicationId));
+                Assert.That(requestId, Is.EqualTo(m_binding.RequestId));
+                return new ValueTask<PullDcaSigningBinding>(m_binding);
+            }
+
+            private readonly Fixture m_fixture;
+            private readonly PullDcaSigningBinding m_binding;
+        }
+
         private sealed class FakeHost :
-            IPullDcaIdentityProvider, IPullDcaCredentialProvider,
-            IPullDcaSoftwareUpdateProvider, IPullDcaRegistrarDiscovery
+            IPullDcaIdentityProvider, IPullDcaCredentialProvider, IPullDcaNewKeyPairCredentialProvider,
+            IPullDcaSigningKeyEvidenceProvider, IPullDcaSoftwareUpdateProvider, IPullDcaRegistrarDiscovery
         {
             public FakeHost(Fixture fixture)
             {
@@ -1284,7 +2793,26 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public ManagerDescription? SoftwareManager { get; private set; }
             public PullDcaRegistrar? SoftwareRegistrar { get; private set; }
             public ByteString SigningRequest { get; set; } = kCsr;
+            /// <summary>
+            /// Gets or sets an action invoked with the identity selected for activation.
+            /// </summary>
+            public Action<ByteString>? OnActivate { get; set; }
+
+            /// <summary>
+            /// Gets or sets an action invoked with the software-update binding.
+            /// </summary>
+            public Action<PullDcaRegistrar, PullDcaIdentitySelection,             ManagerDescription>? OnSoftwareUpdate { get; set; }
+            public Action<NodeId, PullDcaCertificateProfile>? OnCreateSigningRequest { get; set; }
+            public Action<NodeId, PullDcaCertificateProfile, ByteString>? OnKeyEvidence { get; set; }
+            public Action<NodeId>? OnInstall { get; set; }
+            public Action<NodeId, PullDcaCertificateProfile>? OnInstallNewKeyPair { get; set; }
+            /// <summary>
+            /// Gets or sets an action invoked with credentials passed to the installer.
+            /// </summary>
+            public Action<PullDcaCredentials>? OnCredentialsInstalled { get; set; }
             public List<NodeId> InstalledIds { get; } = [];
+            public List<NodeId> KeyPairInstalledIds { get; } = [];
+            public ByteString ReceivedPrivateKeyPfx { get; private set; }
             public ArrayOf<PullDcaRegistrar> DiscoveredRegistrars { get; set; }
             public CancellationToken DiscoveryToken { get; private set; }
 
@@ -1292,6 +2820,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 m_fixture.Record("identity", cancellationToken);
                 ActivatedIdentity = selectedIdentity;
+                OnActivate?.Invoke(selectedIdentity);
                 return default;
             }
 
@@ -1303,6 +2832,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 SoftwareIdentity = identity;
                 SoftwareManager = manager;
                 SoftwareRegistrar = registrar;
+                OnSoftwareUpdate?.Invoke(registrar, identity, manager);
                 return default;
             }
 
@@ -1310,7 +2840,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 NodeId applicationId, PullDcaCertificateProfile profile, CancellationToken cancellationToken)
             {
                 m_fixture.Record("csr:" + applicationId.IdentifierAsString, cancellationToken);
-                Assert.That(profile, Is.SameAs(kProfile));
+                Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
+                OnCreateSigningRequest?.Invoke(applicationId, profile);
                 return new ValueTask<ByteString>(SigningRequest);
             }
 
@@ -1320,8 +2851,42 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_fixture.Record("install:" + applicationId.IdentifierAsString, cancellationToken);
                 Assert.That(credentials.Certificate, Is.EqualTo(kCertificate));
                 Assert.That(credentials.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
-                Assert.That(credentials.TrustList, Is.SameAs(m_fixture.Connection.TrustList));
+                Assert.That(credentials.TrustList.SpecifiedLists,
+                    Is.EqualTo(m_fixture.Connection.TrustList.SpecifiedLists));
                 InstalledIds.Add(applicationId);
+                OnInstall?.Invoke(applicationId);
+                OnCredentialsInstalled?.Invoke(credentials);
+                return default;
+            }
+
+            public ValueTask<ByteString> GetSigningKeyCertificateAsync(
+                NodeId applicationId,
+                PullDcaCertificateProfile profile,
+                ByteString signingRequest,
+                CancellationToken cancellationToken)
+            {
+                m_fixture.Record("evidence:" + applicationId.IdentifierAsString, cancellationToken);
+                OnKeyEvidence?.Invoke(applicationId, profile, signingRequest);
+                return new ValueTask<ByteString>(kCertificate);
+            }
+
+            public ValueTask InstallNewKeyPairAsync(
+                NodeId applicationId,
+                PullDcaCertificateProfile profile,
+                PullDcaCredentials credentials,
+                ByteString privateKeyPfx,
+                CancellationToken cancellationToken)
+            {
+                m_fixture.Record("install-keypair:" + applicationId.IdentifierAsString, cancellationToken);
+                Assert.That(profile, Is.EqualTo(m_fixture.ExpectedProfile));
+                Assert.That(credentials.Certificate, Is.EqualTo(kCertificate));
+                Assert.That(credentials.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
+                Assert.That(credentials.TrustList.SpecifiedLists,
+                    Is.EqualTo(m_fixture.Connection.TrustList.SpecifiedLists));
+                KeyPairInstalledIds.Add(applicationId);
+                ReceivedPrivateKeyPfx = privateKeyPfx.Copy();
+                OnInstallNewKeyPair?.Invoke(applicationId, profile);
+                OnCredentialsInstalled?.Invoke(credentials);
                 return default;
             }
 
@@ -1351,12 +2916,40 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private static readonly string[] s_finishCalls = ["connect", "finish:dca"];
         private static readonly string[] s_connectCalls = ["connect"];
         private static readonly string[] s_connectManagersCalls = ["connect", "managers"];
+        private static readonly string[] s_connectProvideCalls = ["connect", "provide"];
         private static readonly string[] s_recoveryCalls =
         [
             "connect", "finish:dca", "certificates:dca", "trust:dca", "validate-recovery",
             "trust:dca", "install:dca"
         ];
         private static readonly string[] s_discoveryCalls = ["discover"];
+
+        /// <summary>The calls made by an initial DCA new-key-pair request.</summary>
+        private static readonly string[] s_initialNewKeyPairCalls =
+        [
+            "connect", "provide", "identity", "reconnect",
+            "start-keypair:dca", "finish-keypair:dca", "trust:dca", "install-keypair:dca",
+            "reconnect", "managers"
+        ];
+
+        /// <summary>The calls made when a managed application requests a new key pair.</summary>
+        private static readonly string[] s_managedApplicationNewKeyPairCalls =
+        [
+            "connect", "provide", "identity", "reconnect",
+            "csr:dca", "start:dca", "finish:dca", "trust:dca", "install:dca",
+            "reconnect", "managers", "register",
+            "start-keypair:managed", "finish-keypair:managed", "trust:managed", "install-keypair:managed"
+        ];
+
+        /// <summary>The calls made after a consumed new-key-pair request is restarted.</summary>
+        private static readonly string[] s_restartedNewKeyPairCalls =
+        [
+            "connect", "provide", "identity", "reconnect",
+            "start-keypair:dca", "finish-keypair:dca", "finish-keypair:dca",
+            "start-keypair:dca", "finish-keypair:dca", "trust:dca", "install-keypair:dca",
+            "reconnect", "managers"
+        ];
+
         private static readonly ArrayOf<string> s_expectedTickets = ["ticket"];
         private static readonly ArrayOf<string> s_expectedDiscoveryUrls = ["opc.tcp://managed:4840"];
         private static readonly ArrayOf<string> s_expectedCapabilities = ["DA"];
@@ -1365,12 +2958,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private static readonly NodeId kDcaId = new("dca", 2);
         private static readonly NodeId kManagedId = new("managed", 2);
         private static readonly NodeId kRequestId = new("request", 2);
+        private static readonly NodeId kRestartedRequestId = new("restarted-request", 2);
         private static readonly PullDcaCertificateProfile kProfile = new(
             new NodeId("group", 2), Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
         private static readonly ByteString kIdentity = ByteString.From(new byte[] { 1, 2, 3 });
         private static readonly ByteString kIssuer = ByteString.From(new byte[] { 4, 5, 6 });
         private static readonly ByteString kCsr = ByteString.From(new byte[] { 7, 8, 9 });
         private static readonly ByteString kCertificate = ByteString.From(new byte[] { 10, 11, 12 });
+        private static readonly ByteString kPrivateKeyPfx = ByteString.From(new byte[] { 13, 14, 15 });
     }
 
     /// <summary>
@@ -1381,12 +2976,306 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     public sealed class PullDcaConnectionTests
     {
         [Test]
+        public async Task KeyPairFinishAllowsRecreatedSessionWithSameClientCertificate()
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            fixture.MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            byte[] clientCertificate = [17, 18, 19];
+            byte[] serverCertificate = [20, 21, 22];
+            fixture.Channel.SetupGet(channel => channel.ClientChannelCertificate).Returns(clientCertificate);
+            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(serverCertificate);
+            var applicationId = new NodeId("app", 0);
+            var requestId = new NodeId("request", 0);
+            var registrar = new PullDcaRegistrar(
+                new Uri("opc.tcp://localhost:4840"), new NodeId("registrar", 0), new NodeId("directory", 0));
+            fixture.Handler = (request, _) =>
+            {
+                if (request is BrowseRequest)
+                {
+                    return new ValueTask<IServiceResponse>(
+                        new BrowseResponse { Results = [new BrowseResult { References = [] }] });
+                }
+                if (request is CallRequest call)
+                {
+                    ArrayOf<Variant> output = call.MethodsToCall[0].MethodId ==
+                        Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
+                            (ServiceMessageContext)fixture.MessageContext)
+                        ? [Variant.From(requestId)]
+                        : [Variant.From(ByteString.From(new byte[] { 1 })),
+                            Variant.From(ByteString.From(new byte[] { 2 })), Variant.From(ArrayOf<ByteString>.Empty)];
+                    return new ValueTask<IServiceResponse>(
+                        new CallResponse { Results = [new CallMethodResult { OutputArguments = output }] });
+                }
+                throw new InvalidOperationException("Unexpected key-pair request.");
+            };
+            var adapter = new PullDcaConnection(fixture.ManagedSession, registrar, fixture.Telemetry, 1024);
+            NodeId started = await adapter.StartNewKeyPairAsync(
+                applicationId, kProfile, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(started, Is.EqualTo(requestId));
+            int callsBeforeRecreate = fixture.Requests.Count;
+            NodeId previousSessionId = fixture.ManagedSession.SessionId;
+            fixture.Recreate();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.ManagedSession.SessionId, Is.Not.EqualTo(previousSessionId));
+                Assert.That(
+                    fixture.ManagedSession.TransportChannel.ClientChannelCertificate,
+                    Is.EqualTo(clientCertificate));
+            });
+            var (certificate, privateKey, _) = await adapter.FinishNewKeyPairAsync(
+                applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(certificate.IsEmpty, Is.False);
+                    Assert.That(privateKey.IsEmpty, Is.False);
+                    Assert.That(fixture.Requests, Has.Count.GreaterThan(callsBeforeRecreate));
+                });
+            }
+            finally
+            {
+                ClearReturnedPrivateKey(privateKey);
+            }
+        }
+
+        /// <summary>
+        /// FinishRequest is rejected before dispatch when either channel certificate differs from StartRequest.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task KeyPairFinishRejectsChangedChannelCertificateBeforeDispatch(bool changeClientCertificate)
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            fixture.MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            byte[] clientCertificate = [17, 18, 19];
+            byte[] registrarCertificate = [20, 21, 22];
+            fixture.Channel.SetupGet(channel => channel.ClientChannelCertificate).Returns(clientCertificate);
+            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(registrarCertificate);
+            var applicationId = new NodeId("app", 0);
+            var requestId = new NodeId("request", 0);
+            var registrar = new PullDcaRegistrar(
+                new Uri("opc.tcp://localhost:4840"), new NodeId("registrar", 0), new NodeId("directory", 0));
+            fixture.Handler = (request, _) =>
+            {
+                if (request is BrowseRequest)
+                {
+                    return new ValueTask<IServiceResponse>(
+                        new BrowseResponse { Results = [new BrowseResult { References = [] }] });
+                }
+                if (request is CallRequest call)
+                {
+                    ArrayOf<Variant> output = call.MethodsToCall[0].MethodId ==
+                        Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
+                            (ServiceMessageContext)fixture.MessageContext)
+                        ? [Variant.From(requestId)]
+                        : [Variant.From(ByteString.From(new byte[] { 1 })),
+                            Variant.From(ByteString.From(new byte[] { 2 })), Variant.From(ArrayOf<ByteString>.Empty)];
+                    return new ValueTask<IServiceResponse>(
+                        new CallResponse { Results = [new CallMethodResult { OutputArguments = output }] });
+                }
+                throw new InvalidOperationException("Unexpected key-pair request.");
+            };
+            var adapter = new PullDcaConnection(fixture.ManagedSession, registrar, fixture.Telemetry, 1024);
+            await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None).ConfigureAwait(false);
+            int callsBeforeFinish = fixture.Requests.Count;
+            if (changeClientCertificate)
+            {
+                fixture.Channel.SetupGet(channel => channel.ClientChannelCertificate)
+                    .Returns(new byte[] { 23, 24, 25 });
+            }
+            else
+            {
+                fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate)
+                    .Returns(new byte[] { 23, 24, 25 });
+            }
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.FinishNewKeyPairAsync(applicationId, requestId, CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fixture.Requests, Has.Count.EqualTo(callsBeforeFinish));
+        }
+
+        /// <summary>
+        /// Pending key-pair responses retain the authenticated request binding until output is returned.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task KeyPairFinishRetainsBindingWhileCertificateIsPending(bool pendingStatus)
+        {
+            var applicationId = new NodeId("app", 2);
+            var requestId = new NodeId("request", 2);
+            int calls = 0;
+            await using var session = CreateConfidentialSession(_ =>
+            {
+                calls++;
+                return calls switch
+                {
+                    1 => Good(requestId),
+                    2 when pendingStatus => new CallMethodResult { StatusCode = StatusCodes.BadNothingToDo },
+                    2 => Good(default(ByteString), default(ByteString), Variant.From(ArrayOf<ByteString>.Empty)),
+                    _ => Good(ByteString.From(new byte[] { 10 }), ByteString.From(new byte[] { 11 }),
+                        Variant.From(ArrayOf<ByteString>.Empty))
+                };
+            });
+            var adapter = new PullDcaConnection(session.InnerSession, kRegistrar, session.Telemetry, 1024, _ => default);
+            Assert.That(await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None)
+                .ConfigureAwait(false), Is.EqualTo(requestId));
+            if (pendingStatus)
+            {
+                ServiceResultException? pending = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await adapter.FinishNewKeyPairAsync(applicationId, requestId, CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(pending!.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+            }
+            else
+            {
+                var (pendingCertificate, pendingKey, _) = await adapter.FinishNewKeyPairAsync(
+                    applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(pendingCertificate.IsEmpty, Is.True);
+                Assert.That(pendingKey.IsEmpty, Is.True);
+            }
+            var (certificate, privateKey, _) = await adapter.FinishNewKeyPairAsync(
+                applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                Assert.That(certificate, Is.EqualTo(ByteString.From(new byte[] { 10 })));
+                Assert.That(privateKey, Is.EqualTo(ByteString.From(new byte[] { 11 })));
+                Assert.That(calls, Is.EqualTo(3));
+                ServiceResultException? consumed = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await adapter.FinishNewKeyPairAsync(applicationId, requestId, CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(consumed!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                Assert.That(calls, Is.EqualTo(3));
+            }
+            finally
+            {
+                ClearReturnedPrivateKey(privateKey);
+            }
+        }
+
+        /// <summary>
+        /// A consumed key-pair request must be restarted instead of retried as a signing request.
+        /// </summary>
+        [Test]
+        public async Task KeyPairFinishBadInvalidArgumentRequiresNewStart()
+        {
+            var applicationId = new NodeId("app", 2);
+            var firstRequestId = new NodeId("first-request", 2);
+            var secondRequestId = new NodeId("second-request", 2);
+            var requests = new List<CallMethodRequest>();
+            int calls = 0;
+            await using var session = CreateConfidentialSession(request =>
+            {
+                requests.Add(request);
+                calls++;
+                return calls switch
+                {
+                    1 => Good(firstRequestId),
+                    2 => new CallMethodResult { StatusCode = StatusCodes.BadInvalidArgument },
+                    3 => Good(secondRequestId),
+                    4 => Good(
+                        ByteString.From(new byte[] { 10 }),
+                        ByteString.From(new byte[] { 11 }),
+                        Variant.From(ArrayOf<ByteString>.Empty)),
+                    _ => throw new AssertionException("Unexpected key-pair request.")
+                };
+            });
+            var adapter = new PullDcaConnection(
+                session.InnerSession, kRegistrar, session.Telemetry, 1024, _ => default);
+
+            Assert.That(await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None)
+                .ConfigureAwait(false), Is.EqualTo(firstRequestId));
+            ServiceResultException? consumed = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.FinishNewKeyPairAsync(applicationId, firstRequestId, CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(consumed!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+
+            int callsBeforeOldRequestRetry = calls;
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.FinishNewKeyPairAsync(applicationId, firstRequestId, CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(calls, Is.EqualTo(callsBeforeOldRequestRetry));
+
+            Assert.That(await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None)
+                .ConfigureAwait(false), Is.EqualTo(secondRequestId));
+            var (certificate, privateKey, _) = await adapter.FinishNewKeyPairAsync(
+                applicationId, secondRequestId, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                Assert.That(certificate, Is.EqualTo(ByteString.From(new byte[] { 10 })));
+                Assert.That(privateKey, Is.EqualTo(ByteString.From(new byte[] { 11 })));
+                NodeId[] expectedMethods =
+                [
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
+                        (ServiceMessageContext)session.MessageContext),
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest,
+                        (ServiceMessageContext)session.MessageContext),
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest,
+                        (ServiceMessageContext)session.MessageContext),
+                    Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest,
+                        (ServiceMessageContext)session.MessageContext)
+                ];
+                Assert.That(requests.Select(request => request.MethodId), Is.EqualTo(expectedMethods));
+            }
+            finally
+            {
+                ClearReturnedPrivateKey(privateKey);
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task NewKeyPairRequestsRequireConfidentialDispatch(bool finish)
+        {
+            var applicationId = new NodeId("app", 2);
+            var requestId = new NodeId("request", 2);
+            await using var session = CreateConfidentialSession(_ => Good(requestId));
+            bool rejectCapture = !finish;
+            var adapter = new PullDcaConnection(
+                session.InnerSession,
+                kRegistrar,
+                session.Telemetry,
+                1024,
+                _ => default,
+                ct => rejectCapture
+                    ? throw new ServiceResultException(StatusCodes.BadSecurityModeInsufficient)
+                    : SessionRequestContext.CaptureConfidentialAsync(session.ManagedSession, ct));
+            if (finish)
+            {
+                await adapter.StartNewKeyPairAsync(applicationId, kProfile, CancellationToken.None)
+                    .ConfigureAwait(false);
+                rejectCapture = true;
+            }
+            int callsBeforeRejection = session.Requests.Count;
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                if (finish)
+                {
+                    await adapter.FinishNewKeyPairAsync(
+                        applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    await adapter.StartNewKeyPairAsync(
+                        applicationId, kProfile, CancellationToken.None).ConfigureAwait(false);
+                }
+            });
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(session.Requests, Has.Count.EqualTo(callsBeforeRejection));
+        }
+
+        [Test]
         public async Task ProductionAdapterUsesGeneratedRegistrarAndCertificateDirectoryMethods()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
-            context.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
-            context.NamespaceUris.GetIndexOrAppend(Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding);
             var requests = new List<CallMethodRequest>();
             var manager = new ManagerDescription
             {
@@ -1399,7 +3288,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ByteString certificate = ByteString.From(new byte[] { 1, 2, 3 });
             ArrayOf<ByteString> issuers = [certificate];
             ArrayOf<ManagerDescription> managers = [manager];
-            Mock<ISession> session = CreateSession(context, request =>
+            await using var session = CreateConfidentialSession(request =>
             {
                 requests.Add(request);
                 return requests.Count switch
@@ -1413,8 +3302,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     _ => Good(Variant.From(new[] { kProfile.CertificateTypeId }.ToArrayOf()), Variant.From(issuers))
                 };
             });
+            var context = (ServiceMessageContext)session.MessageContext;
             int reconnects = 0;
-            var adapter = new PullDcaConnection(session.Object, kRegistrar, telemetry, 1024, _ =>
+            var adapter = new PullDcaConnection(session.InnerSession, kRegistrar, session.Telemetry, 1024, _ =>
             {
                 reconnects++;
                 return default;
@@ -1469,24 +3359,86 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(sentApplicationId, Is.EqualTo(applicationId));
             Assert.That(requests[3].InputArguments[3].TryGetValue(out ByteString sentCsr), Is.True);
             Assert.That(sentCsr, Is.EqualTo(certificate));
-            session.Verify(s => s.Dispose(), Times.Never);
+            Assert.That(session.InnerSession.Connected, Is.True);
+        }
+
+        [Test]
+        public async Task ProductionAdapterUsesGeneratedNewKeyPairAndFinishProxies()
+        {
+            var applicationId = new NodeId("app", 2);
+            var requestId = new NodeId("request", 2);
+            ByteString certificate = ByteString.From(new byte[] { 1, 2 });
+            ByteString privateKeyPfx = ByteString.From(new byte[] { 3, 4 });
+            ArrayOf<ByteString> issuers = [ByteString.From(new byte[] { 5, 6 })];
+            var requests = new List<CallMethodRequest>();
+            await using var session = CreateConfidentialSession(request =>
+            {
+                requests.Add(request);
+                return requests.Count == 1
+                    ? Good(requestId)
+                    : Good(certificate, privateKeyPfx, Variant.From(issuers));
+            });
+            var context = (ServiceMessageContext)session.MessageContext;
+            var adapter = new PullDcaConnection(session.InnerSession, kRegistrar, session.Telemetry, 1024, _ => default);
+
+            NodeId actualRequestId = await adapter.StartNewKeyPairAsync(
+                applicationId, kProfile, CancellationToken.None).ConfigureAwait(false);
+            var (actualCertificate, actualPrivateKeyPfx, actualIssuers) = await adapter.FinishNewKeyPairAsync(
+                applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(actualRequestId, Is.EqualTo(requestId));
+            Assert.That(actualCertificate, Is.EqualTo(certificate));
+            Assert.That(actualPrivateKeyPfx, Is.EqualTo(privateKeyPfx));
+            Assert.That(actualIssuers, Is.EqualTo(issuers));
+            Assert.That(requests.Select(request => request.MethodId), Is.EqualTo(new[]
+            {
+                Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartNewKeyPairRequest, context),
+                Resolve(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_FinishRequest, context)
+            }));
+            Assert.That(requests[0].InputArguments[0].TryGetValue(out NodeId sentApplicationId), Is.True);
+            Assert.That(sentApplicationId, Is.EqualTo(applicationId));
+            Assert.That(requests[0].InputArguments[1].TryGetValue(out NodeId sentGroupId), Is.True);
+            Assert.That(sentGroupId, Is.EqualTo(kProfile.CertificateGroupId));
+            Assert.That(requests[0].InputArguments[2].TryGetValue(out NodeId sentTypeId), Is.True);
+            Assert.That(sentTypeId, Is.EqualTo(kProfile.CertificateTypeId));
+            Assert.That(requests[0].InputArguments[3].TryGetValue(out string subjectName), Is.True);
+            Assert.That(subjectName, Is.Empty);
+            Assert.That(requests[0].InputArguments[4].TryGetValue(out ArrayOf<string> domains), Is.True);
+            Assert.That(domains.IsEmpty, Is.True);
+            Assert.That(requests[0].InputArguments[5].TryGetValue(out string privateKeyFormat), Is.True);
+            Assert.That(privateKeyFormat, Is.EqualTo("PFX"));
+            Assert.That(requests[0].InputArguments[6].TryGetValue(out string privateKeyPassword), Is.True);
+            Assert.That(privateKeyPassword, Is.Empty);
+            Assert.That(session.InnerSession.Connected, Is.True);
         }
 
         [Test]
         public async Task SigningResponseCannotUnexpectedlySupplyPrivateKeyMaterial()
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
-            context.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            var applicationId = new NodeId("app", 2);
+            var requestId = new NodeId("request", 2);
             ByteString certificate = ByteString.From(new byte[] { 1 });
-            Mock<ISession> session = CreateSession(context, _ =>
-                Good(certificate, certificate, Variant.From(ArrayOf<ByteString>.Null)));
-            var adapter = new PullDcaConnection(session.Object, kRegistrar, telemetry, 1024, _ => default);
+            byte[] privateKey = [2, 3, 4];
+            NodeId startSigningRequestMethodId = NodeId.Null;
+            await using var session = CreateConfidentialSession(request =>
+                request.ObjectId == kRegistrar.CertificateDirectoryId
+                    ? request.MethodId == startSigningRequestMethodId
+                        ? Good(requestId)
+                        : Good(certificate, ByteString.From(privateKey), Variant.From(ArrayOf<ByteString>.Null))
+                    : throw new AssertionException("Unexpected certificate-directory object."));
+            startSigningRequestMethodId = Resolve(
+                Opc.Ua.Gds.MethodIds.CertificateDirectoryType_StartSigningRequest,
+                (ServiceMessageContext)session.MessageContext);
+            var adapter = new PullDcaConnection(
+                session.InnerSession, kRegistrar, session.Telemetry, 1024, _ => default);
+            await ((IPullDcaBoundSigningConnection)adapter).StartWithEvidenceAsync(
+                applicationId, kProfile, certificate, certificate, CancellationToken.None).ConfigureAwait(false);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await adapter.FinishAsync(new NodeId(1), new NodeId(2), CancellationToken.None).ConfigureAwait(false));
+                await adapter.FinishAsync(applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(privateKey, Is.EqualTo(new byte[3]));
         }
 
         [Test]
@@ -1629,6 +3581,30 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
+        /// <summary>
+        /// Supplies a real confidential dispatch owner for certificate-directory transport tests.
+        /// </summary>
+        private static SessionRequestContextTestContext CreateConfidentialSession(
+            Func<CallMethodRequest, CallMethodResult> handler)
+        {
+            var session = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            session.MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            session.MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding);
+            session.Channel.Object.EndpointDescription.EndpointUrl = kRegistrar.EndpointUrl.AbsoluteUri;
+            session.Channel.SetupGet(channel => channel.ClientChannelCertificate).Returns(new byte[] { 1, 2, 3 });
+            session.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(new byte[] { 4, 5, 6 });
+            session.Handler = (request, _) => request switch
+            {
+                BrowseRequest => new ValueTask<IServiceResponse>(
+                    new BrowseResponse { Results = [new BrowseResult { References = [] }] }),
+                CallRequest call => new ValueTask<IServiceResponse>(
+                    new CallResponse { Results = [handler(call.MethodsToCall[0])] }),
+                _ => throw new AssertionException("Unexpected certificate-directory transport request.")
+            };
+            return session;
+        }
+
         private static Mock<ISession> CreateSession(
             ServiceMessageContext context,
             Func<CallMethodRequest, CallMethodResult> handler)
@@ -1655,6 +3631,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private static NodeId Resolve(ExpandedNodeId methodId, ServiceMessageContext context)
         {
             return ExpandedNodeId.ToNodeId(methodId, context.NamespaceUris);
+        }
+
+        private static void ClearReturnedPrivateKey(ByteString privateKey)
+        {
+            if (MemoryMarshal.TryGetArray(privateKey.Memory, out ArraySegment<byte> bytes) && bytes.Array != null)
+            {
+                Array.Clear(bytes.Array, bytes.Offset, bytes.Count);
+            }
         }
 
         private static readonly PullDcaRegistrar kRegistrar = new(

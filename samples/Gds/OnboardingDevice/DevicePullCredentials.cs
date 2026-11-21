@@ -25,6 +25,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using OnboardingClientSample;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
@@ -33,10 +34,27 @@ using Opc.Ua.Gds.Server.Onboarding;
 namespace OnboardingDevice
 {
     /// <summary>
+    /// Restores a locally retained key for an existing pull signing request.
+    /// </summary>
+    internal interface IDevicePullSigningRecovery
+    {
+        /// <summary>
+        /// Validates the retained request and reopens its private key.
+        /// </summary>
+        ValueTask RestoreSigningRequestAsync(
+            PullDcaSigningBinding binding,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Reuses the sample's local identity and CSR provider but installs only through the device security owner.
     /// The active pull attempt owns its session; reset and recovery use the same device checkpoint.
     /// </summary>
-    internal sealed class DevicePullCredentials : IPullDcaIdentityProvider, IPullDcaCredentialProvider
+    internal sealed class DevicePullCredentials :
+        IPullDcaIdentityProvider,
+        IPullDcaCredentialProvider,
+        IPullDcaBoundCredentialProvider,
+        IPullDcaSigningKeyEvidenceProvider
     {
         /// <summary>
         /// Borrows identity selection, local signing, device installation and the registrar session accessor.
@@ -79,6 +97,50 @@ namespace OnboardingDevice
         }
 
         /// <inheritdoc/>
+        public ValueTask<ByteString> GetSigningKeyCertificateAsync(
+            NodeId applicationId,
+            PullDcaCertificateProfile profile,
+            ByteString signingRequest,
+            CancellationToken cancellationToken = default)
+        {
+            if (m_signing is not IPullDcaSigningKeyEvidenceProvider evidence)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The signing provider cannot retain key evidence.");
+            }
+            return evidence.GetSigningKeyCertificateAsync(applicationId, profile, signingRequest, cancellationToken);
+        }
+
+        /// <summary>
+        /// Restores the retained application and signing key before resuming an existing request.
+        /// </summary>
+        public async ValueTask RestoreSigningRequestAsync(
+            PullDcaSigningBinding binding,
+            CancellationToken cancellationToken = default)
+        {
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            if (m_signing is IDevicePullSigningRecovery recovery)
+            {
+                await recovery.RestoreSigningRequestAsync(binding, cancellationToken).ConfigureAwait(false);
+            }
+            else if (m_signing is OnboardingDeviceCredentials credentials)
+            {
+                await credentials.RestoreSigningRequestAsync(
+                    binding.ApplicationId, binding.Profile, binding.SigningKeyCertificate, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The signing provider cannot restore the retained request.");
+            }
+            m_applicationId = binding.ApplicationId;
+        }
+
+        /// <inheritdoc/>
         public async ValueTask InstallAsync(
             NodeId applicationId,
             PullDcaCredentials credentials,
@@ -98,6 +160,38 @@ namespace OnboardingDevice
                 new ProvisionableDeviceCredentials(
                     credentials.Certificate, credentials.IssuerCertificates, credentials.TrustList),
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask InstallAsync(
+            PullDcaSigningBinding binding,
+            PullDcaCredentials credentials,
+            CancellationToken cancellationToken = default)
+        {
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            if (credentials == null)
+            {
+                throw new ArgumentNullException(nameof(credentials));
+            }
+            if (binding.ApplicationId.IsNull || m_applicationId.IsNull ||
+                binding.ApplicationId != m_applicationId || binding.AttemptId == Guid.Empty)
+            {
+                throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+            }
+            if (m_security is not IProvisionableDevicePullInstallation installer)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The device security owner cannot install a bound pull attempt.");
+            }
+            ManagedSession session = await m_connect(cancellationToken).ConfigureAwait(false);
+            await installer.InstallFromPullAsync(
+                session, binding.RegistrarApplicationUri,
+                new ProvisionableDeviceCredentials(
+                    credentials.Certificate, credentials.IssuerCertificates, credentials.TrustList),
+                binding.AttemptId, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>The host's existing local identity provider.</summary>

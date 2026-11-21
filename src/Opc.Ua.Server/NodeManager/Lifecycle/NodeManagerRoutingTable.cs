@@ -1175,19 +1175,37 @@ namespace Opc.Ua.Server
                     ? new Dictionary<IAsyncNodeManager, INodeManagerReadImage>(ReadImageOwnerComparer.Instance)
                     : readImages.Where(entry => Array.Exists(nodeManagers, owner => ReferenceEquals(owner, entry.Key)))
                         .ToDictionary(entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
-                Generations = [.. nodeManagers.Select(NodeManagerGenerationRegistry.GetOrCreate)];
-                m_pendingReadiness = [.. Generations.Where(generation => generation.ReadinessPending)];
-                Epoch = new AddressSpaceEpoch();
-                foreach (NodeManagerGeneration generation in Generations)
-                {
-                    generation.RegisterViewEpoch(Epoch);
-                }
                 VisibleNodeManagers =
                 [
                     .. nodeManagers.Where(manager =>
                         !hiddenNodeManagers.Any(hidden =>
                             ReferenceEquals(hidden, manager)))
                 ];
+                var overrides = new Dictionary<NodeId, IAsyncNodeManager>();
+                foreach (IAsyncNodeManager manager in VisibleNodeManagers)
+                {
+                    if (NodeManagerGenerationRegistry.GetIdentity(manager) is not INodeManagerNodeOverrides owner)
+                    {
+                        continue;
+                    }
+                    foreach (NodeId nodeId in owner.OverriddenNodeIds)
+                    {
+                        if (nodeId.IsNull || !overrides.TryAdd(nodeId, manager))
+                        {
+                            throw new InvalidOperationException(
+                                "Node overrides must have non-null, unique identifiers in a routing view.");
+                        }
+                    }
+                }
+                NodeOverrides = overrides;
+                Generations = [.. nodeManagers.Select(NodeManagerGenerationRegistry.GetOrCreate)];
+                m_pendingReadiness = [.. Generations.Where(generation => generation.ReadinessPending)];
+                Epoch = new AddressSpaceEpoch();
+                Epoch.Attach(this);
+                foreach (NodeManagerGeneration generation in Generations)
+                {
+                    generation.RegisterViewEpoch(Epoch);
+                }
                 VisibleNamespaceManagers =
                     CreateVisibleNamespaceManagers(
                         namespaceManagers,
@@ -1341,6 +1359,35 @@ namespace Opc.Ua.Server
             public IAsyncNodeManager[] VisibleNodeManagers { get; }
 
             /// <summary>
+            /// Gets the exact override owners captured by this routing view.
+            /// </summary>
+            internal IReadOnlyDictionary<NodeId, IAsyncNodeManager> NodeOverrides { get; }
+
+            /// <summary>
+            /// Gets the references frozen for a previously published routing view.
+            /// </summary>
+            internal bool TryGetReferences(NodeState node, out ArrayOf<IReference> references)
+            {
+                return Volatile.Read(ref m_referenceImages).TryGetValue(node, out references);
+            }
+
+            /// <summary>
+            /// Captures the reference images currently installed on this view.
+            /// </summary>
+            internal Dictionary<NodeState, ArrayOf<IReference>> CopyReferenceImages()
+            {
+                return new Dictionary<NodeState, ArrayOf<IReference>>(Volatile.Read(ref m_referenceImages));
+            }
+
+            /// <summary>
+            /// Installs prepared reference images before the routing view is replaced.
+            /// </summary>
+            internal void InstallReferenceImages(Dictionary<NodeState, ArrayOf<IReference>> images)
+            {
+                Volatile.Write(ref m_referenceImages, images);
+            }
+
+            /// <summary>
             /// Gets the NodeManagers serving each namespace index, excluding hidden ones.
             /// </summary>
             public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>>
@@ -1376,6 +1423,9 @@ namespace Opc.Ua.Server
 
             /// <summary>The generations whose readiness was pending when this view was built.</summary>
             private readonly NodeManagerGeneration[] m_pendingReadiness;
+
+            /// <summary>The frozen reference images for this routing view.</summary>
+            private Dictionary<NodeState, ArrayOf<IReference>> m_referenceImages = [];
         }
 
         /// <summary>
@@ -1719,6 +1769,11 @@ namespace Opc.Ua.Server
         /// </summary>
         internal sealed class PreparedRoutes : IDisposable
         {
+            /// <summary>
+            /// Gets the routing view prepared for publication.
+            /// </summary>
+            internal RoutingSnapshot Next => m_next;
+
             /// <summary>
             /// Creates prepared routes.
             /// </summary>
