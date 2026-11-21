@@ -116,7 +116,9 @@ namespace Opc.Ua.Server
                   server,
                   configuration,
                   useSamplingGroups,
+#pragma warning disable CS0618, UA0031 // Keeps the established logger category.
                   server.Telemetry.CreateLogger<CustomNodeManager2>(),
+#pragma warning restore CS0618, UA0031
                   namespaceUris)
         {
         }
@@ -177,7 +179,9 @@ namespace Opc.Ua.Server
             // from their browse path unless a sub-class picks another rule.
             m_nodeIdFactory = ResolveNodeIdFactory(server, DefaultNamespaceIndex);
 
+#pragma warning disable CS0618, UA0031 // Creates the legacy SyncNodeManager view.
             m_syncNodeManager = (INodeManager3)this.ToSyncNodeManager();
+#pragma warning restore CS0618, UA0031
 
             // create a monitored item manager that owns sampling groups / monitoredNodes
             if (useSamplingGroups)
@@ -1716,7 +1720,9 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+#pragma warning disable CS0618, UA0031 // Implements IAsyncNodeManager.SyncNodeManager, still needed by the runtime.
         public INodeManager SyncNodeManager => m_syncNodeManager;
+#pragma warning restore CS0618, UA0031
 
         /// <summary>
         /// Marks a node for dynamic scaling of event consumer tasks. When a
@@ -5318,10 +5324,11 @@ namespace Opc.Ua.Server
 
             ViewDescriptionValidator.ValidateParameters(view);
 
-            _ =
-                FindPredefinedNode<ViewState>(view.ViewId)
-                ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
-
+            // A View may organize nodes of other node managers. The service dispatcher
+            // has already checked that the View exists somewhere in the server, so a
+            // View this node manager does not own is not an error here (Part 4 §5.9.2).
+            // This node manager only returns current references, so a View version or
+            // timestamp is rejected whichever node manager owns the View.
             if (view.Timestamp != DateTimeUtc.MinValue)
             {
                 throw new ServiceResultException(StatusCodes.BadViewTimestampInvalid);
@@ -5357,9 +5364,10 @@ namespace Opc.Ua.Server
             NodeId viewId,
             NodeState node)
         {
-            ViewState view = FindPredefinedNode<ViewState>(viewId);
-
-            return view != null;
+            // The base node manager does not filter by View membership; override to
+            // restrict a View. A View owned by another node manager (a View may organize
+            // nodes of several) must not fail here either.
+            return true;
         }
 
         /// <summary>
@@ -5629,6 +5637,13 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState>? operationCache = null;
             List<NodeHandle>? nodesToValidate = null;
 
+            // the values kept for the response are charged against the response byte
+            // budget of the service while they are read. Nothing else charges the budget
+            // while a node manager reads, so the values are summed here and charged once.
+            long responseBytesLeft = context.ResponseBytesRemaining;
+            bool hasResponseBudget = responseBytesLeft >= 0;
+            long responseBytes = 0;
+
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 ReadValueId nodeToRead = nodesToRead[ii];
@@ -5716,12 +5731,40 @@ namespace Opc.Ua.Server
                     m_logger.Read(nodeToRead.NodeId, value.WrappedValue, nodeToRead.IndexRange);
                 }
 #endif
+
+                // the read fails as a whole once its values exceed the response byte
+                // budget, so the remaining nodes are not read.
+                if (hasResponseBudget)
+                {
+                    responseBytes += ResponseSizeEstimator.EstimateValue(value);
+                    if (responseBytes > responseBytesLeft)
+                    {
+                        context.TryChargeResponse(responseBytes);
+                        return;
+                    }
+                }
             }
 
             // check for nothing to do.
             if (nodesToValidate == null)
             {
+                if (hasResponseBudget)
+                {
+                    context.TryChargeResponse(responseBytes);
+                }
                 return;
+            }
+
+            if (hasResponseBudget)
+            {
+                // the values read so far are charged before the nodes are validated: the
+                // validating read charges the values it reads and stops at the value that
+                // exceeds the budget.
+                if (!context.TryChargeResponse(responseBytes))
+                {
+                    return;
+                }
+                responseBytesLeft = context.ResponseBytesRemaining;
             }
 
             // validates the nodes (reads values from the underlying data source if required).
@@ -5733,6 +5776,21 @@ namespace Opc.Ua.Server
                 nodesToValidate,
                 operationCache ?? new Dictionary<NodeId, NodeState>(),
                 cancellationToken).ConfigureAwait(false);
+
+            if (hasResponseBudget && context.ResponseBytesRemaining == responseBytesLeft)
+            {
+                // an override of the validating read that does not charge its values.
+                long validatedBytes = 0;
+                foreach (NodeHandle handle in nodesToValidate)
+                {
+                    validatedBytes += ResponseSizeEstimator.EstimateValue(values[handle.Index]);
+                    if (validatedBytes > responseBytesLeft)
+                    {
+                        break;
+                    }
+                }
+                context.TryChargeResponse(validatedBytes);
+            }
         }
 
         /// <summary>
@@ -5975,6 +6033,11 @@ namespace Opc.Ua.Server
         /// <param name="nodesToValidate">The nodes to validate.</param>
         /// <param name="cache">The cache.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <remarks>
+        /// The values read are charged against the response byte budget of the request,
+        /// and the read stops at the value that exceeds it. An override that does not
+        /// charge its values is charged for them after it returns.
+        /// </remarks>
         protected virtual async ValueTask ReadAsync(
             ServerSystemContext context,
             ArrayOf<ReadValueId> nodesToRead,
@@ -5984,6 +6047,10 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState> cache,
             CancellationToken cancellationToken = default)
         {
+            OperationContext? operation = context.OperationContext;
+            long responseBytesLeft = operation?.ResponseBytesRemaining ?? -1;
+            long responseBytes = 0;
+
             for (int ii = 0; ii < nodesToValidate.Count; ii++)
             {
                 NodeHandle handle = nodesToValidate[ii];
@@ -6014,6 +6081,20 @@ namespace Opc.Ua.Server
                     value,
                     cancellationToken).ConfigureAwait(false);
                 values[handle.Index] = value;
+
+                if (responseBytesLeft >= 0)
+                {
+                    responseBytes += ResponseSizeEstimator.EstimateValue(value);
+                    if (responseBytes > responseBytesLeft)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (responseBytes > 0)
+            {
+                operation!.TryChargeResponse(responseBytes);
             }
         }
 
@@ -11909,7 +11990,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>
+#pragma warning disable CS0618, UA0031 // Backing field of the legacy SyncNodeManager view.
         protected INodeManager3 m_syncNodeManager;
+#pragma warning restore CS0618, UA0031
 
         /// <summary>
         /// The synchronaization primitive used to synchronize write operations;

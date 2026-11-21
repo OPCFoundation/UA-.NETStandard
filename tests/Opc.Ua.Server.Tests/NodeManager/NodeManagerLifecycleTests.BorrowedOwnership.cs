@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  * ======================================================================*/
 
+#pragma warning disable CS0618, UA0031 // Legacy adapter coverage; TODO: remove with synchronous manager support.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

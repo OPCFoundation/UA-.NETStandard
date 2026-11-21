@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -168,7 +170,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal template,
             ApplicationConfiguration configuration,
             ArrayOf<INodeManager> additionalManagers = default,
-            ArrayOf<IAsyncNodeManager> additionalAsyncManagers = default)
+            ArrayOf<IAsyncNodeManager> additionalAsyncManagers = default,
+            Action<Mock<IServerInternal>>? configure = null)
         {
             _ = template ?? throw new ArgumentNullException(nameof(template));
             _ = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -249,6 +252,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             server.Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
                 .Callback((ISystemContext context, AuditEventState notification) =>
                     template.ReportAuditEvent(context, notification));
+            configure?.Invoke(server);
 
             manager = new MasterNodeManager(
                 server.Object, configuration, null,

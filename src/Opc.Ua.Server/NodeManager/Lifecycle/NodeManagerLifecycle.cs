@@ -1070,8 +1070,10 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
+#pragma warning disable CS0618, UA0031 // Identity comparison through the legacy view.
             INodeManager? firstSyncNodeManager = first.SyncNodeManager;
             INodeManager? secondSyncNodeManager = second.SyncNodeManager;
+#pragma warning restore CS0618, UA0031
             return firstSyncNodeManager is not null &&
                 secondSyncNodeManager is not null &&
                 ReferenceEquals(

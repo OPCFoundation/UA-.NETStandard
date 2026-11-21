@@ -203,20 +203,22 @@ namespace Quickstarts.ReferenceServer
                     Console.WriteLine("Check the certificate.");
                     await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
 
-                    // Create and add the node managers
-                    server.Create(Servers.Utils.NodeManagerFactories);
-
                     // CTT mode runs the alarm simulation faster (shorter alarm cycles)
                     if (cttMode)
                     {
                         Servers.Utils.ConfigureCttModeNodeManagers();
                     }
 
-                    // Add async node managers
-                    foreach (IAsyncNodeManagerFactory asyncFactory in Servers.Utils.AsyncNodeManagerFactories)
+                    // Create the server and add the node managers
+                    server.Create(Servers.Utils.AsyncNodeManagerFactories);
+
+                    // The MemoryBuffer sample still uses the synchronous node manager API.
+#pragma warning disable CS0618, UA0031 // MemoryBuffer still derives from the synchronous SampleNodeManager.
+                    foreach (INodeManagerFactory factory in Servers.Utils.NodeManagerFactories)
                     {
-                        server.Server!.AddNodeManager(asyncFactory);
+                        server.Server!.AddNodeManager(factory);
                     }
+#pragma warning restore CS0618, UA0031
 
                     // Add GDS node manager if configured
                     GlobalDiscoveryServerConfiguration? gdsConfig = server.Configuration

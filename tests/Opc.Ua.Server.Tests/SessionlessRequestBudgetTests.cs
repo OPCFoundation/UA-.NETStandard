@@ -633,7 +633,8 @@ namespace Opc.Ua.Server.Tests
             {
                 EndpointUrl = "opc.tcp://localhost",
                 SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous)]
             };
             return new SecureChannelContext(id, endpoint, RequestEncoding.Binary, peerAddress: peer);
         }
@@ -644,7 +645,8 @@ namespace Opc.Ua.Server.Tests
             {
                 EndpointUrl = "https://localhost/",
                 SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous)]
             };
             return new SecureChannelContext("rest", endpoint, RequestEncoding.Json);
         }
@@ -655,7 +657,8 @@ namespace Opc.Ua.Server.Tests
             {
                 EndpointUrl = "opc.tcp://localhost",
                 SecurityMode = securityMode,
-                SecurityPolicyUri = SecurityPolicies.None
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous)]
             };
             return new SecureChannelContext("tcp", endpoint, RequestEncoding.Binary);
         }

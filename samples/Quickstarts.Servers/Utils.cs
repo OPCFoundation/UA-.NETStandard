@@ -118,10 +118,12 @@ namespace Quickstarts.Servers
         /// </summary>
         public static void AddDefaultNodeManagers(IStandardServer server)
         {
+#pragma warning disable CS0618, UA0031 // MemoryBuffer still derives from the synchronous SampleNodeManager.
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
                 server.AddNodeManager(nodeManagerFactory);
             }
+#pragma warning restore CS0618, UA0031
 
             foreach (IAsyncNodeManagerFactory asyncFactory in AsyncNodeManagerFactories)
             {
@@ -148,9 +150,15 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
-        /// The property with available node manager factories.
+        /// The property with available synchronous node manager factories.
         /// </summary>
+        /// <remarks>
+        /// Only the MemoryBuffer sample still uses the synchronous node manager API.
+        /// All other samples are listed in <see cref="AsyncNodeManagerFactories"/>.
+        /// </remarks>
+#pragma warning disable CS0618, UA0031 // MemoryBuffer still derives from the synchronous SampleNodeManager.
         public static ArrayOf<INodeManagerFactory> NodeManagerFactories
+#pragma warning restore CS0618, UA0031
         {
             get
             {
@@ -174,15 +182,16 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Enumerates all node manager factories.
         /// </summary>
+#pragma warning disable CS0618, UA0031 // MemoryBuffer still derives from the synchronous SampleNodeManager.
         private static List<INodeManagerFactory> GetNodeManagerFactories()
         {
             List<INodeManagerFactory> nodeManagerFactories = [];
 
             nodeManagerFactories.Add(new MemoryBuffer.MemoryBufferNodeManagerFactory());
-            nodeManagerFactories.Add(new Boiler.BoilerNodeManagerFactory());
 
             return nodeManagerFactories;
         }
+#pragma warning restore CS0618, UA0031
 
         /// <summary>
         /// Enumerates all async node manager factories.
@@ -191,13 +200,17 @@ namespace Quickstarts.Servers
         {
             List<IAsyncNodeManagerFactory> factories = [];
 
+            // Boiler first: its namespaces keep the index they had as a synchronous factory.
+            factories.Add(new Boiler.BoilerNodeManagerFactory());
             factories.Add(new TestData.TestDataNodeManagerFactory());
             factories.Add(new Alarms.AlarmNodeManagerFactory());
 
             return factories;
         }
 
+#pragma warning disable CS0618, UA0031 // MemoryBuffer still derives from the synchronous SampleNodeManager.
         private static IList<INodeManagerFactory>? s_nodeManagerFactories;
+#pragma warning restore CS0618, UA0031
         private static IList<IAsyncNodeManagerFactory>? s_asyncNodeManagerFactories;
     }
 

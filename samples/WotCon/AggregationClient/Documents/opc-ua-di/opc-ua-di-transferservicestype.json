@@ -21,12 +21,6 @@
   ],
   "actions": {
     "FetchTransferResultData": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -69,6 +63,7 @@
       "output": {
         "properties": {
           "FetchResultData": {
+            "type": "object",
             "uav:mapToType": "i=22",
             "uav:valueRank": -1
           }
@@ -88,12 +83,6 @@
       "uav:modellingRule": "Mandatory"
     },
     "TransferFromDevice": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "output": {
         "properties": {
@@ -125,12 +114,6 @@
       "uav:modellingRule": "Mandatory"
     },
     "TransferToDevice": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "output": {
         "properties": {

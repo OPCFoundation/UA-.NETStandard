@@ -209,7 +209,8 @@ namespace Opc.Ua.Wot
             WotDocumentSet documents,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
-            UANodeSet? context = null)
+            UANodeSet? context = null,
+            string? resolvedEventAncestor = null)
         {
             List<Entry> entries = ReadEntries(nodeSet, options, diagnostics);
             var retained = new List<Entry>();
@@ -229,7 +230,8 @@ namespace Opc.Ua.Wot
                 {
                     if (entry.Pointer == "/data" &&
                         WotNodeSetConverter.IsGeneratedEventDefinitionData(
-                            document, context ?? nodeSet, value.RootElement, options.MaxJsonDepth))
+                            document, context ?? nodeSet, value.RootElement, options.MaxJsonDepth,
+                            resolvedEventAncestor))
                     {
                         continue;
                     }
@@ -579,10 +581,12 @@ namespace Opc.Ua.Wot
                         CaptureAffordanceMap(
                             document, root, property.Value, pointer, property.Name, entries,
                             resolvedDefinitionBinding ?? ResolveDefinitionBinding, ResolveLocalizedContext,
-                            options.UnitMappingProvider, scalarContext);
+                            options.UnitMappingProvider, options.QuantityKindMappingProvider, scalarContext);
                         break;
                     case "links":
                         CaptureLinks(property.Value, pointer, entries);
+                        break;
+                    case "tm:optional" when IsRegeneratedOptionalAffordances(document, property.Value):
                         break;
                     case "@type":
                         CaptureTypeAnnotations(root, pointer, entries);
@@ -857,6 +861,50 @@ namespace Opc.Ua.Wot
             return property.Value.ValueKind == JsonValueKind.String;
         }
 
+        /// <summary>
+        /// Recognizes optionality that the exporter regenerates from the affordances' UA modelling rules.
+        /// </summary>
+        private static bool IsRegeneratedOptionalAffordances(WotDocument document, JsonElement optional)
+        {
+            if (document.Kind != WotDocumentKind.ThingModel ||
+                optional.ValueKind != JsonValueKind.Array ||
+                optional.GetArrayLength() == 0)
+            {
+                return false;
+            }
+            var expected = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string collection in new[] { "properties", "actions", "events" })
+            {
+                if (!document.RootElement.TryGetProperty(collection, out JsonElement map) ||
+                    map.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                var used = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonProperty affordance in map.EnumerateObject())
+                {
+                    string projectedName = WotPortableIdentity.AllocateName(
+                        WotPortableIdentity.AffordanceName(affordance.Value, affordance.Name), used);
+                    if (GetString(affordance.Value, "uav:modellingRule") is "Optional" or "OptionalPlaceholder")
+                    {
+                        expected.Add("/" + collection + "/" + Escape(projectedName));
+                    }
+                }
+            }
+            if (expected.Count != optional.GetArrayLength())
+            {
+                return false;
+            }
+            foreach (JsonElement pointer in optional.EnumerateArray())
+            {
+                if (pointer.ValueKind != JsonValueKind.String || !expected.Remove(pointer.GetString()!))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         private static void CaptureAffordanceMap(
             WotDocument document,
             JsonElement root,
@@ -867,6 +915,7 @@ namespace Opc.Ua.Wot
             Func<JsonElement, string?> resolveDefinitionBinding,
             Func<JsonElement, string?> resolveLocalizedContext,
             IWotUnitMappingProvider? unitMappingProvider,
+            IWotQuantityKindMappingProvider? quantityKindMappingProvider,
             WotNodeSetConverter.ReadableScalarContext scalarContext)
         {
             if (map.ValueKind != JsonValueKind.Object)
@@ -902,7 +951,8 @@ namespace Opc.Ua.Wot
                     foreach (string member in new[] { "qudt:hasUnit", WotUnitMigration.QuantityKindTerm })
                     {
                         if (isProperty &&
-                            WotNodeSetConverter.MapsQudtAnnotation(document, affordance.Value, member, unitMappingProvider))
+                            WotNodeSetConverter.MapsQudtAnnotation(
+                                document, affordance.Value, member, unitMappingProvider, quantityKindMappingProvider))
                         {
                             mappedMembers.Add(member);
                         }
@@ -942,7 +992,8 @@ namespace Opc.Ua.Wot
                         case WotUnitMigration.QuantityKindTerm:
                             if (!isProperty ||
                                 !WotNodeSetConverter.MapsQudtAnnotation(
-                                    document, affordance.Value, property.Name, unitMappingProvider))
+                                    document, affordance.Value, property.Name,
+                                    unitMappingProvider, quantityKindMappingProvider))
                             {
                                 Add(entries, affordancePointer + "/" + Escape(property.Name), property.Value);
                             }

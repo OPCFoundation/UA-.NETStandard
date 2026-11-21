@@ -828,7 +828,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
-        public void Factory_Create_ReturnsAttachedSyncNodeManager()
+        public async Task Factory_CreateAsync_ReturnsNodeManager()
         {
             using var harness = new Harness();
             var factory = new PubSubNodeManagerFactory(
@@ -838,9 +838,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 NUnitTelemetryContext.Create());
 
             Assert.That(factory.NamespacesUris, Is.Not.Empty);
-            INodeManager nm = factory.Create(harness.MockServer.Object, harness.Configuration);
+            IAsyncNodeManager nm = await factory.CreateAsync(harness.MockServer.Object, harness.Configuration)
+                .ConfigureAwait(false);
 
-            Assert.That(nm, Is.Not.Null);
+            Assert.That(nm, Is.InstanceOf<PubSubNodeManager>());
             (nm as IDisposable)?.Dispose();
         }
 

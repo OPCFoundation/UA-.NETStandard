@@ -355,6 +355,9 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_server.StagePreStartupTask(task);
             }
 
+            // The endpoints are bound by StartAsync but serve clients only
+            // once the startup tasks below have run, unless opted out.
+            m_server.AcceptConnectionsOnStart = m_options.ServeClientsDuringStartupTasks;
             await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
 
             foreach (IServerStartupTask startupTask in GetStartupTasks(useSharedRegistrations))
@@ -376,6 +379,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                     throw;
                 }
             }
+
+            await m_server.StartAcceptingConnectionsAsync(stoppingToken).ConfigureAwait(false);
 
             foreach (string url in urls)
             {

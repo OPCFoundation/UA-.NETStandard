@@ -49,6 +49,13 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
+#if NET5_0_OR_GREATER
+    [Obsolete(SyncNodeManagerDeprecation.CustomNodeManager2,
+        DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+        UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+    [Obsolete(SyncNodeManagerDeprecation.CustomNodeManager2)]
+#endif
     public partial class CustomNodeManager2 :
         INodeManager3,
         INodeIdFactory,
@@ -2446,10 +2453,11 @@ namespace Opc.Ua.Server
 
             ViewDescriptionValidator.ValidateParameters(view);
 
-            _ =
-                FindPredefinedNode<ViewState>(view.ViewId)
-                ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
-
+            // A View may organize nodes of other node managers. The service dispatcher
+            // has already checked that the View exists somewhere in the server, so a
+            // View this node manager does not own is not an error here (Part 4 §5.9.2).
+            // This node manager only returns current references, so a View version or
+            // timestamp is rejected whichever node manager owns the View.
             if (view.Timestamp != DateTime.MinValue)
             {
                 throw new ServiceResultException(StatusCodes.BadViewTimestampInvalid);
@@ -2485,9 +2493,10 @@ namespace Opc.Ua.Server
             NodeId viewId,
             NodeState node)
         {
-            ViewState? view = FindPredefinedNode<ViewState>(viewId);
-
-            return view != null;
+            // The base node manager does not filter by View membership; override to
+            // restrict a View. A View owned by another node manager (a View may organize
+            // nodes of several) must not fail here either.
+            return true;
         }
 
         /// <summary>
@@ -3670,30 +3679,73 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToValidate[ii];
                 NodeState? sourceToNotify = null;
+                PendingWriteAudit? audit = null;
 
                 lock (Lock)
                 {
                     // validate node.
                     NodeState? source = ValidateNode(context, handle, cache);
+                    WriteValue nodeToWrite = nodesToWrite[handle.Index];
 
                     if (source == null)
                     {
-                        continue;
+                        // Part 4 §6.5.8: the item is already marked processed with
+                        // BadNodeIdUnknown, so the dispatcher cannot audit it; do it here.
+                        if (Server?.Auditing == true)
+                        {
+                            audit = new PendingWriteAudit(
+                                nodeToWrite,
+                                Variant.Null,
+                                errors[handle.Index]?.StatusCode ?? StatusCodes.BadNodeIdUnknown,
+                                DateTime.UtcNow);
+                        }
                     }
+                    else
+                    {
+                        DataValue oldValue = default;
+                        if (Server?.Auditing == true)
+                        {
+                            // read the old value for the purpose of auditing
+                            source.ReadAttribute(
+                                context,
+                                nodeToWrite.AttributeId,
+                                nodeToWrite.ParsedIndexRange,
+                                default,
+                                ref oldValue);
+                        }
 
-                    WriteValue nodeToWrite = nodesToWrite[handle.Index];
+                        // write the attribute value.
+                        errors[handle.Index] = source.WriteAttribute(
+                            context,
+                            nodeToWrite.AttributeId,
+                            nodeToWrite.ParsedIndexRange,
+                            nodeToWrite.Value);
 
-                    // write the attribute value.
-                    errors[handle.Index] = source.WriteAttribute(
-                        context,
-                        nodeToWrite.AttributeId,
-                        nodeToWrite.ParsedIndexRange,
-                        nodeToWrite.Value);
+                        // Part 4 §6.5.8: writes through this path are audited like the others.
+                        if (Server?.Auditing == true)
+                        {
+                            audit = new PendingWriteAudit(
+                                nodeToWrite,
+                                oldValue.WrappedValue,
+                                errors[handle.Index]?.StatusCode ?? StatusCodes.Good,
+                                DateTime.UtcNow);
+                        }
 
-                    sourceToNotify = source;
+                        sourceToNotify = source;
+                    }
                 }
 
-                // Publish notifications after releasing the node-manager lock.
+                // Publish notifications and the audit event after releasing the node-manager lock.
+                if (audit is PendingWriteAudit pending)
+                {
+                    Server.ReportAuditWriteUpdateEvent(
+                        context,
+                        pending.NodeToWrite,
+                        pending.OldValue,
+                        pending.StatusCode,
+                        pending.ActionTimeStamp,
+                        m_logger);
+                }
                 sourceToNotify?.ClearChangeMasks(context, false);
             }
         }

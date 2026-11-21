@@ -350,7 +350,9 @@ namespace Opc.Ua.Server
         {
             return resource is AsyncCustomNodeManager asynchronous
                 ? asynchronous.Server
+#pragma warning disable CS0618, UA0031 // Existing legacy owner lookup; TODO: remove with synchronous manager support.
                 : (resource.SyncNodeManager as CustomNodeManager2)?.Server;
+#pragma warning restore CS0618, UA0031
         }
 
         /// <summary>
@@ -450,7 +452,9 @@ namespace Opc.Ua.Server
             }
             return identity is AsyncCustomNodeManager asynchronous
                 ? asynchronous.Server as StagingServer
+#pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners stage through their server.
                 : (identity.SyncNodeManager as CustomNodeManager2)?.Server as StagingServer;
+#pragma warning restore CS0618, UA0031
         }
 
         /// <summary>

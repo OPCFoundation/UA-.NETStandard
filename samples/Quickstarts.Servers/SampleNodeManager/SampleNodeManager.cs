@@ -40,6 +40,21 @@ namespace Opc.Ua.Sample
     /// <summary>
     /// A node manager for a variety of test data.
     /// </summary>
+    /// <remarks>
+    /// This sample implements the deprecated synchronous <see cref="INodeManager"/> interface directly.
+    /// New node managers derive from <see cref="AsyncCustomNodeManager"/> instead; see the Boiler sample.
+    /// </remarks>
+#if NET5_0_OR_GREATER
+    [Obsolete(
+        "SampleNodeManager implements the synchronous INodeManager interface. Derive from AsyncCustomNodeManager " +
+        "instead. See docs/migrate/2.0.3/node-managers.md.",
+        DiagnosticId = "UA0031",
+        UrlFormat = "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.3/node-managers.md#ua0031")]
+#else
+    [Obsolete(
+        "SampleNodeManager implements the synchronous INodeManager interface. Derive from AsyncCustomNodeManager " +
+        "instead. See docs/migrate/2.0.3/node-managers.md.")]
+#endif
     public class SampleNodeManager : INodeManager, INodeIdFactory, IDisposable
     {
         /// <summary>

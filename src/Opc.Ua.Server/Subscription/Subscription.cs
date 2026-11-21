@@ -710,8 +710,8 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            INodeManager? monitoredItemSync = monitoredItemOwner.SyncNodeManager;
-            INodeManager? nodeManagerSync = nodeManager.SyncNodeManager;
+            object? monitoredItemSync = monitoredItemOwner.SyncNodeManager;
+            object? nodeManagerSync = nodeManager.SyncNodeManager;
             return monitoredItemSync is not null &&
                 nodeManagerSync is not null &&
                 ReferenceEquals(monitoredItemSync, nodeManagerSync);
@@ -2520,8 +2520,7 @@ namespace Opc.Ua.Server
             out RentedNotificationArrays rented)
         {
             notificationCount = 0;
-            EventFieldList[]? rentedEvents = null;
-            object?[]? rentedStamps = null;
+            EventNotificationBuffer? rentedEvents = null;
             MonitoredItemNotification[]? rentedItems = null;
 
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
@@ -2547,22 +2546,21 @@ namespace Opc.Ua.Server
             // add events.
             if (eventCount > 0)
             {
-                // the arrays are rented and returned with the payload of the message like the
+                // the buffer is pooled and returned with the payload of the message like the
                 // data change array. The admission stamps stay referenced by the message until
                 // its last owner releases it, so the occurrences it reports keep their EventIds.
-                EventFieldList[] eventList = ArrayPool<EventFieldList>.Shared.Rent(eventCount);
-                rentedEvents = eventList;
+                // A dedicated pool, because every retained message holds one until it is
+                // acknowledged, which is more than ArrayPool.Shared keeps.
+                rentedEvents = EventNotificationBuffer.Rent(eventCount);
+                EventFieldList[] eventList = rentedEvents.Events;
+                object?[] stamps = rentedEvents.Stamps;
                 EventManager? eventManager = m_server.EventManager;
                 for (int ii = 0; ii < eventCount; ii++)
                 {
                     QueuedEvent queued = events.Dequeue();
                     eventManager?.AdmitEventFields(queued);
                     eventList[ii] = queued.Fields;
-                    if (queued.AdmissionStamp != null)
-                    {
-                        rentedStamps ??= ArrayPool<object?>.Shared.Rent(eventCount);
-                        rentedStamps[ii] = queued.AdmissionStamp;
-                    }
+                    stamps[ii] = queued.AdmissionStamp;
                 }
                 notificationCount += eventCount;
                 notificationData[dataIndex++] = new ExtensionObject(new EventNotificationList
@@ -2605,7 +2603,7 @@ namespace Opc.Ua.Server
             }
 
             message.NotificationData = notificationData;
-            rented = new RentedNotificationArrays(rentedItems, rentedEvents, rentedStamps);
+            rented = new RentedNotificationArrays(rentedItems, rentedEvents);
             return message;
         }
 

@@ -1351,8 +1351,11 @@ namespace Opc.Ua.Server
                     Volatile.Write(ref m_notificationAuthorization, null);
                 }
 
-                // update local ids.
-                if (UpdateLocaleIds(localeIds))
+                // update local ids. Part 4 §5.7.3.2: a null or empty list keeps
+                // the LocaleIds the Session already has; the first activation
+                // always initializes them.
+                if ((!localeIds.IsEmpty || PreferredLocales == null) &&
+                    UpdateLocaleIds(localeIds))
                 {
                     changed = true;
                 }
@@ -1522,54 +1525,53 @@ namespace Opc.Ua.Server
                 identityToken.TryGetValue(out anonymousToken))
             {
                 // check if an anonymous login is permitted.
-                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
-                {
-                    bool found = false;
+                // Part 4 7.14: the endpoint accepts only the listed token types, so an
+                // empty list accepts none, anonymous included.
+                bool found = false;
 
+                for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
+                {
+                    if (EndpointDescription.UserIdentityTokens[ii]
+                        .TokenType == UserTokenType.Anonymous)
+                    {
+                        found = true;
+                        policy = EndpointDescription.UserIdentityTokens[ii];
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadIdentityTokenRejected,
+                        "Anonymous user token policy not supported.");
+                }
+
+                // a token that names its policy must conform to that policy
+                // (Part 4 7.40.3); only an omitted token or PolicyId falls back
+                // to the first anonymous policy of the endpoint.
+                if (!string.IsNullOrEmpty(anonymousToken?.PolicyId))
+                {
+                    policy = null;
                     for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
                     {
-                        if (EndpointDescription.UserIdentityTokens[ii]
-                            .TokenType == UserTokenType.Anonymous)
+                        UserTokenPolicy candidate = EndpointDescription.UserIdentityTokens[ii];
+                        if (candidate.TokenType == UserTokenType.Anonymous &&
+                            string.Equals(
+                                candidate.PolicyId,
+                                anonymousToken!.PolicyId,
+                                StringComparison.Ordinal))
                         {
-                            found = true;
-                            policy = EndpointDescription.UserIdentityTokens[ii];
+                            policy = candidate;
                             break;
                         }
                     }
 
-                    if (!found)
+                    if (policy == null)
                     {
                         throw ServiceResultException.Create(
-                            StatusCodes.BadIdentityTokenRejected,
-                            "Anonymous user token policy not supported.");
-                    }
-
-                    // a token that names its policy must conform to that policy
-                    // (Part 4 7.40.3); only an omitted token or PolicyId falls back
-                    // to the first anonymous policy of the endpoint.
-                    if (!string.IsNullOrEmpty(anonymousToken?.PolicyId))
-                    {
-                        policy = null;
-                        for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
-                        {
-                            UserTokenPolicy candidate = EndpointDescription.UserIdentityTokens[ii];
-                            if (candidate.TokenType == UserTokenType.Anonymous &&
-                                string.Equals(
-                                    candidate.PolicyId,
-                                    anonymousToken!.PolicyId,
-                                    StringComparison.Ordinal))
-                            {
-                                policy = candidate;
-                                break;
-                            }
-                        }
-
-                        if (policy == null)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadIdentityTokenInvalid,
-                                "The anonymous identity token does not match an anonymous user token policy.");
-                        }
+                            StatusCodes.BadIdentityTokenInvalid,
+                            "The anonymous identity token does not match an anonymous user token policy.");
                     }
                 }
 
@@ -1670,6 +1672,17 @@ namespace Opc.Ua.Server
             }
 
             token.UpdatePolicy(policy);
+
+            // Part 4 §7.40.4 Table 189: a clear-text secret over a Sign channel is
+            // an invalid configuration, even when a custom server publishes it.
+            if (ServerBase.IsCleartextTokenPolicyOnSignChannel(
+                EndpointDescription.SecurityMode, policy))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "A {0} token with SecurityPolicy None is not accepted on a Sign channel.",
+                    policy.TokenType);
+            }
 
             // determine the security policy uri.
             string? securityPolicyUri = policy.SecurityPolicyUri;

@@ -36,7 +36,8 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Counts the owners of a notification message whose payload objects (the
     /// <see cref="NotificationMessage"/> and its data change list) came from their activator
-    /// pools, and whose notification arrays were rented from <see cref="ArrayPool{T}.Shared"/>. The payload is returned to the pools only when the last
+    /// pools, and whose notification arrays were rented from <see cref="ArrayPool{T}.Shared"/> or
+    /// <see cref="EventNotificationBuffer"/>. The payload is returned to the pools only when the last
     /// owner releases it.
     /// </summary>
     /// <remarks>
@@ -144,15 +145,8 @@ namespace Opc.Ua.Server
             {
                 ArrayPool<MonitoredItemNotification>.Shared.Return(rented.Items, clearArray: true);
             }
-            if (rented.Events != null)
-            {
-                ArrayPool<EventFieldList>.Shared.Return(rented.Events, clearArray: true);
-            }
-            if (rented.Stamps != null)
-            {
-                // releases the occurrence references of the event fields.
-                ArrayPool<object?>.Shared.Return(rented.Stamps, clearArray: true);
-            }
+            // also releases the occurrence references (admission stamps) of the event fields.
+            rented.Events?.Return();
         }
 
         private readonly RentedNotificationArrays m_rented;
@@ -160,20 +154,20 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// The arrays rented from <see cref="ArrayPool{T}.Shared"/> that hold the notifications of
-    /// one notification message; the message sees exact-length slices of them.
+    /// The pooled arrays that hold the notifications of one notification message; the
+    /// message sees exact-length slices of them.
     /// </summary>
-    /// <param name="Items">The rented data change array, if any.</param>
-    /// <param name="Events">The rented event array, if any.</param>
-    /// <param name="Stamps">
-    /// The admission stamps of the events (see <see cref="QueuedEvent"/>), aligned with
-    /// <paramref name="Events"/>, if any. They keep the EventIds of the reported occurrences
-    /// reserved until the message is released.
+    /// <param name="Items">
+    /// The data change array rented from <see cref="ArrayPool{T}.Shared"/>, if any.
+    /// </param>
+    /// <param name="Events">
+    /// The pooled events and their admission stamps (see <see cref="QueuedEvent"/>), if any.
+    /// The stamps keep the EventIds of the reported occurrences reserved until the message
+    /// is released.
     /// </param>
     internal readonly record struct RentedNotificationArrays(
         MonitoredItemNotification[]? Items,
-        EventFieldList[]? Events,
-        object?[]? Stamps = null);
+        EventNotificationBuffer? Events = null);
 
     /// <summary>
     /// A Publish response that owns a reference to the notification message it carries

@@ -1841,6 +1841,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 value => options.AutoAcceptUntrustedCertificates = value);
             BindBoolean(section, nameof(OpcUaServerOptions.DiagnosticsEnabled),
                 value => options.DiagnosticsEnabled = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.ServeClientsDuringStartupTasks),
+                value => options.ServeClientsDuringStartupTasks = value);
             BindBoolean(section, nameof(OpcUaServerOptions.IncludeSignAndEncryptPolicies),
                 value => options.IncludeSignAndEncryptPolicies = value);
             BindBoolean(section, nameof(OpcUaServerOptions.IncludeUnsecurePolicyNone),
@@ -2350,6 +2352,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 return RegisterFluentNodeManager(this, namespaceUri, build);
             }
 
+#if NET5_0_OR_GREATER
+            [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+                DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+                UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+            [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
             public IOpcUaServerBuilder AddSyncNodeManager<
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
                 where TFactory : class, INodeManagerFactory

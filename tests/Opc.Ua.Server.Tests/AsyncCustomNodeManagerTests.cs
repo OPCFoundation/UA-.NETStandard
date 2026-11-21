@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
+
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
@@ -6755,7 +6757,10 @@ namespace Opc.Ua.Server.Tests
             bool unknownView = await manager
                 .IsNodeInViewAsync(context, new NodeId("UnknownView", nsIdx), handle)
                 .ConfigureAwait(false);
-            Assert.That(unknownView, Is.False);
+
+            // A View owned by another node manager (Part 4 §5.9.2) does not filter
+            // the nodes of this one.
+            Assert.That(unknownView, Is.True);
 
             // A placeholder handle that carries no validated node reports false.
             var placeholder = new NodeHandle { NodeId = new NodeId("Ghost", nsIdx) };

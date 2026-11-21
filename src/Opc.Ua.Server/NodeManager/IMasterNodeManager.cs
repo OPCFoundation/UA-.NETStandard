@@ -62,6 +62,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node managers being managed.
         /// </summary>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         IReadOnlyList<INodeManager> NodeManagers { get; }
 
         /// <summary>
@@ -203,6 +210,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         object? GetManagerHandle(NodeId nodeId, out INodeManager? nodeManager);
 
         /// <summary>
@@ -294,6 +308,13 @@ namespace Opc.Ua.Server
         /// </para>
         /// </remarks>
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager);
 
         /// <summary>
@@ -396,6 +417,13 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The NodeManager which no longer owns nodes in the namespace.</param>
         /// <returns>A value indicating whether the node manager was successfully unregistered.</returns>
         /// <exception cref="ArgumentNullException">Throw if the namespaceUri or the nodeManager are null.</exception>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         bool UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager);
 
         /// <summary>

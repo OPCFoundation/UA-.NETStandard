@@ -355,6 +355,13 @@ namespace Opc.Ua.Server
                         return;
                     }
 
+                    // A server that does not serve clients yet opens no
+                    // reverse connection either; the next tick retries.
+                    if (!IsAcceptingConnections)
+                    {
+                        return;
+                    }
+
                     foreach (ReverseConnectProperty reverseConnection in m_connections.Values)
                     {
                         // recharge a rejected connection after timeout

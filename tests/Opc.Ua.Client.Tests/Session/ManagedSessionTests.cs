@@ -87,6 +87,25 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(() => cancellation.Token, Throws.TypeOf<ObjectDisposedException>());
         }
 
+        /// <summary>
+        /// Only a session with server redundancy has a failover operation, so an
+        /// exhausted reconnect of a session without redundancy skips the Failover state.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailoverIsWiredOnlyWithServerRedundancyAsync(bool withRedundancy)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var inner = SessionMock.Create();
+            IServerRedundancyHandler? handler = withRedundancy
+                ? new Mock<IServerRedundancyHandler>().Object
+                : null;
+            await using Client.ManagedSession managed = CreateManagedSessionWithInner(
+                CreateClientConfiguration(telemetry), CreateEndpoint(), inner, telemetry, redundancyHandler: handler);
+
+            Assert.That(managed.StateMachine.FailoverWithBudgetAsync, withRedundancy ? Is.Not.Null : Is.Null);
+        }
+
         [Test]
         public void ExponentialBackoffIncreasesDelay()
         {

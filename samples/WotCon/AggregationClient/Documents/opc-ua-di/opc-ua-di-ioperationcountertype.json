@@ -59,6 +59,7 @@
       "observable": true,
       "readOnly": true,
       "title": "OperationCycleCounter",
+      "type": "integer",
       "uav:browseName": "ns1:OperationCycleCounter",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=483",
       "uav:mapToType": "i=28",
@@ -132,6 +133,11 @@
     }
   },
   "title": "IOperationCounterType",
+  "tm:optional": [
+    "/properties/PowerOnDuration",
+    "/properties/OperationDuration",
+    "/properties/OperationCycleCounter"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IOperationCounterType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=480",

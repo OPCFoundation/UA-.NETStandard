@@ -342,14 +342,20 @@ namespace Opc.Ua.Server.Hosting
                             "The node-manager factories callback returned a null factory."));
                 }
 
+#pragma warning disable CS0618, UA0031 // Hosted legacy INodeManagerFactory registrations still start.
                 if (reg.SyncFactory is not null)
                 {
                     m_server.AddNodeManager(reg.SyncFactory);
                 }
+#pragma warning restore CS0618, UA0031
             }
 
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
+
+            // The endpoints are bound by StartAsync but serve clients only
+            // once the startup tasks below have run.
+            m_server.AcceptConnectionsOnStart = m_options.ServeClientsDuringStartupTasks;
             await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
 
@@ -378,6 +384,8 @@ namespace Opc.Ua.Server.Hosting
                     throw;
                 }
             }
+
+            await m_server.StartAcceptingConnectionsAsync(stoppingToken).ConfigureAwait(false);
 
             foreach (string url in GetListenEndpointUrls(configuration))
             {

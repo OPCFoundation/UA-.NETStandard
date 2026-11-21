@@ -116,10 +116,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
         /// <summary>
         /// Verifies that published manifest dependency metadata can be prepared without native conversion.
         /// </summary>
-        /// <param name="ownerCount">The owner count used by this test case.</param>
+        /// <param name="ownerCount">The owner count, or null to use every manifest resource.</param>
         [TestCase(8)]
-        [TestCase(533)]
-        public async Task PublishedManifestDependencyMetadataCanBePreparedWithoutNativeConversion(int ownerCount)
+        [TestCase(null)]
+        public async Task PublishedManifestDependencyMetadataCanBePreparedWithoutNativeConversion(int? ownerCount)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             var memoryStore = new InMemoryWotRegistryStore();
@@ -160,6 +160,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
             WotRegistrySnapshot snapshot = registry.Current;
             var resources = snapshot.AllResources().ToArray();
+            int selectedOwnerCount = ownerCount ?? resources.Length;
+            Assert.That(resources, Has.Length.GreaterThanOrEqualTo(selectedOwnerCount));
             var closures = await WotDependencyGraph.BuildClosuresAsync(
                 snapshot, resources, 128, registry.ReadContentAsync, timeout.Token).ConfigureAwait(false);
             Assert.That(closures, Has.Length.EqualTo(1));
@@ -196,7 +198,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 using var persisted = new WotRegistryService(fileStore);
                 await persisted.InitializeAsync(timeout.Token).ConfigureAwait(false);
                 var projections = new List<WotResourceProjection>();
-                foreach (WotResource resource in resources.Take(ownerCount))
+                foreach (WotResource resource in resources.Take(selectedOwnerCount))
                 {
                     var observation = new WotDependencySnapshot(
                         resource.DefaultVersionId!, 1, "metadata-probe-" + resource.ResourceId, DateTime.UtcNow, true,
@@ -221,7 +223,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     TestContext.Out.WriteLine("Preparation allocated {0} bytes",
                         GC.GetTotalAllocatedBytes(precise: true) - before);
                     Assert.That(publication.IntendedSnapshot.AllResources().Count(resource =>
-                        resource.DefaultVersion!.DependencySnapshot is not null), Is.EqualTo(ownerCount));
+                        resource.DefaultVersion!.DependencySnapshot is not null), Is.EqualTo(selectedOwnerCount));
                     await publication.DecideAsync(timeout.Token).ConfigureAwait(false);
                     publication.Publish();
                 }
@@ -231,7 +233,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Assert.That(stored.RootElement.GetProperty("DependencyGraphs").GetArrayLength(), Is.EqualTo(1));
                 using var reloadedStore = new FileWotRegistryStore(root, contentStore);
                 WotRegistrySnapshot reloaded = await reloadedStore.LoadAsync(timeout.Token).ConfigureAwait(false);
-                foreach (WotResource source in resources.Take(ownerCount))
+                foreach (WotResource source in resources.Take(selectedOwnerCount))
                 {
                     WotDependencySnapshot restored = reloaded.FindResource(source.GroupId, source.ResourceId)!
                         .DefaultVersion!.DependencySnapshot!;
@@ -264,7 +266,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 }
                 WotDependencySnapshot firstRestored = reloaded.FindResource(
                     resources[0].GroupId, resources[0].ResourceId)!.DefaultVersion!.DependencySnapshot!;
-                WotResource lastOwner = resources[ownerCount - 1];
+                WotResource lastOwner = resources[selectedOwnerCount - 1];
                 WotDependencySnapshot lastRestored = reloaded.FindResource(
                     lastOwner.GroupId, lastOwner.ResourceId)!.DefaultVersion!.DependencySnapshot!;
                 Assert.That(MemoryMarshal.TryGetArray(firstRestored.Edges.Memory,
@@ -371,14 +373,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 {
                     continue;
                 }
-                string path = Path.Combine(FindDocuments(), "opc-ua-di", name + ".json");
-                byte[] bytes = AggregationClientRunner.EnsureDocumentIdentity(File.ReadAllBytes(path), name);
-                ByteString content = ByteString.From(bytes);
-                var identities = s_fragments.ToDictionary(
-                    alias => alias,
-                    alias => "urn:opcfoundation.org:UA:WotAggregation:document:" + alias,
-                    StringComparer.Ordinal);
-                content = ByteString.From(AggregationClientRunner.RewriteDocumentReferences(bytes, identities));
+                ByteString content = ReadFragment(name);
                 WotRegistryMutationResult added = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = name == s_fragments[0] ? WotRegistryGroups.ThingModels :
@@ -847,8 +842,21 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         private static ByteString ReadFragment(string name)
         {
-            byte[] bytes = AggregationClientRunner.EnsureDocumentIdentity(
-                File.ReadAllBytes(Path.Combine(FindDocuments(), "opc-ua-di", name + ".json")), name);
+            byte[] source;
+            if (s_fragments.Contains(name, StringComparer.Ordinal))
+            {
+                using Stream stream = typeof(LinkedNativeDocumentConverterTests).Assembly.GetManifestResourceStream(
+                    "Opc.Ua.WotCon.Samples.Tests.Fixtures.LinkedNative." + name + ".json")
+                    ?? throw new InvalidOperationException("Missing split-declaration fixture: " + name);
+                using var buffer = new MemoryStream();
+                stream.CopyTo(buffer);
+                source = buffer.ToArray();
+            }
+            else
+            {
+                source = File.ReadAllBytes(Path.Combine(FindDocuments(), "opc-ua-di", name + ".json"));
+            }
+            byte[] bytes = AggregationClientRunner.EnsureDocumentIdentity(source, name);
             Dictionary<string, string> identities = s_fragments.ToDictionary(
                 alias => alias,
                 alias => "urn:opcfoundation.org:UA:WotAggregation:document:" + alias,

@@ -139,13 +139,13 @@ namespace Quickstarts
         /// Create server instance and add node managers.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
-        public void Create(ArrayOf<INodeManagerFactory> nodeManagerFactories)
+        public void Create(ArrayOf<IAsyncNodeManagerFactory> nodeManagerFactories)
         {
             try
             {
                 // create the server.
                 Server = CreateServerWithTransportBindings();
-                foreach (INodeManagerFactory factory in nodeManagerFactories)
+                foreach (IAsyncNodeManagerFactory factory in nodeManagerFactories)
                 {
                     Server.AddNodeManager(factory);
                 }

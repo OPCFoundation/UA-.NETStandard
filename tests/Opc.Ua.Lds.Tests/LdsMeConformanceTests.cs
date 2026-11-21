@@ -139,11 +139,44 @@ namespace Opc.Ua.Lds.Tests
                 await FindServersOnNetworkAsync(startingRecordId: 0, maxRecords: 2).ConfigureAwait(false);
             Assert.That(page1.Count, Is.EqualTo(2));
 
-            uint nextStart = page1[^1].RecordId + 1;
+            // Part 4 §5.5.3.2: only records with an id greater than startingRecordId
+            // are returned, so the last id seen is the cursor for the next page.
+            uint lastSeen = page1[^1].RecordId;
             (ArrayOf<ServerOnNetwork> page2, _) =
-                await FindServersOnNetworkAsync(startingRecordId: nextStart, maxRecords: 2).ConfigureAwait(false);
-            Assert.That(page2.Count, Is.GreaterThanOrEqualTo(2));
-            Assert.That(page2[0].RecordId, Is.GreaterThanOrEqualTo(nextStart));
+                await FindServersOnNetworkAsync(startingRecordId: lastSeen, maxRecords: 2).ConfigureAwait(false);
+            Assert.That(page2.Count, Is.EqualTo(2));
+            Assert.That(page2[0].RecordId, Is.GreaterThan(lastSeen));
+        }
+
+        [Test]
+        public async Task LdsMeQueryServersOnNetworkPagesOneRecordAtATimeAsync()
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                SeedRecord(
+                    $"urn:test:single-page-{i}",
+                    $"single-page-{i}",
+                    ["LDS-ME"],
+                    $"opc.tcp://single-page-{i}:48010");
+            }
+
+            var seen = new List<uint>();
+            uint cursor = 0;
+            for (int page = 0; page < 50; page++)
+            {
+                (ArrayOf<ServerOnNetwork> records, _) =
+                    await FindServersOnNetworkAsync(startingRecordId: cursor, maxRecords: 1).ConfigureAwait(false);
+                if (records.Count == 0)
+                {
+                    break;
+                }
+                Assert.That(records[0].RecordId, Is.GreaterThan(cursor));
+                cursor = records[0].RecordId;
+                seen.Add(cursor);
+            }
+
+            Assert.That(seen, Is.Unique);
+            Assert.That(seen, Has.Count.GreaterThanOrEqualTo(3));
         }
 
         [Test]

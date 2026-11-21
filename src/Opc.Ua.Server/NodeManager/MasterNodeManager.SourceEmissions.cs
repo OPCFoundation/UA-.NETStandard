@@ -187,7 +187,7 @@ namespace Opc.Ua.Server
                         IAsyncNodeManager resource = GetReferenceOwnerIdentity(nodeManager);
                         issuer = boundGeneration ?? generation;
                         if ((boundGeneration is null || ReferenceEquals(boundGeneration, generation)) &&
-                            (ReferenceEquals(nodeManager, resource) || nodeManager is AsyncNodeManagerAdapter) &&
+                            (ReferenceEquals(nodeManager, resource) || IsLegacyAdapter(nodeManager)) &&
                             !ReferenceEquals(generation.NodeManager, resource))
                         {
                             issuer = generation.PrivateSourceGeneration ??
@@ -308,7 +308,7 @@ namespace Opc.Ua.Server
 
             IAsyncNodeManager resource = GetReferenceOwnerIdentity(nodeManager);
             bool rawResource = ReferenceEquals(resource, nodeManager);
-            if (!rawResource && nodeManager is not AsyncNodeManagerAdapter)
+            if (!rawResource && !IsLegacyAdapter(nodeManager))
             {
                 return false;
             }
@@ -374,7 +374,7 @@ namespace Opc.Ua.Server
             return source.AllowsLegacySource &&
                 source.Gate.State == NodeManagerGenerationState.Live &&
                 ReferenceEquals(source.NodeManager, resource) &&
-                (ReferenceEquals(resource, nodeManager) || nodeManager is AsyncNodeManagerAdapter) &&
+                (ReferenceEquals(resource, nodeManager) || IsLegacyAdapter(nodeManager)) &&
                 ReferenceEquals(GetReferenceOwnerIdentity(facade.NodeManager), resource) &&
                 NodeManagerGenerationRegistry.TryGet(resource, out NodeManagerGeneration? current) &&
                 ReferenceEquals(source, current);
@@ -391,7 +391,7 @@ namespace Opc.Ua.Server
             IAsyncNodeManager resource = NodeManagerGenerationRegistry.GetIdentity(nodeManager);
             return ReferenceEquals(facade.PrivateSourceGeneration, boundGeneration) &&
                 ReferenceEquals(boundGeneration.NodeManager, resource) &&
-                (ReferenceEquals(resource, nodeManager) || nodeManager is AsyncNodeManagerAdapter) &&
+                (ReferenceEquals(resource, nodeManager) || IsLegacyAdapter(nodeManager)) &&
                 ReferenceEquals(GetReferenceOwnerIdentity(facade.NodeManager), resource);
         }
 
@@ -440,8 +440,17 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
-            return ReferenceEquals(resource, nodeManager) ||
-                nodeManager is AsyncNodeManagerAdapter;
+            return ReferenceEquals(resource, nodeManager) || IsLegacyAdapter(nodeManager);
+        }
+
+        /// <summary>
+        /// Identifies the stack-owned adapter without accepting arbitrary forwarding facades.
+        /// </summary>
+        private static bool IsLegacyAdapter(IAsyncNodeManager nodeManager)
+        {
+#pragma warning disable CS0618, UA0031 // Existing adapter identity check; TODO: remove with synchronous manager support.
+            return nodeManager is AsyncNodeManagerAdapter;
+#pragma warning restore CS0618, UA0031
         }
 
         /// <summary>

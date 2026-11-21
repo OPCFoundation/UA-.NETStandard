@@ -88,9 +88,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6540"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6541",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -119,9 +116,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6548"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6549",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -150,9 +144,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6550"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6554",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -181,9 +172,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6551"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6555",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -212,9 +200,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6552"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6556",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -243,9 +228,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6553"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6557",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -274,9 +256,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6544"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6545",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -304,9 +283,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6540"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6542",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -334,9 +310,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6544"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6546",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -365,9 +338,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6540"
-      ],
       "uav:engineeringUnits": {
         "description": "hour",
         "displayName": "h",
@@ -402,9 +372,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6544"
-      ],
       "uav:engineeringUnits": {
         "description": "hour",
         "displayName": "h",
@@ -592,6 +559,26 @@
     }
   },
   "title": "PreventiveMaintenanceType",
+  "tm:optional": [
+    "/properties/ActivePreventiveMaintenanceTime",
+    "/properties/InstallationDate",
+    "/properties/LastInspectionDate",
+    "/properties/LastServicingDate",
+    "/properties/NextInspectionDate",
+    "/properties/NextServicingDate",
+    "/properties/PreventiveMaintenanceTime",
+    "/properties/Definition",
+    "/properties/EngineeringUnits",
+    "/properties/EURange",
+    "/properties/Definition_2",
+    "/properties/Definition_3",
+    "/properties/Definition_4",
+    "/properties/Definition_5",
+    "/properties/Definition_6",
+    "/properties/Definition_7",
+    "/properties/EngineeringUnits_2",
+    "/properties/EURange_2"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:PreventiveMaintenanceType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1009",

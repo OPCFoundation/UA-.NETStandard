@@ -312,7 +312,7 @@ namespace Opc.Ua.Server
                 // wrapper. Scanning both assemblies finds the assembly that
                 // carries the ModelDependency attribute regardless of shape.
                 ScanAssembly(nodeManager.GetType().Assembly, visited, models);
-                INodeManager? sync = nodeManager.SyncNodeManager;
+                object? sync = nodeManager.SyncNodeManager;
                 if (sync != null)
                 {
                     ScanAssembly(sync.GetType().Assembly, visited, models);

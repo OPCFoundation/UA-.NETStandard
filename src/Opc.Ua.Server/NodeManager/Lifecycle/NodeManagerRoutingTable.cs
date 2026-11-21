@@ -1008,7 +1008,9 @@ namespace Opc.Ua.Server
         public bool UnregisterNamespace(
             int namespaceIndex,
             IAsyncNodeManager? asyncNodeManager,
+#pragma warning disable CS0618, UA0031 // Unregistration still accepts the legacy node manager identity.
             INodeManager? nodeManager)
+#pragma warning restore CS0618, UA0031
         {
             lock (m_lock)
             {
@@ -1251,8 +1253,10 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
+#pragma warning disable CS0618, UA0031 // Identity comparison through the legacy view.
             INodeManager? leftSyncNodeManager = left.SyncNodeManager;
             INodeManager? rightSyncNodeManager = right.SyncNodeManager;
+#pragma warning restore CS0618, UA0031
             return leftSyncNodeManager is not null &&
                 rightSyncNodeManager is not null &&
                 ReferenceEquals(

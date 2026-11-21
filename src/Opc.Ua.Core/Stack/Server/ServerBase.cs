@@ -491,6 +491,12 @@ namespace Opc.Ua
             try
             {
                 await OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
+
+                // the listeners were bound but took no connection so far.
+                if (AcceptConnectionsOnStart)
+                {
+                    await StartAcceptingConnectionsAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (Exception startupException) when (
                 startupException is not OutOfMemoryException)
@@ -762,6 +768,12 @@ namespace Opc.Ua
             // covers both contracts; DisposeAsync is idempotent on
             // already-disposed listeners.
             List<ITransportListener>? listeners = TransportListeners;
+
+            // a restart binds the listeners again before it takes connections.
+            lock (m_acceptLock)
+            {
+                m_acceptTask = null;
+            }
 
             if (listeners != null)
             {
@@ -1098,6 +1110,107 @@ namespace Opc.Ua
         protected List<ITransportListener> TransportListeners { get; } = [];
 
         /// <summary>
+        /// Whether <c>StartAsync</c> lets the transport listeners take
+        /// connections once the server is started. Defaults to <c>true</c>.
+        /// </summary>
+        /// <remarks>
+        /// The listeners are bound while the server starts, so a taken port
+        /// fails the start, but take no connection until the application is
+        /// started and <see cref="OnServerStartedAsync"/> has completed. A
+        /// client that connects earlier waits and is served afterwards. Set
+        /// this to <c>false</c> when the host has more post-start work that
+        /// must finish before clients are served, and call
+        /// <see cref="StartAcceptingConnectionsAsync"/> when that work is done.
+        /// Listeners that do not implement
+        /// <see cref="ITransportListenerAcceptControl"/> take connections as
+        /// soon as they are opened.
+        /// </remarks>
+        public bool AcceptConnectionsOnStart { get; set; } = true;
+
+        /// <summary>
+        /// Whether the transport listeners take connections.
+        /// </summary>
+        public bool IsAcceptingConnections
+        {
+            get
+            {
+                lock (m_acceptLock)
+                {
+                    return m_acceptTask != null &&
+                        m_acceptTask.Status == TaskStatus.RanToCompletion;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Lets the transport listeners take connections. <c>StartAsync</c>
+        /// calls this unless <see cref="AcceptConnectionsOnStart"/> is
+        /// <c>false</c>. Listeners opened later take connections at once.
+        /// Concurrent and later calls wait for the same activation; a failed
+        /// activation can be retried.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask StartAcceptingConnectionsAsync(CancellationToken cancellationToken = default)
+        {
+            Task activation;
+            TaskCompletionSource<bool>? owner = null;
+            ITransportListener[] listeners = [];
+            lock (m_acceptLock)
+            {
+                if (m_acceptTask == null || m_acceptTask.IsFaulted || m_acceptTask.IsCanceled)
+                {
+                    owner = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_acceptTask = owner.Task;
+                    listeners = [.. TransportListeners];
+                }
+                activation = m_acceptTask;
+            }
+
+            if (owner != null)
+            {
+                // The caller that starts the activation runs it outside the
+                // lock but does not await it: the activation is not bound to
+                // one caller's token, a listener that starts at once completes
+                // it synchronously, and the starting caller can still cancel
+                // its own wait below like any other caller.
+                _ = RunActivationAsync(owner, listeners);
+            }
+
+            // each caller can stop waiting on its own.
+            await activation.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task RunActivationAsync(
+            TaskCompletionSource<bool> owner,
+            ITransportListener[] listeners)
+        {
+            try
+            {
+                await StartListenersAcceptingAsync(listeners, CancellationToken.None)
+                    .ConfigureAwait(false);
+                owner.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                owner.TrySetException(ex);
+            }
+        }
+
+        private static async Task StartListenersAcceptingAsync(
+            ITransportListener[] listeners,
+            CancellationToken cancellationToken)
+        {
+            foreach (ITransportListener listener in listeners)
+            {
+                if (listener is ITransportListenerAcceptControl acceptControl)
+                {
+                    await acceptControl.StartAcceptingAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// List of all server wide supported token policies
         /// </summary>
         protected IList<UserTokenPolicy> UserTokenPolicys { get; } = [];
@@ -1228,13 +1341,30 @@ namespace Opc.Ua
                 // (listener backlog + connection rate limiter) into the settings.
                 ConfigureTransportListenerSettings(settings, endpointUri);
 
+                // bind now but take no connection before the server is started.
+                var acceptControl = listener as ITransportListenerAcceptControl;
+                settings.DeferAccept = acceptControl != null;
+
                 await listener.OpenAsync(endpointUri, settings, GetEndpointInstance(this)!, ct)
                     .ConfigureAwait(false);
 
-                TransportListeners.Add(listener);
+                bool accepting;
+                lock (m_acceptLock)
+                {
+                    TransportListeners.Add(listener);
+                    // listeners added while the activation runs start themselves.
+                    accepting = m_acceptTask != null &&
+                        !m_acceptTask.IsFaulted && !m_acceptTask.IsCanceled;
+                }
                 tracked = true;
 
                 listener.ConnectionStatusChanged += OnConnectionStatusChanged;
+
+                // a listener opened after the start takes connections at once.
+                if (accepting && acceptControl != null)
+                {
+                    await acceptControl.StartAcceptingAsync(ct).ConfigureAwait(false);
+                }
             }
             catch (Exception e)
             {
@@ -1245,7 +1375,17 @@ namespace Opc.Ua
 
                 // Only a listener in TransportListeners is disposed when the
                 // server stops. One that failed to open, e.g. because the port
-                // is taken, has no other owner.
+                // is taken, has no other owner. One that opened but failed to
+                // start accepting would hold its port without serving, so it
+                // is rolled back and disposed as well.
+                if (tracked)
+                {
+                    listener.ConnectionStatusChanged -= OnConnectionStatusChanged;
+                    lock (m_acceptLock)
+                    {
+                        tracked = !TransportListeners.Remove(listener);
+                    }
+                }
                 if (!tracked)
                 {
                     try
@@ -1324,6 +1464,16 @@ namespace Opc.Ua
                     }
                 }
 
+                // Part 4 §7.40.4 Table 189: a secret token whose policy is None on a
+                // Sign (not encrypted) channel would travel in clear text; that
+                // configuration shall be rejected.
+                if (IsCleartextTokenPolicyOnSignChannel(description.SecurityMode, clone))
+                {
+                    m_logger.CleartextTokenPolicyOnSignEndpoint(
+                        clone.TokenType, description.EndpointUrl);
+                    continue;
+                }
+
                 if (description.SecurityMode == MessageSecurityMode.None &&
                     clone.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken &&
                     clone.SecurityPolicyUri != SecurityPolicies.None)
@@ -1368,6 +1518,59 @@ namespace Opc.Ua
             }
 
             return policies;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="description"/> publishes no user token
+        /// policy because the clear-text secret policies configured for it were rejected
+        /// (Part 4 §7.40.4 Table 189). Such an endpoint is not offered: the empty policy
+        /// list would otherwise read as "no user authentication required" (for example
+        /// for anonymous Session-less requests). An empty list a server publishes on
+        /// purpose (for example without an anonymous policy in provisioning mode) is kept.
+        /// </summary>
+        /// <param name="configuration">The configuration.</param>
+        /// <param name="description">The endpoint with its published user token policies.</param>
+        public static bool HasNoUsableUserTokenPolicy(
+            ApplicationConfiguration configuration,
+            EndpointDescription description)
+        {
+            if (!description.UserIdentityTokens.IsEmpty ||
+                configuration.ServerConfiguration == null)
+            {
+                return false;
+            }
+
+            foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
+            {
+                if (IsCleartextTokenPolicyOnSignChannel(description.SecurityMode, policy))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when a UserName or IssuedToken policy uses SecurityPolicy
+        /// None on a Sign channel, so the secret would be sent unencrypted
+        /// (Part 4 §7.40.4 Table 189: an invalid configuration that shall be rejected).
+        /// </summary>
+        /// <param name="channelSecurityMode">The security mode of the endpoint or channel.</param>
+        /// <param name="policy">The user token policy.</param>
+        public static bool IsCleartextTokenPolicyOnSignChannel(
+            MessageSecurityMode channelSecurityMode,
+            UserTokenPolicy policy)
+        {
+            return channelSecurityMode == MessageSecurityMode.Sign &&
+                policy.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken &&
+                // an empty policy inherits the channel policy; a policy may be given by
+                // its short name, so compare the canonical URI of the resolved policy.
+                !string.IsNullOrEmpty(policy.SecurityPolicyUri) &&
+                string.Equals(
+                    SecurityPolicies.Default.GetInfoIgnoringPlatformSupport(policy.SecurityPolicyUri)?.Uri,
+                    SecurityPolicies.None,
+                    StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -2235,6 +2438,8 @@ namespace Opc.Ua
         private bool m_ownsCertificateManager;
         private readonly Lock m_stopLock = new();
         private Task? m_stopTask;
+        private readonly Lock m_acceptLock = new();
+        private Task? m_acceptTask;
     }
 
     /// <summary>
@@ -2247,6 +2452,21 @@ namespace Opc.Ua
                 "a compatible RSA application certificate and non-key-agreement token policy are required.")]
         public static partial void IncompatibleNoneEndpointTokenPolicy(
             this ILogger logger, UserTokenType tokenType, string? securityPolicy, [NetworkAddress] string? endpointUrl);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 13, Level = LogLevel.Error,
+            Message = "Omitting {TokenType} token policy with SecurityPolicy None on Sign endpoint {EndpointUrl}: " +
+                "the secret would be sent unencrypted (OPC 10000-4 Table 189).")]
+        public static partial void CleartextTokenPolicyOnSignEndpoint(
+            this ILogger logger, UserTokenType tokenType, [NetworkAddress] string? endpointUrl);
+
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 14, Level = LogLevel.Error,
+            Message = "Omitting {SecurityMode} endpoint {EndpointUrl} with SecurityPolicy {SecurityPolicyUri}: " +
+                "none of the configured user token policies can be offered on it.")]
+        public static partial void EndpointWithoutUsableUserTokenPolicy(
+            this ILogger logger,
+            MessageSecurityMode securityMode,
+            [NetworkAddress] string? endpointUrl,
+            string? securityPolicyUri);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 0, Level = LogLevel.Error,
             Message = "Unexpected error disposing transport listener {Name}.")]

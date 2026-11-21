@@ -1457,12 +1457,13 @@ namespace Opc.Ua.Wot
             string[]? namespaceUris,
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
-            string defaultLocale)
+            string defaultLocale,
+            string? resolvedEventAncestor = null)
         {
             WotConditionProjection projection = ResolveConditionProjection(eventType, index);
             WriteEventDataSchema(
                 writer,
-                CollectStandardEventFields(projection.StandardTypeNodeId),
+                CollectStandardEventFields(resolvedEventAncestor ?? projection.StandardTypeNodeId),
                 CollectDeclaredEventFields(eventType, index),
                 namespaceUris,
                 nodeSet,
