@@ -217,6 +217,26 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ClearedItemKeepsASingleCandidateAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+
+            // the value after the clear must not signal a second candidate for the item.
+            scenario.Queue(2, 20);
+            scenario.Item(2).ClearQueuedNotifications();
+            scenario.Queue(2, 21);
+            Assert.That(scenario.ReadyCandidateCount + scenario.ReadyIntakeCount, Is.EqualTo(1));
+
+            scenario.Tick("new value");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Contain("[2=21]"));
+            scenario.Tick("idle");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]"));
+            Assert.That(scenario.ReadyCandidateCount + scenario.ReadyIntakeCount, Is.Zero);
+        }
+
+        [Test]
         public async Task RolledBackResendIsNotPublishedAsync()
         {
             using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
@@ -418,6 +438,10 @@ namespace Opc.Ua.Server.Tests
             }
 
             public MonitoredItem Item(uint id) => m_items[id];
+
+            public int ReadyIntakeCount => ((System.Collections.ICollection)typeof(Subscription)
+                .GetField("m_readyIntake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .GetValue(Subscription)!).Count;
 
             public void Queue(uint id, int value)
             {
