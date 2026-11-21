@@ -208,6 +208,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gives one node-management callback its own permit without transferring request ownership.
+        /// </summary>
+        internal OperationContext(OperationContext request, NodeManagerCallbackPermit callbackPermit)
+        {
+            ChannelContext = request.ChannelContext;
+            Session = request.Session;
+            NotificationAuthorization = request.NotificationAuthorization;
+            m_sessionClientUserId = request.m_sessionClientUserId;
+            UserIdentity = request.UserIdentity;
+            PreferredLocales = request.PreferredLocales;
+            DiagnosticsMask = request.DiagnosticsMask;
+            AuditEntryId = request.AuditEntryId;
+            ClientTimestamp = request.ClientTimestamp;
+            RequestId = request.RequestId;
+            RequestType = request.RequestType;
+            ClientHandle = request.ClientHandle;
+            OperationDeadline = request.OperationDeadline;
+            RequestLifetime = request.RequestLifetime;
+            Readiness = request.Readiness;
+            PublicationDecision = request.PublicationDecision;
+            NodeManagerCallbackPermit = callbackPermit;
+            m_callbackRequest = Volatile.Read(ref request.m_callbackRequest) ?? request;
+        }
+
+        /// <summary>
         /// The context for the secure channel used to send the request.
         /// </summary>
         /// <value>The channel context.</value>
@@ -228,22 +253,54 @@ namespace Opc.Ua.Server
         /// Gets the routing view explicitly owned by this operation, if it is dispatching a service.
         /// Internal subscriber contexts without a service scope use live routing.
         /// </summary>
-        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; private set; }
+        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot
+        {
+            get => Volatile.Read(ref m_callbackRequest)?.RoutingSnapshot ?? m_routingSnapshot;
+            private set => m_routingSnapshot = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the local initializer that admitted this request, independently of its routing view.
+        /// </summary>
+        internal NodeManagerReadinessScope? Readiness { get; set; }
+
+        /// <summary>
+        /// Identifies a local durable decision when its callback invokes node management.
+        /// </summary>
+        public NodeManagerDecisionContext? PublicationDecision { get; init; }
+
+        /// <summary>
+        /// Gets or sets the revocable permit for a node-management callback.
+        /// </summary>
+        internal NodeManagerCallbackPermit? NodeManagerCallbackPermit { get; set; }
+
+        /// <summary>
+        /// Passes a node-management callback's admission to a nested local operation.
+        /// </summary>
+        /// <param name="callbackContext">The operation context supplied to the callback.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="callbackContext"/> is null.</exception>
+        public void InheritNodeManagerAdmission(OperationContext callbackContext)
+        {
+            NodeManagerCallbackPermit = (callbackContext ??
+                throw new ArgumentNullException(nameof(callbackContext))).NodeManagerCallbackPermit;
+        }
 
         /// <summary>
         /// Gets whether this operation currently owns a routing-view pin.
         /// </summary>
         internal bool HasRoutingPin =>
-            Volatile.Read(ref m_routingPinState) is
-                kRoutingPinActive or kRoutingPinTemporary or kRoutingPinDisposedActive or kRoutingPinCohortOwned;
+            Volatile.Read(ref m_callbackRequest)?.HasRoutingPin ??
+            (Volatile.Read(ref m_routingPinState) is
+                kRoutingPinActive or kRoutingPinTemporary or kRoutingPinDisposedActive or kRoutingPinCohortOwned);
 
         /// <summary>
         /// Gets whether this operation's pin protects the currently selected routing view.
         /// </summary>
         internal bool RoutingPinMatchesSnapshot =>
-            RoutingSnapshot is { } snapshot &&
-            HasRoutingPin &&
-            ReferenceEquals(Volatile.Read(ref m_routingEpoch), snapshot.Epoch);
+            Volatile.Read(ref m_callbackRequest)?.RoutingPinMatchesSnapshot ??
+            (m_routingSnapshot is { } snapshot &&
+             HasRoutingPin &&
+             ReferenceEquals(Volatile.Read(ref m_routingEpoch), snapshot.Epoch));
 
         /// <summary>
         /// The lifetime of the request.
@@ -516,6 +573,10 @@ namespace Opc.Ua.Server
         {
             get
             {
+                if (Volatile.Read(ref m_callbackRequest) is { } request)
+                {
+                    return request.StringTable;
+                }
                 StringTable? table = Volatile.Read(ref m_stringTable);
                 if (table != null)
                 {
@@ -531,7 +592,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The string table if anything asked for it, else <c>null</c>.
         /// </summary>
-        internal StringTable? CreatedStringTable => Volatile.Read(ref m_stringTable);
+        internal StringTable? CreatedStringTable =>
+            Volatile.Read(ref m_callbackRequest)?.CreatedStringTable ?? Volatile.Read(ref m_stringTable);
 
         /// <summary>
         /// When the request times out.
@@ -575,6 +637,11 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                if (Interlocked.Exchange(ref m_callbackRequest, null) is not null)
+                {
+                    Readiness = null;
+                    NodeManagerCallbackPermit = null;
+                }
                 try
                 {
                     System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
@@ -615,6 +682,11 @@ namespace Opc.Ua.Server
         /// <param name="routingTable">The routing table providing the current published view.</param>
         internal void PinRouting(NodeManagerRoutingTable routingTable)
         {
+            if (Volatile.Read(ref m_callbackRequest) is { } request)
+            {
+                request.PinRouting(routingTable);
+                return;
+            }
             if (routingTable is null)
             {
                 throw new ArgumentNullException(nameof(routingTable));
@@ -664,6 +736,10 @@ namespace Opc.Ua.Server
         /// <returns>The scope releasing this service's temporary ownership.</returns>
         internal RoutingScope CaptureRouting(NodeManagerRoutingTable routingTable)
         {
+            if (Volatile.Read(ref m_callbackRequest) is { } request)
+            {
+                return request.CaptureRouting(routingTable);
+            }
             if (routingTable is null)
             {
                 throw new ArgumentNullException(nameof(routingTable));
@@ -1304,6 +1380,8 @@ namespace Opc.Ua.Server
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
+        private OperationContext? m_callbackRequest;
+        private NodeManagerRoutingTable.RoutingSnapshot? m_routingSnapshot;
         private AddressSpaceEpoch? m_routingEpoch;
         private int m_routingPinSlot = -1;
         private int m_routingPinState;

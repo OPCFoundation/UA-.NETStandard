@@ -669,22 +669,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
                     timeout.Token).ConfigureAwait(false);
-            LifecycleResult result = await prepared.CommitAsync(_ =>
+            LifecycleResult result = await prepared.CommitWithDecisionAsync((decision, _) =>
             {
                 InvalidOperationException? failure = Assert.Throws<InvalidOperationException>(() =>
                 {
                     if (unregister)
                     {
-                        master.UnregisterNamespaceManager(AliasUri, manager);
+                        master.UnregisterNamespaceManager(AliasUri, manager, decision);
                     }
                     else
                     {
-                        master.RegisterNamespaceManager(AliasUri, manager);
+                        master.RegisterNamespaceManager(AliasUri, manager, decision);
                     }
                 });
                 Assert.That(failure!.Message, Does.Contain("durable decision callback"));
                 return default;
-            }, timeout.Token).ConfigureAwait(false);
+            }, cancellationToken: timeout.Token).ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
             master.RegisterNamespaceManager(AliasUri, manager);
             Assert.That(master.UnregisterNamespaceManager(AliasUri, manager), Is.True);
@@ -711,31 +711,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedChanges prepared =
                 await ((INodeManagerLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
                     [LifecycleChange.Add(factory)], timeout.Token).ConfigureAwait(false);
-            LifecycleResult result = await prepared.CommitAsync(async _ =>
+            LifecycleResult result = await prepared.CommitWithDecisionAsync(async (decision, token) =>
             {
                 InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 {
                     if (asynchronous && unregister)
                     {
-                        await master.UnregisterNamespaceManagerAsync(AliasUri, candidate.Object, timeout.Token)
+                        await master.UnregisterNamespaceManagerAsync(AliasUri, candidate.Object, decision, token)
                             .ConfigureAwait(false);
                     }
                     else if (asynchronous)
                     {
-                        await master.RegisterNamespaceManagerAsync(AliasUri, candidate.Object, timeout.Token)
+                        await master.RegisterNamespaceManagerAsync(AliasUri, candidate.Object, decision, token)
                             .ConfigureAwait(false);
                     }
                     else if (unregister)
                     {
-                        master.UnregisterNamespaceManager(AliasUri, candidate.Object);
+                        master.UnregisterNamespaceManager(AliasUri, candidate.Object, decision);
                     }
                     else
                     {
-                        master.RegisterNamespaceManager(AliasUri, candidate.Object);
+                        master.RegisterNamespaceManager(AliasUri, candidate.Object, decision);
                     }
                 }).ConfigureAwait(false);
                 Assert.That(failure!.Message, Does.Contain("durable decision callback"));
-            }, timeout.Token).ConfigureAwait(false);
+            }, cancellationToken: timeout.Token).ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
             Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(AliasUri), Is.LessThan(0));
             Assert.That(RequireRegistration(result.Registrations[0]).NodeManager, Is.SameAs(candidate.Object));
@@ -752,53 +752,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
-            using var context = new OperationContext(
-                new RequestHeader(),
-                null,
-                requestType,
-                RequestLifetime.None);
             await using IPreparedChanges prepared =
                 await ((INodeManagerLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
                     [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
                     timeout.Token).ConfigureAwait(false);
 
-            ExecutionContext? decisionContext = null;
-            LifecycleResult result = await prepared.CommitAsync(async _ =>
+            NodeManagerDecisionContext? decisionContext = null;
+            LifecycleResult result = await prepared.CommitWithDecisionAsync(async (decision, token) =>
             {
-                decisionContext = ExecutionContext.Capture();
-                Task nodeManagement = requestType switch
-                {
-                    RequestType.AddNodes => master.AddNodesAsync(
-                        context, [], CancellationToken.None).AsTask(),
-                    RequestType.DeleteNodes => master.DeleteNodesAsync(
-                        context, [], CancellationToken.None).AsTask(),
-                    RequestType.AddReferences => master.AddReferencesAsync(
-                        context, [], CancellationToken.None).AsTask(),
-                    RequestType.DeleteReferences => master.DeleteReferencesAsync(
-                        context, [], CancellationToken.None).AsTask(),
-                    _ => throw new AssertionException($"Unexpected request type {requestType}.")
-                };
+                decisionContext = decision;
                 InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
-                    async () => await nodeManagement.ConfigureAwait(false)).ConfigureAwait(false);
+                    () => DispatchAsync(decision, token)).ConfigureAwait(false);
                 Assert.That(failure!.Message, Does.Contain("durable decision callback"));
-            }, timeout.Token).ConfigureAwait(false);
+            }, cancellationToken: timeout.Token).ConfigureAwait(false);
 
             Assert.That(result.CleanupFailure, Is.Null);
             Assert.That(decisionContext, Is.Not.Null);
-            Task? resumed = null;
-            ExecutionContext.Run(decisionContext!, _ => resumed = requestType switch
+            await DispatchAsync(decisionContext!, timeout.Token).ConfigureAwait(false);
+
+            async Task DispatchAsync(NodeManagerDecisionContext decision, CancellationToken token)
             {
-                RequestType.AddNodes => master.AddNodesAsync(context, [], CancellationToken.None).AsTask(),
-                RequestType.DeleteNodes => master.DeleteNodesAsync(context, [], CancellationToken.None).AsTask(),
-                RequestType.AddReferences => master.AddReferencesAsync(context, [], CancellationToken.None)
-                    .AsTask(),
-                RequestType.DeleteReferences => master.DeleteReferencesAsync(context, [], CancellationToken.None)
-                    .AsTask(),
-                _ => throw new AssertionException($"Unexpected request type {requestType}.")
-            }, null);
-            Assert.That(resumed, Is.Not.Null);
-            await resumed!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using var context = new OperationContext(new RequestHeader(), null, requestType, RequestLifetime.None)
+                {
+                    PublicationDecision = decision
+                };
+                Task dispatch = requestType switch
+                {
+                    RequestType.AddNodes => master.AddNodesAsync(context, [], token).AsTask(),
+                    RequestType.DeleteNodes => master.DeleteNodesAsync(context, [], token).AsTask(),
+                    RequestType.AddReferences => master.AddReferencesAsync(context, [], token).AsTask(),
+                    RequestType.DeleteReferences => master.DeleteReferencesAsync(context, [], token).AsTask(),
+                    _ => throw new AssertionException($"Unexpected request type {requestType}.")
+                };
+                await dispatch.ConfigureAwait(false);
+            }
         }
 
         /// <summary>

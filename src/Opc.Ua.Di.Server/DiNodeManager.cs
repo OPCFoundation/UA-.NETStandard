@@ -78,7 +78,7 @@ namespace Opc.Ua.Di.Server
     /// </para>
     /// </remarks>
     public partial class DiNodeManager : FluentNodeManagerBase, INodeIdFactory, IConformanceContributor,
-        INodeManagerReadinessNotification
+        INodeManagerReadinessNotification, INodeManagerReadinessInitializer
     {
         /// <summary>
         /// The DI namespace URI (<c>http://opcfoundation.org/UA/DI/</c>).
@@ -753,7 +753,10 @@ namespace Opc.Ua.Di.Server
 
             if (PostSetupRunner is { } runner)
             {
-                DeferConfigurationUntilReady(builder, ct => runner.RunAsync(this, ct));
+                DeferConfigurationUntilReady(builder, (readiness, ct) =>
+                    runner is Hosting.DiPostSetupRunner stock
+                        ? stock.RunAsync(this, readiness, ct)
+                        : runner.RunAsync(this, ct));
             }
             await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
         }
@@ -764,6 +767,14 @@ namespace Opc.Ua.Di.Server
         public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
         {
             return CompletePublishedConfigurationAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessInitializer.OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(readiness, cancellationToken);
         }
 
         /// <summary>

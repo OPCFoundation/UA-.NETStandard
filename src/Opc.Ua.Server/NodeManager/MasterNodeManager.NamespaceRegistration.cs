@@ -58,7 +58,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
-            ThrowIfNamespaceRegistrationFromDecision(serving: false);
             IAsyncNodeManager? preparingNodeManager = GetPreparingNodeManager(nodeManager);
             ChangePreparer.StagingServer? staging =
                 ChangePreparer.GetServer(preparingNodeManager ?? nodeManager);
@@ -69,7 +68,7 @@ namespace Opc.Ua.Server
                 return default;
             }
 
-            ThrowIfNamespaceRegistrationFromDecision();
+            ThrowIfNamespaceRegistrationFromGetter();
             return RegisterNamespaceManagerCoreAsync(
                 namespaceUri,
                 preparingNodeManager ?? nodeManager,
@@ -184,7 +183,6 @@ namespace Opc.Ua.Server
             INodeManager? nodeManager,
             CancellationToken cancellationToken)
         {
-            ThrowIfNamespaceRegistrationFromDecision(serving: false);
             IAsyncNodeManager candidate = asyncNodeManager ?? nodeManager!.ToAsyncNodeManager();
             ChangePreparer.StagingServer? staging =
                 ChangePreparer.GetServer(GetPreparingNodeManager(candidate) ?? candidate);
@@ -193,7 +191,7 @@ namespace Opc.Ua.Server
                 return staging.UnstageNamespaceRegistration(namespaceUri);
             }
 
-            ThrowIfNamespaceRegistrationFromDecision();
+            ThrowIfNamespaceRegistrationFromGetter();
             return await ChangeNamespaceRegistrationAsync(
                 namespaceUri, candidate, register: false, visible: true, cancellationToken).ConfigureAwait(false);
         }
@@ -204,6 +202,68 @@ namespace Opc.Ua.Server
     /// </summary>
     public static class MasterNodeManagerNamespaceRegistrationExtensions
     {
+        /// <summary>
+        /// Registers a namespace alias from a durable-decision callback.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The decision owns the active host reservation.</exception>
+        public static void RegisterNamespaceManager(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext)
+        {
+            CheckDecision(master, decisionContext);
+            master.RegisterNamespaceManager(namespaceUri, nodeManager);
+        }
+
+        /// <summary>
+        /// Unregisters a namespace alias from a durable-decision callback.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The decision owns the active host reservation.</exception>
+        public static bool UnregisterNamespaceManager(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext)
+        {
+            CheckDecision(master, decisionContext);
+            return master.UnregisterNamespaceManager(namespaceUri, nodeManager);
+        }
+
+        private static void CheckDecision(IMasterNodeManager master, NodeManagerDecisionContext decisionContext)
+        {
+            (decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)))
+                .CheckAddressSpaceMutation(master);
+        }
+
+        /// <summary>
+        /// Registers a namespace alias asynchronously from a durable-decision callback.
+        /// </summary>
+        public static ValueTask RegisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            CheckDecision(master, decisionContext);
+            return master.RegisterNamespaceManagerAsync(namespaceUri, nodeManager, cancellationToken);
+        }
+
+        /// <summary>
+        /// Unregisters a namespace alias asynchronously from a durable-decision callback.
+        /// </summary>
+        public static ValueTask<bool> UnregisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            CheckDecision(master, decisionContext);
+            return master.UnregisterNamespaceManagerAsync(namespaceUri, nodeManager, cancellationToken);
+        }
+
         /// <summary>
         /// Registers a namespace manager without blocking the calling thread when the master supports asynchronous
         /// namespace registration.

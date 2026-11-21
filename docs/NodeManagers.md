@@ -1018,24 +1018,43 @@ Request routing remains owned by the explicit `OperationContext` view.
 
 | Scope | Purpose and expiration | Retained state |
 | --- | --- | --- |
-| `LifecycleWriter` decision scope | Rejects nested lifecycle operations during the durable decision, including spawned work. The decision's `finally` block revokes the scope before restoring its predecessor. | An active flag; no manager or generation |
-| `NodeManagerReadinessScope` | Allows initializer access only to its exact server and generation. Disposal revokes access and clears its server and generation. Normal unwinding preserves access to a still-active parent; out-of-order disposal severs the parent link. | Server and generation references only while active |
-| `MasterNodeManager` callback permit | Allows nested publication to borrow the capabilities currently held by a manager callback. Disposal rejects new borrows and waits for existing borrows before the callback releases its host admission; later operations must reacquire admission. | Capability flags, borrow accounting, the preceding permit and its execution-context slot; no manager or generation |
-| `MasterNodeManager` current decision | Rejects namespace and node-management writes from the callback whose decision they would otherwise wait for. Releasing the reservation completes its marker and clears the current slot. | A completion task with no manager or generation payload |
-| `MasterNodeManager` namespace publication | Rejects serving namespace changes from publication callbacks and both staged and serving changes from the durable decision callback. Other flows can publish unrelated aliases into the serving and exact reserved successor images; conflicting aliases await release. Releasing the reservation completes its marker and restores the preceding slot, on success or failure. | A completion task with no manager or generation payload |
+| Legacy namespace getter | The writer binds a marker around context-free routing getters. It rejects serving namespace changes that would wait on the getter's own reservation. | A revocable marker; no manager or generation |
+| Legacy session-close callback scope | Supplies a permit to context-free calls from the released session-close callback. Disposal rejects new borrows and drains existing borrows before the callback releases host admission. | Capability flags, borrow accounting and the preceding permit; no manager or generation |
+| Legacy virtual handle lookup | Passes the pinned view and the request's readiness admission to the released context-free override, including when it calls `base`. Return, failure and cancellation clear both. | The pinned view and the revocable readiness scope only during the override |
 | Node registration, AddNodes, adapter notification and NodeVersion guards | Suppresses nested notifications or reserves a request's NodeId only while the owning operation is active. Disposal revokes the value in captured contexts, including on failure. An ended inner guard can fall back to a still-active enclosing operation. | A Boolean or NodeId, an active flag and preceding guard; no manager or generation |
 | Certificate rotation and user-change collectors | Admit additions only through the nearest active typed guard. Their owners clear the collected rotations or deactivation tasks after completing the owned work. | The callback's collection; a revoked guard cannot collect later work |
 | Async and synchronous manager operation scopes | Permit re-entry only while the inherited operation is active. Disposal ends admission before restoring the preceding operation. Async disposal also checks its owner-wide active-disposal flag, so an escaped Boolean alone cannot authorize later work. | Active flags, counter slots and preceding markers; no manager reference |
-| Cleanup verification scope | Rejects same-generation re-entry only while verification is active; an ended inner scope cannot hide an active outer verification. | Opaque generation identifiers and preceding markers |
 | History request, dispatch and read scopes | Request/read guards revoke and release session, point and generation admissions when they end. Dispatch authority expires on callback exit, but its detached issuer identity remains available to attribute late saved points correctly. | Active ownership while admitted; detached request identity and weak generation attribution after dispatch |
 | Durable queue restore staging | Requests staged writes only while the owning restore marker is active. Disposing it revokes staging in captured child contexts. | One active flag; no queue, manager or generation |
 | NodeState event propagation | Shares a visited set during one event publication. Closing the publication revokes sharing and releases both the visited nodes and the event graph, including from captured callback contexts. | The occurrence and visited nodes only while active |
 
-When an intermediate readiness scope is disposed while a descendant remains active,
-it clears its link to the grandparent. The descendant cannot reach the grandparent's
-generation through that scope. It retains authority for its own server and generation,
-including when its server is shared with the grandparent. A separately captured context
-whose current scope is the still-active grandparent retains that grandparent's authority.
+Readiness does not flow through the execution context. Local request admission copies an explicitly
+supplied initializer scope to `OperationContext` only for the exact server. Dispatch checks that
+scope against the pending generation selected by the request's pinned view. Neither a context-free
+lookup nor a routing pin grants readiness.
+
+`AddNodeAsync` and `DeleteNodeAsync` callbacks carry admission in their `OperationContext`.
+Pass that context to `INodeManagerCallbackLifecycle.PrepareFromCallbackAsync` for nested lifecycle
+changes. Use `PrepareFromDecisionAsync` on the same interface when passing a durable decision
+context. The default host registers both lifecycle interfaces on the same instance. For a separate local
+node-management operation, use `InheritNodeManagerAdmission` to pass admission to its context.
+Each item has its own callback context and permit, while the request keeps its routing view
+and diagnostic string table. Only the issuing host accepts the permit, and callback exit
+revokes it before draining borrows.
+
+`INodeManagerReadinessInitializer` receives a `NodeManagerReadinessContext` explicitly, including
+through a supported manager adapter. Use `ReadAsync` on that context for an authenticated local
+read of pending nodes, or `PublishAsync` for dependent lifecycle changes. Neither method grants
+admission to a different server. The lifecycle revokes admission when initialization ends.
+`INodeManagerReadinessNotification` still runs callbacks that do not need initializer admission.
+Lifecycle providers can implement `INodeManagerCallbackLifecycle.CaptureFromReadiness` to
+carry the initializer into optimistic capture and publication. A provider implementing only
+`INodeManagerLifecycle` keeps its ordinary capture path and receives no added admission.
+
+A completed readiness scope cannot grant access to its own generation or to an enclosing
+initializer. An active descendant keeps access to its own server and generation but cannot
+reach an ancestor through a completed scope. A caller holding the active ancestor's own
+context can still use that context.
 
 Restoring an `AsyncLocal` value alone cannot revoke a scope copied into another
 execution context. Readers therefore check the shared active flag or completion
@@ -1220,7 +1239,12 @@ the callback or request whose own view or generation admission must drain.
 Service, Method, event-source, session, and hosted-service callbacks use the same context-free
 transaction members and ordinary factories; no callback opt-in or request exclusion is needed.
 No explicit `OperationContext` is passed to lifecycle preparation or publication admission.
-Nested lifecycle mutations from the durable decision callback are rejected.
+Durable decisions that call back into the host use `CommitWithDecisionAsync` and pass the supplied
+`NodeManagerDecisionContext`. Use the context-taking lifecycle and namespace operations, or set
+`OperationContext.PublicationDecision` for local node management. The context rejects re-entry
+against its own writer or reservation and does not change ordinary admission on another host.
+Context-free decision delegates are for persistence only; do not re-enter through a captured host
+or lifecycle without the supplied context.
 
 Node-management and session-closing callbacks retain their host mutation admission while they
 execute. Session closing acquires address-space and server-lifecycle admission together before
@@ -1451,8 +1475,14 @@ asynchronous resource and must establish that it was actually cleaned up. Use
 the original resource. Authentication, a resource name, or an operator assertion alone is not proof.
 The host retains the generation until verification returns. The verifier must honor
 cancellation, must not retain the resource after it returns, and must not await cleanup of
-that generation from its callback. Confirmation or reconciliation for the same generation
-is rejected in the verification execution context while verification is active.
+that generation from its callback. Pass the supplied `NodeManagerCleanupVerificationContext`
+to `ConfirmAsync` or `ReconcileAsync` when calling recovery from a verifier.
+A participant gets the context from `NodeManagerCleanupAccess.Context` when the host
+inspects the retained failure, and from `NodeManagerCleanupVerification.Context` when it
+resolves the resource. The context rejects recovery that would wait
+for an active verification of the same generation, even through a nested verification.
+It grants no authorization and does not retain the generation or resource. Recovery through
+a separately captured service without the supplied context is unsupported from these callbacks.
 The audit adapter must persist each record before returning and remain available for recovery
 after a failed stop. The host can resolve `INodeManagerCleanupRecovery` and expose its
 operations through an appropriately protected operator interface. Given the resolved
@@ -1917,6 +1947,10 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
   corresponding information for the current view. A nested lifecycle change during reconciliation
   or readiness can advance the current view without changing the original result's revision or slot set.
 - Before the durable decision callback runs, the batch reserves the serving routing revision.
+  The host passes that exact reservation to the lifecycle writer when it starts the decision.
+  A closed reservation or one from a different mutation cannot start the callback.
+  The decision context is explicit. Only the context-free namespace getter uses an
+  execution-context adapter. Both identify the exact reservation and expire when it closes.
   Public namespace registration and unregistration from other flows proceed during a pending decision
   when their namespace and manager lifetime are unrelated to the batch. Those mutations update the
   serving routes immediately and are mirrored only into that exact reserved successor, preserving

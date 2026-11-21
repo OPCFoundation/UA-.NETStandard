@@ -252,7 +252,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedChanges prepared =
                 await m_server.NodeManagerLifecycle.PrepareAsync([LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))], timeout.Token).ConfigureAwait(false);
-            LifecycleResult result = await prepared.CommitAsync(async _ =>
+            LifecycleResult result = await prepared.CommitWithDecisionAsync(async (decision, token) =>
             {
                 await Task.Yield();
                 InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -260,15 +260,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         if (unregister)
                         {
-                            await master.UnregisterNamespaceManagerAsync(AliasUri, manager).ConfigureAwait(false);
+                            await master.UnregisterNamespaceManagerAsync(AliasUri, manager, decision, token)
+                                .ConfigureAwait(false);
                         }
                         else
                         {
-                            await master.RegisterNamespaceManagerAsync(AliasUri, manager).ConfigureAwait(false);
+                            await master.RegisterNamespaceManagerAsync(AliasUri, manager, decision, token)
+                                .ConfigureAwait(false);
                         }
                     }).ConfigureAwait(false);
                 Assert.That(failure!.Message, Does.Contain("durable decision callback"));
-            }, timeout.Token).ConfigureAwait(false);
+            }, cancellationToken: timeout.Token).ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
         }
     }

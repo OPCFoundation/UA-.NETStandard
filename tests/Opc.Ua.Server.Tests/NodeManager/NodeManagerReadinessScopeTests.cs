@@ -47,6 +47,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class NodeManagerReadinessScopeTests
     {
         /// <summary>
+        /// A custom lifecycle that manages its own readiness can capture publication at startup.
+        /// </summary>
+        [Test]
+        public void ReadinessCaptureSupportsPrimaryOnlyLifecycle()
+        {
+            using var scope = new NodeManagerReadinessScope(Mock.Of<IServerInternal>(), CreateGeneration());
+            var readiness = new NodeManagerReadinessContext(scope);
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            ILifecycleCapture capture = Mock.Of<ILifecycleCapture>();
+            lifecycle.Setup(owner => owner.CaptureChanges()).Returns(capture);
+
+            Assert.That(readiness.CaptureChanges(lifecycle.Object), Is.SameAs(capture));
+            lifecycle.Verify(owner => owner.CaptureChanges(), Times.Once);
+        }
+
+        /// <summary>
+        /// Readiness-aware providers receive the exact live context, never a context-free retry.
+        /// </summary>
+        [Test]
+        public void ReadinessCaptureForwardsOnlyAnActiveContext()
+        {
+            using var scope = new NodeManagerReadinessScope(Mock.Of<IServerInternal>(), CreateGeneration());
+            var readiness = new NodeManagerReadinessContext(scope);
+            var lifecycle = new Mock<INodeManagerCallbackLifecycle>(MockBehavior.Strict);
+            ILifecycleCapture capture = Mock.Of<ILifecycleCapture>();
+            lifecycle.Setup(owner => owner.CaptureFromReadiness(readiness)).Returns(capture);
+
+            Assert.That(readiness.CaptureChanges(lifecycle.Object), Is.SameAs(capture));
+            scope.Dispose();
+            Assert.That(() => readiness.CaptureChanges(lifecycle.Object), Throws.InvalidOperationException);
+            lifecycle.Verify(owner => owner.CaptureFromReadiness(readiness), Times.Once);
+        }
+
+        /// <summary>
         /// Readiness grants access only to the exact server and generation, not a shared slot.
         /// </summary>
         [Test]
@@ -59,14 +93,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var scope = new NodeManagerReadinessScope(server, generation);
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(NodeManagerReadinessScope.Allows(server), Is.True);
-                Assert.That(NodeManagerReadinessScope.Allows(generation), Is.True);
-                Assert.That(NodeManagerReadinessScope.Allows(Mock.Of<IServerInternal>()), Is.False);
-                Assert.That(NodeManagerReadinessScope.Allows(replacement), Is.False);
+                Assert.That(scope.Includes(server), Is.True);
+                Assert.That(scope.Includes(generation), Is.True);
+                Assert.That(scope.Includes(Mock.Of<IServerInternal>()), Is.False);
+                Assert.That(scope.Includes(replacement), Is.False);
             }
             scope.Dispose();
-            Assert.That(NodeManagerReadinessScope.Allows(server), Is.False);
-            Assert.That(NodeManagerReadinessScope.Allows(generation), Is.False);
+            Assert.That(scope.Includes(server), Is.False);
+            Assert.That(scope.Includes(generation), Is.False);
         }
 
         /// <summary>
@@ -79,13 +113,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerGeneration parent = CreateGeneration();
             NodeManagerGeneration child = CreateGeneration();
             using var outer = new NodeManagerReadinessScope(server, parent);
-            using (var inner = new NodeManagerReadinessScope(server, child))
+            using (var inner = new NodeManagerReadinessScope(server, child, outer))
             {
-                Assert.That(NodeManagerReadinessScope.Allows(parent), Is.True);
-                Assert.That(NodeManagerReadinessScope.Allows(child), Is.True);
+                Assert.That(inner.Includes(parent), Is.True);
+                Assert.That(inner.Includes(child), Is.True);
             }
-            Assert.That(NodeManagerReadinessScope.Allows(parent), Is.True);
-            Assert.That(NodeManagerReadinessScope.Allows(child), Is.False);
+            Assert.That(outer.Includes(parent), Is.True);
+            Assert.That(outer.Includes(child), Is.False);
+        }
+
+        [Test]
+        public void ExplicitChildCannotReachGrandparentThroughRevokedMiddleScope()
+        {
+            IServerInternal server = Mock.Of<IServerInternal>();
+            NodeManagerGeneration original = CreateGeneration();
+            NodeManagerGeneration pending = CreateGeneration();
+            using var grandparent = new NodeManagerReadinessScope(server, original);
+            using var middle = new NodeManagerReadinessScope(server, CreateGeneration(), grandparent);
+            using var child = new NodeManagerReadinessScope(server, pending, middle);
+
+            Assert.That(child.Includes(original), Is.True);
+            middle.Dispose();
+
+            Assert.That(child.Includes(original), Is.False);
+            Assert.That(child.Includes(pending), Is.True);
+            Assert.That(grandparent.Includes(original), Is.True);
         }
 
         /// <summary>
@@ -106,10 +158,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IServerInternal grandchildServer = Mock.Of<IServerInternal>();
                 NodeManagerGeneration grandchildGeneration = CreateGeneration();
                 using var grandparent = new NodeManagerReadinessScope(grandparentServer, grandparentGeneration);
-                using var middle = new NodeManagerReadinessScope(middleServer, middleGeneration);
-                using var grandchild = new NodeManagerReadinessScope(grandchildServer, grandchildGeneration);
+                using var middle = new NodeManagerReadinessScope(middleServer, middleGeneration, grandparent);
+                using var grandchild = new NodeManagerReadinessScope(grandchildServer, grandchildGeneration, middle);
 
                 AssertNestedAuthority(
+                    grandchild,
                     grandparentServer,
                     grandparentGeneration,
                     middleServer,
@@ -122,6 +175,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 middle.Dispose();
                 AssertNestedAuthority(
+                    grandchild,
                     grandparentServer,
                     grandparentGeneration,
                     middleServer,
@@ -134,6 +188,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 grandchild.Dispose();
                 AssertNestedAuthority(
+                    grandchild,
                     grandparentServer,
                     grandparentGeneration,
                     middleServer,
@@ -180,8 +235,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     ExecutionContext.Run(capture.Context.CreateCopy(), _ =>
                     {
-                        Assert.That(NodeManagerReadinessScope.Allows(server), Is.True);
-                        Assert.That(NodeManagerReadinessScope.Allows(generation), Is.True);
+                        Assert.That(capture.Scopes[1].Includes(server), Is.True);
+                        Assert.That(capture.Scopes[1].Includes(generation), Is.True);
                     }, null);
                 }
                 else
@@ -214,32 +269,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerGeneration parent = CreateGeneration();
                 NodeManagerGeneration child = CreateGeneration();
                 using var outer = new NodeManagerReadinessScope(parentServer, parent);
-                using var inner = new NodeManagerReadinessScope(childServer, child);
+                using var inner = new NodeManagerReadinessScope(childServer, child, outer);
 
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.True);
-                    Assert.That(NodeManagerReadinessScope.Allows(parent), Is.True);
-                    Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.True);
-                    Assert.That(NodeManagerReadinessScope.Allows(child), Is.True);
+                    Assert.That(inner.Includes(parentServer), Is.True);
+                    Assert.That(inner.Includes(parent), Is.True);
+                    Assert.That(inner.Includes(childServer), Is.True);
+                    Assert.That(inner.Includes(child), Is.True);
                 }
 
                 outer.Dispose();
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.EqualTo(sharedServer));
-                    Assert.That(NodeManagerReadinessScope.Allows(parent), Is.False);
-                    Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.True);
-                    Assert.That(NodeManagerReadinessScope.Allows(child), Is.True);
+                    Assert.That(inner.Includes(parentServer), Is.EqualTo(sharedServer));
+                    Assert.That(inner.Includes(parent), Is.False);
+                    Assert.That(inner.Includes(childServer), Is.True);
+                    Assert.That(inner.Includes(child), Is.True);
                 }
 
                 inner.Dispose();
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.False);
-                    Assert.That(NodeManagerReadinessScope.Allows(parent), Is.False);
-                    Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.False);
-                    Assert.That(NodeManagerReadinessScope.Allows(child), Is.False);
+                    Assert.That(inner.Includes(parentServer), Is.False);
+                    Assert.That(inner.Includes(parent), Is.False);
+                    Assert.That(inner.Includes(childServer), Is.False);
+                    Assert.That(inner.Includes(child), Is.False);
                 }
             }, null);
         }
@@ -259,7 +314,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 escaped = Task.Run(async () =>
                 {
                     await released.Task.ConfigureAwait(false);
-                    return (NodeManagerReadinessScope.Allows(server), NodeManagerReadinessScope.Allows(generation));
+                    return (scope.Includes(server), scope.Includes(generation));
                 });
             }
             released.SetResult(true);
@@ -280,8 +335,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerGeneration current = CreateGeneration();
             using var active = new NodeManagerReadinessScope(server, current);
             completed.Dispose();
-            Assert.That(NodeManagerReadinessScope.Allows(current), Is.True);
-            Assert.That(NodeManagerReadinessScope.Allows(server), Is.True);
+            Assert.That(active.Includes(current), Is.True);
+            Assert.That(active.Includes(server), Is.True);
         }
 
         /// <summary>
@@ -290,7 +345,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public void CapturedDisposedScopeDoesNotRetainServerOrGeneration()
         {
-            (ExecutionContext Context, WeakReference Server, WeakReference Generation, WeakReference Manager) capture =
+            (NodeManagerReadinessScope Context, WeakReference Server, WeakReference Generation,
+                WeakReference Manager) capture =
                 CaptureDisposedScope();
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -362,8 +418,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     ExecutionContext.Run(capture.ActiveContext.CreateCopy(), _ =>
                     {
-                        Assert.That(NodeManagerReadinessScope.Allows(activeServer), Is.True);
-                        Assert.That(NodeManagerReadinessScope.Allows(activeGeneration), Is.True);
+                        NodeManagerReadinessScope activeScope = capture.Scopes[disposeParent ? 1 : 0];
+                        Assert.That(activeScope.Includes(activeServer), Is.True);
+                        Assert.That(activeScope.Includes(activeGeneration), Is.True);
                     }, null);
                 }
                 else
@@ -388,20 +445,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <exception cref="InvalidOperationException">The initializer execution context was not captured.</exception>
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static (
-            ExecutionContext Context,
+            NodeManagerReadinessScope Context,
             WeakReference Server,
             WeakReference Generation,
             WeakReference Manager) CaptureDisposedScope()
         {
             IServerInternal server = Mock.Of<IServerInternal>();
             NodeManagerGeneration generation = CreateGeneration();
-            ExecutionContext context;
-            using (var scope = new NodeManagerReadinessScope(server, generation))
-            {
-                context = ExecutionContext.Capture() ??
-                    throw new InvalidOperationException("The initializer execution context was not captured.");
-            }
-            return (context, new WeakReference(server), new WeakReference(generation),
+            using var scope = new NodeManagerReadinessScope(server, generation);
+            return (scope, new WeakReference(server), new WeakReference(generation),
                 new WeakReference(generation.NodeManager));
         }
 
@@ -427,7 +479,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IServerInternal childServer = Mock.Of<IServerInternal>();
                 NodeManagerGeneration childGeneration = CreateGeneration();
                 using var parent = new NodeManagerReadinessScope(parentServer, parentGeneration);
-                using var child = new NodeManagerReadinessScope(childServer, childGeneration);
+                using var child = new NodeManagerReadinessScope(childServer, childGeneration, parent);
                 ExecutionContext context = ExecutionContext.Capture() ??
                     throw new InvalidOperationException("The initializer execution context was not captured.");
                 ExecutionContext.Run(context.CreateCopy(), _ => AssertAuthority(true), null);
@@ -451,10 +503,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     using (Assert.EnterMultipleScope())
                     {
-                        Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.EqualTo(active));
-                        Assert.That(NodeManagerReadinessScope.Allows(parentGeneration), Is.EqualTo(active));
-                        Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.EqualTo(active));
-                        Assert.That(NodeManagerReadinessScope.Allows(childGeneration), Is.EqualTo(active));
+                        Assert.That(child.Includes(parentServer), Is.EqualTo(active));
+                        Assert.That(child.Includes(parentGeneration), Is.EqualTo(active));
+                        Assert.That(child.Includes(childServer), Is.EqualTo(active));
+                        Assert.That(child.Includes(childGeneration), Is.EqualTo(active));
                     }
                 }
             }, null);
@@ -489,7 +541,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IServerInternal childServer = Mock.Of<IServerInternal>();
                 NodeManagerGeneration childGeneration = CreateGeneration();
                 var parent = new NodeManagerReadinessScope(parentServer, parentGeneration);
-                var child = new NodeManagerReadinessScope(childServer, childGeneration);
+                var child = new NodeManagerReadinessScope(childServer, childGeneration, parent);
                 bool captured = false;
                 try
                 {
@@ -507,10 +559,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         throw new InvalidOperationException("The active execution context was not captured.");
                     using (Assert.EnterMultipleScope())
                     {
-                        Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.EqualTo(!disposeParent));
-                        Assert.That(NodeManagerReadinessScope.Allows(parentGeneration), Is.EqualTo(!disposeParent));
-                        Assert.That(NodeManagerReadinessScope.Allows(childServer), Is.EqualTo(disposeParent));
-                        Assert.That(NodeManagerReadinessScope.Allows(childGeneration), Is.EqualTo(disposeParent));
+                        NodeManagerReadinessScope surviving = disposeParent ? child : parent;
+                        Assert.That(surviving.Includes(parentServer), Is.EqualTo(!disposeParent));
+                        Assert.That(surviving.Includes(parentGeneration), Is.EqualTo(!disposeParent));
+                        Assert.That(surviving.Includes(childServer), Is.EqualTo(disposeParent));
+                        Assert.That(surviving.Includes(childGeneration), Is.EqualTo(disposeParent));
                     }
                     WeakReference[] owners = CreateOwnerReferences(
                         parentServer, parentGeneration, childServer, childGeneration);
@@ -559,8 +612,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IServerInternal grandchildServer = Mock.Of<IServerInternal>();
                 NodeManagerGeneration grandchildGeneration = CreateGeneration();
                 var grandparent = new NodeManagerReadinessScope(grandparentServer, grandparentGeneration);
-                var middle = new NodeManagerReadinessScope(middleServer, middleGeneration);
-                var grandchild = new NodeManagerReadinessScope(grandchildServer, grandchildGeneration);
+                var middle = new NodeManagerReadinessScope(middleServer, middleGeneration, grandparent);
+                var grandchild = new NodeManagerReadinessScope(grandchildServer, grandchildGeneration, middle);
                 ExecutionContext context = ExecutionContext.Capture() ??
                     throw new InvalidOperationException("The grandchild execution context was not captured.");
                 WeakReference[] owners =
@@ -637,6 +690,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <param name="middle">Whether middle-scope authority is available.</param>
         /// <param name="grandchild">Whether grandchild authority is available.</param>
         private static void AssertNestedAuthority(
+            NodeManagerReadinessScope scope,
             IServerInternal grandparentServer,
             NodeManagerGeneration grandparentGeneration,
             IServerInternal middleServer,
@@ -649,12 +703,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(NodeManagerReadinessScope.Allows(grandparentServer), Is.EqualTo(grandparent));
-                Assert.That(NodeManagerReadinessScope.Allows(grandparentGeneration), Is.EqualTo(grandparent));
-                Assert.That(NodeManagerReadinessScope.Allows(middleServer), Is.EqualTo(middle));
-                Assert.That(NodeManagerReadinessScope.Allows(middleGeneration), Is.EqualTo(middle));
-                Assert.That(NodeManagerReadinessScope.Allows(grandchildServer), Is.EqualTo(grandchild));
-                Assert.That(NodeManagerReadinessScope.Allows(grandchildGeneration), Is.EqualTo(grandchild));
+                Assert.That(scope.Includes(grandparentServer), Is.EqualTo(grandparent));
+                Assert.That(scope.Includes(grandparentGeneration), Is.EqualTo(grandparent));
+                Assert.That(scope.Includes(middleServer), Is.EqualTo(middle));
+                Assert.That(scope.Includes(middleGeneration), Is.EqualTo(middle));
+                Assert.That(scope.Includes(grandchildServer), Is.EqualTo(grandchild));
+                Assert.That(scope.Includes(grandchildGeneration), Is.EqualTo(grandchild));
             }
         }
 

@@ -111,6 +111,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Publishes a dependent change using the node-management callback's explicit admission.
+        /// </summary>
+        internal static async Task<LifecycleResult> CommitCallbackChangeAsync(
+            INodeManagerLifecycle lifecycle,
+            OperationContext context,
+            LifecycleChange change,
+            CancellationToken cancellationToken)
+        {
+            await using IPreparedChanges prepared = await ((INodeManagerCallbackLifecycle)lifecycle)
+                .PrepareFromCallbackAsync([change], context, cancellationToken).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(result.Issues, Is.Empty);
+            return result;
+        }
+        /// <summary>
         /// Publishes on evidence captured before exact registration inspection, retaining the full result.
         /// </summary>
         internal static async Task<LifecycleResult> CommitChangeAsync(

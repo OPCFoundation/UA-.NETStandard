@@ -178,35 +178,40 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Dispatches AddNodes under address-space mutation admission.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is null.</exception>
         private async ValueTask<(ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             AddNodesCoreAsync(
                 OperationContext context,
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken)
         {
-            bool isLifecycleDecision = m_currentLifecycleDecision.Value is { IsCompleted: false };
-            if (isLifecycleDecision &&
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (IsDecisionReservingAddressSpace(context.PublicationDecision) &&
                 TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var decisionResponse))
             {
                 return decisionResponse;
             }
-            ThrowIfNodeManagementFromDecision(isLifecycleDecision);
+            ThrowIfDecisionReservesAddressSpace(context.PublicationDecision);
+            NodeManagerCallbackPermit? permit = GetExplicitCallbackPermit(context) ?? CaptureLifecycleCallbackPermit();
             if (HasActiveCallbackPermit(
-                    CaptureLifecycleCallbackPermit(),
+                    permit,
                     NodeManagerAdmissionCapability.AddressSpaceMutation) ||
                 HasActiveCallbackPermit(
-                    CaptureLifecycleCallbackPermit(),
+                    permit,
                     NodeManagerAdmissionCapability.ServerLifecycle))
             {
                 using INodeManagerBatchAdmission mutationAdmission =
-                    await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
+                    await AcquireDynamicMutationAdmissionAsync(permit, cancellationToken).ConfigureAwait(false);
                 return await DispatchAdmittedAddNodesAsync(
                     context, nodesToAdd, mutationAdmission, cancellationToken).ConfigureAwait(false);
             }
             while (true)
             {
                 await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+                Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionWindow)?.Completion.Task;
                 if (decisionWindow is null)
                 {
                     using INodeManagerBatchAdmission mutationAdmission =
@@ -316,7 +321,13 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteNodesItem> nodesToDelete,
                 CancellationToken cancellationToken = default)
         {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            ThrowIfDecisionReservesAddressSpace(context.PublicationDecision);
             using INodeManagerBatchAdmission mutationAdmission = await AcquireDynamicMutationAdmissionAsync(
+                    GetExplicitCallbackPermit(context) ?? CaptureLifecycleCallbackPermit(),
                     cancellationToken)
                 .ConfigureAwait(false);
             bool invalidatePermissionCache = false;
@@ -384,6 +395,11 @@ namespace Opc.Ua.Server
                 ArrayOf<AddReferencesItem> referencesToAdd,
                 CancellationToken cancellationToken = default)
         {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            ThrowIfDecisionReservesAddressSpace(context.PublicationDecision);
             await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
             using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
@@ -434,6 +450,11 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteReferencesItem> referencesToDelete,
                 CancellationToken cancellationToken = default)
         {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            ThrowIfDecisionReservesAddressSpace(context.PublicationDecision);
             await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
             using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
@@ -712,11 +733,18 @@ namespace Opc.Ua.Server
 
             try
             {
-                await using var callbackPermit = new NodeManagerCallbackPermit(
-                    m_lifecycleCallbackPermit,
-                    GetAdmissionCapabilities(admission)).ConfigureAwait(false);
-                return await nodeManagement.AddNodeAsync(context, item, cancellationToken)
-                    .ConfigureAwait(false);
+                var permit = new NodeManagerCallbackPermit(GetAdmissionCapabilities(admission),
+                    GetExplicitCallbackPermit(context) ?? CaptureLifecycleCallbackPermit(), m_nodeManagementHostId);
+                using var callbackContext = new OperationContext(context, permit);
+                try
+                {
+                    return await nodeManagement.AddNodeAsync(callbackContext, item, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    await permit.DisposeAsync().ConfigureAwait(false);
+                }
             }
             catch (ServiceResultException ex)
             {
@@ -768,11 +796,18 @@ namespace Opc.Ua.Server
 
             try
             {
-                await using var callbackPermit = new NodeManagerCallbackPermit(
-                    m_lifecycleCallbackPermit,
-                    GetAdmissionCapabilities(admission)).ConfigureAwait(false);
-                return await owner.DeleteNodeAsync(context, item, cancellationToken)
-                    .ConfigureAwait(false);
+                var permit = new NodeManagerCallbackPermit(GetAdmissionCapabilities(admission),
+                    GetExplicitCallbackPermit(context) ?? CaptureLifecycleCallbackPermit(), m_nodeManagementHostId);
+                using var callbackContext = new OperationContext(context, permit);
+                try
+                {
+                    return await owner.DeleteNodeAsync(callbackContext, item, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    await permit.DisposeAsync().ConfigureAwait(false);
+                }
             }
             catch (ServiceResultException ex)
             {

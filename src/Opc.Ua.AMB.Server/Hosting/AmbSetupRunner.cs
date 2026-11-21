@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.AMB.Server.Hosting
@@ -65,9 +66,10 @@ namespace Opc.Ua.AMB.Server.Hosting
         public async ValueTask RunAsync(
             AmbNodeManager manager,
             INodeManagerBuilder builder,
+            NodeManagerReadinessContext? readiness,
             CancellationToken cancellationToken)
         {
-            var context = new SetupContext(manager, builder, m_services, cancellationToken);
+            var context = new SetupContext(manager, builder, m_services, readiness, cancellationToken);
             int index = 0;
             foreach (AmbSetupConfigurator configurator in m_configurators)
             {
@@ -94,11 +96,13 @@ namespace Opc.Ua.AMB.Server.Hosting
                 AmbNodeManager manager,
                 INodeManagerBuilder builder,
                 IServiceProvider services,
+                NodeManagerReadinessContext? readiness,
                 CancellationToken cancellationToken)
             {
                 Manager = manager;
                 Builder = builder;
                 m_services = services;
+                Readiness = readiness;
                 CancellationToken = cancellationToken;
             }
 
@@ -109,6 +113,8 @@ namespace Opc.Ua.AMB.Server.Hosting
             public INodeManagerBuilder Builder { get; }
 
             public CancellationToken CancellationToken { get; }
+
+            public NodeManagerReadinessContext? Readiness { get; }
 
             public T GetRequiredService<T>() where T : notnull
             {

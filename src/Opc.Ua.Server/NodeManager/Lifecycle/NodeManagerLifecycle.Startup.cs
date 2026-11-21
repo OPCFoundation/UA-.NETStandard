@@ -94,7 +94,8 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IDynamicNodeManagerHost host,
             InitialPublication? initial,
-            ShutdownPublication? shutdown = null)
+            ShutdownPublication? shutdown,
+            NodeManagerReadinessScope? readiness)
         {
             if (shutdown is not null)
             {
@@ -103,7 +104,7 @@ namespace Opc.Ua.Server
             }
             if (initial is null)
             {
-                EnsureSameRunningServer(server, host);
+                EnsureSameRunningServer(server, host, readiness);
                 return;
             }
             initial.Validate(this, server, host);
@@ -252,7 +253,7 @@ namespace Opc.Ua.Server
             {
                 await using var lifetime = batch.ConfigureAwait(false);
                 return await batch.CommitAsync(
-                    static _ => default,
+                    decideAsync: null,
                     () => m_published.TrySetResult(true),
                     cancellationToken).ConfigureAwait(false);
             }

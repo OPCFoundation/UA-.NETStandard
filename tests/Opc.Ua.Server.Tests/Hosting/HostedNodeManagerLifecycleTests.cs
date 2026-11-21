@@ -32,6 +32,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Hosting;
@@ -67,6 +68,22 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
             Assert.That(typeof(NodeManagerLifecycle).Assembly.GetType("Opc.Ua.Server.NodeManagerLifecycleExtensions"),
                 Is.Null);
+        }
+
+        /// <summary>
+        /// Resolves both stock contracts from the same hosted lifecycle registration.
+        /// </summary>
+        [Test]
+        public async Task HostedCallbackContractResolvesToThePrimaryLifecycleAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddServer(_ => { });
+            ServiceProvider provider = services.BuildServiceProvider();
+            await using (provider.ConfigureAwait(false))
+            {
+                Assert.That(provider.GetRequiredService<INodeManagerCallbackLifecycle>(),
+                    Is.SameAs(provider.GetRequiredService<INodeManagerLifecycle>()));
+            }
         }
 
         [Test]

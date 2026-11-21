@@ -150,6 +150,16 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Recovers monitored-item sources on the exact generation just published by the lifecycle,
+        /// including before the server starts accepting requests.
+        /// </summary>
+        /// <param name="generation">The published generation to recover sources on.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        ValueTask ResolvePublishedSourcesAsync(
+            NodeManagerGeneration generation,
+            CancellationToken cancellationToken);
+
+        /// <summary>
         /// Closes generation admission, waits for admitted callbacks to drain, and releases
         /// the generation's remaining exact all-events binding records.
         /// </summary>

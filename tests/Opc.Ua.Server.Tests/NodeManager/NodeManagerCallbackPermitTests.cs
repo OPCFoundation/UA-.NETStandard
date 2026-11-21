@@ -44,10 +44,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task NestedPermitRestoresParentCapabilitiesAsync()
         {
             var current = new AsyncLocal<NodeManagerCallbackPermit?>();
-            var parent = new NodeManagerCallbackPermit(current, NodeManagerAdmissionCapability.ServerLifecycle);
+            var parentScope = new LegacyNodeManagerCallbackScope(
+                current, NodeManagerAdmissionCapability.ServerLifecycle);
+            NodeManagerCallbackPermit parent = parentScope.Permit;
             try
             {
-                var child = new NodeManagerCallbackPermit(current, NodeManagerAdmissionCapability.AddressSpaceMutation);
+                var childScope = new LegacyNodeManagerCallbackScope(
+                    current, NodeManagerAdmissionCapability.AddressSpaceMutation);
+                NodeManagerCallbackPermit child = childScope.Permit;
                 try
                 {
                     using (Assert.EnterMultipleScope())
@@ -63,7 +67,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 finally
                 {
-                    await child.DisposeAsync().ConfigureAwait(false);
+                    await childScope.DisposeAsync().ConfigureAwait(false);
                 }
                 using (Assert.EnterMultipleScope())
                 {
@@ -75,7 +79,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                await parent.DisposeAsync().ConfigureAwait(false);
+                await parentScope.DisposeAsync().ConfigureAwait(false);
             }
             Assert.That(current.Value, Is.Null);
             Assert.That(parent.IsActive, Is.False);
@@ -90,9 +94,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             CancellationToken cancellationToken = timeout.Token;
             var current = new AsyncLocal<NodeManagerCallbackPermit?>();
-            var permit = new NodeManagerCallbackPermit(
+            var scope = new LegacyNodeManagerCallbackScope(
                 current,
                 NodeManagerAdmissionCapability.ServerLifecycle | NodeManagerAdmissionCapability.AddressSpaceMutation);
+            NodeManagerCallbackPermit permit = scope.Permit;
             var captured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<(NodeManagerCallbackPermit? Permit, bool ActiveBefore, bool ActiveAfter)> escaped =
@@ -108,7 +113,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await captured.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
                 Assert.That(current.Value, Is.SameAs(permit));
-                await permit.DisposeAsync().ConfigureAwait(false);
+                await scope.DisposeAsync().ConfigureAwait(false);
                 Assert.That(current.Value, Is.Null);
                 Assert.That(permit.IsActive, Is.False);
             }
@@ -116,7 +121,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 try
                 {
-                    await permit.DisposeAsync().ConfigureAwait(false);
+                    await scope.DisposeAsync().ConfigureAwait(false);
                 }
                 finally
                 {
@@ -141,13 +146,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var current = new AsyncLocal<NodeManagerCallbackPermit?>();
-            var permit = new NodeManagerCallbackPermit(current, NodeManagerAdmissionCapability.ServerLifecycle);
+            var scope = new LegacyNodeManagerCallbackScope(current, NodeManagerAdmissionCapability.ServerLifecycle);
+            NodeManagerCallbackPermit permit = scope.Permit;
             try
             {
                 var child = Task.Run(async () =>
                 {
                     Assert.That(current.Value, Is.SameAs(permit));
-                    await permit.DisposeAsync().ConfigureAwait(false);
+                    await scope.DisposeAsync().ConfigureAwait(false);
                     Assert.That(current.Value, Is.Null);
                 }, timeout.Token);
                 await child.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -156,7 +162,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                await permit.DisposeAsync().ConfigureAwait(false);
+                await scope.DisposeAsync().ConfigureAwait(false);
             }
             Assert.That(current.Value, Is.Null);
         }
@@ -168,24 +174,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task OutOfOrderDisposalPreservesOnlyActivePermitAsync()
         {
             var current = new AsyncLocal<NodeManagerCallbackPermit?>();
-            var parent = new NodeManagerCallbackPermit(current, NodeManagerAdmissionCapability.ServerLifecycle);
-            var child = new NodeManagerCallbackPermit(current, NodeManagerAdmissionCapability.AddressSpaceMutation);
+            var parentScope = new LegacyNodeManagerCallbackScope(
+                current, NodeManagerAdmissionCapability.ServerLifecycle);
+            var childScope = new LegacyNodeManagerCallbackScope(
+                current, NodeManagerAdmissionCapability.AddressSpaceMutation);
+            NodeManagerCallbackPermit parent = parentScope.Permit;
+            NodeManagerCallbackPermit child = childScope.Permit;
             try
             {
-                await parent.DisposeAsync().ConfigureAwait(false);
+                await parentScope.DisposeAsync().ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(current.Value, Is.SameAs(child));
                     Assert.That(child.IsActive, Is.True);
                     Assert.That(parent.IsActive, Is.False);
                 }
-                await child.DisposeAsync().ConfigureAwait(false);
+                await childScope.DisposeAsync().ConfigureAwait(false);
                 Assert.That(current.Value?.IsActive, Is.Not.True);
             }
             finally
             {
-                await child.DisposeAsync().ConfigureAwait(false);
-                await parent.DisposeAsync().ConfigureAwait(false);
+                await childScope.DisposeAsync().ConfigureAwait(false);
+                await parentScope.DisposeAsync().ConfigureAwait(false);
             }
             Assert.That(current.Value?.IsActive, Is.Not.True);
         }
@@ -197,9 +207,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ClosingPermitDrainsPreviouslyBorrowedCapabilitiesAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
             var permit = new NodeManagerCallbackPermit(
-                current,
                 NodeManagerAdmissionCapability.ServerLifecycle | NodeManagerAdmissionCapability.AddressSpaceMutation);
             NodeManagerCallbackPermit.Borrow? borrowed = null;
             NodeManagerCallbackPermit.Borrow? late = null;
@@ -211,7 +219,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(borrowed, Is.Not.Null);
 
                 ValueTask closing = permit.DisposeAsync();
-                Assert.That(current.Value, Is.Null);
                 Assert.That(permit.IsActive, Is.False);
                 Assert.That(closing.IsCompleted, Is.False);
                 late = permit.TryBorrow(NodeManagerAdmissionCapability.AddressSpaceMutation);
@@ -237,9 +244,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SiblingBorrowsAreSerializedAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
             var permit = new NodeManagerCallbackPermit(
-                current,
                 NodeManagerAdmissionCapability.ServerLifecycle | NodeManagerAdmissionCapability.AddressSpaceMutation);
             NodeManagerCallbackPermit.Borrow? first = null;
             Task<NodeManagerCallbackPermit.Borrow?>? pending = null;
@@ -274,8 +279,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ClosingPermitRejectsQueuedBorrowAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
-            var permit = new NodeManagerCallbackPermit(current, NodeManagerAdmissionCapability.AddressSpaceMutation);
+            var permit = new NodeManagerCallbackPermit(NodeManagerAdmissionCapability.AddressSpaceMutation);
             NodeManagerCallbackPermit.Borrow? first = null;
             Task<NodeManagerCallbackPermit.Borrow?>? pending = null;
             try

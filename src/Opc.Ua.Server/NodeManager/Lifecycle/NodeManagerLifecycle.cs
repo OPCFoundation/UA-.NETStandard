@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
-    public sealed partial class NodeManagerLifecycle : INodeManagerLifecycle, IDisposable
+    public sealed partial class NodeManagerLifecycle : INodeManagerCallbackLifecycle, IDisposable
     {
         /// <summary>
         /// Creates the server-owned lifecycle provider with its time source.
@@ -312,7 +312,6 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            ThrowIfDecisionCallbackActive();
 
             // Signal only: Dispose is synchronous. A drain already running
             // finishes retiring the generations it captured.
@@ -326,7 +325,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void BeginStartup()
         {
-            ThrowIfDecisionCallbackActive();
 
             m_writer.BeginStartup(() =>
             {
@@ -638,16 +636,21 @@ namespace Opc.Ua.Server
         /// <param name="server">The running server.</param>
         /// <param name="host">The dynamic node manager host.</param>
         /// <param name="state">The registration being completed.</param>
-        /// <param name="ct">The token used to cancel the operation.</param>
         /// <param name="initial">The explicit startup capability, or null for runtime readiness.</param>
+        /// <param name="parentReadiness">The initializer that published this dependent generation, if any.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
         /// <returns>A task that completes when the readiness callback finished and the registration is still
         /// current.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The registration changed or no longer exposes its readiness callback.
+        /// </exception>
         private async ValueTask CompleteReadinessAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,
             RegistrationState state,
-            CancellationToken ct,
-            InitialPublication? initial = null)
+            InitialPublication? initial,
+            NodeManagerReadinessScope? parentReadiness,
+            CancellationToken ct)
         {
             bool releaseReadiness = false;
             if (state.ReadinessPending)
@@ -677,36 +680,39 @@ namespace Opc.Ua.Server
             {
                 if (state.ReadinessPending)
                 {
-                    if (!NodeManagerReadiness.IsParticipant(state.Prepared.NodeManager) ||
-                        state.Prepared.NodeManager is not INodeManagerReadinessNotification participant)
-                    {
-                        throw new InvalidOperationException(
-                            "A registration pending readiness does not expose a readiness callback.");
-                    }
-
                     ct.ThrowIfCancellationRequested();
-                    using var readiness = new NodeManagerReadinessScope(server, state.Registration.Identity);
-                    string readinessContext = $"{state.Registration.Identity.GetQuiescenceWaitContext()}; " +
+                    IAsyncNodeManager manager = state.Prepared.NodeManager;
+                    INodeManagerReadinessInitializer? initializer = NodeManagerReadiness.FindInitializer(manager);
+                    using var readiness = new NodeManagerReadinessScope(
+                        server, state.Registration.Identity, parentReadiness);
+                    var readinessContext = new NodeManagerReadinessContext(readiness);
+                    string waitContext = $"{state.Registration.Identity.GetQuiescenceWaitContext()}; " +
                         GetLifecycleWaitContext();
+                    ValueTask work = initializer is not null
+                        ? initializer.OnServerReadyAsync(readinessContext, ct)
+                        : (manager as INodeManagerReadinessNotification ??
+                            throw new InvalidOperationException(
+                                "A registration pending readiness does not expose a readiness callback."))
+                            .OnServerReadyAsync(ct);
                     await LifecycleWaitDiagnostics.WaitAsync(
-                        participant.OnServerReadyAsync(ct).AsTask(),
+                        work.AsTask(),
                         m_timeProvider,
                         LifecycleWaitDiagnostics.WarningThreshold,
                         elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
                             .LifecycleWaitExceeded(
                                 "NodeManager readiness callback",
                                 elapsed,
-                                readinessContext),
+                                waitContext),
                         ct).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
                     if (state.Prepared.NodeManager is FluentNodeManagerBase fluentNodeManager)
                     {
-                        await fluentNodeManager.CompleteDeferredConfigurationForLifecycleAsync(ct)
-                        .ConfigureAwait(false);
+                        await fluentNodeManager.CompleteDeferredConfigurationForLifecycleAsync(readinessContext, ct)
+                            .ConfigureAwait(false);
                     }
                     ct.ThrowIfCancellationRequested();
 
-                    EnsurePublicationServer(server, host, initial);
+                    EnsurePublicationServer(server, host, initial, shutdown: null, readiness);
                     if (!IsCurrentRegistration(state.Registration))
                     {
                         throw new InvalidOperationException(
@@ -735,7 +741,8 @@ namespace Opc.Ua.Server
                         .LifecycleWaitExceeded(
                             "NodeManager readiness event flush",
                             elapsed,
-                            state.Registration.Identity.GetQuiescenceWaitContext()))
+                            state.Registration.Identity.GetQuiescenceWaitContext()),
+                    CancellationToken.None)
                     .ConfigureAwait(false);
             }
             finally
@@ -817,12 +824,13 @@ namespace Opc.Ua.Server
             }
         }
 
-        private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer()
+        private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer(
+            NodeManagerReadinessScope? readiness)
         {
             m_writer.EnsureRunning();
 
             IServerInternal server = m_server.CurrentInstance;
-            if (!server.IsRunning && !NodeManagerReadinessScope.Allows(server))
+            if (!server.IsRunning && readiness?.Includes(server) != true)
             {
                 throw new InvalidOperationException(
                     "NodeManagers can only be changed while the server is running.");
@@ -854,10 +862,11 @@ namespace Opc.Ua.Server
 
         private void EnsureSameRunningServer(
             IServerInternal server,
-            IDynamicNodeManagerHost host)
+            IDynamicNodeManagerHost host,
+            NodeManagerReadinessScope? readiness)
         {
             (IServerInternal currentServer, IDynamicNodeManagerHost currentHost) =
-                GetRunningServer();
+                GetRunningServer(readiness);
             if (!ReferenceEquals(currentServer, server) ||
                 !ReferenceEquals(currentHost, host))
             {
@@ -1143,18 +1152,6 @@ namespace Opc.Ua.Server
                 statusCode == StatusCodes.BadFilterOperandCountMismatch ||
                 statusCode == StatusCodes.BadFilterElementInvalid ||
                 statusCode == StatusCodes.BadFilterLiteralInvalid;
-        }
-
-        private static ValueTask ResolveUnresolvedSourcesAsync(
-            IServerInternal server,
-            IAsyncNodeManager nodeManager,
-            CancellationToken ct)
-        {
-            return server.NodeManager is IDynamicNodeManagerHost recovery
-                ? recovery.ResolveUnresolvedSourcesAsync(
-                    nodeManager,
-                    cancellationToken: ct)
-                : default;
         }
 
         /// <summary>
@@ -1904,6 +1901,59 @@ namespace Opc.Ua.Server
             return PrepareChangesAsync(changes, null, CaptureLifecycleCallbackPermit(), cancellationToken);
         }
 
+        /// <inheritdoc/>
+        public ValueTask<IPreparedChanges> PrepareFromDecisionAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            ThrowIfDecisionCallbackActive(
+                decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)));
+            return PrepareAsync(changes, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IPreparedChanges> PrepareFromCallbackAsync(
+            ArrayOf<LifecycleChange> changes,
+            OperationContext context,
+            CancellationToken cancellationToken = default)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (context.PublicationDecision is { } decision)
+            {
+                ThrowIfDecisionCallbackActive(decision);
+            }
+            NodeManagerCallbackPermit? permit = m_server.CurrentInstance.NodeManager is MasterNodeManager master
+                ? master.GetExplicitCallbackPermit(context)
+                : null;
+            return PrepareChangesAsync(changes, null, permit, cancellationToken);
+        }
+
+        /// <summary>
+        /// Uses initializer admission for both preparation and commit without storing it in the prepared result.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The initializer is not active for this server.</exception>
+        internal async ValueTask<LifecycleResult> PublishWithReadinessAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerReadinessScope readiness,
+            CancellationToken cancellationToken)
+        {
+            if (!readiness.Includes(m_server.CurrentInstance))
+            {
+                throw new InvalidOperationException("The initializer is not active for this server.");
+            }
+            var prepared = (PreparedChanges)await PrepareChangesAsync(
+                changes, null, CaptureLifecycleCallbackPermit(), cancellationToken, readiness: readiness)
+                .ConfigureAwait(false);
+            await using (prepared.ConfigureAwait(false))
+            {
+                return await prepared.CommitWithReadinessAsync(readiness, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Validates a publication unit and prepares its node managers privately, without publishing them.
         /// </summary>
@@ -1917,6 +1967,8 @@ namespace Opc.Ua.Server
         /// committed.</param>
         /// <param name="initial">The explicit startup capability, or null for runtime preparation.</param>
         /// <param name="shutdown">The explicit removal-only shutdown capability, or null.</param>
+        /// <param name="readiness">The initializer that requested dependent publication, if any.</param>
+        /// <param name="bindReadiness">Whether this writer explicitly carries readiness into commit.</param>
         /// <returns>The prepared batch, which must be disposed if it is not committed.</returns>
         /// <exception cref="NotSupportedException">
         /// The server factory does not support prepared publication,
@@ -1930,7 +1982,9 @@ namespace Opc.Ua.Server
             ArrayOf<INodeManagerReadImage> readImages = default,
             bool validationOnly = false,
             InitialPublication? initial = null,
-            ShutdownPublication? shutdown = null)
+            ShutdownPublication? shutdown = null,
+            NodeManagerReadinessScope? readiness = null,
+            bool bindReadiness = false)
         {
             if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0 && initial is null))
             {
@@ -1970,7 +2024,7 @@ namespace Opc.Ua.Server
                 operation = shutdown?.EnterOperation() ?? EnterLifecycleOperation();
                 (IServerInternal server, IDynamicNodeManagerHost host) =
                     shutdown is not null ? shutdown.GetServer() :
-                    initial is null ? GetRunningServer() : initial.GetServer();
+                    initial is null ? GetRunningServer(readiness) : initial.GetServer();
                 if (server.Factory is not EncodeableFactory)
                 {
                     throw new NotSupportedException("The server factory does not support prepared publication.");
@@ -1981,7 +2035,7 @@ namespace Opc.Ua.Server
                 var admissions = new List<(NodeManagerGeneration Generation, int Stripe)>(changes.Count);
                 try
                 {
-                    EnsurePublicationServer(server, host, initial, shutdown);
+                    EnsurePublicationServer(server, host, initial, shutdown, readiness);
                     publication?.ValidateRevision(server);
                     var preparation = new ChangePreparer(server);
                     NodeManagerRoutingTable.RoutingSnapshot routingRevision = host.RoutingRevision;
@@ -2118,7 +2172,7 @@ namespace Opc.Ua.Server
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
                         preparation.FactoryRevision, resolver, preparation, publication,
                         initial, shutdown, callbackPermit);
-                    var prepared = new PreparedChanges(payload, validationOnly);
+                    var prepared = new PreparedChanges(payload, validationOnly, bindReadiness ? readiness : null);
                     if (readImages.Count != 0)
                     {
                         foreach (INodeManagerReadImage image in readImages)
@@ -2167,19 +2221,21 @@ namespace Opc.Ua.Server
         /// and reports cleanup failures after the commit.
         /// </summary>
         /// <param name="batch">The prepared batch to complete.</param>
-        /// <param name="decideAsync">The durable decision callback, or null for a validation candidate.</param>
-        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        /// <param name="decideAsync">An optional external durable decision.</param>
+        /// <param name="validationOnly">Whether to validate without publishing.</param>
+        /// <param name="readiness">The initializer that requested completion, if any.</param>
         /// <param name="publishCommittedState">The callback invoked after the committed image is installed, or
         /// null.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The committed result, or null for a validation candidate.</returns>
         private async ValueTask<LifecycleResult?> CompleteChangesAsync(
             PreparationPayload batch,
-            Func<CancellationToken, ValueTask>? decideAsync,
-            CancellationToken cancellationToken,
-            Action? publishCommittedState = null)
+            Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? decideAsync,
+            bool validationOnly,
+            NodeManagerReadinessScope? readiness,
+            Action? publishCommittedState,
+            CancellationToken cancellationToken)
         {
-            ThrowIfDecisionCallbackActive();
-
             LifecycleWriter.Mutation mutation =
                 await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
             var retired = new List<RetiredGeneration>();
@@ -2197,7 +2253,7 @@ namespace Opc.Ua.Server
                 reconciler.CreateReconciliation(() => EnterLifecycleOperation(), () => m_writer.IsShuttingDown);
             try
             {
-                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown);
+                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown, readiness);
                 foreach (BatchEntry entry in batch.Entries)
                 {
                     if (entry.Next is { ReadinessPending: true } next)
@@ -2250,7 +2306,7 @@ namespace Opc.Ua.Server
                 {
                     if (entry.Current is not null)
                     {
-                        if (decideAsync is not null && entry.Manager is not null)
+                        if (!validationOnly && entry.Manager is not null)
                         {
                             semanticChanges.AddRange(GetSemanticChanges(
                                 entry.Current.Prepared.NodeManager,
@@ -2270,7 +2326,7 @@ namespace Opc.Ua.Server
                             retirement.MigrateLateMonitoredItemsAsync =
                                 () => MigrateLateMonitoredItemsAsync(retirement);
                         }
-                        if (decideAsync is not null)
+                        if (!validationOnly)
                         {
                             MonitoredItemTransition transition = await PrepareMonitoredItemTransitionAsync(
                                 entry.Current.Prepared.NodeManager,
@@ -2315,7 +2371,7 @@ namespace Opc.Ua.Server
                     await batch.Host.AcquireCommitAdmissionAsync(
                         batch.CallbackPermit, cancellationToken).ConfigureAwait(false);
                 mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
-                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown);
+                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown, readiness);
                 if (!ReferenceEquals(
                     batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
@@ -2375,7 +2431,8 @@ namespace Opc.Ua.Server
                         .Concat((candidates.ToArray() ?? []).Select(candidate => candidate.Generation))
                 ];
                 var lifecycleCommit = new LifecycleCommit(
-                    this, batch, mutation, decideAsync, committedRegistrations, retired, readinessClaims, reconciler);
+                    this, batch, mutation, decideAsync, validationOnly, committedRegistrations, retired,
+                    readinessClaims, reconciler);
                 committedLifecycle = lifecycleCommit;
                 bool reconciliationStarted = false;
                 async ValueTask PublishCommittedStateAsync()
@@ -2447,7 +2504,7 @@ namespace Opc.Ua.Server
                 {
                     committedReferences ??= lifecycleCommit.CommittedReferences;
                 }
-                if (decideAsync is null)
+                if (validationOnly)
                 {
                     return null;
                 }
@@ -2544,14 +2601,10 @@ namespace Opc.Ua.Server
                     NodeManagerGeneration generation = state.Registration.Identity;
                     if (recoverSources)
                     {
-                        using var readinessScope = new NodeManagerReadinessScope(
-                            batch.Server,
-                            state.Registration.Identity);
                         await reconciliation.RunAsync(
                             NodeManagerReconciliationStage.MonitoredItems,
                             [generation],
-                            () => ResolveUnresolvedSourcesAsync(
-                                batch.Server, generation.NodeManager, CancellationToken.None))
+                            () => batch.Host.ResolvePublishedSourcesAsync(generation, CancellationToken.None))
                             .ConfigureAwait(false);
                     }
                     await reconciliation.RunAsync(
@@ -2559,8 +2612,8 @@ namespace Opc.Ua.Server
                         [generation],
                         () => CompleteReadinessAsync(
                             batch.Server, batch.Host, state,
-                            batch.Initial is not null ? cancellationToken : CancellationToken.None,
-                            batch.Initial))
+                            batch.Initial, readiness,
+                            batch.Initial is not null ? cancellationToken : CancellationToken.None))
                         .ConfigureAwait(false);
                     historianRegistrationsChanged |= state.HistorianRegistrationsPublished;
                 }
@@ -2667,7 +2720,8 @@ namespace Opc.Ua.Server
             /// <param name="owner">The registration lifecycle owner.</param>
             /// <param name="batch">The prepared unit.</param>
             /// <param name="mutation">The mutation admission for this decision.</param>
-            /// <param name="decideAsync">The application decision, or null for validation.</param>
+            /// <param name="decideAsync">The optional application decision.</param>
+            /// <param name="validationOnly">Whether this plan can only validate publication.</param>
             /// <param name="registrations">The next registration map.</param>
             /// <param name="retired">The prepared retirement records.</param>
             /// <param name="readinessClaims">The states requiring readiness after publication.</param>
@@ -2676,7 +2730,8 @@ namespace Opc.Ua.Server
                 NodeManagerLifecycle owner,
                 PreparationPayload batch,
                 LifecycleWriter.Mutation mutation,
-                Func<CancellationToken, ValueTask>? decideAsync,
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? decideAsync,
+                bool validationOnly,
                 Dictionary<Guid, RegistrationState> registrations,
                 List<RetiredGeneration> retired,
                 List<RegistrationState>? readinessClaims,
@@ -2690,10 +2745,17 @@ namespace Opc.Ua.Server
                 m_retired = retired;
                 m_readinessClaims = readinessClaims;
                 m_reconciler = reconciler;
+                Publishes = !validationOnly;
             }
 
             /// <inheritdoc/>
-            public bool HasDecision => m_decideAsync is not null;
+            public bool Publishes { get; }
+
+            /// <inheritdoc/>
+            public LifecycleWriter.Mutation.DecisionWindow EnterPublicationScope()
+            {
+                return m_mutation.EnterDecisionWindow();
+            }
 
             /// <summary>
             /// Gets the revision installed at the routing swap.
@@ -2716,12 +2778,20 @@ namespace Opc.Ua.Server
             public PublishedReferenceChanges? CommittedReferences { get; private set; }
 
             /// <inheritdoc/>
-            public async ValueTask DecideAsync(CancellationToken cancellationToken)
+            public async ValueTask DecideAsync(
+                LifecycleWriter.Mutation.DecisionWindow? reservation,
+                CancellationToken cancellationToken)
             {
+                if (!Publishes)
+                {
+                    throw new InvalidOperationException("A validation unit cannot publish.");
+                }
                 m_batch.Publication?.ValidateRevision(m_batch.Server);
-                await m_mutation.DecideAsync(m_decideAsync ??
-                    throw new InvalidOperationException("A validation unit has no durable decision."),
-                    cancellationToken).ConfigureAwait(false);
+                if (m_decideAsync is not null)
+                {
+                    await m_mutation.DecideAsync(m_decideAsync, reservation, cancellationToken)
+                        .ConfigureAwait(false);
+                }
                 m_batch.DecisionCommitted = true;
             }
 
@@ -2804,7 +2874,7 @@ namespace Opc.Ua.Server
             private readonly LifecycleWriter.Mutation m_mutation;
 
             /// <summary>The external durable decision.</summary>
-            private readonly Func<CancellationToken, ValueTask>? m_decideAsync;
+            private readonly Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? m_decideAsync;
 
             /// <summary>The prepared registration map.</summary>
             private readonly Dictionary<Guid, RegistrationState> m_registrations;
@@ -2822,9 +2892,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects lifecycle re-entry from the durable decision callback.
         /// </summary>
-        private void ThrowIfDecisionCallbackActive()
+        private void ThrowIfDecisionCallbackActive(NodeManagerDecisionContext context)
         {
-            m_writer.ThrowIfDecisionCallbackActive();
+            m_writer.ThrowIfDecisionCallbackActive(context);
         }
 
         /// <summary>
@@ -3560,10 +3630,12 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Takes ownership of private preparation data and captures non-owning inspection descriptors.
             /// </summary>
-            public PreparedChanges(PreparationPayload payload, bool validationOnly)
+            public PreparedChanges(
+                PreparationPayload payload, bool validationOnly, NodeManagerReadinessScope? readiness)
             {
                 m_payload = payload;
                 m_validationOnly = validationOnly;
+                m_readiness = readiness;
                 Registrations = payload.Registrations;
                 Slots = payload.Entries.Select(entry =>
                     entry.Next?.Registration.Slot ?? entry.Current!.Registration.Slot).ToArrayOf();
@@ -3608,7 +3680,9 @@ namespace Opc.Ua.Server
                 Func<CancellationToken, ValueTask>? decideAsync = null,
                 CancellationToken cancellationToken = default)
             {
-                return CommitCoreAsync(decideAsync, null, cancellationToken);
+                return CommitCoreAsync(
+                    decideAsync is null ? null : (_, token) => decideAsync(token), null, null,
+                    null, cancellationToken);
             }
 
             /// <inheritdoc/>
@@ -3618,18 +3692,68 @@ namespace Opc.Ua.Server
                 CancellationToken cancellationToken = default)
             {
                 return CommitCoreAsync(
-                    decideAsync,
+                    decideAsync is null ? null : (_, token) => decideAsync(token),
                     publishCommittedState ?? throw new ArgumentNullException(nameof(publishCommittedState)),
+                    null,
+                    null,
                     cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<LifecycleResult> CommitWithDecisionAsync(
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask> decideAsync,
+                Action? publishCommittedState = null,
+                CancellationToken cancellationToken = default)
+            {
+                return CommitCoreAsync(
+                    decideAsync ?? throw new ArgumentNullException(nameof(decideAsync)),
+                    publishCommittedState,
+                    null,
+                    null,
+                    cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<LifecycleResult> CommitInMemoryAsync(
+                NodeManagerDecisionContext decisionContext,
+                CancellationToken cancellationToken)
+            {
+                return CommitCoreAsync(null, null,
+                    decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)),
+                    null, cancellationToken);
+            }
+
+            /// <summary>
+            /// Commits dependent publication under an explicit readiness scope.
+            /// </summary>
+            internal ValueTask<LifecycleResult> CommitWithReadinessAsync(
+                NodeManagerReadinessScope readiness,
+                CancellationToken cancellationToken)
+            {
+                return CommitCoreAsync(null, null, null, readiness, cancellationToken);
             }
 
             /// <inheritdoc/>
             public ValueTask DisposeAsync()
             {
+                return DisposeCoreAsync(null);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask DisposeAsync(NodeManagerDecisionContext decisionContext)
+            {
+                return DisposeCoreAsync(decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)));
+            }
+
+            private ValueTask DisposeCoreAsync(NodeManagerDecisionContext? decisionContext)
+            {
                 PreparationPayload payload;
                 lock (m_state)
                 {
-                    m_payload?.Owner.ThrowIfDecisionCallbackActive();
+                    if (decisionContext is not null)
+                    {
+                        m_payload?.Owner.ThrowIfDecisionCallbackActive(decisionContext);
+                    }
                     if (m_consumed)
                     {
                         return new ValueTask(m_finished.Task);
@@ -3676,7 +3800,8 @@ namespace Opc.Ua.Server
                 }
                 return new ValueTask(payload is null
                     ? RejectAfterDisposalAsync()
-                    : CompleteAsync(payload, null, null, cancellationToken));
+                    : CompleteAsync(payload, null, null, m_readiness,
+                        cancellationToken));
             }
 
             /// <summary>
@@ -3699,7 +3824,6 @@ namespace Opc.Ua.Server
                 lock (m_state)
                 {
                     PreparationPayload payload = GetOpenPayload();
-                    payload.Owner.ThrowIfDecisionCallbackActive();
                     if (metadata.Owner is not { } owner ||
                         !NodeManagerGenerationRegistry.TryGet(owner, out NodeManagerGeneration? generation) ||
                         generation is null ||
@@ -3753,15 +3877,20 @@ namespace Opc.Ua.Server
             /// This is a validation-only candidate, or its preparation is no longer open.
             /// </exception>
             private ValueTask<LifecycleResult> CommitCoreAsync(
-                Func<CancellationToken, ValueTask>? decideAsync,
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? decideAsync,
                 Action? publishCommittedState,
+                NodeManagerDecisionContext? decisionContext,
+                NodeManagerReadinessScope? readiness,
                 CancellationToken cancellationToken)
             {
                 PreparationPayload payload;
                 TaskCompletionSource<LifecycleResult> commitCompletion;
                 lock (m_state)
                 {
-                    m_payload?.Owner.ThrowIfDecisionCallbackActive();
+                    if (decisionContext is not null)
+                    {
+                        m_payload?.Owner.ThrowIfDecisionCallbackActive(decisionContext);
+                    }
                     if (m_validationOnly)
                     {
                         throw new InvalidOperationException("A validation candidate cannot be committed.");
@@ -3780,7 +3909,7 @@ namespace Opc.Ua.Server
                         TaskCreationOptions.RunContinuationsAsynchronously);
                 }
                 _ = CompleteAsync(
-                    payload, decideAsync ?? (static _ => default), publishCommittedState, cancellationToken);
+                    payload, decideAsync, publishCommittedState, m_readiness ?? readiness, cancellationToken);
                 return new ValueTask<LifecycleResult>(commitCompletion.Task);
             }
 
@@ -3794,8 +3923,9 @@ namespace Opc.Ua.Server
                 Justification = "The caught publication failure faults the commit completion, not this helper task.")]
             private async Task CompleteAsync(
                 PreparationPayload payload,
-                Func<CancellationToken, ValueTask>? decideAsync,
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask>? decideAsync,
                 Action? publishCommittedState,
+                NodeManagerReadinessScope? readiness,
                 CancellationToken cancellationToken)
             {
                 LifecycleResult? result = null;
@@ -3806,7 +3936,9 @@ namespace Opc.Ua.Server
                     try
                     {
                         result = await payload.Owner.CompleteChangesAsync(
-                            payload, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
+                            payload, decideAsync, m_validationOnly, readiness,
+                            publishCommittedState, cancellationToken)
+                            .ConfigureAwait(false);
                         if (!m_validationOnly && result is null)
                         {
                             throw new InvalidOperationException("A publication returned no committed result.");
@@ -3989,28 +4121,55 @@ namespace Opc.Ua.Server
 
             /// <summary>Whether this unit admits validation only.</summary>
             private readonly bool m_validationOnly;
+
+            private readonly NodeManagerReadinessScope? m_readiness;
         }
 
         /// <inheritdoc/>
         public ILifecycleCapture CaptureChanges()
         {
-            (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer();
-            return new LifecycleCapture(this, m_writer.CaptureRevision(server, host));
+            return CaptureChangesCore(null);
+        }
+
+        /// <inheritdoc/>
+        public ILifecycleCapture CaptureFromReadiness(NodeManagerReadinessContext readiness)
+        {
+            return CaptureChangesCore((readiness ?? throw new ArgumentNullException(nameof(readiness))).Scope);
+        }
+
+        /// <summary>
+        /// Captures a publication whose writer and prepared changes use the same revocable initializer.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The initializer is not active for this server.</exception>
+        private LifecycleCapture CaptureChangesCore(NodeManagerReadinessScope? readiness)
+        {
+            (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer(readiness);
+            if (readiness is not null && !readiness.Includes(server))
+            {
+                throw new InvalidOperationException("The initializer is not active for this server.");
+            }
+            return new LifecycleCapture(this, m_writer.CaptureRevision(server, host), readiness);
         }
 
         /// <summary>
         /// Begins independent publication ownership for captured serving revisions without excluding other callers.
         /// </summary>
         /// <param name="revision">The captured evidence, never recaptured by admission.</param>
+        /// <param name="readiness">The initializer bound to the capture, if any.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The publication invocation.</returns>
-        private PublicationWriter BeginWriter(
+        private ValueTask<ILifecycleWriter> BeginWriter(
             LifecycleWriter.PublicationRevision revision,
+            NodeManagerReadinessScope? readiness,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             LifecycleWriter.PublicationSession session = m_writer.BeginPublication(revision);
-            return new PublicationWriter(this, session);
+            // The caller of ILifecycleCapture.BeginAsync owns and disposes the returned writer.
+            // TODO: Remove when CA2000 recognizes ownership transfer through ValueTask.
+#pragma warning disable CA2000
+            return new ValueTask<ILifecycleWriter>(new PublicationWriter(this, session, readiness));
+#pragma warning restore CA2000
         }
 
         /// <summary>
@@ -4021,10 +4180,14 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Captures non-owning provider and revision evidence without retaining a serving image.
             /// </summary>
-            public LifecycleCapture(NodeManagerLifecycle owner, LifecycleWriter.PublicationRevision revision)
+            public LifecycleCapture(
+                NodeManagerLifecycle owner,
+                LifecycleWriter.PublicationRevision revision,
+                NodeManagerReadinessScope? readiness)
             {
                 m_owner = new WeakReference<NodeManagerLifecycle>(owner);
                 m_revision = revision;
+                m_readiness = readiness;
             }
 
             /// <inheritdoc/>
@@ -4035,7 +4198,7 @@ namespace Opc.Ua.Server
                 {
                     throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
                 }
-                return new ValueTask<ILifecycleWriter>(owner.BeginWriter(m_revision, cancellationToken));
+                return owner.BeginWriter(m_revision, m_readiness, cancellationToken);
             }
 
             /// <summary>The non-owning lifecycle identity.</summary>
@@ -4043,6 +4206,8 @@ namespace Opc.Ua.Server
 
             /// <summary>The non-owning captured serving evidence.</summary>
             private readonly LifecycleWriter.PublicationRevision m_revision;
+
+            private readonly NodeManagerReadinessScope? m_readiness;
         }
 
         /// <summary>
@@ -4053,10 +4218,14 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Exposes the existing writer's publication session without a second admission owner.
             /// </summary>
-            public PublicationWriter(NodeManagerLifecycle owner, LifecycleWriter.PublicationSession session)
+            public PublicationWriter(
+                NodeManagerLifecycle owner,
+                LifecycleWriter.PublicationSession session,
+                NodeManagerReadinessScope? readiness)
             {
                 m_owner = new WeakReference<NodeManagerLifecycle>(owner);
                 Session = session;
+                m_readiness = readiness;
             }
 
             /// <summary>
@@ -4069,6 +4238,8 @@ namespace Opc.Ua.Server
             /// Gets the independently owned invocation and its expected serving revisions.
             /// </summary>
             private LifecycleWriter.PublicationSession Session { get; }
+
+            private readonly NodeManagerReadinessScope? m_readiness;
 
             /// <inheritdoc/>
             public ValueTask<IPreparedChanges> PrepareAsync(
@@ -4151,12 +4322,14 @@ namespace Opc.Ua.Server
             {
                 ArrayOf<LifecycleChange> capturedChanges = [.. changes];
                 ArrayOf<INodeManagerReadImage> capturedImages = [.. images];
+                NodeManagerReadinessScope? readiness = m_readiness;
                 return Session.PrepareAsync(() =>
                 {
                     NodeManagerLifecycle owner = GetOwner();
                     NodeManagerCallbackPermit? callbackPermit = owner.CaptureLifecycleCallbackPermit();
                     return owner.PrepareChangesAsync(
-                        capturedChanges, Session, callbackPermit, cancellationToken, capturedImages, validationOnly);
+                        capturedChanges, Session, callbackPermit, cancellationToken, capturedImages,
+                        validationOnly, readiness: readiness, bindReadiness: m_readiness is not null);
                 });
             }
 

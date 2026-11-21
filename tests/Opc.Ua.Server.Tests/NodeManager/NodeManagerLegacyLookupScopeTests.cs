@@ -142,6 +142,103 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A legacy override can borrow explicit request readiness, but cannot export it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LegacyLookupReleasesExplicitReadinessAfterCompletionAsync(bool cancel)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(server.Object.CoreNodeManager);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                var table = new NodeManagerRoutingTable();
+                await using var master = new PausedLookupMaster(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    table);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+
+                var manager = new Mock<IAsyncNodeManager>();
+                var nodeId = new NodeId("PendingLookup", 1);
+                object handle = new();
+                manager.Setup(value => value.GetManagerHandleAsync(nodeId, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(handle);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.CreateAddition(manager.Object);
+                generation.ReadinessPending = true;
+                table.Add(manager.Object, [1]);
+
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var callbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+                using var readiness = new NodeManagerReadinessScope(server.Object, generation);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Read, RequestLifetime.None)
+                {
+                    Readiness = readiness
+                };
+                var routing = (IRequestRouting)master;
+                routing.PinRequest(context);
+                Task<(object? handle, IAsyncNodeManager? nodeManager)> pending;
+                using (ExecutionContext.SuppressFlow())
+                {
+                    pending = Task.Run(async () =>
+                        await routing.GetManagerHandleAsync(context, nodeId, callbackCancellation.Token)
+                            .ConfigureAwait(false), timeout.Token);
+                }
+
+                try
+                {
+                    ExecutionContext captured = await master.Entered.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    var active = await LookupInCapturedFlowAsync(captured).ConfigureAwait(false);
+                    Assert.That(active.handle, Is.SameAs(handle));
+                    Assert.That(active.nodeManager, Is.SameAs(manager.Object));
+                    if (cancel)
+                    {
+                        callbackCancellation.Cancel();
+                        await Assert.ThatAsync(
+                            () => pending.WaitAsync(timeout.Token),
+                            Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                        Assert.That(pending.IsCanceled, Is.True);
+                    }
+                    else
+                    {
+                        master.Complete(false);
+                        await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+
+                    var expired = await LookupInCapturedFlowAsync(captured).ConfigureAwait(false);
+                    Assert.That(expired.handle, Is.Null);
+                    Assert.That(expired.nodeManager, Is.Null);
+                    Assert.That(readiness.Includes(generation), Is.True);
+                }
+                finally
+                {
+                    master.Complete(false);
+                    if (!pending.IsCompleted)
+                    {
+                        await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+
+                Task<(object? handle, IAsyncNodeManager? nodeManager)> LookupInCapturedFlowAsync(
+                    ExecutionContext captured)
+                {
+                    Task<(object? handle, IAsyncNodeManager? nodeManager)>? lookup = null;
+                    ExecutionContext.Run(
+                        captured.CreateCopy(),
+                        _ => lookup = master.LookupBaseAsync(nodeId, timeout.Token).AsTask(),
+                        null);
+                    return lookup!.WaitAsync(timeout.Token);
+                }
+            }
+        }
+
+        /// <summary>
         /// Captures a legacy lookup context and keeps the override active until released.
         /// </summary>
         private sealed class PausedLookupMaster : MasterNodeManager
@@ -195,7 +292,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_entered.TrySetResult(
                     ExecutionContext.Capture()
                     ?? throw new InvalidOperationException("Execution context is unavailable."));
-                return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>(m_result.Task);
+                return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>(
+                    m_result.Task.WaitAsync(cancellationToken));
             }
 
             /// <summary>The exception message used by the failure case.</summary>

@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Readiness grants survive an ended inner scope only while their own enclosing initializer is active.
+        /// A captured child cannot use readiness after its own initializer ends.
         /// </summary>
         [TestCase(0)]
         [TestCase(1)]
@@ -321,16 +321,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var parent = new NodeManagerReadinessScope(parentServer, parentGeneration);
             await using var work = new CapturedWork<(
                 bool ParentGeneration, bool InnerGeneration, bool ParentServer, bool InnerServer)>();
-            using (new NodeManagerReadinessScope(innerServer, innerGeneration))
+            using (var inner = new NodeManagerReadinessScope(innerServer, innerGeneration, parent))
             {
                 await work.StartAsync(() => new((
-                    NodeManagerReadinessScope.Allows(parentGeneration),
-                    NodeManagerReadinessScope.Allows(innerGeneration),
-                    NodeManagerReadinessScope.Allows(parentServer),
-                    NodeManagerReadinessScope.Allows(innerServer))), escaped: scopeState != 0).ConfigureAwait(false);
+                    inner.Includes(parentGeneration),
+                    inner.Includes(innerGeneration),
+                    inner.Includes(parentServer),
+                    inner.Includes(innerServer))), escaped: scopeState != 0).ConfigureAwait(false);
             }
-            Assert.That(NodeManagerReadinessScope.Allows(parentGeneration), Is.True);
-            Assert.That(NodeManagerReadinessScope.Allows(innerGeneration), Is.False);
+            Assert.That(parent.Includes(parentGeneration), Is.True);
+            Assert.That(parent.Includes(innerGeneration), Is.False);
             if (scopeState == 2)
             {
                 parent.Dispose();
@@ -338,13 +338,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             work.Release();
             (bool ParentGeneration, bool InnerGeneration, bool ParentServer, bool InnerServer) observed =
                 await work.Result.WaitAsync(kDeadline).ConfigureAwait(false);
-            Assert.That(observed.ParentGeneration, Is.EqualTo(scopeState != 2));
+            Assert.That(observed.ParentGeneration, Is.EqualTo(scopeState == 0));
             Assert.That(observed.InnerGeneration, Is.EqualTo(scopeState == 0));
-            Assert.That(observed.ParentServer, Is.EqualTo(scopeState != 2));
+            Assert.That(observed.ParentServer, Is.EqualTo(scopeState == 0));
             Assert.That(observed.InnerServer, Is.EqualTo(scopeState == 0));
             parent.Dispose();
-            Assert.That(NodeManagerReadinessScope.Allows(parentGeneration), Is.False);
-            Assert.That(NodeManagerReadinessScope.Allows(parentServer), Is.False);
+            Assert.That(parent.Includes(parentGeneration), Is.False);
+            Assert.That(parent.Includes(parentServer), Is.False);
         }
 
         /// <summary>

@@ -150,6 +150,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Captures a projection publication authorized by an active server initializer.
+    /// </summary>
+    public interface IWotReadinessProjectionHost : IWotInvocationProjectionHost
+    {
+        /// <summary>
+        /// Carries readiness through the captured publication without extending its lifetime.
+        /// </summary>
+        /// <param name="readiness">The initializer's context.</param>
+        /// <returns>The captured publication.</returns>
+        IWotProjectionPublicationCapture CapturePublication(NodeManagerReadinessContext readiness);
+    }
+
+    /// <summary>
     /// Captured source-owner revisions, not another publication decision.
     /// </summary>
     public interface IWotProjectionPublicationCapture

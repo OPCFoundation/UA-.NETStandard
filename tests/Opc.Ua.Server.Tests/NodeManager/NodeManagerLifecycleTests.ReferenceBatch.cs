@@ -684,12 +684,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const string targetNamespaceUri = kModelNamespaceUri + ":AddNodesReentry";
             IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
                 targetNamespaceUri,
-                async cancellationToken =>
+                async (context, cancellationToken) =>
                 {
                     callbackEntered.TrySetResult(true);
                     RequireRegistration(
-                        (await CommitChangeAsync(
-                        lifecycle, LifecycleChange.Add(
+                        (await CommitCallbackChangeAsync(
+                        lifecycle, context, LifecycleChange.Add(
                         nestedFactory), cancellationToken).ConfigureAwait(false)).Registrations[0]);
                 },
                 sessionClosing: null);
@@ -876,9 +876,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
             using INodeManagerBatchAdmission opposing =
                 await host.AcquireCommitAdmissionAsync(null, timeout.Token).ConfigureAwait(false);
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
             NodeManagerCallbackPermit callbackPermit = new(
-                current,
                 inheritMutation
                     ? NodeManagerAdmissionCapability.AddressSpaceMutation
                     : NodeManagerAdmissionCapability.ServerLifecycle);
@@ -888,7 +886,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(pending.IsCompleted, Is.False);
                 ValueTask disposal = callbackPermit.DisposeAsync();
-                Assert.That(current.Value, Is.Null, "Disposal must restore the caller's context before returning.");
+                Assert.That(callbackPermit.IsActive, Is.False);
                 await disposal.ConfigureAwait(false);
             }
             finally
@@ -912,9 +910,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
             using INodeManagerBatchAdmission outer =
                 await host.AcquireCommitAdmissionAsync(null, timeout.Token).ConfigureAwait(false);
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
             var permit = new NodeManagerCallbackPermit(
-                current,
                 NodeManagerAdmissionCapability.ServerLifecycle | NodeManagerAdmissionCapability.AddressSpaceMutation);
             INodeManagerBatchAdmission? nested = null;
             Task<INodeManagerBatchAdmission>? competing = null;
@@ -925,7 +921,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(nested.Includes(NodeManagerAdmissionCapability.ServerLifecycle), Is.True);
 
                 ValueTask closing = permit.DisposeAsync();
-                Assert.That(current.Value, Is.Null);
+                Assert.That(permit.IsActive, Is.False);
                 Assert.That(closing.IsCompleted, Is.False);
                 competing = host.AcquireCommitAdmissionAsync(null, timeout.Token).AsTask();
                 Assert.That(competing.IsCompleted, Is.False);
@@ -966,9 +962,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
             using INodeManagerBatchAdmission outer =
                 await host.AcquireCommitAdmissionAsync(null, timeout.Token).ConfigureAwait(false);
-            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
             var permit = new NodeManagerCallbackPermit(
-                current,
                 NodeManagerAdmissionCapability.ServerLifecycle | NodeManagerAdmissionCapability.AddressSpaceMutation);
             INodeManagerBatchAdmission? first = null;
             Task<INodeManagerBatchAdmission>? pending = null;
@@ -1036,7 +1030,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool sessionCallbackOwnsBothCapabilities = false;
             IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
                 targetNamespaceUri,
-                async cancellationToken =>
+                async (context, cancellationToken) =>
                 {
                     if (Volatile.Read(ref callbacksEnabled) == 0)
                     {
@@ -1051,10 +1045,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         await releaseAddNode.Task.WaitAsync(callbackCancellation.Token).ConfigureAwait(false);
                         Task<LifecycleResult> publication = forkNestedPublication
-                            ? Task.Run(() => CommitChangeAsync(
-                                lifecycle, LifecycleChange.Add(addNestedFactory), callbackCancellation.Token))
-                            : CommitChangeAsync(
-                                lifecycle, LifecycleChange.Add(addNestedFactory), callbackCancellation.Token);
+                            ? Task.Run(() => CommitCallbackChangeAsync(
+                                lifecycle, context, LifecycleChange.Add(addNestedFactory), callbackCancellation.Token))
+                            : CommitCallbackChangeAsync(
+                                lifecycle, context, LifecycleChange.Add(addNestedFactory), callbackCancellation.Token);
                         addNestedStarted.TrySetResult(true);
                         NodeManagerRegistration registration = RequireRegistration(
                             (await publication.ConfigureAwait(false)).Registrations[0]);
@@ -2450,7 +2444,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private IAsyncNodeManagerFactory CreateLifecycleCallbackNodeManagerFactory(
             string namespaceUri,
-            Func<CancellationToken, ValueTask>? addNode,
+            Func<OperationContext, CancellationToken, ValueTask>? addNode,
             Func<CancellationToken, ValueTask>? sessionClosing)
         {
             var factory = new Mock<IAsyncNodeManagerFactory>();
@@ -2662,7 +2656,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ApplicationConfiguration configuration,
                 ILogger logger,
                 string namespaceUri,
-                Func<CancellationToken, ValueTask>? addNode,
+                Func<OperationContext, CancellationToken, ValueTask>? addNode,
                 Func<CancellationToken, ValueTask>? sessionClosing)
                 : base(server, configuration, logger, namespaceUri)
             {
@@ -2678,7 +2672,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (m_addNode is { } addNode)
                 {
-                    await addNode(cancellationToken).ConfigureAwait(false);
+                    await addNode(context, cancellationToken).ConfigureAwait(false);
                 }
                 return await base.AddNodeAsync(context, item, cancellationToken).ConfigureAwait(false);
             }
@@ -2701,7 +2695,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Nested lifecycle operation invoked from AddNodeAsync.
             /// </summary>
-            private readonly Func<CancellationToken, ValueTask>? m_addNode;
+            private readonly Func<OperationContext, CancellationToken, ValueTask>? m_addNode;
 
             /// <summary>
             /// Nested lifecycle operation invoked from SessionClosingAsync.

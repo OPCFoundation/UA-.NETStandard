@@ -226,7 +226,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionViewNodeManager candidate = factory.Created ?? throw new InvalidOperationException(
                 "The projection-view NodeManager factory did not create a NodeManager.");
             LifecycleResult result = await prepared
-                .CommitAsync(static _ => default, () => m_manager = candidate, cancellationToken).ConfigureAwait(false);
+                .CommitAsync(null, () => m_manager = candidate, cancellationToken).ConfigureAwait(false);
             m_initializationFailure = result.Issues.IsEmpty ? result.CleanupFailure : null;
             Volatile.Write(ref m_initializationResult, result);
             return candidate;

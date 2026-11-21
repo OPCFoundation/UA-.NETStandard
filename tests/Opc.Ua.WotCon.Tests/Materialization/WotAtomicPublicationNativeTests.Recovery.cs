@@ -358,10 +358,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var events = new List<WotMaterializationEventArgs>();
             restoredCoordinator.Event += (_, change) => events.Add(change);
 
-            await restarted.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+            LifecycleResult result = await restarted.Lifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions { AutoRefresh = false }, restoredRegistry, restoredCoordinator))])
                 .ConfigureAwait(false);
 
+            Assert.That(result.CleanupFailure, Is.Null, () => result.CleanupFailure?.ToString() ?? string.Empty);
             Assert.That(restoredCoordinator.Generation, Is.EqualTo(1u));
             Assert.That(restoredRegistry.Current.Generation, Is.EqualTo(committed.Generation));
             Assert.That(restoredRegistry.Current.RefreshGeneration, Is.EqualTo(committed.RefreshGeneration));

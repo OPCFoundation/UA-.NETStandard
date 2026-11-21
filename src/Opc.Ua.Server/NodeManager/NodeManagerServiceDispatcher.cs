@@ -129,6 +129,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Applies readiness admission to the generation selected by this dispatch.
+        /// </summary>
+        private static bool CanDispatchTo(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            IAsyncNodeManager nodeManager,
+            NodeManagerReadinessScope? readiness)
+        {
+            return snapshot.FindPendingReadiness(nodeManager) is not { } generation ||
+                readiness?.Includes(generation) == true;
+        }
+
+        /// <summary>
         /// Borrows the operation's view until service return, retaining explicit context-owned pins.
         /// </summary>
         /// <param name="context">The operation receiving the view.</param>
@@ -156,8 +168,8 @@ namespace Opc.Ua.Server
         {
             NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
             return m_handleLookupOverride is null
-                ? ResolveManagerHandleAsync(nodeId, snapshot, cancellationToken)
-                : GetOverriddenManagerHandleAsync(nodeId, snapshot, cancellationToken);
+                ? ResolveManagerHandleAsync(nodeId, snapshot, context.Readiness, cancellationToken)
+                : GetOverriddenManagerHandleAsync(nodeId, snapshot, context.Readiness, cancellationToken);
         }
 
         /// <summary>
@@ -165,16 +177,18 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeId">The node to resolve.</param>
         /// <param name="snapshot">The view selecting eligible owners.</param>
+        /// <param name="readiness">The operation's initializer, if any.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The handle and owning manager, if found.</returns>
         private async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetOverriddenManagerHandleAsync(
             NodeId nodeId,
             NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            NodeManagerReadinessScope? readiness,
             CancellationToken cancellationToken)
         {
             AsyncLocal<LegacyLookupScope?> lookupContext = m_legacyLookupContext!;
             LegacyLookupScope? previousContext = lookupContext.Value;
-            var scope = new LegacyLookupScope(snapshot);
+            var scope = new LegacyLookupScope(snapshot, readiness);
             lookupContext.Value = scope;
             (object? handle, IAsyncNodeManager? nodeManager) result;
             try
@@ -194,14 +208,15 @@ namespace Opc.Ua.Server
             {
                 if (ReferenceEquals(manager, result.nodeManager))
                 {
-                    return snapshot.CanDispatchTo(manager) ? result : (null, null);
+                    return CanDispatchTo(snapshot, manager, readiness) ? result : (null, null);
                 }
             }
             foreach (IAsyncNodeManager manager in m_nodeManagers.Revision.VisibleNodeManagers)
             {
                 if (ReferenceEquals(manager, result.nodeManager))
                 {
-                    return await ResolveManagerHandleAsync(nodeId, snapshot, cancellationToken).ConfigureAwait(false);
+                    return await ResolveManagerHandleAsync(nodeId, snapshot, readiness, cancellationToken)
+                        .ConfigureAwait(false);
                 }
             }
             // External proxy owners are controlled by the override, not the managed routing lifetime.
@@ -235,7 +250,7 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                if (!snapshot.CanDispatchTo(routing.NodeManagers[1]))
+                if (!CanDispatchTo(snapshot, routing.NodeManagers[1], null))
                 {
                     return null;
                 }
@@ -252,7 +267,7 @@ namespace Opc.Ua.Server
 
             foreach (IAsyncNodeManager asyncNodeManager in nodeManagers!)
             {
-                if (!snapshot.CanDispatchTo(asyncNodeManager))
+                if (!CanDispatchTo(snapshot, asyncNodeManager, null))
                 {
                     continue;
                 }
@@ -276,8 +291,11 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            return ResolveManagerHandleAsync(
-                nodeId, m_legacyLookupContext?.Value?.Snapshot, cancellationToken);
+            LegacyLookupScope? legacy = m_legacyLookupContext?.Value;
+            NodeManagerRoutingTable.RoutingSnapshot? snapshot = legacy?.Snapshot;
+            return ResolveManagerHandleAsync(nodeId, snapshot,
+                snapshot is null ? null : legacy?.Readiness,
+                cancellationToken);
         }
 
         /// <summary>
@@ -285,15 +303,17 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeId">The node to resolve.</param>
         /// <param name="snapshot">The explicit routing view, or null for live routing.</param>
+        /// <param name="readiness">The operation's initializer, if any.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The handle and owning manager, if found.</returns>
         private ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> ResolveManagerHandleAsync(
             NodeId nodeId,
             NodeManagerRoutingTable.RoutingSnapshot? snapshot,
+            NodeManagerReadinessScope? readiness,
             CancellationToken cancellationToken)
         {
             ValueTask<(object? Handle, IAsyncNodeManager? NodeManager, NodeState? Node)> pending =
-                ResolveNodeOrHandleAsync(nodeId, snapshot, findNode: false, cancellationToken);
+                ResolveNodeOrHandleAsync(nodeId, snapshot, readiness, findNode: false, cancellationToken);
             if (pending.IsCompletedSuccessfully)
             {
                 (object? handle, IAsyncNodeManager? nodeManager, _) = pending.Result;
@@ -318,6 +338,7 @@ namespace Opc.Ua.Server
         private async ValueTask<(object? Handle, IAsyncNodeManager? NodeManager, NodeState? Node)> ResolveNodeOrHandleAsync(
             NodeId nodeId,
             NodeManagerRoutingTable.RoutingSnapshot? snapshot,
+            NodeManagerReadinessScope? readiness,
             bool findNode,
             CancellationToken cancellationToken)
         {
@@ -343,7 +364,7 @@ namespace Opc.Ua.Server
                     return (null, null, null);
                 }
                 IAsyncNodeManager core = routing.NodeManagers[1];
-                if (!snapshot.CanDispatchTo(core))
+                if (!CanDispatchTo(snapshot, core, readiness))
                 {
                     return (null, null, null);
                 }
@@ -365,7 +386,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < nodeManagers!.Count; ii++)
             {
                 IAsyncNodeManager asyncNodeManager = nodeManagers[ii];
-                if (!snapshot.CanDispatchTo(asyncNodeManager))
+                if (!CanDispatchTo(snapshot, asyncNodeManager, readiness))
                 {
                     continue;
                 }
@@ -1651,9 +1672,10 @@ namespace Opc.Ua.Server
             }
             NodeManagerRoutingTable.RoutingSnapshot snapshot =
                 context?.RoutingSnapshot ?? m_nodeManagers.Revision;
+            NodeManagerReadinessScope? readiness = context?.Readiness;
             foreach (IAsyncNodeManager nodeManager in snapshot.VisibleNodeManagers)
             {
-                if (!snapshot.CanDispatchTo(nodeManager))
+                if (!CanDispatchTo(snapshot, nodeManager, readiness))
                 {
                     continue;
                 }
@@ -1758,7 +1780,8 @@ namespace Opc.Ua.Server
                 {
                     foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                     {
-                        if (!routes.Includes(nodeManager) || !GetRouting(context).CanDispatchTo(nodeManager))
+                        if (!routes.Includes(nodeManager) ||
+                            !CanDispatchTo(GetRouting(context), nodeManager, context.Readiness))
                         {
                             continue;
                         }
@@ -2012,7 +2035,7 @@ namespace Opc.Ua.Server
             {
                 foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                 {
-                    if (!GetRouting(context).CanDispatchTo(nodeManager))
+                    if (!CanDispatchTo(GetRouting(context), nodeManager, context.Readiness))
                     {
                         continue;
                     }
@@ -2254,7 +2277,8 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
-                    if (!routes.Includes(nodeManager) || !GetRouting(context).CanDispatchTo(nodeManager))
+                    if (!routes.Includes(nodeManager) ||
+                        !CanDispatchTo(GetRouting(context), nodeManager, context.Readiness))
                     {
                         continue;
                     }
@@ -2440,7 +2464,7 @@ namespace Opc.Ua.Server
                     NodeManagerRoutingTable.RoutingSnapshot routing = GetRouting(context);
                     foreach (IAsyncNodeManager nodeManager in routing.VisibleNodeManagers)
                     {
-                        if (!routing.CanDispatchTo(nodeManager))
+                        if (!CanDispatchTo(routing, nodeManager, context.Readiness))
                         {
                             continue;
                         }
@@ -2551,7 +2575,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (IAsyncNodeManager nodeManager in namespaceManagers)
                         {
-                            if (!routing.CanDispatchTo(nodeManager))
+                            if (!CanDispatchTo(routing, nodeManager, context.Readiness))
                             {
                                 errors[ii] = StatusCodes.BadServerTooBusy;
                                 break;
@@ -2823,7 +2847,7 @@ namespace Opc.Ua.Server
                     // create items for data access.
                     foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                     {
-                        if (!GetRouting(context).CanDispatchTo(nodeManager))
+                        if (!CanDispatchTo(GetRouting(context), nodeManager, context.Readiness))
                         {
                             continue;
                         }
@@ -4871,12 +4895,14 @@ namespace Opc.Ua.Server
             NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
             if (m_handleLookupOverride is null)
             {
-                return await ResolveNodeOrHandleAsync(nodeId, snapshot, findNode: true, cancellationToken)
+                return await ResolveNodeOrHandleAsync(nodeId, snapshot, context.Readiness, findNode: true,
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
 
             (object? handle, IAsyncNodeManager? nodeManager) =
-                await GetOverriddenManagerHandleAsync(nodeId, snapshot, cancellationToken).ConfigureAwait(false);
+                await GetOverriddenManagerHandleAsync(nodeId, snapshot, context.Readiness, cancellationToken)
+                    .ConfigureAwait(false);
             return (handle, nodeManager, null);
         }
 
@@ -5236,10 +5262,13 @@ namespace Opc.Ua.Server
         private readonly AsyncLocal<LegacyLookupScope?>? m_legacyLookupContext;
 
         /// <summary>
-        /// Carries only the caller-pinned routing image and revokes escaped legacy lookup contexts on return.
+        /// Carries the caller-pinned view and readiness admission through the released virtual override.
         /// </summary>
         /// <param name="snapshot">The image pinned by the calling operation.</param>
-        private sealed class LegacyLookupScope(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        /// <param name="readiness">The calling operation's initializer, if any.</param>
+        private sealed class LegacyLookupScope(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            NodeManagerReadinessScope? readiness)
         {
             /// <summary>
             /// Gets the caller's routing image while its legacy override is active.
@@ -5247,15 +5276,23 @@ namespace Opc.Ua.Server
             internal NodeManagerRoutingTable.RoutingSnapshot? Snapshot => Volatile.Read(ref m_snapshot);
 
             /// <summary>
+            /// Gets the caller's readiness admission while its legacy override is active.
+            /// </summary>
+            internal NodeManagerReadinessScope? Readiness => Volatile.Read(ref m_readiness);
+
+            /// <summary>
             /// Releases routing selection in every execution context that captured this invocation.
             /// </summary>
             internal void Expire()
             {
                 Volatile.Write(ref m_snapshot, null);
+                Volatile.Write(ref m_readiness, null);
             }
 
             /// <summary>The caller-pinned image, or null after the override returns.</summary>
             private NodeManagerRoutingTable.RoutingSnapshot? m_snapshot = snapshot;
+
+            private NodeManagerReadinessScope? m_readiness = readiness;
         }
 
         /// <summary>
