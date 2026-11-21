@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 #pragma warning disable CS0618, UA0031 // The master still accepts, routes and unwraps legacy synchronous node managers.
 

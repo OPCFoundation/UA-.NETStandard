@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CS0618: obsolete single-URI helper is tested to preserve backwards compatibility.
 #pragma warning disable CS0618

@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CA1835: the byte[] ReadAsync overload is used because the fixture targets
 // every TFM of the parent project.

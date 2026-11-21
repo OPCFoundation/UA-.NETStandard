@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 #pragma warning disable CS0618, UA0031 // Implements the legacy INodeManager surface that IAsyncNodeManager.SyncNodeManager still exposes.
 

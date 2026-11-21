@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // Polyfills for trim analysis attributes that are not available
 // in .NET Standard 2.0/2.1 or .NET Framework.

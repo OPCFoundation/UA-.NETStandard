@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CA2016: integration tests intentionally call cleanup in finally without forwarding the test
 // cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which

@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CA1835: The byte[]-based ReadAsync/WriteAsync overload is used
 // throughout because the test fixture targets all TFMs of the parent

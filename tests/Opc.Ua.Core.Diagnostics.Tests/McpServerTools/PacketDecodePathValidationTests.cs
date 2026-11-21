@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // Opc.Ua.Mcp targets net10.0 only and is loaded reflectively from its net10.0
 // build output, so these tests only build and run on net10.0.

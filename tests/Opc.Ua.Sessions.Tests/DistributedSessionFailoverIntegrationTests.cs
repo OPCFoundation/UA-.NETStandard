@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CA2000: integration-test disposables are released by helper cleanup paths.
 // CA2007: tests run without a SynchronizationContext.

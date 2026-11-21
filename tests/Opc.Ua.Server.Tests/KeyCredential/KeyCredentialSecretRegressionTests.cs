@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CA2000: test helpers intentionally transfer disposable ownership or use short-lived throwaway values.
 #pragma warning disable CA2000

@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CA2007: NUnit tests do not run in a synchronization context; the
 // ConfigureAwait noise inside the integration setup adds nothing.

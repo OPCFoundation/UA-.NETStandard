@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CA2000: disposable test helpers are short-lived or ownership-transferred to the fixture under test.
 #pragma warning disable CA2000

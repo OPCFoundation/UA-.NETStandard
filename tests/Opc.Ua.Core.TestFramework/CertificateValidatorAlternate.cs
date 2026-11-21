@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 #if EMBED_IO_INCLUDED
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,

@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // CA2000: system-under-test disposables are created per test and released at teardown;
 //   there is no cross-test resource leak. Suppressed file-level for the suite.

@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // Opc.Ua.Mcp targets net10.0 only, so the MCP integration fixtures only
 // build and run on net10.0.

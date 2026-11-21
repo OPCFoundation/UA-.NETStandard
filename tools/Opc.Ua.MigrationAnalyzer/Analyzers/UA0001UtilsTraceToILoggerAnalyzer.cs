@@ -1,7 +1,5 @@
-// ========================================================================
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
-// ========================================================================
 
 // UA0001 is diagnostic-only. The replacement requires an ILogger instance
 // obtained from ITelemetryContext.CreateLogger<T>() which the analyzer cannot
