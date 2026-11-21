@@ -49,12 +49,14 @@ verified for that artifact, and neither it nor its prose, schema blobs, or
 identifier table is included or used by the authoring script.
 
 - [Pinned MIT v1.02 basis](https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/PlasticsRubber/GeneralTypes/1.02/Opc.Ua.PlasticsRubber.GeneralTypes.NodeSet2.xml)
-- Basis SHA-256: `c4e2c75ef4e1edadc2e0ca7a568879ea4d08ddac8d2638c3402fef77e16ef776`
+- Upstream basis SHA-256: `5fe4469bf64ebab5a828d2f888dca85e985cf2d48286029d37565c09e4ac9ba8`
+- Repository copy SHA-256: `c4e2c75ef4e1edadc2e0ca7a568879ea4d08ddac8d2638c3402fef77e16ef776`
 - [Published interface specification](https://reference.opcfoundation.org/specs/OPC-40083/v1.03)
 - [Specification agreement](https://reference.opcfoundation.org/specs/OPC-40083/v1.03/agreement-of-use)
 
 `Model\author-interface-model.py` applies the independently authored interface
-changes to the unchanged licensed basis in `Model\Basis`: thirteen added nodes,
+changes to the licensed basis in `Model\Basis` (the upstream file with only its
+license banner replaced by the SPDX header): thirteen added nodes,
 nine modified nodes, and no removals. It adds the classified active-error
 structure and encoding objects, monitored-parameter alarm/status declarations,
 and drive position properties, and corrects the reassigned node 6711 reference.
