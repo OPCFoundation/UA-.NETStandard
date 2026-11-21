@@ -665,6 +665,11 @@ namespace Opc.Ua.Server
                 {
                     SignalReady();
                 }
+                else
+                {
+                    // a rolled-back resend may have signalled ready to report.
+                    InvalidateReadiness();
+                }
             }
         }
 
@@ -719,6 +724,16 @@ namespace Opc.Ua.Server
             {
                 sink.OnMonitoredItemReady(this, Id, IsReadyToReportNow());
             }
+        }
+
+        /// <summary>
+        /// Tells the owning subscription that a ready-to-report flag this item signalled
+        /// earlier may no longer hold, so its next publish-timer pass checks every candidate.
+        /// Called while holding <c>m_lock</c> after a change that can take readiness back.
+        /// </summary>
+        private void InvalidateReadiness()
+        {
+            (m_subscription as IMonitoredItemReadySink)?.OnMonitoredItemReadinessInvalidated();
         }
 
         /// <summary>
@@ -1307,6 +1322,9 @@ namespace Opc.Ua.Server
 
                 InitializeQueue();
 
+                // the queue or filter change may take back a ready to report signalled earlier.
+                InvalidateReadiness();
+
                 return null;
             }
         }
@@ -1676,6 +1694,9 @@ namespace Opc.Ua.Server
                 {
                     m_nextSamplingTime = 0;
                 }
+
+                // a later deadline takes back a ready to report signalled earlier.
+                InvalidateReadiness();
             }
         }
 
@@ -1723,6 +1744,8 @@ namespace Opc.Ua.Server
                     m_readyToTrigger = false;
                     m_triggered = false;
                 }
+
+                InvalidateReadiness();
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
@@ -1790,7 +1813,7 @@ namespace Opc.Ua.Server
                 m_resendData = false;
                 m_triggered = false;
                 Interlocked.Exchange(ref m_readySignal, 0);
-                (m_subscription as IMonitoredItemReadySink)?.OnMonitoredItemReadinessInvalidated();
+                InvalidateReadiness();
             }
         }
 

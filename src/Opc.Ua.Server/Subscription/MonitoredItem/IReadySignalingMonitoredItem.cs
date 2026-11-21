@@ -96,9 +96,10 @@ namespace Opc.Ua.Server
         void OnMonitoredItemReady(IMonitoredItem monitoredItem, uint monitoredItemId, bool readyToReport);
 
         /// <summary>
-        /// Called by a monitored item that dropped its queued notifications outside of a
-        /// publish (an identity change), so a ready-to-report flag it signalled earlier may
-        /// be stale. Called while the item holds its own lock.
+        /// Called by a monitored item after a change outside of a publish that can take
+        /// back a ready-to-report flag it signalled earlier (cleared notifications on an
+        /// identity change, a rolled-back resend, a new sampling interval, monitoring mode,
+        /// queue or filter). Called while the item holds its own lock.
         /// </summary>
         void OnMonitoredItemReadinessInvalidated();
     }

@@ -1005,7 +1005,7 @@ namespace Opc.Ua.Server
             }
 
             // a configuration change may have made a ready-to-report signal stale.
-            // so does an item that dropped its notifications on an identity change.
+            // so does a change an item made to itself outside of a publish.
             bool recheck = m_recheckReadyCandidates |
                 Interlocked.Exchange(ref m_readinessInvalidated, 0) != 0;
             m_recheckReadyCandidates = false;
