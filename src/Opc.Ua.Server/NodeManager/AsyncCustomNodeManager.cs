@@ -6531,6 +6531,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
+            List<NodeHandle>? deferred = null;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
@@ -6572,6 +6573,7 @@ namespace Opc.Ua.Server
                     // must validate node in a separate operation
                     handle.Index = ii;
                     nodesToProcess.Add(handle);
+                    (deferred ??= []).Add(handle);
 
                     continue;
                 }
@@ -6586,24 +6588,15 @@ namespace Opc.Ua.Server
                     // enforce the effective user access level for the current
                     // session: a node may advertise HistoryRead in AccessLevel
                     // but deny it to the current user via UserAccessLevel.
-                    byte userAccessLevel = variable.UserAccessLevel;
-                    variable.OnReadUserAccessLevel?.Invoke(systemContext, variable, ref userAccessLevel);
-
-                    if ((userAccessLevel & AccessLevels.HistoryRead) == 0)
-                    {
-                        errors[ii] = StatusCodes.BadUserAccessDenied;
-                        continue;
-                    }
-
-                    ServiceResult parentAccess = await ValidateAnnotationsParentAccessAsync(
+                    ServiceResult access = await ValidateHistoryVariableAccessAsync(
                         systemContext,
                         variable,
                         AccessLevels.HistoryRead,
                         PermissionType.ReadHistory,
                         cancellationToken).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(parentAccess))
+                    if (ServiceResult.IsBad(access))
                     {
-                        errors[ii] = parentAccess;
+                        errors[ii] = access;
                         continue;
                     }
 
@@ -6621,6 +6614,17 @@ namespace Opc.Ua.Server
                     nodesToProcess.Add(handle);
                 }
             }
+
+            // the access checks above need the node: apply them to the handles
+            // that are resolved only now.
+            await ValidateDeferredAnnotationsAccessAsync(
+                systemContext,
+                deferred,
+                default,
+                errors,
+                nodesToProcess,
+                operationCache,
+                cancellationToken).ConfigureAwait(false);
 
             // check for nothing to do.
             if (nodesToProcess.Count == 0)
@@ -6713,46 +6717,37 @@ namespace Opc.Ua.Server
                 .GetRestoredHistoryProvider(node.NodeId) ?? ResolveHistorianProvider(node);
         }
 
-        private static bool HasHistoryWritePermission(
-            ServerSystemContext context,
-            BaseVariableState variable)
-        {
-            BaseVariableState accessNode = variable;
-
-            if (HistorianDispatcher.IsAnnotationsProperty(variable))
-            {
-                accessNode = HistorianDispatcher.GetAnnotationsParent(variable) ?? variable;
-            }
-
-            byte userAccessLevel = accessNode.UserAccessLevel;
-            accessNode.OnReadUserAccessLevel?.Invoke(context, accessNode, ref userAccessLevel);
-            return (userAccessLevel & AccessLevels.HistoryWrite) != 0;
-        }
-
         /// <summary>
-        /// Applies the access checks of the historized variable to a history operation
-        /// on its Annotations property. The operation is routed to the annotations of
-        /// the parent variable, so the user access level, role permissions and access
-        /// restrictions of that variable apply in addition to those of the property.
+        /// Checks that the user may run a history operation on a variable: the effective
+        /// user access level of the variable must include the operation. An operation on
+        /// an Annotations property is routed to the annotations of the parent variable,
+        /// so the user access level, role permissions and access restrictions of that
+        /// variable apply in addition to those of the property.
         /// </summary>
-        private async ValueTask<ServiceResult> ValidateAnnotationsParentAccessAsync(
+        private async ValueTask<ServiceResult> ValidateHistoryVariableAccessAsync(
             ServerSystemContext context,
             BaseVariableState variable,
             byte requiredAccessLevel,
             PermissionType requiredPermission,
             CancellationToken cancellationToken)
         {
+            ServiceResult access = HistorianDispatcher.ValidateUserAccessLevel(
+                context, variable, requiredAccessLevel);
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
+
             if (!HistorianDispatcher.IsAnnotationsProperty(variable) ||
                 HistorianDispatcher.GetAnnotationsParent(variable) is not { } parent)
             {
                 return ServiceResult.Good;
             }
 
-            byte userAccessLevel = parent.UserAccessLevel;
-            parent.OnReadUserAccessLevel?.Invoke(context, parent, ref userAccessLevel);
-            if ((userAccessLevel & requiredAccessLevel) == 0)
+            access = HistorianDispatcher.ValidateUserAccessLevel(context, parent, requiredAccessLevel);
+            if (ServiceResult.IsBad(access))
             {
-                return StatusCodes.BadUserAccessDenied;
+                return access;
             }
 
             if (context.OperationContext is not { } operationContext)
@@ -6769,6 +6764,70 @@ namespace Opc.Ua.Server
                 permissionsOnly: true,
                 logger: null,
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Applies the access checks of an Annotations property to the handles whose
+        /// node was not known when the request was scanned. A handle that resolves to
+        /// an Annotations property the user may not access is removed from the nodes
+        /// to process, so that it never reaches a history hook or provider.
+        /// </summary>
+        /// <param name="context">The system context of the operation.</param>
+        /// <param name="deferred">The handles without a node; may be null.</param>
+        /// <param name="nodesToUpdate">The update details, or default for a history read.</param>
+        /// <param name="errors">The operation results.</param>
+        /// <param name="nodesToProcess">The handles passed on to the history hooks.</param>
+        /// <param name="cache">The node cache of the operation.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask ValidateDeferredAnnotationsAccessAsync(
+            ServerSystemContext context,
+            List<NodeHandle>? deferred,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken)
+        {
+            if (deferred == null)
+            {
+                return;
+            }
+
+            bool isUpdate = !nodesToUpdate.IsNull;
+            foreach (NodeHandle handle in deferred)
+            {
+                NodeState? source;
+                try
+                {
+                    source = await ValidateNodeAsync(context, handle, cache, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                    // the history hook validates the node again and reports the failure.
+                    continue;
+                }
+
+                if (source is not BaseVariableState variable ||
+                    !HistorianDispatcher.IsAnnotationsProperty(variable))
+                {
+                    continue;
+                }
+
+                ServiceResult access = await ValidateHistoryVariableAccessAsync(
+                    context,
+                    variable,
+                    isUpdate ? AccessLevels.HistoryWrite : AccessLevels.HistoryRead,
+                    isUpdate
+                        ? MasterNodeManager.DetermineHistoryAccessPermission(nodesToUpdate[handle.Index])
+                        : PermissionType.ReadHistory,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(access))
+                {
+                    errors[handle.Index] = access;
+                    nodesToProcess.Remove(handle);
+                }
+            }
         }
 
         /// <summary>
@@ -7470,6 +7529,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
+            List<NodeHandle>? deferred = null;
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             using (await AcquireSemaphoreAsync(m_writeSemaphore, cancellationToken).ConfigureAwait(false))
@@ -7515,6 +7575,7 @@ namespace Opc.Ua.Server
                         // must validate node in a separate operation
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
+                        (deferred ??= []).Add(handle);
                         continue;
                     }
 
@@ -7525,21 +7586,15 @@ namespace Opc.Ua.Server
                     if (handle.Node is BaseVariableState variable &&
                         (variable.AccessLevel & AccessLevels.HistoryWrite) != 0)
                     {
-                        if (!HasHistoryWritePermission(systemContext, variable))
-                        {
-                            errors[ii] = StatusCodes.BadUserAccessDenied;
-                            continue;
-                        }
-
-                        ServiceResult parentAccess = await ValidateAnnotationsParentAccessAsync(
+                        ServiceResult access = await ValidateHistoryVariableAccessAsync(
                             systemContext,
                             variable,
                             AccessLevels.HistoryWrite,
                             MasterNodeManager.DetermineHistoryAccessPermission(nodeToUpdate),
                             cancellationToken).ConfigureAwait(false);
-                        if (ServiceResult.IsBad(parentAccess))
+                        if (ServiceResult.IsBad(access))
                         {
-                            errors[ii] = parentAccess;
+                            errors[ii] = access;
                             continue;
                         }
 
@@ -7563,6 +7618,21 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
+            }
+
+            // the access checks above need the node: apply them to the handles
+            // that are resolved only now.
+            await ValidateDeferredAnnotationsAccessAsync(
+                systemContext,
+                deferred,
+                nodesToUpdate,
+                errors,
+                nodesToProcess,
+                operationCache,
+                cancellationToken).ConfigureAwait(false);
+            if (nodesToProcess.Count == 0)
+            {
+                return;
             }
 
             // validates the nodes and updates.

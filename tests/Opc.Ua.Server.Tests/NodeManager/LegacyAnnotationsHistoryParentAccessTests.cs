@@ -50,16 +50,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             Unrestricted,
             UserAccessLevelDenied,
-            RolePermissionsDenied
+            RolePermissionsDenied,
+            AccessCallbackFails,
+            PropertyDeniesWrite
         }
 
-        [TestCase(ParentAccess.Unrestricted, false)]
-        [TestCase(ParentAccess.UserAccessLevelDenied, true)]
-        [TestCase(ParentAccess.RolePermissionsDenied, true)]
+        [Test]
         public async Task LegacyNodeManagerAppliesParentAccessToAnnotationsHistoryAsync(
-            ParentAccess parentAccess,
-            bool denied)
+            [Values] ParentAccess parentAccess,
+            [Values] bool deferredHandle)
         {
+            StatusCode expectedRead = parentAccess switch
+            {
+                ParentAccess.Unrestricted or ParentAccess.PropertyDeniesWrite => StatusCodes.Good,
+                ParentAccess.AccessCallbackFails => StatusCodes.BadConfigurationError,
+                _ => StatusCodes.BadUserAccessDenied
+            };
+            StatusCode expectedUpdate = parentAccess switch
+            {
+                ParentAccess.Unrestricted => StatusCodes.Good,
+                ParentAccess.AccessCallbackFails => StatusCodes.BadConfigurationError,
+                _ => StatusCodes.BadUserAccessDenied
+            };
             LegacyAnnotationsNodeManager? nodeManager = null;
             var fixture = new ServerFixture<StandardServer>(telemetry =>
             {
@@ -81,7 +93,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ushort namespaceIndex = (ushort)server.CurrentInstance.NamespaceUris
                     .GetIndex(LegacyAnnotationsNodeManager.NamespaceUri);
                 var annotationsId = new NodeId(LegacyAnnotationsNodeManager.AnnotationsName, namespaceIndex);
-                StatusCode expected = denied ? StatusCodes.BadUserAccessDenied : StatusCodes.Good;
+                nodeManager!.DeferHandles = deferredHandle;
 
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 HistoryReadResponse readResponse = await server.HistoryReadAsync(
@@ -98,8 +110,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     [new HistoryReadValueId { NodeId = annotationsId }],
                     RequestLifetime.None).ConfigureAwait(false);
                 Assert.That(readResponse.Results.Count, Is.EqualTo(1));
-                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(expected));
-                Assert.That(nodeManager!.Reads, Is.EqualTo(denied ? 0 : 1));
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(expectedRead));
+                Assert.That(nodeManager.Reads, Is.EqualTo(expectedRead == StatusCodes.Good ? 1 : 0));
 
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 HistoryUpdateResponse updateResponse = await server.HistoryUpdateAsync(
@@ -124,8 +136,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ],
                     RequestLifetime.None).ConfigureAwait(false);
                 Assert.That(updateResponse.Results.Count, Is.EqualTo(1));
-                Assert.That(updateResponse.Results[0].StatusCode, Is.EqualTo(expected));
-                Assert.That(nodeManager.Updates, Is.EqualTo(denied ? 0 : 1));
+                Assert.That(updateResponse.Results[0].StatusCode, Is.EqualTo(expectedUpdate));
+                Assert.That(nodeManager.Updates, Is.EqualTo(expectedUpdate == StatusCodes.Good ? 1 : 0));
 
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 await server.CloseSessionAsync(secureChannelContext, requestHeader, CancellationToken.None)
@@ -207,6 +219,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ];
                 }
 
+                if (m_parentAccess == ParentAccess.AccessCallbackFails)
+                {
+                    variable.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte _) =>
+                        StatusCodes.BadConfigurationError;
+                }
+
                 var annotations = new PropertyState(variable)
                 {
                     NodeId = new NodeId(AnnotationsName, namespaceIndex),
@@ -217,10 +235,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     DataType = DataTypeIds.Annotation,
                     ValueRank = ValueRanks.Scalar,
                     AccessLevel = history,
-                    UserAccessLevel = history
+                    UserAccessLevel = m_parentAccess == ParentAccess.PropertyDeniesWrite
+                        ? AccessLevels.HistoryRead
+                        : history
                 };
                 variable.AddChild(annotations);
                 AddPredefinedNode(SystemContext, variable);
+            }
+
+            /// <summary>
+            /// Whether handles are returned without their node, which is then resolved
+            /// when the handle is validated.
+            /// </summary>
+            public bool DeferHandles { get; set; }
+
+            protected override NodeHandle? GetManagerHandle(
+                ServerSystemContext context,
+                NodeId nodeId,
+                IDictionary<NodeId, NodeState> cache)
+            {
+                NodeHandle? handle = base.GetManagerHandle(context, nodeId, cache);
+                if (DeferHandles && handle != null)
+                {
+                    handle.Node = null!;
+                    handle.Validated = false;
+                }
+                return handle;
+            }
+
+            protected override NodeState? ValidateNode(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache)
+            {
+                if (handle.Node == null && PredefinedNodes.TryGetValue(handle.NodeId, out NodeState? node))
+                {
+                    handle.Node = node;
+                    handle.Validated = true;
+                }
+                return base.ValidateNode(context, handle, cache);
             }
 
             protected override void HistoryReadRawModified(
