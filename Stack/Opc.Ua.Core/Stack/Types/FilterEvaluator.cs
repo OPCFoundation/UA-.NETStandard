@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -50,6 +51,24 @@ namespace Opc.Ua
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// The time in milliseconds that the Like elements of one evaluation may
+        /// take together. A Like element that runs out of it evaluates to NULL.
+        /// </summary>
+        private const int kMaxLikeMatchTimeMs = 100;
+
+        /// <summary>
+        /// The shortest time in milliseconds that the regular expression engine is
+        /// given for one match. Its clock can be as coarse as 16 ms, so a shorter
+        /// time could cut off a match that has only just started.
+        /// </summary>
+        private const int kMinLikeEngineTimeMs = 32;
+
+        /// <summary>
+        /// What is left of the time for Like elements in the current evaluation.
+        /// </summary>
+        private TimeSpan m_likeTimeLeft;
 
         /// <summary>
         /// Create evaluator
@@ -82,6 +101,8 @@ namespace Opc.Ua
                 {
                     return true;
                 }
+
+                m_likeTimeLeft = TimeSpan.FromMilliseconds(kMaxLikeMatchTimeMs);
 
                 bool? result = Evaluate(0) as bool?;
                 return result ?? false;
@@ -516,9 +537,22 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="target">String to check for a pattern match.</param>
         /// <param name="pattern">Pattern to match with the target string.</param>
-        /// <returns>true if the target string matches the pattern, otherwise false.</returns>
-        private static bool Match(string target, string pattern)
+        /// <returns>
+        /// true if the target string matches the pattern, otherwise false. null if
+        /// the time for Like elements in this evaluation ran out.
+        /// </returns>
+        private bool? Match(string target, string pattern)
         {
+            // The Client chooses the pattern, and some patterns take the regular
+            // expression engine very long. All Like elements of one evaluation share
+            // one time limit, so their number does not multiply it.
+            if (m_likeTimeLeft <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
+            long start = Stopwatch.GetTimestamp();
+
             string expression = pattern;
 
             // 1) Suppress unused regular expression characters with special meaning
@@ -539,7 +573,36 @@ namespace Opc.Ua
             // replace all "[!" with "[^", except "\[!"
             expression = ReplaceBrackets.Replace(expression, "[^");
 
-            return Regex.IsMatch(target, expression);
+            // the engine gets what is left of the time, but not less than its clock
+            // can measure.
+            double engineTimeMs = Math.Max(
+                Math.Ceiling(m_likeTimeLeft.TotalMilliseconds),
+                kMinLikeEngineTimeMs);
+
+            try
+            {
+                bool isMatch = Regex.IsMatch(
+                    target,
+                    expression,
+                    RegexOptions.None,
+                    TimeSpan.FromMilliseconds(engineTimeMs));
+
+                // the time to convert the pattern counts as well.
+                long elapsed = Stopwatch.GetTimestamp() - start;
+                m_likeTimeLeft -= TimeSpan.FromSeconds((double)elapsed / Stopwatch.Frequency);
+                return isMatch;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                m_likeTimeLeft = TimeSpan.Zero;
+                m_logger.LogDebug(
+                    "The Like elements of a filter were not evaluated within {Limit} ms and are treated as NULL " +
+                    "(pattern length {PatternLength}, string length {TargetLength}).",
+                    kMaxLikeMatchTimeMs,
+                    pattern.Length,
+                    target.Length);
+                return null;
+            }
         }
 
         /// <summary>
@@ -1930,7 +1993,7 @@ namespace Opc.Ua
         /// <summary>
         /// Like FilterOperator
         /// </summary>
-        private bool Like(ContentFilterElement element)
+        private bool? Like(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
