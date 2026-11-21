@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -138,6 +139,105 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             ReadOnlyMemory<byte> record = await client.ProtectAsync(payload, cts.Token).ConfigureAwait(false);
             ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, cts.Token).ConfigureAwait(false);
             Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ServerDiscardsForgedDatagramsDuringAnAttemptAsync()
+        {
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
+            using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair =
+                InMemoryDtlsDatagramChannel.CreatePair();
+            using DtlsHandshakeContext client = CreateContext(profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(profile, DtlsEndpointRole.Server, certificate, validator.Object);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            // The client sends ClientHello, ClientHello with cookie and Finished.
+            // Before its Finished, datagrams carrying its source address arrive
+            // that are malformed, of another type, or a Finished that does not
+            // verify. The source address is not authenticated, so they must not
+            // cost the client its handshake.
+            var injecting = new InterceptingChannel(pair.Client, async (index, inner, ct) =>
+            {
+                if (index != 2)
+                {
+                    return true;
+                }
+                await inner.SendAsync(new byte[] { 0x01, 0x02, 0x03 }, null, ct).ConfigureAwait(false);
+                await inner.SendAsync(
+                    DtlsHandshakeCodec.EncodeFrame(DtlsHandshakeType.Certificate, 0, new byte[8]),
+                    null,
+                    ct).ConfigureAwait(false);
+                await inner.SendAsync(
+                    DtlsHandshakeCodec.EncodeFrame(DtlsHandshakeType.Finished, 0, new byte[32]),
+                    null,
+                    ct).ConfigureAwait(false);
+                return true;
+            });
+
+            await Task.WhenAll(
+                client.OpenAsync(injecting, cts.Token).AsTask(),
+                server.OpenAsync(pair.Server, cts.Token).AsTask()).ConfigureAwait(false);
+
+            Assert.That(pair.Server.AuthenticatedPeer, Is.EqualTo(pair.Server.RemoteEndpoint));
+            byte[] payload = [0x55, 0x41, 0x44, 0x50];
+            ReadOnlyMemory<byte> record = await client.ProtectAsync(payload, cts.Token).ConfigureAwait(false);
+            ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, cts.Token).ConfigureAwait(false);
+            Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ServerKeepsClientHelloOfPeerThatArrivesDuringStalledAttemptAsync()
+        {
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
+            using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            var network = new RoutedDtlsNetwork();
+            IDtlsDatagramChannel stallingChannel = network.CreatePeer(new IPEndPoint(IPAddress.Loopback, 55001));
+            IDtlsDatagramChannel waitingChannel = network.CreatePeer(new IPEndPoint(IPAddress.Loopback, 55002));
+            using DtlsHandshakeContext stalling = CreateContext(
+                profile, DtlsEndpointRole.Client, NewOptions(), validator.Object);
+            using DtlsHandshakeContext waiting = CreateContext(
+                profile, DtlsEndpointRole.Client, NewOptions(), validator.Object);
+            using DtlsHandshakeContext server = CreateContext(
+                profile, DtlsEndpointRole.Server, NewOptions(), validator.Object);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            Task serverTask = server.OpenAsync(network.Server, cts.Token).AsTask();
+
+            // The first peer passes the cookie exchange and then never delivers
+            // its Finished, which holds the accept for one flight timeout.
+            var dropFinished = new InterceptingChannel(
+                stallingChannel,
+                (index, _, _) => new ValueTask<bool>(index < 2));
+            await stalling.OpenAsync(dropFinished, cts.Token).ConfigureAwait(false);
+
+            // The second peer handshakes meanwhile. Its ClientHello is not
+            // retransmitted, so the server must answer and keep it.
+            await waiting.OpenAsync(waitingChannel, cts.Token).ConfigureAwait(false);
+            await serverTask.ConfigureAwait(false);
+
+            Assert.That(network.Server.AuthenticatedPeer, Is.EqualTo(new IPEndPoint(IPAddress.Loopback, 55002)));
+            byte[] payload = [0x55, 0x41, 0x44, 0x50];
+            ReadOnlyMemory<byte> record = await waiting.ProtectAsync(payload, cts.Token).ConfigureAwait(false);
+            ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, cts.Token).ConfigureAwait(false);
+            Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
+
+            DtlsTransportOptions NewOptions()
+            {
+                var options = new DtlsTransportOptions
+                {
+                    PeerCertificateValidator = validator.Object,
+                    RequireHelloRetryRequestCookie = true,
+                    InitialRetransmissionTimeout = TimeSpan.FromSeconds(1),
+                    MaxRetransmissionTimeout = TimeSpan.FromSeconds(1)
+                };
+                options.LocalCertificates.Add(certificate);
+                return options;
+            }
         }
 
         [Test]
@@ -952,6 +1052,148 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             private readonly IPEndPoint m_localEndpoint;
             private readonly Func<byte[], byte[]>? m_outboundTransform;
             private readonly Func<byte[], IPEndPoint, IPEndPoint>? m_outboundSourceSelector;
+        }
+
+        /// <summary>
+        /// Channel wrapper that lets a test act before each outbound datagram
+        /// of a peer; the callback returns whether the datagram is sent.
+        /// </summary>
+        private sealed class InterceptingChannel : IDtlsDatagramChannel
+        {
+            public InterceptingChannel(
+                IDtlsDatagramChannel inner,
+                Func<int, IDtlsDatagramChannel, CancellationToken, ValueTask<bool>> beforeSend)
+            {
+                m_inner = inner;
+                m_beforeSend = beforeSend;
+            }
+
+            /// <inheritdoc/>
+            public IPEndPoint? RemoteEndpoint => m_inner.RemoteEndpoint;
+
+            /// <inheritdoc/>
+            public async ValueTask SendAsync(
+                ReadOnlyMemory<byte> datagram,
+                IPEndPoint? destination = null,
+                CancellationToken cancellationToken = default)
+            {
+                int index = m_sent++;
+                if (await m_beforeSend(index, m_inner, cancellationToken).ConfigureAwait(false))
+                {
+                    await m_inner.SendAsync(datagram, destination, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default)
+            {
+                return m_inner.ReceiveAsync(cancellationToken);
+            }
+
+            private readonly IDtlsDatagramChannel m_inner;
+            private readonly Func<int, IDtlsDatagramChannel, CancellationToken, ValueTask<bool>> m_beforeSend;
+            private int m_sent;
+        }
+
+        /// <summary>
+        /// In-memory network with one server socket and any number of peers,
+        /// each with its own source endpoint; the server routes by destination.
+        /// </summary>
+        private sealed class RoutedDtlsNetwork
+        {
+            public RoutedDtlsNetwork()
+            {
+                Server = new ServerChannel(this);
+            }
+
+            public ServerChannel Server { get; }
+
+            public IDtlsDatagramChannel CreatePeer(IPEndPoint endpoint)
+            {
+                var inbound = Channel.CreateUnbounded<DtlsDatagram>();
+                m_peers[endpoint] = inbound;
+                return new PeerChannel(this, endpoint, inbound);
+            }
+
+            public sealed class ServerChannel : IDtlsDatagramChannel, IDtlsAuthenticatedPeerChannel
+            {
+                public ServerChannel(RoutedDtlsNetwork network)
+                {
+                    m_network = network;
+                }
+
+                /// <inheritdoc/>
+                public IPEndPoint? RemoteEndpoint => null;
+
+                public IPEndPoint? AuthenticatedPeer { get; private set; }
+
+                /// <inheritdoc/>
+                public ValueTask SendAsync(
+                    ReadOnlyMemory<byte> datagram,
+                    IPEndPoint? destination = null,
+                    CancellationToken cancellationToken = default)
+                {
+                    if (destination is null ||
+                        !m_network.m_peers.TryGetValue(destination, out Channel<DtlsDatagram>? peer))
+                    {
+                        return default;
+                    }
+                    return peer.Writer.WriteAsync(
+                        new DtlsDatagram(datagram.ToArray(), s_serverEndpoint),
+                        cancellationToken);
+                }
+
+                /// <inheritdoc/>
+                public ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default)
+                {
+                    return m_network.m_serverInbound.Reader.ReadAsync(cancellationToken);
+                }
+
+                void IDtlsAuthenticatedPeerChannel.SetAuthenticatedPeer(IPEndPoint peer)
+                {
+                    AuthenticatedPeer = new IPEndPoint(peer.Address, peer.Port);
+                }
+
+                private readonly RoutedDtlsNetwork m_network;
+            }
+
+            private sealed class PeerChannel : IDtlsDatagramChannel
+            {
+                public PeerChannel(RoutedDtlsNetwork network, IPEndPoint endpoint, Channel<DtlsDatagram> inbound)
+                {
+                    m_network = network;
+                    m_endpoint = endpoint;
+                    m_inbound = inbound;
+                }
+
+                /// <inheritdoc/>
+                public IPEndPoint? RemoteEndpoint => s_serverEndpoint;
+
+                /// <inheritdoc/>
+                public ValueTask SendAsync(
+                    ReadOnlyMemory<byte> datagram,
+                    IPEndPoint? destination = null,
+                    CancellationToken cancellationToken = default)
+                {
+                    return m_network.m_serverInbound.Writer.WriteAsync(
+                        new DtlsDatagram(datagram.ToArray(), m_endpoint),
+                        cancellationToken);
+                }
+
+                /// <inheritdoc/>
+                public ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default)
+                {
+                    return m_inbound.Reader.ReadAsync(cancellationToken);
+                }
+
+                private readonly RoutedDtlsNetwork m_network;
+                private readonly IPEndPoint m_endpoint;
+                private readonly Channel<DtlsDatagram> m_inbound;
+            }
+
+            private static readonly IPEndPoint s_serverEndpoint = new(IPAddress.Loopback, 4843);
+            private readonly Channel<DtlsDatagram> m_serverInbound = Channel.CreateUnbounded<DtlsDatagram>();
+            private readonly Dictionary<IPEndPoint, Channel<DtlsDatagram>> m_peers = [];
         }
 
         /// <summary>

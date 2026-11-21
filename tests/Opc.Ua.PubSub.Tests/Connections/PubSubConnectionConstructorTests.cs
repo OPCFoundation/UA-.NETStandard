@@ -459,6 +459,38 @@ namespace Opc.Ua.PubSub.Tests.Connections
             Assert.That(registry.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.Match));
         }
 
+        [Test]
+        public async Task RejectedInboundMetaDataDoesNotUseUpTheIdentityBudget()
+        {
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out IDataSetMetaDataRegistry registry,
+                maxUnauthenticatedCost: 1000);
+            var inbound = (DataSetMetaDataRegistry)registry;
+
+            // The budget the host configured applies to the connection registry.
+            Assert.That(inbound.MaxUnauthenticatedCost, Is.EqualTo(1000));
+
+            // More over-budget announcements than there are identity slots.
+            int rejected = PubSubConnection.MaxInboundMetaDataIdentities + 10;
+            for (int i = 0; i < rejected; i++)
+            {
+                _ = conn.TryRouteInboundMetaData(
+                    NewInboundMeta(PublisherId.FromString("P" + i), 1),
+                    authenticated: false,
+                    frameLength: 5000);
+            }
+
+            Assert.That(registry.Keys, Has.Count.Zero);
+            Assert.That(inbound.RejectedUnauthenticatedCount, Is.EqualTo(rejected));
+
+            // A publisher whose announcement fits is still admitted.
+            _ = conn.TryRouteInboundMetaData(
+                NewInboundMeta(PublisherId.FromString("real"), 1),
+                authenticated: false,
+                frameLength: 100);
+            Assert.That(registry.Keys, Has.Count.EqualTo(1));
+        }
+
         private static JsonMetaDataMessage NewInboundMeta(
             PublisherId publisherId,
             ushort writerId,
@@ -526,9 +558,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static PubSubConnection NewConnectionWithOwnRegistry(
             out IDataSetMetaDataRegistry registry,
-            DataSetReaderDataType? readerConfiguration = null)
+            DataSetReaderDataType? readerConfiguration = null,
+            long maxUnauthenticatedCost = DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost)
         {
-            var hostRegistry = new DataSetMetaDataRegistry();
+            var hostRegistry = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = maxUnauthenticatedCost };
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var reader = new DataSetReader(
                 readerConfiguration ?? new DataSetReaderDataType { Name = "any-publisher" },

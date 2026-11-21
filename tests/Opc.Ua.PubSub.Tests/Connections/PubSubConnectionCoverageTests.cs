@@ -528,10 +528,25 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         [Test]
         [Category("SecurityRegression")]
-        public async Task ReceiveLoopSurvivesActionResponseThatCannotBeSentAsync()
+        public Task ReceiveLoopSurvivesActionResponseThatCannotBeSentAsync()
+        {
+            return ReceiveLoopSurvivesFailedActionResponseAsync(
+                new InvalidOperationException("The response cannot be encoded."));
+        }
+
+        [Test]
+        public Task ReceiveLoopSurvivesActionResponseSendCanceledByTheEncoderAsync()
+        {
+            // An encoder or transport that gives up on its own operation reports
+            // it as a cancellation although the connection was not canceled.
+            return ReceiveLoopSurvivesFailedActionResponseAsync(
+                new OperationCanceledException("The send timed out."));
+        }
+
+        private static async Task ReceiveLoopSurvivesFailedActionResponseAsync(Exception failure)
         {
             var transport = new DatagramHarnessTransport(UadpProfile);
-            var encoder = new ThrowOnceEncoder(UadpProfile);
+            var encoder = new ThrowOnceEncoder(UadpProfile, failure);
             var decoder = new QueueDecoder(UadpProfile);
             await using PubSubConnection connection = CreateConnection(
                 Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
@@ -1492,11 +1507,13 @@ namespace Opc.Ua.PubSub.Tests.Connections
         /// </summary>
         private sealed class ThrowOnceEncoder : INetworkMessageEncoder
         {
+            private readonly Exception m_failure;
             private int m_attempts;
 
-            public ThrowOnceEncoder(string profile)
+            public ThrowOnceEncoder(string profile, Exception failure)
             {
                 TransportProfileUri = profile;
+                m_failure = failure;
             }
 
             public string TransportProfileUri { get; }
@@ -1512,7 +1529,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             {
                 if (Interlocked.Increment(ref m_attempts) == 1)
                 {
-                    throw new InvalidOperationException("The response cannot be encoded.");
+                    throw m_failure;
                 }
                 return new ValueTask<ReadOnlyMemory<byte>>(new ReadOnlyMemory<byte>([1]));
             }

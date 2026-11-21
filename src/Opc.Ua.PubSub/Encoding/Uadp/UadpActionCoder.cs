@@ -82,6 +82,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             // the payload fields are variable length, and a response echoes
             // the CorrelationData of the request), so grow the buffer until
             // the message fits instead of failing above the initial size.
+            // Only a full buffer is retried: the writer reports it as
+            // UadpBufferFullException, while an ArgumentException is a
+            // permanent validation failure (for example a RawData value
+            // above its MaxStringLength) that a larger buffer cannot fix.
             int bufferSize = kInitialBufferSize;
             while (true)
             {
@@ -89,9 +93,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 {
                     return EncodeCore(message, context, securityEnabled, bufferSize, out payloadOffset);
                 }
-                catch (Exception ex) when (
-                    ex is UadpBufferFullException or ArgumentException &&
-                    bufferSize < kMaxBufferSize)
+                catch (UadpBufferFullException) when (bufferSize < kMaxBufferSize)
                 {
                     bufferSize *= 2;
                 }

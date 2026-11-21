@@ -146,6 +146,62 @@ namespace Opc.Ua.PubSub.Tests.MetaData
                 Is.True);
         }
 
+        [Test]
+        public void UnauthenticatedMetadataChargesWhatPropertyValuesRetain()
+        {
+            var scope = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = 64 * 1024 };
+            DataSetMetaDataKey key = NewKey(dataSetWriterId: 1);
+
+            // A null DataValue is one byte on the wire and a full struct once
+            // decoded, so the frame length alone understates what is retained.
+            ArrayOf<DataValue> dataValues = new DataValue[4000];
+            DataSetMetaDataType nested = WithProperty(Variant.From(dataValues));
+            Assert.That(
+                scope.RegisterReceived(in key, nested, authenticated: false, frameLength: 4100),
+                Is.False);
+
+            // Arrays of reference-like values are charged per element.
+            ArrayOf<string> strings = new string[2000];
+            DataSetMetaDataType references = WithProperty(Variant.From(strings));
+            Assert.That(
+                scope.RegisterReceived(in key, references, authenticated: false, frameLength: 100),
+                Is.False);
+            Assert.That(scope.RejectedUnauthenticatedCount, Is.EqualTo(2));
+
+            // A scalar property and an array of primitives cost what the frame carried.
+            ArrayOf<int> numbers = new int[2000];
+            Assert.That(
+                scope.RegisterReceived(
+                    in key, WithProperty(Variant.From(numbers)), authenticated: false, frameLength: 8100),
+                Is.True);
+            Assert.That(
+                scope.RegisterReceived(
+                    in key, WithProperty(Variant.From("unit")), authenticated: false, frameLength: 100),
+                Is.True);
+
+            // Authenticated metadata is not subject to the budget.
+            Assert.That(
+                scope.RegisterReceived(in key, nested, authenticated: true, frameLength: 4100),
+                Is.True);
+        }
+
+        private static DataSetMetaDataType WithProperty(Variant value)
+        {
+            DataSetMetaDataType metaData = NewMeta();
+            metaData.Fields =
+            [
+                new FieldMetaData
+                {
+                    Name = "F",
+                    Properties =
+                    [
+                        new KeyValuePair { Key = new QualifiedName("P"), Value = value }
+                    ]
+                }
+            ];
+            return metaData;
+        }
+
         private static DataSetMetaDataKey NewKey(
             ushort writerGroupId = 100,
             ushort dataSetWriterId = 200,

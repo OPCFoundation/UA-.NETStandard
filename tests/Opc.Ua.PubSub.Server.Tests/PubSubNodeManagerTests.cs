@@ -146,6 +146,62 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        public async Task SecurityGroupNodeGrantsCallToAdministratorsWithoutChangingKeyAccess()
+        {
+            using var harness = new Harness(opt => opt.ExposeSecurityKeyService = true, includeSks: true);
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            var outputs = new List<Variant>();
+
+            // The permissions of the group name its key consumers only.
+            ArrayOf<ExtensionObject> rolePermissions =
+            [
+                new ExtensionObject(new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_Operator,
+                    Permissions = (uint)PermissionType.Call
+                })
+            ];
+            ServiceResult addResult = harness.AddSecurityGroupMethod.OnCallMethod!(
+                harness.Context,
+                harness.AddSecurityGroupMethod,
+                BuildArray(
+                    Variant.From("consumer-group"),
+                    Variant.From(60_000.0),
+                    Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                    Variant.From(1U),
+                    Variant.From(1U),
+                    Variant.From(rolePermissions)),
+                outputs);
+            Assert.That(ServiceResult.IsGood(addResult), Is.True);
+            Assert.That(outputs[1].TryGetValue(out NodeId groupNodeId), Is.True);
+            BaseObjectState groupNode = harness.Manager.FindPredefinedNode<BaseObjectState>(groupNodeId);
+            SksSecurityGroup? group = await harness.SksServer
+                .GetSecurityGroupAsync("consumer-group").ConfigureAwait(false);
+
+            // The Call service checks Call on the Object as well as on the
+            // Method, so the roles that manage the group need it on the node.
+            var callers = new List<NodeId>();
+            foreach (RolePermissionType permission in groupNode.RolePermissions.Span)
+            {
+                if (((PermissionType)permission.Permissions & PermissionType.Call) != 0)
+                {
+                    callers.Add(permission.RoleId);
+                }
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(callers, Has.Member(ObjectIds.WellKnownRole_Operator));
+                Assert.That(callers, Has.Member(ObjectIds.WellKnownRole_SecurityAdmin));
+                Assert.That(callers, Has.Member(ObjectIds.WellKnownRole_SecurityKeyServerAdmin));
+                // Key access is decided by the group itself and is unchanged.
+                Assert.That(group, Is.Not.Null);
+                Assert.That(group!.RolePermissions.Count, Is.EqualTo(1));
+                Assert.That(group.RolePermissions[0].RoleId, Is.EqualTo(ObjectIds.WellKnownRole_Operator));
+            });
+        }
+
+        [Test]
         [TestSpec("8.3.4", Summary = "AddSecurityGroup returns a browseable SecurityGroupType node")]
         [TestSpec("8.4.2", Summary = "SecurityGroupType InvalidateKeys is callable")]
         [TestSpec("8.4.3", Summary = "SecurityGroupType ForceKeyRotation is callable")]
@@ -208,7 +264,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Assert.That(StatusCode.IsGood(addResult.StatusCode), Is.True);
                 Assert.That(groupNode, Is.Not.Null);
                 Assert.That(groupNode.TypeDefinitionId, Is.EqualTo(new NodeId(15471u)));
-                Assert.That(groupNode.RolePermissions, Has.Count.EqualTo(1));
+                // SecurityAdmin from the group plus SecurityKeyServerAdmin.
+                Assert.That(groupNode.RolePermissions, Has.Count.EqualTo(2));
                 Assert.That(StatusCode.IsGood(rotateResult.StatusCode), Is.True);
                 Assert.That(afterRotate.FirstTokenId, Is.Not.EqualTo(before.FirstTokenId));
                 Assert.That(StatusCode.IsGood(invalidateResult.StatusCode), Is.True);

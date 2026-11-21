@@ -1006,6 +1006,16 @@ namespace Opc.Ua.Server
                     => ObjectIds.WellKnownRole_ConfigureAdmin,
                 BrowseNames.WellKnownRole_SecurityAdmin
                     => ObjectIds.WellKnownRole_SecurityAdmin,
+                // Part 14 §8.2 Security Key Service roles. They are not
+                // created by default, but a role configured under one of
+                // these names is the well-known role, so that RolePermissions
+                // that reference its NodeId apply to it.
+                BrowseNames.WellKnownRole_SecurityKeyServerAdmin
+                    => ObjectIds.WellKnownRole_SecurityKeyServerAdmin,
+                BrowseNames.WellKnownRole_SecurityKeyServerAccess
+                    => ObjectIds.WellKnownRole_SecurityKeyServerAccess,
+                BrowseNames.WellKnownRole_SecurityKeyServerPush
+                    => ObjectIds.WellKnownRole_SecurityKeyServerPush,
                 _ => null
             };
         }

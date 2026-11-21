@@ -91,6 +91,34 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void AddRoleNamedLikeSecurityKeyServiceRoleUsesWellKnownNodeId()
+        {
+            using var manager = new RoleManager();
+            var namespaces = new NamespaceTable();
+
+            // The Part 14 Security Key Service roles are not created by default,
+            // but RolePermissions reference their well-known NodeIds, so a role
+            // configured under such a name has to be that role.
+            Assert.That(ServiceResult.IsGood(manager.AddRole(
+                BrowseNames.WellKnownRole_SecurityKeyServerAdmin, null, namespaces,
+                defaultNamespaceIndex: 1, out NodeId admin)), Is.True);
+            Assert.That(ServiceResult.IsGood(manager.AddRole(
+                BrowseNames.WellKnownRole_SecurityKeyServerAccess, null, namespaces,
+                defaultNamespaceIndex: 1, out NodeId access)), Is.True);
+            Assert.That(ServiceResult.IsGood(manager.AddRole(
+                BrowseNames.WellKnownRole_SecurityKeyServerPush, null, namespaces,
+                defaultNamespaceIndex: 1, out NodeId push)), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(admin, Is.EqualTo(ObjectIds.WellKnownRole_SecurityKeyServerAdmin));
+                Assert.That(access, Is.EqualTo(ObjectIds.WellKnownRole_SecurityKeyServerAccess));
+                Assert.That(push, Is.EqualTo(ObjectIds.WellKnownRole_SecurityKeyServerPush));
+                Assert.That(manager.GetRole(admin)!.IsWellKnown, Is.True);
+            });
+        }
+
+        [Test]
         public void Constructor_PrePopulatesAnonymousRoleWithSpecMandatedIdentities()
         {
             using var manager = new RoleManager();

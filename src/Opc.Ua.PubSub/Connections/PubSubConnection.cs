@@ -90,6 +90,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly Dictionary<ActionCorrelationKey, PendingActionRequest> m_pendingActions = [];
         private readonly Dictionary<ActionHandlerKey, ActionResponder> m_actionHandlers = [];
         private readonly HashSet<InboundMetaDataIdentity> m_inboundMetaDataIdentities = [];
+        private long m_actionResponsesNotSent;
         private int m_chunkSequenceNumber;
         private int m_discoverySequenceNumber;
         private int m_actionRequestId;
@@ -269,7 +270,14 @@ namespace Opc.Ua.PubSub.Connections
             ReaderGroups = readerGroups.ToArrayOf<ReaderGroup, IReaderGroup>(static group => group);
             m_metaDataRegistry = metaDataRegistry;
             m_inboundMetaDataRegistry = new DataSetMetaDataRegistry(
-                metaDataRegistry, telemetry.CreateLogger<DataSetMetaDataRegistry>());
+                metaDataRegistry, telemetry.CreateLogger<DataSetMetaDataRegistry>())
+            {
+                // Received metadata is kept per connection; the budget the host
+                // configured on its registry applies to each of them.
+                MaxUnauthenticatedCost = metaDataRegistry is DataSetMetaDataRegistry configured
+                    ? configured.MaxUnauthenticatedCost
+                    : DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost
+            };
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
@@ -1198,7 +1206,8 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger,
                 authenticated,
                 AdmitInboundMetaDataIdentity,
-                frameLength);
+                frameLength,
+                ReleaseInboundMetaDataIdentity);
         }
 
         /// <summary>
@@ -1235,6 +1244,29 @@ namespace Opc.Ua.PubSub.Connections
                 }
                 m_inboundMetaDataIdentities.Add(identity);
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Gives back the identity slot reserved by
+        /// <see cref="AdmitInboundMetaDataIdentity"/> when the announcement was
+        /// not registered, so that rejected announcements cannot use up the
+        /// identity budget of the connection.
+        /// </summary>
+        private void ReleaseInboundMetaDataIdentity(in DataSetMetaDataKey key)
+        {
+            if (m_inboundMetaDataRegistry.ContainsLocal(in key))
+            {
+                // An earlier announcement of this identity is registered.
+                return;
+            }
+            var identity = new InboundMetaDataIdentity(
+                key.PublisherId,
+                key.WriterGroupId,
+                key.DataSetWriterId);
+            lock (m_gate)
+            {
+                m_inboundMetaDataIdentities.Remove(identity);
             }
         }
 
@@ -1276,6 +1308,12 @@ namespace Opc.Ua.PubSub.Connections
         internal delegate bool InboundMetaDataAdmission(in DataSetMetaDataKey key);
 
         /// <summary>
+        /// Notified when an admitted inbound metadata identity was not registered.
+        /// </summary>
+        /// <param name="key">Identity of the inbound metadata.</param>
+        internal delegate void InboundMetaDataRelease(in DataSetMetaDataKey key);
+
+        /// <summary>
         /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage, bool, int)"/>
         /// used by tests and by the receive loop. Dispatches the
         /// JSON / UADP metadata variants into the supplied registry.
@@ -1295,6 +1333,8 @@ namespace Opc.Ua.PubSub.Connections
         /// rejects are not registered.</param>
         /// <param name="frameLength">Length in bytes of the frame that
         /// carried the metadata.</param>
+        /// <param name="release">Optional notification that an admitted
+        /// identity was not registered.</param>
         /// <returns>Whether the message was recognised as metadata.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         internal static bool TryRouteInboundMetaData(
@@ -1303,7 +1343,8 @@ namespace Opc.Ua.PubSub.Connections
             ILogger logger,
             bool authenticated = false,
             InboundMetaDataAdmission? admit = null,
-            int frameLength = 0)
+            int frameLength = 0,
+            InboundMetaDataRelease? release = null)
         {
             if (registry is null)
             {
@@ -1372,6 +1413,7 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     if (!scopedRegistry.RegisterReceived(in key, meta, authenticated, frameLength))
                     {
+                        release?.Invoke(in key);
                         return true;
                     }
                 }
@@ -1384,6 +1426,7 @@ namespace Opc.Ua.PubSub.Connections
             catch (Exception ex)
             {
                 logger?.InboundMetadataRegistrationFailed(ex, writerId);
+                release?.Invoke(in key);
             }
             return true;
         }
@@ -1806,9 +1849,20 @@ namespace Opc.Ua.PubSub.Connections
                 await SendNetworkMessageAsync(response, responseAddress, cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (
+                ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
-                m_logger.ActionResponseNotSent(ex, dataSetWriterId, Name);
+                // An encoder or transport may cancel its own operation (for
+                // example on a send timeout); only cancellation of the
+                // connection itself ends the receive loop. The requestor is
+                // not necessarily authenticated and can repeat a request that
+                // cannot be answered at packet rate, so the warning is emitted
+                // for the 1st, 2nd, 4th, 8th ... dropped response only.
+                long dropped = Interlocked.Increment(ref m_actionResponsesNotSent);
+                if ((dropped & (dropped - 1)) == 0)
+                {
+                    m_logger.ActionResponseNotSent(ex, dataSetWriterId, Name, dropped);
+                }
             }
         }
 
@@ -3565,12 +3619,14 @@ namespace Opc.Ua.PubSub.Connections
             string connection);
 
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 23, Level = LogLevel.Warning,
-            Message = "Could not send the Action response of DataSetWriter {WriterId} on connection '{Connection}'.")]
+            Message = "Could not send the Action response of DataSetWriter {WriterId} on connection '{Connection}'. " +
+                "{Dropped} Action responses were dropped so far.")]
         public static partial void ActionResponseNotSent(
             this ILogger logger,
             Exception exception,
             ushort writerId,
-            string connection);
+            string connection,
+            long dropped);
     }
 
 }

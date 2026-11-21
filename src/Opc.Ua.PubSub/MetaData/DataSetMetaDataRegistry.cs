@@ -119,6 +119,25 @@ namespace Opc.Ua.PubSub.MetaData
         /// </summary>
         public long MaxUnauthenticatedCost { get; init; } = DefaultMaxUnauthenticatedCost;
 
+        /// <summary>
+        /// Number of unauthenticated announcements that were not registered
+        /// because they would have exceeded <see cref="MaxUnauthenticatedCost"/>.
+        /// </summary>
+        public long RejectedUnauthenticatedCount => Interlocked.Read(ref m_rejectedUnauthenticatedCount);
+
+        /// <summary>
+        /// Whether this registry itself holds an entry for the identity of
+        /// the key, not counting the host-trusted registry behind it.
+        /// </summary>
+        internal bool ContainsLocal(in DataSetMetaDataKey key)
+        {
+            var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
+            lock (m_lock)
+            {
+                return m_entries.ContainsKey(identity);
+            }
+        }
+
         /// <inheritdoc/>
         public event EventHandler<DataSetMetaDataChangedEventArgs>? MetaDataChanged;
 
@@ -296,8 +315,21 @@ namespace Opc.Ua.PubSub.MetaData
             }
             if (evt is null)
             {
-                m_logger.UnauthenticatedMetadataOverBudget(
-                    key.PublisherId, key.WriterGroupId, key.DataSetWriterId, cost, MaxUnauthenticatedCost);
+                // The sender is unauthenticated and can repeat a rejected
+                // announcement at packet rate, so the warning is emitted for
+                // the 1st, 2nd, 4th, 8th ... rejection only; the counter
+                // carries the total.
+                long rejected = Interlocked.Increment(ref m_rejectedUnauthenticatedCount);
+                if ((rejected & (rejected - 1)) == 0)
+                {
+                    m_logger.UnauthenticatedMetadataOverBudget(
+                        key.PublisherId,
+                        key.WriterGroupId,
+                        key.DataSetWriterId,
+                        cost,
+                        MaxUnauthenticatedCost,
+                        rejected);
+                }
                 return false;
             }
             m_logger.RegisteredMetadata(
@@ -359,15 +391,110 @@ namespace Opc.Ua.PubSub.MetaData
             {
                 elements += 1 + (enumeration?.EnumDefinition?.Fields.Count ?? 0);
             }
+            long values = 0;
+            bool opaqueValues = false;
             foreach (FieldMetaData field in metaData.Fields.Span)
             {
-                elements += 1 + (field?.Properties.Count ?? 0);
+                if (field is null)
+                {
+                    elements++;
+                    continue;
+                }
+                elements += 1 + field.Properties.Count;
+                foreach (KeyValuePair property in field.Properties.Span)
+                {
+                    if (property is not null)
+                    {
+                        values += EstimateValueCost(property.Value, ref opaqueValues);
+                    }
+                }
             }
-            return Math.Max(frameLength, 0) + (elements * kElementCost);
+            long frame = Math.Max(frameLength, 0);
+            if (opaqueValues)
+            {
+                // A property holds values whose decoded size cannot be walked
+                // cheaply. Every such element occupies at least one byte of
+                // the frame, so the frame length bounds what they retain.
+                values += frame * kOpaqueExpansion;
+            }
+            return frame + (elements * kElementCost) + values;
+        }
+
+        /// <summary>
+        /// Estimates what the value of a field property retains beyond the
+        /// frame bytes. Arrays of types that are small on the wire and large
+        /// in memory are charged per element; values that nest further values
+        /// (DataValue, Variant, ExtensionObject) and matrices are reported as
+        /// opaque and charged from the frame length by the caller.
+        /// </summary>
+        private static long EstimateValueCost(in Variant value, ref bool opaque)
+        {
+            if (value.IsNull)
+            {
+                return 0;
+            }
+            TypeInfo typeInfo = value.TypeInfo;
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.DataValue:
+                case BuiltInType.Variant:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DiagnosticInfo:
+                    opaque = true;
+                    return 0;
+            }
+            if (typeInfo.IsScalar)
+            {
+                return 0;
+            }
+            if (value.TryGetValue(out ArrayOf<string> strings))
+            {
+                return strings.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<ByteString> byteStrings))
+            {
+                return byteStrings.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<NodeId> nodeIds))
+            {
+                return nodeIds.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<ExpandedNodeId> expandedNodeIds))
+            {
+                return expandedNodeIds.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<QualifiedName> qualifiedNames))
+            {
+                return qualifiedNames.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<LocalizedText> localizedTexts))
+            {
+                return localizedTexts.Count * (long)kReferenceElementCost;
+            }
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.String:
+                case BuiltInType.ByteString:
+                case BuiltInType.XmlElement:
+                case BuiltInType.NodeId:
+                case BuiltInType.ExpandedNodeId:
+                case BuiltInType.QualifiedName:
+                case BuiltInType.LocalizedText:
+                    // A matrix of one of the types above.
+                    opaque = true;
+                    break;
+            }
+
+            // Arrays of fixed-size primitives occupy as many bytes in memory
+            // as in the frame, which is already charged.
+            return 0;
         }
 
         private const int kElementCost = 128;
+        private const int kReferenceElementCost = 48;
+        private const int kOpaqueExpansion = 64;
         private long m_unauthenticatedCost;
+        private long m_rejectedUnauthenticatedCount;
 
         private void RaiseChanged(DataSetMetaDataChangedEventArgs evt)
         {
@@ -447,14 +574,16 @@ namespace Opc.Ua.PubSub.MetaData
 
         [LoggerMessage(EventId = PubSubEventIds.DataSetMetaDataRegistry + 2, Level = LogLevel.Warning,
             Message = "DataSetMetaDataRegistry ignored unauthenticated metadata for {Publisher}/{Group}/{Writer}: " +
-                "cost {Cost} exceeds the remaining budget ({Budget} in total).")]
+                "cost {Cost} exceeds the remaining budget ({Budget} in total). " +
+                "{Rejected} announcements were rejected so far.")]
         public static partial void UnauthenticatedMetadataOverBudget(
             this ILogger logger,
             PublisherId publisher,
             ushort group,
             ushort writer,
             long cost,
-            long budget);
+            long budget,
+            long rejected);
     }
 
 }

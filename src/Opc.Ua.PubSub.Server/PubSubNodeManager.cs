@@ -129,6 +129,44 @@ namespace Opc.Ua.PubSub.Server
             }
         ];
 
+        /// <summary>
+        /// RolePermissions of a SecurityGroup node. The Call service requires
+        /// the Call permission on the Object as well as on the Method, and the
+        /// permissions of the group name the roles that may read its keys, so
+        /// the roles that manage the group are added for the node only. The
+        /// permissions the key service evaluates for key access are not changed.
+        /// </summary>
+        private static ArrayOf<RolePermissionType> WithKeyServiceAdministrators(
+            ArrayOf<RolePermissionType> groupPermissions)
+        {
+            if (groupPermissions.IsEmpty)
+            {
+                // No restriction on the node; the Methods carry their own.
+                return groupPermissions;
+            }
+            var merged = new List<RolePermissionType>(
+                groupPermissions.Count + s_keyServiceMethodPermissions.Count);
+            foreach (RolePermissionType permission in groupPermissions.Span)
+            {
+                merged.Add(permission);
+            }
+            foreach (RolePermissionType administrator in s_keyServiceMethodPermissions.Span)
+            {
+                int existing = merged.FindIndex(p => p.RoleId == administrator.RoleId);
+                if (existing < 0)
+                {
+                    merged.Add(administrator);
+                    continue;
+                }
+                merged[existing] = new RolePermissionType
+                {
+                    RoleId = administrator.RoleId,
+                    Permissions = merged[existing].Permissions | administrator.Permissions
+                };
+            }
+            return merged.ToArray();
+        }
+
         private readonly IPubSubApplication m_application;
         private readonly IPubSubKeyServiceServer? m_keyService;
         private readonly PubSubServerOptions m_options;
@@ -799,7 +837,7 @@ namespace Opc.Ua.PubSub.Server
                     groupNodeId,
                     securityGroupId,
                     new NodeId(15471u));
-                groupNode.RolePermissions = group.RolePermissions;
+                groupNode.RolePermissions = WithKeyServiceAdministrators(group.RolePermissions);
                 BindSecurityGroupMethods(groupNode);
                 MethodHandlers.RegisterSecurityGroupNodeId(securityGroupId, groupNodeId);
                 newRoots.Add(groupNode);
