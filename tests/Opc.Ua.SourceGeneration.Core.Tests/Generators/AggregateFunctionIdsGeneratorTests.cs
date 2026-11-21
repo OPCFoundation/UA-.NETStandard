@@ -142,8 +142,20 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 excluded,
                 noSymbolicId,
                 noSymbolicName);
+            var excludedType = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("ExcludedAggregateFunctionType", kUaNamespaceUri),
+                SymbolicName = new XmlQualifiedName("ExcludedAggregateFunctionType", kUaNamespaceUri)
+            };
+            ObjectDesign ofExcludedType = CreateAggregateFunction(
+                "AggregateFunction_OfExcludedType", "OfExcludedType", "AggregateFunctionType");
+            ofExcludedType.TypeDefinitionNode = excludedType;
             Mock.Get(context.ModelDesign)
-                .Setup(m => m.IsExcluded(It.Is<NodeDesign>(n => ReferenceEquals(n, excluded))))
+                .Setup(m => m.GetNodeDesigns())
+                .Returns([listed, excluded, noSymbolicId, noSymbolicName, ofExcludedType]);
+            Mock.Get(context.ModelDesign)
+                .Setup(m => m.IsExcluded(It.Is<NodeDesign>(n =>
+                    ReferenceEquals(n, excluded) || ReferenceEquals(n, excludedType))))
                 .Returns(true);
 
             var resources = new AggregateFunctionIdsGenerator(context).Emit().ToList();
@@ -155,6 +167,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(output, Does.Not.Contain("Excluded"));
             Assert.That(output, Does.Not.Contain("NoSymbolicId"));
             Assert.That(output, Does.Not.Contain("NoSymbolicName"));
+            Assert.That(output, Does.Not.Contain("OfExcludedType"));
         }
 
         [Test]

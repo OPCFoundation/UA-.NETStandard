@@ -219,8 +219,11 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">A cancellation token.</param>
         internal async ValueTask RegisterStandardAggregatesAsync(CancellationToken cancellationToken = default)
         {
-            foreach ((NodeId aggregateId, string aggregateName) in AggregateFunctionIds.All)
+            // Indexed: the span enumerator of ArrayOf cannot cross an await.
+            ArrayOf<(NodeId AggregateId, string BrowseName)> aggregates = AggregateFunctionIds.All;
+            for (int ii = 0; ii < aggregates.Count; ii++)
             {
+                (NodeId aggregateId, string aggregateName) = aggregates[ii];
                 await RegisterFactoryAsync(
                     aggregateId,
                     aggregateName,

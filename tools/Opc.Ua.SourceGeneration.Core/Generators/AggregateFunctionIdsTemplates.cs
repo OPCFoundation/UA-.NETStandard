@@ -55,11 +55,8 @@ namespace Opc.Ua.SourceGeneration
                     /// The NodeId and BrowseName of every aggregate function the model
                     /// declares, in the order the model declares them.
                     /// </summary>
-                    public static global::System.Collections.Generic.IReadOnlyList<(global::Opc.Ua.NodeId AggregateId, string BrowseName)> All
-                        => s_all;
-
-                    private static readonly global::System.Collections.ObjectModel.ReadOnlyCollection<(global::Opc.Ua.NodeId AggregateId, string BrowseName)> s_all =
-                        new global::System.Collections.ObjectModel.ReadOnlyCollection<(global::Opc.Ua.NodeId AggregateId, string BrowseName)>(
+                    public static global::Opc.Ua.ArrayOf<(global::Opc.Ua.NodeId AggregateId, string BrowseName)> All { get; } =
+                        new global::Opc.Ua.ArrayOf<(global::Opc.Ua.NodeId AggregateId, string BrowseName)>(
                             new (global::Opc.Ua.NodeId AggregateId, string BrowseName)[]
                             {
                                 {{Tokens.ListOfIdentifiers}}

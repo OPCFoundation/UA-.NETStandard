@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -848,11 +849,12 @@ namespace Opc.Ua.Server.Tests
         {
             var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
             DateTimeUtc endTime = startTime.AddMilliseconds(10000);
+            List<(NodeId AggregateId, string BrowseName)> aggregates = AggregateFunctionIds.All.ToList();
 
-            Assert.That(AggregateFunctionIds.All, Is.Not.Empty);
+            Assert.That(aggregates, Is.Not.Empty);
             Assert.Multiple(() =>
             {
-                foreach ((NodeId aggregateId, string browseName) in AggregateFunctionIds.All)
+                foreach ((NodeId aggregateId, string browseName) in aggregates)
                 {
                     IAggregateCalculator? calculator = Aggregators.CreateStandardCalculator(
                         aggregateId, startTime, endTime, 10000, false, m_configuration, m_telemetry);
@@ -872,13 +874,15 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DeclaredAggregateFunctionsAreUniqueAndNamedByBrowseName()
         {
-            Assert.That(AggregateFunctionIds.All, Has.Count.EqualTo(37));
-            Assert.That(AggregateFunctionIds.All, Is.Unique);
+            List<(NodeId AggregateId, string BrowseName)> aggregates = AggregateFunctionIds.All.ToList();
+
+            Assert.That(aggregates, Has.Count.EqualTo(37));
+            Assert.That(aggregates, Is.Unique);
             Assert.That(
-                AggregateFunctionIds.All,
+                aggregates,
                 Does.Contain((ObjectIds.AggregateFunction_Interpolative, BrowseNames.AggregateFunction_Interpolative)));
             Assert.That(
-                AggregateFunctionIds.All,
+                aggregates,
                 Does.Contain((ObjectIds.AggregateFunction_VariancePopulation, BrowseNames.AggregateFunction_VariancePopulation)));
         }
     }

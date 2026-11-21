@@ -110,7 +110,9 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Collects the objects whose type definition is AggregateFunctionType or a
-        /// subtype of it, in model order.
+        /// subtype of it, in model order. Skips the same nodes NodeIdGenerator skips
+        /// (excluded nodes and instances of an excluded type definition), so every
+        /// entry has an ObjectIds constant to reference.
         /// </summary>
         private List<ObjectDesign> CollectAggregateFunctions()
         {
@@ -119,6 +121,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (node is ObjectDesign instance &&
                     !m_context.ModelDesign.IsExcluded(instance) &&
+                    (instance.TypeDefinitionNode == null ||
+                        !m_context.ModelDesign.IsExcluded(instance.TypeDefinitionNode)) &&
                     instance.SymbolicId?.Name != null &&
                     instance.SymbolicName?.Name != null &&
                     IsAggregateFunction(instance))
