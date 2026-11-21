@@ -166,8 +166,6 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
-        /// <param name="unauthenticatedMetaDataLimits">Optional limits for DataSetMetaData received
-        /// without verified message security; the limits of the registry apply when omitted.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -186,8 +184,7 @@ namespace Opc.Ua.PubSub.Application
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
-            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -208,8 +205,7 @@ namespace Opc.Ua.PubSub.Application
                 dataSetSourceProvider: null,
                 dataSetSinkProvider: null,
                 activationCoordinator: activationCoordinator,
-                writerCheckpointStore: writerCheckpointStore,
-                unauthenticatedMetaDataLimits: unauthenticatedMetaDataLimits)
+                writerCheckpointStore: writerCheckpointStore)
         {
         }
 
@@ -248,8 +244,6 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
-        /// <param name="unauthenticatedMetaDataLimits">Optional limits for DataSetMetaData received
-        /// without verified message security; the limits of the registry apply when omitted.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -270,8 +264,84 @@ namespace Opc.Ua.PubSub.Application
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
-            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            : this(
+                snapshot,
+                transportFactories,
+                encoders,
+                decoders,
+                securityPolicies,
+                scheduler,
+                metaDataRegistry,
+                diagnostics,
+                telemetry,
+                timeProvider,
+                publishedDataSetSources,
+                subscribedDataSetSinks,
+                securityWrapperResolver,
+                maxNetworkMessageSizeResolver,
+                configurationStore,
+                runtimeStateStore,
+                dataSetSourceProvider,
+                dataSetSinkProvider,
+                activationCoordinator,
+                writerCheckpointStore)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="PubSubApplication"/> with runtime source and sink providers
+        /// and explicit limits for DataSetMetaData received without verified message security.
+        /// </summary>
+        /// <remarks>
+        /// The parameters have the meaning they have on the other constructors. All of them are
+        /// required here, so that this overload is never chosen for a call written against those.
+        /// </remarks>
+        /// <param name="snapshot">Validated configuration snapshot.</param>
+        /// <param name="transportFactories">Registered transport factories.</param>
+        /// <param name="encoders">Registered network-message encoders.</param>
+        /// <param name="decoders">Registered network-message decoders.</param>
+        /// <param name="securityPolicies">Registered security policies.</param>
+        /// <param name="scheduler">Publish scheduler.</param>
+        /// <param name="metaDataRegistry">Shared metadata registry.</param>
+        /// <param name="diagnostics">Diagnostics sink.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="timeProvider">Clock.</param>
+        /// <param name="publishedDataSetSources">Pre-registered sources keyed by PublishedDataSet name.</param>
+        /// <param name="subscribedDataSetSinks">Pre-registered sinks keyed by DataSetReader name.</param>
+        /// <param name="dataSetSourceProvider">Runtime source provider.</param>
+        /// <param name="dataSetSinkProvider">Runtime sink provider.</param>
+        /// <param name="securityWrapperResolver">Per-connection security wrapper resolver.</param>
+        /// <param name="maxNetworkMessageSizeResolver">Per-connection maximum message size resolver.</param>
+        /// <param name="configurationStore">External configuration store.</param>
+        /// <param name="runtimeStateStore">External runtime-state store.</param>
+        /// <param name="activationCoordinator">High-availability activation coordinator.</param>
+        /// <param name="writerCheckpointStore">Writer SequenceNumber checkpoint store.</param>
+        /// <param name="unauthenticatedMetaDataLimits">Limits every connection applies to DataSetMetaData
+        /// received without verified message security, whatever the registry implementation;
+        /// <see langword="null"/> applies the limits of the registry.</param>
+        public PubSubApplication(
+            PubSubConfigurationSnapshot snapshot,
+            IEnumerable<IPubSubTransportFactory> transportFactories,
+            IEnumerable<INetworkMessageEncoder> encoders,
+            IEnumerable<INetworkMessageDecoder> decoders,
+            IEnumerable<IPubSubSecurityPolicy> securityPolicies,
+            IPubSubScheduler scheduler,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
+            IDataSetSourceProvider? dataSetSourceProvider,
+            IDataSetSinkProvider? dataSetSinkProvider,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver,
+            IPubSubConfigurationStore? configurationStore,
+            IPubSubRuntimeStateStore? runtimeStateStore,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits)
             : this(
                 snapshot,
                 transportFactories,
@@ -293,7 +363,7 @@ namespace Opc.Ua.PubSub.Application
                 dataSetSinkProvider,
                 activationCoordinator,
                 writerCheckpointStore,
-                unauthenticatedMetaDataLimits)
+                metaDataLimits: unauthenticatedMetaDataLimits)
         {
         }
 
@@ -318,7 +388,7 @@ namespace Opc.Ua.PubSub.Application
             IDataSetSinkProvider? dataSetSinkProvider = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
             IPubSubWriterCheckpointStore? writerCheckpointStore = null,
-            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits = null)
+            UnauthenticatedMetaDataLimits? metaDataLimits = null)
         {
             if (snapshot is null)
             {
@@ -367,7 +437,7 @@ namespace Opc.Ua.PubSub.Application
             m_scheduler = scheduler;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
-            m_unauthenticatedMetaDataLimits = unauthenticatedMetaDataLimits;
+            m_unauthenticatedMetaDataLimits = metaDataLimits;
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;

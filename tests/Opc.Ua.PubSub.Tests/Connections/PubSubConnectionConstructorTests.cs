@@ -598,6 +598,47 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public async Task MetaDataEvictedASecondTimeIsStillRequestedAfterOlderRecordsArePruned()
+        {
+            var clock = new FakeTimeProvider();
+            var factory = new StubTransportFactory();
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out IDataSetMetaDataRegistry registry,
+                maxUnauthenticatedCost: 4096,
+                timeProvider: clock,
+                transportFactory: factory);
+            await conn.EnableAsync().ConfigureAwait(false);
+
+            // The budget holds one announcement, so each one evicts the one before it.
+            void Announce(string publisher, ushort writerId)
+            {
+                clock.Advance(TimeSpan.FromMinutes(6));
+                _ = conn.TryRouteInboundMetaData(
+                    NewInboundMeta(PublisherId.FromString(publisher), writerId),
+                    authenticated: false,
+                    frameLength: 3000);
+            }
+
+            // Evicted, restored and evicted again: two eviction records for one identity.
+            Announce("quiet", 5);
+            Announce("a", 1);
+            Announce("quiet", 5);
+            Announce("b", 1);
+
+            // Enough further evictions to prune the first record, not the second.
+            for (int i = 0; i < PubSubConnection.MaxInboundMetaDataIdentities - 2; i++)
+            {
+                Announce("o" + i, 1);
+            }
+
+            var quiet = new DataSetMetaDataKey(PublisherId.FromString("quiet"), 0, 5, Uuid.Empty, 7);
+            Assert.That(registry.TryGet(in quiet, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+            await conn.TryRecoverEvictedMetaDataAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(factory.Transport!.Sent, Has.Count.EqualTo(1));
+        }
+
+        [Test]
         public async Task UnauthenticatedMetaDataLimitsApplyWithAnyRegistryImplementation()
         {
             // A host that injects its own registry implementation still sets the limits.
@@ -614,6 +655,11 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 TimeProvider.System,
                 securityWrapper: null,
                 UadpSecurityWrapOptions.SignAndEncrypt,
+                maxNetworkMessageSize: 0,
+                requiredSecurityMode: MessageSecurityMode.None,
+                scheduler: null,
+                activationCoordinator: null,
+                writerCheckpointStore: null,
                 unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
                 {
                     MaxCost = 1000,

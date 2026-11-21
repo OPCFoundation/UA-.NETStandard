@@ -331,6 +331,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     dataSetSinkProvider: sp.GetService<IDataSetSinkProvider>(),
                     securityWrapperResolver:
                         sp.GetRequiredService<IPubSubSecurityWrapperResolver>(),
+                    maxNetworkMessageSizeResolver: null,
                     configurationStore: store,
                     runtimeStateStore: sp.GetRequiredService<IPubSubRuntimeStateStore>(),
                     activationCoordinator:

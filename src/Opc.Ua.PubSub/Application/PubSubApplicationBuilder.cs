@@ -633,6 +633,11 @@ namespace Opc.Ua.PubSub.Application
                     m_dataSetSourceProvider,
                     m_dataSetSinkProvider,
                     securityWrapperResolver: resolver,
+                    maxNetworkMessageSizeResolver: null,
+                    configurationStore: null,
+                    runtimeStateStore: null,
+                    activationCoordinator: null,
+                    writerCheckpointStore: null,
                     unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
                     {
                         MaxCost = m_options.MaxUnauthenticatedMetaDataCost,

@@ -90,8 +90,9 @@ namespace Opc.Ua.PubSub.Connections
         private readonly Dictionary<ActionCorrelationKey, PendingActionRequest> m_pendingActions = [];
         private readonly Dictionary<ActionHandlerKey, ActionResponder> m_actionHandlers = [];
         private readonly HashSet<InboundMetaDataIdentity> m_inboundMetaDataIdentities = [];
-        private readonly HashSet<InboundMetaDataIdentity> m_evictedMetaDataIdentities = [];
-        private readonly Queue<InboundMetaDataIdentity> m_evictedMetaDataOrder = new();
+        private readonly Dictionary<int, long> m_evictedMetaDataIdentities = [];
+        private readonly Queue<(int Fingerprint, long Generation)> m_evictedMetaDataOrder = new();
+        private long m_evictedMetaDataGeneration;
         private readonly HashSet<ushort> m_metaDataRecoveryWriterIds = [];
         private volatile bool m_metaDataRecoveryPending;
         private bool m_metaDataRecoveryRequested;
@@ -151,6 +152,40 @@ namespace Opc.Ua.PubSub.Connections
         }
 
         /// <summary>
+        /// Initializes a new <see cref="PubSubConnection"/> with an optional
+        /// UADP security wrapper and the limits of the metadata registry for
+        /// DataSetMetaData received without verified message security. See
+        /// the overload that takes <see cref="UnauthenticatedMetaDataLimits"/>
+        /// for the parameters.
+        /// </summary>
+        public PubSubConnection(
+            PubSubConnectionDataType configuration,
+            IPubSubTransportFactory transportFactory,
+            IReadOnlyDictionary<string, INetworkMessageEncoder> encoders,
+            IReadOnlyDictionary<string, INetworkMessageDecoder> decoders,
+            ArrayOf<WriterGroup> writerGroups,
+            ArrayOf<ReaderGroup> readerGroups,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            UadpSecurityWrapper? securityWrapper,
+            UadpSecurityWrapOptions securityWrapOptions,
+            int maxNetworkMessageSize = 0,
+            MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None,
+            IPubSubScheduler? scheduler = null,
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            : this(configuration, transportFactory, encoders, decoders,
+                  writerGroups, readerGroups, metaDataRegistry, diagnostics,
+                  telemetry, timeProvider, securityWrapper, securityWrapOptions,
+                  maxNetworkMessageSize, requiredSecurityMode, scheduler,
+                  activationCoordinator, writerCheckpointStore,
+                  unauthenticatedMetaDataLimits: null)
+        {
+        }
+
+        /// <summary>
         /// Initializes a new <see cref="PubSubConnection"/> with an
         /// optional UADP security wrapper. When supplied the wrapper is
         /// invoked on every outbound UADP NetworkMessage and on every
@@ -192,8 +227,10 @@ namespace Opc.Ua.PubSub.Connections
         /// </param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
-        /// <param name="unauthenticatedMetaDataLimits">Optional limits for DataSetMetaData received
-        /// without verified message security; the limits of the registry apply when omitted.</param>
+        /// <param name="unauthenticatedMetaDataLimits">Limits for DataSetMetaData received without
+        /// verified message security; <see langword="null"/> applies the limits of the registry. All
+        /// parameters of this overload are required, so that it is never chosen for a call written
+        /// against the other one.</param>
         /// <exception cref="PubSubConfigurationException">
         /// A required security wrapper is missing or the connection requests distinct SecurityGroups.
         /// </exception>
@@ -210,12 +247,12 @@ namespace Opc.Ua.PubSub.Connections
             TimeProvider timeProvider,
             UadpSecurityWrapper? securityWrapper,
             UadpSecurityWrapOptions securityWrapOptions,
-            int maxNetworkMessageSize = 0,
-            MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None,
-            IPubSubScheduler? scheduler = null,
-            IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
-            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits = null)
+            int maxNetworkMessageSize,
+            MessageSecurityMode requiredSecurityMode,
+            IPubSubScheduler? scheduler,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits)
         {
             if (configuration is null)
             {
@@ -475,7 +512,19 @@ namespace Opc.Ua.PubSub.Connections
                 .ConfigureAwait(false);
             await SendDiscoveryResponseAsync(CreatePubSubConnectionDiscoveryMessage(), cancellationToken)
                 .ConfigureAwait(false);
+
+            // DataSetMetaData is part of the cyclic announcements. A publisher
+            // whose transport only sends cannot be asked for it, so this is
+            // how a subscriber that started later, or that evicted the
+            // metadata while the publisher was idle, gets it again.
+            await SendDataSetMetaDataDiscoveryResponsesAsync(s_allDataSetWriters, cancellationToken)
+                .ConfigureAwait(false);
         }
+
+        private static readonly UadpDiscoveryRequestMessage s_allDataSetWriters = new()
+        {
+            DiscoveryType = UadpDiscoveryType.DataSetMetaData
+        };
 
         /// <inheritdoc/>
         public async ValueTask EnableAsync(CancellationToken cancellationToken = default)
@@ -1315,7 +1364,7 @@ namespace Opc.Ua.PubSub.Connections
             bool aboveLimit;
             lock (m_gate)
             {
-                if (m_evictedMetaDataIdentities.Remove(identity))
+                if (m_evictedMetaDataIdentities.Remove(EvictionFingerprint(key.PublisherId, key.DataSetWriterId)))
                 {
                     // Its metadata is back, so it is not requested any more.
                     m_metaDataRecoveryWriterIds.Remove(key.DataSetWriterId);
@@ -1341,18 +1390,37 @@ namespace Opc.Ua.PubSub.Connections
         private void OnInboundMetaDataEvicted(in DataSetMetaDataKey key)
         {
             ReleaseInboundMetaDataIdentity(in key);
-            var identity = new InboundMetaDataIdentity(key.PublisherId, 0, key.DataSetWriterId);
+            int fingerprint = EvictionFingerprint(key.PublisherId, key.DataSetWriterId);
             lock (m_gate)
             {
-                if (m_evictedMetaDataIdentities.Add(identity))
+                // Every eviction gets a generation. An identity that was
+                // restored and evicted again has an older record in the queue;
+                // when that one is pruned, the newer eviction must stay.
+                long generation = ++m_evictedMetaDataGeneration;
+                m_evictedMetaDataIdentities[fingerprint] = generation;
+                m_evictedMetaDataOrder.Enqueue((fingerprint, generation));
+                while (m_evictedMetaDataOrder.Count > MaxInboundMetaDataIdentities)
                 {
-                    m_evictedMetaDataOrder.Enqueue(identity);
-                    while (m_evictedMetaDataOrder.Count > MaxInboundMetaDataIdentities)
+                    (int oldest, long oldestGeneration) = m_evictedMetaDataOrder.Dequeue();
+                    if (m_evictedMetaDataIdentities.TryGetValue(oldest, out long current) &&
+                        current == oldestGeneration)
                     {
-                        m_evictedMetaDataIdentities.Remove(m_evictedMetaDataOrder.Dequeue());
+                        m_evictedMetaDataIdentities.Remove(oldest);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Fixed-size record of an evicted identity. The PublisherId is chosen
+        /// by the sender and can be a long string, so the identity itself is
+        /// not kept once its metadata, and with it its charge to the budget,
+        /// is gone. Two identities with the same fingerprint only cause a
+        /// metadata request that was not needed.
+        /// </summary>
+        private static int EvictionFingerprint(PublisherId publisherId, ushort dataSetWriterId)
+        {
+            return HashCode.Combine(publisherId, dataSetWriterId);
         }
 
         /// <summary>
@@ -1363,10 +1431,10 @@ namespace Opc.Ua.PubSub.Connections
         /// </summary>
         private void OnInboundMetaDataLookupMissed(in DataSetMetaDataKey key)
         {
-            var identity = new InboundMetaDataIdentity(key.PublisherId, 0, key.DataSetWriterId);
+            int fingerprint = EvictionFingerprint(key.PublisherId, key.DataSetWriterId);
             lock (m_gate)
             {
-                if (m_evictedMetaDataIdentities.Contains(identity) &&
+                if (m_evictedMetaDataIdentities.ContainsKey(fingerprint) &&
                     m_metaDataRecoveryWriterIds.Count < MaxMetaDataRecoveryWriterIds)
                 {
                     m_metaDataRecoveryWriterIds.Add(key.DataSetWriterId);

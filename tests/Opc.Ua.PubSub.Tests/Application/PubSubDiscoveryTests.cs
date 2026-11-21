@@ -246,6 +246,28 @@ namespace Opc.Ua.PubSub.Tests.Application
         }
 
         /// <summary>
+        /// A publisher whose transport only sends cannot be asked for its
+        /// DataSetMetaData, so the cyclic discovery announcements repeat it.
+        /// </summary>
+        [Test]
+        public async Task PublisherRepeatsDataSetMetaDataWithTheCyclicAnnouncementsAsync()
+        {
+            var bus = new LoopbackBus { AnnounceRate = 50 };
+            await using IPubSubApplication publisher = BuildPublisherApp(
+                "opc.udp://239.0.0.1:49322",
+                new LoopbackTransportFactory(bus));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await publisher.StartAsync(cts.Token).ConfigureAwait(false);
+
+            // More than the announcement at start-up: it is repeated.
+            while (bus.MetaDataAnnouncementCount < 3)
+            {
+                await Task.Delay(20, cts.Token).ConfigureAwait(false);
+            }
+            Assert.That(bus.MetaDataAnnouncementCount, Is.GreaterThanOrEqualTo(3));
+        }
+
+        /// <summary>
         /// Until the key provider has a current key, as before a Security Key Service
         /// delivers the first key, the startup discovery announcements cannot be
         /// secured. They are dropped, and the application still starts.
@@ -630,6 +652,20 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             public int AnnouncementCount => Volatile.Read(ref m_announcementCount);
 
+            /// <summary>
+            /// DiscoveryAnnounceRate in milliseconds of the transports on this bus.
+            /// </summary>
+            public uint AnnounceRate { get; init; }
+
+            /// <summary>
+            /// Number of messages that carried DataSetMetaData, counted on a
+            /// bus with a DiscoveryAnnounceRate. They are sent to the address
+            /// of the data, where the readers listen.
+            /// </summary>
+            public int MetaDataAnnouncementCount => Volatile.Read(ref m_metaDataAnnouncementCount);
+
+            private int m_metaDataAnnouncementCount;
+
             public IReadOnlyList<string> PlaintextFrames
             {
                 get
@@ -654,6 +690,23 @@ namespace Opc.Ua.PubSub.Tests.Application
                 if (isAnnouncement)
                 {
                     Interlocked.Increment(ref m_announcementCount);
+                }
+                if (AnnounceRate != 0)
+                {
+                    try
+                    {
+                        if (UadpDecoder.Decode(payload, NewContext()) is UadpDiscoveryResponseMessage
+                            {
+                                DiscoveryType: UadpDiscoveryType.DataSetMetaData
+                            })
+                        {
+                            Interlocked.Increment(ref m_metaDataAnnouncementCount);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Not a discovery message this bus can decode.
+                    }
                 }
                 var receivers = new List<LoopbackTransport>();
                 lock (m_gate)
@@ -727,7 +780,7 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             public bool IsConnected { get; private set; }
 
-            public uint DiscoveryAnnounceRate => 0;
+            public uint DiscoveryAnnounceRate => m_bus.AnnounceRate;
 
             public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
             {
