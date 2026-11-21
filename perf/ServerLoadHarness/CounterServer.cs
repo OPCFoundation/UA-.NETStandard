@@ -129,7 +129,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// <summary>
     /// The counters on <see cref="CustomNodeManager2"/> with sampling groups.
     /// </summary>
+#pragma warning disable CS0618, UA0031 // Benchmarks the legacy base class against AsyncCounterNodeManager.
     internal sealed class CounterNodeManager : CustomNodeManager2
+#pragma warning restore CS0618, UA0031
     {
         public const string Namespace = "urn:opcfoundation.org:perf:counters";
 
@@ -229,7 +231,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             cancellationToken.ThrowIfCancellationRequested();
             IAsyncNodeManager manager = m_asyncNodeManager
                 ? new AsyncCounterNodeManager(server, configuration, Counters, m_namespaceUri)
+#pragma warning disable CS0618, UA0031 // Benchmarks the legacy base class against AsyncCounterNodeManager.
                 : new CounterNodeManager(server, configuration, Counters, m_namespaceUri).ToAsyncNodeManager();
+#pragma warning restore CS0618, UA0031
             return new ValueTask<IAsyncNodeManager>(manager);
         }
 #pragma warning restore CA2000

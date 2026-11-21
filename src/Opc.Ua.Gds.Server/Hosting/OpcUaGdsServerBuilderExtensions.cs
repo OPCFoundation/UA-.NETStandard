@@ -793,6 +793,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     "The GDS forwarding server builder only forwards identity registrations.");
             }
 
+#pragma warning disable CS0618, UA0031 // Implements the obsolete IOpcUaServerBuilder.AddSyncNodeManager.
             public IOpcUaServerBuilder AddSyncNodeManager<
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
                 where TFactory : class, INodeManagerFactory
@@ -802,6 +803,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetRequiredService<TFactory>()));
                 return this;
             }
+#pragma warning restore CS0618, UA0031
         }
 
         /// <summary>

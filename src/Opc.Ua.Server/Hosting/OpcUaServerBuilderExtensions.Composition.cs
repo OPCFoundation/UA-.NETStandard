@@ -153,6 +153,13 @@ namespace Microsoft.Extensions.DependencyInjection
         /// The caller retains ownership of the factory; the server owns the node manager it creates.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         public static IOpcUaServerBuilder AddNodeManager(
             this IOpcUaServerBuilder builder,
             INodeManagerFactory factory)

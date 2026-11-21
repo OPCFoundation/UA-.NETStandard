@@ -640,8 +640,27 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
             string directory = DocumentPath("opc-ua-di");
-            byte[] cpIdentifier = File.ReadAllBytes(Path.Combine(directory, "opc-ua-di-cpidentifier.json"));
-            string text = Encoding.UTF8.GetString(cpIdentifier);
+            UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(RepositoryPath(
+                Path.Combine("tests", "Opc.Ua.SourceGeneration.Core.Tests", "Resources", "Opc.Ua.Di.NodeSet2.xml")));
+            source.Items = [source.Items!.Single(node => node.NodeId == "ns=1;i=6248")];
+            using WotDocument generated = WotNodeSetConverter.FromNodeSet(source, options: options);
+            Assert.That(generated.TryGetNativeProjection(out _), Is.True);
+            JsonObject root = JsonNode.Parse(generated.Utf8Json.Span)!.AsObject();
+            root["links"] = JsonNode.Parse("""
+                [
+                  {
+                    "href": "nsu=http://opcfoundation.org/UA/DI/;i=6308",
+                    "rel": "ua:HasTypeDefinition"
+                  },
+                  {
+                    "href": "nsu=http://opcfoundation.org/UA/DI/;i=6247",
+                    "rel": "ns1:ConnectsTo",
+                    "uav:refId": "nsu=http://opcfoundation.org/UA/DI/;i=6030"
+                  }
+                ]
+                """);
+            string text = root.ToJsonString();
+            byte[] cpIdentifier = Encoding.UTF8.GetBytes(text);
             const string target = "\"nsu=http://opcfoundation.org/UA/DI/;i=6247\"";
             Assert.That(text, Does.Contain(target));
             byte[] conflicting = Encoding.UTF8.GetBytes(text.Replace(
@@ -737,7 +756,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
             (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
                 Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
-            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-connectionpointtype");
             int selectedLength = contents[resource.DefaultVersion!.DigestHex].Length;
             long aggregate = contents.Values.Sum(c => (long)c.Length);
             Assert.That(contents, Has.Count.GreaterThan(2));
@@ -790,7 +809,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
             Opc.Ua.WotCon.Server.Registry.WotResource broken = FindResource(snapshot, "opc-ua-di-networktype");
             contents[broken.DefaultVersion!.DigestHex] = ByteString.From(Encoding.UTF8.GetBytes("{not json"));
-            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-connectionpointtype");
             var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
 
             Opc.Ua.WotCon.Server.Materialization.WotConversionOutput selected = await converter.ConvertAsync(
@@ -1010,7 +1029,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task NativePumpsPartitionsRestoreTheSourceNodeSetWithoutChangeAsync()
         {
             const int expectedNodeCount = 9624;
-            const int expectedPartitionCount = 339;
+            const int expectedPartitionCount = 91;
             string root = RepositoryPath(string.Empty);
             UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(RepositoryPath(
                 Path.Combine("samples", "Di", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Pumps.NodeSet2.xml")));
@@ -1965,9 +1984,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     Is.EqualTo(supportDeclaration.Value.GetProperty("type").GetString()),
                     support.Name);
                 AssertJsonEquivalent(
-                    support.Value.GetProperty("uav:componentOf"),
-                    supportDeclaration.Value.GetProperty("uav:componentOf"),
-                    support.Name + " uav:componentOf");
+                    support.Value.GetProperty("links").EnumerateArray()
+                        .Single(link => link.GetProperty("rel").GetString() == "ua:PropertyOf"),
+                    supportDeclaration.Value.GetProperty("links").EnumerateArray()
+                        .Single(link => link.GetProperty("rel").GetString() == "ua:PropertyOf"),
+                    support.Name + " ua:PropertyOf");
+                Assert.That(support.Value.TryGetProperty("uav:componentOf", out _), Is.False, support.Name);
             }
             foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
             {

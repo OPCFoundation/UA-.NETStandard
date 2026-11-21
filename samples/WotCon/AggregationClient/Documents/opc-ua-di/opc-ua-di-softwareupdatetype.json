@@ -274,6 +274,14 @@
     }
   },
   "title": "SoftwareUpdateType",
+  "tm:optional": [
+    "/properties/UpdateStatus",
+    "/properties/SoftwareClass",
+    "/properties/SoftwareSubclass",
+    "/properties/SoftwareName",
+    "/properties/UnsignedPackageAllowed",
+    "/properties/VendorErrorCode"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:SoftwareUpdateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=1",
@@ -586,6 +594,955 @@
           }
         ],
         "superType": "i=58"
+      },
+      {
+        "browseName": "1:Loading",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Loading"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=2",
+        "parentNodeId": "ns=1;i=1",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=135"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1"
+          }
+        ],
+        "typeDefinition": "ns=1;i=135"
+      },
+      {
+        "browseName": "1:PrepareForUpdate",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "PrepareForUpdate"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=4",
+        "parentNodeId": "ns=1;i=1",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=5"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=19"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=20"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=213"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1"
+          }
+        ],
+        "typeDefinition": "ns=1;i=213"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "CurrentState",
+        "dataType": "LocalizedText",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "CurrentState"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=5",
+        "parentNodeId": "ns=1;i=4",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2760"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=4"
+          }
+        ],
+        "typeDefinition": "i=2760"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Id",
+        "dataType": "NodeId",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Id"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6",
+        "parentNodeId": "ns=1;i=5",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=5"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "1:Prepare",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Prepare"
+          }
+        ],
+        "methodDeclarationId": "ns=1;i=228",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=19",
+        "parentNodeId": "ns=1;i=4",
+        "references": [
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=4"
+          }
+        ]
+      },
+      {
+        "browseName": "1:Abort",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Abort"
+          }
+        ],
+        "methodDeclarationId": "ns=1;i=229",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=20",
+        "parentNodeId": "ns=1;i=4",
+        "references": [
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=4"
+          }
+        ]
+      },
+      {
+        "browseName": "1:Installation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Installation"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=40",
+        "parentNodeId": "ns=1;i=1",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=41"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=61"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=249"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1"
+          }
+        ],
+        "typeDefinition": "ns=1;i=249"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "CurrentState",
+        "dataType": "LocalizedText",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "CurrentState"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=41",
+        "parentNodeId": "ns=1;i=40",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=42"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2760"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=40"
+          }
+        ],
+        "typeDefinition": "i=2760"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Id",
+        "dataType": "NodeId",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Id"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=42",
+        "parentNodeId": "ns=1;i=41",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=41"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "1:Resume",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Resume"
+          }
+        ],
+        "methodDeclarationId": "ns=1;i=270",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=61",
+        "parentNodeId": "ns=1;i=40",
+        "references": [
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=40"
+          }
+        ]
+      },
+      {
+        "browseName": "1:PowerCycle",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "PowerCycle"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=76",
+        "parentNodeId": "ns=1;i=1",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=77"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=285"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1"
+          }
+        ],
+        "typeDefinition": "ns=1;i=285"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "CurrentState",
+        "dataType": "LocalizedText",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "CurrentState"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=77",
+        "parentNodeId": "ns=1;i=76",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=78"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2760"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=76"
+          }
+        ],
+        "typeDefinition": "i=2760"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Id",
+        "dataType": "NodeId",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Id"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=78",
+        "parentNodeId": "ns=1;i=77",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=77"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "1:Confirmation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Confirmation"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=98",
+        "parentNodeId": "ns=1;i=1",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=99"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=112"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=113"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=307"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1"
+          }
+        ],
+        "typeDefinition": "ns=1;i=307"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "CurrentState",
+        "dataType": "LocalizedText",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "CurrentState"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=99",
+        "parentNodeId": "ns=1;i=98",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=100"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=2760"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=98"
+          }
+        ],
+        "typeDefinition": "i=2760"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "Id",
+        "dataType": "NodeId",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Id"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=100",
+        "parentNodeId": "ns=1;i=99",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=99"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "1:Confirm",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Confirm"
+          }
+        ],
+        "methodDeclarationId": "ns=1;i=321",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=112",
+        "parentNodeId": "ns=1;i=98",
+        "references": [
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=98"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:ConfirmationTimeout",
+        "dataType": "i=290",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ConfirmationTimeout"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=113",
+        "parentNodeId": "ns=1;i=98",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=98"
+          }
+        ],
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:Parameters",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Parameters"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=122",
+        "parentNodeId": "ns=1;i=1",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=123"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=124"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=127"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=130"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=15744"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1"
+          }
+        ],
+        "typeDefinition": "i=15744"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "ClientProcessingTimeout",
+        "dataType": "i=290",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ClientProcessingTimeout"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=123",
+        "parentNodeId": "ns=1;i=122",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=122"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "GenerateFileForRead",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "GenerateFileForRead"
+          }
+        ],
+        "methodDeclarationId": "i=15746",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=124",
+        "parentNodeId": "ns=1;i=122",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=125"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=126"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=122"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=125",
+        "parentNodeId": "ns=1;i=124",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=124"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>GenerateOptions</Name>\n              <DataType>\n                <Identifier>i=24</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "arrayDimensions": "3",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=126",
+        "parentNodeId": "ns=1;i=124",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=124"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileNodeId</Name>\n              <DataType>\n                <Identifier>i=17</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>CompletionStateMachine</Name>\n              <DataType>\n                <Identifier>i=17</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "GenerateFileForWrite",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "GenerateFileForWrite"
+          }
+        ],
+        "methodDeclarationId": "i=15749",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=127",
+        "parentNodeId": "ns=1;i=122",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=128"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=129"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=122"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=128",
+        "parentNodeId": "ns=1;i=127",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=127"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>GenerateOptions</Name>\n              <DataType>\n                <Identifier>i=24</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "arrayDimensions": "2",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=129",
+        "parentNodeId": "ns=1;i=127",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=127"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileNodeId</Name>\n              <DataType>\n                <Identifier>i=17</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "CloseAndCommit",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "CloseAndCommit"
+          }
+        ],
+        "methodDeclarationId": "i=15751",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=130",
+        "parentNodeId": "ns=1;i=122",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=131"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=132"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=122"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=131",
+        "parentNodeId": "ns=1;i=130",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=130"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>FileHandle</Name>\n              <DataType>\n                <Identifier>i=7</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=132",
+        "parentNodeId": "ns=1;i=130",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=130"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>CompletionStateMachine</Name>\n              <DataType>\n                <Identifier>i=17</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
       },
       {
         "arrayDimensions": "",

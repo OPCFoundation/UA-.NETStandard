@@ -275,6 +275,16 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase(4408652, "DEG_C", "Temperature")]
         [TestCase(5059638, "REV-PER-MIN", "AngularVelocity")]
         [TestCase(20529, "PERCENT", null)]
+        [TestCase(12878, "DeciB", null)]
+        [TestCase(4403510, "MilliM-PER-SEC", null)]
+        [TestCase(4404789, "PA-SEC", null)]
+        [TestCase(4405556, "PER-MIN", null)]
+        [TestCase(4405559, "PER-SEC", null)]
+        [TestCase(4469812, "V-A_Reactive", null)]
+        [TestCase(4600375, "GM-PER-HR", null)]
+        [TestCase(4665393, "PA-M3-PER-SEC", null)]
+        [TestCase(4933459, "KiloGM-PER-SEC", null)]
+        [TestCase(21300, "M2-PER-SEC", null)]
         public void ExplicitUnitMappingsKeepAmbiguousQuantityKindsUnset(int unitId, string unit, string? kind)
         {
             var provider = new WotQudtUnitMappingProvider();
@@ -283,6 +293,67 @@ namespace Opc.Ua.Types.Tests.Wot
                 out string unitIri, out string? kindIri), Is.True);
             Assert.That(unitIri, Is.EqualTo("http://qudt.org/vocab/unit/" + unit));
             Assert.That(kindIri, Is.EqualTo(kind is null ? null : "http://qudt.org/vocab/quantitykind/" + kind));
+        }
+
+        /// <summary>
+        /// Verifies added unit identities without deriving process quantities from their display symbols.
+        /// </summary>
+        [TestCase(12878, "DeciB")]
+        [TestCase(4403510, "MilliM-PER-SEC")]
+        [TestCase(4404789, "PA-SEC")]
+        [TestCase(4405556, "PER-MIN")]
+        [TestCase(4405559, "PER-SEC")]
+        [TestCase(4469812, "V-A_Reactive")]
+        [TestCase(4600375, "GM-PER-HR")]
+        [TestCase(4665393, "PA-M3-PER-SEC")]
+        [TestCase(4933459, "KiloGM-PER-SEC")]
+        [TestCase(21300, "M2-PER-SEC")]
+        public async Task AddedUnitMappingsPreserveSourceWithoutInventingQuantityKindsAsync(int unitId, string unit)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            UAVariable units = source.Items!.OfType<UAVariable>()
+                .Single(variable => variable.NodeId == WotAnalogTestData.EngineeringUnitsNodeId);
+            units.Value = WotAnalogTestData.EngineeringUnitsValue(
+                WotAnalogTestData.UnitAuthority, unitId, "source-unit", null, "source description", null);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            JsonElement measurement = document.Properties["Measurement"];
+            Assert.Multiple(() =>
+            {
+                Assert.That(measurement.GetProperty("qudt:hasUnit").GetProperty("@id").GetString(),
+                    Is.EqualTo("http://qudt.org/vocab/unit/" + unit));
+                Assert.That(measurement.GetProperty("unit").GetString(), Is.EqualTo("source-unit"));
+                Assert.That(measurement.TryGetProperty("qudt:hasQuantityKind", out _), Is.False);
+            });
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                .FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+            using WotDocumentSet? documents = result.Value;
+
+            Assert.That(result.Success, Is.True, WotAnalogTestData.Describe(result.Diagnostics));
+        }
+
+        /// <summary>
+        /// Prevents familiar unit identifiers from being interpreted under another authority.
+        /// </summary>
+        [TestCase(12878)]
+        [TestCase(4403510)]
+        [TestCase(4404789)]
+        [TestCase(4405556)]
+        [TestCase(4405559)]
+        [TestCase(4469812)]
+        [TestCase(4600375)]
+        [TestCase(4665393)]
+        [TestCase(4933459)]
+        [TestCase(21300)]
+        public void AddedUnitMappingsRejectForeignAuthorities(int unitId)
+        {
+            var provider = new WotQudtUnitMappingProvider();
+
+            Assert.That(provider.TryGetMapping("urn:vendor:units", unitId,
+                out string unitIri, out string? kindIri), Is.False);
+            Assert.That(unitIri, Is.Empty);
+            Assert.That(kindIri, Is.Null);
         }
 
         /// <summary>

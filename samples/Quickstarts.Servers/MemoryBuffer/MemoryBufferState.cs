@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // MemoryBuffer still derives from the synchronous SampleNodeManager; porting it is a follow-up.
+
 using System;
 using System.Collections.Generic;
 using System.Threading;

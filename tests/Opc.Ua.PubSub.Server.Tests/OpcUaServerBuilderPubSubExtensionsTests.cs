@@ -46,9 +46,9 @@ namespace Opc.Ua.PubSub.Server.Tests
             IEnumerable<OpcUaServerNodeManagerRegistration> regs =
                 sp.GetServices<OpcUaServerNodeManagerRegistration>();
             Assert.That(
-                regs.Any(r => r.SyncFactory is PubSubNodeManagerFactory),
+                regs.Any(r => r.AsyncFactory is PubSubNodeManagerFactory),
                 Is.True,
-                "Expected PubSubNodeManagerFactory to be registered as a sync OpcUaServerNodeManagerRegistration.");
+                "Expected PubSubNodeManagerFactory to be registered as an async OpcUaServerNodeManagerRegistration.");
         }
 
         [Test]

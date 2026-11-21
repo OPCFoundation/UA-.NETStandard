@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Namespace registration still accepts legacy synchronous node managers.
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;

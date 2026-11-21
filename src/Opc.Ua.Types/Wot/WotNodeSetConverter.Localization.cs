@@ -55,17 +55,22 @@ namespace Opc.Ua.Wot
         /// <inheritdoc cref="TitleMember"/>
         internal const string DescriptionsMember = "descriptions";
 
+        /// <summary>
+        /// Writes the localized-term overrides required by the active context and fallback rules.
+        /// </summary>
         private static void WriteLocalizedTextContext(
             Utf8JsonWriter writer,
             Export.LocalizedText[]? displayName,
             Export.LocalizedText[]? description,
             string defaultLocale,
-            bool inheritedLanguageMayDiffer = false)
+            bool inheritedLanguageMayDiffer = false,
+            string? inheritedTitleLanguage = FallbackLocale,
+            string? inheritedDescriptionLanguage = FallbackLocale)
         {
             bool titleOverride = (inheritedLanguageMayDiffer && FirstText(displayName) is not null) ||
-                NeedsLocalizedTextOverride(displayName, defaultLocale, FallbackLocale);
+                NeedsLocalizedTextOverride(displayName, defaultLocale, inheritedTitleLanguage);
             bool descriptionOverride = (inheritedLanguageMayDiffer && FirstText(description) is not null) ||
-                NeedsLocalizedTextOverride(description, defaultLocale, FallbackLocale);
+                NeedsLocalizedTextOverride(description, defaultLocale, inheritedDescriptionLanguage);
             if (titleOverride || descriptionOverride)
             {
                 writer.WritePropertyName("@context");
@@ -73,6 +78,16 @@ namespace Opc.Ua.Wot
                     writer, titleOverride, descriptionOverride,
                     ProjectedTextLocale(displayName, defaultLocale), ProjectedTextLocale(description, defaultLocale));
             }
+        }
+
+        /// <summary>
+        /// Gets the language of a term after the generated root context is applied.
+        /// </summary>
+        private static string? GetGeneratedTermLanguage(Export.LocalizedText[]? texts, string defaultLocale)
+        {
+            return NeedsLocalizedTextOverride(texts, defaultLocale, FallbackLocale)
+                ? ProjectedTextLocale(texts, defaultLocale)
+                : FallbackLocale;
         }
 
         private static bool NeedsLocalizedTextOverride(

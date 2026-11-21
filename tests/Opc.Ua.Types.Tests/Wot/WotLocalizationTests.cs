@@ -472,6 +472,115 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Verifies that unscoped affordances reuse root term languages while properties retain scoped overrides.
+        /// </summary>
+        [TestCase(null, null)]
+        [TestCase("en", "en")]
+        [TestCase("de", "de")]
+        [TestCase(null, "en")]
+        [TestCase("en", null)]
+        public void ActionAndEventTextInheritsMatchingRootTermLanguages(string? titleLocale, string? descriptionLocale)
+        {
+            UANodeSet source = CreateLocalizedAffordanceNodeSet(
+                titleLocale, descriptionLocale, titleLocale, descriptionLocale);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Actions["Run"].TryGetProperty("@context", out _), Is.False);
+            Assert.That(document.Events["Notice"].TryGetProperty("@context", out _), Is.False);
+            JsonElement property = document.Properties["Value"];
+            bool titleOverride = titleLocale != "en";
+            bool descriptionOverride = descriptionLocale != "en";
+            Assert.That(property.TryGetProperty("@context", out JsonElement context),
+                Is.EqualTo(titleOverride || descriptionOverride));
+            if (context.ValueKind == JsonValueKind.Object)
+            {
+                Assert.That(context.TryGetProperty("title", out _), Is.EqualTo(titleOverride));
+                Assert.That(context.TryGetProperty("description", out _), Is.EqualTo(descriptionOverride));
+            }
+            using WotDocument readable = WithoutPreservation(document);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(readable);
+            foreach (UANode node in restored.Items!)
+            {
+                Assert.That(node.DisplayName!.Single().Locale, Is.EqualTo(titleLocale ?? string.Empty));
+                Assert.That(node.Description!.Single().Locale, Is.EqualTo(descriptionLocale ?? string.Empty));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that an affordance overrides only the term whose inherited language differs.
+        /// </summary>
+        [TestCase(null, "en", "en")]
+        [TestCase("en", null, null)]
+        [TestCase("de", "en", null)]
+        [TestCase(null, "de", null)]
+        public void ActionAndEventTextOverridesOnlyTheDifferingTerm(
+            string? rootLocale, string? descriptionLocale, string? expectedLanguage)
+        {
+            UANodeSet source = CreateLocalizedAffordanceNodeSet(
+                rootLocale, rootLocale, rootLocale, descriptionLocale);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            foreach (JsonElement affordance in new[] { document.Actions["Run"], document.Events["Notice"] })
+            {
+                JsonElement context = affordance.GetProperty("@context");
+                Assert.That(context.TryGetProperty("title", out _), Is.False);
+                JsonElement description = context.GetProperty("description");
+                Assert.That(description.GetProperty("@id").GetString(),
+                    Is.EqualTo("https://www.w3.org/2019/wot/td#description"));
+                Assert.That(description.GetProperty("@language").GetString(), Is.EqualTo(expectedLanguage));
+            }
+            using WotDocument readable = WithoutPreservation(document);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(readable);
+            foreach (UANode node in restored.Items!.Where(node => node is UAMethod ||
+                node is UAObjectType && node.NodeId != "ns=1;i=2000"))
+            {
+                Assert.That(node.DisplayName!.Single().Locale, Is.EqualTo(rootLocale ?? string.Empty));
+                Assert.That(node.Description!.Single().Locale, Is.EqualTo(descriptionLocale ?? string.Empty));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a missing root description leaves the W3C term language in effect.
+        /// </summary>
+        [Test]
+        public void ActionAndEventDescriptionsUseW3cLanguageWhenRootHasNoDescription()
+        {
+            UANodeSet source = CreateLocalizedAffordanceNodeSet(null, null, null, "en");
+            source.Items!.Single(node => node.NodeId == "ns=1;i=2000").Description = null;
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Actions["Run"].TryGetProperty("@context", out _), Is.False);
+            Assert.That(document.Events["Notice"].TryGetProperty("@context", out _), Is.False);
+            using WotDocument readable = WithoutPreservation(document);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(readable);
+            Assert.That(restored.Items!.OfType<UAMethod>().Single().Description!.Single().Locale, Is.EqualTo("en"));
+        }
+
+        /// <summary>
+        /// Verifies that tagged fallbacks retain the local override required by the binding.
+        /// </summary>
+        [Test]
+        public void ActionAndEventFallbacksRetainTheirOwnNeutralTermOverrides()
+        {
+            UANodeSet source = CreateLocalizedAffordanceNodeSet(null, null, "de", null);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            foreach (JsonElement affordance in new[] { document.Actions["Run"], document.Events["Notice"] })
+            {
+                JsonElement context = affordance.GetProperty("@context");
+                Assert.That(context.GetProperty("title").GetProperty("@language").ValueKind,
+                    Is.EqualTo(JsonValueKind.Null));
+                Assert.That(context.TryGetProperty("description", out _), Is.False);
+                Assert.That(affordance.GetProperty("titles").GetProperty("de").GetString(),
+                    Is.EqualTo(affordance.GetProperty("title").GetString()));
+            }
+        }
+
+        /// <summary>
         /// Verifies that argument description retains its own context across round trips.
         /// </summary>
         [TestCase(/*lang=json,strict*/ "{\"@language\":\"de\"}", "de")]
@@ -1078,7 +1187,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"properties\":{\"Speed\":{\"type\":\"number\",\"title\":\"Drehzahl\"" + local + "}}",
                 "en",
                 ",\"properties\":{\"@id\":\"https://www.w3.org/2019/wot/td#hasPropertyAffordance\"," +
-                "\"@container\":\"@index\",\"@context\":{\"@language\":\"de\"}}," +
+                "\"@container\":\"@index\",\"@context\":{\"@language\":\"de\"," +
+                "\"title\":\"https://www.w3.org/2019/wot/td#title\"}}," +
                 "\"Speed\":{\"@id\":\"urn:test:Speed\",\"@context\":{\"@language\":\"fr\"}}");
 
             UANodeSet source = WotNodeSetConverter.ToNodeSet(document);
@@ -1206,6 +1316,31 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(exported.RootElement.TryGetProperty("uav:nodes", out _), Is.False);
                 source = restored.Value!;
             }
+        }
+
+        /// <summary>
+        /// Creates root, property, action and event nodes with independently selected text locales.
+        /// </summary>
+        private static UANodeSet CreateLocalizedAffordanceNodeSet(
+            string? rootTitleLocale,
+            string? rootDescriptionLocale,
+            string? childTitleLocale,
+            string? childDescriptionLocale)
+        {
+            using WotDocument document = ParseEnglishModel(
+                "\"properties\":{\"Value\":{\"type\":\"string\"}}," +
+                "\"actions\":{\"Run\":{\"@type\":\"uav:method\"}}," +
+                "\"events\":{\"Notice\":{\"@type\":\"uav:eventType\"}}");
+            UANodeSet source = WotNodeSetConverter.ToNodeSet(document);
+            foreach (UANode node in source.Items!)
+            {
+                bool root = node.NodeId == "ns=1;i=2000";
+                node.DisplayName = WotAnalogTestData.Text(
+                    node.BrowseName!, root ? rootTitleLocale : childTitleLocale);
+                node.Description = WotAnalogTestData.Text(
+                    "Description", root ? rootDescriptionLocale : childDescriptionLocale);
+            }
+            return source;
         }
 
         private static WotDocument ParseLocalizedModel(string members, string language, string extraContext = "")

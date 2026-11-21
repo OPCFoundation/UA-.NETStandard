@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007

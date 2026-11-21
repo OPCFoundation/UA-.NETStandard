@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,6 +36,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager factories that are used on startup of the server.
         /// </summary>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         IEnumerable<INodeManagerFactory> NodeManagerFactories { get; }
 
         /// <summary>
@@ -49,6 +57,13 @@ namespace Opc.Ua.Server
         /// to instantiate the node manager in the server.
         /// </summary>
         /// <param name="nodeManagerFactory">The node manager factory used to create the NodeManager.</param>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         void AddNodeManager(INodeManagerFactory nodeManagerFactory);
 
         /// <summary>
@@ -71,6 +86,13 @@ namespace Opc.Ua.Server
         /// only removes the factory before the server starts.
         /// </summary>
         /// <param name="nodeManagerFactory">The node manager factory to remove.</param>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         void RemoveNodeManager(INodeManagerFactory nodeManagerFactory);
     }
 }

@@ -130,7 +130,9 @@ namespace Opc.Ua.Server
                 AsyncCustomNodeManager custom => attributeId != Attributes.Value ||
                     node is not BaseVariableState variable ||
                     !custom.HasValueReadAuthorization(variable),
+#pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners keep their read verdict.
                 AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 } => true,
+#pragma warning restore CS0618, UA0031
                 _ => false
             };
         }

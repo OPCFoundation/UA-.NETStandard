@@ -74,7 +74,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             OpcUaServerNodeManagerRegistration[] regs = [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
             Assert.That(regs, Has.Length.GreaterThanOrEqualTo(1));
             Assert.That(
-                regs.Any(r => ReferenceEquals(r.SyncFactory, factory)),
+                regs.Any(r => ReferenceEquals(r.AsyncFactory, factory)),
                 Is.True,
                 "Expected at least one OpcUaServerNodeManagerRegistration wrapping the WotCon factory.");
         }

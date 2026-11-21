@@ -757,7 +757,9 @@ namespace Opc.Ua.Wot
                 ["xsd"] = "http://www.w3.org/2001/XMLSchema#",
                 ["dct"] = "http://purl.org/dc/terms/",
                 ["htv"] = "http://www.w3.org/2011/http#",
-                ["tm"] = "https://www.w3.org/2019/wot/tm#"
+                ["tm"] = "https://www.w3.org/2019/wot/tm#",
+                ["title"] = schema["title"]!.DeepClone(),
+                ["description"] = schema["description"]!.DeepClone()
             };
             foreach (string name in new[]
             {

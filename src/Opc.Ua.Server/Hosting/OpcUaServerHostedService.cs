@@ -318,10 +318,12 @@ namespace Opc.Ua.Server.Hosting
                             "The node-manager factories callback returned a null factory."));
                 }
 
+#pragma warning disable CS0618, UA0031 // Hosted legacy INodeManagerFactory registrations still start.
                 if (reg.SyncFactory is not null)
                 {
                     m_server.AddNodeManager(reg.SyncFactory);
                 }
+#pragma warning restore CS0618, UA0031
             }
 
             RegisterIdentityAuthenticators();

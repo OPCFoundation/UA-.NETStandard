@@ -315,6 +315,65 @@
           }
         ],
         "superType": "i=58"
+      },
+      {
+        "browseName": "1:SupportedTypes",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "SupportedTypes"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=5004",
+        "parentNodeId": "ns=1;i=1004",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1004"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "browseName": "1:<ObjectIdentifier>",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ObjectIdentifier>"
+          }
+        ],
+        "modellingRule": "OptionalPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6026",
+        "parentNodeId": "ns=1;i=1004",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=58"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11508"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1004"
+          }
+        ],
+        "symbolicName": "ObjectIdentifier",
+        "typeDefinition": "i=58"
       }
     ],
     "profileVersion": "1.0"

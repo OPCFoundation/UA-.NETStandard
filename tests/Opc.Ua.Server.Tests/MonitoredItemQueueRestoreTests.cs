@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
+
 // CA2000: test code; the created queues/monitored items are short-lived and disposed by the runtime.
 #pragma warning disable CA2000
 using System;

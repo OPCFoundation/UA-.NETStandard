@@ -92,7 +92,9 @@ namespace Opc.Ua.Server
                   server,
                   configuration,
                   useSamplingGroups,
+#pragma warning disable CS0618, UA0031 // Keeps the established logger category.
                   server.Telemetry.CreateLogger<CustomNodeManager2>(),
+#pragma warning restore CS0618, UA0031
                   namespaceUris)
         {
         }
@@ -153,7 +155,9 @@ namespace Opc.Ua.Server
             // from their browse path unless a sub-class picks another rule.
             m_nodeIdFactory = ResolveNodeIdFactory(server, DefaultNamespaceIndex);
 
+#pragma warning disable CS0618, UA0031 // Creates the legacy SyncNodeManager view.
             m_syncNodeManager = (INodeManager3)this.ToSyncNodeManager();
+#pragma warning restore CS0618, UA0031
 
             // create a monitored item manager that owns sampling groups / monitoredNodes
             if (useSamplingGroups)
@@ -1464,7 +1468,9 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+#pragma warning disable CS0618, UA0031 // Implements IAsyncNodeManager.SyncNodeManager, still needed by the runtime.
         public INodeManager SyncNodeManager => m_syncNodeManager;
+#pragma warning restore CS0618, UA0031
 
         /// <summary>
         /// Marks a node for dynamic scaling of event consumer tasks. When a
@@ -11601,7 +11607,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>
+#pragma warning disable CS0618, UA0031 // Backing field of the legacy SyncNodeManager view.
         protected INodeManager3 m_syncNodeManager;
+#pragma warning restore CS0618, UA0031
 
         /// <summary>
         /// The synchronaization primitive used to synchronize write operations;

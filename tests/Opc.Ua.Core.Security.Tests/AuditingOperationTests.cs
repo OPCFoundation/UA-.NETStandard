@@ -219,6 +219,74 @@ namespace Opc.Ua.Core.Security.Tests
             }
         }
 
+        /// <summary>
+        /// The Attribute services and the Call service raise the generic failure audit
+        /// (an AuditEventType event with SourceName Attribute/&lt;Service&gt; or
+        /// Method/Call) when they fail with a service fault, here Bad_NothingToDo for an
+        /// empty list of operations.
+        /// </summary>
+        [TestCase("Read")]
+        [TestCase("HistoryRead")]
+        [TestCase("Write")]
+        [TestCase("HistoryUpdate")]
+        [TestCase("Call")]
+        public async Task ServiceFaultRaisesGenericAuditEventAsync(string service)
+        {
+            ServiceResultException? fault = null;
+            List<NodeId> eventTypes = await ObserveEventsAsync(
+                async (session, _) =>
+                {
+                    try
+                    {
+                        await InvokeWithNoOperationsAsync(session, service).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException e)
+                    {
+                        fault = e;
+                    }
+                },
+                null!,
+                (_, eventType) => Task.FromResult(eventType == ObjectTypeIds.AuditEventType))
+                .ConfigureAwait(false);
+
+            Assert.That(fault, Is.Not.Null, $"{service} with no operations must fail.");
+            Assert.That(fault!.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+            Assert.That(
+                eventTypes,
+                Does.Contain(ObjectTypeIds.AuditEventType),
+                $"A failed {service} must raise the generic failure audit event.");
+        }
+
+        private static Task InvokeWithNoOperationsAsync(ISession session, string service)
+        {
+            switch (service)
+            {
+                case "Read":
+                    return session.ReadAsync(
+                        null,
+                        0,
+                        TimestampsToReturn.Neither,
+                        default,
+                        CancellationToken.None).AsTask();
+                case "HistoryRead":
+                    return session.HistoryReadAsync(
+                        null,
+                        new ExtensionObject(new ReadRawModifiedDetails()),
+                        TimestampsToReturn.Neither,
+                        false,
+                        default,
+                        CancellationToken.None).AsTask();
+                case "Write":
+                    return session.WriteAsync(null, default, CancellationToken.None).AsTask();
+                case "HistoryUpdate":
+                    return session.HistoryUpdateAsync(null, default, CancellationToken.None).AsTask();
+                case "Call":
+                    return session.CallAsync(null, default, CancellationToken.None).AsTask();
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(service), service, null);
+            }
+        }
+
         private async Task AssertAuditEventFiresAsync(
             NodeId expectedEventType,
             Func<Task> trigger,

@@ -14,7 +14,7 @@ namespace Opc.Ua.Wot
 {
     /// <summary>
     /// Resolves names and identifiers against a fixed collection of WoT
-    /// documents — the "sibling documents of the conversion" half of the local
+    /// documents or native NodeSets — the "sibling documents of the conversion" half of the local
     /// context of <i>OPC UA — WoT Binding</i> §5.1.5.
     /// </summary>
     /// <remarks>
@@ -27,7 +27,8 @@ namespace Opc.Ua.Wot
     /// reports every type binding unresolved.
     /// </remarks>
     public sealed class WotDocumentNodeResolver
-        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver,
+        IWotArgumentPropertyResolver
     {
         /// <summary>
         /// Initializes a resolver over the supplied documents.
@@ -46,6 +47,33 @@ namespace Opc.Ua.Wot
             {
                 Index(document);
             }
+        }
+
+        /// <summary>
+        /// Creates a local type context from NodeSets, retaining their namespace-qualified
+        /// identities and declarations without exporting dependency nodes.
+        /// </summary>
+        /// <param name="nodeSets">The source and locally available dependency models.</param>
+        /// <param name="cancellationToken">A token that cancels indexing between models.</param>
+        /// <returns>The indexed local context.</returns>
+        /// <exception cref="ArgumentException">A supplied NodeSet is null.</exception>
+        public static WotDocumentNodeResolver FromNodeSets(
+            ArrayOf<UANodeSet> nodeSets,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var resolver = new WotDocumentNodeResolver([]);
+            foreach (UANodeSet nodeSet in nodeSets)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (nodeSet is null)
+                {
+                    throw new ArgumentException("A source NodeSet is null.", nameof(nodeSets));
+                }
+                resolver.m_declarations.AddNodeSet(nodeSet);
+                resolver.IndexNativeNodes(nodeSet);
+            }
+            return resolver;
         }
 
         /// <inheritdoc/>
@@ -257,6 +285,18 @@ namespace Opc.Ua.Wot
                 m_declarations.ResolveDataTypeDefinitions(graphId));
         }
 
+        /// <inheritdoc/>
+        ValueTask<WotNodeSetConverter.WotArgumentProperty?> IWotArgumentPropertyResolver.ResolveArgumentPropertyAsync(
+            string nodeId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            nodeId = WotNodeSetConverter.NormalizeExpandedNodeId(nodeId);
+            m_argumentProperties.TryGetValue(nodeId, out WotNodeSetConverter.WotArgumentProperty? property);
+            return new ValueTask<WotNodeSetConverter.WotArgumentProperty?>(
+                property ?? (m_byNodeId.ContainsKey(nodeId) ? s_notArgumentProperty : null));
+        }
+
         private void Index(WotDocument document)
         {
             if (document is null)
@@ -336,6 +376,7 @@ namespace Opc.Ua.Wot
         /// carries its own namespace table, and its node identifiers are indices
         /// into that table rather than into the document's <c>@context</c>.
         /// </remarks>
+        /// <exception cref="FormatException"></exception>
         private void IndexNativeProjection(WotDocument document)
         {
             if (!document.TryGetEnvelope(out _) &&
@@ -349,7 +390,14 @@ namespace Opc.Ua.Wot
             {
                 throw new FormatException("The authoritative native type context could not be restored.");
             }
-            UANodeSet nodeSet = result.Value;
+            IndexNativeNodes(result.Value);
+        }
+
+        /// <summary>
+        /// Indexes native identities using the namespace table of their source model.
+        /// </summary>
+        private void IndexNativeNodes(UANodeSet nodeSet)
+        {
             foreach (string namespaceUri in nodeSet.NamespaceUris ?? [])
             {
                 m_namespaces.Add(namespaceUri);
@@ -363,18 +411,39 @@ namespace Opc.Ua.Wot
                 portable = WotNodeSetConverter.NormalizeExpandedNodeId(portable);
                 WotResolvedNode resolved = WotNodeSetConverter.DescribeNativeType(node, nodeSet);
                 m_byNodeId[portable] = resolved;
+                if (WotNodeSetConverter.DescribeArgumentProperty(node, nodeSet) is { } arguments)
+                {
+                    m_argumentProperties[portable] = arguments;
+                }
                 if (node.BrowseName is { } browseName)
                 {
                     var name = QualifiedName.Parse(browseName);
                     if (name.Name is { Length: > 0 } local)
                     {
-                        if (name.NamespaceIndex == 0)
+                        string? namespaceUri = name.NamespaceIndex == 0
+                            ? WotVocabulary.OpcUaNamespace
+                            : name.NamespaceIndex <= (nodeSet.NamespaceUris?.Length ?? 0)
+                                ? nodeSet.NamespaceUris![name.NamespaceIndex - 1]
+                                : null;
+                        if (namespaceUri is null)
                         {
-                            AddBrowseName(WotVocabulary.OpcUaNamespace, local, resolved);
+                            continue;
                         }
-                        else if (name.NamespaceIndex <= (nodeSet.NamespaceUris?.Length ?? 0))
+                        AddBrowseName(namespaceUri, local, resolved);
+                        if (node is UAReferenceType referenceType)
                         {
-                            AddBrowseName(nodeSet.NamespaceUris![name.NamespaceIndex - 1], local, resolved);
+                            AddReferenceTypeName(namespaceUri, local, portable, local, true);
+                            if (!referenceType.Symmetric)
+                            {
+                                foreach (Export.LocalizedText inverse in referenceType.InverseName ?? [])
+                                {
+                                    if (inverse.Value is { Length: > 0 } inverseName &&
+                                        !string.Equals(inverseName, local, StringComparison.Ordinal))
+                                    {
+                                        AddReferenceTypeName(namespaceUri, inverseName, portable, inverseName, false);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -508,6 +577,17 @@ namespace Opc.Ua.Wot
             new(StringComparer.Ordinal);
 
         private readonly WotDocumentDeclarationIndex m_declarations = new();
+
+        /// <summary>
+        /// Captures argument values separately from native node ownership.
+        /// </summary>
+        private readonly Dictionary<string, WotNodeSetConverter.WotArgumentProperty> m_argumentProperties =
+            new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Distinguishes a held non-argument node from an unresolved identity.
+        /// </summary>
+        private static readonly WotNodeSetConverter.WotArgumentProperty s_notArgumentProperty = new(string.Empty, []);
 
         private readonly Dictionary<string, List<WotResolvedNode>> m_byBrowseName =
             new(StringComparer.Ordinal);

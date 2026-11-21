@@ -45,7 +45,9 @@ namespace Opc.Ua.Redundancy.Server
                 IEnumerable<string>? namespaceUris = source switch
                 {
                     IAsyncNodeManager asyncNodeManager => asyncNodeManager.NamespaceUris,
+#pragma warning disable CS0618, UA0031 // Legacy synchronous address-space sources still register.
                     INodeManager nodeManager => nodeManager.NamespaceUris,
+#pragma warning restore CS0618, UA0031
                     _ => null
                 };
                 List<string>? sortedNamespaceUris = namespaceUris == null ? null : [.. namespaceUris];

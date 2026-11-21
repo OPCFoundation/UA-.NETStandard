@@ -191,6 +191,13 @@
     }
   },
   "title": "BlockType",
+  "tm:optional": [
+    "/properties/RevisionCounter",
+    "/properties/ActualMode",
+    "/properties/PermittedMode",
+    "/properties/NormalMode",
+    "/properties/TargetMode"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:BlockType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=1003",

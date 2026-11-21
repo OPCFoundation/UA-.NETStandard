@@ -88,6 +88,9 @@
     }
   },
   "title": "MachineryComponentIdentificationType",
+  "tm:optional": [
+    "/properties/DeviceRevision"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:MachineryComponentIdentificationType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1005",

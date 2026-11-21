@@ -585,6 +585,22 @@ namespace Opc.Ua.Wot
                     }
                 }
             }
+            for (int index = 0; index < results.Count; index++)
+            {
+                if (results[index] is { Success: true, Value: { } part })
+                {
+                    string? ancestor = await ResolveDocumentEventAncestorAsync(
+                        part, documents.Entries[index].Document, context, cancellationToken).ConfigureAwait(false);
+                    if (ancestor is not null)
+                    {
+                        var diagnostics = results[index].Diagnostics.ToList();
+                        WotJsonResidue.RemoveDocumentSetLinks(
+                            part, documents.Entries[index].Document, documents, options, diagnostics,
+                            resolvedEventAncestor: ancestor);
+                        results[index] = new WotConversionResult<UANodeSet>(part, diagnostics);
+                    }
+                }
+            }
             return results;
         }
 
@@ -679,7 +695,8 @@ namespace Opc.Ua.Wot
             List<UANodeSet> partitions,
             UANodeSet merged,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             if (HasErrors(diagnostics))
             {
@@ -698,7 +715,7 @@ namespace Opc.Ua.Wot
                     }
                     ValidatePreservedReadableFacts(
                         document, partitions[index], options, diagnostics, merged,
-                        derivations: derivations);
+                        derivations: derivations, resolvedArgumentProperties: resolvedArgumentProperties);
                 }
             }
             ApplyIdentifierLeniency(diagnostics, options);
@@ -1009,11 +1026,13 @@ namespace Opc.Ua.Wot
         /// <param name="nodeSet">The node set.</param>
         /// <param name="data">The JSON element.</param>
         /// <param name="maxDepth">The max depth.</param>
+        /// <param name="resolvedEventAncestor">The standard event ancestor resolved from the local context.</param>
         internal static bool IsGeneratedEventDefinitionData(
             WotDocument document,
             UANodeSet nodeSet,
             JsonElement data,
-            int maxDepth)
+            int maxDepth,
+            string? resolvedEventAncestor = null)
         {
             if (!HasEventTypeAnnotation(document))
             {
@@ -1038,7 +1057,8 @@ namespace Opc.Ua.Wot
             {
                 writer.WriteStartObject();
                 WriteEventTypeDefinitionData(
-                    writer, root, nodeSet.NamespaceUris, nodeSet, BuildIndex(nodeSet), GetDocumentLocale(document));
+                    writer, root, nodeSet.NamespaceUris, nodeSet, BuildIndex(nodeSet), GetDocumentLocale(document),
+                    resolvedEventAncestor);
                 writer.WriteEndObject();
             }
             using var expected = JsonDocument.Parse(

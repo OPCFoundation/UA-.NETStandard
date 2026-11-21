@@ -4,16 +4,18 @@
 // ========================================================================
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// <see cref="INodeManagerFactory"/> that produces
+    /// <see cref="IAsyncNodeManagerFactory"/> that produces
     /// <see cref="WotConnectivityNodeManager"/> instances configured with a
     /// shared <see cref="WotConnectivityServerOptions"/>.
     /// </summary>
-    public sealed class WotConnectivityNodeManagerFactory : INodeManagerFactory
+    public sealed class WotConnectivityNodeManagerFactory : IAsyncNodeManagerFactory
     {
         /// <summary>
         /// Creates a new factory using the supplied options.
@@ -32,12 +34,17 @@ namespace Opc.Ua.WotCon.Server
         };
 
         /// <inheritdoc/>
-        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        public ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
-            // The node manager is owned by the MasterNodeManager once registered;
-            // returning its SyncNodeManager wrapper transfers ownership to the host.
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // The node manager is owned by the MasterNodeManager once registered.
 #pragma warning disable CA2000 // Dispose objects before losing scope
-            return new WotConnectivityNodeManager(server, configuration, m_options).SyncNodeManager;
+            return new ValueTask<IAsyncNodeManager>(
+                new WotConnectivityNodeManager(server, configuration, m_options));
 #pragma warning restore CA2000 // Dispose objects before losing scope
         }
 

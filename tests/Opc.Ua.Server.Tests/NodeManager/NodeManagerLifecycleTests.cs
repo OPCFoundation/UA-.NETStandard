@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

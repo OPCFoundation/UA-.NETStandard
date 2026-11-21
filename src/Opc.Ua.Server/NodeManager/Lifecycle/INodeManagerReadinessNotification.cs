@@ -68,7 +68,9 @@ namespace Opc.Ua.Server
         {
             return nodeManager switch
             {
+#pragma warning disable CS0618, UA0031 // Legacy adapters forward readiness participation.
                 AsyncNodeManagerAdapter adapter => adapter.HasReadinessParticipant,
+#pragma warning restore CS0618, UA0031
                 _ => nodeManager is INodeManagerReadinessNotification
             };
         }

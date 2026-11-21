@@ -890,13 +890,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             out RentedNotificationArrays rented)
         {
             int count = published.Count;
-            EventFieldList[] events = System.Buffers.ArrayPool<EventFieldList>.Shared.Rent(count);
-            object?[] stamps = System.Buffers.ArrayPool<object?>.Shared.Rent(count);
+            var buffer = EventNotificationBuffer.Rent(count);
+            EventFieldList[] events = buffer.Events;
             for (int ii = 0; ii < count; ii++)
             {
                 QueuedEvent queued = published.Dequeue();
                 events[ii] = queued.Fields;
-                stamps[ii] = queued.AdmissionStamp;
+                buffer.Stamps[ii] = queued.AdmissionStamp;
             }
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = queue.AssignSequenceNumber();
@@ -907,7 +907,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Events = new ArrayOf<EventFieldList>(events.AsMemory(0, count))
                 })
             ];
-            rented = new RentedNotificationArrays(null, events, stamps);
+            rented = new RentedNotificationArrays(null, buffer);
             return message;
         }
 

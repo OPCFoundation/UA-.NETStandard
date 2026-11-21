@@ -11,7 +11,7 @@ using Opc.Ua.Export;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// Indexes the instance declarations a set of Thing Models states, and
+    /// Indexes the instance declarations a set of Thing Models or native NodeSets states, and
     /// answers <see cref="IWotTypeDeclarationResolver"/> over them.
     /// </summary>
     /// <remarks>
@@ -214,35 +214,12 @@ namespace Opc.Ua.Wot
                 : [];
         }
 
-        private ArrayOf<(WotResolvedNode Node, WotBrowsePathElement BrowseName)> GetNativeNodes(bool typesOnly)
+        /// <summary>
+        /// Indexes native declarations without first exporting them as WoT documents.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        internal void AddNodeSet(UANodeSet nodeSet)
         {
-            var nodes = new List<(WotResolvedNode Node, WotBrowsePathElement BrowseName)>();
-            foreach (Entry entry in m_types.Values)
-            {
-                if (entry.NativeNode is { } node && (!typesOnly || node.NodeClass != WotExpectedNodeClass.Any))
-                {
-                    nodes.Add((node, entry.NativeBrowseName));
-                }
-            }
-            return nodes.ToArrayOf();
-        }
-
-        private void AddNativeNodes(WotDocument document)
-        {
-            if (!document.TryGetEnvelope(out _) &&
-                (!document.TryGetNativeProjection(out JsonElement projection) ||
-                    WotNativeProjection.HasUnsupportedProfile(projection)))
-            {
-                return;
-            }
-            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ReadAuthoritativeTypeContext(document);
-            if (!restored.Success || restored.Value is null)
-            {
-                throw new FormatException(
-                    "The authoritative native type context could not be restored. " +
-                    (restored.Diagnostics.Count == 0 ? string.Empty : restored.Diagnostics[0].Message));
-            }
-            UANodeSet nodeSet = restored.Value;
             var references = WotReferenceTypeNames.Build(nodeSet);
             var nodes = new Dictionary<string, UANode>(StringComparer.Ordinal);
             foreach (UANode node in nodeSet.Items ?? [])
@@ -282,6 +259,37 @@ namespace Opc.Ua.Wot
                     NativeBrowseName: new WotBrowsePathElement(namespaceUri, name.Name!), Detail: detail));
                 AddAlias(resolved.NodeId, resolved.NodeId);
             }
+        }
+
+        private ArrayOf<(WotResolvedNode Node, WotBrowsePathElement BrowseName)> GetNativeNodes(bool typesOnly)
+        {
+            var nodes = new List<(WotResolvedNode Node, WotBrowsePathElement BrowseName)>();
+            foreach (Entry entry in m_types.Values)
+            {
+                if (entry.NativeNode is { } node && (!typesOnly || node.NodeClass != WotExpectedNodeClass.Any))
+                {
+                    nodes.Add((node, entry.NativeBrowseName));
+                }
+            }
+            return nodes.ToArrayOf();
+        }
+
+        private void AddNativeNodes(WotDocument document)
+        {
+            if (!document.TryGetEnvelope(out _) &&
+                (!document.TryGetNativeProjection(out JsonElement projection) ||
+                    WotNativeProjection.HasUnsupportedProfile(projection)))
+            {
+                return;
+            }
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ReadAuthoritativeTypeContext(document);
+            if (!restored.Success || restored.Value is null)
+            {
+                throw new FormatException(
+                    "The authoritative native type context could not be restored. " +
+                    (restored.Diagnostics.Count == 0 ? string.Empty : restored.Diagnostics[0].Message));
+            }
+            AddNodeSet(restored.Value);
         }
 
         private void AddNativeEntry(string identity, Entry entry)

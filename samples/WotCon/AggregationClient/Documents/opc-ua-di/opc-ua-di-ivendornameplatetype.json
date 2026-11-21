@@ -435,6 +435,22 @@
     }
   },
   "title": "IVendorNameplateType",
+  "tm:optional": [
+    "/properties/Manufacturer",
+    "/properties/ManufacturerUri",
+    "/properties/Model",
+    "/properties/HardwareRevision",
+    "/properties/SoftwareRevision",
+    "/properties/DeviceRevision",
+    "/properties/ProductCode",
+    "/properties/DeviceManual",
+    "/properties/DeviceClass",
+    "/properties/SerialNumber",
+    "/properties/ProductInstanceUri",
+    "/properties/RevisionCounter",
+    "/properties/SoftwareReleaseDate",
+    "/properties/PatchIdentifiers"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IVendorNameplateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15035",

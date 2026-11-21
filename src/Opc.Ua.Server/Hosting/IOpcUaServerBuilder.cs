@@ -37,6 +37,13 @@ namespace Opc.Ua.Server.Hosting
         /// Registers a synchronous (legacy) node-manager factory as a singleton.
         /// </summary>
         /// <typeparam name="TFactory">The node manager factory type.</typeparam>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
         IOpcUaServerBuilder AddSyncNodeManager<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
             where TFactory : class, INodeManagerFactory;

@@ -769,7 +769,17 @@ namespace Opc.Ua.Wot
         /// sources. Reusing either definition for the other's forms would
         /// state a security the author did not, so the view is refused.
         /// </summary>
-        ProjectionSecurityConflict = 6063
+        ProjectionSecurityConflict = 6063,
+
+        /// <summary>
+        /// A quantity kind was enriched from a verified companion declaration; the diagnostic cites its source.
+        /// </summary>
+        QuantityKindEnriched = 6064,
+
+        /// <summary>
+        /// A known companion declaration has inconsistent quantity metadata, so its quantity kind was not inferred.
+        /// </summary>
+        EngineeringUnitSemanticConflict = 6065
     }
 
     /// <summary>

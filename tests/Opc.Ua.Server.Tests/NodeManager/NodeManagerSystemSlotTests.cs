@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -53,7 +55,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(namespaces.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
                         Is.EqualTo(provisioningMode ? -1 : 2));
                     bool foundReference = false;
-                    bool foundOptionalSync = false;
+                    bool foundBoiler = false;
                     foreach (IAsyncNodeManager manager in server.CurrentInstance.NodeManager.AsyncNodeManagers)
                     {
                         if (manager is ReferenceNodeManager reference)
@@ -61,11 +63,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             foundReference = true;
                             Assert.That(reference.NamespaceIndex, Is.EqualTo(2));
                         }
-                        foundOptionalSync |= manager.SyncNodeManager is Boiler.BoilerNodeManager;
+                        foundBoiler |= manager is Boiler.BoilerNodeManager;
                     }
                     Assert.That(foundReference, Is.EqualTo(!provisioningMode),
                         "Only non-provisioning startup uses the asynchronous reference model factory.");
-                    Assert.That(foundOptionalSync, Is.EqualTo(allNodeManagers && !provisioningMode));
+                    Assert.That(foundBoiler, Is.EqualTo(allNodeManagers && !provisioningMode));
                     string[] snapshot = namespaces.GetSnapshot(out _).ToArray()!;
                     if (initialNamespaces != null)
                     {

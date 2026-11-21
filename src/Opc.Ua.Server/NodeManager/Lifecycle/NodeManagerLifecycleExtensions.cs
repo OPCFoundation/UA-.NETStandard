@@ -401,6 +401,7 @@ namespace Opc.Ua.Server
             return registration ?? throw new ArgumentNullException(nameof(registration));
         }
 
+#pragma warning disable CS0618, UA0031 // The legacy factory adapter bridges INodeManagerFactory onto the async seam.
         /// <summary>
         /// Adapts a synchronous replacement while preserving its compatibility argument name.
         /// </summary>
@@ -431,5 +432,6 @@ namespace Opc.Ua.Server
             private readonly INodeManagerFactory m_factory = factory
                 ?? throw new ArgumentNullException(nameof(factory));
         }
+#pragma warning restore CS0618, UA0031
     }
 }

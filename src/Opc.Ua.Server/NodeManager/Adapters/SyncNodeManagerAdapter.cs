@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Implements the legacy INodeManager surface that IAsyncNodeManager.SyncNodeManager still exposes.
+
 using System;
 using System.Collections.Generic;
 using System.Threading;

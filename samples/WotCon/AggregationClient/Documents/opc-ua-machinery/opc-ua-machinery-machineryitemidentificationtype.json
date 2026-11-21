@@ -461,6 +461,20 @@
     }
   },
   "title": "MachineryItemIdentificationType",
+  "tm:optional": [
+    "/properties/AssetId",
+    "/properties/ComponentName",
+    "/properties/DeviceClass",
+    "/properties/HardwareRevision",
+    "/properties/InitialOperationDate",
+    "/properties/ManufacturerUri",
+    "/properties/Model",
+    "/properties/MonthOfConstruction",
+    "/properties/ProductCode",
+    "/properties/ProductInstanceUri",
+    "/properties/SoftwareRevision",
+    "/properties/YearOfConstruction"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:MachineryItemIdentificationType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",

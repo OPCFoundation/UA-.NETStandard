@@ -35,6 +35,36 @@ namespace Opc.Ua.WotCon.Tests.Hosting
     public sealed class OpcUaWotRegistryServerBuilderExtensionsTests
     {
         /// <summary>
+        /// Wires the same companion-enrichment provider into converter options, preserving caller registrations.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void QuantityKindMappingProviderFlowsIntoConverterOptions(bool custom)
+        {
+            var services = new ServiceCollection();
+            IWotQuantityKindMappingProvider supplied = Mock.Of<IWotQuantityKindMappingProvider>();
+            if (custom)
+            {
+                services.AddSingleton(supplied);
+            }
+            services.AddOpcUa().AddWotRegistryServer();
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            IWotQuantityKindMappingProvider registered = provider.GetRequiredService<IWotQuantityKindMappingProvider>();
+            WotNodeSetConverterOptions options = provider.GetRequiredService<WotNodeSetConverterOptions>();
+
+            Assert.That(options.QuantityKindMappingProvider, Is.SameAs(registered));
+            if (custom)
+            {
+                Assert.That(registered, Is.SameAs(supplied));
+            }
+            else
+            {
+                Assert.That(registered, Is.TypeOf<WotCompanionQuantityKindMappingProvider>());
+            }
+        }
+
+        /// <summary>
         /// Verifies that recovery resolver uses the registered owner without reloading healthy state.
         /// </summary>
         [Test]

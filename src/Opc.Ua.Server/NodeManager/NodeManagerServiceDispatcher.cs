@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Dispatch still serves the legacy GetManagerHandle(out INodeManager) lookup.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

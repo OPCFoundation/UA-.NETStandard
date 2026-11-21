@@ -5,6 +5,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security.Sks;
@@ -13,7 +15,7 @@ using Opc.Ua.Server;
 namespace Opc.Ua.PubSub.Server
 {
     /// <summary>
-    /// <see cref="INodeManagerFactory"/> that produces
+    /// <see cref="IAsyncNodeManagerFactory"/> that produces
     /// <see cref="PubSubNodeManager"/> instances bound to a shared
     /// <see cref="IPubSubApplication"/> and optional
     /// <see cref="IPubSubKeyServiceServer"/>.
@@ -24,7 +26,7 @@ namespace Opc.Ua.PubSub.Server
     /// vendor URI; the standard PubSub nodes are loaded by the
     /// hosting server's diagnostics node manager.
     /// </remarks>
-    public sealed class PubSubNodeManagerFactory : INodeManagerFactory
+    public sealed class PubSubNodeManagerFactory : IAsyncNodeManagerFactory
     {
         private readonly IPubSubApplication m_application;
         private readonly IPubSubKeyServiceServer? m_keyService;
@@ -79,22 +81,25 @@ namespace Opc.Ua.PubSub.Server
         public ArrayOf<string> NamespacesUris => new string[] { PubSubNodeManager.NamespaceUri };
 
         /// <inheritdoc/>
-        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        public ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
-            // The node manager is owned by the MasterNodeManager once registered;
-            // returning its SyncNodeManager wrapper transfers ownership to the host.
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // The node manager is owned by the MasterNodeManager once registered.
 #pragma warning disable CA2000 // Dispose objects before losing scope
-            return new PubSubNodeManager(
-                    server,
-                    configuration,
-                    m_application,
-                    m_keyService,
-                    m_options,
-                    m_telemetry,
-                    m_actionMethodRegistrations,
-                    m_pushKeyProviders,
-                    m_idAllocator)
-                .SyncNodeManager;
+            return new ValueTask<IAsyncNodeManager>(new PubSubNodeManager(
+                server,
+                configuration,
+                m_application,
+                m_keyService,
+                m_options,
+                m_telemetry,
+                m_actionMethodRegistrations,
+                m_pushKeyProviders,
+                m_idAllocator));
 #pragma warning restore CA2000 // Dispose objects before losing scope
         }
     }

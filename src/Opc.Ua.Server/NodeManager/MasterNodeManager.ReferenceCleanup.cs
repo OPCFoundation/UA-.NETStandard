@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Reference cleanup keeps the CustomNodeManager2 storage fast path.
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;

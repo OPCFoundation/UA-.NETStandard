@@ -224,7 +224,9 @@ namespace Opc.Ua.Server
             }
             return identity is AsyncCustomNodeManager asynchronous
                 ? asynchronous.Server as StagingServer
+#pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners stage through their server.
                 : (identity.SyncNodeManager as CustomNodeManager2)?.Server as StagingServer;
+#pragma warning restore CS0618, UA0031
         }
 
         /// <summary>

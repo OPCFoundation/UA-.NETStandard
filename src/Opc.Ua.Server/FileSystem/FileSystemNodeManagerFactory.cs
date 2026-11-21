@@ -15,7 +15,9 @@ namespace Opc.Ua.Server.FileSystem
     /// <c>StandardServer</c> via the standard
     /// <c>NodeManagerFactories</c> collection.
     /// </summary>
+#pragma warning disable CS0618, UA0031 // Keeps the INodeManagerFactory surface for existing callers; Create is obsolete.
     public sealed class FileSystemNodeManagerFactory : INodeManagerFactory, IAsyncNodeManagerFactory
+#pragma warning restore CS0618, UA0031
     {
         /// <summary>
         /// Creates a new factory backed by <paramref name="provider"/>.
@@ -38,6 +40,13 @@ namespace Opc.Ua.Server.FileSystem
         ];
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.INodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.INodeManagerFactory)]
+#endif
         public INodeManager Create(
             IServerInternal server,
             ApplicationConfiguration configuration)

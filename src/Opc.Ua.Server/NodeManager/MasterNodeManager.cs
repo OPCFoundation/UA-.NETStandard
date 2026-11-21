@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // The master still accepts, routes and unwraps legacy synchronous node managers.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -1238,6 +1240,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         public void RegisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
             RegisterNamespaceManager(namespaceUri, nodeManager.ToAsyncNodeManager());
@@ -1285,6 +1294,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         public bool UnregisterNamespaceManager(string namespaceUri, INodeManager nodeManager)
         {
             return UnregisterNamespaceManager(namespaceUri, null, nodeManager);
@@ -1434,6 +1450,13 @@ namespace Opc.Ua.Server
             Volatile.Read(ref m_shutdownCompletedNodeManagerCount);
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         public IReadOnlyList<INodeManager> NodeManagers
             => [.. m_nodeManagers.Select(manager => manager.SyncNodeManager)];
 

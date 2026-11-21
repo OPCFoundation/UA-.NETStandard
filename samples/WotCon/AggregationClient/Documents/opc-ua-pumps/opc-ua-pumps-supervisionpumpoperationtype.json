@@ -464,9 +464,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6851"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6959",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -495,9 +492,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6875"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12361",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -526,9 +520,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6878"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12364",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -557,9 +548,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6881"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12367",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -588,9 +576,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6884"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12370",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -619,9 +604,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6887"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12373",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -650,9 +632,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6890"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12376",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -681,9 +660,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6893"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12379",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -712,9 +688,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6896"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12382",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -743,9 +716,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6899"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12385",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -774,9 +744,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6902"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12388",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -805,9 +772,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6854"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12339",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -836,9 +800,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6905"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12391",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -867,9 +828,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6908"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12394",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -898,9 +856,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6911"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12397",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -929,9 +884,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6914"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12400",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -960,9 +912,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6917"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12403",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -991,9 +940,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6920"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12406",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1022,9 +968,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6923"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12409",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1053,9 +996,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6926"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12412",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1084,9 +1024,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6929"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12415",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1115,9 +1052,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6932"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12418",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1146,9 +1080,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6857"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12342",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1177,9 +1108,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6935"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12421",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1208,9 +1136,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6938"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12424",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1239,9 +1164,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6941"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12427",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1270,9 +1192,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6944"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12430",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1301,9 +1220,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6947"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12433",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1332,9 +1248,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6950"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12436",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1363,9 +1276,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6953"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12439",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1394,9 +1304,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6956"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12442",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1425,9 +1332,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6860"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12345",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1456,9 +1360,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6863"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12348",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1487,9 +1388,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6866"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12351",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1518,9 +1416,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6869"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12354",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1549,9 +1444,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6872"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12357",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1580,9 +1472,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=12084"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12360",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1669,9 +1558,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6851"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6852",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1700,9 +1586,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6875"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6876",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1731,9 +1614,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6878"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6879",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1762,9 +1642,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6881"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6882",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1793,9 +1670,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6884"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6885",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1824,9 +1698,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6887"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6888",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1855,9 +1726,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6890"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6891",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1886,9 +1754,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6893"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6894",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1917,9 +1782,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6896"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6897",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1948,9 +1810,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6899"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6900",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1979,9 +1838,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6902"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6903",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2010,9 +1866,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6854"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6855",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2041,9 +1894,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6905"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6906",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2072,9 +1922,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6908"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6909",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2103,9 +1950,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6911"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6912",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2134,9 +1978,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6914"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6915",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2165,9 +2006,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6917"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6918",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2196,9 +2034,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6920"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6921",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2227,9 +2062,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6923"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6924",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2258,9 +2090,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6926"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6927",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2289,9 +2118,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6929"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6930",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2320,9 +2146,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6932"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6933",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2351,9 +2174,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6857"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6858",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2382,9 +2202,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6935"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6936",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2413,9 +2230,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6938"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6939",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2444,9 +2258,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6941"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6942",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2475,9 +2286,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6944"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6945",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2506,9 +2314,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6947"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6948",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2537,9 +2342,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6950"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6951",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2568,9 +2370,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6953"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6954",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2599,9 +2398,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6956"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6957",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2630,9 +2426,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6860"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6861",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2661,9 +2454,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6863"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6864",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2692,9 +2482,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6866"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6867",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2723,9 +2510,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6869"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6870",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2754,9 +2538,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6872"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6873",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -2785,9 +2566,6 @@
       "title": "FalseState",
       "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=12084"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12085",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3309,9 +3087,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6851"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6853",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3340,9 +3115,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6875"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6877",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3371,9 +3143,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6878"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6880",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3402,9 +3171,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6881"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6883",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3433,9 +3199,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6884"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6886",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3464,9 +3227,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6887"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6889",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3495,9 +3255,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6890"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6892",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3526,9 +3283,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6893"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6895",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3557,9 +3311,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6896"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6898",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3588,9 +3339,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6899"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6901",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3619,9 +3367,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6902"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6904",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3650,9 +3395,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6854"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6856",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3681,9 +3423,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6905"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6907",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3712,9 +3451,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6908"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6910",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3743,9 +3479,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6911"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6913",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3774,9 +3507,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6914"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6916",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3805,9 +3535,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6917"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6919",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3836,9 +3563,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6920"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6922",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3867,9 +3591,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6923"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6925",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3898,9 +3619,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6926"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6928",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3929,9 +3647,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6929"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6931",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3960,9 +3675,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6932"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6934",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -3991,9 +3703,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6857"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6859",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4022,9 +3731,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6935"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6937",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4053,9 +3759,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6938"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6940",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4084,9 +3787,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6941"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6943",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4115,9 +3815,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6944"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6946",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4146,9 +3843,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6947"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6949",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4177,9 +3871,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6950"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6952",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4208,9 +3899,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6953"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6955",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4239,9 +3927,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6956"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6958",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4270,9 +3955,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6860"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6862",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4301,9 +3983,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6863"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6865",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4332,9 +4011,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6866"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6868",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4363,9 +4039,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6869"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6871",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4394,9 +4067,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6872"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6874",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4425,9 +4095,6 @@
       "title": "TrueState",
       "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=12084"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12086",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -4550,6 +4217,82 @@
     }
   },
   "title": "SupervisionPumpOperationType",
+  "tm:optional": [
+    "/properties/AccessoryLiquidFlow",
+    "/properties/AccessoryLiquidHigh",
+    "/properties/AccessoryLiquidLow",
+    "/properties/AccessoryLiquidOverheat",
+    "/properties/AccessoryLiquidPressure",
+    "/properties/AmbientTemperature",
+    "/properties/CaseOverheat",
+    "/properties/ControllerOverheat",
+    "/properties/ConverterOverheat",
+    "/properties/CoolantFlow",
+    "/properties/CoolantHigh",
+    "/properties/CoolantLow",
+    "/properties/CoolantOverheat",
+    "/properties/Deceleration",
+    "/properties/DirtyImpeller",
+    "/properties/DriveOverheat",
+    "/properties/GeneratorOperation",
+    "/properties/Leakage",
+    "/properties/Lubricant",
+    "/properties/MaximumNumberStarts",
+    "/properties/MaximumOperationTime",
+    "/properties/MaximumStartsAtTime",
+    "/properties/MotorHumidity",
+    "/properties/MotorOverheat",
+    "/properties/OperationFault",
+    "/properties/OverLoad",
+    "/properties/OverSpeed",
+    "/properties/PartialLoad",
+    "/properties/Synchronisation",
+    "/properties/TemperatureFault",
+    "/properties/TimeOut",
+    "/properties/TMSFailure",
+    "/properties/TorqueLimit",
+    "/properties/TurbineOperation",
+    "/properties/UnderSpeed",
+    "/properties/VelocityLimit",
+    "/properties/WearReserveExhausted",
+    "/properties/Definition",
+    "/properties/Definition_2",
+    "/properties/Definition_3",
+    "/properties/Definition_4",
+    "/properties/Definition_5",
+    "/properties/Definition_6",
+    "/properties/Definition_7",
+    "/properties/Definition_8",
+    "/properties/Definition_9",
+    "/properties/Definition_10",
+    "/properties/Definition_11",
+    "/properties/Definition_12",
+    "/properties/Definition_13",
+    "/properties/Definition_14",
+    "/properties/Definition_15",
+    "/properties/Definition_16",
+    "/properties/Definition_17",
+    "/properties/Definition_18",
+    "/properties/Definition_19",
+    "/properties/Definition_20",
+    "/properties/Definition_21",
+    "/properties/Definition_22",
+    "/properties/Definition_23",
+    "/properties/Definition_24",
+    "/properties/Definition_25",
+    "/properties/Definition_26",
+    "/properties/Definition_27",
+    "/properties/Definition_28",
+    "/properties/Definition_29",
+    "/properties/Definition_30",
+    "/properties/Definition_31",
+    "/properties/Definition_32",
+    "/properties/Definition_33",
+    "/properties/Definition_34",
+    "/properties/Definition_35",
+    "/properties/Definition_36",
+    "/properties/Definition_37"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:SupervisionPumpOperationType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1016",

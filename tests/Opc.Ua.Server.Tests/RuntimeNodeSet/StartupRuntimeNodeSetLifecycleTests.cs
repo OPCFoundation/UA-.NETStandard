@@ -435,6 +435,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     Assert.That(failedServer.Probe.ReadinessCount, Is.EqualTo(failAtReadiness ? 1 : 0));
                     Assert.That(failedServer.Probe.DeleteAddressSpaceCount, Is.EqualTo(1));
                     Assert.That(failedServer.Probe.DisposeCount, Is.EqualTo(1));
+                    // readiness failure stops through the virtual entry point, closing the listeners
+                    Assert.That(failedServer.StopCount, failAtReadiness ? Is.GreaterThanOrEqualTo(1) : Is.Zero);
                 });
             }
             finally
@@ -978,6 +980,18 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// </summary>
         public StartupNodeManagerProbe Probe { get; }
 
+        /// <summary>
+        /// Gets how often the server was stopped through its virtual entry point.
+        /// </summary>
+        public int StopCount => Volatile.Read(ref m_stopCount);
+
+        /// <inheritdoc/>
+        public override ValueTask StopAsync(CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref m_stopCount);
+            return base.StopAsync(cancellationToken);
+        }
+
         /// <inheritdoc/>
         protected override ValueTask StartApplicationAsync(
             ApplicationConfiguration configuration,
@@ -1002,6 +1016,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
         /// <summary>The cancellation boundary controlled independently of the fixture's startup API.</summary>
         private readonly CancellationTokenSource? m_startupCancellation;
+        private int m_stopCount;
     }
 
     internal sealed class StartupProbeNodeManagerFactory : IAsyncNodeManagerFactory

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 // ========================================================================
 
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
+
 // CA2000: test code; disposables are ownership-transferred to the test
 // harness or are short-lived, making CA2000 noisy without a real leak risk.
 #pragma warning disable CA2000

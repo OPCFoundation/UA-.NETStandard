@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private static ManualTimer? GetRegistrationTimer(StandardServer server)
         {
-            return (ManualTimer?)s_timerField.GetValue(server);
+            return (ManualTimer?)s_timerField.GetValue(server.DiscoveryRegistration);
         }
 
         /// <summary>
@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Tests
             {
                 SynchronizationContext.SetSynchronizationContext(previous);
             }
-            return s_taskField?.GetValue(server) as Task ?? completion.Completion;
+            return s_taskField?.GetValue(server.DiscoveryRegistration) as Task ?? completion.Completion;
         }
 
         /// <summary>
@@ -549,14 +549,14 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Locates the active registration timer for ownership and scheduling assertions.
         /// </summary>
-        private static readonly FieldInfo s_timerField = typeof(StandardServer)
-            .GetField("m_registrationTimer", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        private static readonly FieldInfo s_timerField = typeof(DiscoveryRegistration)
+            .GetField("m_timer", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
         /// <summary>
         /// Locates a tracked registration task when the server implementation exposes one.
         /// </summary>
-        private static readonly FieldInfo? s_taskField = typeof(StandardServer)
-            .GetField("m_registrationTask", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo? s_taskField = typeof(DiscoveryRegistration)
+            .GetField("m_task", BindingFlags.Instance | BindingFlags.NonPublic);
 
         /// <summary>
         /// Exercises the registration continuation after real readiness completion without starting transport hosts.
@@ -580,26 +580,24 @@ namespace Opc.Ua.Server.Tests
                         return Task.CompletedTask;
                     });
                 const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-                FieldInfo registrationInfo = typeof(StandardServer).GetField("m_registrationInfo", flags)!;
-                FieldInfo maximumInterval = typeof(StandardServer).GetField("m_maxRegistrationInterval", flags)!;
-                FieldInfo minimumInterval = typeof(StandardServer).GetField("m_minRegistrationInterval", flags)!;
-                FieldInfo stopped = typeof(StandardServer).GetField("m_registrationStopped", flags)!;
-                FieldInfo cancellation = typeof(StandardServer).GetField("m_registrationCts", flags)!;
-                MethodInfo startRegistration = typeof(StandardServer).GetMethod(
-                    "StartRegistrationAfterReadiness", flags)!;
+                FieldInfo registrationInfo = typeof(DiscoveryRegistration).GetField("m_registrationInfo", flags)!;
+                FieldInfo maximumInterval = typeof(DiscoveryRegistration).GetField("m_maxRegistrationInterval", flags)!;
+                FieldInfo minimumInterval = typeof(DiscoveryRegistration).GetField("m_minRegistrationInterval", flags)!;
+                FieldInfo stopped = typeof(DiscoveryRegistration).GetField("m_stopped", flags)!;
+                FieldInfo cancellation = typeof(DiscoveryRegistration).GetField("m_cts", flags)!;
                 var info = new RegisteredServer { IsOnline = false };
-                registrationInfo.SetValue(server, info);
-                maximumInterval.SetValue(server, 60_000);
-                minimumInterval.SetValue(server, 1_000);
+                registrationInfo.SetValue(server.DiscoveryRegistration, info);
+                maximumInterval.SetValue(server.DiscoveryRegistration, 60_000);
+                minimumInterval.SetValue(server.DiscoveryRegistration, 1_000);
 
                 // A control proves these socket-free inputs really enable the production registration boundary.
                 await using (var control = new StandardServer(
                     Opc.Ua.Tests.NUnitTelemetryContext.Create(), new ManualClock(), _ => Task.CompletedTask))
                 {
-                    registrationInfo.SetValue(control, new RegisteredServer { IsOnline = false });
-                    maximumInterval.SetValue(control, 60_000);
-                    minimumInterval.SetValue(control, 1_000);
-                    startRegistration.Invoke(control, null);
+                    registrationInfo.SetValue(control.DiscoveryRegistration, new RegisteredServer { IsOnline = false });
+                    maximumInterval.SetValue(control.DiscoveryRegistration, 60_000);
+                    minimumInterval.SetValue(control.DiscoveryRegistration, 1_000);
+                    control.DiscoveryRegistration.StartAfterReadiness();
                     Assert.That(GetRegistrationTimer(control), Is.Not.Null);
                     Assert.That(GetRegistrationTimer(control)!.DueTime,
                         Is.EqualTo(TimeSpan.FromMilliseconds(1_000)));
@@ -608,7 +606,7 @@ namespace Opc.Ua.Server.Tests
                 async Task CompleteReadinessAndStartRegistrationAsync()
                 {
                     await manager.OnServerReadyAsync().ConfigureAwait(false);
-                    startRegistration.Invoke(server, null);
+                    server.DiscoveryRegistration.StartAfterReadiness();
                 }
 
                 Task continuation = CompleteReadinessAndStartRegistrationAsync();
@@ -618,8 +616,8 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(continuation.IsCompleted, Is.False);
                     Assert.That(GetRegistrationTimer(server), Is.Null);
                     await server.StopAsync(CancellationToken.None).ConfigureAwait(false);
-                    Assert.That(stopped.GetValue(server), Is.True);
-                    Assert.That(cancellation.GetValue(server), Is.Null);
+                    Assert.That(stopped.GetValue(server.DiscoveryRegistration), Is.True);
+                    Assert.That(cancellation.GetValue(server.DiscoveryRegistration), Is.Null);
                     Assert.That(readiness.Release.Task.IsCompleted, Is.False);
 
                     readiness.Release.TrySetResult(true);
@@ -627,12 +625,12 @@ namespace Opc.Ua.Server.Tests
 
                     Assert.That(GetRegistrationTimer(server), Is.Null,
                         "Successful readiness after Stop must not create an LDS registration timer.");
-                    Assert.That(stopped.GetValue(server), Is.True);
-                    Assert.That(cancellation.GetValue(server), Is.Null);
+                    Assert.That(stopped.GetValue(server.DiscoveryRegistration), Is.True);
+                    Assert.That(cancellation.GetValue(server.DiscoveryRegistration), Is.Null);
                     Assert.That(info.IsOnline, Is.False,
                         "The late continuation must not announce the stopped server as online.");
                     Assert.That(callbacks, Is.Zero);
-                    Assert.That(s_taskField!.GetValue(server), Is.Null);
+                    Assert.That(s_taskField!.GetValue(server.DiscoveryRegistration), Is.Null);
                 }
                 finally
                 {

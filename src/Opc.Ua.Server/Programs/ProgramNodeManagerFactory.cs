@@ -13,7 +13,9 @@ namespace Opc.Ua.Server.Programs
     /// Creates an isolated Program host for each server using standard node-manager hosting.
     /// Provider factories must return independently owned execution handles for each invocation.
     /// </summary>
+#pragma warning disable CS0618, UA0031 // Keeps the INodeManagerFactory surface for existing callers; Create is obsolete.
     public sealed class ProgramNodeManagerFactory : INodeManagerFactory, IAsyncNodeManagerFactory
+#pragma warning restore CS0618, UA0031
     {
         /// <summary>
         /// Creates a factory with explicit type policies and optional client AddNodes admission.
@@ -36,6 +38,13 @@ namespace Opc.Ua.Server.Programs
         public ArrayOf<string> NamespacesUris { get; }
 
         /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.INodeManagerFactory,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.INodeManagerFactory)]
+#endif
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
             // Server owns the returned adapter and manager. TODO: model adapter ownership in analysis.

@@ -29,12 +29,14 @@ namespace Opc.Ua.Server.Tests
 
             Quickstarts.Servers.Utils.AddDefaultNodeManagers(server.Object);
 
+#pragma warning disable CS0618, UA0031 // MemoryBuffer is still registered through the synchronous factory.
             server.Verify(
                 s => s.AddNodeManager(It.Is<INodeManagerFactory>(
                     factory => factory is MemoryBuffer.MemoryBufferNodeManagerFactory)),
                 Times.Once);
+#pragma warning restore CS0618, UA0031
             server.Verify(
-                s => s.AddNodeManager(It.Is<INodeManagerFactory>(
+                s => s.AddNodeManager(It.Is<IAsyncNodeManagerFactory>(
                     factory => factory is Boiler.BoilerNodeManagerFactory)),
                 Times.Once);
             server.Verify(
@@ -53,28 +55,30 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DefaultNodeManagerFactoriesPreserveClassicAndAsyncCompatibility()
         {
+#pragma warning disable CS0618, UA0031 // MemoryBuffer is still registered through the synchronous factory.
             ArrayOf<INodeManagerFactory> classicFactories =
                 Quickstarts.Servers.Utils.NodeManagerFactories;
+#pragma warning restore CS0618, UA0031
             ArrayOf<IAsyncNodeManagerFactory> asyncFactories =
                 Quickstarts.Servers.Utils.AsyncNodeManagerFactories;
 
             Assert.That(
                 classicFactories,
-                Has.Count.EqualTo(2));
+                Has.Count.EqualTo(1));
             Assert.That(
                 classicFactories[0],
                 Is.TypeOf<MemoryBuffer.MemoryBufferNodeManagerFactory>());
             Assert.That(
-                classicFactories[1],
-                Is.TypeOf<Boiler.BoilerNodeManagerFactory>());
-            Assert.That(
                 asyncFactories,
-                Has.Count.EqualTo(2));
+                Has.Count.EqualTo(3));
             Assert.That(
                 asyncFactories[0],
-                Is.TypeOf<TestData.TestDataNodeManagerFactory>());
+                Is.TypeOf<Boiler.BoilerNodeManagerFactory>());
             Assert.That(
                 asyncFactories[1],
+                Is.TypeOf<TestData.TestDataNodeManagerFactory>());
+            Assert.That(
+                asyncFactories[2],
                 Is.TypeOf<global::Alarms.AlarmNodeManagerFactory>());
         }
 
@@ -88,7 +92,7 @@ namespace Opc.Ua.Server.Tests
         {
             ArrayOf<IAsyncNodeManagerFactory> asyncFactories =
                 Quickstarts.Servers.Utils.AsyncNodeManagerFactories;
-            var alarmFactory = (global::Alarms.AlarmNodeManagerFactory)asyncFactories[1];
+            var alarmFactory = (global::Alarms.AlarmNodeManagerFactory)asyncFactories[2];
             int original = alarmFactory.SimulationInterval;
             try
             {
@@ -105,9 +109,10 @@ namespace Opc.Ua.Server.Tests
                     Quickstarts.Servers.Utils.CttAlarmSimulationInterval,
                     Is.LessThan(global::Alarms.AlarmNodeManager.DefaultSimulationInterval));
                 ArrayOf<IAsyncNodeManagerFactory> after = Quickstarts.Servers.Utils.AsyncNodeManagerFactories;
-                Assert.That(after, Has.Count.EqualTo(2));
+                Assert.That(after, Has.Count.EqualTo(3));
                 Assert.That(after[0], Is.SameAs(asyncFactories[0]));
-                Assert.That(after[1], Is.SameAs(alarmFactory));
+                Assert.That(after[1], Is.SameAs(asyncFactories[1]));
+                Assert.That(after[2], Is.SameAs(alarmFactory));
             }
             finally
             {
