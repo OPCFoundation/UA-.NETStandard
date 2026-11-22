@@ -516,9 +516,10 @@ namespace Opc.Ua.PubSub.Security
                         "Replay or nonce reuse detected");
                 }
 
-                return UnwrapResult.Success(
+                return UnwrapResult.Unwrapped(
                     plaintext.AsMemory(0, payloadAndFooterLength - footerSize),
-                    header);
+                    header,
+                    signatureVerified: signed && signatureLength > 0);
             }
             finally
             {
@@ -575,8 +576,10 @@ namespace Opc.Ua.PubSub.Security
                 ReadOnlyMemory<byte>? innerPayload,
                 UadpSecurityHeader? header,
                 StatusCode status,
-                string? reason)
+                string? reason,
+                bool signatureVerified = false)
             {
+                SignatureVerified = signatureVerified;
                 InnerPayload = innerPayload;
                 Header = header;
                 Status = status;
@@ -609,6 +612,14 @@ namespace Opc.Ua.PubSub.Security
             public bool IsSuccess => StatusCode.IsGood(Status);
 
             /// <summary>
+            /// True when the frame carried a signature and it was verified
+            /// with the key of its SecurityTokenId. A frame can unwrap
+            /// successfully without one when no SecurityMode is required, so
+            /// only this flag establishes that the sender held the key.
+            /// </summary>
+            public bool SignatureVerified { get; }
+
+            /// <summary>
             /// Builds a success result.
             /// </summary>
             public static UnwrapResult Success(
@@ -616,6 +627,18 @@ namespace Opc.Ua.PubSub.Security
                 UadpSecurityHeader header)
             {
                 return new UnwrapResult(innerPayload, header, StatusCodes.Good, null);
+            }
+
+            /// <summary>
+            /// Builds a success result that records whether the signature of
+            /// the frame was verified.
+            /// </summary>
+            internal static UnwrapResult Unwrapped(
+                ReadOnlyMemory<byte> innerPayload,
+                UadpSecurityHeader header,
+                bool signatureVerified)
+            {
+                return new UnwrapResult(innerPayload, header, StatusCodes.Good, null, signatureVerified);
             }
 
             /// <summary>

@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+using System;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Application
@@ -33,6 +35,23 @@ namespace Opc.Ua.PubSub.Tests.Application
                 .Build();
             Assert.That(app, Is.Not.Null);
             Assert.That(app.Connections, Is.Empty);
+        }
+
+        [Test]
+        public void BuildAppliesUnauthenticatedMetaDataLimitsFromOptions()
+        {
+            IPubSubApplication app = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .Configure(o =>
+                {
+                    o.MaxUnauthenticatedMetaDataCost = 0;
+                    o.UnauthenticatedMetaDataIdleTimeout = TimeSpan.FromSeconds(30);
+                })
+                .UseAllStandardEncoders()
+                .Build();
+
+            var registry = (DataSetMetaDataRegistry)app.MetaDataRegistry;
+            Assert.That(registry.MaxUnauthenticatedCost, Is.Zero);
+            Assert.That(registry.UnauthenticatedIdleTimeout, Is.EqualTo(TimeSpan.FromSeconds(30)));
         }
 
         [Test]

@@ -65,6 +65,82 @@ namespace Opc.Ua.PubSub.Server
         private static readonly NodeId s_securityGroupsNodeId = new(15443u);
         private static readonly NodeId s_keyPushTargetsNodeId = new(25440u);
 
+        /// <summary>
+        /// RolePermissions of the configuration Methods this node manager
+        /// creates in its own namespace. They mirror the ConfigureAdmin
+        /// restriction of the standard Part 14 configuration Methods: a
+        /// Method node without RolePermissions is callable by every Session.
+        /// </summary>
+        private static readonly ArrayOf<RolePermissionType> s_configurationMethodPermissions =
+        [
+            new RolePermissionType
+            {
+                RoleId = ObjectIds.WellKnownRole_ConfigureAdmin,
+                Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+            },
+            new RolePermissionType
+            {
+                RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+            }
+        ];
+
+        /// <summary>
+        /// RolePermissions of the SecurityGroup and KeyPushTarget management
+        /// Methods (Part 14 §8.4, §8.6): SecurityKeyServerAdmin or SecurityAdmin.
+        /// </summary>
+        private static readonly ArrayOf<RolePermissionType> s_keyServiceMethodPermissions =
+        [
+            new RolePermissionType
+            {
+                RoleId = ObjectIds.WellKnownRole_SecurityKeyServerAdmin,
+                Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+            },
+            new RolePermissionType
+            {
+                RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+            }
+        ];
+
+        /// <summary>
+        /// RolePermissions of a SecurityGroup node. The Call service requires
+        /// the Call permission on the Object as well as on the Method, and the
+        /// permissions of the group name the roles that may read its keys, so
+        /// the roles that manage the group are added for the node only. The
+        /// permissions the key service evaluates for key access are not changed.
+        /// </summary>
+        private static ArrayOf<RolePermissionType> WithKeyServiceAdministrators(
+            ArrayOf<RolePermissionType> groupPermissions)
+        {
+            if (groupPermissions.IsEmpty)
+            {
+                // No restriction on the node; the Methods carry their own.
+                return groupPermissions;
+            }
+            var merged = new List<RolePermissionType>(
+                groupPermissions.Count + s_keyServiceMethodPermissions.Count);
+            foreach (RolePermissionType permission in groupPermissions.Span)
+            {
+                merged.Add(permission);
+            }
+            foreach (RolePermissionType administrator in s_keyServiceMethodPermissions.Span)
+            {
+                int existing = merged.FindIndex(p => p.RoleId == administrator.RoleId);
+                if (existing < 0)
+                {
+                    merged.Add(administrator);
+                    continue;
+                }
+                merged[existing] = new RolePermissionType
+                {
+                    RoleId = administrator.RoleId,
+                    Permissions = merged[existing].Permissions | administrator.Permissions
+                };
+            }
+            return merged.ToArray();
+        }
+
         private readonly IPubSubApplication m_application;
         private readonly IPubSubKeyServiceServer? m_keyService;
         private readonly PubSubServerOptions m_options;
@@ -735,7 +811,7 @@ namespace Opc.Ua.PubSub.Server
                     groupNodeId,
                     securityGroupId,
                     new NodeId(15471u));
-                groupNode.RolePermissions = group.RolePermissions;
+                groupNode.RolePermissions = WithKeyServiceAdministrators(group.RolePermissions);
                 BindSecurityGroupMethods(groupNode);
                 MethodHandlers.RegisterSecurityGroupNodeId(securityGroupId, groupNodeId);
                 newRoots.Add(groupNode);
@@ -934,6 +1010,8 @@ namespace Opc.Ua.PubSub.Server
                 DisplayName = new LocalizedText(browseName),
                 Executable = true,
                 UserExecutable = true,
+                RolePermissions = s_configurationMethodPermissions,
+                AccessRestrictions = AccessRestrictionType.SigningRequired,
                 OnCallMethod = (_, _, _, _) =>
                 {
                     try
@@ -1319,17 +1397,26 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindSecurityGroupMethods(BaseObjectState securityGroupNode)
         {
-            AddPlainMethod(securityGroupNode, "InvalidateKeys", (context, method, inputs, outputs) =>
-                MethodHandlers.OnInvalidateKeys(context, method, securityGroupNode.NodeId, inputs, outputs));
-            AddPlainMethod(securityGroupNode, "ForceKeyRotation", (context, method, inputs, outputs) =>
-                MethodHandlers.OnForceKeyRotation(context, method, securityGroupNode.NodeId, inputs, outputs));
+            AddMethod(
+                securityGroupNode,
+                "InvalidateKeys",
+                (context, method, inputs, outputs) =>
+                    MethodHandlers.OnInvalidateKeys(context, method, securityGroupNode.NodeId, inputs, outputs),
+                s_keyServiceMethodPermissions);
+            AddMethod(
+                securityGroupNode,
+                "ForceKeyRotation",
+                (context, method, inputs, outputs) =>
+                    MethodHandlers.OnForceKeyRotation(context, method, securityGroupNode.NodeId, inputs, outputs),
+                s_keyServiceMethodPermissions);
         }
 
         private void BindKeyPushTargetMethods(BaseObjectState targetNode)
         {
-            AddPlainMethod(targetNode, "ConnectSecurityGroups", OnConnectSecurityGroups);
-            AddPlainMethod(targetNode, "DisconnectSecurityGroups", OnDisconnectSecurityGroups);
-            AddPlainMethod(targetNode, "TriggerKeyUpdate", OnTriggerKeyUpdate);
+            AddMethod(targetNode, "ConnectSecurityGroups", OnConnectSecurityGroups, s_keyServiceMethodPermissions);
+            AddMethod(
+                targetNode, "DisconnectSecurityGroups", OnDisconnectSecurityGroups, s_keyServiceMethodPermissions);
+            AddMethod(targetNode, "TriggerKeyUpdate", OnTriggerKeyUpdate, s_keyServiceMethodPermissions);
         }
 
         private void BindWriterGroupMethods(BaseObjectState writerGroupNode)
@@ -1352,17 +1439,21 @@ namespace Opc.Ua.PubSub.Server
             GenericMethodCalledEventHandler handler,
             NodeId ownerNodeId)
         {
-            AddMethod(parent, browseName, (context, method, inputs, outputs) =>
-            {
-                var injectedValues = new Variant[inputs.Count + 1];
-                injectedValues[0] = Variant.From(ownerNodeId);
-                for (int i = 0; i < inputs.Count; i++)
+            AddMethod(
+                parent,
+                browseName,
+                (context, method, inputs, outputs) =>
                 {
-                    injectedValues[i + 1] = inputs[i];
-                }
-                var injected = new ArrayOf<Variant>(injectedValues);
-                return handler(context, method, injected, outputs);
-            });
+                    var injectedValues = new Variant[inputs.Count + 1];
+                    injectedValues[0] = Variant.From(ownerNodeId);
+                    for (int i = 0; i < inputs.Count; i++)
+                    {
+                        injectedValues[i + 1] = inputs[i];
+                    }
+                    var injected = new ArrayOf<Variant>(injectedValues);
+                    return handler(context, method, injected, outputs);
+                },
+                s_configurationMethodPermissions);
         }
 
         private static void AddPlainMethod(
@@ -1370,13 +1461,14 @@ namespace Opc.Ua.PubSub.Server
             string browseName,
             GenericMethodCalledEventHandler handler)
         {
-            AddMethod(parent, browseName, handler);
+            AddMethod(parent, browseName, handler, s_configurationMethodPermissions);
         }
 
         private static void AddMethod(
             BaseObjectState parent,
             string browseName,
-            GenericMethodCalledEventHandler handler)
+            GenericMethodCalledEventHandler handler,
+            ArrayOf<RolePermissionType> rolePermissions)
         {
             string parentId = parent.NodeId.IdentifierAsString;
             var method = new MethodState(parent)
@@ -1386,6 +1478,10 @@ namespace Opc.Ua.PubSub.Server
                 DisplayName = new LocalizedText(browseName),
                 Executable = true,
                 UserExecutable = true,
+                // The Call service evaluates the RolePermissions of the Method
+                // node itself; nothing is inherited from the parent Object.
+                RolePermissions = rolePermissions,
+                AccessRestrictions = AccessRestrictionType.SigningRequired,
                 OnCallMethod = handler
             };
             parent.AddChild(method);

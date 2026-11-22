@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
@@ -12,8 +13,10 @@ using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
+using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
@@ -433,6 +436,215 @@ namespace Opc.Ua.PubSub.Tests.Connections
             Assert.That(registry.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.Match));
         }
 
+        [Test]
+        public async Task RejectedInboundMetaDataDoesNotUseUpTheIdentityBudget()
+        {
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out IDataSetMetaDataRegistry registry,
+                maxUnauthenticatedCost: 1000);
+            var inbound = (DataSetMetaDataRegistry)registry;
+
+            // The budget the host configured applies to the connection registry.
+            Assert.That(inbound.MaxUnauthenticatedCost, Is.EqualTo(1000));
+
+            // More over-budget announcements than there are identity slots.
+            int rejected = PubSubConnection.MaxInboundMetaDataIdentities + 10;
+            for (int i = 0; i < rejected; i++)
+            {
+                _ = conn.TryRouteInboundMetaData(
+                    NewInboundMeta(PublisherId.FromString("P" + i), 1),
+                    authenticated: false,
+                    frameLength: 5000);
+            }
+
+            Assert.That(registry.Keys, Has.Count.Zero);
+            Assert.That(inbound.RejectedUnauthenticatedCount, Is.EqualTo(rejected));
+
+            // A publisher whose announcement fits is still admitted.
+            _ = conn.TryRouteInboundMetaData(
+                NewInboundMeta(PublisherId.FromString("real"), 1),
+                authenticated: false,
+                frameLength: 100);
+            Assert.That(registry.Keys, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task IdleInboundMetaDataGivesUpItsIdentitySlot()
+        {
+            var clock = new FakeTimeProvider();
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out IDataSetMetaDataRegistry registry,
+                maxUnauthenticatedCost: 200_000,
+                timeProvider: clock);
+
+            // A sender takes every identity slot and then goes silent.
+            for (int i = 0; i < PubSubConnection.MaxInboundMetaDataIdentities; i++)
+            {
+                _ = conn.TryRouteInboundMetaData(NewInboundMeta(PublisherId.FromString("P" + i), 1));
+            }
+            var late = new DataSetMetaDataKey(PublisherId.FromString("late"), 0, 1, Uuid.Empty, 7);
+            _ = conn.TryRouteInboundMetaData(NewInboundMeta(late.PublisherId, 1));
+            Assert.That(registry.TryGet(in late, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+
+            clock.Advance(DataSetMetaDataRegistry.DefaultUnauthenticatedIdleTimeout + TimeSpan.FromMinutes(1));
+
+            // An announcement that is refused for its cost must not cost an
+            // idle publisher its metadata.
+            var big = new DataSetMetaDataKey(PublisherId.FromString("big"), 0, 1, Uuid.Empty, 7);
+            _ = conn.TryRouteInboundMetaData(
+                NewInboundMeta(big.PublisherId, 1),
+                authenticated: false,
+                frameLength: 300_000);
+            Assert.That(registry.TryGet(in big, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+            Assert.That(registry.Keys, Has.Count.EqualTo(PubSubConnection.MaxInboundMetaDataIdentities));
+
+            // After the idle timeout a publisher that arrives later is admitted.
+            _ = conn.TryRouteInboundMetaData(NewInboundMeta(late.PublisherId, 1));
+            Assert.That(registry.TryGet(in late, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(registry.Keys, Has.Count.EqualTo(PubSubConnection.MaxInboundMetaDataIdentities));
+
+            var later = new DataSetMetaDataKey(PublisherId.FromString("later"), 0, 1, Uuid.Empty, 7);
+            _ = conn.TryRouteInboundMetaData(NewInboundMeta(later.PublisherId, 1));
+            Assert.That(registry.TryGet(in later, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(registry.Keys, Has.Count.EqualTo(PubSubConnection.MaxInboundMetaDataIdentities));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task EvictedInboundMetaDataIsRequestedAgainWhenItsPublisherResumes()
+        {
+            var clock = new FakeTimeProvider();
+            var factory = new StubTransportFactory();
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out IDataSetMetaDataRegistry registry,
+                maxUnauthenticatedCost: 4096,
+                timeProvider: clock,
+                transportFactory: factory);
+            await conn.EnableAsync().ConfigureAwait(false);
+            List<byte[]> sent = factory.Transport!.Sent;
+
+            var quiet = new DataSetMetaDataKey(PublisherId.FromString("quiet"), 0, 5, Uuid.Empty, 7);
+            _ = conn.TryRouteInboundMetaData(
+                NewInboundMeta(quiet.PublisherId, 5), authenticated: false, frameLength: 3000);
+
+            // A lookup that misses for an identity that never had metadata requests nothing.
+            var unknown = new DataSetMetaDataKey(PublisherId.FromString("unknown"), 0, 9, Uuid.Empty, 7);
+            Assert.That(registry.TryGet(in unknown, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+            await conn.TryRecoverEvictedMetaDataAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(sent, Is.Empty);
+
+            // The publisher goes quiet and another one takes its budget.
+            clock.Advance(TimeSpan.FromMinutes(6));
+            _ = conn.TryRouteInboundMetaData(
+                NewInboundMeta(PublisherId.FromString("other"), 1), authenticated: false, frameLength: 3000);
+
+            // When it resumes, the decoder finds no metadata for its messages
+            // and the connection asks for it again.
+            Assert.That(registry.TryGet(in quiet, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+            await conn.TryRecoverEvictedMetaDataAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(sent, Has.Count.EqualTo(1));
+            var context = new PubSubNetworkMessageContext(
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()),
+                new DataSetMetaDataRegistry(),
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
+                TimeProvider.System);
+            var request = UadpDecoder.Decode(sent[0], context) as UadpDiscoveryRequestMessage;
+            Assert.That(request, Is.Not.Null);
+            Assert.That(request!.DiscoveryType, Is.EqualTo(UadpDiscoveryType.DataSetMetaData));
+            Assert.That(request.DataSetWriterIds.ToArray(), Is.EqualTo(new ushort[] { 5 }));
+
+            // Further misses do not send more than one request per interval.
+            Assert.That(registry.TryGet(in quiet, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+            await conn.TryRecoverEvictedMetaDataAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(sent, Has.Count.EqualTo(1));
+            clock.Advance(PubSubConnection.MetaDataRecoveryInterval);
+            await conn.TryRecoverEvictedMetaDataAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(sent, Has.Count.EqualTo(2));
+
+            // Once the publisher answered, its metadata is back and nothing is requested.
+            clock.Advance(TimeSpan.FromMinutes(6));
+            _ = conn.TryRouteInboundMetaData(
+                NewInboundMeta(quiet.PublisherId, 5), authenticated: false, frameLength: 3000);
+            Assert.That(registry.TryGet(in quiet, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            await conn.TryRecoverEvictedMetaDataAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(sent, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task MetaDataEvictedASecondTimeIsStillRequestedAfterOlderRecordsArePruned()
+        {
+            var clock = new FakeTimeProvider();
+            var factory = new StubTransportFactory();
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out IDataSetMetaDataRegistry registry,
+                maxUnauthenticatedCost: 4096,
+                timeProvider: clock,
+                transportFactory: factory);
+            await conn.EnableAsync().ConfigureAwait(false);
+
+            // The budget holds one announcement, so each one evicts the one before it.
+            void Announce(string publisher, ushort writerId)
+            {
+                clock.Advance(TimeSpan.FromMinutes(6));
+                _ = conn.TryRouteInboundMetaData(
+                    NewInboundMeta(PublisherId.FromString(publisher), writerId),
+                    authenticated: false,
+                    frameLength: 3000);
+            }
+
+            // Evicted, restored and evicted again: two eviction records for one identity.
+            Announce("quiet", 5);
+            Announce("a", 1);
+            Announce("quiet", 5);
+            Announce("b", 1);
+
+            // Enough further evictions to prune the first record, not the second.
+            for (int i = 0; i < PubSubConnection.MaxInboundMetaDataIdentities - 2; i++)
+            {
+                Announce("o" + i, 1);
+            }
+
+            var quiet = new DataSetMetaDataKey(PublisherId.FromString("quiet"), 0, 5, Uuid.Empty, 7);
+            Assert.That(registry.TryGet(in quiet, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
+            await conn.TryRecoverEvictedMetaDataAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(factory.Transport!.Sent, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task UnauthenticatedMetaDataLimitsApplyWithAnyRegistryImplementation()
+        {
+            // A host that injects its own registry implementation still sets the limits.
+            await using var conn = new PubSubConnection(
+                NewConfig(),
+                new StubTransportFactory(),
+                new Dictionary<string, INetworkMessageEncoder>(),
+                new Dictionary<string, INetworkMessageDecoder>(),
+                Array.Empty<WriterGroup>(),
+                Array.Empty<ReaderGroup>(),
+                new Moq.Mock<IDataSetMetaDataRegistry>().Object,
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System,
+                securityWrapper: null,
+                UadpSecurityWrapOptions.SignAndEncrypt,
+                maxNetworkMessageSize: 0,
+                requiredSecurityMode: MessageSecurityMode.None,
+                scheduler: null,
+                activationCoordinator: null,
+                writerCheckpointStore: null,
+                unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
+                {
+                    MaxCost = 1000,
+                    IdleTimeout = TimeSpan.Zero
+                });
+
+            var inbound = (DataSetMetaDataRegistry)conn.InboundMetaDataRegistry;
+            Assert.That(inbound.MaxUnauthenticatedCost, Is.EqualTo(1000));
+            Assert.That(inbound.UnauthenticatedIdleTimeout, Is.EqualTo(TimeSpan.Zero));
+        }
+
         private static JsonMetaDataMessage NewInboundMeta(
             PublisherId publisherId,
             ushort writerId,
@@ -500,9 +712,12 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         private static PubSubConnection NewConnectionWithOwnRegistry(
             out IDataSetMetaDataRegistry registry,
-            DataSetReaderDataType? readerConfiguration = null)
+            DataSetReaderDataType? readerConfiguration = null,
+            long maxUnauthenticatedCost = DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost,
+            TimeProvider? timeProvider = null,
+            StubTransportFactory? transportFactory = null)
         {
-            var hostRegistry = new DataSetMetaDataRegistry();
+            var hostRegistry = new DataSetMetaDataRegistry { MaxUnauthenticatedCost = maxUnauthenticatedCost };
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var reader = new DataSetReader(
                 readerConfiguration ?? new DataSetReaderDataType { Name = "any-publisher" },
@@ -511,15 +726,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 TimeProvider.System);
             var connection = new PubSubConnection(
                 NewConfig(),
-                new StubTransportFactory(),
-                new Dictionary<string, INetworkMessageEncoder>(),
+                transportFactory ?? new StubTransportFactory(),
+                new Dictionary<string, INetworkMessageEncoder> { [UdpProfile] = new UadpEncoder() },
                 new Dictionary<string, INetworkMessageDecoder>(),
                 Array.Empty<WriterGroup>(),
                 new[] { new ReaderGroup(new ReaderGroupDataType { Name = "rg" }, new[] { reader }, telemetry) },
                 hostRegistry,
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 NUnitTelemetryContext.Create(),
-                TimeProvider.System);
+                timeProvider ?? TimeProvider.System);
             registry = connection.InboundMetaDataRegistry;
             return connection;
         }
@@ -553,8 +768,11 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 ITelemetryContext telemetry,
                 TimeProvider timeProvider)
             {
-                return new StubTransport();
+                Transport = new StubTransport();
+                return Transport;
             }
+
+            public StubTransport? Transport { get; private set; }
         }
 
         private sealed class StubTransport : IPubSubTransport
@@ -590,8 +808,11 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 string? topic = null,
                 CancellationToken cancellationToken = default)
             {
+                Sent.Add(payload.ToArray());
                 return default;
             }
+
+            public List<byte[]> Sent { get; } = [];
 
             public IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
                 CancellationToken cancellationToken = default)

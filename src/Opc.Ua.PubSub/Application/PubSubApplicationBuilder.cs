@@ -583,7 +583,11 @@ namespace Opc.Ua.PubSub.Application
                     PubSubConfigurationSnapshot.Create(configuration, m_timeProvider);
                 Dictionary<string, IPublishedDataSetSource> sources = ResolveSources(configuration);
                 var diagnostics = new PubSubDiagnostics(m_options.DiagnosticsLevel, m_timeProvider);
-                var metaDataRegistry = new DataSetMetaDataRegistry();
+                var metaDataRegistry = new DataSetMetaDataRegistry
+                {
+                    MaxUnauthenticatedCost = m_options.MaxUnauthenticatedMetaDataCost,
+                    UnauthenticatedIdleTimeout = m_options.UnauthenticatedMetaDataIdleTimeout
+                };
                 var scheduler = new PubSubScheduler(m_telemetry, m_timeProvider);
                 IPubSubSecurityWrapperResolver? resolver = ResolveSecurityWrapperResolver();
 
@@ -602,7 +606,17 @@ namespace Opc.Ua.PubSub.Application
                     m_dataSetSinks,
                     m_dataSetSourceProvider,
                     m_dataSetSinkProvider,
-                    securityWrapperResolver: resolver);
+                    securityWrapperResolver: resolver,
+                    maxNetworkMessageSizeResolver: null,
+                    configurationStore: null,
+                    runtimeStateStore: null,
+                    activationCoordinator: null,
+                    writerCheckpointStore: null,
+                    unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
+                    {
+                        MaxCost = m_options.MaxUnauthenticatedMetaDataCost,
+                        IdleTimeout = m_options.UnauthenticatedMetaDataIdleTimeout
+                    });
                 for (int i = 0; i < m_actionResponders.Count; i++)
                 {
                     application.RegisterActionHandler(

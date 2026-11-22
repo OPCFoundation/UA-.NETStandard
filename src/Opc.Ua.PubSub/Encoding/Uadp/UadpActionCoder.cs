@@ -52,12 +52,44 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 throw new ArgumentNullException(nameof(context));
             }
 
+            // The encoded size is not known up front (CorrelationData and
+            // the payload fields are variable length, and a response echoes
+            // the CorrelationData of the request), so grow the buffer until
+            // the message fits instead of failing above the initial size.
+            // Only a full buffer is retried: the writer reports it as
+            // UadpBufferFullException, while an ArgumentException is a
+            // permanent validation failure (for example a RawData value
+            // above its MaxStringLength) that a larger buffer cannot fix.
+            int bufferSize = kInitialBufferSize;
+            while (true)
+            {
+                try
+                {
+                    return EncodeCore(message, context, securityEnabled, bufferSize, out payloadOffset);
+                }
+                catch (UadpBufferFullException) when (bufferSize < kMaxBufferSize)
+                {
+                    bufferSize *= 2;
+                }
+            }
+        }
+
+        private const int kInitialBufferSize = 8192;
+        private const int kMaxBufferSize = 8 * 1024 * 1024;
+
+        private static byte[] EncodeCore(
+            PubSubNetworkMessage message,
+            PubSubNetworkMessageContext context,
+            bool securityEnabled,
+            int bufferSize,
+            out int payloadOffset)
+        {
             return message switch
             {
                 UadpActionRequestMessage request =>
-                    EncodeRequest(request, context, securityEnabled, out payloadOffset),
+                    EncodeRequest(request, context, securityEnabled, bufferSize, out payloadOffset),
                 UadpActionResponseMessage response =>
-                    EncodeResponse(response, context, securityEnabled, out payloadOffset),
+                    EncodeResponse(response, context, securityEnabled, bufferSize, out payloadOffset),
                 _ => throw new InvalidOperationException(
                     "Action encoding requires a UadpActionRequestMessage " +
                     "or UadpActionResponseMessage instance.")
@@ -152,9 +184,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpActionRequestMessage message,
             PubSubNetworkMessageContext context,
             bool securityEnabled,
+            int bufferSize,
             out int payloadOffset)
         {
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[bufferSize];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             WriteCommon(ref writer, message, securityEnabled);
             payloadOffset = writer.Position;
@@ -191,9 +224,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             UadpActionResponseMessage message,
             PubSubNetworkMessageContext context,
             bool securityEnabled,
+            int bufferSize,
             out int payloadOffset)
         {
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[bufferSize];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             WriteCommon(ref writer, message, securityEnabled);
             payloadOffset = writer.Position;

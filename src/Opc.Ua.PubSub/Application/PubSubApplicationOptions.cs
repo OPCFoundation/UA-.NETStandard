@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+using System;
 using System.Collections.Generic;
 using Opc.Ua.PubSub.Diagnostics;
 
@@ -79,5 +80,24 @@ namespace Opc.Ua.PubSub.Application
         /// underlying services.
         /// </summary>
         public bool RegisterMqttTransport { get; set; } = true;
+
+        /// <summary>
+        /// Budget for DataSetMetaData received without verified message
+        /// security, applied per connection. See
+        /// <see cref="MetaData.DataSetMetaDataRegistry.MaxUnauthenticatedCost"/>.
+        /// Raise it when legitimate announcements exceed the default; zero or
+        /// less disables the limit.
+        /// </summary>
+        public long MaxUnauthenticatedMetaDataCost { get; set; }
+            = MetaData.DataSetMetaDataRegistry.DefaultMaxUnauthenticatedCost;
+
+        /// <summary>
+        /// Time after which DataSetMetaData received without verified message
+        /// security may be evicted to make room for a new announcement. See
+        /// <see cref="MetaData.DataSetMetaDataRegistry.UnauthenticatedIdleTimeout"/>.
+        /// Zero or less disables eviction.
+        /// </summary>
+        public TimeSpan UnauthenticatedMetaDataIdleTimeout { get; set; }
+            = MetaData.DataSetMetaDataRegistry.DefaultUnauthenticatedIdleTimeout;
     }
 }

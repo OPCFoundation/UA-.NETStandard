@@ -20,6 +20,73 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
     public class UadpActionTests
     {
         [Test]
+        [Category("SecurityRegression")]
+        public void ActionResponseEchoingLargeCorrelationDataEncodes()
+        {
+            // A response echoes the CorrelationData of the request, so its size is
+            // chosen by the requestor and can exceed the initial encode buffer.
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            byte[] correlationData = new byte[20000];
+            for (int i = 0; i < correlationData.Length; i++)
+            {
+                correlationData[i] = (byte)i;
+            }
+            var response = new UadpActionResponseMessage
+            {
+                PublisherId = PublisherId.FromUInt16(0x4242),
+                DataSetWriterId = 0x1234,
+                ActionTargetId = 0x0021,
+                RequestId = 0x1001,
+                ActionState = ActionState.Done,
+                CorrelationData = ByteString.From(correlationData)
+            };
+
+            byte[] encoded = UadpActionCoder.Encode(response, context);
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
+
+            Assert.That(decoded, Is.InstanceOf<UadpActionResponseMessage>());
+            Assert.That(
+                ((UadpActionResponseMessage)decoded!).CorrelationData.ToArray(),
+                Is.EqualTo(correlationData));
+        }
+
+        [Test]
+        public void ActionRequestWithLargePayloadFieldEncodes()
+        {
+            // The payload is encoded through the stack encoder, which reports a
+            // full buffer differently from the header writers; it must grow the
+            // buffer in the same way.
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            string text = new('x', 30000);
+            var request = new UadpActionRequestMessage
+            {
+                PublisherId = PublisherId.FromUInt16(0x4242),
+                DataSetWriterId = 0x1234,
+                ActionTargetId = 0x0021,
+                RequestId = 0x1001,
+                ActionState = ActionState.Executing,
+                Payload =
+                [
+                    new DataSetField
+                    {
+                        Name = "Input",
+                        Value = new Variant(text),
+                        Encoding = PubSubFieldEncoding.Variant
+                    }
+                ]
+            };
+
+            byte[] encoded = UadpActionCoder.Encode(request, context);
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
+
+            Assert.That(decoded, Is.InstanceOf<UadpActionRequestMessage>());
+            var decodedRequest = (UadpActionRequestMessage)decoded!;
+            Assert.That(decodedRequest.Payload.Count, Is.EqualTo(1));
+            Assert.That(decodedRequest.Payload[0].Value.TryGetValue(out string? value), Is.True);
+            Assert.That(value, Is.EqualTo(text));
+        }
+
+        [Test]
         public void ActionRequestRoundTrips()
         {
             PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
