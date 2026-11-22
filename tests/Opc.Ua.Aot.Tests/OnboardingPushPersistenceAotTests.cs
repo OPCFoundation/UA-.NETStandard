@@ -1,9 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Gds.Server.Onboarding;
 
@@ -80,7 +78,8 @@ namespace Opc.Ua.Aot.Tests
                 path, DefaultTelemetry.Create(static _ => { }), fileSystem);
             await Assert.That(async () => await store.ReadAsync().ConfigureAwait(false))
                 .Throws<InvalidDataException>();
-            await Assert.That(fileSystem.Get(path)).IsEquivalentTo(new byte[] { 2, 0, 0, 0 });
+            byte[] expected = [2, 0, 0, 0];
+            await Assert.That(fileSystem.Get(path).SequenceEqual(expected)).IsTrue();
         }
 
         /// <summary>

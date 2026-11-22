@@ -271,10 +271,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
                 Server = new ApplicationDescription
                 {
-                    ApplicationNames =
-                    [
-                        new LocalizedText(new SortedDictionary<string, string> { ["en"] = "Physical server" })
-                    ]
+                    ApplicationName = new LocalizedText(
+                        new SortedDictionary<string, string> { ["en"] = "Physical server" })
                 }
             };
             fixture.Channel.SetupGet(channel => channel.EndpointDescription).Returns(endpoint);
@@ -345,7 +343,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             {
                 InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await context.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                        [new ReadValueId { NodeId = new NodeId(10u), AttributeId = Attributes.Value }])
+                        [new ReadValueId { NodeId = new NodeId(10u), AttributeId = Attributes.Value }],
+                        CancellationToken.None)
                         .ConfigureAwait(false));
                 Assert.That(error, Is.SameAs(failure));
                 Assert.That(fixture.Requests, Is.Empty);
@@ -353,7 +352,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             else
             {
                 ReadResponse response = await context.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                    [new ReadValueId { NodeId = new NodeId(10u), AttributeId = Attributes.Value }])
+                    [new ReadValueId { NodeId = new NodeId(10u), AttributeId = Attributes.Value }],
+                    CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(response.Results[0].WrappedValue.TryGetValue(out int value), Is.True);
                 Assert.That(value, Is.EqualTo(19));
@@ -840,6 +840,16 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 new NodeId(ByteString.From(sessionBytes), 2), new NodeId(ByteString.From(tokenBytes), 3));
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
+            fixture.Handler = (_, _) => new ValueTask<IServiceResponse>(new ReadResponse
+            {
+                Results = [new DataValue(19)]
+            });
+            ReadValueId[] nodes = [new ReadValueId { NodeId = new NodeId(1u), AttributeId = Attributes.Value }];
+            await context.Session.ReadAsync(null, 0, TimestampsToReturn.Neither, nodes, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(fixture.Requests, Has.Count.EqualTo(1));
+            Assert.That(fixture.Requests[0].RequestHeader.AuthenticationToken,
+                Is.EqualTo(new NodeId(ByteString.From(new byte[] { 3, 4 }), 3)));
             if (mutateAuthenticationToken)
             {
                 tokenBytes[0] = 9;
@@ -851,15 +861,12 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
             Assert.That(context.SessionId, Is.EqualTo(new NodeId(ByteString.From(new byte[] { 1, 2 }), 2)));
             Assert.That(context.Session.SessionId, Is.EqualTo(context.SessionId));
-            Assert.That(context.Session.AuthenticationToken,
-                Is.EqualTo(new NodeId(ByteString.From(new byte[] { 3, 4 }), 3)));
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await context.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                    [new ReadValueId { NodeId = new NodeId(1u), AttributeId = Attributes.Value }])
+                await context.Session.ReadAsync(null, 0, TimestampsToReturn.Neither, nodes, CancellationToken.None)
                     .ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
-            Assert.That(fixture.Requests, Is.Empty);
+            Assert.That(fixture.Requests, Has.Count.EqualTo(1));
         }
 
         /// <summary>

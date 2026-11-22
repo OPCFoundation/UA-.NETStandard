@@ -272,7 +272,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(stream.CanRead, Is.True);
                 (ServiceResult blocked, _) = await handles.OpenAsync(s_other, 3, CancellationToken.None)
                     .ConfigureAwait(false);
-                Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             }
             finally
             {
