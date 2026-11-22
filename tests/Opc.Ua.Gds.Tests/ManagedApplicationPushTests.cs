@@ -48,8 +48,8 @@ namespace Opc.Ua.Gds.Tests
         {
             using var first = await TestTarget.CreateAsync("urn:managed:channel:first").ConfigureAwait(false);
             using var second = await TestTarget.CreateAsync("urn:managed:channel:second").ConfigureAwait(false);
-            string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory, "managed-channel", Guid.NewGuid().ToString("N"));
+            // Keep the subject and thumbprint in generated certificate filenames within the net48 path limit.
+            string root = Path.Combine(Path.GetTempPath(), "managed-channel", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             var listener = new TcpListener(IPAddress.Loopback, 0);
             int port;
