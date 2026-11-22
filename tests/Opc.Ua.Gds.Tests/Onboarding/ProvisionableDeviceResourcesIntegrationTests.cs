@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -699,6 +678,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     TestContext.CurrentContext.Test.Name,
                     useSecurity: false).ConfigureAwait(false);
 
+                var identity = new Mock<IUserIdentity>();
+                identity.SetupGet(value => value.GrantedRoleIds)
+                    .Returns((ArrayOf<NodeId>)[Ua.ObjectIds.WellKnownRole_AuthenticatedUser]);
+                server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken)!
+                    .RefreshEffectiveIdentity(identity.Object);
+
+                var singletonId = new NodeId(29879u);
+                var methodId = new NodeId(29880u);
+                (_, IAsyncNodeManager? fallbackOwner) = await server.CurrentInstance.NodeManager
+                    .GetManagerHandleAsync(singletonId, cancellationToken).ConfigureAwait(false);
+                Assert.That(fallbackOwner, Is.TypeOf<ReferenceServerConfigurationNodeManager>());
+                DataValue fallbackRead = await ReadSingletonAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                CallMethodResult fallbackCall = await RequestTicketsAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(fallbackRead.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(StatusCode.IsBad(fallbackCall.StatusCode), Is.True);
+
                 await using IPreparedChanges preparedOld = await server.NodeManagerLifecycle
                     .PrepareAsync(
                         [LifecycleChange.Add(new ProvisionableDeviceNodeManagerFactory(oldRuntime.Object))],
@@ -734,6 +731,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
                     .ConfigureAwait(false);
 
+                await AssertStandardFallbackAsync().ConfigureAwait(false);
+
                 await using (IPreparedChanges abandoned = await server.NodeManagerLifecycle
                     .PrepareAsync(
                         [LifecycleChange.Add(new ProvisionableDeviceNodeManagerFactory(abandonedRuntime.Object))],
@@ -746,13 +745,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     await AssertResourcesBindingAsync(
                         server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
                         .ConfigureAwait(false);
-                    DataValue stagedRead = await ReadSingletonAsync(
-                        server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                    Assert.That(stagedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                    CallMethodResult stagedCall = await RequestTicketsAsync(
-                        server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                    Assert.That(stagedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                    Assert.That(stagedCall.OutputArguments, Is.Empty);
+                    await AssertStandardFallbackAsync().ConfigureAwait(false);
                 }
                 Assert.That(pinnedCall.IsCompleted, Is.False);
                 Assert.That(removed.Retired.IsCompleted, Is.False);
@@ -761,13 +754,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await AssertResourcesBindingAsync(
                     server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
                     .ConfigureAwait(false);
-                DataValue abandonedRead = await ReadSingletonAsync(
-                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                Assert.That(abandonedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                CallMethodResult abandonedCall = await RequestTicketsAsync(
-                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                Assert.That(abandonedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(abandonedCall.OutputArguments, Is.Empty);
+                await AssertStandardFallbackAsync().ConfigureAwait(false);
                 abandonedRuntime.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Never);
 
@@ -777,6 +764,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         cancellationToken).ConfigureAwait(false);
                 Assert.That(resources.ReferenceExists(
                     Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
+                await AssertStandardFallbackAsync().ConfigureAwait(false);
                 LifecycleResult freshAdded = await preparedFresh.CommitAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
                 retirements.Add(freshAdded.Retired);
@@ -845,6 +833,25 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await AssertResourcesBindingAsync(
                     server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
                     .ConfigureAwait(false);
+                await AssertStandardFallbackAsync().ConfigureAwait(false);
+
+                async Task AssertStandardFallbackAsync()
+                {
+                    (_, IAsyncNodeManager? readOwner) = await server.CurrentInstance.NodeManager
+                        .GetManagerHandleAsync(singletonId, cancellationToken).ConfigureAwait(false);
+                    (_, IAsyncNodeManager? callOwner) = await server.CurrentInstance.NodeManager
+                        .GetManagerHandleAsync(methodId, cancellationToken).ConfigureAwait(false);
+                    Assert.That(readOwner, Is.SameAs(fallbackOwner));
+                    Assert.That(callOwner, Is.SameAs(fallbackOwner));
+                    DataValue read = await ReadSingletonAsync(
+                        server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                    Assert.That(read.StatusCode, Is.EqualTo(fallbackRead.StatusCode));
+                    Assert.That(read.WrappedValue, Is.EqualTo(fallbackRead.WrappedValue));
+                    CallMethodResult call = await RequestTicketsAsync(
+                        server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                    Assert.That(call.StatusCode, Is.EqualTo(fallbackCall.StatusCode));
+                    Assert.That(call.OutputArguments, Is.Empty);
+                }
             }
             finally
             {
