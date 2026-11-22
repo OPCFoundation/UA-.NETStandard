@@ -75,6 +75,22 @@ key-pair request; it does not use signing recovery. A plain `ISecretStore`
 registration does not by itself provide the required durability and
 coordination guarantees.
 
+For the built-in adapter, register your host's `IProtectedPullDcaRecoveryStore`,
+then call `.AddPullDcaKeyPairRecovery("device-commissioning").AddPullDcaWorkflow()`
+on the GDS client builder. The store must protect payloads (including backups
+and staging), commit each write and removal durably and atomically, and
+enforce one live writer for that slot. Use one workflow per stable device
+slot. Do not change slots to bypass a binding mismatch or reuse the signing
+checkpoint directory.
+
+The OnboardingClient sample selects this mode with
+`--pull --keyPairRecoverySlot <slot>` after the host adds its protected
+store to the sample's service collection. No backend is configured by
+default. An unknown Start outcome is not retried. After reconciling it with
+the registrar, an operator can reset that exact `Dispatching` binding via
+`ResetReconciledDispatchAsync` with the workflow stopped. This does not reset
+a `Started` or `Received` checkpoint.
+
 ## Target frameworks
 
 `net48`, `net10.0`,

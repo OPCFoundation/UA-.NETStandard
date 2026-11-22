@@ -74,6 +74,13 @@ try
     }
     string? signingJournal = builder.Configuration["signingJournal"];
     string? signingKeyStore = builder.Configuration["signingKeyStore"];
+    string? keyPairRecoverySlot = builder.Configuration["keyPairRecoverySlot"];
+    if (keyPairRecoverySlot != null && (!runPull || runExternalAuthentication || signingJournal != null))
+    {
+        throw new ArgumentException(
+            "--keyPairRecoverySlot requires --pull and cannot be combined with " +
+            "signing recovery or external authentication.");
+    }
     bool discardSigningRequest =
         bool.TryParse(builder.Configuration["discardSigningRequest"], out bool discard) && discard;
     if ((signingJournal == null) != (signingKeyStore == null) || (signingJournal != null && !runPull))
@@ -197,10 +204,19 @@ try
                 }
                 return new ValueTask<ManagedSession>(session);
             });
+        if (keyPairRecoverySlot != null)
+        {
+            // The embedding host registers IProtectedPullDcaRecoveryStore; the sample has no default backend.
+            gds.AddPullDcaKeyPairRecovery(keyPairRecoverySlot);
+        }
         gds.AddPullDcaWorkflow();
     }
 
     using IHost host = builder.Build();
+    if (keyPairRecoverySlot != null)
+    {
+        _ = host.Services.GetRequiredService<IPullDcaNewKeyPairRecoveryProvider>();
+    }
     if (runExternalAuthentication)
     {
         host.Services.GetRequiredService<IOpcUaApplicationConfigurationProvider>()
@@ -420,7 +436,12 @@ try
             var offer = new PullDcaIdentityOffer(
                 [ByteString.From(identity.Certificate.RawData.AsSpan())], issuerBytes,
                 [await File.ReadAllTextAsync(ticketPath, ct).ConfigureAwait(false)]);
-            var request = new PullDcaRequest(offer, profile, []);
+            var request = new PullDcaRequest(offer, profile, [])
+            {
+                DcaCertificateRequestMode = keyPairRecoverySlot == null
+                    ? PullDcaCertificateRequestMode.SigningRequest
+                    : PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
             PullDcaResult result;
             try
             {

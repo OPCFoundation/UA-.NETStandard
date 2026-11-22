@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard stack documentation
 
 These guides lead from a first working application to advanced and experimental
@@ -353,6 +358,8 @@ Assumes [stage 5](#5-prepare-for-production).
   before exposing application data.
 - [Global Discovery Server](GDS.md) — application registration and central
   certificate management.
+- [Pull DCA key-pair recovery](PullDcaKeyPairRecovery.md) — protected
+  checkpoint storage for server-generated key pairs.
 - [GDS sample](../samples/Gds/README.md) — a runnable onboarding workflow.
 - [AuthorizationService](AuthorizationService.md) — issue access tokens.
 - [KeyCredentialService](KeyCredentialService.md) — manage credentials for

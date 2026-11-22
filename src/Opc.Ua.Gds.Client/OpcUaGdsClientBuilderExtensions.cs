@@ -328,6 +328,28 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers request-bound recovery in one stable slot of the host's protected secret store.
+        /// The host must register an <see cref="IProtectedPullDcaRecoveryStore"/> before resolving the workflow.
+        /// </summary>
+        public static IGdsClientBuilder AddPullDcaKeyPairRecovery(this IGdsClientBuilder builder, string slot)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (string.IsNullOrWhiteSpace(slot))
+            {
+                throw new ArgumentException("A stable recovery slot is required.", nameof(slot));
+            }
+            builder.Services.TryAddSingleton<IPullDcaNewKeyPairRecoveryProvider>(services =>
+                new SecretStorePullDcaNewKeyPairRecoveryProvider(
+                    services.GetRequiredService<IProtectedPullDcaRecoveryStore>(),
+                    slot,
+                    services.GetRequiredService<ITelemetryContext>()));
+            return builder;
+        }
+
+        /// <summary>
         /// Selects received-certificate persistence using a host-registered secret store.
         /// One adapter instance exclusively owns scope. The namespace table must match the registrar's session;
         /// hosts restore original keys and channel identity before resuming. Store durability is host-selected.
