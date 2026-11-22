@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
@@ -255,6 +229,38 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             public void Reset()
             {
+            }
+        }
+
+        /// <summary>
+        /// Records the level and message of every log entry; entries arrive from the worker thread.
+        /// </summary>
+        private sealed class RecordingLogger : ILogger
+        {
+            public ConcurrentQueue<LogLevel> Levels { get; } = new();
+
+            public ConcurrentQueue<string> Messages { get; } = new();
+
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull
+            {
+                return null;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                Levels.Enqueue(logLevel);
+                Messages.Enqueue(formatter(state, exception));
             }
         }
 
@@ -1052,6 +1058,129 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(sm.IsConnected, Is.False);
         }
 
+        /// <summary>
+        /// Without a failover operation an exhausted reconnect goes straight to
+        /// Disconnected with the reconnect error, and logs no error about a
+        /// failover that could not run.
+        /// </summary>
+        [Test]
+        public async Task ExhaustedReconnectWithoutFailoverSkipsFailoverStateAsync()
+        {
+            var logger = new RecordingLogger();
+            await using var sm = new ConnectionStateMachine(
+                new ReconnectPolicy
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(5),
+                    MaxRetries = 1,
+                    JitterFactor = 0.0
+                },
+                logger);
+            sm.ConnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadUserAccessDenied));
+            sm.ReconnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadUserAccessDenied));
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+
+            sm.Start();
+            sm.RequestConnect();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await sm.WaitForConnectedAsync(cts.Token).ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(sm.State, Is.EqualTo(ConnectionState.Disconnected));
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected).ConfigureAwait(false);
+            Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.False);
+            ConnectionStateChangedEventArgs disconnected = recorder.GetTransitions()
+                .Last(t => t.NewState == ConnectionState.Disconnected);
+            Assert.That(disconnected.Error?.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(logger.Levels, Has.None.GreaterThanOrEqualTo(LogLevel.Error));
+            Assert.That(logger.Messages, Has.Some.Match(@"Reconnect policy exhausted after \d+ attempts, no failover"));
+            Assert.That(logger.Messages, Has.None.Contains("failover to redundant server"));
+        }
+
+        /// <summary>
+        /// A reconnect that runs out of its total time budget also skips the Failover
+        /// state when no failover operation is configured.
+        /// </summary>
+        [Test]
+        public async Task ExhaustedReconnectBudgetWithoutFailoverSkipsFailoverStateAsync()
+        {
+            var logger = new RecordingLogger();
+            await using var sm = new ConnectionStateMachine(
+                new ReconnectPolicy
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromSeconds(5),
+                    JitterFactor = 0.0
+                },
+                logger,
+                maxTotalReconnectTime: TimeSpan.FromMilliseconds(50));
+            sm.ConnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            sm.ReconnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+
+            sm.Start();
+            sm.RequestConnect();
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected, 10000).ConfigureAwait(false);
+
+            Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.False);
+            Assert.That(logger.Messages, Has.Some.Match(@"Reconnect budget exhausted after \d+ attempts, no failover"));
+            Assert.That(logger.Levels, Has.None.GreaterThanOrEqualTo(LogLevel.Error));
+        }
+
+        /// <summary>
+        /// A failover that finds no redundant server is an expected outcome and is
+        /// not logged as an error.
+        /// </summary>
+        [TestCaseSource(nameof(s_noRedundantServerStatuses))]
+        public async Task FailoverWithoutRedundantServerIsNotLoggedAsErrorAsync(StatusCode status)
+        {
+            RecordingLogger logger = await RunFailedFailoverAsync(status).ConfigureAwait(false);
+
+            Assert.That(logger.Levels, Has.None.GreaterThanOrEqualTo(LogLevel.Error));
+            Assert.That(logger.Levels, Has.Member(LogLevel.Information));
+        }
+
+        /// <summary>
+        /// A failover that was attempted and failed is still logged as an error.
+        /// </summary>
+        [Test]
+        public async Task FailedFailoverIsLoggedAsErrorAsync()
+        {
+            RecordingLogger logger = await RunFailedFailoverAsync(StatusCodes.BadServerHalted).ConfigureAwait(false);
+
+            Assert.That(logger.Levels.Count(level => level == LogLevel.Error), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Exhausts the reconnect policy so the failover operation runs and fails
+        /// with <paramref name="status"/>, then waits for Disconnected.
+        /// </summary>
+        private static async Task<RecordingLogger> RunFailedFailoverAsync(StatusCode status)
+        {
+            var logger = new RecordingLogger();
+            await using var sm = new ConnectionStateMachine(
+                new ReconnectPolicy
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(5),
+                    MaxRetries = 1,
+                    JitterFactor = 0.0
+                },
+                logger);
+            sm.ConnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            sm.ReconnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            sm.FailoverAsync = _ => Task.FromResult(new ServiceResult(status));
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+
+            sm.Start();
+            sm.RequestConnect();
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected, 5000).ConfigureAwait(false);
+
+            Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.True);
+            return logger;
+        }
+
         [Test]
         public async Task WaitForConnectedAsyncThrowsWhenClosedWhileConnecting()
         {
@@ -1444,8 +1573,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo(ConnectionState.Closed));
         }
 
-        [Test]
-        public async Task EstablishedSessionStartsAnotherCycleAfterExhaustionBackoffAsync()
+        /// <summary>
+        /// An established session restarts recovery after the exhaustion backoff, also when
+        /// it skipped the Failover state because no failover operation is configured.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task EstablishedSessionStartsAnotherCycleAfterExhaustionBackoffAsync(bool withFailover)
         {
             var time = new FakeTimeProvider();
             var policy = new ReconnectPolicy
@@ -1461,7 +1595,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             machine.ReconnectAsync = _ => Task.FromResult(++attempts == 1
                 ? new ServiceResult(StatusCodes.BadConnectionClosed)
                 : ServiceResult.Good);
-            machine.FailoverAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadNotSupported));
+            if (withFailover)
+            {
+                machine.FailoverAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadNotSupported));
+            }
+            StateTransitionRecorder recorder = AttachRecorder(machine);
             var disconnected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             machine.StateChanged += (_, change) =>
             {
@@ -1484,6 +1622,40 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(machine.State, Is.EqualTo(ConnectionState.Connected));
             Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.EqualTo(withFailover));
+        }
+
+        /// <summary>
+        /// The backoff before an established session restarts recovery is at least one
+        /// second, even when the policy's maximum delay is shorter.
+        /// </summary>
+        [Test]
+        public async Task ExhaustionBackoffIsAtLeastTheDefaultInitialDelayAsync()
+        {
+            var time = new FakeTimeProvider();
+            var policy = new ReconnectPolicy
+            {
+                InitialDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.FromMilliseconds(10),
+                MaxRetries = 1,
+                JitterFactor = 0
+            };
+            await using var machine = new ConnectionStateMachine(policy, m_logger, timeProvider: time);
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            machine.ReconnectAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            StateTransitionRecorder recorder = AttachRecorder(machine);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            machine.Start();
+            machine.RequestConnect();
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+            machine.TriggerReconnect();
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected).ConfigureAwait(false);
+
+            // The recovery timer fires synchronously inside Advance.
+            time.Advance(ReconnectPolicy.DefaultInitialDelay - TimeSpan.FromMilliseconds(1));
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
+            time.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Reconnecting));
         }
 
         [Test]
@@ -1529,5 +1701,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(sm.IsConnected, Is.True);
         }
+
+        private static readonly StatusCode[] s_noRedundantServerStatuses =
+        [
+            StatusCodes.BadNothingToDo,
+            StatusCodes.BadNotSupported
+        ];
     }
 }

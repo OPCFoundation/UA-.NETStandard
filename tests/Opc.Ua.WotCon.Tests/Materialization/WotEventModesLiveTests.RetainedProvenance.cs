@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET8_0_OR_GREATER
 using System;
@@ -74,7 +48,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotProjectionDocument document = ActionProjection(mode, source.EndpointUrl, method);
             Task retirement = Task.CompletedTask;
             INodeManagerLifecycle lifecycle = ObserveRetirement(destination.Server.NodeManagerLifecycle,
-                result => retirement = result.Retirement);
+                result => retirement = result.Retired);
             var host = new LifecycleWotProjectionHost(lifecycle,
                 new WotProjectionBindingRuntimeFactory(new NativeChannels(source.Session)));
             WotProjectionHandle active = await host.AddAsync(document, ct).ConfigureAwait(false);
@@ -198,24 +172,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         private static INodeManagerLifecycle ObserveRetirement(
             INodeManagerLifecycle lifecycle,
-            Action<NodeManagerBatchResult> committed)
+            Action<LifecycleResult> committed)
         {
             var observed = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
             observed.SetupGet(owner => owner.Revision).Returns(() => lifecycle.Revision);
             observed.SetupGet(owner => owner.Slots).Returns(() => lifecycle.Slots);
             observed.SetupGet(owner => owner.Registrations).Returns(() => lifecycle.Registrations);
             observed.SetupGet(owner => owner.IsShuttingDown).Returns(() => lifecycle.IsShuttingDown);
-            observed.SetupGet(owner => owner.SupportsPreparedPublication)
-                .Returns(() => lifecycle.SupportsPreparedPublication);
-            observed.SetupGet(owner => owner.SupportsPublicationIsolation)
-                .Returns(() => lifecycle.SupportsPublicationIsolation);
-            observed.Setup(owner => owner.CapturePublication())
-                .Returns(() => ObservePublicationCapture(lifecycle.CapturePublication(), committed));
+            observed.Setup(owner => owner.CaptureChanges())
+                .Returns(() => ObservePublicationCapture(lifecycle.CaptureChanges(), committed));
             observed.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .Returns(async (ArrayOf<NodeManagerBatchChange> changes, CancellationToken token) =>
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<LifecycleChange> changes, CancellationToken token) =>
                 {
-                    IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(changes, token)
+                    IPreparedChanges prepared = await lifecycle.PrepareAsync(changes, token)
                         .ConfigureAwait(false);
                     return ObservePreparedBatch(prepared, committed);
                 });
@@ -225,15 +195,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Observes the captured-publication path used by slot-based lifecycle callers.
         /// </summary>
-        private static INodeManagerPublicationCapture ObservePublicationCapture(
-            INodeManagerPublicationCapture capture,
-            Action<NodeManagerBatchResult> committed)
+        private static ILifecycleCapture ObservePublicationCapture(
+            ILifecycleCapture capture,
+            Action<LifecycleResult> committed)
         {
-            var observed = new Mock<INodeManagerPublicationCapture>(MockBehavior.Strict);
+            var observed = new Mock<ILifecycleCapture>(MockBehavior.Strict);
             observed.Setup(owner => owner.BeginAsync(It.IsAny<CancellationToken>()))
                 .Returns(async (CancellationToken cancellationToken) =>
                 {
-                    INodeManagerPublication publication =
+                    ILifecycleWriter publication =
                         await capture.BeginAsync(cancellationToken).ConfigureAwait(false);
                     return ObservePublication(publication, committed);
                 });
@@ -243,17 +213,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Observes prepared units created through captured publication evidence.
         /// </summary>
-        private static INodeManagerPublication ObservePublication(
-            INodeManagerPublication publication,
-            Action<NodeManagerBatchResult> committed)
+        private static ILifecycleWriter ObservePublication(
+            ILifecycleWriter publication,
+            Action<LifecycleResult> committed)
         {
-            var observed = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            var observed = new Mock<ILifecycleWriter>(MockBehavior.Strict);
             observed.SetupGet(owner => owner.IsCurrent).Returns(() => publication.IsCurrent);
             observed.Setup(owner => owner.PrepareAsync(
-                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
-                .Returns(async (ArrayOf<NodeManagerBatchChange> changes, CancellationToken cancellationToken) =>
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<LifecycleChange> changes, CancellationToken cancellationToken) =>
                 {
-                    IPreparedNodeManagerBatch prepared = await publication.PrepareAsync(changes, cancellationToken)
+                    IPreparedChanges prepared = await publication.PrepareAsync(changes, cancellationToken)
                         .ConfigureAwait(false);
                     return ObservePreparedBatch(prepared, committed);
                 });
@@ -264,15 +234,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Records the real retirement task while preserving prepared ownership and publication.
         /// </summary>
-        private static IPreparedNodeManagerBatch ObservePreparedBatch(
-            IPreparedNodeManagerBatch prepared,
-            Action<NodeManagerBatchResult> committed)
+        private static IPreparedChanges ObservePreparedBatch(
+            IPreparedChanges prepared,
+            Action<LifecycleResult> committed)
         {
-            var observed = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            var observed = new Mock<IPreparedChanges>(MockBehavior.Strict);
+            observed.SetupGet(owner => owner.Slots).Returns(() => prepared.Slots);
             observed.SetupGet(owner => owner.Registrations).Returns(() => prepared.Registrations);
             observed.SetupGet(owner => owner.IsCommitted).Returns(() => prepared.IsCommitted);
-            observed.Setup(owner => owner.BindReadImages(It.IsAny<ArrayOf<INodeManagerReadImage>>()))
-                .Callback<ArrayOf<INodeManagerReadImage>>(prepared.BindReadImages);
+            observed.Setup(owner => owner.SetMetadata(It.IsAny<INodeManagerReadImage>()))
+                .Callback<INodeManagerReadImage>(prepared.SetMetadata);
+            observed.Setup(owner => owner.SetMetadata(
+                It.IsAny<NodeManagerSlot>(), It.IsAny<INodeManagerReadImage>()))
+                .Callback<NodeManagerSlot, INodeManagerReadImage>(prepared.SetMetadata);
             observed.Setup(owner => owner.CommitAsync(
                 It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
                 .Returns((Func<CancellationToken, ValueTask> decide, CancellationToken cancellation) =>
@@ -283,6 +257,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .Returns((Func<CancellationToken, ValueTask> decide, Action publish,
                     CancellationToken cancellation) =>
                     ObserveCommitAsync(prepared.CommitAsync(decide, publish, cancellation), committed));
+            observed.Setup(owner => owner.CommitWithDecisionAsync(
+                It.IsAny<Func<NodeManagerDecisionContext, CancellationToken, ValueTask>>(),
+                It.IsAny<Action?>(), It.IsAny<CancellationToken>()))
+                .Returns((Func<NodeManagerDecisionContext, CancellationToken, ValueTask> decide,
+                    Action? publish, CancellationToken cancellation) =>
+                    ObserveCommitAsync(prepared.CommitWithDecisionAsync(decide, publish, cancellation), committed));
             observed.Setup(owner => owner.DisposeAsync()).Returns(() => prepared.DisposeAsync());
             return observed.Object;
         }
@@ -290,11 +270,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Returns the actual commit result after recording its physical retirement task.
         /// </summary>
-        private static async ValueTask<NodeManagerBatchResult> ObserveCommitAsync(
-            ValueTask<NodeManagerBatchResult> commit,
-            Action<NodeManagerBatchResult> committed)
+        private static async ValueTask<LifecycleResult> ObserveCommitAsync(
+            ValueTask<LifecycleResult> commit,
+            Action<LifecycleResult> committed)
         {
-            NodeManagerBatchResult result = await commit.ConfigureAwait(false);
+            LifecycleResult result = await commit.ConfigureAwait(false);
             committed(result);
             return result;
         }

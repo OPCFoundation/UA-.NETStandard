@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -335,11 +308,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .Where(p => p.Length == 2)
                 .ToDictionary(p => p[0], p => p[1], StringComparer.Ordinal);
             double allocatedMb = values.TryGetValue("allocMB", out string? a) ? double.Parse(a, CultureInfo.InvariantCulture) : 0;
-            double cpuMs = double.Parse(values["cpuMs"], CultureInfo.InvariantCulture);
+            double cpuMs = ProcessCpuReport.GetMilliseconds(values);
             result.Append(CultureInfo.InvariantCulture,
-                $"  per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F2}  ({unit})\n")
-                .Append(CultureInfo.InvariantCulture,
-                $"  client-per-op: allocB=0 cpuUs={clientCpu.TotalMilliseconds * 1000 / operations:F2}  ({unit}, native workers)\n");
+                $"  per-op: allocB={allocatedMb * 1048576 / operations:F0} ")
+                .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(cpuMs, operations))
+                .Append("  (").Append(unit).Append(")\n")
+                .Append("  client-per-op: allocB=0 cpuUs=")
+                .Append(ProcessCpuReport.FormatPerOperation(clientCpu.TotalMilliseconds, operations))
+                .Append("  (").Append(unit).Append(", native workers)\n");
         }
 
         internal static long NowNs()
@@ -514,7 +490,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 double seconds = Stopwatch.GetElapsedTime(m_markTimestamp).TotalSeconds;
                 TimeSpan cpu = m_process.TotalProcessorTime - m_markCpu;
                 return FormattableString.Invariant(
-                    $"sec={seconds:F2} cpuMs={cpu.TotalMilliseconds:F0} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
+                    $"sec={seconds:F2} {ProcessCpuReport.Format(cpu)} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
                     FormattableString.Invariant(
                     $"threads={m_process.Threads.Count} wsMB={m_process.WorkingSet64 / 1048576} (external)") +
                     sched;
@@ -798,7 +774,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// The address space of the benchmark servers: 100 writable Int32 variables
     /// ns=1;i=1001..1100 in the namespace of the server URI.
     /// </summary>
+#pragma warning disable CS0618, UA0031 // Benchmarks the legacy base class against AsyncBenchmarkContractNodeManager.
     internal sealed class BenchmarkContractNodeManager : CustomNodeManager2
+#pragma warning restore CS0618, UA0031
     {
         public BenchmarkContractNodeManager(IServerInternal server, ApplicationConfiguration configuration)
             : base(server, configuration, NativeWorkerBenchmark.ContractServerUri)
@@ -909,7 +887,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             cancellationToken.ThrowIfCancellationRequested();
             IAsyncNodeManager manager = m_asyncNodeManager
                 ? new AsyncBenchmarkContractNodeManager(server, configuration)
+#pragma warning disable CS0618, UA0031 // Benchmarks the legacy base class against AsyncBenchmarkContractNodeManager.
                 : new BenchmarkContractNodeManager(server, configuration).ToAsyncNodeManager();
+#pragma warning restore CS0618, UA0031
             return new ValueTask<IAsyncNodeManager>(manager);
         }
 #pragma warning restore CA2000

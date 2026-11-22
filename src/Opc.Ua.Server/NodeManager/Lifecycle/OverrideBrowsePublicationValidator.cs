@@ -97,8 +97,8 @@ namespace Opc.Ua.Server
                     }
                     INodeManagerOverrideBrowseCapability? capability =
                         identity as INodeManagerOverrideBrowseCapability ??
-                        (identity is AsyncNodeManagerAdapter adapter
-                            ? adapter.SyncNodeManager as INodeManagerOverrideBrowseCapability
+                        (NodeManagerGenerationRegistry.IsStandardAdapter(identity)
+                            ? identity.SyncNodeManager as INodeManagerOverrideBrowseCapability
                             : null);
                     if (capability is null || !capability.SupportsOverrideBrowse(targets))
                     {

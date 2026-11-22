@@ -1,6 +1,6 @@
 #!/bin/bash
-# Copyright (c) OPC Foundation. All rights reserved.
-# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+# SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+# SPDX-License-Identifier: MIT
 
 BUILDROOT=$(pwd)/..
 cd $BUILDROOT

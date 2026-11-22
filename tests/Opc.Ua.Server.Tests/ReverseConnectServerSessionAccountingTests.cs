@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Reflection;
@@ -76,8 +50,11 @@ namespace Opc.Ua.Server.Tests
                 base.AddReverseConnection(url, timeout, maxSessionCount, enabled);
             }
 
-            public void InvokeOnReverseConnect(long version)
+            public async Task InvokeOnReverseConnectAsync(long version)
             {
+                // A started server accepts connections before its reverse
+                // connect timer runs; this one is driven without a start.
+                await StartAcceptingConnectionsAsync().ConfigureAwait(false);
                 MethodInfo method = typeof(ReverseConnectServer).GetMethod(
                     "OnReverseConnect",
                     BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -100,7 +77,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ConnectedReverseConnection_CanBeReconnected()
+        public async Task ConnectedReverseConnection_CanBeReconnectedAsync()
         {
             var fakeTime = new FakeTimeProvider();
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
@@ -112,7 +89,7 @@ namespace Opc.Ua.Server.Tests
             property.LastState = ReverseConnectState.Connected;
 
             // Trigger the reverse connect tick
-            server.InvokeOnReverseConnect(0);
+            await server.InvokeOnReverseConnectAsync(0).ConfigureAwait(false);
 
             // A new connection is required to recreate a session without outbound discovery.
             Assert.That(
@@ -207,7 +184,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ConnectingReverseConnection_IsNotReconnected_WhileConnectionInProgress()
+        public async Task ConnectingReverseConnection_IsNotReconnected_WhileConnectionInProgressAsync()
         {
             var fakeTime = new FakeTimeProvider();
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
@@ -218,7 +195,7 @@ namespace Opc.Ua.Server.Tests
             // Simulate connection attempt in flight
             property.LastState = ReverseConnectState.Connecting;
 
-            server.InvokeOnReverseConnect(0);
+            await server.InvokeOnReverseConnectAsync(0).ConfigureAwait(false);
 
             Assert.That(
                 property.LastState,
@@ -227,7 +204,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ClosedReverseConnection_InitiatesConnection_RegardlessOfServerSessions()
+        public async Task ClosedReverseConnection_InitiatesConnection_RegardlessOfServerSessionsAsync()
         {
             var fakeTime = new FakeTimeProvider();
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
@@ -238,7 +215,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(property.LastState, Is.EqualTo(ReverseConnectState.Closed));
 
             // Tick should attempt connection (which throws ArgumentException because no listener is configured in unit test)
-            server.InvokeOnReverseConnect(0);
+            await server.InvokeOnReverseConnectAsync(0).ConfigureAwait(false);
 
             Assert.That(
                 property.LastState,
@@ -250,7 +227,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ErroredReverseConnection_IsRetried_OnSubsequentTick()
+        public async Task ErroredReverseConnection_IsRetried_OnSubsequentTickAsync()
         {
             var fakeTime = new FakeTimeProvider();
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
@@ -263,7 +240,7 @@ namespace Opc.Ua.Server.Tests
             property.ServiceResult = new ServiceResult(StatusCodes.BadCommunicationError);
 
             // On the next tick, it should attempt to reconnect (which updates ServiceResult)
-            server.InvokeOnReverseConnect(0);
+            await server.InvokeOnReverseConnectAsync(0).ConfigureAwait(false);
 
             Assert.That(property.ServiceResult, Is.Not.Null);
             Assert.That(
@@ -273,7 +250,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void RejectedReverseConnection_DoesNotConnect_UntilRejectTimeoutExpires()
+        public async Task RejectedReverseConnection_DoesNotConnect_UntilRejectTimeoutExpiresAsync()
         {
             var fakeTime = new FakeTimeProvider();
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
@@ -286,7 +263,7 @@ namespace Opc.Ua.Server.Tests
 
             // Advance time only by 10s (default reject timeout is 60s)
             fakeTime.Advance(TimeSpan.FromSeconds(10));
-            server.InvokeOnReverseConnect(0);
+            await server.InvokeOnReverseConnectAsync(0).ConfigureAwait(false);
 
             Assert.That(
                 property.LastState,
@@ -295,7 +272,7 @@ namespace Opc.Ua.Server.Tests
 
             // Advance time past the 60s reject timeout
             fakeTime.Advance(TimeSpan.FromSeconds(51));
-            server.InvokeOnReverseConnect(0);
+            await server.InvokeOnReverseConnectAsync(0).ConfigureAwait(false);
 
             // It should now have recharged to Closed and attempted connect (becoming Errored due to no listener in test)
             Assert.That(
@@ -305,7 +282,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void DisabledReverseConnection_DoesNotConnect()
+        public async Task DisabledReverseConnection_DoesNotConnectAsync()
         {
             var fakeTime = new FakeTimeProvider();
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
@@ -315,7 +292,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(property.LastState, Is.EqualTo(ReverseConnectState.Closed));
 
-            server.InvokeOnReverseConnect(0);
+            await server.InvokeOnReverseConnectAsync(0).ConfigureAwait(false);
 
             Assert.That(
                 property.LastState,

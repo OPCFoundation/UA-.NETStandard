@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -42,6 +16,7 @@ using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -79,9 +54,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(NodeManagerLifecycleNamespaceRefreshTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-namespace-refresh-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
@@ -148,10 +122,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Is.EqualTo(-1),
                     "the live namespace must not be known before the add");
 
-                NodeManagerRegistration registration = await m_server
-                    .NodeManagerLifecycle
-                    .AddRuntimeNodeSetAsync(CreateOptions(), null, ct)
+                LifecycleResult added = await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateOptions()))], ct)
                     .ConfigureAwait(false);
+                Assert.That(added.Issues, Is.Empty);
+                NodeManagerRegistration registration = Registration(added.Registrations[0]);
 
                 ModelChangedEventArgs observed = await refreshed.Task
                     .WaitAsync(TimeSpan.FromSeconds(60), ct)
@@ -173,9 +148,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(resolved.NamespaceIndex, Is.EqualTo((ushort)liveIndex));
 
                 // A same-uri reload must not grow the table any further.
-                await m_server.NodeManagerLifecycle
-                    .ReloadRuntimeNodeSetAsync(registration, CreateOptions(), null, ct)
-                    .ConfigureAwait(false);
+                Registration(
+                    (await CommitChangeAsync(
+                    Capture(
+                    m_server.NodeManagerLifecycle, registration), LifecycleChange.Replace(
+                    registration.Slot, new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions())), ct).ConfigureAwait(false)).Registrations[0]);
                 await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
 
                 Assert.That(session.NamespaceUris.Count,

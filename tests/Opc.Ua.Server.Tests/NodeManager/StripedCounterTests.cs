@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -43,6 +16,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public sealed class StripedCounterTests
     {
+        /// <summary>
+        /// Every stripe contributes to the total until its entries are released.
+        /// </summary>
+        [Test]
+        public void ExplicitEntriesAreCountedAcrossEveryStripe()
+        {
+            const int stripeStride = 16;
+            var counter = new StripedCounter();
+            int lastSlot = counter.LastSlot;
+            Assert.That(lastSlot, Is.GreaterThanOrEqualTo(stripeStride));
+            Assert.That(lastSlot % stripeStride, Is.Zero);
+
+            long expected = 0;
+            for (int slot = stripeStride; slot <= lastSlot; slot += stripeStride)
+            {
+                counter.Enter(slot);
+                counter.Enter(slot);
+                expected += 2;
+                Assert.That(counter.Count, Is.EqualTo(expected), $"After entering stripe {slot}.");
+            }
+
+            for (int slot = lastSlot; slot >= stripeStride; slot -= stripeStride)
+            {
+                counter.Exit(slot);
+                expected--;
+                Assert.That(counter.Count, Is.EqualTo(expected), $"After the first exit from stripe {slot}.");
+                counter.Exit(slot);
+                expected--;
+                Assert.That(counter.Count, Is.EqualTo(expected), $"After the second exit from stripe {slot}.");
+            }
+
+            Assert.That(expected, Is.Zero);
+            Assert.That(counter.Count, Is.Zero);
+        }
+
         /// <summary>
         /// Concurrent workers can retain and exit many entries without losing the outstanding count.
         /// </summary>

@@ -1,37 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -696,6 +671,54 @@ namespace Opc.Ua.Client.Tests
                 0), Times.Once);
             m_mockContext.Verify(c => c.OnKeepAliveError(
                 It.Is<ServiceResult>(result => result.StatusCode == StatusCodes.BadSessionIdInvalid)), Times.Once);
+        }
+
+        /// <summary>
+        /// A Publish that faults after the session or its reconnect lock was disposed is still
+        /// observed, so the fault does not surface through
+        /// <see cref="TaskScheduler.UnobservedTaskException"/>.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OnPublishCompleteObservesFaultAfterDispose(bool disposeReconnectLock)
+        {
+            var failure = new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+            int unobserved = 0;
+            void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+            {
+                // Other tests run in parallel, so only this test's fault counts.
+                if (e.Exception.InnerExceptions.Any(inner => ReferenceEquals(inner, failure)))
+                {
+                    Interlocked.Increment(ref unobserved);
+                }
+            }
+            if (disposeReconnectLock)
+            {
+                m_lock.Dispose();
+            }
+            else
+            {
+                m_mockContext.Setup(c => c.Disposed).Returns(true);
+            }
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+
+            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+            try
+            {
+                CompleteFaultedPublish(engine, failure);
+
+                // The mock records the task as an argument; release it so it can be finalized.
+                m_mockContext.Invocations.Clear();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+            finally
+            {
+                TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+            }
+
+            Assert.That(Volatile.Read(ref unobserved), Is.Zero);
         }
 
         [Test]
@@ -1796,6 +1819,15 @@ namespace Opc.Ua.Client.Tests
                     acknowledgements,
                     new RequestHeader { RequestHandle = 99 }
                 ]);
+        }
+
+        /// <summary>
+        /// Completes a publish with a faulted task that is unreachable once this returns.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CompleteFaultedPublish(ClassicSubscriptionEngine engine, Exception failure)
+        {
+            InvokeOnPublishComplete(engine, Task.FromException<PublishResponse>(failure), new NodeId(1), null);
         }
 
         private static Mock<ISession> CreateSubscriptionSession(uint subscriptionId)

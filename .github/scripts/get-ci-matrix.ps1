@@ -620,6 +620,12 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     terms = @("${nativeLifecycle}Prepared")
                 }
                 @{
+                    id = 'server-node-lifecycle-a-n'
+                    name = 'server-node-lifecycle-a-n'
+                    terms = @('ABCDEFGHIJKLMN'.ToCharArray() |
+                        ForEach-Object { "${nativeLifecycle}$_" })
+                }
+                @{
                     id = 'server-node-lifecycle'
                     name = 'server-node-lifecycle'
                     terms = @($nativeLifecycle)
@@ -672,10 +678,11 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     $groups[1]
                     $groups[2]
                     $groups[3]
+                    $groups[4]
                     @{
                         id = 'server-sessions-configuration-runtime'
                         name = 'server-sessions-configuration-runtime'
-                        terms = @($groups[4].terms + $groups[5].terms + $groups[6].terms)
+                        terms = @($groups[5].terms + $groups[6].terms + $groups[7].terms)
                     }
                     @{
                         id = 'server-other'

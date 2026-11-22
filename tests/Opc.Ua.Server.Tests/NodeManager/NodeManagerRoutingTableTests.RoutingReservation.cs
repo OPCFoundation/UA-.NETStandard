@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
 
 using System;
 using System.Collections.Generic;
@@ -423,13 +399,72 @@ namespace Opc.Ua.Server.Tests.NodeManager
             current.Reserve();
             stale.Dispose();
             stale.Dispose();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(candidate);
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Prepared));
             Assert.Throws<InvalidOperationException>(() => table.UnregisterNamespace(9, writer, null));
             current.Publish();
+            Assert.That(table.GetGeneration(candidate), Is.SameAs(generation));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
             current.Dispose();
             AssertSingleManagerRoute(table.NamespaceManagers, 9, writer);
             Assert.That(table.UnregisterNamespace(9, writer, null), Is.True);
             Assert.That(table.NamespaceManagers.ContainsKey(9), Is.False);
             Assert.That(previous.NamespaceManagers.ContainsKey(9), Is.False);
+        }
+
+        /// <summary>
+        /// An abandoned image releases only its routing reservation, not the shared candidate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AbandonedRoutingImageDoesNotAbortCandidateOfAnotherImage(bool reserveAbandoned)
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager candidate = CreateManager();
+            using NodeManagerRoutingTable.PreparedRoutes abandoned = PrepareRoutingCandidate(table, candidate);
+            using NodeManagerRoutingTable.PreparedRoutes successor = PrepareRoutingCandidate(table, candidate);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(candidate);
+            if (reserveAbandoned)
+            {
+                abandoned.Reserve();
+            }
+
+            abandoned.Dispose();
+
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Prepared));
+            successor.Reserve();
+            successor.Publish();
+            successor.Dispose();
+            abandoned.Dispose();
+            Assert.That(table.GetGeneration(candidate), Is.SameAs(generation));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(generation.Gate.TryEnter(out GenerationGate.Lease? admission), Is.True);
+            admission!.Dispose();
+            Assert.That(table.Revision.TryPin(out int slot), Is.True);
+            table.Revision.Epoch.Exit(slot);
+        }
+
+        /// <summary>
+        /// A failed routing image cannot leave an unreachable epoch blocking generation cleanup.
+        /// </summary>
+        [Test]
+        public async Task FailedRoutingImageDoesNotRetainAnUnreachableEpoch()
+        {
+            IAsyncNodeManager manager = CreateManager();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            var invalidRoutes = new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>
+            {
+                [2] = null!
+            };
+
+            Assert.Throws<ArgumentNullException>(() => new NodeManagerRoutingTable.RoutingSnapshot(
+                [manager], invalidRoutes, []));
+
+            generation.Gate.Retire();
+            Assert.That(generation.IsQuiescent, Is.True);
+            ValueTask quiescence = generation.WaitForQuiescenceAsync(CancellationToken.None);
+            Assert.That(quiescence.IsCompleted, Is.True);
+            await quiescence.ConfigureAwait(false);
         }
 
         [Test]

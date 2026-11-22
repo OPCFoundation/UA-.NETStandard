@@ -1,36 +1,11 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Bindings;
 
 namespace Opc.Ua.WotCon.Server.Materialization
@@ -47,22 +22,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         Migrate,
 
         /// <summary>
-        /// Compatibility alias for <see cref="Migrate"/>.
-        /// </summary>
-        [Obsolete("Use Migrate. Retained generations are no longer supported.")]
-        Graceful = Migrate,
-
-        /// <summary>
         /// Invalidate its monitored items with BadNodeIdUnknown and dispose the
         /// previous generation.
         /// </summary>
-        Invalidate,
-
-        /// <summary>
-        /// Compatibility alias for <see cref="Invalidate"/>.
-        /// </summary>
-        [Obsolete("Use Invalidate.")]
-        Immediate = Invalidate
+        Invalidate
     }
 
     /// <summary>
@@ -224,7 +187,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public int MaterializedNodeCount { get; }
 
         /// <summary>
-        /// Gets a non-fatal host warning produced after the replacement generation
+        /// Gets a non-fatal host warning produced after the generation
         /// was committed, for example deferred cleanup of the previous generation.
         /// </summary>
         public string Warning { get; }
@@ -248,9 +211,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Shadow-reloads a live projection: new service requests are routed to
-        /// the replacement generation while the previous generation keeps serving
-        /// its existing monitored items until they drain.
+        /// Replaces a live projection and migrates compatible monitored items to the new generation.
+        /// Already-admitted operations retain their original image until physical retirement.
         /// </summary>
         ValueTask<WotProjectionHandle> ShadowReloadAsync(
             WotProjectionHandle current,
@@ -268,10 +230,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Removes a live projection after its monitored items drain, without
-        /// disconnecting clients.
+        /// Removes a live projection without disconnecting clients. Native convenience calls join retirement
+        /// and return the authoritative committed outcome, including reconciliation failures and the original
+        /// retirement task. Use prepared publication to observe retirement independently.
+        /// A null result denotes a non-native provider or shutdown-owned cleanup.
         /// </summary>
-        ValueTask RemoveAsync(
+        ValueTask<LifecycleResult?> RemoveAsync(
             WotProjectionHandle handle,
             CancellationToken cancellationToken = default);
     }

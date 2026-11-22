@@ -273,6 +273,12 @@ an `ISession` facade that wraps a raw `Session` and adds:
   through the existing certificate-validation rules, not by changing the
   channel's security configuration. An application can add its own checks;
   see [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint).
+
+  `IManagedSession.RedundancyInfo` is the snapshot from the last refresh,
+  not a live view of `MemberConnections`. A newly arrived reverse connection
+  does not itself refresh that snapshot. Calling `FailoverAsync` without an
+  explicit target refreshes the available members before selecting a target;
+  polling the snapshot alone does not initiate discovery.
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -323,7 +329,8 @@ cycle and failover are exhausted. It reports `Disconnected` and the last error,
 then starts a fresh bounded cycle after the policy's maximum backoff (at least
 one second). Closing or disposing the session cancels this recovery timer.
 This does not restart failed initial connections: `CreateAsync` still fails as
-described above.
+described above. A session without server redundancy skips the `Failover`
+state and goes from `Reconnecting` straight to `Disconnected`.
 
 `ReconnectAsync` explicitly re-arms the state machine instead of waiting at the
 ordinary service gate. An explicitly supplied channel or reverse connection is

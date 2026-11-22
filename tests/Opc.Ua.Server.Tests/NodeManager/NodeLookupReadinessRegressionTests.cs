@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Threading;
 using System.Threading.Tasks;
@@ -72,23 +46,38 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ? new NodeManagerReadinessScope(server.Object, generation)
                     : null)
                 {
+                    var unbound = await routing.GetManagerHandleAsync(context, nodeId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(unbound.handle, Is.Null);
+                    Assert.That(unbound.nodeManager, Is.Null);
+                    context.Readiness = readiness;
+                    Task<(object? handle, IAsyncNodeManager? nodeManager)> lookup;
+                    using (ExecutionContext.SuppressFlow())
+                    {
+                        lookup = Task.Run(async () => await routing
+                            .GetManagerHandleAsync(context, nodeId, CancellationToken.None)
+                            .ConfigureAwait(false));
+                    }
                     (object? explicitHandle, IAsyncNodeManager? explicitOwner) =
-                        await routing.GetManagerHandleAsync(context, nodeId, CancellationToken.None)
-                            .ConfigureAwait(false);
+                        await lookup.ConfigureAwait(false);
                     (object? liveHandle, IAsyncNodeManager? liveOwner) =
                         await master.GetManagerHandleAsync(nodeId).ConfigureAwait(false);
                     bool materialized = await master.IsNodeMaterializedAsync(nodeId).ConfigureAwait(false);
                     Assert.That(explicitHandle, initializer ? Is.SameAs(handle) : Is.Null);
                     Assert.That(explicitOwner, initializer ? Is.SameAs(manager.Object) : Is.Null);
-                    Assert.That(liveHandle, initializer ? Is.SameAs(handle) : Is.Null);
-                    Assert.That(liveOwner, initializer ? Is.SameAs(manager.Object) : Is.Null);
-                    Assert.That(materialized, Is.EqualTo(initializer));
+                    Assert.That(liveHandle, Is.Null);
+                    Assert.That(liveOwner, Is.Null);
+                    Assert.That(materialized, Is.False);
                     Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                     manager.Verify(value => value.GetManagerHandleAsync(nodeId, It.IsAny<CancellationToken>()),
-                        Times.Exactly(initializer ? 3 : 0));
+                        Times.Exactly(initializer ? 1 : 0));
                 }
 
                 // Readiness capability is revocable, even though the context still owns the same routing view.
+                var expired = await routing.GetManagerHandleAsync(context, nodeId, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(expired.handle, Is.Null);
+                Assert.That(expired.nodeManager, Is.Null);
                 Assert.That(await master.IsNodeMaterializedAsync(nodeId).ConfigureAwait(false), Is.False);
                 generation.ReadinessPending = false;
                 Assert.That(await master.IsNodeMaterializedAsync(nodeId).ConfigureAwait(false), Is.True);
@@ -101,7 +90,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(readyHandle, Is.SameAs(handle));
                 Assert.That(readyOwner, Is.SameAs(manager.Object));
                 manager.Verify(value => value.GetManagerHandleAsync(nodeId, It.IsAny<CancellationToken>()),
-                    Times.Exactly(initializer ? 5 : 2));
+                    Times.Exactly(initializer ? 3 : 2));
             }
         }
     }

@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Namespace registration still accepts legacy synchronous node managers.
 
 using System;
 using System.Threading;
@@ -68,7 +44,7 @@ namespace Opc.Ua.Server
                 return default;
             }
 
-            ThrowIfNamespaceRegistrationFromDecision();
+            ThrowIfNamespaceRegistrationFromGetter();
             return RegisterNamespaceManagerCoreAsync(
                 namespaceUri,
                 preparingNodeManager ?? nodeManager,
@@ -159,26 +135,24 @@ namespace Opc.Ua.Server
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Applies a serving alias registration through the shared namespace reservation merge.
+        /// </summary>
         private async ValueTask RegisterNamespaceManagerCoreAsync(
             string namespaceUri,
             IAsyncNodeManager nodeManager,
             bool visible,
             CancellationToken cancellationToken)
         {
-            await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                int index = Server.NamespaceUris.GetIndexOrAppend(namespaceUri);
-                m_nodeManagers.RegisterNamespace(index, nodeManager, visible);
-            }
-            finally
-            {
-                m_namespaceRegistrationSemaphore.Release();
-            }
+            await ChangeNamespaceRegistrationAsync(
+                namespaceUri, nodeManager, register: true, visible, cancellationToken).ConfigureAwait(false);
 
             ServerUrisVersion.Update(Server);
         }
 
+        /// <summary>
+        /// Unstages private aliases or applies serving alias removal through the shared reservation merge.
+        /// </summary>
         private async ValueTask<bool> UnregisterNamespaceManagerCoreAsync(
             string namespaceUri,
             IAsyncNodeManager? asyncNodeManager,
@@ -193,20 +167,9 @@ namespace Opc.Ua.Server
                 return staging.UnstageNamespaceRegistration(namespaceUri);
             }
 
-            ThrowIfNamespaceRegistrationFromDecision();
-            await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                int namespaceIndex = Server.NamespaceUris.GetIndex(namespaceUri);
-                return namespaceIndex >= 0 && m_nodeManagers.UnregisterNamespace(
-                    namespaceIndex,
-                    asyncNodeManager,
-                    nodeManager);
-            }
-            finally
-            {
-                m_namespaceRegistrationSemaphore.Release();
-            }
+            ThrowIfNamespaceRegistrationFromGetter();
+            return await ChangeNamespaceRegistrationAsync(
+                namespaceUri, candidate, register: false, visible: true, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -215,6 +178,68 @@ namespace Opc.Ua.Server
     /// </summary>
     public static class MasterNodeManagerNamespaceRegistrationExtensions
     {
+        /// <summary>
+        /// Registers a namespace alias from a durable-decision callback.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The decision owns the active host reservation.</exception>
+        public static void RegisterNamespaceManager(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext)
+        {
+            CheckDecision(master, decisionContext);
+            master.RegisterNamespaceManager(namespaceUri, nodeManager);
+        }
+
+        /// <summary>
+        /// Unregisters a namespace alias from a durable-decision callback.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The decision owns the active host reservation.</exception>
+        public static bool UnregisterNamespaceManager(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext)
+        {
+            CheckDecision(master, decisionContext);
+            return master.UnregisterNamespaceManager(namespaceUri, nodeManager);
+        }
+
+        private static void CheckDecision(IMasterNodeManager master, NodeManagerDecisionContext decisionContext)
+        {
+            (decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)))
+                .CheckAddressSpaceMutation(master);
+        }
+
+        /// <summary>
+        /// Registers a namespace alias asynchronously from a durable-decision callback.
+        /// </summary>
+        public static ValueTask RegisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            CheckDecision(master, decisionContext);
+            return master.RegisterNamespaceManagerAsync(namespaceUri, nodeManager, cancellationToken);
+        }
+
+        /// <summary>
+        /// Unregisters a namespace alias asynchronously from a durable-decision callback.
+        /// </summary>
+        public static ValueTask<bool> UnregisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            CheckDecision(master, decisionContext);
+            return master.UnregisterNamespaceManagerAsync(namespaceUri, nodeManager, cancellationToken);
+        }
+
         /// <summary>
         /// Registers a namespace manager without blocking the calling thread when the master supports asynchronous
         /// namespace registration.

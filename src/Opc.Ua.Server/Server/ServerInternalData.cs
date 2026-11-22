@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -159,6 +133,27 @@ namespace Opc.Ua.Server
 
             // create the default system context.
             DefaultSystemContext = new ServerSystemContext(this);
+        }
+
+        /// <summary>
+        /// Initializes server internals with a preconstructed status owner, without starting runtime workers.
+        /// </summary>
+        /// <param name="serverDescription">The server description.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="messageContext">The message context.</param>
+        /// <param name="timeProvider">The server time provider, or null for the system clock.</param>
+        /// <param name="securityPolicies">The security policies, or null for the default registry.</param>
+        /// <param name="status">The status owned by these internals.</param>
+        internal ServerInternalData(
+            ServerProperties serverDescription,
+            ApplicationConfiguration configuration,
+            IServiceMessageContext messageContext,
+            TimeProvider? timeProvider,
+            ISecurityPolicyRegistry? securityPolicies,
+            ServerStatusValue status)
+            : this(serverDescription, configuration, messageContext, timeProvider, securityPolicies)
+        {
+            NonThreadSafeStatus = status ?? throw new ArgumentNullException(nameof(status));
         }
 
         /// <summary>
@@ -316,12 +311,12 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            if (Volatile.Read(ref m_disposed) != 0)
-            {
-                throw new ObjectDisposedException(nameof(ServerInternalData));
-            }
             lock (m_historianBuildersLock)
             {
+                if (Volatile.Read(ref m_disposed) != 0)
+                {
+                    throw new ObjectDisposedException(nameof(ServerInternalData));
+                }
                 if (!m_historianBuilders.Contains(builder))
                 {
                     m_historianBuilders.Add(builder);
@@ -784,7 +779,9 @@ namespace Opc.Ua.Server
             List<T> asyncManagers = [.. nodeManager.AsyncNodeManagers.OfType<T>()];
 
             return asyncManagers.Concat(
+#pragma warning disable CS0618, UA0031 // Legacy managers registered only through the sync list still count.
                 nodeManager.NodeManagers
+#pragma warning restore CS0618, UA0031
                     .OfType<T>()
                     .Where(manager => !asyncManagers.Exists(known => ReferenceEquals(known, manager))));
         }

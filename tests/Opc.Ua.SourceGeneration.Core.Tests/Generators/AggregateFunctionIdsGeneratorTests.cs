@@ -1,0 +1,217 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+using System;
+using System.Linq;
+using System.Text;
+using System.Xml;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Schema.Model;
+
+namespace Opc.Ua.SourceGeneration.Generator.Tests
+{
+    /// <summary>
+    /// Unit tests for the <see cref="AggregateFunctionIdsGenerator"/>. The output
+    /// compiled against the real core model is covered by the server's
+    /// AggregatorsTests, which use the emitted <c>AggregateFunctionIds.All</c>.
+    /// </summary>
+    [TestFixture]
+    [Category("Generator")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
+    public class AggregateFunctionIdsGeneratorTests
+    {
+        private const string kUaNamespaceUri = "http://opcfoundation.org/UA/";
+
+        [Test]
+        public void ConstructorNullContextThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(
+                () => new AggregateFunctionIdsGenerator(null!));
+        }
+
+        [Test]
+        public void EmitNonCoreModelReturnsEmpty()
+        {
+            var mockFileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
+            GeneratorContext context = CreateContext(
+                "http://test.org/UA/",
+                "Test",
+                mockFileSystem.Object,
+                CreateAggregateFunction("AggregateFunction_Custom", "Custom", "AggregateFunctionType"));
+
+            var resources = new AggregateFunctionIdsGenerator(context).Emit().ToList();
+
+            Assert.That(resources, Is.Empty);
+            mockFileSystem.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public void EmitCoreModelWithoutAggregateFunctionsReturnsEmpty()
+        {
+            var mockFileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
+            GeneratorContext context = CreateContext(
+                kUaNamespaceUri,
+                "Opc.Ua",
+                mockFileSystem.Object,
+                CreateAggregateFunction("Server", "Server", "ServerType"));
+
+            var resources = new AggregateFunctionIdsGenerator(context).Emit().ToList();
+
+            Assert.That(resources, Is.Empty);
+            mockFileSystem.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public void EmitCoreModelListsAggregateFunctionsInModelOrder()
+        {
+            using var fileSystem = new VirtualFileSystem();
+            GeneratorContext context = CreateContext(
+                kUaNamespaceUri,
+                "Opc.Ua",
+                fileSystem,
+                CreateAggregateFunction("AggregateFunction_Count", "Count", "AggregateFunctionType"),
+                CreateAggregateFunction("Server", "Server", "ServerType"),
+                CreateAggregateFunction("AggregateFunction_AnnotationCount", "AnnotationCount", "AggregateFunctionType"));
+
+            var resources = new AggregateFunctionIdsGenerator(context).Emit().ToList();
+
+            Assert.That(resources, Has.Count.EqualTo(1));
+            string output = Encoding.UTF8.GetString(fileSystem.Get(
+                System.IO.Path.Combine("out", "Opc.Ua.AggregateFunctionIds.g.cs")));
+            const string count =
+                "(global::Opc.Ua.ObjectIds.AggregateFunction_Count, global::Opc.Ua.BrowseNames.AggregateFunction_Count),";
+            const string annotationCount =
+                "(global::Opc.Ua.ObjectIds.AggregateFunction_AnnotationCount, global::Opc.Ua.BrowseNames.AggregateFunction_AnnotationCount),";
+            Assert.That(output, Does.Contain("public static partial class AggregateFunctionIds"));
+            Assert.That(output, Does.Contain(count));
+            Assert.That(output, Does.Contain(annotationCount));
+            Assert.That(output, Does.Not.Contain("ObjectIds.Server"));
+            Assert.That(
+                output.IndexOf(count, StringComparison.Ordinal),
+                Is.LessThan(output.IndexOf(annotationCount, StringComparison.Ordinal)));
+        }
+
+        [Test]
+        public void EmitExcludedOrUnnamedAggregateFunctionsAreNotListed()
+        {
+            using var fileSystem = new VirtualFileSystem();
+            ObjectDesign listed = CreateAggregateFunction(
+                "AggregateFunction_Count", "Count", "AggregateFunctionType");
+            ObjectDesign excluded = CreateAggregateFunction(
+                "AggregateFunction_Excluded", "Excluded", "AggregateFunctionType");
+            ObjectDesign noSymbolicId = CreateAggregateFunction(
+                "AggregateFunction_NoSymbolicId", "NoSymbolicId", "AggregateFunctionType");
+            noSymbolicId.SymbolicId = null!;
+            ObjectDesign noSymbolicName = CreateAggregateFunction(
+                "AggregateFunction_NoSymbolicName", "NoSymbolicName", "AggregateFunctionType");
+            noSymbolicName.SymbolicName = null!;
+            GeneratorContext context = CreateContext(
+                kUaNamespaceUri,
+                "Opc.Ua",
+                fileSystem,
+                listed,
+                excluded,
+                noSymbolicId,
+                noSymbolicName);
+            var excludedType = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("ExcludedAggregateFunctionType", kUaNamespaceUri),
+                SymbolicName = new XmlQualifiedName("ExcludedAggregateFunctionType", kUaNamespaceUri)
+            };
+            ObjectDesign ofExcludedType = CreateAggregateFunction(
+                "AggregateFunction_OfExcludedType", "OfExcludedType", "AggregateFunctionType");
+            ofExcludedType.TypeDefinitionNode = excludedType;
+            Mock.Get(context.ModelDesign)
+                .Setup(m => m.GetNodeDesigns())
+                .Returns([listed, excluded, noSymbolicId, noSymbolicName, ofExcludedType]);
+            Mock.Get(context.ModelDesign)
+                .Setup(m => m.IsExcluded(It.Is<NodeDesign>(n =>
+                    ReferenceEquals(n, excluded) || ReferenceEquals(n, excludedType))))
+                .Returns(true);
+
+            var resources = new AggregateFunctionIdsGenerator(context).Emit().ToList();
+
+            Assert.That(resources, Has.Count.EqualTo(1));
+            string output = Encoding.UTF8.GetString(fileSystem.Get(
+                System.IO.Path.Combine("out", "Opc.Ua.AggregateFunctionIds.g.cs")));
+            Assert.That(output, Does.Contain("ObjectIds.AggregateFunction_Count"));
+            Assert.That(output, Does.Not.Contain("Excluded"));
+            Assert.That(output, Does.Not.Contain("NoSymbolicId"));
+            Assert.That(output, Does.Not.Contain("NoSymbolicName"));
+            Assert.That(output, Does.Not.Contain("OfExcludedType"));
+        }
+
+        [Test]
+        public void EmitInstanceOfAggregateFunctionSubtypeIsListed()
+        {
+            using var fileSystem = new VirtualFileSystem();
+            var aggregateFunctionType = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("AggregateFunctionType", kUaNamespaceUri),
+                SymbolicName = new XmlQualifiedName("AggregateFunctionType", kUaNamespaceUri)
+            };
+            var subtype = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("CustomAggregateFunctionType", kUaNamespaceUri),
+                SymbolicName = new XmlQualifiedName("CustomAggregateFunctionType", kUaNamespaceUri),
+                BaseTypeNode = aggregateFunctionType
+            };
+            ObjectDesign custom = CreateAggregateFunction(
+                "AggregateFunction_Custom", "Custom", "CustomAggregateFunctionType");
+            custom.TypeDefinitionNode = subtype;
+            GeneratorContext context = CreateContext(kUaNamespaceUri, "Opc.Ua", fileSystem, custom);
+
+            var resources = new AggregateFunctionIdsGenerator(context).Emit().ToList();
+
+            Assert.That(resources, Has.Count.EqualTo(1));
+            string output = Encoding.UTF8.GetString(fileSystem.Get(
+                System.IO.Path.Combine("out", "Opc.Ua.AggregateFunctionIds.g.cs")));
+            Assert.That(output, Does.Contain("global::Opc.Ua.ObjectIds.AggregateFunction_Custom"));
+        }
+
+        private static GeneratorContext CreateContext(
+            string namespaceUri,
+            string prefix,
+            IFileSystem fileSystem,
+            params NodeDesign[] nodes)
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = namespaceUri,
+                Prefix = prefix,
+                Name = "TestNamespace"
+            };
+
+            var mockModelDesign = new Mock<IModelDesign>();
+            mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns(nodes);
+            mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            return new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = mockModelDesign.Object,
+                Telemetry = new Mock<ITelemetryContext>().Object,
+                Options = new GeneratorOptions()
+            };
+        }
+
+        private static ObjectDesign CreateAggregateFunction(
+            string symbolicName,
+            string browseName,
+            string typeDefinition)
+        {
+            return new ObjectDesign
+            {
+                SymbolicId = new XmlQualifiedName(symbolicName, kUaNamespaceUri),
+                SymbolicName = new XmlQualifiedName(symbolicName, kUaNamespaceUri),
+                BrowseName = browseName,
+                TypeDefinition = new XmlQualifiedName(typeDefinition, kUaNamespaceUri)
+            };
+        }
+    }
+}

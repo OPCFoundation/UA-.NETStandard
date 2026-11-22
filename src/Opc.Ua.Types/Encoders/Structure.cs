@@ -1,36 +1,11 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua.Encoders
@@ -63,26 +38,12 @@ namespace Opc.Ua.Encoders
             XmlEncodingId = xmlEncodingId;
             BinaryEncodingId = binaryEncodingId;
             FieldTypes = fieldTypes;
+            m_layout = new SharedLayout();
 
-            for (int i = 0; i < Definition.Fields.Count; i++)
-            {
-                // The field itself does not specify its built in type
-                // we need to look it up in the provided lookup table.
-                if (!fieldTypes.TryGetValue(
-                    Definition.Fields[i].Name!,
-                    out BuiltInType fieldType))
-                {
-                    fieldType = BuiltInType.Null;
-                }
-
-                var newProperty = new Field(
-                    i + 1,
-                    Definition.Fields[i],
-                    fieldType);
-                PropertyList.Add(newProperty);
-            }
-            PropertyList.Sort((a, b) => a.Order.CompareTo(b.Order));
-            PropertyDict = PropertyList.ToDictionary(p => p.Name!, p => p);
+            // Built now, so that a definition this type cannot represent
+            // (a field without a name, two fields of one name) is reported
+            // where the type is created and not where a value is decoded.
+            _ = PropertyDict;
         }
 
         /// <summary>
@@ -96,8 +57,36 @@ namespace Opc.Ua.Encoders
             XmlEncodingId = structure.XmlEncodingId;
             BinaryEncodingId = structure.BinaryEncodingId;
             FieldTypes = structure.FieldTypes;
-            PropertyList = structure.PropertyList.ConvertAll(p => (Field)p.Clone());
-            PropertyDict = PropertyList.ToDictionary(p => p.Name!, p => p);
+            m_layout = structure.m_layout;
+            if (structure.m_propertyList != null)
+            {
+                m_propertyList = structure.m_propertyList.ConvertAll(p => (Field)p.Clone());
+            }
+            else
+            {
+                m_single = (Field?)structure.m_single?.Clone();
+            }
+        }
+
+        /// <summary>
+        /// Creates a new value of the type of <paramref name="type"/>.
+        /// </summary>
+        /// <remarks>
+        /// The fields are created when they are first used. The definition, and
+        /// with it the number of fields, comes from the peer, while a value can
+        /// take a few bytes on the wire (a Union without a selected field takes
+        /// four), so creating a value must not cost one object per field.
+        /// </remarks>
+        private protected Structure(Structure type, TypeInstance instance)
+        {
+            _ = instance;
+            Definition = type.Definition;
+            XmlName = type.XmlName;
+            TypeId = type.TypeId;
+            XmlEncodingId = type.XmlEncodingId;
+            BinaryEncodingId = type.BinaryEncodingId;
+            FieldTypes = type.FieldTypes;
+            m_layout = type.m_layout;
         }
 
         /// <inheritdoc/>
@@ -482,13 +471,7 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public virtual IEncodeable CreateInstance()
         {
-            return new Structure(
-                XmlName,
-                TypeId,
-                BinaryEncodingId,
-                XmlEncodingId,
-                Definition,
-                FieldTypes);
+            return new Structure(this, default(TypeInstance));
         }
 
         /// <inheritdoc/>
@@ -506,12 +489,130 @@ namespace Opc.Ua.Encoders
         /// <summary>
         /// The list of properties as dictionary.
         /// </summary>
-        internal Dictionary<string, Field> PropertyDict { get; }
+        internal Dictionary<string, Field> PropertyDict
+            => m_propertyDict ??= PropertyList.ToDictionary(p => p.Name!, p => p);
 
         /// <summary>
-        /// The list of properties of this complex type.
+        /// The list of properties of this complex type, in the order of the
+        /// definition.
         /// </summary>
-        internal List<Field> PropertyList { get; } = [];
+        internal List<Field> PropertyList => m_propertyList ?? CreateFields();
+
+        /// <summary>
+        /// The number of fields of the definition.
+        /// </summary>
+        internal int FieldCount => Definition.Fields.Count;
+
+        /// <summary>
+        /// The names of the fields in the order of the definition, shared by
+        /// all values of the type.
+        /// </summary>
+        internal IList<string> FieldNames
+        {
+            get
+            {
+                string[]? names = m_layout.FieldNames;
+                if (names == null)
+                {
+                    names = new string[FieldCount];
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        names[i] = Definition.Fields[i].Name!;
+                    }
+                    m_layout.FieldNames = names;
+                }
+                return names;
+            }
+        }
+
+        /// <summary>
+        /// The field at <paramref name="index"/>. Does not create the other
+        /// fields while this is the only field used.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        internal Field GetField(int index)
+        {
+            List<Field>? fields = m_propertyList;
+            if (fields != null)
+            {
+                return fields[index];
+            }
+            if ((uint)index >= (uint)FieldCount)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            Field? single = m_single;
+            if (single == null)
+            {
+                // Readers of one value may run concurrently: one field wins.
+                Field created = CreateField(index);
+                single = Interlocked.CompareExchange(ref m_single, created, null) ?? created;
+            }
+            if (single.Order == index + 1)
+            {
+                return single;
+            }
+            return CreateFields()[index];
+        }
+
+        /// <summary>
+        /// Creates the field at <paramref name="index"/> with its default value.
+        /// </summary>
+        private Field CreateField(int index)
+        {
+            StructureField field = Definition.Fields[index];
+
+            // The field itself does not specify its built in type
+            // we need to look it up in the provided lookup table.
+            if (!FieldTypes.TryGetValue(field.Name!, out BuiltInType fieldType))
+            {
+                fieldType = BuiltInType.Null;
+            }
+            return new Field(index + 1, field, fieldType);
+        }
+
+        /// <summary>
+        /// Creates all fields, keeping the one that is in use already.
+        /// </summary>
+        private List<Field> CreateFields()
+        {
+            int count = FieldCount;
+            var fields = new List<Field>(count);
+            Field? single = m_single;
+            for (int i = 0; i < count; i++)
+            {
+                fields.Add(single != null && single.Order == i + 1 ? single : CreateField(i));
+            }
+
+            // Reading a value creates its fields, and readers of one value may
+            // run concurrently. The single field stays set, so every list
+            // built here holds it, and the first list published is the one
+            // all readers use.
+            return Interlocked.CompareExchange(ref m_propertyList, fields, null) ?? fields;
+        }
+
+        /// <summary>
+        /// Selects the constructor of a new value of an existing type.
+        /// </summary>
+        private protected readonly struct TypeInstance
+        {
+        }
+
+        /// <summary>
+        /// What all values of one type share.
+        /// </summary>
+        private sealed class SharedLayout
+        {
+            public string[]? FieldNames;
+        }
+
+        private readonly SharedLayout m_layout;
+        private List<Field>? m_propertyList;
+        private Dictionary<string, Field>? m_propertyDict;
+
+        // The only field in use while m_propertyList is not created. It is
+        // kept afterwards and is then the field of the list at its position.
+        private Field? m_single;
 
         /// <summary>
         /// Definition

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -35,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -54,102 +29,128 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task PreparedCutoffPreservesAuthorizedSourceSnapshotsAndCoreIdentityAsync(bool events)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            IServerInternal server = m_server.CurrentInstance;
-            var master = (MasterNodeManager)server.NodeManager;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            TrackingLifecycleNodeManager? first = null;
-            TrackingLifecycleNodeManager? second = null;
-            TrackingLifecycleNodeManager? survivor = null;
-            NodeManagerRegistration firstRegistration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, manager => first = manager),
-                null, timeout.Token).ConfigureAwait(false);
-            NodeManagerRegistration secondRegistration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(202, manager => second = manager, kSecondModelNamespaceUri),
-                null, timeout.Token).ConfigureAwait(false);
-            await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                303, manager => survivor = manager, kReadinessProbeNamespaceUri), null, timeout.Token)
-                .ConfigureAwait(false);
-            AssertLifecycleValue(first);
-            AssertLifecycleValue(second);
-            AssertLifecycleValue(survivor);
-            NodeId sourceId = new(events ? kRootNodeId : kValueNodeId, second.NamespaceIndexes[0]);
-            NodeState node = RequireLifecycleValue(second.Find(sourceId));
-            if (node is BaseVariableState variable)
-            {
-                variable.StatusCode = StatusCodes.Good;
-            }
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            RequestHeader header = m_requestHeader;
-            header.Timestamp = DateTimeUtc.Now;
-            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
-                header, 100, 100, 10, 0, true, 0, timeout.Token).ConfigureAwait(false);
-            uint subscriptionId = subscription.SubscriptionId;
-            MonitoredItemCreateRequest request = events
-                ? CreateEmissionEventRequest(sourceId, 1)
-                : CreateEmissionDataRequest(sourceId, 1);
-            request.RequestedParameters.QueueSize = 32;
-            header.Timestamp = DateTimeUtc.Now;
-            CreateMonitoredItemsResponse created = await services.CreateMonitoredItemsAsync(
-                header, subscriptionId, TimestampsToReturn.Both,
-                [request, CreateEmissionEventRequest(ObjectIds.Server, 2)], timeout.Token).ConfigureAwait(false);
-            foreach (MonitoredItemCreateResult result in created.Results)
-            {
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            }
-            uint itemId = created.Results[0].MonitoredItemId;
-            IEventMonitoredItem allEvents = server.EventManager.GetMonitoredItems()
-                .Single(item => item.Id == created.Results[1].MonitoredItemId);
-            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
-            if (!events)
-            {
-                var initial = await PublishForDataChangeAsync(services, subscriptionId, default, 1)
-                    .ConfigureAwait(false);
-                Assert.That(initial.Value.GetValueOrDefault().WrappedValue, Is.EqualTo(new Variant(202)));
-                acknowledgements = initial.Acknowledgements;
-            }
-            MonitoredNode2 source = second.GetEmissionSource(sourceId);
-            var validating = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseValidation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseDispatch = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            int validationClaims = 0;
-            second.EmissionPermissionCallback = async (permission, token) =>
-            {
-                if (permission == (events ? PermissionType.ReceiveEvents : PermissionType.Read) &&
-                    Interlocked.CompareExchange(ref validationClaims, 1, 0) == 0)
-                {
-                    validating.TrySetResult(true);
-                    await releaseValidation.Task.WaitAsync(token).ConfigureAwait(false);
-                }
-            };
-            first.ConditionRefreshCallback = async (_, token) =>
-            {
-                entered.TrySetResult(true);
-                await releaseDispatch.Task.WaitAsync(token).ConfigureAwait(false);
-            };
-            Task? dispatch = null;
-            Task<NodeManagerBatchResult>? commit = null;
-            NodeManagerBatchResult? retirementResult = null;
+            Task exactWriter1Disposal = Task.CompletedTask;
             try
             {
-                await ProduceAsync(771).ConfigureAwait(false);
-                await validating.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await ProduceAsync(772).ConfigureAwait(false);
-                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [
-                        NodeManagerBatchChange.Remove(firstRegistration),
-                        NodeManagerBatchChange.Remove(secondRegistration)
-                    ], timeout.Token).ConfigureAwait(false);
-                ISession session = RequireLifecycleValue(
-                    server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                IServerInternal server = m_server.CurrentInstance;
+                var master = (MasterNodeManager)server.NodeManager;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                TrackingLifecycleNodeManager? first = null;
+                TrackingLifecycleNodeManager? second = null;
+                TrackingLifecycleNodeManager? survivor = null;
+                LifecycleResult publicationResult1 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    101, manager => first = manager)), timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration firstRegistration = RequireRegistration(publicationResult1.Registrations[0]);
+                LifecycleResult publicationResult2 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    202, manager => second = manager, kSecondModelNamespaceUri)), timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration secondRegistration = RequireRegistration(publicationResult2.Registrations[0]);
+                RequireRegistration(
+                    (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    303, manager => survivor = manager, kReadinessProbeNamespaceUri)), timeout.Token)
+                        .ConfigureAwait(false)).Registrations[0]);
+                AssertLifecycleValue(first);
+                AssertLifecycleValue(second);
+                AssertLifecycleValue(survivor);
+                NodeId sourceId = new(events ? kRootNodeId : kValueNodeId, second.NamespaceIndexes[0]);
+                NodeState node = RequireLifecycleValue(second.Find(sourceId));
+                if (node is BaseVariableState variable)
+                {
+                    variable.StatusCode = StatusCodes.Good;
+                }
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                RequestHeader header = m_requestHeader;
+                header.Timestamp = DateTimeUtc.Now;
+                CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
+                    header, 100, 100, 10, 0, true, 0, timeout.Token).ConfigureAwait(false);
+                uint subscriptionId = subscription.SubscriptionId;
+                MonitoredItemCreateRequest request = events
+                    ? CreateEmissionEventRequest(sourceId, 1)
+                    : CreateEmissionDataRequest(sourceId, 1);
+                request.RequestedParameters.QueueSize = 32;
+                header.Timestamp = DateTimeUtc.Now;
+                CreateMonitoredItemsResponse created = await services.CreateMonitoredItemsAsync(
+                    header, subscriptionId, TimestampsToReturn.Both,
+                    [request, CreateEmissionEventRequest(ObjectIds.Server, 2)], timeout.Token).ConfigureAwait(false);
+                foreach (MonitoredItemCreateResult result in created.Results)
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+                uint itemId = created.Results[0].MonitoredItemId;
+                IEventMonitoredItem allEvents = server.EventManager.GetMonitoredItems()
+                    .Single(item => item.Id == created.Results[1].MonitoredItemId);
+                ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
+                if (!events)
+                {
+                    (DataValue? initialValue, ArrayOf<SubscriptionAcknowledgement> initialAcknowledgements) =
+                        await PublishForDataChangeAsync(services, subscriptionId, default, 1).ConfigureAwait(false);
+                    Assert.That(initialValue.GetValueOrDefault().WrappedValue, Is.EqualTo(new Variant(202)));
+                    acknowledgements = initialAcknowledgements;
+                }
+                MonitoredNode2 source = second.GetEmissionSource(sourceId);
+                var validating = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var releaseValidation = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var validatingQueuedSource = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var releaseQueuedSource = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var releaseDispatch = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                int validationClaims = 0;
+                second.EmissionPermissionCallback = async (permission, token) =>
+                {
+                    if (permission != (events ? PermissionType.ReceiveEvents : PermissionType.Read))
+                    {
+                        return;
+                    }
+                    int claim = Interlocked.Increment(ref validationClaims);
+                    if (claim == 1)
+                    {
+                        validating.TrySetResult(true);
+                        await releaseValidation.Task.WaitAsync(token).ConfigureAwait(false);
+                    }
+                    else if (claim == 2)
+                    {
+                        validatingQueuedSource.TrySetResult(true);
+                        await releaseQueuedSource.Task.WaitAsync(token).ConfigureAwait(false);
+                    }
+                };
+                first.ConditionRefreshCallback = async (_, token) =>
+                {
+                    entered.TrySetResult(true);
+                    await releaseDispatch.Task.WaitAsync(token).ConfigureAwait(false);
+                };
+                Task? dispatch = null;
+                Task<LifecycleResult>? commit = null;
+                LifecycleResult? retirementResult = null;
+                try
+                {
+                    await ProduceAsync(771).ConfigureAwait(false);
+                    await validating.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await ProduceAsync(772).ConfigureAwait(false);
+                    await using ILifecycleWriter exactWriter1 = await Capture(
+                        m_server.NodeManagerLifecycle, firstRegistration, secondRegistration).BeginAsync(
+                        timeout.Token).ConfigureAwait(false);
+                    await using IPreparedChanges prepared = await exactWriter1.PrepareAsync([
+                            LifecycleChange.Remove(firstRegistration.Slot),
+                            LifecycleChange.Remove(secondRegistration.Slot)
+                        ], timeout.Token).ConfigureAwait(false);
+                    ISession session = RequireLifecycleValue(
+                        server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
                     using (var context = new OperationContext(session, DiagnosticsMasks.None))
                     {
                         dispatch = master.ConditionRefreshAsync(context, [allEvents], timeout.Token).AsTask();
                         await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                         commit = prepared.CommitAsync(_ => default, () => published.TrySetResult(true), timeout.Token)
                             .AsTask();
+                        exactWriter1Disposal = exactWriter1.DisposeAsync().AsTask();
                         await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                         Assert.That(prepared.IsCommitted, Is.True);
                         Assert.That(dispatch.IsCompleted, Is.False);
@@ -157,137 +158,151 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         releaseDispatch.TrySetResult(true);
                         releaseValidation.TrySetResult(true);
                         await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        await validatingQueuedSource.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                         await ProduceAsync(999).ConfigureAwait(false);
                         Assert.That(second.DisposeCount, Is.Zero,
                             "The queued source snapshots, not just A's callback, must retain B.");
+                        releaseQueuedSource.TrySetResult(true);
                     }
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                     retirementResult = result;
                     Assert.That(result.CleanupFailure, Is.Null);
                     await survivor.ReportOwnedEmissionAsync("source-drain-fence", timeout.Token).ConfigureAwait(false);
-                var values = new List<DataValue>();
-                var messages = new List<string>();
-                bool fenced = false;
-                NotificationMessage? sent = null;
-                while (!fenced)
-                {
-                    header.Timestamp = DateTimeUtc.Now;
-                    PublishResponse response = await services.PublishAsync(header, acknowledgements, timeout.Token)
-                        .ConfigureAwait(false);
-                    Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId));
-                    acknowledgements = response.AvailableSequenceNumbers.ToArrayOf(sequence =>
-                        new SubscriptionAcknowledgement { SubscriptionId = subscriptionId, SequenceNumber = sequence });
-                    sent = response.NotificationMessage;
-                    foreach (ExtensionObject notification in sent.NotificationData)
+                    var values = new List<DataValue>();
+                    var messages = new List<string>();
+                    bool fenced = false;
+                    NotificationMessage? sent = null;
+                    while (!fenced)
                     {
-                        if (notification.TryGetValue(out DataChangeNotification? data))
-                        {
-                            foreach (MonitoredItemNotification item in data.MonitoredItems)
+                        header.Timestamp = DateTimeUtc.Now;
+                        PublishResponse response = await services.PublishAsync(header, acknowledgements, timeout.Token)
+                            .ConfigureAwait(false);
+                        Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId));
+                        acknowledgements = response.AvailableSequenceNumbers.ToArrayOf(sequence =>
+                            new SubscriptionAcknowledgement
                             {
-                                Assert.That(item.ClientHandle, Is.EqualTo(1));
-                                values.Add(item.Value);
-                            }
-                        }
-                        else if (notification.TryGetValue(out EventNotificationList? occurrences))
+                                SubscriptionId = subscriptionId,
+                                SequenceNumber = sequence
+                            });
+                        sent = response.NotificationMessage;
+                        foreach (ExtensionObject notification in sent.NotificationData)
                         {
-                            foreach (EventFieldList occurrence in occurrences.Events)
+                            if (notification.TryGetValue(out DataChangeNotification? data))
                             {
-                                Assert.That(occurrence.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
-                                if (occurrence.ClientHandle == 1)
+                                foreach (MonitoredItemNotification item in data.MonitoredItems)
                                 {
-                                    messages.Add(RequireLifecycleValue(message.Text));
+                                    Assert.That(item.ClientHandle, Is.EqualTo(1));
+                                    values.Add(item.Value);
                                 }
-                                else if (message.Text == "source-drain-fence")
+                            }
+                            else if (notification.TryGetValue(out EventNotificationList? occurrences))
+                            {
+                                foreach (EventFieldList occurrence in occurrences.Events)
                                 {
-                                    fenced = true;
+                                    Assert.That(
+                                        occurrence.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
+                                    if (occurrence.ClientHandle == 1)
+                                    {
+                                        messages.Add(RequireLifecycleValue(message.Text));
+                                    }
+                                    else if (message.Text == "source-drain-fence")
+                                    {
+                                        fenced = true;
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                if (events)
-                {
-                    string[] expectedMessages = ["captured-771", "captured-772"];
-                    Assert.That(messages, Is.EqualTo(expectedMessages));
-                    Assert.That(values, Is.Empty);
-                }
-                else
-                {
-                    Assert.That(values.Where(value => StatusCode.IsGood(value.StatusCode))
-                        .Select(value => value.WrappedValue)
-                        .ToArray(),
-                        Is.EqualTo(new[] { new Variant(771), new Variant(772) }));
-                    Assert.That(values[^1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                    Assert.That(messages, Is.Empty);
-                }
+                    if (events)
+                    {
+                        string[] expectedMessages = ["captured-771", "captured-772"];
+                        Assert.That(messages, Is.EqualTo(expectedMessages));
+                        Assert.That(values, Is.Empty);
+                    }
+                    else
+                    {
+                        Assert.That(values.Where(value => StatusCode.IsGood(value.StatusCode))
+                            .Select(value => value.WrappedValue)
+                            .ToArray(),
+                            Is.EqualTo<Variant[]>([new Variant(771), new Variant(772)]));
+                        Assert.That(values[^1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                        Assert.That(messages, Is.Empty);
+                    }
 
-                header.Timestamp = DateTimeUtc.Now;
-                SetMonitoringModeResponse disabled = await services.SetMonitoringModeAsync(
-                    header, subscriptionId, MonitoringMode.Disabled, [itemId], timeout.Token).ConfigureAwait(false);
-                Assert.That(disabled.Results[0], Is.EqualTo(StatusCodes.Good));
-                header.Timestamp = DateTimeUtc.Now;
-                ModifyMonitoredItemsResponse modified = await services.ModifyMonitoredItemsAsync(
-                    header, subscriptionId, TimestampsToReturn.Both,
-                    [
-                        new MonitoredItemModifyRequest
-                        {
-                            MonitoredItemId = itemId,
-                            RequestedParameters = request.RequestedParameters
-                        }
-                    ], timeout.Token).ConfigureAwait(false);
-                Assert.That(modified.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                header.Timestamp = DateTimeUtc.Now;
-                SetMonitoringModeResponse reporting = await services.SetMonitoringModeAsync(
-                    header, subscriptionId, MonitoringMode.Reporting, [itemId], timeout.Token).ConfigureAwait(false);
-                Assert.That(reporting.Results[0], Is.EqualTo(StatusCodes.Good));
-                header.Timestamp = DateTimeUtc.Now;
-                AssertLifecycleValue(sent);
-                RepublishResponse replay = await services.RepublishAsync(
-                    header, subscriptionId, sent.SequenceNumber, timeout.Token).ConfigureAwait(false);
-                Assert.That(replay.NotificationMessage.IsEqual(sent), Is.True,
-                    "Source retirement and valid item mutations must not retract an already sent message.");
-                await DeleteMonitoredItemAsync(services, subscriptionId, itemId).ConfigureAwait(false);
-                header.Timestamp = DateTimeUtc.Now;
-                DeleteMonitoredItemsResponse repeated = await services.DeleteMonitoredItemsAsync(
-                    header, subscriptionId, [itemId], timeout.Token).ConfigureAwait(false);
-                Assert.That(repeated.Results[0], Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                    header.Timestamp = DateTimeUtc.Now;
+                    SetMonitoringModeResponse disabled = await services.SetMonitoringModeAsync(
+                        header, subscriptionId, MonitoringMode.Disabled, [itemId], timeout.Token).ConfigureAwait(false);
+                    Assert.That(disabled.Results[0], Is.EqualTo(StatusCodes.Good));
+                    header.Timestamp = DateTimeUtc.Now;
+                    ModifyMonitoredItemsResponse modified = await services.ModifyMonitoredItemsAsync(
+                        header, subscriptionId, TimestampsToReturn.Both,
+                        [
+                            new MonitoredItemModifyRequest
+                            {
+                                MonitoredItemId = itemId,
+                                RequestedParameters = request.RequestedParameters
+                            }
+                        ], timeout.Token).ConfigureAwait(false);
+                    Assert.That(modified.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    header.Timestamp = DateTimeUtc.Now;
+                    SetMonitoringModeResponse reporting = await services.SetMonitoringModeAsync(
+                        header, subscriptionId, MonitoringMode.Reporting, [itemId], timeout.Token)
+                            .ConfigureAwait(false);
+                    Assert.That(reporting.Results[0], Is.EqualTo(StatusCodes.Good));
+                    header.Timestamp = DateTimeUtc.Now;
+                    AssertLifecycleValue(sent);
+                    RepublishResponse replay = await services.RepublishAsync(
+                        header, subscriptionId, sent.SequenceNumber, timeout.Token).ConfigureAwait(false);
+                    Assert.That(replay.NotificationMessage.IsEqual(sent), Is.True,
+                        "Source retirement and valid item mutations must not retract an already sent message.");
+                    await DeleteMonitoredItemAsync(services, subscriptionId, itemId).ConfigureAwait(false);
+                    header.Timestamp = DateTimeUtc.Now;
+                    DeleteMonitoredItemsResponse repeated = await services.DeleteMonitoredItemsAsync(
+                        header, subscriptionId, [itemId], timeout.Token).ConfigureAwait(false);
+                    Assert.That(repeated.Results[0], Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                }
+                finally
+                {
+                    releaseDispatch.TrySetResult(true);
+                    releaseValidation.TrySetResult(true);
+                    releaseQueuedSource.TrySetResult(true);
+                    if (dispatch is not null)
+                    {
+                        await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (commit is not null)
+                    {
+                        await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                }
+                await RequireLifecycleValue(retirementResult).Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(second.DisposeCount, Is.EqualTo(1));
+
+                async ValueTask ProduceAsync(int value)
+                {
+                    if (events)
+                    {
+                        var occurrence = new BaseEventState(null);
+                        occurrence.Initialize(server.DefaultSystemContext, node, EventSeverity.Medium,
+                            new LocalizedText($"captured-{value}"));
+                        await source.OnReportEventAsync(server.DefaultSystemContext, node, occurrence, timeout.Token)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var variable = (BaseVariableState)node;
+                        variable.Value = value;
+                        variable.Timestamp = DateTimeUtc.Now;
+                        await source.OnMonitoredNodeChangedAsync(server.DefaultSystemContext, node,
+                            NodeStateChangeMasks.Value | NodeStateChangeMasks.RolePermissions, timeout.Token)
+                            .ConfigureAwait(false);
+                    }
+                }
             }
             finally
             {
-                releaseDispatch.TrySetResult(true);
-                releaseValidation.TrySetResult(true);
-                if (dispatch is not null)
-                {
-                    await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
-                if (commit is not null)
-                {
-                    await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
-                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
-            }
-            await RequireLifecycleValue(retirementResult).Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
-            Assert.That(second.DisposeCount, Is.EqualTo(1));
-
-            async ValueTask ProduceAsync(int value)
-            {
-                if (events)
-                {
-                    var occurrence = new BaseEventState(null);
-                    occurrence.Initialize(server.DefaultSystemContext, node, EventSeverity.Medium,
-                        new LocalizedText($"captured-{value}"));
-                    await source.OnReportEventAsync(server.DefaultSystemContext, node, occurrence, timeout.Token)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    var variable = (BaseVariableState)node;
-                    variable.Value = value;
-                    variable.Timestamp = DateTimeUtc.Now;
-                    await source.OnMonitoredNodeChangedAsync(server.DefaultSystemContext, node,
-                        NodeStateChangeMasks.Value | NodeStateChangeMasks.RolePermissions, timeout.Token)
-                        .ConfigureAwait(false);
-                }
+                await exactWriter1Disposal.ConfigureAwait(false);
             }
         }
 
@@ -299,93 +314,110 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         public async Task RejectedPublicationKeepsNewDataAndBusinessEventsUsableAsync(bool cancel)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            using var decision = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
-            IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            TrackingLifecycleNodeManager? manager = null;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, value => manager = value), null, timeout.Token)
-                .ConfigureAwait(false);
-            AssertLifecycleValue(manager);
-            NodeId valueId = new(kValueNodeId, manager.NamespaceIndexes[0]);
-            BaseVariableState variable = RequireLifecycleValue(manager.Find(valueId) as BaseVariableState);
-            variable.StatusCode = StatusCodes.Good;
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            (uint subscriptionId, uint itemId) = await CreateSubscriptionAndMonitoredItemAsync(
-                services, valueId, 1).ConfigureAwait(false);
-            var initial = await PublishForDataChangeAsync(services, subscriptionId, default, 1).ConfigureAwait(false);
-            RequestHeader header = m_requestHeader;
-            header.Timestamp = DateTimeUtc.Now;
-            CreateMonitoredItemsResponse eventCreated = await services.CreateMonitoredItemsAsync(
-                header, subscriptionId, TimestampsToReturn.Both,
-                [CreateEmissionEventRequest(ObjectIds.Server, 2)], timeout.Token).ConfigureAwait(false);
-            Assert.That(eventCreated.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            MonitoredNode2 source = manager.GetEmissionSource(valueId);
-            IDataChangeMonitoredItem2 item = source.DataChangeMonitoredItems[itemId];
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
-            {
-                entered.TrySetResult(true);
-                await release.Task.WaitAsync(token).ConfigureAwait(false);
-                throw new IOException("The source cutoff was not durably decided.");
-            }, decision.Token).AsTask();
+            Task exactWriter2Disposal = Task.CompletedTask;
             try
             {
-                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await AssertServingAsync(551).ConfigureAwait(false);
-                if (cancel)
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                using var decision = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+                IServerInternal server = m_server.CurrentInstance;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                TrackingLifecycleNodeManager? manager = null;
+                LifecycleResult publicationResult3 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    101, value => manager = value)), timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration registration = RequireRegistration(publicationResult3.Registrations[0]);
+                AssertLifecycleValue(manager);
+                NodeId valueId = new(kValueNodeId, manager.NamespaceIndexes[0]);
+                BaseVariableState variable = RequireLifecycleValue(manager.Find(valueId) as BaseVariableState);
+                variable.StatusCode = StatusCodes.Good;
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                (uint subscriptionId, uint itemId) = await CreateSubscriptionAndMonitoredItemAsync(
+                    services, valueId, 1).ConfigureAwait(false);
+                (DataValue? Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements) initial =
+                    await PublishForDataChangeAsync(services, subscriptionId, default, 1).ConfigureAwait(false);
+                RequestHeader header = m_requestHeader;
+                header.Timestamp = DateTimeUtc.Now;
+                CreateMonitoredItemsResponse eventCreated = await services.CreateMonitoredItemsAsync(
+                    header, subscriptionId, TimestampsToReturn.Both,
+                    [CreateEmissionEventRequest(ObjectIds.Server, 2)], timeout.Token).ConfigureAwait(false);
+                Assert.That(eventCreated.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                MonitoredNode2 source = manager.GetEmissionSource(valueId);
+                IDataChangeMonitoredItem2 item = source.DataChangeMonitoredItems[itemId];
+                await using ILifecycleWriter exactWriter2 = await Capture(
+                    m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await exactWriter2.PrepareAsync(
+                    [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
                 {
-                    decision.Cancel();
-                    await Assert.ThatAsync(() => commit, Throws.InstanceOf<OperationCanceledException>())
-                        .ConfigureAwait(false);
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                    throw new IOException("The source cutoff was not durably decided.");
+                }, decision.Token).AsTask();
+                exactWriter2Disposal = exactWriter2.DisposeAsync().AsTask();
+                try
+                {
+                    await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await AssertServingAsync(551).ConfigureAwait(false);
+                    if (cancel)
+                    {
+                        await decision.CancelAsync().ConfigureAwait(false);
+                        await Assert.ThatAsync(() => commit, Throws.InstanceOf<OperationCanceledException>())
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        release.TrySetResult(true);
+                        await Assert.ThatAsync(() => commit, Throws.TypeOf<IOException>()).ConfigureAwait(false);
+                    }
+                    await prepared.DisposeAsync().ConfigureAwait(false);
+                    await AssertServingAsync(552).ConfigureAwait(false);
+                    Assert.That(prepared.IsCommitted, Is.False);
+                    Assert.That(manager.DisposeCount, Is.Zero);
+                    Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(1));
+                    Assert.That(GetBranchRegistration(lifecycle, registration.Id), Is.SameAs(registration));
                 }
-                else
+                finally
                 {
                     release.TrySetResult(true);
-                    await Assert.ThatAsync(() => commit, Throws.TypeOf<IOException>()).ConfigureAwait(false);
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
                 }
-                await prepared.DisposeAsync().ConfigureAwait(false);
-                await AssertServingAsync(552).ConfigureAwait(false);
-                Assert.That(prepared.IsCommitted, Is.False);
-                Assert.That(manager.DisposeCount, Is.Zero);
-                Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(1));
-                Assert.That(GetBranchRegistration(lifecycle, registration.Id), Is.SameAs(registration));
+
+                await using ILifecycleWriter exactWriter3 = await Capture(
+                    m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges finalRemoval = await exactWriter3.PrepareAsync(
+                    [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
+                LifecycleResult finalResult = await finalRemoval
+                    .CommitAsync(static _ => default, timeout.Token).ConfigureAwait(false);
+                await finalResult.Retired.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(manager.DisposeCount, Is.EqualTo(1));
+                Assert.That(variable.OnStateChangedAsync, Is.Null);
+
+                async Task AssertServingAsync(int value)
+                {
+                    variable.Value = value;
+                    variable.Timestamp = DateTimeUtc.Now;
+                    await source.QueueValueAsync(server.DefaultSystemContext, variable, item, timeout.Token)
+                        .ConfigureAwait(false);
+                    initial = await PublishForDataChangeAsync(
+                        services, subscriptionId, initial.Acknowledgements, 1).ConfigureAwait(false);
+                    Assert.That(initial.Value.GetValueOrDefault().StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(initial.Value.GetValueOrDefault().WrappedValue, Is.EqualTo(new Variant(value)));
+                    await manager.ReportOwnedEmissionAsync($"usable-{value}", timeout.Token).ConfigureAwait(false);
+                    (EventFieldList? eventFields, ArrayOf<SubscriptionAcknowledgement> businessAcknowledgements) =
+                        await PublishForModelChangeEventAsync(
+                            services, subscriptionId, initial.Acknowledgements).ConfigureAwait(false);
+                    EventFieldList businessFields = RequireLifecycleEvent(eventFields);
+                    Assert.That(businessFields.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
+                    Assert.That(message.Text, Is.EqualTo($"usable-{value}"));
+                    initial = (initial.Value, businessAcknowledgements);
+                }
             }
             finally
             {
-                release.TrySetResult(true);
-                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
-            }
-
-            await using IPreparedNodeManagerBatch finalRemoval = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult finalResult = await finalRemoval
-                .CommitAsync(static _ => default, timeout.Token).ConfigureAwait(false);
-            await finalResult.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-            Assert.That(manager.DisposeCount, Is.EqualTo(1));
-            Assert.That(variable.OnStateChangedAsync, Is.Null);
-
-            async Task AssertServingAsync(int value)
-            {
-                variable.Value = value;
-                variable.Timestamp = DateTimeUtc.Now;
-                await source.QueueValueAsync(server.DefaultSystemContext, variable, item, timeout.Token)
-                    .ConfigureAwait(false);
-                initial = await PublishForDataChangeAsync(
-                    services, subscriptionId, initial.Acknowledgements, 1).ConfigureAwait(false);
-                Assert.That(initial.Value.GetValueOrDefault().StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(initial.Value.GetValueOrDefault().WrappedValue, Is.EqualTo(new Variant(value)));
-                await manager.ReportOwnedEmissionAsync($"usable-{value}", timeout.Token).ConfigureAwait(false);
-                var business = await PublishForModelChangeEventAsync(
-                    services, subscriptionId, initial.Acknowledgements).ConfigureAwait(false);
-                EventFieldList businessFields = RequireLifecycleEvent(business.EventFields);
-                Assert.That(businessFields.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
-                Assert.That(message.Text, Is.EqualTo($"usable-{value}"));
-                initial = (initial.Value, business.Acknowledgements);
+                await exactWriter2Disposal.ConfigureAwait(false);
             }
         }
 
@@ -400,11 +432,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var failureCancellation = new CancellationTokenSource();
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? manager = null;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, value => manager = value), null, timeout.Token)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult4 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                101, value => manager = value)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult4.Registrations[0]);
             AssertLifecycleValue(manager);
             NodeId valueId = new(kValueNodeId, manager.NamespaceIndexes[0]);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -444,14 +478,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await Assert.ThatAsync(async () => await source.OnReportEventAsync(
                     server.DefaultSystemContext, variable, occurrence, failureCancellation.Token).ConfigureAwait(false),
                     Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
-                NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                await using ILifecycleWriter exactWriter4 = await Capture(
+                    m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await exactWriter4.PrepareAsync(
+                    [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
+                LifecycleResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
+                await exactWriter4.DisposeAsync().ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
                 // Retirement completes off the commit path once no admitted emission still holds the generation.
-                await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(result.Retired, Is.LessThanOrEqualTo(1u));
+                await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(result.Retired.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                 Assert.That(manager.DisposeCount, Is.EqualTo(1));
             }
             finally

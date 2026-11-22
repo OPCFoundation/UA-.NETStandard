@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server.Historian.InMemory;
@@ -50,6 +25,11 @@ namespace Opc.Ua.Server.Historian
     /// </example>
     public sealed class HistorianBuilder : IAsyncDisposable
     {
+        private static readonly ConditionalWeakTable<IHistorianProvider, ProviderCaptureState>
+            s_providerCaptureStates = new();
+
+        private static readonly Lock s_providerCaptureLock = new();
+
         /// <summary>
         /// Creates a new builder bound to the supplied server.
         /// </summary>
@@ -120,12 +100,16 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public InMemoryHistorianProvider UseInMemory(InMemoryHistorianOptions? options = null)
         {
-            var provider = new InMemoryHistorianProvider(
-                options ?? new InMemoryHistorianOptions(),
-                (m_server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System);
-            Provider = provider;
-            m_provisionNodes = true;
-            return provider;
+            lock (m_captureSinkLock)
+            {
+                ThrowIfDisposing();
+                var provider = new InMemoryHistorianProvider(
+                    options ?? new InMemoryHistorianOptions(),
+                    (m_server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System);
+                Provider = provider;
+                m_provisionNodes = true;
+                return provider;
+            }
         }
 
         /// <summary>
@@ -164,8 +148,16 @@ namespace Opc.Ua.Server.Historian
         /// <exception cref="ArgumentNullException"><paramref name="provider"/> is null.</exception>
         public HistorianBuilder UseProvider(IHistorianProvider provider, bool provisionNodes)
         {
-            Provider = provider ?? throw new ArgumentNullException(nameof(provider));
-            m_provisionNodes = provisionNodes;
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            lock (m_captureSinkLock)
+            {
+                ThrowIfDisposing();
+                Provider = provider;
+                m_provisionNodes = provisionNodes;
+            }
             return this;
         }
 
@@ -215,6 +207,14 @@ namespace Opc.Ua.Server.Historian
             if (variable == null)
             {
                 throw new ArgumentNullException(nameof(variable));
+            }
+            lock (m_captureSinkLock)
+            {
+                ThrowIfDisposing();
+                if (autoCapture && Provider is { } provider)
+                {
+                    DemandProviderCaptureAdmission(provider);
+                }
             }
 
             if (setHistorizing)
@@ -307,6 +307,10 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(systemContext));
             }
             EnsureProvider();
+            if (autoCapture)
+            {
+                DemandProviderCaptureAdmission(Provider!);
+            }
             if (m_provisionNodes && Provider is InMemoryHistorianProvider inMemory)
             {
                 inMemory.Register(
@@ -326,15 +330,19 @@ namespace Opc.Ua.Server.Historian
                     (effectiveCapabilities.SupportsAnyEventUpdate
                         ? EventNotifiers.HistoryWrite
                         : 0));
-            notifier.EventNotifier = (byte)(
-                notifier.EventNotifier |
-                historyBits);
-            if (autoCapture)
+            lock (m_captureSinkLock)
             {
-                AttachEventCapture(
-                    notifier,
-                    effectiveCapabilities,
-                    captureOptions);
+                ThrowIfDisposing();
+                if (autoCapture)
+                {
+                    AttachEventCapture(
+                        notifier,
+                        effectiveCapabilities,
+                        captureOptions);
+                }
+                notifier.EventNotifier = (byte)(
+                    notifier.EventNotifier |
+                    historyBits);
             }
             if (!installConfiguration)
             {
@@ -356,6 +364,8 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_captureSinkLock)
             {
+                ThrowIfDisposing();
+                DemandProviderCaptureAdmission(Provider!);
                 for (int i = 0; i < m_eventCaptureHandlers.Count; i++)
                 {
                     if (ReferenceEquals(
@@ -365,38 +375,44 @@ namespace Opc.Ua.Server.Historian
                         return;
                     }
                 }
-            }
-
-            EnsureRegisteredWithLifecycle();
-
-            // Ownership transfers to m_eventCaptureHandlers and is released
-            // by DisposeAsync.
+                EnsureRegisteredWithLifecycle();
+                ThrowIfDisposing();
+                m_captureConstructionCount++;
+                try
+                {
+                    // Ownership transfers to m_eventCaptureHandlers and is released
+                    // by DisposeAsync.
 #pragma warning disable CA2000
-            var capture = new HistorianEventCapture(
-                m_server,
-                Provider!,
-                capabilities,
-                captureOptions);
+                    var capture = new HistorianEventCapture(
+                        m_server,
+                        Provider!,
+                        capabilities,
+                        captureOptions,
+                        cleanupStarted: CreateProviderCleanupStartedHandler(Provider!));
 #pragma warning restore CA2000
-            void handler(
-                ISystemContext context,
-                NodeState source,
-                IFilterTarget eventInstance)
-            {
-                capture.Enqueue(
-                    context,
-                    source,
-                    eventInstance);
-            }
+                    void handler(
+                        ISystemContext context,
+                        NodeState source,
+                        IFilterTarget eventInstance)
+                    {
+                        capture.Enqueue(
+                            context,
+                            source,
+                            eventInstance);
+                    }
 
-            notifier.EventReported += handler;
-            lock (m_captureSinkLock)
-            {
-                m_eventCaptureHandlers.Add(
-                    new EventCaptureHandlerRegistration(
-                    notifier,
-                    handler,
-                    capture));
+                    m_eventCaptureHandlers.Add(
+                        new EventCaptureHandlerRegistration(
+                            notifier,
+                            handler,
+                            capture));
+                    ThrowIfDisposing();
+                    notifier.EventReported += handler;
+                }
+                finally
+                {
+                    CompleteCaptureConstruction();
+                }
             }
         }
 
@@ -428,31 +444,51 @@ namespace Opc.Ua.Server.Historian
                     "Historize(autoCapture: false) to disable.");
             }
 
-            EnsureRegisteredWithLifecycle();
-            HistorianCaptureSink sink = GetOrCreateCaptureSink(serverContext, captureOptions);
-            // The handler is a per-instance closure so the same NodeId
-            // routes to its sink across multiple captures; detach when
-            // the builder is disposed.
-            void handler(ISystemContext ctx, NodeState node, NodeStateChangeMasks masks)
-            {
-                if ((masks & NodeStateChangeMasks.Value) == 0)
-                {
-                    return;
-                }
-                if (node is not BaseVariableState v)
-                {
-                    return;
-                }
-                sink.Enqueue(v.NodeId, new DataValue(
-                    v.WrappedValue,
-                    v.StatusCode,
-                    sourceTimestamp: v.Timestamp,
-                    serverTimestamp: DateTime.UtcNow));
-            }
-            variable.StateChanged += handler;
             lock (m_captureSinkLock)
             {
-                m_captureHandlers.Add(new CaptureHandlerRegistration(variable, handler));
+                ThrowIfDisposing();
+                DemandProviderCaptureAdmission(Provider!);
+                EnsureRegisteredWithLifecycle();
+                ThrowIfDisposing();
+                m_captureConstructionCount++;
+                try
+                {
+                    HistorianCaptureSink sink = GetOrCreateCaptureSink(serverContext, captureOptions);
+                    ThrowIfDisposing();
+                    // The handler is a per-instance closure so the same NodeId
+                    // routes to its sink across multiple captures; detach when
+                    // the builder is disposed.
+                    void handler(ISystemContext ctx, NodeState node, NodeStateChangeMasks masks)
+                    {
+                        if ((masks & NodeStateChangeMasks.Value) == 0)
+                        {
+                            return;
+                        }
+                        if (node is not BaseVariableState v)
+                        {
+                            return;
+                        }
+                        sink.Enqueue(v.NodeId, new DataValue(
+                            v.WrappedValue,
+                            v.StatusCode,
+                            sourceTimestamp: v.Timestamp,
+                            serverTimestamp: DateTime.UtcNow));
+                    }
+                    variable.StateChanged += handler;
+                    m_captureHandlers.Add(new CaptureHandlerRegistration(variable, handler));
+                }
+                finally
+                {
+                    CompleteCaptureConstruction();
+                }
+            }
+        }
+
+        private void CompleteCaptureConstruction()
+        {
+            if (--m_captureConstructionCount == 0)
+            {
+                m_captureConstructionFinished?.TrySetResult(true);
             }
         }
 
@@ -460,27 +496,151 @@ namespace Opc.Ua.Server.Historian
             ServerSystemContext serverContext,
             HistorianCaptureOptions? options)
         {
-            if (m_captureSink != null)
-            {
-                return m_captureSink;
-            }
             lock (m_captureSinkLock)
             {
-                // CA1508 misreads the second half of this double-checked
-                // locking idiom as always-null; another thread may have
-                // assigned m_captureSink between the first check and acquiring
-                // the lock.
-#pragma warning disable CA1508
-                m_captureSink ??= new HistorianCaptureSink(Provider!, serverContext, options);
-#pragma warning restore CA1508
+                ThrowIfDisposing();
+                if (m_captureSink is null)
+                {
+                    var sink = new HistorianCaptureSink(
+                        Provider!,
+                        serverContext,
+                        options,
+                        cleanupStarted: CreateProviderCleanupStartedHandler(Provider!));
+                    m_captureSinks.Add(sink);
+                    m_captureSink ??= sink;
+                }
                 return m_captureSink;
             }
+        }
+
+        private Action<Task> CreateProviderCleanupStartedHandler(IHistorianProvider provider)
+        {
+            return consumer =>
+            {
+                lock (m_captureSinkLock)
+                {
+                    m_pendingProviderCleanupCount++;
+                    lock (s_providerCaptureLock)
+                    {
+                        ProviderCaptureState state = s_providerCaptureStates.GetValue(
+                            provider, static _ => new ProviderCaptureState());
+                        if (state.PendingCleanupCount == 0)
+                        {
+                            state.CleanupDrained = new TaskCompletionSource<bool>(
+                                TaskCreationOptions.RunContinuationsAsynchronously);
+                        }
+                        state.PendingCleanupCount++;
+                    }
+                }
+                _ = consumer.ContinueWith(
+                    static (completed, state) =>
+                    {
+                        _ = completed.Exception;
+                        (HistorianBuilder owner, IHistorianProvider pendingProvider) =
+                            ((HistorianBuilder, IHistorianProvider))state!;
+                        owner.CompleteProviderCleanup(pendingProvider);
+                    },
+                    (this, provider),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            };
+        }
+
+        /// <summary>
+        /// Waits until all timed-out capture consumers for the provider have completed.
+        /// </summary>
+        /// <param name="provider">The provider whose capture cleanup is being observed.</param>
+        /// <returns>A task that completes when no timed-out consumer remains.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is null.</exception>
+        internal static Task WaitForProviderCaptureCleanupAsync(IHistorianProvider provider)
+        {
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            lock (s_providerCaptureLock)
+            {
+                return s_providerCaptureStates.TryGetValue(provider, out ProviderCaptureState? state) &&
+                    state.PendingCleanupCount != 0
+                    ? state.CleanupDrained!.Task
+                    : Task.CompletedTask;
+            }
+        }
+
+        private static void DemandProviderCaptureAdmission(IHistorianProvider provider)
+        {
+            lock (s_providerCaptureLock)
+            {
+                if (s_providerCaptureStates.TryGetValue(provider, out ProviderCaptureState? state) &&
+                    state.PendingCleanupCount != 0)
+                {
+                    throw new InvalidOperationException(
+                        "A historian capture pipeline is still cleaning up for this provider.");
+                }
+            }
+        }
+
+        private void CompleteProviderCleanup(IHistorianProvider provider)
+        {
+            bool unregister;
+            TaskCompletionSource<bool>? drained = null;
+            lock (m_captureSinkLock)
+            {
+                if (m_pendingProviderCleanupCount != 0)
+                {
+                    m_pendingProviderCleanupCount--;
+                }
+                lock (s_providerCaptureLock)
+                {
+                    if (s_providerCaptureStates.TryGetValue(provider, out ProviderCaptureState? state) &&
+                        state.PendingCleanupCount != 0 &&
+                        --state.PendingCleanupCount == 0)
+                    {
+                        drained = state.CleanupDrained;
+                        state.CleanupDrained = null;
+                    }
+                }
+                unregister = TakeLifecycleRegistrationIfDrained();
+            }
+            drained?.TrySetResult(true);
+            if (unregister)
+            {
+                (m_server as IHistorianBuilderRegistry)?.UnregisterHistorianBuilder(this);
+            }
+        }
+
+        private void MarkDisposalOutcomePublished()
+        {
+            bool unregister;
+            lock (m_captureSinkLock)
+            {
+                m_disposalOutcomePublished = true;
+                unregister = TakeLifecycleRegistrationIfDrained();
+            }
+            if (unregister)
+            {
+                (m_server as IHistorianBuilderRegistry)?.UnregisterHistorianBuilder(this);
+            }
+        }
+
+        private bool TakeLifecycleRegistrationIfDrained()
+        {
+            if (m_pendingProviderCleanupCount != 0 ||
+                !m_disposalOutcomePublished ||
+                !m_registeredWithLifecycle)
+            {
+                return false;
+            }
+            m_registeredWithLifecycle = false;
+            return true;
         }
 
         private void EnsureRegisteredWithLifecycle()
         {
             lock (m_captureSinkLock)
             {
+                ThrowIfDisposing();
                 if (m_registeredWithLifecycle)
                 {
                     return;
@@ -494,111 +654,168 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
+        /// Rejects registration after terminal capture disposal starts.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">Capture disposal has started.</exception>
+        private void ThrowIfDisposing()
+        {
+            if (m_disposalFinished is not null)
+            {
+                throw new ObjectDisposedException(nameof(HistorianBuilder));
+            }
+        }
+
+        /// <summary>
         /// Flushes pending auto-captured samples and tears down the
         /// per-builder <see cref="HistorianCaptureSink"/>, detaching the
         /// <see cref="NodeState.StateChanged"/> handlers it installed.
         /// </summary>
         /// <remarks>
-        /// The first call starts the drain; every concurrent or later call, including the one the
-        /// server makes during shutdown, awaits that same drain and observes its failure. The
-        /// builder leaves the server's shutdown list only after the drain has finished, so server
-        /// shutdown cannot dispose the historian registry while a drain is still running.
+        /// Disposal is terminal. Concurrent and later callers observe the same cleanup outcome.
         /// </remarks>
         /// <exception cref="AggregateException"></exception>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task? inFlight = Interlocked.CompareExchange(ref m_disposal, completion.Task, null);
-            return new ValueTask(inFlight ?? RunDisposalAsync(completion));
-        }
-
-        /// <summary>
-        /// Drains the capture pipelines once, unregisters from the server, then publishes the outcome.
-        /// </summary>
-        private async Task RunDisposalAsync(TaskCompletionSource<bool> completion)
-        {
-            Exception? failure = null;
+            CaptureHandlerRegistration[] handlers = [];
+            EventCaptureHandlerRegistration[] eventHandlers = [];
+            HistorianCaptureSink[] sinks = [];
+            CaptureHandlerRegistration[] pendingHandlers;
+            EventCaptureHandlerRegistration[] pendingEventHandlers = [];
+            HistorianCaptureSink[] pendingSinks = [];
+            Task? pendingConstruction = null;
+            TaskCompletionSource<bool> completion;
+            bool ownsDisposal = false;
+            lock (m_captureSinkLock)
+            {
+                if (m_disposalFinished is { } active)
+                {
+                    completion = active;
+                }
+                else
+                {
+                    completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_disposalFinished = completion;
+                    ownsDisposal = true;
+                    handlers = [.. m_captureHandlers];
+                    m_captureHandlers.Clear();
+                    eventHandlers = [.. m_eventCaptureHandlers];
+                    m_eventCaptureHandlers.Clear();
+                    sinks = [.. m_captureSinks];
+                    m_captureSinks.Clear();
+                    m_captureSink = null;
+                    if (m_captureConstructionCount != 0)
+                    {
+                        // A dependency callback can start disposal before its capture is recorded.
+                        m_captureConstructionFinished = new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        pendingConstruction = m_captureConstructionFinished.Task;
+                    }
+                }
+            }
+            if (!ownsDisposal)
+            {
+                await completion.Task.ConfigureAwait(false);
+                return;
+            }
             try
             {
-                await DrainCapturePipelinesAsync().ConfigureAwait(false);
+                // Detach handlers first so no new samples enqueue while we drain.
+                foreach (CaptureHandlerRegistration reg in handlers)
+                {
+                    reg.Variable.StateChanged -= reg.Handler;
+                }
+                foreach (EventCaptureHandlerRegistration reg in eventHandlers)
+                {
+                    reg.Notifier.EventReported -= reg.Handler;
+                }
+                if (pendingConstruction is not null)
+                {
+                    await pendingConstruction.ConfigureAwait(false);
+                    lock (m_captureSinkLock)
+                    {
+                        pendingHandlers = [.. m_captureHandlers];
+                        m_captureHandlers.Clear();
+                        pendingEventHandlers = [.. m_eventCaptureHandlers];
+                        m_eventCaptureHandlers.Clear();
+                        pendingSinks = [.. m_captureSinks];
+                        m_captureSinks.Clear();
+                        m_captureSink = null;
+                        m_captureConstructionFinished = null;
+                    }
+                    foreach (CaptureHandlerRegistration reg in pendingHandlers)
+                    {
+                        reg.Variable.StateChanged -= reg.Handler;
+                    }
+                    foreach (EventCaptureHandlerRegistration reg in pendingEventHandlers)
+                    {
+                        reg.Notifier.EventReported -= reg.Handler;
+                    }
+                }
+                List<Exception>? errors = null;
+                foreach (EventCaptureHandlerRegistration reg in eventHandlers)
+                {
+                    try
+                    {
+                        await reg.Capture.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        errors ??= [];
+                        errors.Add(exception);
+                    }
+                }
+                foreach (EventCaptureHandlerRegistration reg in pendingEventHandlers)
+                {
+                    try
+                    {
+                        await reg.Capture.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        errors ??= [];
+                        errors.Add(exception);
+                    }
+                }
+                foreach (HistorianCaptureSink sink in sinks)
+                {
+                    try
+                    {
+                        await sink.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        errors ??= [];
+                        errors.Add(exception);
+                    }
+                }
+                foreach (HistorianCaptureSink sink in pendingSinks)
+                {
+                    try
+                    {
+                        await sink.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception exception)
+                    {
+                        errors ??= [];
+                        errors.Add(exception);
+                    }
+                }
+                if (errors != null)
+                {
+                    throw new AggregateException(
+                        "One or more historian capture pipelines failed during shutdown.",
+                        errors);
+                }
             }
-            catch (Exception exception)
-            {
-                failure = exception;
-            }
-            (m_server as IHistorianBuilderRegistry)?.UnregisterHistorianBuilder(this);
-            if (failure != null)
+            catch (Exception failure) when (failure is not OutOfMemoryException)
             {
                 completion.TrySetException(failure);
+                _ = completion.Task.Exception;
+                MarkDisposalOutcomePublished();
+                throw;
             }
-            else
-            {
-                completion.TrySetResult(true);
-            }
-            await completion.Task.ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Detaches capture handlers, then drains event captures and the raw capture sink.
-        /// </summary>
-        /// <exception cref="AggregateException"></exception>
-        private async ValueTask DrainCapturePipelinesAsync()
-        {
-            CaptureHandlerRegistration[] handlers;
-            EventCaptureHandlerRegistration[] eventHandlers;
-            lock (m_captureSinkLock)
-            {
-                handlers = [.. m_captureHandlers];
-                m_captureHandlers.Clear();
-                eventHandlers = [.. m_eventCaptureHandlers];
-                m_eventCaptureHandlers.Clear();
-            }
-            // Detach handlers first so no new samples enqueue while we drain.
-            foreach (CaptureHandlerRegistration reg in handlers)
-            {
-                reg.Variable.StateChanged -= reg.Handler;
-            }
-            foreach (EventCaptureHandlerRegistration reg in eventHandlers)
-            {
-                reg.Notifier.EventReported -= reg.Handler;
-            }
-            HistorianCaptureSink? sink;
-            lock (m_captureSinkLock)
-            {
-                sink = m_captureSink;
-                m_captureSink = null;
-            }
-            List<Exception>? errors = null;
-            foreach (EventCaptureHandlerRegistration reg in eventHandlers)
-            {
-                try
-                {
-                    await reg.Capture.DisposeAsync().ConfigureAwait(false);
-                }
-                catch (Exception exception)
-                {
-                    errors ??= [];
-                    errors.Add(exception);
-                }
-            }
-            if (sink != null)
-            {
-                try
-                {
-                    await sink.DisposeAsync().ConfigureAwait(false);
-                }
-                catch (Exception exception)
-                {
-                    errors ??= [];
-                    errors.Add(exception);
-                }
-            }
-            if (errors != null)
-            {
-                throw new AggregateException(
-                    "One or more historian capture pipelines failed during shutdown.",
-                    errors);
-            }
+            completion.TrySetResult(true);
+            MarkDisposalOutcomePublished();
         }
 
         /// <summary>
@@ -631,12 +848,26 @@ namespace Opc.Ua.Server.Historian
             NodeStateReportEventHandler Handler,
             HistorianEventCapture Capture);
 
+        private sealed class ProviderCaptureState
+        {
+            public int PendingCleanupCount { get; set; }
+
+            public TaskCompletionSource<bool>? CleanupDrained { get; set; }
+        }
+
         private readonly List<CaptureHandlerRegistration> m_captureHandlers = [];
         private readonly List<EventCaptureHandlerRegistration> m_eventCaptureHandlers = [];
+        private readonly List<HistorianCaptureSink> m_captureSinks = [];
         private HistorianCaptureSink? m_captureSink;
         private readonly Lock m_captureSinkLock = new();
-        private Task? m_disposal;
+        private int m_captureConstructionCount;
+        private TaskCompletionSource<bool>? m_captureConstructionFinished;
         private bool m_registeredWithLifecycle;
+        private bool m_disposalOutcomePublished;
+
+        /// <summary>The active capture-disposal attempt shared by concurrent callers.</summary>
+        private TaskCompletionSource<bool>? m_disposalFinished;
+        private int m_pendingProviderCleanupCount;
 
         /// <summary>
         /// Ensures that <paramref name="variable"/> has an <c>Annotations</c>
@@ -729,6 +960,10 @@ namespace Opc.Ua.Server.Historian
 
         private void EnsureProvider()
         {
+            lock (m_captureSinkLock)
+            {
+                ThrowIfDisposing();
+            }
             if (Provider == null)
             {
                 throw new InvalidOperationException(

@@ -630,12 +630,15 @@ function Get-CoverageReport([string] $path, [string] $repoRoot) {
             $hitsRaw = $line.GetAttribute('hits')
             if ([string]::IsNullOrWhiteSpace($numberRaw)) { continue }
             $number = [int]$numberRaw
-            $hits = 0
-            if (-not [string]::IsNullOrWhiteSpace($hitsRaw)) { $hits = [int]$hitsRaw }
-            if ($map.ContainsKey($number)) {
-                $map[$number] = [Math]::Max([int]$map[$number], $hits)
+            $hits = [System.Numerics.BigInteger]::Zero
+            if (-not [System.Numerics.BigInteger]::TryParse(
+                    $hitsRaw,
+                    [System.Globalization.NumberStyles]::Integer,
+                    [System.Globalization.CultureInfo]::InvariantCulture,
+                    [ref]$hits) -or $hits -lt 0) {
+                throw "Invalid non-negative coverage hit count '$hitsRaw' at '${fileName}:$number' in '$path'."
             }
-            else {
+            if (-not $map.ContainsKey($number) -or $hits -gt $map[$number]) {
                 $map[$number] = $hits
             }
 
@@ -696,7 +699,7 @@ function Get-FilteredTotals($report, [string[]] $ignoreRegexes) {
         }
         foreach ($entry in $report.FileLines[$file].GetEnumerator()) {
             $totalLines++
-            if ([int]$entry.Value -gt 0) { $coveredLines++ }
+            if ($entry.Value -gt 0) { $coveredLines++ }
         }
         if ($report.FileBranches.ContainsKey($file)) {
             foreach ($entry in $report.FileBranches[$file].GetEnumerator()) {
@@ -880,7 +883,7 @@ else {
         foreach ($number in ($entry.Value | Sort-Object)) {
             if (-not $lineHits.ContainsKey($number)) { continue }
             $coverableChanged++
-            if ([int]$lineHits[$number] -gt 0) { $coveredChanged++ } else { $uncovered += $number }
+            if ($lineHits[$number] -gt 0) { $coveredChanged++ } else { $uncovered += $number }
         }
         if ($uncovered.Count -gt 0) { $uncoveredByFile[$file] = $uncovered }
     }
@@ -1070,7 +1073,7 @@ if (-not [string]::IsNullOrWhiteSpace($BaseRef) -and $null -ne $thresholds.pathR
                 if (-not $lineHits.ContainsKey($number)) { continue }
                 $coverableInFile++
                 $ruleLines++
-                if ([int]$lineHits[$number] -gt 0) { $ruleCovered++ } else { $uncovered += $number }
+                if ($lineHits[$number] -gt 0) { $ruleCovered++ } else { $uncovered += $number }
                 if ($null -ne $branchHits -and $branchHits.ContainsKey($number)) {
                     $pair = $branchHits[$number]
                     $ruleCoveredBranches += [int]$pair[0]

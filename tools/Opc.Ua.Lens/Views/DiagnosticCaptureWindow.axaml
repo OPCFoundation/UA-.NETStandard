@@ -1,7 +1,6 @@
 <!--
-Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
-Licensed under the OPC Foundation MIT License 1.00.
-See http://opcfoundation.org/License/MIT/1.00/
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
 -->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

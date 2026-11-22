@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -133,6 +107,341 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.HasHistoryForManager(source.Object), Is.False);
             Assert.That(released, Is.EqualTo(terminal == "SaveFailure" ? 0 : 1));
             holder.Clear();
+        }
+
+        /// <summary>
+        /// Checks that history cleanup reports store and disposal failures and retains failed owners.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void HistoryCleanupReportsStoreAndDisposalFailures(bool clearSession)
+        {
+            var store = new Mock<IContinuationPointStore>();
+            var holder = new SessionContinuationPoints(() => new NodeId(1), 2, 3, store.Object);
+            var manager = new Mock<IAsyncNodeManager>();
+            var first = new Mock<IHistoryContinuationPoint>();
+            var second = new Mock<IHistoryContinuationPoint>();
+            var firstId = Guid.NewGuid();
+            var secondId = Guid.NewGuid();
+            var firstStoreFailure = new IOException("The first history store removal failed.");
+            var secondStoreFailure = new IOException("The second history store removal failed.");
+            var firstDisposalFailure = new IOException("The first history disposal failed.");
+            var secondDisposalFailure = new IOException("The second history disposal failed.");
+            first.SetupGet(value => value.Id).Returns(firstId);
+            second.SetupGet(value => value.Id).Returns(secondId);
+            bool injectFailures = false;
+            first.Setup(value => value.Dispose()).Callback(() =>
+            {
+                if (injectFailures)
+                {
+                    throw firstDisposalFailure;
+                }
+            });
+            second.Setup(value => value.Dispose()).Callback(() =>
+            {
+                if (injectFailures)
+                {
+                    throw secondDisposalFailure;
+                }
+            });
+            using var provider = new InMemoryHistorianProvider();
+            using HistorianContinuationState successful = CreateOwnedHistoryState(provider, manager.Object);
+            var successfulData = new DisposalCounter();
+            successful.Ownership.Data = successfulData;
+            holder.SaveHistory(first.Object);
+            holder.SaveHistory(second.Object);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+            holder.BindHistoryGeneration(firstId.ToByteArray().ToByteString(), generation);
+            holder.BindHistoryGeneration(secondId.ToByteArray().ToByteString(), generation);
+            Assert.That(holder.HasHistoryForManager(manager.Object), Is.True);
+            holder.SaveHistory(successful);
+            Assert.That(successful.BufferedProcessedOutputs, Is.Not.Null);
+            store.Setup(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.History, firstId)).Callback(() =>
+                {
+                    if (injectFailures)
+                    {
+                        throw firstStoreFailure;
+                    }
+                });
+            store.Setup(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.History, secondId)).Callback(() =>
+                {
+                    if (injectFailures)
+                    {
+                        throw secondStoreFailure;
+                    }
+                });
+            int released = 0;
+            holder.HistoryContinuationPointsReleased += () => released++;
+
+            try
+            {
+                injectFailures = true;
+                AggregateException failure = Assert.Throws<AggregateException>(() =>
+                {
+                    if (clearSession)
+                    {
+                        holder.Clear();
+                    }
+                    else
+                    {
+                        holder.RemoveHistoryForManager(manager.Object);
+                    }
+                });
+                first.Verify(value => value.Dispose(), Times.Once);
+                second.Verify(value => value.Dispose(), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.History, firstId), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.History, secondId), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.History, successful.Id), Times.Once);
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failures, Has.Count.EqualTo(4));
+                    Assert.That(failures, Has.Exactly(1).SameAs(firstStoreFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(firstDisposalFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(secondStoreFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(secondDisposalFailure));
+                    Assert.That(holder.HasHistoryForManager(manager.Object), Is.True);
+                    Assert.That(successful.BufferedProcessedOutputs, Is.Null);
+                    Assert.That(successfulData.Count, Is.EqualTo(1));
+                    Assert.That(released, Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                injectFailures = false;
+            }
+
+            holder.Clear();
+            first.Verify(value => value.Dispose(), Times.Once);
+            second.Verify(value => value.Dispose(), Times.Once);
+            store.Verify(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.History, successful.Id), Times.Once);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(holder.HasHistoryForManager(manager.Object), Is.True);
+                Assert.That(successfulData.Count, Is.EqualTo(1));
+                Assert.That(released, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// Checks that browse and history cleanup both report failures and release their owners.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ManagerRemovalAndSessionClearReportBrowseAndHistoryCleanupFailures(bool clearSession)
+        {
+            var store = new Mock<IContinuationPointStore>();
+            var holder = new SessionContinuationPoints(() => new NodeId(1), 1, 1, store.Object);
+            var manager = new Mock<IAsyncNodeManager>();
+            var browseData = new DisposalCounter();
+            var historyData = new DisposalCounter();
+            using ContinuationPoint browse = CreatePoint(manager.Object, browseData);
+            using var provider = new InMemoryHistorianProvider();
+            using HistorianContinuationState history = CreateOwnedHistoryState(provider, manager.Object);
+            history.Ownership.Data = historyData;
+            holder.SaveBrowse(browse);
+            holder.SaveHistory(history);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(holder.HasBrowseForManager(manager.Object), Is.True);
+                Assert.That(holder.HasHistoryForManager(manager.Object), Is.True);
+                Assert.That(history.BufferedProcessedOutputs, Is.Not.Null);
+            }
+            var browseFailure = new IOException("The browse store removal failed.");
+            var historyFailure = new IOException("The history store removal failed.");
+            int browseRemovals = 0;
+            int historyRemovals = 0;
+            bool injectFailures = false;
+            store.Setup(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.Browse, browse.Id)).Callback(() =>
+                {
+                    browseRemovals++;
+                    if (injectFailures)
+                    {
+                        throw browseFailure;
+                    }
+                });
+            store.Setup(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.History, history.Id)).Callback(() =>
+                {
+                    historyRemovals++;
+                    if (injectFailures)
+                    {
+                        throw historyFailure;
+                    }
+                });
+            int browseReleased = 0;
+            int historyReleased = 0;
+            holder.BrowseContinuationPointsReleased += () => browseReleased++;
+            holder.HistoryContinuationPointsReleased += () => historyReleased++;
+
+            try
+            {
+                injectFailures = true;
+                AggregateException failure = Assert.Throws<AggregateException>(() =>
+                {
+                    if (clearSession)
+                    {
+                        holder.Clear();
+                    }
+                    else
+                    {
+                        holder.RemoveForManager(manager.Object);
+                    }
+                });
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failures, Has.Count.EqualTo(2));
+                    Assert.That(failures, Has.Exactly(1).SameAs(browseFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(historyFailure));
+                    Assert.That(browseRemovals, Is.EqualTo(1));
+                    Assert.That(historyRemovals, Is.EqualTo(1));
+                    Assert.That(holder.HasBrowseForManager(manager.Object), Is.False);
+                    Assert.That(holder.HasHistoryForManager(manager.Object), Is.False);
+                    Assert.That(history.BufferedProcessedOutputs, Is.Null);
+                    Assert.That(browseData.Count, Is.EqualTo(1));
+                    Assert.That(historyData.Count, Is.EqualTo(1));
+                    Assert.That(browseReleased, Is.EqualTo(1));
+                    Assert.That(historyReleased, Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                injectFailures = false;
+            }
+
+            holder.Clear();
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(browseData.Count, Is.EqualTo(1));
+                Assert.That(historyData.Count, Is.EqualTo(1));
+                Assert.That(browseReleased, Is.EqualTo(1));
+                Assert.That(historyReleased, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// Checks that clearing mirrored owners reports each failure and releases local continuations.
+        /// </summary>
+        [Test]
+        public async Task ClearReportsMirroredFailuresAndReleasesLocalContinuationsAsync()
+        {
+            NodeId originalOwner = new(201);
+            NodeId localOwner = new(202);
+            var mirroredBrowseId = Guid.NewGuid();
+            var mirroredHistoryId = Guid.NewGuid();
+            var store = new Mock<IContinuationPointStore>();
+            store.Setup(value => value.LoadContinuationPointsAsync(originalOwner, It.IsAny<CancellationToken>()))
+                .ReturnsAsync([
+                    new ContinuationPointEnvelope
+                    {
+                        Id = mirroredBrowseId,
+                        OwnerSessionId = originalOwner,
+                        Kind = ContinuationPointKind.Browse
+                    },
+                    new ContinuationPointEnvelope
+                    {
+                        Id = mirroredHistoryId,
+                        OwnerSessionId = originalOwner,
+                        Kind = ContinuationPointKind.History
+                    }
+                ]);
+            var holder = new SessionContinuationPoints(() => localOwner, 1, 1, store.Object);
+            await holder.LoadMirroredAsync(originalOwner).ConfigureAwait(false);
+            var manager = new Mock<IAsyncNodeManager>();
+            var browseData = new DisposalCounter();
+            var historyData = new DisposalCounter();
+            using ContinuationPoint browse = CreatePoint(manager.Object, browseData);
+            using var provider = new InMemoryHistorianProvider();
+            using HistorianContinuationState history = CreateOwnedHistoryState(provider, manager.Object);
+            history.Ownership.Data = historyData;
+            holder.SaveBrowse(browse);
+            holder.SaveHistory(history);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(holder.HasBrowseForManager(manager.Object), Is.True);
+                Assert.That(holder.HasHistoryForManager(manager.Object), Is.True);
+                Assert.That(history.BufferedProcessedOutputs, Is.Not.Null);
+            }
+            var browseFailure = new IOException("The mirrored browse removal failed.");
+            var historyFailure = new IOException("The mirrored history removal failed.");
+            bool injectFailures = false;
+            store.Setup(value => value.RemoveContinuationPoint(
+                originalOwner, ContinuationPointKind.Browse, mirroredBrowseId)).Callback(() =>
+                {
+                    if (injectFailures)
+                    {
+                        throw browseFailure;
+                    }
+                });
+            store.Setup(value => value.RemoveContinuationPoint(
+                originalOwner, ContinuationPointKind.History, mirroredHistoryId)).Callback(() =>
+                {
+                    if (injectFailures)
+                    {
+                        throw historyFailure;
+                    }
+                });
+            int browseReleased = 0;
+            int historyReleased = 0;
+            holder.BrowseContinuationPointsReleased += () => browseReleased++;
+            holder.HistoryContinuationPointsReleased += () => historyReleased++;
+
+            try
+            {
+                injectFailures = true;
+                AggregateException failure = Assert.Throws<AggregateException>(holder.Clear);
+
+                store.Verify(value => value.RemoveContinuationPoint(
+                    originalOwner, ContinuationPointKind.Browse, mirroredBrowseId), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    originalOwner, ContinuationPointKind.History, mirroredHistoryId), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    localOwner, ContinuationPointKind.Browse, browse.Id), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    localOwner, ContinuationPointKind.History, history.Id), Times.Once);
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failures, Has.Count.EqualTo(2));
+                    Assert.That(failures, Has.Exactly(1).SameAs(browseFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(historyFailure));
+                    Assert.That(holder.HasBrowseForManager(manager.Object), Is.False);
+                    Assert.That(holder.HasHistoryForManager(manager.Object), Is.False);
+                    Assert.That(history.BufferedProcessedOutputs, Is.Null);
+                    Assert.That(browseData.Count, Is.EqualTo(1));
+                    Assert.That(historyData.Count, Is.EqualTo(1));
+                    Assert.That(browseReleased, Is.EqualTo(1));
+                    Assert.That(historyReleased, Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                injectFailures = false;
+            }
+
+            holder.Clear();
+            store.Verify(value => value.RemoveContinuationPoint(
+                localOwner, ContinuationPointKind.Browse, browse.Id), Times.Once);
+            store.Verify(value => value.RemoveContinuationPoint(
+                localOwner, ContinuationPointKind.History, history.Id), Times.Once);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(browseData.Count, Is.EqualTo(1));
+                Assert.That(historyData.Count, Is.EqualTo(1));
+                Assert.That(browseReleased, Is.EqualTo(1));
+                Assert.That(historyReleased, Is.EqualTo(1));
+            }
         }
 
         [TestCase(false)]

@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
 
 using System;
 using System.IO;
@@ -343,6 +319,117 @@ namespace Opc.Ua.Server.Tests
             Assert.That(firstData.Count, Is.EqualTo(1));
             Assert.That(secondData.Count, Is.EqualTo(1));
             Assert.That(released, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Checks that browse cleanup reports both failures for each point and releases all owners.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BrowseCleanupReportsStoreAndDisposalFailures(bool clearSession)
+        {
+            var store = new Mock<IContinuationPointStore>();
+            var holder = new SessionContinuationPoints(() => new NodeId(1), 3, 2, store.Object);
+            var manager = new Mock<IAsyncNodeManager>();
+            var firstData = new Mock<IDisposable>();
+            var secondData = new Mock<IDisposable>();
+            var successfulData = new DisposalCounter();
+            var firstStoreFailure = new IOException("The first store removal failed.");
+            var secondStoreFailure = new IOException("The second store removal failed.");
+            var firstDisposalFailure = new IOException("The first cursor disposal failed.");
+            var secondDisposalFailure = new IOException("The second cursor disposal failed.");
+            bool injectFailures = false;
+            firstData.Setup(value => value.Dispose()).Callback(() =>
+            {
+                if (injectFailures)
+                {
+                    throw firstDisposalFailure;
+                }
+            });
+            secondData.Setup(value => value.Dispose()).Callback(() =>
+            {
+                if (injectFailures)
+                {
+                    throw secondDisposalFailure;
+                }
+            });
+            using ContinuationPoint first = CreatePoint(manager.Object, firstData.Object);
+            using ContinuationPoint second = CreatePoint(manager.Object, secondData.Object);
+            using ContinuationPoint successful = CreatePoint(manager.Object, successfulData);
+            holder.SaveBrowse(first);
+            holder.SaveBrowse(second);
+            holder.SaveBrowse(successful);
+            Assert.That(holder.HasBrowseForManager(manager.Object), Is.True);
+            store.Setup(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.Browse, first.Id)).Callback(() =>
+                {
+                    if (injectFailures)
+                    {
+                        throw firstStoreFailure;
+                    }
+                });
+            store.Setup(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.Browse, second.Id)).Callback(() =>
+                {
+                    if (injectFailures)
+                    {
+                        throw secondStoreFailure;
+                    }
+                });
+            int released = 0;
+            holder.BrowseContinuationPointsReleased += () => released++;
+
+            try
+            {
+                injectFailures = true;
+                AggregateException failure = Assert.Throws<AggregateException>(() =>
+                {
+                    if (clearSession)
+                    {
+                        holder.Clear();
+                    }
+                    else
+                    {
+                        holder.RemoveBrowseForManager(manager.Object);
+                    }
+                });
+                firstData.Verify(value => value.Dispose(), Times.Once);
+                secondData.Verify(value => value.Dispose(), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.Browse, first.Id), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.Browse, second.Id), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    It.IsAny<NodeId>(), ContinuationPointKind.Browse, successful.Id), Times.Once);
+                System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                    failure.Flatten().InnerExceptions;
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failures, Has.Count.EqualTo(4));
+                    Assert.That(failures, Has.Exactly(1).SameAs(firstStoreFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(firstDisposalFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(secondStoreFailure));
+                    Assert.That(failures, Has.Exactly(1).SameAs(secondDisposalFailure));
+                    Assert.That(holder.HasBrowseForManager(manager.Object), Is.False);
+                    Assert.That(successfulData.Count, Is.EqualTo(1));
+                    Assert.That(released, Is.EqualTo(3));
+                }
+            }
+            finally
+            {
+                injectFailures = false;
+            }
+
+            holder.Clear();
+            firstData.Verify(value => value.Dispose(), Times.Once);
+            secondData.Verify(value => value.Dispose(), Times.Once);
+            store.Verify(value => value.RemoveContinuationPoint(
+                It.IsAny<NodeId>(), ContinuationPointKind.Browse, successful.Id), Times.Once);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(successfulData.Count, Is.EqualTo(1));
+                Assert.That(released, Is.EqualTo(3));
+            }
         }
 
         [Test]

@@ -461,6 +461,13 @@
     }
   },
   "title": "DeviceType",
+  "tm:optional": [
+    "/properties/ManufacturerUri",
+    "/properties/ProductCode",
+    "/properties/DeviceClass",
+    "/properties/ProductInstanceUri",
+    "/properties/DeviceHealth"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DeviceType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=1002",
@@ -1181,6 +1188,73 @@
         "typeDefinition": "i=68"
       },
       {
+        "browseName": "1:<CPIdentifier>",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<CPIdentifier>"
+          }
+        ],
+        "modellingRule": "OptionalPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6571",
+        "parentNodeId": "ns=1;i=1002",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6592"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6499"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=6308"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11508"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1002"
+          }
+        ],
+        "symbolicName": "CPIdentifier",
+        "typeDefinition": "ns=1;i=6308"
+      },
+      {
+        "browseName": "1:NetworkAddress",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "NetworkAddress"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6592",
+        "parentNodeId": "ns=1;i=6571",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1005"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6571"
+          }
+        ],
+        "typeDefinition": "ns=1;i=1005"
+      },
+      {
         "arrayDimensions": "",
         "browseName": "1:DeviceHealth",
         "dataType": "ns=1;i=6244",
@@ -1209,6 +1283,295 @@
             "target": "ns=1;i=1002"
           }
         ],
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:DeviceHealthAlarms",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "DeviceHealthAlarms"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=15105",
+        "parentNodeId": "ns=1;i=1002",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1002"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "browseName": "1:DeviceTypeImage",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "DeviceTypeImage"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6209",
+        "parentNodeId": "ns=1;i=1002",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6210"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1002"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:<ImageIdentifier>",
+        "dataType": "i=30",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ImageIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6210",
+        "parentNodeId": "ns=1;i=6209",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6209"
+          }
+        ],
+        "symbolicName": "ImageIdentifier",
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:Documentation",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Documentation"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6211",
+        "parentNodeId": "ns=1;i=1002",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6212"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1002"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:<DocumentIdentifier>",
+        "dataType": "ByteString",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<DocumentIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6212",
+        "parentNodeId": "ns=1;i=6211",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6211"
+          }
+        ],
+        "symbolicName": "DocumentIdentifier",
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:ProtocolSupport",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ProtocolSupport"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6213",
+        "parentNodeId": "ns=1;i=1002",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6214"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1002"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:<ProtocolSupportIdentifier>",
+        "dataType": "ByteString",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ProtocolSupportIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6214",
+        "parentNodeId": "ns=1;i=6213",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6213"
+          }
+        ],
+        "symbolicName": "ProtocolSupportIdentifier",
+        "typeDefinition": "i=63"
+      },
+      {
+        "browseName": "1:ImageSet",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ImageSet"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6215",
+        "parentNodeId": "ns=1;i=1002",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6216"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=61"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1002"
+          }
+        ],
+        "typeDefinition": "i=61"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:<ImageIdentifier>",
+        "dataType": "i=30",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ImageIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6216",
+        "parentNodeId": "ns=1;i=6215",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6215"
+          }
+        ],
+        "symbolicName": "ImageIdentifier",
         "typeDefinition": "i=63"
       }
     ],

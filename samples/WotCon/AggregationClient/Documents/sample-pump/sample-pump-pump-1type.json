@@ -29,16 +29,6 @@
   "description": "Sample-owned PumpType subtype declaring the alarms Pump1 raises.",
   "events": {
     "CavitationAlarm": {
-      "@context": {
-        "description": {
-          "@id": "https://www.w3.org/2019/wot/td#description",
-          "@language": null
-        },
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:eventType",
       "data": {
         "properties": {
@@ -228,16 +218,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAlarm"
     },
     "MotorOverheatAlarm": {
-      "@context": {
-        "description": {
-          "@id": "https://www.w3.org/2019/wot/td#description",
-          "@language": null
-        },
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:eventType",
       "data": {
         "properties": {

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -33,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -59,10 +34,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration? original = null;
             if (change != ReadinessChange.Add)
             {
-                original = await lifecycle.AddAsync(
-                    CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }),
-                    null,
-                    timeout.Token).ConfigureAwait(false);
+                LifecycleResult publicationResult1 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    kGeneration1Value, _ => { })), timeout.Token).ConfigureAwait(false);
+                original = RequireRegistration(publicationResult1.Registrations[0]);
             }
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -71,7 +47,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var externalStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             ReadinessLifecycleNodeManager? participant = null;
             NodeManagerRegistration? completed = null;
-            Task<NodeManagerRegistration>? publication = null;
+            Task<LifecycleResult>? publication = null;
             Task<StatusCode>? external = null;
             uint subscriptionId = 0;
             try
@@ -92,13 +68,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     manager =>
                     {
                         participant = manager;
-                        manager.ReadinessCallback = async ct =>
+                        manager.ExplicitReady = async (readiness, ct) =>
                         {
-                            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value)
+                            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value, readiness)
                                 .ConfigureAwait(false);
                             entered.TrySetResult(true);
                             await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value)
+                            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value, readiness)
                                 .ConfigureAwait(false);
                         };
                     },
@@ -125,7 +101,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(participant.ReadinessCompletedCount, Is.Zero);
 
                 release.TrySetResult(true);
-                completed = await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                completed = RequireRegistration(
+                    (await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false)).Registrations[0]);
                 await external.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
                 Assert.That(completed, Is.SameAs(FindReadinessRegistration()));
                 Assert.That(participant.ReadinessCount, Is.EqualTo(1));
@@ -141,7 +118,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     if (publication is not null)
                     {
-                        completed = await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                        completed = RequireRegistration(
+                            (await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false)).Registrations[0]);
                     }
                 }
                 finally
@@ -282,10 +260,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration? original = null;
             if (change != ReadinessChange.Add)
             {
-                original = await lifecycle.AddAsync(
-                    CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }),
-                    null,
-                    timeout.Token).ConfigureAwait(false);
+                LifecycleResult publicationResult2 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    kGeneration1Value, _ => { })), timeout.Token).ConfigureAwait(false);
+                original = RequireRegistration(publicationResult2.Registrations[0]);
             }
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -304,7 +283,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             ReadinessLifecycleNodeManager? participant = null;
             NodeManagerRegistration? completed = null;
-            Task<NodeManagerRegistration>? publication = null;
+            Task<LifecycleResult>? publication = null;
             try
             {
                 publication = StartReadinessChangeAsync(
@@ -335,7 +314,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(messages, Does.Not.Contain("pending-event"),
                     "No event of an unfinished generation may be delivered before its readiness completes.");
                 release.TrySetResult(true);
-                completed = await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                completed = RequireRegistration(
+                    (await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false)).Registrations[0]);
                 AssertLifecycleValue(participant);
                 await participant.ReportRootEventAsync("ready-event", timeout.Token).ConfigureAwait(false);
 
@@ -360,7 +340,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     if (publication is not null)
                     {
-                        completed = await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                        completed = RequireRegistration(
+                            (await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false)).Registrations[0]);
                     }
                 }
                 finally
@@ -395,17 +376,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration? original = null;
             if (change != ReadinessChange.Add)
             {
-                original = await lifecycle.AddAsync(
-                    CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }),
-                    null,
-                    timeout.Token).ConfigureAwait(false);
+                LifecycleResult publicationResult3 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    kGeneration1Value, _ => { })), timeout.Token).ConfigureAwait(false);
+                original = RequireRegistration(publicationResult3.Registrations[0]);
             }
 
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             ReadinessLifecycleNodeManager? participant = null;
             NodeManagerRegistration? completed = null;
-            Task<NodeManagerRegistration>? publication = null;
+            Task<LifecycleResult>? publication = null;
             try
             {
                 publication = StartReadinessChangeAsync(
@@ -431,7 +413,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     "An external history update must not reach a generation that is not ready.");
 
                 release.TrySetResult(true);
-                completed = await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                completed = RequireRegistration(
+                    (await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false)).Registrations[0]);
                 await RunWithoutExecutionContext(() => InvokeHistoryUpdateAsync()).ConfigureAwait(false);
                 Assert.That(participant.HistoryUpdateCount, Is.EqualTo(1),
                     "A request after readiness must reach the ready generation.");
@@ -443,7 +426,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     if (publication is not null)
                     {
-                        completed = await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                        completed = RequireRegistration(
+                            (await publication.WaitAsync(s_readinessTimeout).ConfigureAwait(false)).Registrations[0]);
                     }
                 }
                 finally

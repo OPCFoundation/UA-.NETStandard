@@ -83,4 +83,4 @@ binding guide and the local-feed bootstrap.
 
 ## License
 
-MIT — see the OPC Foundation MIT license.
+MIT (`SPDX-License-Identifier: MIT`)

@@ -1,7 +1,5 @@
-// ------------------------------------------------------------
-//  Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
-//  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
-// ------------------------------------------------------------
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Threading;
 using System.Threading.Tasks;

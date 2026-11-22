@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -61,6 +34,9 @@ namespace Opc.Ua.Wot
         /// The optional invocation-scoped derivations shared across the validations of one
         /// call, or <c>null</c> to derive the facts for this document alone.
         /// </param>
+        /// <param name="resolvedArgumentProperties">
+        /// Captured dependency argument properties used to verify externally referenced method signatures.
+        /// </param>
         internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
@@ -69,7 +45,8 @@ namespace Opc.Ua.Wot
             UANodeSet? archiveContext = null,
             IReadOnlyDictionary<string, string>? carrierEventIds = null,
             List<string>? missingWitnesses = null,
-            ArchiveDerivations? derivations = null)
+            ArchiveDerivations? derivations = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             // Identity normalization may append namespaces. It must never change
             // the authoritative NodeSet, even when a readable identity conflicts.
@@ -136,7 +113,8 @@ namespace Opc.Ua.Wot
             }
             using WotDocument? readable = needsProjection
                 ? CreatePreservedReadableProjection(
-                    document, baseline, referenceTypes, root, projectedNodes, options, diagnostics)
+                    document, baseline, referenceTypes, root, projectedNodes, options, diagnostics,
+                    resolvedArgumentProperties)
                 : null;
             if (needsProjection && readable is null)
             {
@@ -319,7 +297,8 @@ namespace Opc.Ua.Wot
             UANode root,
             HashSet<string> projectedNodes,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties)
         {
             var projectionDiagnostics = new List<WotDiagnostic>();
             try
@@ -327,7 +306,8 @@ namespace Opc.Ua.Wot
                 byte[] regenerated = WriteReadableDocument(
                     baseline, root, document.Title ?? string.Empty, explicitTitle: true, [],
                     nativeProjection: null, emitEnvelope: false, options, projectionDiagnostics,
-                    projectedNodeIds: projectedNodes, referenceTypes: referenceTypes);
+                    projectedNodeIds: projectedNodes, referenceTypes: referenceTypes,
+                    resolvedArgumentProperties: resolvedArgumentProperties);
                 if (HasErrors(projectionDiagnostics))
                 {
                     return null;
@@ -471,7 +451,8 @@ namespace Opc.Ua.Wot
                 string? conditionOwner = null;
                 if (collection == "properties")
                 {
-                    string? explicitOwner = ReadComponentOfParent(affordance.Value, identities, diagnostics);
+                    string? explicitOwner = ReadAffordanceParent(
+                        document, affordance.Value, identities, diagnostics);
                     if (explicitOwner is not null)
                     {
                         owner = explicitOwner;

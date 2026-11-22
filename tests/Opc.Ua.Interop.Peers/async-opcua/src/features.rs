@@ -1,5 +1,5 @@
-// Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
-// OPC Foundation MIT License 1.00 - http://opcfoundation.org/License/MIT/1.00/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 //! The event, subscription, identity and service checks of the peer client
 //! (see tests/Opc.Ua.Interop.LegacyPeer/LegacyClientFeatures.cs) against a

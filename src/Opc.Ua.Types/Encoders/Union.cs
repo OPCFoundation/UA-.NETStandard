@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -72,6 +46,15 @@ namespace Opc.Ua.Encoders
         }
 
         /// <summary>
+        /// Creates a new value of the type of <paramref name="type"/>.
+        /// </summary>
+        private protected Union(Union type, TypeInstance instance)
+            : base(type, instance)
+        {
+            SwitchField = type.SwitchField;
+        }
+
+        /// <summary>
         /// The union selector determines which property is valid.
         /// A value of 0 means all properties are invalid, x=1..n means the
         /// xth property is valid.
@@ -90,14 +73,9 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public override IEncodeable CreateInstance()
         {
-            return new Union(
-                XmlName,
-                TypeId,
-                BinaryEncodingId,
-                XmlEncodingId,
-                Definition,
-                FieldTypes,
-                SwitchField);
+            // Only the selected field of a value is created: the peer chooses
+            // the number of fields, and a value takes a few bytes on the wire.
+            return new Union(this, default(TypeInstance));
         }
 
         /// <inheritdoc/>
@@ -105,13 +83,13 @@ namespace Opc.Ua.Encoders
         {
             // Encoders shall report an error for a SwitchField greater than
             // the number of union fields (OPC 10000-6 5.2.8, 5.3.7).
-            if (SwitchField > (uint)PropertyList.Count)
+            if (SwitchField > (uint)FieldCount)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
                     "Union SwitchField {0} is greater than the number of fields {1}.",
                     SwitchField,
-                    PropertyList.Count);
+                    FieldCount);
             }
 
             encoder.PushNamespace(XmlNamespace);
@@ -122,23 +100,9 @@ namespace Opc.Ua.Encoders
 
             if (SwitchField != 0)
             {
-                int unionSelector = 1;
-                Field? unionProperty = null;
-                foreach (Field property in PropertyList)
-                {
-                    if (unionSelector == SwitchField)
-                    {
-                        unionProperty = property;
-                        break;
-                    }
-                    unionSelector++;
-                }
-
-                if (unionProperty != null)
-                {
-                    fieldName ??= unionProperty.Name;
-                    EncodeProperty(encoder, fieldName!, unionProperty);
-                }
+                Field unionProperty = GetField((int)SwitchField - 1);
+                fieldName ??= unionProperty.Name;
+                EncodeProperty(encoder, fieldName!, unionProperty);
             }
 
             encoder.PopNamespace();
@@ -158,37 +122,25 @@ namespace Opc.Ua.Encoders
                 // selector has to be recovered from the member name. Every
                 // union field is a candidate - filtering by IsOptional left the
                 // list empty and every such union decoded as selector 0.
-                var fields = new List<string>();
-                foreach (Field property in PropertyList)
-                {
-                    fields.Add(property.Name!);
-                }
-
-                unionSelector = decoder.ReadSwitchField(fields, out _);
+                unionSelector = decoder.ReadSwitchField(FieldNames, out _);
             }
 
             // Decoders shall report an error for a SwitchField greater than
             // the number of union fields (OPC 10000-6 5.2.8, 5.3.7, 5.4.8).
-            if (unionSelector > (uint)PropertyList.Count)
+            if (unionSelector > (uint)FieldCount)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Union SwitchField {0} is greater than the number of fields {1}.",
                     unionSelector,
-                    PropertyList.Count);
+                    FieldCount);
             }
 
             SwitchField = unionSelector;
             if (unionSelector > 0)
             {
-                foreach (Field property in PropertyList)
-                {
-                    if (--unionSelector == 0)
-                    {
-                        DecodeProperty(decoder, property.Name!, property);
-                        break;
-                    }
-                }
+                Field property = GetField((int)unionSelector - 1);
+                DecodeProperty(decoder, property.Name!, property);
             }
 
             decoder.PopNamespace();
@@ -212,24 +164,17 @@ namespace Opc.Ua.Encoders
                 return false;
             }
 
-            if (valueBaseType.PropertyList.Count != PropertyList.Count)
+            if (valueBaseType.FieldCount != FieldCount)
             {
                 return false;
             }
 
-            if (SwitchField != 0)
+            if (SwitchField != 0 && SwitchField <= (uint)FieldCount)
             {
-                uint unionSelector = SwitchField;
-                for (int ii = 0; ii < PropertyList.Count; ii++)
+                int index = (int)SwitchField - 1;
+                if (GetField(index).Value != valueBaseType.GetField(index).Value)
                 {
-                    if (--unionSelector == 0)
-                    {
-                        if (PropertyList[ii].Value != valueBaseType.PropertyList[ii].Value)
-                        {
-                            return false;
-                        }
-                        break;
-                    }
+                    return false;
                 }
             }
             return true;
@@ -241,20 +186,11 @@ namespace Opc.Ua.Encoders
             if (format == null)
             {
                 var body = new StringBuilder();
-                if (SwitchField != 0)
+                if (SwitchField != 0 && SwitchField <= (uint)FieldCount)
                 {
-                    uint unionSelector = SwitchField;
-                    foreach (Field property in PropertyList)
-                    {
-                        if (--unionSelector == 0)
-                        {
-                            Variant unionProperty = property.Value;
-                            AppendPropertyValue(
-                                body,
-                                unionProperty);
-                            break;
-                        }
-                    }
+                    AppendPropertyValue(
+                        body,
+                        GetField((int)SwitchField - 1).Value);
                 }
 
                 if (body.Length > 0)
@@ -290,13 +226,13 @@ namespace Opc.Ua.Encoders
         {
             get
             {
-                if (index + 1 == (int)SwitchField)
+                if (index >= 0 && index + 1 == (int)SwitchField)
                 {
-                    return PropertyList[index].Value;
+                    return GetField(index).Value;
                 }
                 if (index < 0 && SwitchField > 0)
                 {
-                    return PropertyList[(int)SwitchField - 1].Value;
+                    return GetField((int)SwitchField - 1).Value;
                 }
                 return default;
             }
@@ -304,8 +240,9 @@ namespace Opc.Ua.Encoders
             {
                 if (index >= 0)
                 {
-                    PropertyList[index].Value = value;
-                    SwitchField = (uint)PropertyList[index].Order;
+                    Field property = GetField(index);
+                    property.Value = value;
+                    SwitchField = (uint)property.Order;
                     if (!value.IsNull)
                     {
                         return;
@@ -343,7 +280,7 @@ namespace Opc.Ua.Encoders
                     }
                     else
                     {
-                        return PropertyList[(int)SwitchField - 1].Value;
+                        return GetField((int)SwitchField - 1).Value;
                     }
                 }
                 return default;
@@ -368,6 +305,6 @@ namespace Opc.Ua.Encoders
         /// Simple accessor for Union to access current Value.
         /// </summary>
         public Variant Value
-            => SwitchField == 0 ? default : PropertyList[(int)SwitchField - 1].Value;
+            => SwitchField == 0 ? default : GetField((int)SwitchField - 1).Value;
     }
 }

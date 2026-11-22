@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // Server load / profiling harness. Not part of the product; see perf/README.md.
 // Modes:
@@ -752,20 +725,26 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 result.Append(
                     CultureInfo.InvariantCulture,
-                    $"  per-op: allocB={serverMb * 1048576 / operations:F0} cpuUs={serverCpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
+                    $"  per-op: allocB={serverMb * 1048576 / operations:F0} ")
+                    .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(serverCpuMs, operations))
+                    .Append("  (").Append(workload.OperationName).Append(")\n");
             }
             if (secondary is (double secondaryCount, string secondaryName) && secondaryCount > 0)
             {
                 result.Append(
                     CultureInfo.InvariantCulture,
-                    $"  per-op2: allocB={serverMb * 1048576 / secondaryCount:F0} cpuUs={serverCpuMs * 1000 / secondaryCount:F1}  ({secondaryName})\n");
+                    $"  per-op2: allocB={serverMb * 1048576 / secondaryCount:F0} ")
+                    .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(serverCpuMs, secondaryCount))
+                    .Append("  (").Append(secondaryName).Append(")\n");
             }
             if (operations > 0)
             {
                 (double allocatedMb, double cpuMs) = ParseProcessReport(clientProcess);
                 result.Append(
                     CultureInfo.InvariantCulture,
-                    $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
+                    $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} ")
+                    .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(cpuMs, operations))
+                    .Append("  (").Append(workload.OperationName).Append(")\n");
             }
             Console.Write(result.ToString());
             if (s_args.TryGetValue("out", out string? outFile))
@@ -790,17 +769,17 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 server.Kill();
             }
-            return 0;
+            return workload is CounterWorkload { Failed: true } ? 1 : 0;
         }
 
         /// <summary>
-        /// Starts the harness itself as the server child; <c>SERVER_</c> variables are passed without the prefix.
+        /// Starts the selected compatible server harness; <c>SERVER_</c> variables are passed without the prefix.
         /// </summary>
         internal static (Process Server, BlockingCollection<string> Lines) StartServerChild(
             string arguments,
             IReadOnlyDictionary<string, string>? defaultEnvironment = null)
         {
-            var startInfo = new ProcessStartInfo(Environment.ProcessPath!, arguments)
+            var startInfo = new ProcessStartInfo(Arg("server-harness", Environment.ProcessPath!), arguments)
             {
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
@@ -916,7 +895,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .ToDictionary(p => p[0], p => p[1], StringComparer.Ordinal);
             return (
                 double.Parse(values["allocMB"], CultureInfo.InvariantCulture),
-                double.Parse(values["cpuMs"], CultureInfo.InvariantCulture));
+                ProcessCpuReport.GetMilliseconds(values));
         }
     }
 
@@ -966,7 +945,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                 $"gen1={Gen1 - mark.Gen1} gen2={Gen2 - mark.Gen2} pauseMs={(Pause - mark.Pause).TotalMilliseconds:F0} ") +
                 FormattableString.Invariant(
-                $"cpuMs={cpu.TotalMilliseconds:F0} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
+                $"{ProcessCpuReport.Format(cpu)} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
                 FormattableString.Invariant(
                 $"contention={Contention - mark.Contention} threads={Threads} wsMB={WorkingSet / 1048576} heapMB={Heap / 1048576} ") +
                 FormattableString.Invariant(
@@ -1611,10 +1590,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public override string Report(double seconds)
         {
             (long notifications, long writes, long written, long writeErrors) = m_final;
-            long expected = written * m_sessions.Length * m_subscriptions;
-            double ratio = expected == 0 ? 0 : (double)notifications / expected;
+            string delivery = DeliveryReport.Format(notifications, written, m_sessions.Length, m_subscriptions);
             return FormattableString.Invariant(
-                $"notif/s={notifications / seconds:F0} received/expected={ratio:P1} ") +
+                $"notif/s={notifications / seconds:F0} {delivery} ") +
                 FormattableString.Invariant(
                 $"writes/s={writes / seconds:F0} values/s={written / seconds:F0} ") +
                 FormattableString.Invariant(

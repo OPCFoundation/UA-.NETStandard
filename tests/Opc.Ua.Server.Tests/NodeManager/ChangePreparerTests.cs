@@ -1,36 +1,13 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Exercises intentionally retained synchronous compatibility.
+// TODO: Remove the legacy cases when the synchronous API is removed.
 
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 
@@ -41,6 +18,62 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public sealed class ChangePreparerTests
     {
+        /// <summary>
+        /// A custom facade resolves candidate metadata only after its exact staging claim is accepted.
+        /// </summary>
+        /// <remarks>
+        /// MasterNodeManager uses this lookup to capture a private candidate's external references and to
+        /// skip removing serving namespace registrations and references during private rollback. A manager
+        /// bound to the serving server has no staging server, so rollback still cleans its live entries.
+        /// </remarks>
+        [Test]
+        public async Task GetServerResolvesSynchronousCandidateThroughCustomFacadeAsync()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            await using ChangePreparer.StagingServer staging = new ChangePreparer(server.Object).CreateServer();
+            await using var alternateAdapter = new AsyncNodeManagerAdapter(
+                new SynchronousManager(staging, kStagedNamespaceUri));
+            await using var serving = new SynchronousManager(server.Object, kBaseNamespaceUri);
+            INodeManager candidate = alternateAdapter.SyncNodeManager;
+            IAsyncNodeManager adapter = candidate.ToAsyncNodeManager();
+            var candidateFacade = new Mock<IAsyncNodeManager>();
+            candidateFacade.SetupGet(value => value.SyncNodeManager).Returns(candidate);
+            var servingFacade = new Mock<IAsyncNodeManager>();
+            servingFacade.SetupGet(value => value.SyncNodeManager).Returns(serving);
+            Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.Null,
+                "Sharing a synchronous resource does not claim another logical facade's staging metadata.");
+            staging.Attach(candidateFacade.Object);
+            await using ChangePreparer.StagingServer rejected = new ChangePreparer(server.Object).CreateServer();
+            Assert.That(() => rejected.Attach(candidateFacade.Object),
+                Throws.TypeOf<NodeManagerAlreadyRegisteredException>());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(adapter, Is.InstanceOf<AsyncNodeManagerAdapter>());
+                Assert.That(ChangePreparer.GetServer(adapter), Is.SameAs(staging));
+                Assert.That(alternateAdapter, Is.Not.SameAs(adapter));
+                Assert.That(ChangePreparer.GetServer(alternateAdapter), Is.SameAs(staging));
+                Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.SameAs(staging));
+                Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.Not.SameAs(rejected));
+                Assert.That(staging.IsStaging, Is.True);
+                Assert.That(staging.IsDetached, Is.False);
+                Assert.That(staging.NamespaceUris.GetIndex(kStagedNamespaceUri), Is.GreaterThanOrEqualTo(0));
+                Assert.That(server.Object.NamespaceUris.GetIndex(kStagedNamespaceUri), Is.EqualTo(-1));
+                Assert.That(ChangePreparer.GetServer(serving.ToAsyncNodeManager()), Is.Null);
+                Assert.That(ChangePreparer.GetServer(servingFacade.Object), Is.Null);
+            });
+
+            ChangePreparer.Bind(candidateFacade.Object);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(staging.IsStaging, Is.False);
+                Assert.That(ChangePreparer.GetServer(adapter), Is.SameAs(staging));
+                Assert.That(ChangePreparer.GetServer(alternateAdapter), Is.SameAs(staging));
+                Assert.That(ChangePreparer.GetServer(candidateFacade.Object), Is.SameAs(staging));
+            });
+        }
+
         /// <summary>
         /// Capturing empty metadata preserves the standard namespace and default encodeable types.
         /// </summary>
@@ -513,5 +546,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>The serving registration added after candidate detachment.</summary>
         private static readonly ExpandedNodeId s_postDetachRegistrationId =
             new(99004, "urn:opcfoundation.org:Tests:ChangePreparer:Encodeables");
+
+        /// <summary>
+        /// A synchronous NodeManager bound to the server it is constructed with.
+        /// </summary>
+        private sealed class SynchronousManager : CustomNodeManager2
+        {
+            /// <summary>
+            /// Creates the NodeManager for one namespace.
+            /// </summary>
+            public SynchronousManager(IServerInternal server, string namespaceUri)
+                : base(server, NullLogger.Instance, namespaceUri)
+            {
+            }
+        }
     }
 }

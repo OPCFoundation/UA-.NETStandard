@@ -1,5 +1,5 @@
-// Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
-// OPC Foundation MIT License 1.00 - http://opcfoundation.org/License/MIT/1.00/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 //! async-opcua interop peer: the same command line and stdout contract as
 //! tests/Opc.Ua.Interop.LegacyPeer, so the 2.0 interop tests can drive it.

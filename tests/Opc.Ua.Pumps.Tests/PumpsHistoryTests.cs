@@ -1,36 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -664,17 +640,24 @@ namespace Opc.Ua.Pumps.Tests
                 UriScheme = Utils.UriSchemeOpcTcp
             };
             string pki = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory, "pump-history", Guid.NewGuid().ToString("N"));
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                    ? Path.GetTempPath()
+                    : TestContext.CurrentContext.WorkDirectory,
+                "pump-history",
+                Guid.NewGuid().ToString("N"));
             FileSystemAssetConfigurationStore? identity = null;
+            bool shutdownCompleted = false;
+            ExceptionDispatchInfo? shutdownFailure = null;
             try
             {
                 StandardServer server = await fixture.StartAsync(pki);
-                await using IPreparedNodeManagerBatch prepared = await server.NodeManagerLifecycle
-                    .PrepareAsync([NodeManagerBatchChange.Add(new PumpsNodeManagerFactory())])
+                await using IPreparedChanges prepared = await server.NodeManagerLifecycle
+                    .PrepareAsync([LifecycleChange.Add(new PumpsNodeManagerFactory())])
                     .ConfigureAwait(false);
-                NodeManagerBatchResult added = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+                LifecycleResult added = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
                 Assert.That(added.CleanupFailure, Is.Null);
-                var manager = (PumpsNodeManager)added.Registrations[0].NodeManager;
+                Assert.That(added.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? published), Is.True);
+                var manager = (PumpsNodeManager)published!;
                 IPumpBuilder pump = await manager.CreatePumpAsync(
                     new QualifiedName("HistoricalPump", manager.InstanceNamespaceIndex));
                 pump.WithNameplate(new PumpNameplate
@@ -834,13 +817,34 @@ namespace Opc.Ua.Pumps.Tests
             }
             finally
             {
-                await fixture.StopAsync();
-                identity?.Dispose();
-                if (Directory.Exists(pki))
+                try
                 {
-                    Directory.Delete(pki, recursive: true);
+                    if (fixture.Server is { } activeServer)
+                    {
+                        using var shutdownTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                        await activeServer.StopAsync(shutdownTimeout.Token).ConfigureAwait(false);
+                    }
+                    shutdownCompleted = true;
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    shutdownFailure = ExceptionDispatchInfo.Capture(failure);
+                    TestContext.Error.WriteLine(failure);
+                }
+                finally
+                {
+                    await fixture.StopAsync().ConfigureAwait(false);
+                    if (shutdownCompleted)
+                    {
+                        identity?.Dispose();
+                        if (Directory.Exists(pki))
+                        {
+                            Directory.Delete(pki, recursive: true);
+                        }
+                    }
                 }
             }
+            shutdownFailure?.Throw();
         }
 
         /// <summary>

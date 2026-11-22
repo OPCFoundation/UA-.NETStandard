@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -45,14 +19,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            NodeManagerRegistration unchanged = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }),
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }))],
                 timeout.Token).ConfigureAwait(false);
-            await using INodeManagerPublication publication = await lifecycle.CapturePublication()
+            Assert.That(added.Issues, Is.Empty);
+            NodeManagerRegistration unchanged = RequireRegistration(added.Registrations[0]);
+            await using ILifecycleWriter publication = await lifecycle.CaptureChanges()
                 .BeginAsync(timeout.Token).ConfigureAwait(false);
 
             var previousImage = new LifecycleReadImage(unchanged.NodeManager, 1);
-            await using (IPreparedNodeManagerBatch imageBatch = await publication.PrepareReadImagesAsync(
+            await using (IPreparedChanges imageBatch = await publication.PrepareReadImagesAsync(
                 [previousImage], timeout.Token).ConfigureAwait(false))
             {
                 await imageBatch.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
@@ -68,10 +44,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? candidateManager = null;
             IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
                 kSecondRegistrationValue, manager => candidateManager = manager, kSecondModelNamespaceUri);
-            await using IPreparedNodeManagerBatch batch = await publication.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], timeout.Token).ConfigureAwait(false);
-            batch.BindReadImages([nextImage]);
-            IAsyncNodeManager candidate = batch.Registrations[0].NodeManager;
+            await using IPreparedChanges batch = await publication.PrepareAsync(
+                [LifecycleChange.Add(factory)], timeout.Token).ConfigureAwait(false);
+            batch.SetMetadata(nextImage);
+            IAsyncNodeManager candidate = RequireRegistration(batch.Registrations[0]).NodeManager;
 
             using (Assert.EnterMultipleScope())
             {
@@ -118,31 +94,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            INodeManagerPublicationCapture capture = lifecycle.CapturePublication();
+            ILifecycleCapture capture = lifecycle.CaptureChanges();
             var inputRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseInput = new TaskCompletionSource<NodeManagerBatchChange>(
+            var releaseInput = new TaskCompletionSource<LifecycleChange>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerBatchChange> deferredInput = AcquireInputAsync();
+            Task<LifecycleChange> deferredInput = AcquireInputAsync();
             var factory = new CountingNodeManagerFactory(
                 [kSecondModelNamespaceUri],
                 CreateTrackingNodeManagementFactory(kSecondRegistrationValue, _ => { },
                     kSecondModelNamespaceUri).CreateAsync);
 
             await inputRequested.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-            await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }), timeout.Token)
-                .ConfigureAwait(false);
-            releaseInput.TrySetResult(NodeManagerBatchChange.Add(factory));
-            NodeManagerBatchChange acquiredChange = await deferredInput.WaitAsync(timeout.Token).ConfigureAwait(false);
+            LifecycleResult published = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }))],
+                timeout.Token).ConfigureAwait(false);
+            Assert.That(published.Issues, Is.Empty);
+            releaseInput.TrySetResult(LifecycleChange.Add(factory));
+            LifecycleChange acquiredChange = await deferredInput.WaitAsync(timeout.Token).ConfigureAwait(false);
 
-            await using INodeManagerPublication publication = await capture.BeginAsync(timeout.Token)
+            await using ILifecycleWriter publication = await capture.BeginAsync(timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(publication.IsCurrent, Is.False);
             await Assert.ThatAsync(() => publication.PrepareAsync([acquiredChange], timeout.Token).AsTask(),
                 Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
             Assert.That(factory.CreateCount, Is.Zero);
 
-            Task<NodeManagerBatchChange> AcquireInputAsync()
+            Task<LifecycleChange> AcquireInputAsync()
             {
                 inputRequested.TrySetResult(true);
                 return releaseInput.Task.WaitAsync(timeout.Token);

@@ -6,7 +6,7 @@
     <PackageId>ConsoleReferencePubSubClient</PackageId>
     <Company>OPC Foundation</Company>
     <Description>Self-contained OPC UA Part 14 PubSub reference sample with three command-line-selectable modes (publisher, subscriber, external-server adapter bridge) built on the fluent + DI Host surface. Native AOT compatible.</Description>
-    <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2005-2026, OPC Federation AISBL</Copyright>
     <RootNamespace>Quickstarts.ConsoleReferencePubSubClient</RootNamespace>
     <IsPackable>false</IsPackable>
     <PublishAot>true</PublishAot>

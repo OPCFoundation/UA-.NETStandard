@@ -193,11 +193,13 @@ provider. It configures provider routing and history access, including optional
 `Annotations` properties and asynchronous `HistoricalDataConfigurationType`
 installation.
 
-Register providers and configure historization after publication, in
-`INodeManagerReadinessNotification.OnServerReadyAsync`. Address-space creation
-can run against a private staging server, whose shared historian registry is
-unavailable. Creating nodes during preparation does not make that registry
-available.
+Register providers and configure new capture after publication, in
+`INodeManagerReadinessNotification.OnServerReadyAsync`. Registrations made
+during private address-space preparation are staged, not written to the serving
+registry, and become serving-owned after readiness. A plain fluent manager may
+borrow an already serving node, namespace or default binding without its own
+readiness callback. The lifecycle retains that binding for the borrowing
+generation; this does not exempt explicit new registrations from readiness.
 
 ```csharp
 using Opc.Ua.Server.Historian;
@@ -459,6 +461,16 @@ uses the optional `IHistorianProviderOwnershipRegistry` capability implemented b
 borrowed registration with `NotSupportedException`. Owning registration remains
 available on existing custom implementations. A borrowed registration does not
 revoke ownership acquired by an earlier owning registration of the same provider.
+
+When a NodeManager generation leaves routing, its staged registry removes
+that generation's historian bindings from service. The registry rejects new
+registrations and publication after retirement. Until disposal, cleanup can
+still unregister the retired generation's private node, namespace, and default
+bindings. That cleanup cannot restore withdrawn bindings or change a
+successor's bindings, even if both generations use the same provider.
+
+After disposal, the registry rejects all changes. Removing a borrowed binding
+does not dispose the provider; the application still owns it.
 
 ### Provider resolution order
 
@@ -755,13 +767,20 @@ Pagination rules:
 3. To indicate "no more pages", return a page with a default (empty) `NextToken`. `IsFinal` becomes true automatically.
 4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is retained server-side behind the wire continuation identifier and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
 
-The default Session cache retains a history continuation while it is saved or
-being used by a request. Its state includes the provider cursor and the original
-query parameters. A continuation records only a weak identity for its issuing
-NodeManager generation; it does not keep that generation alive. Every resumed
-read checks the caller's current permissions, and a continuation from a retired
-generation returns `BadContinuationPointInvalid`. For Annotations reads, the
-requested Property is remembered separately from the provider's source Variable.
+The default Session cache holds the provider, the source node when available,
+the provider cursor, and the original query parameters while a continuation
+is saved or in use. The continuation uses a weak reference to find the issuing
+NodeManager generation without keeping it alive. The provider and source node
+can still keep other objects alive through their own references. For
+Annotations reads, the continuation records the requested Property separately
+from the provider's source Variable.
+
+Before dispatching a resumed read, the server rechecks the caller's current
+permissions on the requested node. A continuation from a retired generation
+returns `BadContinuationPointInvalid`. Finish using the restored point before
+the history-read callback returns. Keeping the point or capturing the
+callback's asynchronous context does not let later work reuse the current
+read's admission.
 
 Clients use the continuation identifier returned by the latest response.
 Completion is indicated by an empty continuation identifier, not by the number
@@ -780,29 +799,40 @@ admitted only while the issuing generation's gate is open; target resolution
 uses the current request view. Retirement closes the gate, so a stale identifier
 returns `BadContinuationPointInvalid` before the provider is called. The
 continuation cache supplied by `Session` stores state and disposes it on
-completion, release, eviction, cancellation, or Session teardown; it does not
-retain NodeManagers. See
+completion, release, eviction, cancellation, or Session teardown. A caller that
+keeps the disposed state can still retain its provider and source node. See
 [NodeManager continuation points](NodeManagers.md#continuation-points).
 
-Replicated history continuation records let a standby identify and remove
-records belonging to the original Session. They do not contain the live
-provider, source Node or NodeManager instance that executed the read.
-A standby therefore returns `BadContinuationPointInvalid` for such a record.
-The client starts a new HistoryRead against the standby instead of resuming
-the old provider cursor.
+The generic `IContinuationPointStore` mirrors continuation identity and, for
+Browse, request parameters, but does not reconstruct a NodeManager's cursor.
+A standby that only has that record returns `BadContinuationPointInvalid`,
+and the client starts a new `HistoryRead`.
+
+When an `IHistoryContinuationPointStore` is configured, the historian codec
+can restore a portable history record on a standby. It requires a matching
+provider identity and portable-resume-token support. With `MasterNodeManager`,
+the codec also validates the source and captures the standby's owning
+generation before admitting the cursor. An incompatible record is not restored,
+so the client must start a new `HistoryRead`.
 
 Resuming a continuation is an atomic claim. The dispatcher keeps the claimed
 state unchanged until it has durably saved a fresh successor. Provider,
 filtering, projection, encoding, cancellation, and successor-persistence
-failures restore the original continuation so the client can retry the same
-identifier. A successful page retires the old identifier, preserving
-single-use semantics.
+failures attempt to restore the original continuation so the client can retry
+the same identifier. If durable restoration fails but local restoration
+succeeds, the server logs a warning and the continuation remains available
+only in that session. If both attempts fail, both restoration errors are
+reported, together with the operation exception when one occurred. A
+successful page retires the old identifier, preserving single-use semantics.
 
 The shared continuation store gives each persisted envelope a distinct
-incarnation. Deferred cleanup conditionally deletes only that exact protected
-record, so a delayed cleanup cannot delete a restored continuation with the
-same identifier. Indeterminate save failures schedule the same conditional
-cleanup whether they were creating a record or replacing a claim marker.
+incarnation. Deferred deletion compares the protected record captured when
+cleanup was scheduled, so it does not delete a replacement written after
+scheduling. `ScheduleRemove` identifies a session and continuation ID, not a
+specific incarnation: a concurrent operation can replace the locally
+remembered incarnation before cleanup is scheduled. Indeterminate save
+failures schedule conditional cleanup whether they were creating a record or
+replacing a claim marker.
 
 The asynchronous release path claims the portable record before acknowledging
 release. Synchronous session teardown only schedules cleanup and is not a
@@ -1414,9 +1444,9 @@ Unexpected consumer termination remains an explicit error, and later discarded s
 Each capture pump owns one consumer task and a bounded channel; it does not spawn work per sample. Disposal closes
 the writer and drains the consumer for up to five seconds. A timeout cancels the pump and surfaces an error without
 starting further provider calls. An already-running provider must cooperate with cancellation; the framework cannot
-forcibly terminate it. Its token resources remain valid until it actually completes. A one-shot, static completion
-callback observes any late task failure and releases only the token source, without capturing the disposed pump,
-server, or request context. Normal graceful draining is preserved.
+forcibly terminate it. Until that consumer completes, the builder and provider remain retained, its token resources
+remain valid, and any late task failure is observed. Disposal is terminal: the builder rejects new capture
+registrations and later disposal calls report the original outcome, even after the consumer exits.
 
 ### What triggers a capture
 

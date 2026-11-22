@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -36,7 +10,8 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Counts the owners of a notification message whose payload objects (the
     /// <see cref="NotificationMessage"/> and its data change list) came from their activator
-    /// pools, and whose notification arrays were rented from <see cref="ArrayPool{T}.Shared"/>. The payload is returned to the pools only when the last
+    /// pools, and whose notification arrays were rented from <see cref="ArrayPool{T}.Shared"/> or
+    /// <see cref="EventNotificationBuffer"/>. The payload is returned to the pools only when the last
     /// owner releases it.
     /// </summary>
     /// <remarks>
@@ -144,15 +119,8 @@ namespace Opc.Ua.Server
             {
                 ArrayPool<MonitoredItemNotification>.Shared.Return(rented.Items, clearArray: true);
             }
-            if (rented.Events != null)
-            {
-                ArrayPool<EventFieldList>.Shared.Return(rented.Events, clearArray: true);
-            }
-            if (rented.Stamps != null)
-            {
-                // releases the occurrence references of the event fields.
-                ArrayPool<object?>.Shared.Return(rented.Stamps, clearArray: true);
-            }
+            // also releases the occurrence references (admission stamps) of the event fields.
+            rented.Events?.Return();
         }
 
         private readonly RentedNotificationArrays m_rented;
@@ -160,20 +128,20 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// The arrays rented from <see cref="ArrayPool{T}.Shared"/> that hold the notifications of
-    /// one notification message; the message sees exact-length slices of them.
+    /// The pooled arrays that hold the notifications of one notification message; the
+    /// message sees exact-length slices of them.
     /// </summary>
-    /// <param name="Items">The rented data change array, if any.</param>
-    /// <param name="Events">The rented event array, if any.</param>
-    /// <param name="Stamps">
-    /// The admission stamps of the events (see <see cref="QueuedEvent"/>), aligned with
-    /// <paramref name="Events"/>, if any. They keep the EventIds of the reported occurrences
-    /// reserved until the message is released.
+    /// <param name="Items">
+    /// The data change array rented from <see cref="ArrayPool{T}.Shared"/>, if any.
+    /// </param>
+    /// <param name="Events">
+    /// The pooled events and their admission stamps (see <see cref="QueuedEvent"/>), if any.
+    /// The stamps keep the EventIds of the reported occurrences reserved until the message
+    /// is released.
     /// </param>
     internal readonly record struct RentedNotificationArrays(
         MonitoredItemNotification[]? Items,
-        EventFieldList[]? Events,
-        object?[]? Stamps = null);
+        EventNotificationBuffer? Events = null);
 
     /// <summary>
     /// A Publish response that owns a reference to the notification message it carries

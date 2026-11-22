@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -388,6 +361,20 @@ namespace Opc.Ua.Wot
                     cancellationToken).ConfigureAwait(false);
             }
 
+            Dictionary<string, WotArgumentProperty>? resolvedArguments = null;
+            if (nodeResolver is not null && documentSet?.DeferPreservedFactValidation != true &&
+                TakesRestorePath(document) && HasMethodArgumentSchemas(document))
+            {
+                UANodeSet? native = GetProvidedArchiveContext(thingResolver, document) ??
+                    ReadAuthoritativeTypeContext(document).Value;
+                if (native is not null)
+                {
+                    resolvedArguments = await ResolveExportArgumentPropertiesAsync(
+                        native, nodeResolver, diagnostics, cancellationToken, requireComplete: false)
+                        .ConfigureAwait(false);
+                }
+            }
+
             UANodeSet? ToNodeSet(
                 IReadOnlyDictionary<string, string>? carrierEventIds,
                 List<string>? missingWitnesses)
@@ -413,7 +400,8 @@ namespace Opc.Ua.Wot
                     dataTypeNames,
                     documentSet,
                     carrierEventIds,
-                    missingWitnesses);
+                    missingWitnesses,
+                    resolvedArguments);
             }
 
             int firstPassStart = diagnostics.Count;
@@ -1287,7 +1275,8 @@ namespace Opc.Ua.Wot
             Dictionary<(string NamespaceUri, string Name), string?>? dataTypeNames = null,
             DocumentSetThingResolver? documentSet = null,
             IReadOnlyDictionary<string, string>? carrierEventIds = null,
-            List<string>? missingWitnesses = null)
+            List<string>? missingWitnesses = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -1337,7 +1326,7 @@ namespace Opc.Ua.Wot
                 {
                     ValidatePreservedReadableFacts(
                         document, restored, options, diagnostics, archiveContext, carrierEventIds,
-                        missingWitnesses);
+                        missingWitnesses, resolvedArgumentProperties: resolvedArgumentProperties);
                 }
                 ApplyIdentifierLeniency(diagnostics, options);
                 if (HasErrors(diagnostics))
@@ -1363,7 +1352,7 @@ namespace Opc.Ua.Wot
                             document, archiveContext ?? restored, diagnostics, carrierEventIds);
                         ValidatePreservedReadableFacts(
                             document, restored, options, diagnostics, archiveContext, carrierEventIds,
-                            missingWitnesses);
+                            missingWitnesses, resolvedArgumentProperties: resolvedArgumentProperties);
                     }
                     ApplyIdentifierLeniency(diagnostics, options);
                     if (!HasErrors(diagnostics))
@@ -2182,7 +2171,8 @@ namespace Opc.Ua.Wot
             // the Thing. Without this a Variable's own Variables — EURange and
             // EngineeringUnits below an analog Variable — come back re-parented
             // onto the Thing, one level higher than the source put them.
-            string owner = ReadComponentOfParent(schema, nodeSet, diagnostics) ?? rootNodeId;
+            string owner = ReadAffordanceParent(document, schema, nodeSet, diagnostics, referenceTypeCatalog) ??
+                rootNodeId;
             string? typeDefinition = ApplyTypeBinding(
                 document, typeBinding, diagnostics, schema,
                 "/properties/" + EscapeJsonPointerToken(key), WotExpectedNodeClass.VariableType);
@@ -2272,24 +2262,47 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Reads the parent an affordance names, where that parent is another
-        /// affordance of the same Thing rather than the Thing itself.
+        /// Reads an affordance's parent from its component annotation or an
+        /// inverse ownership link.
         /// </summary>
-        private static string? ReadComponentOfParent(
+        private static string? ReadAffordanceParent(
+            WotDocument document,
             JsonElement schema,
             UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            WotReferenceTypeCatalog? referenceTypeCatalog = null)
         {
-            if (!schema.TryGetProperty("uav:componentOf", out JsonElement declared) ||
-                declared.ValueKind != JsonValueKind.Array)
+            if (schema.TryGetProperty("uav:componentOf", out JsonElement declared) &&
+                declared.ValueKind == JsonValueKind.Array)
             {
-                return null;
-            }
-            foreach (JsonElement entry in declared.EnumerateArray())
-            {
-                if (entry.ValueKind == JsonValueKind.String)
+                foreach (JsonElement entry in declared.EnumerateArray())
                 {
-                    return ToNodeSetNodeId(entry.GetString()!, nodeSet, diagnostics);
+                    if (entry.ValueKind == JsonValueKind.String)
+                    {
+                        return ToNodeSetNodeId(entry.GetString()!, nodeSet, diagnostics);
+                    }
+                }
+            }
+            foreach (JsonElement link in WotDocument.ReadArray(schema, "links"))
+            {
+                string? rel = GetElementString(link, "rel");
+                string? href = GetElementString(link, "href");
+                if (rel is null ||
+                    rel == TypeBindingRel ||
+                    href is null ||
+                    !LooksLikeNodeId(href) ||
+                    !TryResolveLinkReferenceType(
+                        document, link, rel, referenceTypeCatalog, diagnostics,
+                        out string referenceType, out bool isForward) ||
+                    isForward)
+                {
+                    continue;
+                }
+                referenceType = ToNodeSetReferenceType(referenceType, nodeSet, diagnostics);
+                if (IsComponentReference(referenceType) ||
+                    IsHasComponentReference(referenceType, nodeSet, referenceTypeCatalog))
+                {
+                    return ToNodeSetNodeId(href, nodeSet, diagnostics);
                 }
             }
             return null;
@@ -2794,7 +2807,8 @@ namespace Opc.Ua.Wot
                 Description = ReadDescription(document, action)
             };
 
-            string owner = ReadComponentOfParent(action, nodeSet, diagnostics) ?? rootNodeId;
+            string owner = ReadAffordanceParent(document, action, nodeSet, diagnostics, referenceTypeCatalog) ??
+                rootNodeId;
             if (isConditionMethod &&
                 document.Events.TryGetValue(actsOn, out JsonElement target))
             {

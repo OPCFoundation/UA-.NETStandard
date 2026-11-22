@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading.Tasks;
@@ -45,6 +19,73 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
     [TestSpec("7.2.4.5.10")]
     public class UadpActionTests
     {
+        [Test]
+        [Category("SecurityRegression")]
+        public void ActionResponseEchoingLargeCorrelationDataEncodes()
+        {
+            // A response echoes the CorrelationData of the request, so its size is
+            // chosen by the requestor and can exceed the initial encode buffer.
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            byte[] correlationData = new byte[20000];
+            for (int i = 0; i < correlationData.Length; i++)
+            {
+                correlationData[i] = (byte)i;
+            }
+            var response = new UadpActionResponseMessage
+            {
+                PublisherId = PublisherId.FromUInt16(0x4242),
+                DataSetWriterId = 0x1234,
+                ActionTargetId = 0x0021,
+                RequestId = 0x1001,
+                ActionState = ActionState.Done,
+                CorrelationData = ByteString.From(correlationData)
+            };
+
+            byte[] encoded = UadpActionCoder.Encode(response, context);
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
+
+            Assert.That(decoded, Is.InstanceOf<UadpActionResponseMessage>());
+            Assert.That(
+                ((UadpActionResponseMessage)decoded!).CorrelationData.ToArray(),
+                Is.EqualTo(correlationData));
+        }
+
+        [Test]
+        public void ActionRequestWithLargePayloadFieldEncodes()
+        {
+            // The payload is encoded through the stack encoder, which reports a
+            // full buffer differently from the header writers; it must grow the
+            // buffer in the same way.
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            string text = new('x', 30000);
+            var request = new UadpActionRequestMessage
+            {
+                PublisherId = PublisherId.FromUInt16(0x4242),
+                DataSetWriterId = 0x1234,
+                ActionTargetId = 0x0021,
+                RequestId = 0x1001,
+                ActionState = ActionState.Executing,
+                Payload =
+                [
+                    new DataSetField
+                    {
+                        Name = "Input",
+                        Value = new Variant(text),
+                        Encoding = PubSubFieldEncoding.Variant
+                    }
+                ]
+            };
+
+            byte[] encoded = UadpActionCoder.Encode(request, context);
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(encoded, context);
+
+            Assert.That(decoded, Is.InstanceOf<UadpActionRequestMessage>());
+            var decodedRequest = (UadpActionRequestMessage)decoded!;
+            Assert.That(decodedRequest.Payload.Count, Is.EqualTo(1));
+            Assert.That(decodedRequest.Payload[0].Value.TryGetValue(out string? value), Is.True);
+            Assert.That(value, Is.EqualTo(text));
+        }
+
         [Test]
         public void ActionRequestRoundTrips()
         {

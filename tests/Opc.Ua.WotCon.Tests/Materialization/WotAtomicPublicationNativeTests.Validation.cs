@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -36,6 +10,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -57,9 +32,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(true)]
         public async Task SyntaxAndProjectionDoNotClaimUnperformedValidationPolicies(bool project)
         {
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotResource resource = await AddAsync("validation-policy-control").ConfigureAwait(false);
             WoTValidationOutcomeDataType outcome;
             if (project)
@@ -111,8 +86,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                 }
             };
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                options, m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                options, m_registry, m_coordinator))]).ConfigureAwait(false);
             WotResource source = await AddAsync("validate-selected-version").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(HandoffRequest("before-direct-validation")).ConfigureAwait(false);
             WotRegistryMutationResult bad = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -229,9 +204,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(2)]
         public async Task ValidationFailureNotificationFollowsThePersistenceDecision(int decision)
         {
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "validation-decision", VersionId = "v1",
@@ -312,7 +287,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task NativeCommittedValidationWarningReturnsTheCommittedOutcome()
         {
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions
                 {
                     AutoRefresh = false,
@@ -322,7 +297,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         AllowAnonymous = true,
                         RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                     }
-                }, m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+                }, m_registry, m_coordinator))]).ConfigureAwait(false);
             WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "validation-warning", VersionId = "v1",
@@ -417,7 +392,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_coordinator = new WotMaterializationCoordinator(
                 registry.Object, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                 documentConverter: m_converter);
-            var registration = await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+            LifecycleResult addedOwner = await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions
                 {
                     AutoRefresh = false,
@@ -427,7 +403,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         AllowAnonymous = true,
                         RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                     }
-                }, registry.Object, m_coordinator), callerContext: null).ConfigureAwait(false);
+                }, registry.Object, m_coordinator))]).ConfigureAwait(false);
+            Assert.That(addedOwner.CleanupFailure, Is.Null);
+            Assert.That(addedOwner.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
             WotRegistryMutationResult first = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "validation-default-race", VersionId = "v1",
@@ -444,7 +423,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     """))
             }).ConfigureAwait(false);
             Assert.That(second.Changed, Is.True, second.Message);
-            await ((WotRegistryNodeManager)registration.NodeManager).DispatchProjectionAsync(
+            await ((WotRegistryNodeManager)registration!.NodeManager).DispatchProjectionAsync(
                 _ => default, CancellationToken.None).ConfigureAwait(false);
             await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             m_session.MessageContext.Factory.Builder.AddOpcUaWotCon().Commit();
@@ -506,9 +485,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
             };
             m_coordinator.Event += (_, change) => m_events.Add(change);
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotRegistryMutationResult added = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "validation-recovery", VersionId = "v1",

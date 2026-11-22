@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -92,10 +66,10 @@ namespace Opc.Ua.AMB.Tests
                 }));
                 using ServiceProvider provider = services.BuildServiceProvider();
                 var assets = new AssetManagement();
-                await using IPreparedNodeManagerBatch prepared = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(new AmbNodeManagerFactory(assets, provider))])
+                await using IPreparedChanges prepared = await server.NodeManagerLifecycle.PrepareAsync(
+                    [LifecycleChange.Add(new AmbNodeManagerFactory(assets, provider))])
                     .ConfigureAwait(false);
-                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                LifecycleResult committed = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                 AmbNodeManager manager = assets.Manager!;
 
                 Assert.Multiple(() =>
@@ -130,10 +104,16 @@ namespace Opc.Ua.AMB.Tests
                         () => setupBuilder!.Node("First"));
                     Assert.That(sealedException!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 }
-                await using IPreparedNodeManagerBatch removal = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(committed.Registrations[0])]).ConfigureAwait(false);
-                NodeManagerBatchResult removed = await removal.CommitAsync(_ => default).ConfigureAwait(false);
-                await removed.Retirement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                ILifecycleCapture removalCapture = server.NodeManagerLifecycle.CaptureChanges();
+                Assert.That(committed.Slots[0].TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(committed.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? published), Is.True);
+                Assert.That(current.NodeManager, Is.SameAs(published));
+                Assert.That(current.Generation, Is.EqualTo(committed.Registrations[0].Generation));
+                await using ILifecycleWriter removalWriter = await removalCapture.BeginAsync().ConfigureAwait(false);
+                await using IPreparedChanges removal = await removalWriter.PrepareAsync(
+                    [LifecycleChange.Remove(committed.Slots[0])]).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(_ => default).ConfigureAwait(false);
+                await removed.Retired.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
                     Assert.That(removed.Issues.ToArray(), Is.Empty);
@@ -175,10 +155,10 @@ namespace Opc.Ua.AMB.Tests
                 }));
                 using ServiceProvider provider = services.BuildServiceProvider();
                 var assets = new AssetManagement();
-                await using IPreparedNodeManagerBatch prepared = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(new AmbNodeManagerFactory(assets, provider))])
+                await using IPreparedChanges prepared = await server.NodeManagerLifecycle.PrepareAsync(
+                    [LifecycleChange.Add(new AmbNodeManagerFactory(assets, provider))])
                     .ConfigureAwait(false);
-                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                LifecycleResult committed = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
                     Assert.That(committed.Issues.Count, Is.EqualTo(1));
@@ -201,10 +181,16 @@ namespace Opc.Ua.AMB.Tests
                     });
                     AssertExternalReferenceCount(server, 1);
                 }
-                await using IPreparedNodeManagerBatch removal = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(committed.Registrations[0])]).ConfigureAwait(false);
-                NodeManagerBatchResult removed = await removal.CommitAsync(_ => default).ConfigureAwait(false);
-                await removed.Retirement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                ILifecycleCapture removalCapture = server.NodeManagerLifecycle.CaptureChanges();
+                Assert.That(committed.Slots[0].TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(committed.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? published), Is.True);
+                Assert.That(current.NodeManager, Is.SameAs(published));
+                Assert.That(current.Generation, Is.EqualTo(committed.Registrations[0].Generation));
+                await using ILifecycleWriter removalWriter = await removalCapture.BeginAsync().ConfigureAwait(false);
+                await using IPreparedChanges removal = await removalWriter.PrepareAsync(
+                    [LifecycleChange.Remove(committed.Slots[0])]).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(_ => default).ConfigureAwait(false);
+                await removed.Retired.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 Assert.That(assets.Manager, Is.Null);
                 Assert.That(callbacks, Is.EqualTo(1));
                 AssertExternalReferenceCount(server, 0);

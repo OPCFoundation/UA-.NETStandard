@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -1738,12 +1717,17 @@ namespace Opc.Ua.Gds.Tests
             INodeManagerLifecycle lifecycle,
             IAsyncNodeManagerFactory factory)
         {
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
-            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)]).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
             Assert.That(result.Registrations, Has.Count.EqualTo(1));
-            return result.Registrations[0];
+            if (result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration) &&
+                registration is not null)
+            {
+                return registration;
+            }
+            throw new InvalidOperationException("The published registration is unavailable.");
         }
 
         private async Task<NodeId> GetProvisionableDeviceNodeIdAsync(NodeManagerRegistration registration)
@@ -1761,11 +1745,11 @@ namespace Opc.Ua.Gds.Tests
             INodeManagerLifecycle lifecycle,
             NodeManagerRegistration registration)
         {
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration)]).ConfigureAwait(false);
-            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Remove(registration.Slot)]).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
-            await result.Retirement.ConfigureAwait(false);
+            await result.Retired.ConfigureAwait(false);
         }
     }
 }

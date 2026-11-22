@@ -33,6 +33,8 @@
     <Compile Include="..\..\samples\Reference\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />
     <Compile Include="..\..\samples\Reference\ConsoleReferenceClient\UAClient.cs" Link="Links\UAClient.cs" />
     <Compile Include="..\..\samples\Reference\ConsoleReferenceClient\EventIds.cs" Link="Links\ConsoleReferenceClientEventIds.cs" />
+    <Compile Include="..\..\perf\ServerLoadHarness\DeliveryReport.cs" Link="Links\DeliveryReport.cs" />
+    <Compile Include="..\..\perf\ServerLoadHarness\ProcessCpuReport.cs" Link="Links\ProcessCpuReport.cs" />
     <Compile Include="..\..\perf\ServerLoadHarness\SubscriptionSetup.cs" Link="Links\SubscriptionSetup.cs" />
   </ItemGroup>
   <ItemGroup>

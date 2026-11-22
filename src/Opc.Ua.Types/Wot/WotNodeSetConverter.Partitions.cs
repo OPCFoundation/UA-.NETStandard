@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -610,6 +583,22 @@ namespace Opc.Ua.Wot
                     }
                 }
             }
+            for (int index = 0; index < results.Count; index++)
+            {
+                if (results[index] is { Success: true, Value: { } part })
+                {
+                    string? ancestor = await ResolveDocumentEventAncestorAsync(
+                        part, documents.Entries[index].Document, context, cancellationToken).ConfigureAwait(false);
+                    if (ancestor is not null)
+                    {
+                        var diagnostics = results[index].Diagnostics.ToList();
+                        WotJsonResidue.RemoveDocumentSetLinks(
+                            part, documents.Entries[index].Document, documents, options, diagnostics,
+                            resolvedEventAncestor: ancestor);
+                        results[index] = new WotConversionResult<UANodeSet>(part, diagnostics);
+                    }
+                }
+            }
             return results;
         }
 
@@ -704,7 +693,8 @@ namespace Opc.Ua.Wot
             List<UANodeSet> partitions,
             UANodeSet merged,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             if (HasErrors(diagnostics))
             {
@@ -723,7 +713,7 @@ namespace Opc.Ua.Wot
                     }
                     ValidatePreservedReadableFacts(
                         document, partitions[index], options, diagnostics, merged,
-                        derivations: derivations);
+                        derivations: derivations, resolvedArgumentProperties: resolvedArgumentProperties);
                 }
             }
             ApplyIdentifierLeniency(diagnostics, options);
@@ -1034,11 +1024,13 @@ namespace Opc.Ua.Wot
         /// <param name="nodeSet">The node set.</param>
         /// <param name="data">The JSON element.</param>
         /// <param name="maxDepth">The max depth.</param>
+        /// <param name="resolvedEventAncestor">The standard event ancestor resolved from the local context.</param>
         internal static bool IsGeneratedEventDefinitionData(
             WotDocument document,
             UANodeSet nodeSet,
             JsonElement data,
-            int maxDepth)
+            int maxDepth,
+            string? resolvedEventAncestor = null)
         {
             if (!HasEventTypeAnnotation(document))
             {
@@ -1063,7 +1055,8 @@ namespace Opc.Ua.Wot
             {
                 writer.WriteStartObject();
                 WriteEventTypeDefinitionData(
-                    writer, root, nodeSet.NamespaceUris, nodeSet, BuildIndex(nodeSet), GetDocumentLocale(document));
+                    writer, root, nodeSet.NamespaceUris, nodeSet, BuildIndex(nodeSet), GetDocumentLocale(document),
+                    resolvedEventAncestor);
                 writer.WriteEndObject();
             }
             using var expected = JsonDocument.Parse(

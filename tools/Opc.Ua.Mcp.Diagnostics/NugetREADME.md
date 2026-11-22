@@ -83,4 +83,4 @@ host references.
 
 ## License
 
-OPC Foundation MIT License 1.00 — <http://opcfoundation.org/License/MIT/1.00/>
+MIT (`SPDX-License-Identifier: MIT`)

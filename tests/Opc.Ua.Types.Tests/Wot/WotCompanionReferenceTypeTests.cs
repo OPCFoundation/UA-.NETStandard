@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -188,6 +162,42 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(link.ReferenceType, Is.EqualTo(link.Local(PumpConnectedTo)));
                 Assert.That(link.Reference.IsForward, Is.True);
             });
+        }
+
+        /// <summary>
+        /// Resolves native companion relations by forward and localized inverse names without symmetric ambiguity.
+        /// </summary>
+        [TestCase("MaterialReference", true, false)]
+        [TestCase("MaterialOf", false, false)]
+        [TestCase("WerkstoffVon", false, false)]
+        [TestCase("ConnectedTo", true, true)]
+        public async Task NativeReferenceTypeNamesResolveTheirDirectionAsync(
+            string name,
+            bool isForward,
+            bool symmetric)
+        {
+            UANodeSet source = CompanionNodeSet();
+            UAReferenceType referenceType = source.Items!.OfType<UAReferenceType>().First();
+            referenceType.InverseName =
+            [
+                new Export.LocalizedText { Locale = "en", Value = "MaterialOf" },
+                new Export.LocalizedText { Locale = "de", Value = "WerkstoffVon" }
+            ];
+            source.Items!.OfType<UAReferenceType>().Last().InverseName =
+                [new Export.LocalizedText { Value = "ConnectedTo" }];
+            var resolver = WotDocumentNodeResolver.FromNodeSets([source]);
+            using WotDocument document = WotDocument.Parse(
+                WotTestData.Utf8(ThingModelWithLink("pump:" + name, null)));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, null, null, resolver).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Reference reference = result.Value!.Items!.OfType<UAObjectType>().Single()
+                .References!.Single(r => r.Value == LocalReferenceType(result.Value, LinkTarget));
+            Assert.That(reference.ReferenceType,
+                Is.EqualTo(LocalReferenceType(result.Value, symmetric ? PumpConnectedTo : PumpMaterialReference)));
+            Assert.That(reference.IsForward, Is.EqualTo(isForward));
         }
 
         [Test]

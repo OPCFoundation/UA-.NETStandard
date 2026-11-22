@@ -771,21 +771,25 @@ actually implements is tracked in
 
 Node managers that implement `IConformanceContributor`, such as the
 companion node managers, contribute the facets and conformance units they
-actually wire. At startup the server registers them with the
-`ConformanceUnitsManager` and publishes the aggregate to
+actually wire. The `ConformanceUnitsManager` reads visible routed managers
+under their generation admissions and publishes the aggregate to
 `Server/ServerCapabilities/ConformanceUnits` and `ServerProfileArray`.
+Hidden managers are not read or advertised. A routed facade supplies its own
+contribution when it implements the interface; otherwise a contributor exposed
+by its synchronous manager or the stack's synchronous adapter is used.
+Applications can also register contributors independently of the lifecycle.
 The startup lifecycle republishes after the actual endpoint descriptions are
 installed, so security-dependent companion claims are evaluated against real
 endpoint policies rather than a placeholder registry.
 
-The manager keeps the registered contributors and reads them again on every
+The manager reads routed and explicitly registered contributors again on every
 `PublishAsync`, because the ServerCapabilities describe the current
 configuration of the server (OPC 10000-5 §6.3.2). A contributor whose
 support changes at runtime calls `PublishAsync` afterwards (the manager is
 `ServerInternalData.ConformanceUnitsManager`); a unit or profile
-that no contributor reports any more is withdrawn. `Unregister` removes a
-contributor. The profiles from the `ServerProfileArray` configuration are
-always kept.
+that no contributor reports any more is withdrawn. `Unregister` removes an
+explicit registration, not a contribution supplied by a visible manager.
+The profiles from the `ServerProfileArray` configuration are always kept.
 
 ### Security policy configuration
 

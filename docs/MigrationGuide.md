@@ -23,8 +23,11 @@ covers cross-cutting changes.
 - [Migrating code that used ApplicationConfiguration.PropertiesLock](#migrating-code-that-used-applicationconfigurationpropertieslock)
 - [Migrating node types that override FindChild or CreateChild](#migrating-node-types-that-override-findchild-or-createchild)
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
+- [Session user identifiers and custom operation contexts](#session-user-identifiers-and-custom-operation-contexts)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Migrating custom NodeManager interfaces](#migrating-custom-nodemanager-interfaces)
+- [Migrating NodeManager registration and runtime creation](#migrating-nodemanager-registration-and-runtime-creation)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
@@ -276,6 +279,7 @@ are null.
 
 | From | To | Where to read |
 | --- | --- | --- |
+| `2.0.2` | `2.0.3` | [`migrate/2.0.3/`](migrate/2.0.3/README.md) — deprecations: `[Obsolete]` warnings (`UA0031`) point at the replacement APIs. The PubSub, WoT connectivity and Boiler sample factories are now asynchronous only, so direct `Create(...)` calls must move to `CreateAsync(...)`. |
 | `1.5.378` | `2.0.x` | [`migrate/2.0.x/`](migrate/2.0.x/README.md) — landing page and symptom-based thematic sub-doc index. |
 | `1.05.377` | `1.05.378` | [§ inline below](#migrating-from-105377-to-105378) — small enough to keep on this page. |
 | `1.04` | `1.05` | [§ inline below](#migrating-from-104-to-105) — small enough to keep on this page. |
@@ -520,6 +524,18 @@ Unbound legacy shared state is not automatically adopted or renumbered. The
 identity module refuses unknown or conflicting stored contracts; see its
 new-store provisioning and migration limits before attaching an existing store.
 
+## Session user identifiers and custom operation contexts
+
+Custom `ISessionOperationContext` implementations must expose `string? ClientUserId`.
+Forward it from the standard request context when wrapping one; otherwise use the
+authenticated token's user identifier, not its display label. Anonymous users
+have a `null` identifier.
+
+`SessionSystemContext.UserId` reports `ClientUserId`. Code that used it as a
+display label should use `UserIdentity.DisplayName` explicitly instead. See
+[session user identifiers](migrate/2.0.x/sessions-subscriptions.md#session-user-identifiers)
+for the token mapping and authorization limits.
+
 ## Removed members on ISession
 
 `ISession.SessionDiagnostics` is removed. It handed out the whole mutable
@@ -605,6 +621,44 @@ await its own drain with `DisposeAsync()`. Await completion outside the
 callback. Server and master-node-manager asynchronous teardown already await
 adapted synchronous managers, so server-owned managers need no additional
 disposal call.
+
+## Migrating custom NodeManager interfaces
+
+Custom managers implementing `INodeManager`, `INodeManager2` or
+`IAsyncNodeManager` directly must update changed signatures. Direct
+`IAsyncNodeManager` implementations also have new required members.
+Subclasses overriding the old monitored-item transfer methods must move their
+overrides to the options-taking methods used by server dispatch. See
+[custom NodeManager interface changes](migrate/2.0.x/node-states.md#custom-nodemanager-interface-changes)
+for the affected methods and deferred initial-value behavior.
+
+The protected `PredefinedNodes` property on `CustomNodeManager2` and
+`AsyncCustomNodeManager`, and the protected `RootNotifiers` property on
+`AsyncCustomNodeManager`, now return `PredefinedNodeDictionary` instead of
+`NodeIdDictionary<NodeState>`. These are binary-breaking changes: recompile
+subclasses and update explicit dictionary types. The indexer and common lookup
+and mutation methods remain available, but the new type is not a
+`ConcurrentDictionary`. Conditional removal and update compare the stored
+node by reference, rather than calling its `Equals` method.
+
+## Migrating NodeManager registration and runtime creation
+
+`MasterNodeManager` constructors that accept preconstructed application
+managers are obsolete. `StandardServer` rejects those managers during startup
+because it cannot isolate their prior construction from serving metadata.
+Register application managers as factories instead. In `CreateMasterNodeManager`
+or `CreateMasterNodeManagerAsync` overrides, combine
+`GetInitialNodeManagerFactories()` with factories for any additional models and
+pass the factories to the master constructor without invoking them. The obsolete
+constructors remain available for standalone dispatch. See
+[startup registration](NodeManagers.md#startup-registration).
+
+For `CustomNodeManager2.CreateNode` calls made while the server is running,
+await `CreateNodeAsync` from an asynchronous caller. The synchronous method is
+obsolete and does not run unresolved monitored-item recovery. The asynchronous
+method creates and indexes the nodes before recovery, so cancellation or a
+recovery failure can throw after the nodes exist. Check the address space before
+retrying.
 
 ## Migrating code that called IServerInternal.Set* mutators
 

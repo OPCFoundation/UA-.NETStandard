@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -35,7 +9,7 @@ using Opc.Ua.Export;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// Indexes the instance declarations a set of Thing Models states, and
+    /// Indexes the instance declarations a set of Thing Models or native NodeSets states, and
     /// answers <see cref="IWotTypeDeclarationResolver"/> over them.
     /// </summary>
     /// <remarks>
@@ -238,35 +212,12 @@ namespace Opc.Ua.Wot
                 : [];
         }
 
-        private ArrayOf<(WotResolvedNode Node, WotBrowsePathElement BrowseName)> GetNativeNodes(bool typesOnly)
+        /// <summary>
+        /// Indexes native declarations without first exporting them as WoT documents.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        internal void AddNodeSet(UANodeSet nodeSet)
         {
-            var nodes = new List<(WotResolvedNode Node, WotBrowsePathElement BrowseName)>();
-            foreach (Entry entry in m_types.Values)
-            {
-                if (entry.NativeNode is { } node && (!typesOnly || node.NodeClass != WotExpectedNodeClass.Any))
-                {
-                    nodes.Add((node, entry.NativeBrowseName));
-                }
-            }
-            return nodes.ToArrayOf();
-        }
-
-        private void AddNativeNodes(WotDocument document)
-        {
-            if (!document.TryGetEnvelope(out _) &&
-                (!document.TryGetNativeProjection(out JsonElement projection) ||
-                    WotNativeProjection.HasUnsupportedProfile(projection)))
-            {
-                return;
-            }
-            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ReadAuthoritativeTypeContext(document);
-            if (!restored.Success || restored.Value is null)
-            {
-                throw new FormatException(
-                    "The authoritative native type context could not be restored. " +
-                    (restored.Diagnostics.Count == 0 ? string.Empty : restored.Diagnostics[0].Message));
-            }
-            UANodeSet nodeSet = restored.Value;
             var references = WotReferenceTypeNames.Build(nodeSet);
             var nodes = new Dictionary<string, UANode>(StringComparer.Ordinal);
             foreach (UANode node in nodeSet.Items ?? [])
@@ -306,6 +257,37 @@ namespace Opc.Ua.Wot
                     NativeBrowseName: new WotBrowsePathElement(namespaceUri, name.Name!), Detail: detail));
                 AddAlias(resolved.NodeId, resolved.NodeId);
             }
+        }
+
+        private ArrayOf<(WotResolvedNode Node, WotBrowsePathElement BrowseName)> GetNativeNodes(bool typesOnly)
+        {
+            var nodes = new List<(WotResolvedNode Node, WotBrowsePathElement BrowseName)>();
+            foreach (Entry entry in m_types.Values)
+            {
+                if (entry.NativeNode is { } node && (!typesOnly || node.NodeClass != WotExpectedNodeClass.Any))
+                {
+                    nodes.Add((node, entry.NativeBrowseName));
+                }
+            }
+            return nodes.ToArrayOf();
+        }
+
+        private void AddNativeNodes(WotDocument document)
+        {
+            if (!document.TryGetEnvelope(out _) &&
+                (!document.TryGetNativeProjection(out JsonElement projection) ||
+                    WotNativeProjection.HasUnsupportedProfile(projection)))
+            {
+                return;
+            }
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ReadAuthoritativeTypeContext(document);
+            if (!restored.Success || restored.Value is null)
+            {
+                throw new FormatException(
+                    "The authoritative native type context could not be restored. " +
+                    (restored.Diagnostics.Count == 0 ? string.Empty : restored.Diagnostics[0].Message));
+            }
+            AddNodeSet(restored.Value);
         }
 
         private void AddNativeEntry(string identity, Entry entry)

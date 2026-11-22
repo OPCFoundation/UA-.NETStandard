@@ -1,6 +1,6 @@
 # Node States and INodeCache
 
-> **When to read this:** Read this when migrating custom NodeManagers, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
+> **When to read this:** Read this when migrating custom NodeManagers, core / diagnostics / configuration manager interfaces, master-manager services, service or transfer overrides, synchronous adapters, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `CoreNodeManager.DataLock` or `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
 ## Contents
 
@@ -8,6 +8,7 @@
   - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
   - [Predefined node processing](#predefined-node-processing)
   - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
+  - [Custom NodeManager interface changes](#custom-nodemanager-interface-changes)
   - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3---new-role-permission-and-method-resolution-hooks)
   - [NodeState guards itself; NodeBrowser is single-consumer (UA0027)](#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
   - [Browse continuation lifetime](#browse-continuation-lifetime)
@@ -247,11 +248,242 @@ track outstanding allocations. Thread the argument into every
 already do. See
 [Custom node types and assignment control](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/NodeManagers.md#custom-node-types-and-assignment-control).
 
+### Custom NodeManager interface changes
+
+Custom managers that implement `INodeManager` or `INodeManager2` directly
+must update their method signatures when moving from 1.5.378 to 2.0. The
+request inputs below use `ArrayOf<T>` instead of `IList<T>`:
+
+| Method | Request input |
+| --- | --- |
+| `Read` | `ArrayOf<ReadValueId>` |
+| `HistoryRead` | `ArrayOf<HistoryReadValueId>` |
+| `Write` | `ArrayOf<WriteValue>` |
+| `HistoryUpdate` | `ArrayOf<HistoryUpdateDetails>` |
+| `Call` | `ArrayOf<CallMethodRequest>` |
+| `CreateMonitoredItems` | `ArrayOf<MonitoredItemCreateRequest>` |
+| `ModifyMonitoredItems` | `ArrayOf<MonitoredItemModifyRequest>` |
+
+The corresponding async service interfaces and overrides take the same
+request inputs. `INodeManager2.GetPermissionMetadata` and
+`IAsyncNodeManager.GetPermissionMetadataAsync` change the cache parameter
+from `Dictionary<NodeId, List<object>>` to `Dictionary<NodeId, Variant[]>`.
+Both `INodeManagerFactory.NamespacesUris` and
+`IAsyncNodeManagerFactory.NamespacesUris` return `ArrayOf<string>` instead
+of `StringCollection`.
+
+This inherited 2.x signature change is an explicit binary-compatibility
+exception. Implementations compiled against the 1.5.378 factory getters must
+be rebuilt against 2.x; a source collection shim cannot satisfy their old
+compiled return signatures. The retained factory-list registration methods
+do not make those old factory implementations binary compatible. The
+exception is recorded in
+[`NativeLifecycleApiExceptions.csv`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tests/Opc.Ua.Server.Tests/NodeManager/NativeLifecycleApiExceptions.csv).
+
+`IConditionRefreshAsyncNodeManager.ConditionRefreshAsync` now returns
+`ValueTask<ServiceResult>` rather than `ValueTask`. Return the refresh
+result from the implementation.
+
+Direct `IAsyncNodeManager` implementations must also provide
+`FindMethodStateAsync`, `SessionActivatedAsync`,
+`ValidateEventRolePermissionsAsync`, `ValidateRolePermissionsAsync`,
+`IsMultipleEventConsumerNode`, `AddNode` and `AddRootNotifier`. The interface
+also inherits `INodeManagementAsyncNodeManager` and `INodeIdFactory`.
+Implement their members as well. If the manager does not accept
+NodeManagement requests, set `AllowNodeManagement` to `false`; the master
+dispatcher rejects requests routed to it with `BadUserAccessDenied`.
+`SessionActivatedAsync` should invalidate cached permissions for monitored
+items belonging to the session when its identity changes.
+
+`TransferMonitoredItems` adds a `MonitoredItemTransferOptions` parameter.
+The async `ITransferMonitoredItemsAsyncNodeManager` method adds the same
+parameter before the cancellation token. When `DeferInitialValues` is true,
+the manager must not call `SetupResendDataTrigger` during the transfer. When
+a coordinated transfer commits, it schedules requested initial values for
+successful items whose source is available. If an item's source is lost, it
+reschedules the lost-node status instead when initial values were requested.
+When the option is false and initial values were requested, the manager
+schedules them for its transferred items as before.
+
+`CustomNodeManager2` and `AsyncCustomNodeManager` retain the old transfer
+overloads as obsolete methods. They forward calls to the new overloads, but
+server dispatch calls the new overloads directly. A subclass that only
+overrides an old overload must move its override to the overload accepting
+`MonitoredItemTransferOptions`; the old override is not invoked by the new
+dispatch path. Review the transfer logic for deferred initial values as part
+of that change.
+
+#### Protected service overrides
+
+Subclasses of `CustomNodeManager2` that override the hooks below must update
+their signatures. In 1.5.378 these hooks accepted `IList<T>` for the request
+collection; the current signatures use the following inputs:
+
+| Protected hook | Request input |
+| --- | --- |
+| `Read` | `ArrayOf<ReadValueId>` |
+| `Write` | `ArrayOf<WriteValue>` |
+| `HistoryRead`, `HistoryReleaseContinuationPoints` | `ArrayOf<HistoryReadValueId>` |
+| `HistoryReadRawModified`, `HistoryReadProcessed` | `ArrayOf<HistoryReadValueId>` |
+| `HistoryReadAtTime`, `HistoryReadEvents` | `ArrayOf<HistoryReadValueId>` |
+| `HistoryUpdate` | `ArrayOf<HistoryUpdateDetails>` |
+| `HistoryUpdateData` | `ArrayOf<UpdateDataDetails>` |
+| `HistoryUpdateStructureData` | `ArrayOf<UpdateStructureDataDetails>` |
+| `HistoryUpdateEvents` | `ArrayOf<UpdateEventDetails>` |
+| `HistoryDeleteRawModified` | `ArrayOf<DeleteRawModifiedDetails>` |
+| `HistoryDeleteAtTime` | `ArrayOf<DeleteAtTimeDetails>` |
+| `HistoryDeleteEvents` | `ArrayOf<DeleteEventDetails>` |
+| `CallInternalAsync(OperationContext, ...)` | `ArrayOf<CallMethodRequest>` |
+
+The result and error collections remain `IList<T>`. For example, a protected
+`Read` override now has this signature:
+
+```csharp
+protected override void Read(
+    ServerSystemContext context,
+    ArrayOf<ReadValueId> nodesToRead,
+    IList<DataValue> values,
+    IList<ServiceResult> errors,
+    List<NodeHandle> nodesToValidate,
+    IDictionary<NodeId, NodeState> cache)
+{
+    base.Read(context, nodesToRead, values, errors, nodesToValidate, cache);
+}
+```
+
+The old protected signatures are not present in the current implementation.
+An override with an old signature will not compile against it. Update the
+override and any base calls, then rebuild the subclass. Compatibility with
+previously compiled 1.5.378 subclasses has not been qualified.
+
+#### Core, diagnostics and configuration managers
+
+`ICoreNodeManager`, `IDiagnosticsNodeManager`, and
+`IConfigurationNodeManager` now extend `IAsyncNodeManager`. Direct
+implementations must provide its async service members as well as the
+specialized interface members. Several synchronous methods from 1.5.378 have
+async replacements:
+
+| Interface | 1.5.378 method | Current method |
+| --- | --- | --- |
+| `ICoreNodeManager` | `ImportNodes` | `ImportNodesAsync` |
+| `IConfigurationNodeManager` | `CreateNamespaceMetadataState` | `CreateNamespaceMetadataStateAsync` |
+| `IConfigurationNodeManager` | `GetNamespaceMetadataState` | `GetNamespaceMetadataStateAsync` |
+| `IDiagnosticsNodeManager` | `AddAggregateFunction`, `AddModellingRule` | Append `Async` |
+| `IDiagnosticsNodeManager` | `CreateServerDiagnostics`, `CreateSessionDiagnostics` | Append `Async` |
+| `IDiagnosticsNodeManager` | `CreateSubscriptionDiagnostics` | Append `Async` |
+| `IDiagnosticsNodeManager` | `DeleteSessionDiagnostics`, `DeleteSubscriptionDiagnostics` | Append `Async` |
+| `IDiagnosticsNodeManager` | `GetDefaultHistoryCapabilities`, `SetDiagnosticsEnabled` | Append `Async` |
+| `IDiagnosticsNodeManager` | `UpdateServerEventNotifier` | Append `Async` |
+
+These replacements return `ValueTask` or `ValueTask<T>` and accept an optional
+`CancellationToken`. Await them and propagate cancellation through your async
+call chain. `GetNamespaceMetadataStateAsync` can return null when no metadata
+node is found. The interfaces also declare new members, including
+`PublishConformanceUnitsAsync` on `IDiagnosticsNodeManager` and
+`DefaultPermissionsChanged` and `DrainPendingApplyChangesAsync` on
+`IConfigurationNodeManager`; review the interface definitions when updating a
+direct implementation.
+
+The three `IMasterNodeManager` properties also return interfaces rather than
+the concrete manager classes:
+
+| Property | Current return type |
+| --- | --- |
+| `CoreNodeManager` | `ICoreNodeManager?` |
+| `DiagnosticsNodeManager` | `IDiagnosticsNodeManager?` |
+| `ConfigurationNodeManager` | `IConfigurationNodeManager?` |
+
+Use the interface members and handle null. The default master resolves these
+properties from the current system slots; a property returns null when its
+slot is withdrawn or its current manager does not implement that role.
+
+`DiagnosticsNodeManager` now derives from `AsyncCustomNodeManager` rather
+than `CustomNodeManager2`; `CoreNodeManager` also derives from
+`AsyncCustomNodeManager`. Review overrides in subclasses against the current
+base classes. For example, the former virtual
+`DiagnosticsNodeManager.UpdateServerEventNotifier` is now
+`UpdateServerEventNotifierAsync(CancellationToken)`.
+
+`CoreNodeManager` no longer exposes the `GetLocalNode` overloads or
+`Find(NodeId, string)`. Its inherited `Find(NodeId)` searches the predefined
+node map and returns `NodeState?`, not `ILocalNode`; it does not translate a
+browse path. Review callers that traverse paths or depend on local-node
+interfaces rather than treating this lookup as a direct replacement.
+
+`CoreNodeManager.DataLock` is also removed. A caller-owned lock does not
+synchronize with manager operations. Code that relied on a sequence remaining
+atomic with other manager calls needs a different coordination design.
+
+`DiagnosticsNodeManager.OnGetMonitoredItems`, `OnResendData`,
+`OnSetSubscriptionDurable`, and `OnUnlockServer` changed from public to
+protected. Calls from outside a subclass no longer compile; review those
+calls against the application operation they implement. This guide does not
+identify a one-for-one replacement. `OnLockServer` remains public, but its
+arguments changed from `IList<object>` inputs and outputs to
+`ArrayOf<Variant>` inputs and `List<Variant>` outputs.
+
+#### Master NodeManager service calls
+
+`IMasterNodeManager` service methods use `ArrayOf<T>` for the following
+request inputs and result values instead of the corresponding 1.5.378
+collection types. Their diagnostic results also use `ArrayOf<DiagnosticInfo>`.
+Update both callers and direct implementations of the interface.
+
+| Method | Request input | Result values |
+| --- | --- | --- |
+| `BrowseAsync` | `ArrayOf<BrowseDescription>` | `ArrayOf<BrowseResult>` |
+| `BrowseNextAsync` | `ArrayOf<ByteString>` | `ArrayOf<BrowseResult>` |
+| `CallAsync` | `ArrayOf<CallMethodRequest>` | `ArrayOf<CallMethodResult>` |
+| `HistoryReadAsync` | `ArrayOf<HistoryReadValueId>` | `ArrayOf<HistoryReadResult>` |
+| `HistoryUpdateAsync` | `ArrayOf<ExtensionObject>` | `ArrayOf<HistoryUpdateResult>` |
+| `ReadAsync` | `ArrayOf<ReadValueId>` | `ArrayOf<DataValue>` |
+| `TranslateBrowsePathsToNodeIdsAsync` | `ArrayOf<BrowsePath>` | `ArrayOf<BrowsePathResult>` |
+| `WriteAsync` | `ArrayOf<WriteValue>` | `ArrayOf<StatusCode>` |
+
+`CreateMonitoredItemsAsync` and `ModifyMonitoredItemsAsync` also take
+`ArrayOf<T>` request inputs, while their result lists remain `IList<T>`.
+`RegisterNodes` takes an `ArrayOf<NodeId>` and writes another to its output
+parameter; `UnregisterNodes` takes an `ArrayOf<NodeId>`.
+`TransferMonitoredItemsAsync` adds `MonitoredItemTransferOptions` before
+the cancellation token.
+
+`ArrayOf<T>` distinguishes a null OPC UA array from an empty one. Check
+`IsNull` where that distinction matters: `ToArray()` returns null for a null
+array, while `ToList()` returns an empty list. See
+[ArrayOf and MatrixOf](types.md#arrayof-and-matrixof) for conversion guidance.
+
+Direct implementations must also provide `SessionActivatedAsync`,
+`FindNodeInAddressSpaceAsync`, `AddNodesAsync`, `DeleteNodesAsync`, and the
+service overloads of `AddReferencesAsync` and `DeleteReferencesAsync`. The
+reference service overloads are separate from the existing overloads that take
+a `NodeId` and a list of references.
+
+#### Synchronous adapter return type
+
+`ToSyncNodeManager` now returns `INodeManager` rather than `INodeManager2`.
+If the supplied async manager already implements `INodeManager`, the factory
+returns it unchanged; that instance might not implement `INodeManager2`.
+Code that needs the extended interface must check the returned instance and
+handle a manager that does not provide it. Compatibility with previously
+compiled 1.5.378 callers and providers has not been qualified.
+
 ### INodeManager3 - new role-permission and method-resolution hooks
 
-2.0 introduces `INodeManager3`, an extension of `INodeManager2` that surfaces explicit hooks for per-role permission evaluation and for resolving the target of a `Call` request. `CustomNodeManager2` implements the new members with safe defaults that mirror the previous behavior, so node managers that already derive from `CustomNodeManager2` need no changes.
+2.0 introduces `INodeManager3`, which extends `INodeManager2` with hooks for
+per-role permission evaluation, session activation and resolving the target
+of a `Call` request. `CustomNodeManager2` implements these members.
 
-Custom node managers that implement `INodeManager` / `INodeManager2` **directly** (not via `CustomNodeManager2`) silently lose the new behavior: the server probes for `INodeManager3` at the call site, and node managers that do not implement it fall through to the legacy code path. This is not a build break - it is a silent feature-availability regression. Either derive from `CustomNodeManager2` or implement `INodeManager3` explicitly to participate in role-permission evaluation and the new method-resolution contract.
+After updating the base interface signatures above, a direct implementation
+of `INodeManager` or `INodeManager2` can omit `INodeManager3`. If a synchronous
+manager also does not implement `IAsyncNodeManager`, its adapter returns
+`Good` for the manager-specific role-validation hooks, returns no method from
+the method-resolution hook and does not call a manager-specific session
+activation hook. Other server authorization checks may still apply. Implement
+`INodeManager3` or derive from `CustomNodeManager2` to participate in those
+hooks. The master's call prevalidation checks the object's and method's
+`Call` permissions only when the method-resolution hook returns a method.
+Review the manager's authorization path if the hook is omitted.
 
 ### NodeState guards itself; NodeBrowser is single-consumer (UA0027)
 
@@ -336,18 +568,33 @@ Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 
 ### Browse continuation lifetime
 
-`IBrowseContinuationDependencies` and `TryGetContinuationDependencies` are no
-longer part of the continuation contract. A Browse continuation records the
-issuing generation weakly and does not retain its NodeManager, routing view, or
-reference targets. `BrowseNext` succeeds only while that generation's gate is
-open; after retirement, the server returns `BadContinuationPointInvalid`.
-Targets on later pages are resolved through the current request view.
+A Browse continuation stores a weak identity for its recorded generation. The
+identity alone does not retain the generation, its NodeManager, or a routing
+view. `ContinuationPoint.Data` and `NodeToBrowse` can still retain cursor data,
+a node handle, or objects reachable from them. The base
+`ContinuationPoint.Dispose` implementation disposes `Data` at most once when it
+implements `IDisposable` but does not clear the property. Unlike 1.5.x, it does
+not catch exceptions from that call. Code that retains the point can therefore
+retain those objects after disposal.
 
-Do not implement dependency enumeration to support pagination. A lazy browser
-can keep its cursor in `ContinuationPoint.Data` and return references through
-`Next()` or `NextAsync()` as before. The standard file-system
-`DirectoryBrowser` continues to work without pre-enumerating entries or
-capturing target owners.
+In 1.5.x, `ContinuationPoint.Manager` stored the assigned manager directly. The
+setter now records a weak generation identity. The getter returns that
+generation's manager when available and `null` when the identity cannot be
+resolved, even though the property is declared non-nullable. A stack adapter can
+resolve to the existing generation of its wrapped manager, so the getter can
+return a different object from the one assigned. Base disposal clears the
+identity, and assigning `null` throws `ArgumentNullException`.
+
+A `BrowseNext` request that resumes a point must enter the recorded generation's
+gate. If entry fails, the server returns `BadContinuationPointInvalid`. A
+release request can dispose the point even if the gate is closed. Targets on
+later pages are resolved through the current request view.
+
+A lazy browser can keep its cursor in `ContinuationPoint.Data` and return
+references through `Next()` or `NextAsync()` as before. The standard file-system
+`DirectoryBrowser` works without pre-enumerating entries or capturing target
+owners. A point that retains this browser can also retain its
+`FileSystemNodeManager` host, even after the point is disposed.
 
 ### NodeBrowser gains an async iteration seam
 

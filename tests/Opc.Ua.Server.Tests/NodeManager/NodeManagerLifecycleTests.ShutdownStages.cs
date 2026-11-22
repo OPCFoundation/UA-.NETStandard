@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -34,6 +8,7 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -81,7 +56,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(manager.Object);
-                await testServer.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+                Registration(
+                    (await CommitChangeAsync(
+                    testServer.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
                 IServerInternal server = testServer.CurrentInstance;
                 timeProvider.Advance(TimeSpan.FromSeconds(1));
                 Assert.That(workerCreations, Is.EqualTo(1));
@@ -139,7 +117,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                 It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(manager.Object);
-            await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+            RequireRegistration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             NodeManagerGeneration application = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
             NodeManagerGeneration core = NodeManagerGenerationRegistry.GetOrCreate(
                 server.NodeManager.CoreNodeManager!);
@@ -198,7 +179,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(manager.Object);
-                await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+                RequireRegistration(
+                    (await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             }
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
@@ -254,7 +238,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(),
                     It.IsAny<CancellationToken>())).ReturnsAsync(manager.Object);
-                await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+                RequireRegistration(
+                    (await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             }
 
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
@@ -321,7 +308,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                 It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(manager.Object);
-            await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+            RequireRegistration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
             Task? first = null;

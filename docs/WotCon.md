@@ -1613,6 +1613,20 @@ through `prepared.SetMetadata(image)`, so one durable decision publishes both
 the new topology and its registry read image.
 Per-generation binding records coordinate callbacks without global binding admission;
 publication still awaits reconciliation and readiness before returning.
+
+For the immediate compatibility path, `LifecycleWotViewProjectionHost.InitializationResult`
+exposes the native, non-owning result of its shared View owner's initialization.
+If that committed initialization reports reconciliation issues, explicitly call
+`await viewHost.RetryReconciliationAsync(ct)` to retry only unfinished native stages.
+This does not prepare another manager, repeat the decision or republish routing;
+before initialization it is a no-op. Concurrent retries join native work, and
+canceling a caller's wait does not cancel admitted recovery. Subsequent `ApplyAsync`
+handles report current issues and omit warnings only after recovery; already returned
+handles remain immutable. `InitializationResult.CleanupFailure` retains the original
+failure even after `Issues` becomes empty. Superseded or non-retryable issues remain
+unresolved warnings, and a failure without issue evidence is not assumed recovered.
+Canonical publication recovery remains the source coordinator's responsibility.
+
 The default lifecycle and file registry with
 genuine immutable-content leases support the four modes. Immediate-only custom
 hosts and `InMemoryWotRegistryStore` do not provide Refresh publication;

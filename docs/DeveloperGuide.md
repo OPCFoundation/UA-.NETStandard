@@ -101,11 +101,16 @@ application-desktop tests. See [Testing UaLens](#testing-ualens) for their comma
 Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
-- **Out-of-tree sample-test output.** When `--artifacts-path` places the WoT
-  aggregation tests outside the checkout, set `OPCUA_TEST_REPOSITORY_ROOT` to
-  the checkout containing `UA.slnx`. The sample fixtures read their original
+- **Out-of-tree source inputs.** When `--artifacts-path` places source-backed
+  fixtures outside the checkout, including repository policy,
+  HTTPS listener, WoT, NodeSet comparer and model/generator tests, set
+  `OPCUA_TEST_REPOSITORY_ROOT` to the checkout containing `UA.slnx`. These fixtures read their original
   repository assets there; no asset or assembly copying is needed. An invalid
   configured root fails explicitly instead of falling back to another checkout.
+  Source-generator runtime probes use Server and Client outputs from the same
+  artifacts directory and output pivot; build both projects with the same options.
+  Reflective MCP probes likewise select the MCP server output beside the current
+  test project's artifacts pivot, not another configuration or target framework.
 - **NUnit 5 async assertions.** Always await `Assert.ThrowsAsync`, `Assert.CatchAsync`, and `Assert.DoesNotThrowAsync`; these methods return tasks and no longer block until the assertion completes. The enclosing test or helper must return `Task`.
 - **WoT registry test storage.** File-backed registry and certificate fixtures
   create unique directories under `Path.GetTempPath()` and delete their own
@@ -125,6 +130,12 @@ Conventions and requirements:
   readiness, also observe the hosted service's execution task so startup failures
   surface immediately instead of becoming repeated readiness timeouts. Port
   retries should probe a new free port rather than choose an unchecked number.
+  A fixture teardown watchdog bounds that fixture only; it must not disable
+  cleanup of independent fixtures later in the same test process.
+- **Allocation assertions.** Use `GC.GetAllocatedBytesForCurrentThread()` on
+  every test target, including net48, and verify that the measured operations
+  stay on that thread. AppDomain-wide counters include unrelated server activity
+  and cannot establish the allocation cost of one operation.
 - **OPC UA null values.** Assert `.IsNull` for structs implementing `INullable`,
   rather than relying on NUnit's generic `Is.Default` constraint.
 - **Test output.** Keep successful-test output compact. NUnit and the test runner retain captured output and create additional copies when forwarding and serializing it to TRX; repeated exhaustive dumps can consume gigabytes of memory, inflate results artifacts, and stall the runner's shared socket (issue #4213). For small failure-only diagnostics, buffer the dump and emit it only when the test does not pass; see `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs). Stream large dumps to files and register them with `TestContext.AddTestAttachment` instead of building a large string or writing every line to `TestContext.Out`. `CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(..., outputResult: true)` follows this pattern: the full listing is a test-result attachment, while inline output contains only the reference count. Keep attachment files until the runner has collected them.
@@ -236,32 +247,114 @@ you need to exercise:
 | Fixture | Scope |
 | --- | --- |
 | `ChangePreparerTests` | Private metadata and candidate ownership |
-| `NodeManagerGenerationTests` | Admission, retirement, quiescence and deferred-event delivery |
-| `StripedCounterTests` | Balanced entries and cross-thread exits |
+| `PreparedNodeManagerTests` | Candidate identity, disposal and retained snapshots |
+| `LifecycleWriterTests` | Mutation ownership, publication sessions and shutdown drain |
+| `NodeManagerRoutingTableTests` | Routing images, reservations and candidate publication |
+| `ConformanceRoutingTests` | Visible conformance contributions and routed facade identity |
+| `NodeManagerGenerationTests` | Slot identity, ownership, admission, quiescence and deferred-event delivery |
+| `StripedCounterTests` | Entries across all stripes and cross-thread exits |
+| `GenerationGateTests` | Generation admission, retirement drain and view-epoch lifetimes |
 | `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
-| `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry and failure behavior |
+| `NodeManagerLifecycleCompatibilityTests` | Primary-contract preparation, argument guards, prepared-owner cleanup, and retirement status |
+| `NodeManagerCleanupAuthorityTests` | Cleanup-recovery authority binding and adapter identity |
+| `NodeManagerCleanupRecoveryTests` | Participant snapshots and sanitized failure descriptions |
+| `NodeManagerCleanupResourceTests` | Exact synchronous and asynchronous verification resources |
+| `NodeManagerHistoryReadScopeTests` | Captured history-read scope and continuation ownership |
+| `HistoryReadContinuationDispatchTests` | History continuation dispatch and generation admission |
+| `GenerationReclaimerTests` | Physical retirement, cleanup retries and generation ownership |
+| `GenerationReconcilerTests` | Session binding, reconciliation retries and result ownership |
+| `NodeManagerCallbackPermitTests` | Callback capabilities, execution-context revocation and borrowed-admission drain |
+| `NodeManagerReadinessScopeTests` | Initializer authority and captured-context revocation |
+| `NodeLookupReadinessRegressionTests` | Readiness-scoped lookup and pinned request routes |
+| `NodeManagerLegacyLookupScopeTests` | Pinned and expired routing views in legacy lookups |
+| `NodeManagerModelChangeScopeTests` | Nested NodeVersion bumps, reentrant writes and scope restoration |
+| `NodeManagerLifecycleBatchConflictTests` | Shared type-image conflicts and candidate historian binding cleanup |
+| `NodeManagerLifecycleChangeSetCleanupTests` | Failed and stale commits, candidate disposal and actual writer drain |
 | `NodeManagerLifecycleTests` | Hosted publication, concurrent candidate claims and startup behavior |
 
-The first five fixtures run without a server. Use them for isolated component
-behavior; use `NodeManagerLifecycleTests` when the test needs real routing,
-publication or server startup. To run the server-free selection:
+Every listed fixture except `NodeManagerLifecycleTests` runs without starting a
+server. The conflict and cleanup fixtures use the real lifecycle and master
+routing publisher over constructed server internals. Use `NodeManagerLifecycleTests`
+when the behavior needs hosted requests, runtime consumers or server startup.
+
+The macOS and net48 CI profiles keep this hosted fixture nonparallel and split
+its methods into disjoint workloads: `Prepared*` first, remaining names starting
+with `A` through `N`, then all remaining names. The matrix generator owns these
+filters; update `CiMatrixScriptTests` and verify the discovered case multiset
+when changing them. Sharding does not relax the per-project timeout or remove
+cases from coverage collection.
+
+To run the component selection:
 
 ```powershell
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
+$fixtures = @(
+    'ChangePreparerTests'
+    'PreparedNodeManagerTests'
+    'LifecycleWriterTests'
+    'NodeManagerRoutingTableTests'
+    'ConformanceRoutingTests'
+    'NodeManagerGenerationTests'
+    'StripedCounterTests'
+    'GenerationGateTests'
+    'NodeManagerRegistrationTests'
+    'NodeManagerLifecycleCompatibilityTests'
+    'NodeManagerCleanupAuthorityTests'
+    'NodeManagerCleanupRecoveryTests'
+    'NodeManagerCleanupResourceTests'
+    'NodeManagerHistoryReadScopeTests'
+    'HistoryReadContinuationDispatchTests'
+    'GenerationReclaimerTests'
+    'GenerationReconcilerTests'
+    'NodeManagerCallbackPermitTests'
+    'NodeManagerReadinessScopeTests'
+    'NodeLookupReadinessRegressionTests'
+    'NodeManagerLegacyLookupScopeTests'
+    'NodeManagerModelChangeScopeTests'
+    'NodeManagerLifecycleBatchConflictTests'
+    'NodeManagerLifecycleChangeSetCleanupTests'
+)
+$filter = ($fixtures | ForEach-Object { "FullyQualifiedName~Opc.Ua.Server.Tests.NodeManager.$_" }) -join '|'
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 -p:CustomTestTarget=net10.0 --filter $filter
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 -p:CustomTestTarget=net48 --filter $filter
 ```
 
 Use fully qualified fixture or method names to select a narrower regression.
-The `Server` and `NodeManagerLifecycle` categories include both component and
-hosted lifecycle tests.
+The `Server` and `NodeManagerLifecycle` categories select some component and
+hosted tests, but not every component fixture has those categories. Use the
+fixture selection above when all listed components are needed. Check the
+selected and executed case names before accepting a filtered run.
 
-`NodeManagerLifecycleChangeSetCleanupTests` constructs an unstarted server and
-captures its actual lifecycle writer through the internal constructor factory.
+`NodeManagerLifecycleTests` creates a unique fixture PKI below the process
+temporary directory and deletes it during fixture teardown. For `net48` on
+Windows, use a short temporary root so certificate filenames remain within
+the legacy path limit:
+
+```powershell
+$env:TEMP = 'D:\temp'
+$env:TMP = $env:TEMP
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 `
+    -p:CustomTestTarget=net48 `
+    --filter 'FullyQualifiedName~Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests'
+```
+
+Keep NUnit's default work directory when running the full solution; other
+fixtures load copied test assets relative to that directory. The lifecycle
+PKI root does not depend on it.
+
+`NodeManagerLifecycleChangeSetCleanupTests` binds the lifecycle's server
+dependencies at construction and captures its actual writer through the
+internal constructor factory. It does not set private fields or rebind a live host.
 The factory must pass the lifecycle's cleanup-completion policy to the writer.
 Keep the exact active-operation counts and inspect the writer's shutdown-drain
 signal before disposing the caller's prepared unit; caller disposal could
 otherwise conceal an admission leak. Do not inspect private writer fields or
 replace the running server's master manager.
+
+Queued-notification retention controls hold a source-validation callback through
+the ownership assertion. Once that callback is released, the consumer may finish
+and allow retirement before the test resumes. Observe the next queued callback
+and release it after the assertion; an earlier release signal does not establish
+that queued work remains pending.
 
 ### Testing UaLens
 
@@ -377,7 +470,7 @@ All rules apply to new code and to existing code you touch. The `.editorconfig` 
 
 **Formatting and style**
 
-- Add the OPC Foundation MIT license header to every new source file.
+- Add the SPDX license header (`SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL` and `SPDX-License-Identifier: MIT`, as `//` comments) to every new source file.
 - 4-space indentation, max line length 120, CRLF line endings, UTF-8, final newline, no trailing whitespace.
 - Allman braces; always specify access modifiers explicitly; member order is constructors → properties/events → methods → fields, each `public` → `protected` → `internal` → `private`.
 - Do **not** use `#region`/`#endregion` or comment-only section dividers. Nullable reference types are enabled for every project in `common.props`: do **not** add `<Nullable>` to a project or `#nullable enable` to a file (only `<auto-generated>` files need the directive).
@@ -603,7 +696,7 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 
 | | Pull request (`buildandtest.yml`) | Full scope (`nightly.yml`) |
 | --- | --- | --- |
-| Test profiles | Windows net48, Windows/Linux/macOS net11.0 | Windows net48, Windows/macOS net10.0, the net10.0 Debug legs, and the tiers that lift the category filter (on net10.0) |
+| Test profiles | Windows net48, Windows/Linux net11.0; macOS net11.0 only on pushes to `master`, `main`, `master378` and `release/*` (pull requests and other branches cover macOS through the Native AoT legs alone) | Windows net48, Windows/macOS net10.0, the net10.0 Debug legs, and the tiers that lift the category filter (on net10.0) |
 | Solution builds | every `.slnx` on Windows for net48/net10.0/net11.0 × Debug/Release, `UA.slnx` on Linux for net10.0/net11.0 | every `.slnx` on Windows for net48/net10.0/net11.0 in Release and net48/net11.0 in Debug, plus the Linux legs (net10.0 and net11.0) |
 | Native AoT | linux-x64, osx-x64, osx-arm64, each on net10.0 and net11.0 | the above plus win-x64 |
 | Coverage | project floors and the graduated patch gate | project floors only |
@@ -631,6 +724,20 @@ Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
 of larger project-specific timeouts. For example, the modern WoT sample suite
 separates ordinary cases, full generation replacement, and native comparisons.
 The matrix records each shard and its filter; no test is dropped to fit a budget.
+
+NUnit projects use `tests/nunit.runsettings.xml` when `dotnet test` runs without
+an explicit settings file. That file and the coverage settings both set
+`AssemblySelectLimit` to `2147483647`. CI also passes the setting on the
+command line. It does not apply to TUnit or NativeAOT test runs.
+
+With the adapter's default command-line settings, an unfiltered `dotnet test`
+run does not hit the 2,000-case limit just because the assembly contains more
+tests. For a non-category filter, the adapter can drop the selection if
+discovery loads more cases than the limit. The adapter also checks the list
+length when it builds a filter from individual test cases. The engine can
+then run tests outside the shard even if VSTest omits them from the TRX.
+For a large filtered run with another settings file, set the limit in that
+file or append `-- NUnit.AssemblySelectLimit=2147483647` to `dotnet test`.
 
 The executor measures build and test time separately. Builds do not consume the
 test-execution budget, but remain bounded by the overall job timeout. The matrix
@@ -723,9 +830,22 @@ The coverage check reports a clean failure when the thresholds are missed, so a 
 
 Every test matrix entry collects coverage while it runs and publishes its raw Cobertura fragment as an artifact. The coverage job then downloads every fragment the run produced, merges them **once** with ReportGenerator, and evaluates the merged report. It never re-runs the tests — doing so serialises a suite that was deliberately fanned out across matrix jobs and blows the job timeout.
 
+Before merging, [`.github/scripts/normalize-coverage.ps1`](../.github/scripts/normalize-coverage.ps1) copies the fragments to a separate empty directory and converts each valid line hit count to zero or one. Negative, missing or malformed counts reject the input. Raw artifacts retain their original execution counts; source paths and branch evidence are unchanged. The pinned ReportGenerator 5.5.11 merges the presence copies to avoid Int32 overflow when large positive counters are added. Merged hit counts represent fragment presence, not execution frequency; use the raw artifacts for frequency analysis. Coverage floors are unchanged.
+
+The copied reports also pass through
+[class-identity preparation](../.github/scripts/prepare-coverage-class-identities.ps1).
+ReportGenerator identifies a partial type's files by basename, so two distinct
+`ApplicationConfiguration.cs` files would otherwise share coverage incorrectly.
+Temporary file-qualified class names keep those files separate across shards.
+The merged Cobertura and HTML reports restore the original class names before
+publication and gate evaluation. Source paths, method data and branch evidence
+are not rewritten.
+
 Coverage is collected only on .NET 8.0 and newer hosts. `coverlet.collector` 10.x ships build assets for net8.0+ only, so a .NET Framework test host cannot load the `XPlat Code Coverage` collector at all — VSTest merely warns and writes nothing. The expander therefore never requests coverage on a `net4*` profile, and `CiMatrixScriptTests` asserts that. The long-running and durable tiers also opt out: they re-run projects the filtered legs already covered, so folding their numbers in would double-count them.
 
 The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), driven by [`coverage-thresholds.json`](../coverage-thresholds.json):
+
+Every measured line must supply a non-negative integer hit count. Missing, negative or malformed counts reject the report, even when the configured coverage floor is zero. Large counts are not narrowed to 32-bit or 64-bit integers. When several classes report the same source line, the gate retains its maximum hit count rather than adding the counts.
 
 | Check | Behaviour |
 | --- | --- |
@@ -775,7 +895,17 @@ The script renders a markdown summary, so you never have to open a raw log to se
 
 > A full-scope `nightly.yml` run reports different numbers from a pull-request run, and that is expected: it merges a different set of profiles.
 
-To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
+To reproduce a CI coverage failure, use the same test fragments and checkout as
+the failing run. Download the `dotnet-results-*` artifacts into
+`coverage-artifacts`, then run the **Merge coverage report** step from
+[`buildandtest.yml`](../.github/workflows/buildandtest.yml) (or
+[`nightly.yml`](../.github/workflows/nightly.yml) for a nightly run) locally.
+That step normalizes hit counts, prepares file identities, merges with
+ReportGenerator 5.5.11, and restores the original file identities. The
+standalone scripts in `tests` produce a local report, not this CI report.
+
+Run the gate against the resulting report. Replace `master` with the run's
+base ref if it compared against a different branch:
 
 ```powershell
 ./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master -SummaryPath ./coverage-summary.md

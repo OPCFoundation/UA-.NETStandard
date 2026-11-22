@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -165,6 +138,16 @@ namespace Opc.Ua.Wot
         private sealed class WotAnalogFacets
         {
             /// <summary>
+            /// The QUDT unit resolved from the engineering-unit identity.
+            /// </summary>
+            public string? UnitIri { get; set; }
+
+            /// <summary>
+            /// The quantity kind resolved from the unit or verified declaration.
+            /// </summary>
+            public string? QuantityKindIri { get; set; }
+
+            /// <summary>
             /// The decoded <c>EngineeringUnits</c> value.
             /// </summary>
             public WotEngineeringUnits? Units { get; set; }
@@ -286,8 +269,7 @@ namespace Opc.Ua.Wot
         private static void WriteAnalogFacets(
             Utf8JsonWriter writer,
             WotAnalogFacets? facets,
-            string defaultLocale,
-            IWotUnitMappingProvider? unitMappingProvider = null)
+            string defaultLocale)
         {
             if (facets is null)
             {
@@ -295,20 +277,19 @@ namespace Opc.Ua.Wot
             }
             if (facets.Units is { } units)
             {
-                IWotUnitMappingProvider mapping = unitMappingProvider ?? s_unitMappingProvider;
-                if (mapping.TryGetMapping(units.NamespaceUri, units.UnitId, out string unitIri, out string? quantityKind))
+                if (facets.UnitIri is { } unitIri)
                 {
                     writer.WritePropertyName("qudt:hasUnit");
                     writer.WriteStartObject();
                     writer.WriteString("@id", unitIri);
                     writer.WriteEndObject();
-                    if (quantityKind is not null)
-                    {
-                        writer.WritePropertyName(WotUnitMigration.QuantityKindTerm);
-                        writer.WriteStartObject();
-                        writer.WriteString("@id", quantityKind);
-                        writer.WriteEndObject();
-                    }
+                }
+                if (facets.QuantityKindIri is { } quantityKind)
+                {
+                    writer.WritePropertyName(WotUnitMigration.QuantityKindTerm);
+                    writer.WriteStartObject();
+                    writer.WriteString("@id", quantityKind);
+                    writer.WriteEndObject();
                 }
                 string? display = SelectLocalizedValue(units.DisplayName, defaultLocale);
                 if (!string.IsNullOrEmpty(display))
@@ -750,25 +731,81 @@ namespace Opc.Ua.Wot
             WotDocument document,
             JsonElement affordance,
             string member,
-            IWotUnitMappingProvider? provider)
+            IWotUnitMappingProvider? provider,
+            IWotQuantityKindMappingProvider? quantityKindProvider)
         {
             if (!TryGetContextNamespace(document, "qudt", out string authority) ||
                 authority != "http://qudt.org/schema/qudt/" ||
                 !MapsUnitProperty(document.RootElement, affordance) ||
                 !TryGetUnitTarget(document.RootElement, affordance, out JsonElement target) ||
                 !target.TryGetProperty(EngineeringUnitsTerm, out JsonElement declared) ||
-                !TryReadEngineeringUnits(declared, out WotEngineeringUnits? units) ||
-                !(provider ?? s_unitMappingProvider).TryGetMapping(
-                    units!.NamespaceUri, units.UnitId, out string unitIri, out string? quantityKind))
+                !TryReadEngineeringUnits(declared, out WotEngineeringUnits? units))
             {
                 return false;
             }
+            ResolveQudtMapping(
+                units!, GetElementString(affordance, "uav:id"), provider, quantityKindProvider,
+                out string? unitIri, out string? quantityKind, out _);
             string? expected = member == WotUnitMigration.QuantityKindTerm ? quantityKind : unitIri;
             return affordance.TryGetProperty(member, out JsonElement unit) &&
                 unit.ValueKind == JsonValueKind.Object &&
                 unit.EnumerateObject().Count() == 1 &&
                 expected is not null &&
                 GetElementString(unit, "@id") == expected;
+        }
+
+        /// <summary>
+        /// Resolves unit identity first, then uses verified declaration semantics only when no unit-level kind exists.
+        /// </summary>
+        private static void ResolveQudtMapping(
+            WotEngineeringUnits units,
+            string? declarationId,
+            IWotUnitMappingProvider? unitProvider,
+            IWotQuantityKindMappingProvider? quantityKindProvider,
+            out string? unitIri,
+            out string? quantityKindIri,
+            out WotQuantityKindMapping? declarationMapping)
+        {
+            unitIri = null;
+            quantityKindIri = null;
+            declarationMapping = null;
+            if ((unitProvider ?? s_unitMappingProvider).TryGetMapping(
+                units.NamespaceUri, units.UnitId, out string resolvedUnit, out string? resolvedKind))
+            {
+                unitIri = resolvedUnit;
+                quantityKindIri = resolvedKind;
+            }
+            if (quantityKindIri is null &&
+                declarationId is not null &&
+                (quantityKindProvider ?? s_quantityKindMappingProvider).TryGetMapping(
+                    declarationId, units.NamespaceUri, units.UnitId, out declarationMapping))
+            {
+                quantityKindIri = declarationMapping.Warning is null ? declarationMapping.QuantityKindIri : null;
+            }
+        }
+
+        /// <summary>
+        /// Reports enrichment provenance or a known source inconsistency without changing source metadata.
+        /// </summary>
+        private static void ReportQuantityKindMapping(
+            WotQuantityKindMapping mapping,
+            string? nodeId,
+            List<WotDiagnostic> diagnostics)
+        {
+            WotDiagnosticCode code = mapping.Warning is null
+                ? WotDiagnosticCode.QuantityKindEnriched
+                : WotDiagnosticCode.EngineeringUnitSemanticConflict;
+            if ((mapping.Warning is null && mapping.QuantityKindIri is null) ||
+                diagnostics.Any(diagnostic => diagnostic.Code == code && diagnostic.Location?.NodeId == nodeId))
+            {
+                return;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                mapping.Warning is null ? WotDiagnosticSeverity.Info : WotDiagnosticSeverity.Warning,
+                code,
+                (mapping.Warning ?? $"Quantity kind '{mapping.QuantityKindIri}' follows the verified declaration.") +
+                $" Source: {mapping.SourceUri}",
+                WotLocation.FromNode(nodeId, "EngineeringUnits")));
         }
 
         /// <summary>

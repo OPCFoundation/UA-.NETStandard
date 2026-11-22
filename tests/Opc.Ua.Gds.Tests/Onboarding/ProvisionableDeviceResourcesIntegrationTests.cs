@@ -346,19 +346,19 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     useSecurity: false).ConfigureAwait(false);
                 sessionActive = true;
 
-                await using IPreparedNodeManagerBatch preparedAdd = await server.NodeManagerLifecycle
+                await using IPreparedChanges preparedAdd = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [NodeManagerBatchChange.Add(
+                        [LifecycleChange.Add(
                             new ProvisionableDeviceNodeManagerFactory(runtime1.Object))],
                         cancellationToken)
                     .ConfigureAwait(false);
-                NodeManagerBatchResult added = await preparedAdd
-                    .CommitAsync(_ => default, cancellationToken)
+                LifecycleResult added = await preparedAdd
+                    .CommitAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
                 Assert.That(added.CleanupFailure, Is.Null);
                 Assert.That(added.Registrations, Has.Count.EqualTo(1));
-                NodeManagerRegistration registration1 = added.Registrations[0];
-                retirements.Add(added.Retirement);
+                NodeManagerSlot slot1 = added.Registrations[0].Slot;
+                retirements.Add(added.Retired);
 
                 await AssertResourcesBindingAsync(
                     server, requestHeader, secureChannelContext, expectedPresent: true, cancellationToken)
@@ -378,23 +378,23 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 runtime1.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
 
-                await using IPreparedNodeManagerBatch preparedReplace = await server.NodeManagerLifecycle
+                await using IPreparedChanges preparedReplace = await server.NodeManagerLifecycle
                     .PrepareAsync(
                         [
-                            NodeManagerBatchChange.Replace(
-                                registration1,
+                            LifecycleChange.Replace(
+                                slot1,
                                 new ProvisionableDeviceNodeManagerFactory(runtime2.Object))
                         ],
                         cancellationToken)
                     .ConfigureAwait(false);
-                NodeManagerBatchResult replaced = await preparedReplace
-                    .CommitAsync(_ => default, cancellationToken)
+                LifecycleResult replaced = await preparedReplace
+                    .CommitAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
                 Assert.That(replaced.CleanupFailure, Is.Null);
                 Assert.That(replaced.Registrations, Has.Count.EqualTo(1));
-                NodeManagerRegistration replacementRegistration = replaced.Registrations[0];
-                retirements.Add(replaced.Retirement);
-                await replaced.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+                NodeManagerSlot replacementSlot = replaced.Registrations[0].Slot;
+                retirements.Add(replaced.Retired);
+                await replaced.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
 
                 // Verify the retired generation's cleanup did not remove the replacement's Resources binding.
                 await AssertResourcesBindingAsync(
@@ -451,17 +451,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 runtime2.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
 
-                await using IPreparedNodeManagerBatch preparedRemove = await server.NodeManagerLifecycle
+                await using IPreparedChanges preparedRemove = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [NodeManagerBatchChange.Remove(replacementRegistration)],
+                        [LifecycleChange.Remove(replacementSlot)],
                         cancellationToken)
                     .ConfigureAwait(false);
-                NodeManagerBatchResult removed = await preparedRemove
-                    .CommitAsync(_ => default, cancellationToken)
+                LifecycleResult removed = await preparedRemove
+                    .CommitAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
                 Assert.That(removed.CleanupFailure, Is.Null);
-                retirements.Add(removed.Retirement);
-                await removed.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+                retirements.Add(removed.Retired);
+                await removed.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
 
                 await AssertResourcesBindingAsync(
                     server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
@@ -481,9 +481,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(removedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(removedCall.OutputArguments, Is.Empty);
 
-                await using (IPreparedNodeManagerBatch abandonedFreshAdd = await server.NodeManagerLifecycle
+                await using (IPreparedChanges abandonedFreshAdd = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [NodeManagerBatchChange.Add(
+                        [LifecycleChange.Add(
                             new ProvisionableDeviceNodeManagerFactory(runtime3.Object))],
                         cancellationToken)
                     .ConfigureAwait(false))
@@ -509,12 +509,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 runtime3.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Never);
 
-                NodeManagerRegistration? freshRegistration = null;
+                NodeManagerSlot? freshSlot = null;
                 try
                 {
-                    await using IPreparedNodeManagerBatch preparedFreshAdd = await server.NodeManagerLifecycle
+                    await using IPreparedChanges preparedFreshAdd = await server.NodeManagerLifecycle
                         .PrepareAsync(
-                            [NodeManagerBatchChange.Add(
+                            [LifecycleChange.Add(
                                 new ProvisionableDeviceNodeManagerFactory(runtime3.Object))],
                             cancellationToken)
                         .ConfigureAwait(false);
@@ -525,13 +525,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     await AssertResourcesBindingAsync(
                         server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
                         .ConfigureAwait(false);
-                    NodeManagerBatchResult freshAdded = await preparedFreshAdd
-                        .CommitAsync(_ => default, cancellationToken)
+                    LifecycleResult freshAdded = await preparedFreshAdd
+                        .CommitAsync(cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
-                    retirements.Add(freshAdded.Retirement);
+                    retirements.Add(freshAdded.Retired);
                     if (freshAdded.Registrations.Count == 1)
                     {
-                        freshRegistration = freshAdded.Registrations[0];
+                        freshSlot = freshAdded.Registrations[0].Slot;
                     }
                     Assert.That(freshAdded.CleanupFailure, Is.Null);
                     Assert.That(freshAdded.Registrations, Has.Count.EqualTo(1));
@@ -556,19 +556,19 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 }
                 finally
                 {
-                    if (freshRegistration is not null)
+                    if (freshSlot is { } publishedSlot)
                     {
-                        await using IPreparedNodeManagerBatch preparedFreshRemove = await server.NodeManagerLifecycle
+                        await using IPreparedChanges preparedFreshRemove = await server.NodeManagerLifecycle
                             .PrepareAsync(
-                                [NodeManagerBatchChange.Remove(freshRegistration)],
+                                [LifecycleChange.Remove(publishedSlot)],
                                 cancellationToken)
                             .ConfigureAwait(false);
-                        NodeManagerBatchResult freshRemoved = await preparedFreshRemove
-                            .CommitAsync(_ => default, cancellationToken)
+                        LifecycleResult freshRemoved = await preparedFreshRemove
+                            .CommitAsync(cancellationToken: cancellationToken)
                             .ConfigureAwait(false);
                         Assert.That(freshRemoved.CleanupFailure, Is.Null);
-                        retirements.Add(freshRemoved.Retirement);
-                        await freshRemoved.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        retirements.Add(freshRemoved.Retired);
+                        await freshRemoved.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
                     }
                 }
 
@@ -699,13 +699,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     TestContext.CurrentContext.Test.Name,
                     useSecurity: false).ConfigureAwait(false);
 
-                await using IPreparedNodeManagerBatch preparedOld = await server.NodeManagerLifecycle
+                await using IPreparedChanges preparedOld = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [NodeManagerBatchChange.Add(new ProvisionableDeviceNodeManagerFactory(oldRuntime.Object))],
+                        [LifecycleChange.Add(new ProvisionableDeviceNodeManagerFactory(oldRuntime.Object))],
                         cancellationToken).ConfigureAwait(false);
-                NodeManagerBatchResult oldAdded = await preparedOld.CommitAsync(_ => default, cancellationToken)
+                LifecycleResult oldAdded = await preparedOld.CommitAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
-                retirements.Add(oldAdded.Retirement);
+                retirements.Add(oldAdded.Retired);
                 Assert.That(oldAdded.CleanupFailure, Is.Null);
                 Assert.That(oldAdded.Registrations, Has.Count.EqualTo(1));
                 await AssertResourcesBindingAsync(
@@ -715,16 +715,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 var pinnedHeader = new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken };
                 pinnedCall = RequestTicketsAsync(server, pinnedHeader, secureChannelContext, cancellationToken);
                 await entered.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-                await using IPreparedNodeManagerBatch preparedRemove = await server.NodeManagerLifecycle
+                await using IPreparedChanges preparedRemove = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [NodeManagerBatchChange.Remove(oldAdded.Registrations[0])],
+                        [LifecycleChange.Remove(oldAdded.Registrations[0].Slot)],
                         cancellationToken).ConfigureAwait(false);
-                NodeManagerBatchResult removed = await preparedRemove.CommitAsync(_ => default, cancellationToken)
+                LifecycleResult removed = await preparedRemove.CommitAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
-                retirements.Add(removed.Retirement);
+                retirements.Add(removed.Retired);
                 Assert.That(removed.CleanupFailure, Is.Null);
                 Assert.That(pinnedCall.IsCompleted, Is.False);
-                Assert.That(removed.Retirement.IsCompleted, Is.False);
+                Assert.That(removed.Retired.IsCompleted, Is.False);
                 NodeState resources = server.CurrentInstance.DiagnosticsNodeManager
                     .FindPredefinedNode<NodeState>(Ua.ObjectIds.Resources) ??
                     throw new AssertionException("The standard Resources node must remain available.");
@@ -734,13 +734,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     server, requestHeader, secureChannelContext, expectedPresent: false, cancellationToken)
                     .ConfigureAwait(false);
 
-                await using (IPreparedNodeManagerBatch abandoned = await server.NodeManagerLifecycle
+                await using (IPreparedChanges abandoned = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [NodeManagerBatchChange.Add(new ProvisionableDeviceNodeManagerFactory(abandonedRuntime.Object))],
+                        [LifecycleChange.Add(new ProvisionableDeviceNodeManagerFactory(abandonedRuntime.Object))],
                         cancellationToken).ConfigureAwait(false))
                 {
                     Assert.That(pinnedCall.IsCompleted, Is.False);
-                    Assert.That(removed.Retirement.IsCompleted, Is.False);
+                    Assert.That(removed.Retired.IsCompleted, Is.False);
                     Assert.That(resources.ReferenceExists(
                         Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
                     await AssertResourcesBindingAsync(
@@ -755,7 +755,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Assert.That(stagedCall.OutputArguments, Is.Empty);
                 }
                 Assert.That(pinnedCall.IsCompleted, Is.False);
-                Assert.That(removed.Retirement.IsCompleted, Is.False);
+                Assert.That(removed.Retired.IsCompleted, Is.False);
                 Assert.That(resources.ReferenceExists(
                     Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
                 await AssertResourcesBindingAsync(
@@ -771,19 +771,19 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 abandonedRuntime.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Never);
 
-                await using IPreparedNodeManagerBatch preparedFresh = await server.NodeManagerLifecycle
+                await using IPreparedChanges preparedFresh = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [NodeManagerBatchChange.Add(new ProvisionableDeviceNodeManagerFactory(freshRuntime.Object))],
+                        [LifecycleChange.Add(new ProvisionableDeviceNodeManagerFactory(freshRuntime.Object))],
                         cancellationToken).ConfigureAwait(false);
                 Assert.That(resources.ReferenceExists(
                     Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
-                NodeManagerBatchResult freshAdded = await preparedFresh.CommitAsync(_ => default, cancellationToken)
+                LifecycleResult freshAdded = await preparedFresh.CommitAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
-                retirements.Add(freshAdded.Retirement);
+                retirements.Add(freshAdded.Retired);
                 Assert.That(freshAdded.CleanupFailure, Is.Null);
                 Assert.That(freshAdded.Registrations, Has.Count.EqualTo(1));
                 Assert.That(pinnedCall.IsCompleted, Is.False);
-                Assert.That(removed.Retirement.IsCompleted, Is.False);
+                Assert.That(removed.Retired.IsCompleted, Is.False);
                 Assert.That(resources.ReferenceExists(
                     Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.True);
                 await AssertResourcesBindingAsync(
@@ -807,7 +807,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(oldCall.OutputArguments.Count, Is.EqualTo(1));
                 Assert.That(oldCall.OutputArguments[0].TryGetValue(out ArrayOf<string> oldTickets), Is.True);
                 Assert.That(oldTickets.ToArray(), Is.EqualTo(s_oldGenerationTickets));
-                await removed.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await removed.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
 
                 Assert.That(resources.ReferenceExists(
                     Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.True);
@@ -831,15 +831,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 abandonedRuntime.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Never);
 
-                await using IPreparedNodeManagerBatch preparedFinalRemove = await server.NodeManagerLifecycle
+                await using IPreparedChanges preparedFinalRemove = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [NodeManagerBatchChange.Remove(freshAdded.Registrations[0])],
+                        [LifecycleChange.Remove(freshAdded.Registrations[0].Slot)],
                         cancellationToken).ConfigureAwait(false);
-                NodeManagerBatchResult finalRemoved = await preparedFinalRemove
-                    .CommitAsync(_ => default, cancellationToken).ConfigureAwait(false);
-                retirements.Add(finalRemoved.Retirement);
+                LifecycleResult finalRemoved = await preparedFinalRemove
+                    .CommitAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                retirements.Add(finalRemoved.Retired);
                 Assert.That(finalRemoved.CleanupFailure, Is.Null);
-                await finalRemoved.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await finalRemoved.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
                 Assert.That(resources.ReferenceExists(
                     Ua.ReferenceTypeIds.Organizes, false, new NodeId(29878u)), Is.False);
                 await AssertResourcesBindingAsync(

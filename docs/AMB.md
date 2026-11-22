@@ -602,7 +602,8 @@ IRDI in the namespace `http://opcfoundation.org/UA/Dictionary/IRDI`
 the entry is defined. "AMB Classification" counts only such references. `RelatesTo` with a hierarchical
 reference makes a sub-asset, with a non-hierarchical one - `0:Utilizes`,
 `0:IsPhysicallyConnectedTo` and the other OPC 10000-23 references - a
-relation; the target gets the inverse reference.
+relation; the target gets the inverse reference. For assets in the same NodeManager,
+this works during startup setup, before ordinary requests can browse the assets.
 
 ## Conformance matrix
 

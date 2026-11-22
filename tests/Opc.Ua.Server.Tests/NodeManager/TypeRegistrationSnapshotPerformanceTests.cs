@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics;
@@ -128,13 +101,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     for (int ii = 0; ii < revisions.Length; ii++)
                     {
-                        Assert.That(revisions[ii].Types, Is.SameAs(types));
-                        Assert.That(revisions[ii].TypeRevision, Is.EqualTo(revisions[0].TypeRevision));
-                        Assert.That(revisions[ii].Factory, Is.SameAs(revisions[0].Factory));
-                        Assert.That(revisions[ii].FactoryRevision, Is.EqualTo(revisions[0].FactoryRevision));
-                        Assert.That(revisions[ii].RoutingRevision, Is.SameAs(revisions[0].RoutingRevision));
+                        Assert.That(revisions[ii].Owner, Is.SameAs(writer));
+                        Assert.That(revisions[ii].Server, Is.SameAs(server.Object));
+                        Assert.That(revisions[ii].OwnerHost, Is.SameAs(host.Object));
+                        Assert.That(revisions[ii].MatchesServer(server.Object), Is.True);
+                        Assert.That(revisions[ii].IsCurrent(), Is.True);
                     }
                 }
+                server.SetupGet(value => value.TypeTree).Returns(CreateTypeTable(64));
+                Assert.That(revisions.Select(revision => revision.IsCurrent()), Has.All.False);
+                server.SetupGet(value => value.TypeTree).Returns(types);
+                Assert.That(revisions.Select(revision => revision.IsCurrent()), Has.All.True);
             }
         }
 
@@ -239,6 +216,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable.RoutingSnapshot routingRevision = routing.Revision;
             var host = new Mock<IDynamicNodeManagerHost>();
             host.SetupGet(value => value.RoutingRevision).Returns(routingRevision);
+            IMasterNodeManager master = host.As<IMasterNodeManager>().Object;
+            server.SetupGet(value => value.NodeManager).Returns(master);
+            // Materialize the lazily created proxy before capture workers can race their first Object access.
+            _ = server.Object;
             return (new LifecycleWriter(), server, host);
         }
     }

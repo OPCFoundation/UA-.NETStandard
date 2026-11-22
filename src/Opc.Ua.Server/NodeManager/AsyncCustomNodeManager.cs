@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -123,7 +98,9 @@ namespace Opc.Ua.Server
                   server,
                   configuration,
                   useSamplingGroups,
+#pragma warning disable CS0618, UA0031 // Keeps the established logger category.
                   server.Telemetry.CreateLogger<CustomNodeManager2>(),
+#pragma warning restore CS0618, UA0031
                   namespaceUris)
         {
         }
@@ -184,7 +161,9 @@ namespace Opc.Ua.Server
             // from their browse path unless a sub-class picks another rule.
             m_nodeIdFactory = ResolveNodeIdFactory(server, DefaultNamespaceIndex);
 
+#pragma warning disable CS0618, UA0031 // Creates the legacy SyncNodeManager view.
             m_syncNodeManager = (INodeManager3)this.ToSyncNodeManager();
+#pragma warning restore CS0618, UA0031
 
             // create a monitored item manager that owns sampling groups / monitoredNodes
             if (useSamplingGroups)
@@ -828,12 +807,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        protected PredefinedNodeDictionary PredefinedNodes { get; }
 
         /// <summary>
         /// The root notifiers for the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> RootNotifiers { get; }
+        protected PredefinedNodeDictionary RootNotifiers { get; }
 
         /// <summary>
         /// Gets the table of nodes being monitored.
@@ -869,14 +848,14 @@ namespace Opc.Ua.Server
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
                 m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle ||
-                monitoredItem is not IMonitoredItemGenerationBinding)
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return StatusCodes.BadNotSupported;
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            await NodeManagerGenerationRegistry.GetOrCreate(this)
+            await MasterNodeManager.GetItemSourceGeneration(Server, this, binding)
                 .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
             return await ReleaseMonitoredItemSourceAsync(
                 context,
@@ -904,12 +883,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            if (monitoredItem is not IMonitoredItemGenerationBinding ||
+            if (monitoredItem is not IMonitoredItemGenerationBinding binding ||
                 m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle)
             {
                 return StatusCodes.BadNotSupported;
             }
-            await NodeManagerGenerationRegistry.GetOrCreate(this)
+            await MasterNodeManager.GetItemSourceGeneration(Server, this, binding)
                 .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
             (ServiceResult result, bool changed) = await AdoptMonitoredItemSourceAsync(
                 monitoredItem,
@@ -1057,7 +1036,7 @@ namespace Opc.Ua.Server
             bool restoredNative = false;
             long sourceRevision = 0;
             var binding = (IMonitoredItemGenerationBinding)monitoredItem;
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this);
+            NodeManagerGeneration generation = MasterNodeManager.GetItemSourceGeneration(Server, this, binding);
             bool isEvent =
                 (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
             ServiceResult result;
@@ -1208,6 +1187,7 @@ namespace Opc.Ua.Server
         /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
         /// </summary>
         /// <exception cref="AggregateException"></exception>
+        /// <exception cref="InvalidOperationException">The adopted source has no generation.</exception>
         private async ValueTask<(ServiceResult Result, bool Changed)> AdoptMonitoredItemSourceAsync(
             IMonitoredItem monitoredItem,
             MonitoredItemAdoption adoption,
@@ -1280,6 +1260,7 @@ namespace Opc.Ua.Server
             }
 
             MonitoredNode2? monitoredNode = null;
+            NodeManagerGeneration? boundGeneration = null;
             bool changed = false;
             long boundRevision = 0;
             ServiceResult result;
@@ -1295,6 +1276,8 @@ namespace Opc.Ua.Server
                         RemoveNodeFromComponentCache,
                         sourceRevision,
                         adoption);
+                    boundGeneration = adoption.Generation;
+                    adoption.Generation = null;
                     if (ServiceResult.IsBad(result) || !changed)
                     {
                         return (result, changed);
@@ -1320,6 +1303,10 @@ namespace Opc.Ua.Server
                     if (monitoredNode == null)
                     {
                         return (result, changed);
+                    }
+                    if (boundGeneration is null)
+                    {
+                        throw new InvalidOperationException("The adopted source has no generation.");
                     }
                     source.SetAreEventsMonitored(context, true, true);
                 }
@@ -1382,7 +1369,7 @@ namespace Opc.Ua.Server
                         removed = true;
                     }
                 }
-                if (removed)
+                if (removed && boundGeneration is not null)
                 {
                     try
                     {
@@ -1393,7 +1380,7 @@ namespace Opc.Ua.Server
                         compensationException is not OutOfMemoryException)
                     {
                         compensationFailures.Add(compensationException);
-                        NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this);
+                        NodeManagerGeneration generation = boundGeneration;
                         generation.RetainSourceRelease(monitoredItem, boundRevision, async _ =>
                         {
                             if (!await HasNewerNativeSourceAsync(
@@ -1496,7 +1483,9 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+#pragma warning disable CS0618, UA0031 // Implements IAsyncNodeManager.SyncNodeManager, still needed by the runtime.
         public INodeManager SyncNodeManager => m_syncNodeManager;
+#pragma warning restore CS0618, UA0031
 
         /// <summary>
         /// Marks a node for dynamic scaling of event consumer tasks. When a
@@ -2409,15 +2398,9 @@ namespace Opc.Ua.Server
                     instance.AddReference(item.ReferenceTypeId, true, parentNodeId);
                 }
 
-                NodeId previousAddNodeId = m_addNodesNodeId.Value;
-                m_addNodesNodeId.Value = newNodeId;
-                try
+                using (new NodeManagerAmbientScope<NodeId>(m_addNodesNodeId, newNodeId))
                 {
                     await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_addNodesNodeId.Value = previousAddNodeId;
                 }
 
                 // Remote parents need an explicit reference added through their owning manager.
@@ -3725,18 +3708,13 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
-            int depth = m_registrationDepth.Value;
-            m_registrationDepth.Value = depth + 1;
+            bool nested = NodeManagerAmbientScope<bool>.GetValue(m_registrationScope);
             NodeState active;
-            try
+            using (new NodeManagerAmbientScope<bool>(m_registrationScope, true))
             {
                 active = await AddPredefinedNodeCoreAsync(context, node, cancellationToken).ConfigureAwait(false);
             }
-            finally
-            {
-                m_registrationDepth.Value = depth;
-            }
-            if (depth == 0)
+            if (!nested)
             {
                 m_localAddressSpace?.NotifyAdded(active);
             }
@@ -3850,13 +3828,9 @@ namespace Opc.Ua.Server
 
                 if (RequiresInstanceNodeIdRepair(candidate))
                 {
-                    if (!candidate.NodeId.IsNull &&
-                        PredefinedNodes.TryGetValue(
-                            candidate.NodeId,
-                            out NodeState? indexedNode) &&
-                        ReferenceEquals(indexedNode, candidate))
+                    if (!candidate.NodeId.IsNull)
                     {
-                        PredefinedNodes.TryRemove(candidate.NodeId, out _);
+                        PredefinedNodes.TryRemove(candidate.NodeId, candidate);
                     }
 
                     NodeId previousNodeId = context.AssignInstanceNodeId(candidate);
@@ -4047,12 +4021,13 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
-            if (!m_addNodesNodeId.Value.IsNull)
+            NodeId reservedNodeId = NodeManagerAmbientScope<NodeId>.GetValue(m_addNodesNodeId);
+            if (!reservedNodeId.IsNull)
             {
                 // a subtree added by AddNodes never replaces a node: its identifiers
                 // derive from a NodeId the client may choose.
                 if (!PredefinedNodes.TryAdd(activeNode.NodeId, activeNode) &&
-                    (m_addNodesNodeId.Value == activeNode.NodeId ||
+                    (reservedNodeId == activeNode.NodeId ||
                         !PredefinedNodes.TryGetValue(activeNode.NodeId, out NodeState? existing) ||
                         !ReferenceEquals(existing, activeNode)))
                 {
@@ -4100,7 +4075,7 @@ namespace Opc.Ua.Server
             List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken = default)
         {
-            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+            if (!PredefinedNodes.TryRemove(node.NodeId, node))
             {
                 return;
             }
@@ -4478,6 +4453,7 @@ namespace Opc.Ua.Server
         public virtual async ValueTask DeleteAddressSpaceAsync(
             CancellationToken cancellationToken = default)
         {
+            NodeState[] notifiers = [.. RootNotifiers.Values];
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
             List<LocalReference> referencesToRemove =
@@ -4498,7 +4474,7 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+                if (!PredefinedNodes.TryRemove(node.NodeId, node))
                 {
                     continue;
                 }
@@ -4526,7 +4502,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            foreach (NodeState notifier in RootNotifiers.Values)
+            foreach (NodeState notifier in notifiers)
             {
                 await RemoveRootNotifierAsync(notifier, cancellationToken).ConfigureAwait(false);
             }
@@ -6594,6 +6570,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
+            List<NodeHandle>? deferred = null;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
@@ -6635,6 +6612,7 @@ namespace Opc.Ua.Server
                     // must validate node in a separate operation
                     handle.Index = ii;
                     nodesToProcess.Add(handle);
+                    (deferred ??= []).Add(handle);
 
                     continue;
                 }
@@ -6649,12 +6627,15 @@ namespace Opc.Ua.Server
                     // enforce the effective user access level for the current
                     // session: a node may advertise HistoryRead in AccessLevel
                     // but deny it to the current user via UserAccessLevel.
-                    byte userAccessLevel = variable.UserAccessLevel;
-                    variable.OnReadUserAccessLevel?.Invoke(systemContext, variable, ref userAccessLevel);
-
-                    if ((userAccessLevel & AccessLevels.HistoryRead) == 0)
+                    ServiceResult access = await ValidateHistoryVariableAccessAsync(
+                        systemContext,
+                        variable,
+                        AccessLevels.HistoryRead,
+                        PermissionType.ReadHistory,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(access))
                     {
-                        errors[ii] = StatusCodes.BadUserAccessDenied;
+                        errors[ii] = access;
                         continue;
                     }
 
@@ -6672,6 +6653,17 @@ namespace Opc.Ua.Server
                     nodesToProcess.Add(handle);
                 }
             }
+
+            // the access checks above need the node: apply them to the handles
+            // that are resolved only now.
+            await ValidateDeferredAnnotationsAccessAsync(
+                systemContext,
+                deferred,
+                default,
+                errors,
+                nodesToProcess,
+                operationCache,
+                cancellationToken).ConfigureAwait(false);
 
             // check for nothing to do.
             if (nodesToProcess.Count == 0)
@@ -6752,6 +6744,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves a data historian only for a variable node.
+        /// </summary>
+        private bool TryResolveDataHistorianProvider(
+            NodeState node,
+            [NotNullWhen(true)] out IHistorianProvider? provider)
+        {
+            provider = node is BaseVariableState ? ResolveHistorianProvider(node) : null;
+            return provider != null;
+        }
+
+        /// <summary>
         /// Resolves the historian provider for a history read, preferring the provider restored with the continuation
         /// point being resumed over the currently registered provider.
         /// </summary>
@@ -6764,20 +6767,128 @@ namespace Opc.Ua.Server
                 .GetRestoredHistoryProvider(node.NodeId) ?? ResolveHistorianProvider(node);
         }
 
-        private static bool HasHistoryWritePermission(
+        /// <summary>
+        /// Checks that the user may run a history operation on a variable: the effective
+        /// user access level of the variable must include the operation. An operation on
+        /// an Annotations property is routed to the annotations of the parent variable,
+        /// so the user access level, role permissions and access restrictions of that
+        /// variable apply in addition to those of the property.
+        /// </summary>
+        private async ValueTask<ServiceResult> ValidateHistoryVariableAccessAsync(
             ServerSystemContext context,
-            BaseVariableState variable)
+            BaseVariableState variable,
+            byte requiredAccessLevel,
+            PermissionType requiredPermission,
+            CancellationToken cancellationToken)
         {
-            BaseVariableState accessNode = variable;
-
-            if (HistorianDispatcher.IsAnnotationsProperty(variable))
+            ServiceResult access = HistorianDispatcher.ValidateUserAccessLevel(
+                context, variable, requiredAccessLevel);
+            if (ServiceResult.IsBad(access))
             {
-                accessNode = HistorianDispatcher.GetAnnotationsParent(variable) ?? variable;
+                return access;
             }
 
-            byte userAccessLevel = accessNode.UserAccessLevel;
-            accessNode.OnReadUserAccessLevel?.Invoke(context, accessNode, ref userAccessLevel);
-            return (userAccessLevel & AccessLevels.HistoryWrite) != 0;
+            if (!HistorianDispatcher.IsAnnotationsProperty(variable) ||
+                HistorianDispatcher.GetAnnotationsParent(variable) is not { } parent)
+            {
+                return ServiceResult.Good;
+            }
+
+            access = HistorianDispatcher.ValidateUserAccessLevel(context, parent, requiredAccessLevel);
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
+
+            if (context.OperationContext is not { } operationContext)
+            {
+                return ServiceResult.Good;
+            }
+
+            return await ValidatePermissionsAsync(
+                operationContext,
+                parent.NodeId,
+                parent,
+                requiredPermission,
+                null,
+                permissionsOnly: true,
+                logger: null,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Applies the access checks of an Annotations property to the handles whose
+        /// node was not known when the request was scanned. A handle that resolves to
+        /// an Annotations property the user may not access is removed from the nodes
+        /// to process, so that it never reaches a history hook or provider.
+        /// </summary>
+        /// <param name="context">The system context of the operation.</param>
+        /// <param name="deferred">The handles without a node; may be null.</param>
+        /// <param name="nodesToUpdate">The update details, or default for a history read.</param>
+        /// <param name="errors">The operation results.</param>
+        /// <param name="nodesToProcess">The handles passed on to the history hooks.</param>
+        /// <param name="cache">The node cache of the operation.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask ValidateDeferredAnnotationsAccessAsync(
+            ServerSystemContext context,
+            List<NodeHandle>? deferred,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken)
+        {
+            if (deferred == null)
+            {
+                return;
+            }
+
+            bool isUpdate = !nodesToUpdate.IsNull;
+            foreach (NodeHandle handle in deferred)
+            {
+                NodeState? source;
+                try
+                {
+                    source = await ValidateNodeAsync(context, handle, cache, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    // a handle that could not be resolved was not checked: it must
+                    // not reach a history hook that may resolve it on a second try.
+                    errors[handle.Index] = new ServiceResult(exception);
+                    nodesToProcess.Remove(handle);
+                    continue;
+                }
+
+                if (source == null)
+                {
+                    // same for a handle that resolves to no node: the error set
+                    // when the request was scanned (BadNodeIdUnknown) stands.
+                    nodesToProcess.Remove(handle);
+                    continue;
+                }
+
+                if (source is not BaseVariableState variable ||
+                    !HistorianDispatcher.IsAnnotationsProperty(variable))
+                {
+                    continue;
+                }
+
+                ServiceResult access = await ValidateHistoryVariableAccessAsync(
+                    context,
+                    variable,
+                    isUpdate ? AccessLevels.HistoryWrite : AccessLevels.HistoryRead,
+                    isUpdate
+                        ? MasterNodeManager.DetermineHistoryAccessPermission(nodesToUpdate[handle.Index])
+                        : PermissionType.ReadHistory,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(access))
+                {
+                    errors[handle.Index] = access;
+                    nodesToProcess.Remove(handle);
+                }
+            }
         }
 
         /// <summary>
@@ -7479,6 +7590,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = GetOperationSystemContext(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
+            List<NodeHandle>? deferred = null;
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             using (await AcquireSemaphoreAsync(m_writeSemaphore, cancellationToken).ConfigureAwait(false))
@@ -7524,6 +7636,7 @@ namespace Opc.Ua.Server
                         // must validate node in a separate operation
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
+                        (deferred ??= []).Add(handle);
                         continue;
                     }
 
@@ -7534,9 +7647,15 @@ namespace Opc.Ua.Server
                     if (handle.Node is BaseVariableState variable &&
                         (variable.AccessLevel & AccessLevels.HistoryWrite) != 0)
                     {
-                        if (!HasHistoryWritePermission(systemContext, variable))
+                        ServiceResult access = await ValidateHistoryVariableAccessAsync(
+                            systemContext,
+                            variable,
+                            AccessLevels.HistoryWrite,
+                            MasterNodeManager.DetermineHistoryAccessPermission(nodeToUpdate),
+                            cancellationToken).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(access))
                         {
-                            errors[ii] = StatusCodes.BadUserAccessDenied;
+                            errors[ii] = access;
                             continue;
                         }
 
@@ -7560,6 +7679,21 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
+            }
+
+            // the access checks above need the node: apply them to the handles
+            // that are resolved only now.
+            await ValidateDeferredAnnotationsAccessAsync(
+                systemContext,
+                deferred,
+                nodesToUpdate,
+                errors,
+                nodesToProcess,
+                operationCache,
+                cancellationToken).ConfigureAwait(false);
+            if (nodesToProcess.Count == 0)
+            {
+                return;
             }
 
             // validates the nodes and updates.
@@ -7755,14 +7889,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -7844,15 +7971,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider =
-                    ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -7950,14 +8069,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -8007,14 +8119,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -8545,7 +8650,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
-            if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
+            if (RootNotifiers.TryRemove(notifier.NodeId, notifier))
             {
                 if (stagingServer?.IsStaging == true)
                 {
@@ -12242,7 +12347,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>
+#pragma warning disable CS0618, UA0031 // Backing field of the legacy SyncNodeManager view.
         protected INodeManager3 m_syncNodeManager;
+#pragma warning restore CS0618, UA0031
 
         /// <summary>
         /// The synchronaization primitive used to synchronize write operations;
@@ -12265,12 +12372,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private IRebasableNodeIdFactory m_nodeIdFactory;
         private PredefinedNodesAddressSpace? m_localAddressSpace;
-        private readonly AsyncLocal<int> m_registrationDepth = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<bool>?> m_registrationScope = new();
 
         /// <summary>
         /// Carries the NodeId reserved for the current asynchronous AddNodes operation.
         /// </summary>
-        private readonly AsyncLocal<NodeId> m_addNodesNodeId = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<NodeId>?> m_addNodesNodeId = new();
 
         /// <summary>
         /// Retains AddNodes identifiers until asynchronous registration and reference publication have finished.

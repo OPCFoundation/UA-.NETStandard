@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -338,6 +312,7 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpTransportListener
         : ITransportListener,
+            ITransportListenerAcceptControl,
             ITcpChannelListener,
             ITransportListenerCertificateRotation,
             ITransportListenerPeerCertificateChainRotation
@@ -532,6 +507,7 @@ namespace Opc.Ua.Bindings
             m_reverseConnectListener = settings.ReverseConnectListener;
             MaxChannelCount = settings.MaxChannelCount;
             m_listenBacklog = settings.ListenBacklog > 0 ? settings.ListenBacklog : kDefaultSocketBacklog;
+            m_deferAccept = settings.DeferAccept;
             m_admission = new UaScConnectionAdmission(
                 0,
                 settings.ConnectionRateLimiter,
@@ -787,6 +763,8 @@ namespace Opc.Ua.Bindings
             m_admission?.Start();
             lock (m_lock)
             {
+                m_accepting = !m_deferAccept;
+
                 // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
                 if (m_descriptions != null &&
                     m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15))
@@ -832,21 +810,9 @@ namespace Opc.Ua.Bindings
                         TimeSpan.FromMilliseconds(m_inactivityDetectPeriod),
                         TimeSpan.FromMilliseconds(m_inactivityDetectPeriod));
 
-                    SocketAsyncEventArgs? args = null;
-                    try
+                    if (m_accepting)
                     {
-                        args = new SocketAsyncEventArgs();
-                        args.Completed += OnAccept;
-                        args.UserToken = m_listeningSocket;
-                        if (!m_listeningSocket.AcceptAsync(args))
-                        {
-                            QueueAccept(args);
-                        }
-                        args = null; // ownership transferred
-                    }
-                    finally
-                    {
-                        args?.Dispose();
+                        BeginAccept(m_listeningSocket);
                     }
                 }
                 catch (Exception ex)
@@ -875,21 +841,9 @@ namespace Opc.Ua.Bindings
                         m_listeningSocketIPv6.Bind(endpointIPv6);
                         m_listeningSocketIPv6.Listen(m_listenBacklog);
 
-                        SocketAsyncEventArgs? args = null;
-                        try
+                        if (m_accepting)
                         {
-                            args = new SocketAsyncEventArgs();
-                            args.Completed += OnAccept;
-                            args.UserToken = m_listeningSocketIPv6;
-                            if (!m_listeningSocketIPv6.AcceptAsync(args))
-                            {
-                                QueueAccept(args);
-                            }
-                            args = null; // ownership transferred
-                        }
-                        finally
-                        {
-                            args?.Dispose();
+                            BeginAccept(m_listeningSocketIPv6);
                         }
                     }
                     catch (Exception ex)
@@ -915,6 +869,67 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
+        public bool IsAccepting
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_accepting;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask StartAcceptingAsync(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                // a later Stop/Start cycle accepts right away.
+                m_deferAccept = false;
+                if (m_accepting || (m_listeningSocket == null && m_listeningSocketIPv6 == null))
+                {
+                    return default;
+                }
+                m_accepting = true;
+                if (m_listeningSocket != null)
+                {
+                    BeginAccept(m_listeningSocket);
+                }
+                if (m_listeningSocketIPv6 != null)
+                {
+                    BeginAccept(m_listeningSocketIPv6);
+                }
+            }
+            return default;
+        }
+
+        /// <summary>
+        /// Posts the first accept on a listening socket. The accept loop in
+        /// <see cref="OnAccept"/> posts the following ones.
+        /// </summary>
+        private void BeginAccept(Socket listeningSocket)
+        {
+            SocketAsyncEventArgs? args = null;
+            try
+            {
+                args = new SocketAsyncEventArgs();
+                args.Completed += OnAccept;
+                args.UserToken = listeningSocket;
+                if (!listeningSocket.AcceptAsync(args))
+                {
+                    QueueAccept(args);
+                }
+                args = null; // ownership transferred
+            }
+            finally
+            {
+                args?.Dispose();
+            }
+        }
+
         /// <summary>
         /// Stops listening.
         /// </summary>
@@ -924,6 +939,7 @@ namespace Opc.Ua.Bindings
             {
                 ConnectionWaiting = null;
                 ConnectionStatusChanged = null;
+                m_accepting = false;
 
                 m_listeningSocket?.Dispose();
                 m_listeningSocket = null;
@@ -2177,6 +2193,8 @@ namespace Opc.Ua.Bindings
         private ChannelQuotas m_quotas = null!;
         private ICertificateRegistry m_serverCertificates = null!;
         private int m_lastChannelId;
+        private bool m_deferAccept;
+        private bool m_accepting;
         private Socket? m_listeningSocket;
         private Socket? m_listeningSocketIPv6;
         private ConcurrentDictionary<uint, TcpListenerChannel>? m_channels;

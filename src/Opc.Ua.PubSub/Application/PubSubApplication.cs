@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -79,6 +53,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly IPubSubScheduler m_scheduler;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
+        private readonly UnauthenticatedMetaDataLimits? m_unauthenticatedMetaDataLimits;
         private readonly TimeProvider m_timeProvider;
 
         private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
@@ -288,6 +263,84 @@ namespace Opc.Ua.PubSub.Application
         {
         }
 
+        /// <summary>
+        /// Initializes a new <see cref="PubSubApplication"/> with runtime source and sink providers
+        /// and explicit limits for DataSetMetaData received without verified message security.
+        /// </summary>
+        /// <remarks>
+        /// The parameters have the meaning they have on the other constructors. All of them are
+        /// required here, so that this overload is never chosen for a call written against those.
+        /// </remarks>
+        /// <param name="snapshot">Validated configuration snapshot.</param>
+        /// <param name="transportFactories">Registered transport factories.</param>
+        /// <param name="encoders">Registered network-message encoders.</param>
+        /// <param name="decoders">Registered network-message decoders.</param>
+        /// <param name="securityPolicies">Registered security policies.</param>
+        /// <param name="scheduler">Publish scheduler.</param>
+        /// <param name="metaDataRegistry">Shared metadata registry.</param>
+        /// <param name="diagnostics">Diagnostics sink.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="timeProvider">Clock.</param>
+        /// <param name="publishedDataSetSources">Pre-registered sources keyed by PublishedDataSet name.</param>
+        /// <param name="subscribedDataSetSinks">Pre-registered sinks keyed by DataSetReader name.</param>
+        /// <param name="dataSetSourceProvider">Runtime source provider.</param>
+        /// <param name="dataSetSinkProvider">Runtime sink provider.</param>
+        /// <param name="securityWrapperResolver">Per-connection security wrapper resolver.</param>
+        /// <param name="maxNetworkMessageSizeResolver">Per-connection maximum message size resolver.</param>
+        /// <param name="configurationStore">External configuration store.</param>
+        /// <param name="runtimeStateStore">External runtime-state store.</param>
+        /// <param name="activationCoordinator">High-availability activation coordinator.</param>
+        /// <param name="writerCheckpointStore">Writer SequenceNumber checkpoint store.</param>
+        /// <param name="unauthenticatedMetaDataLimits">Limits every connection applies to DataSetMetaData
+        /// received without verified message security, whatever the registry implementation;
+        /// <see langword="null"/> applies the limits of the registry.</param>
+        public PubSubApplication(
+            PubSubConfigurationSnapshot snapshot,
+            IEnumerable<IPubSubTransportFactory> transportFactories,
+            IEnumerable<INetworkMessageEncoder> encoders,
+            IEnumerable<INetworkMessageDecoder> decoders,
+            IEnumerable<IPubSubSecurityPolicy> securityPolicies,
+            IPubSubScheduler scheduler,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
+            IDataSetSourceProvider? dataSetSourceProvider,
+            IDataSetSinkProvider? dataSetSinkProvider,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver,
+            IPubSubConfigurationStore? configurationStore,
+            IPubSubRuntimeStateStore? runtimeStateStore,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits)
+            : this(
+                snapshot,
+                transportFactories,
+                encoders,
+                decoders,
+                securityPolicies,
+                scheduler,
+                metaDataRegistry,
+                diagnostics,
+                telemetry,
+                timeProvider,
+                publishedDataSetSources,
+                subscribedDataSetSinks,
+                securityWrapperResolver,
+                maxNetworkMessageSizeResolver,
+                configurationStore,
+                runtimeStateStore,
+                dataSetSourceProvider,
+                dataSetSinkProvider,
+                activationCoordinator,
+                writerCheckpointStore,
+                metaDataLimits: unauthenticatedMetaDataLimits)
+        {
+        }
+
         private PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -308,7 +361,8 @@ namespace Opc.Ua.PubSub.Application
             IDataSetSourceProvider? dataSetSourceProvider = null,
             IDataSetSinkProvider? dataSetSinkProvider = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            UnauthenticatedMetaDataLimits? metaDataLimits = null)
         {
             if (snapshot is null)
             {
@@ -357,6 +411,7 @@ namespace Opc.Ua.PubSub.Application
             m_scheduler = scheduler;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
+            m_unauthenticatedMetaDataLimits = metaDataLimits;
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;
@@ -584,7 +639,8 @@ namespace Opc.Ua.PubSub.Application
                 requiredSecurityMode,
                 m_scheduler,
                 m_activationCoordinator,
-                m_writerCheckpointStore);
+                m_writerCheckpointStore,
+                m_unauthenticatedMetaDataLimits);
             lock (m_gate)
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -265,7 +239,9 @@ namespace Opc.Ua.Server.Hosting
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
             m_services.GetService<ServerApplicationCertificateActivator>()?.Attach(m_server);
-            m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
+            StandardServer server = m_server;
+            m_nodeManagerLifecycle.Attach(
+                server.NodeManagerLifecycle, () => ResumeServerDisposalAsync(server));
             if (m_server is not DependencyInjectionStandardServer)
             {
                 OpcUaServerRegistrationStaging.Apply(m_server, m_services);
@@ -342,14 +318,20 @@ namespace Opc.Ua.Server.Hosting
                             "The node-manager factories callback returned a null factory."));
                 }
 
+#pragma warning disable CS0618, UA0031 // Hosted legacy INodeManagerFactory registrations still start.
                 if (reg.SyncFactory is not null)
                 {
                     m_server.AddNodeManager(reg.SyncFactory);
                 }
+#pragma warning restore CS0618, UA0031
             }
 
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
+
+            // The endpoints are bound by StartAsync but serve clients only
+            // once the startup tasks below have run.
+            m_server.AcceptConnectionsOnStart = m_options.ServeClientsDuringStartupTasks;
             await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
 
@@ -378,6 +360,8 @@ namespace Opc.Ua.Server.Hosting
                     throw;
                 }
             }
+
+            await m_server.StartAcceptingConnectionsAsync(stoppingToken).ConfigureAwait(false);
 
             foreach (string url in GetListenEndpointUrls(configuration))
             {
@@ -869,16 +853,36 @@ namespace Opc.Ua.Server.Hosting
                 }
 
                 INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                bool disposed = false;
                 try
                 {
                     m_server.Dispose();
                     m_server = null;
+                    disposed = true;
                 }
                 finally
                 {
-                    m_nodeManagerLifecycle.Detach(lifecycle);
+                    m_nodeManagerLifecycle.Detach(lifecycle, disposed);
                 }
             }
+        }
+
+        /// <summary>
+        /// Resumes a detached server's ordered disposal after a verified cleanup confirmation.
+        /// </summary>
+        /// <param name="server">The exact server retained by the host.</param>
+        /// <returns>A task that completes after server disposal finishes.</returns>
+        private async ValueTask ResumeServerDisposalAsync(StandardServer server)
+        {
+            await server.DisposeAsync().ConfigureAwait(false);
+            lock (m_serverDisposalLock)
+            {
+                if (ReferenceEquals(m_server, server))
+                {
+                    m_server = null;
+                }
+            }
+            m_nodeManagerLifecycle.Detach(server.NodeManagerLifecycle, disposed: true);
         }
     }
 

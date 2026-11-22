@@ -1,42 +1,17 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot.Exporter.Tests
 {
@@ -141,6 +116,386 @@ namespace Opc.Ua.Wot.Exporter.Tests
         }
 
         /// <summary>
+        /// Resolves event ancestry across required models regardless of file order.
+        /// </summary>
+        [TestCase("i=2041", "uav:eventType", false)]
+        [TestCase("i=2782", "uav:eventType", false)]
+        [TestCase("i=2782", "uav:eventType", true)]
+        [TestCase("i=2915", "uav:eventType", true)]
+        [TestCase("i=58", "uav:objectType", false)]
+        [TestCase("i=999999", "uav:objectType", false)]
+        [TestCase("ns=1;i=1", "uav:objectType", false)]
+        public async Task ExportResolvesRequiredModelEventAncestryAsync(
+            string ancestorId,
+            string expectedType,
+            bool additionalRoot)
+        {
+            string child = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>urn:export:child</Uri><Uri>urn:export:parent</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:child" Version="1.0">
+                <RequiredModel ModelUri="urn:export:parent" Version="1.0" />
+              </Model></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ChildType">
+                <DisplayName>ChildType</DisplayName>
+                <References><Reference ReferenceType="i=45" IsForward="false">ns=2;i=1</Reference></References>
+              </UAObjectType>
+            </UANodeSet>
+            """;
+            if (additionalRoot)
+            {
+                child = child.Replace("</UANodeSet>", """
+                  <UAObjectType NodeId="ns=1;i=2" BrowseName="1:OtherType">
+                    <DisplayName>OtherType</DisplayName>
+                    <References><Reference ReferenceType="i=45" IsForward="false">i=58</Reference></References>
+                  </UAObjectType>
+                </UANodeSet>
+                """, StringComparison.Ordinal);
+            }
+            string parent = $$"""
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>urn:export:parent</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:parent" Version="1.0" /></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ParentType">
+                <DisplayName>ParentType</DisplayName>
+                <References>
+                  <Reference ReferenceType="i=45" IsForward="false">{{ancestorId}}</Reference>
+                </References>
+              </UAObjectType>
+            </UANodeSet>
+            """;
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "A.Child.NodeSet2.xml"), child).ConfigureAwait(false);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "Z.Parent.NodeSet2.xml"), parent).ConfigureAwait(false);
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+            Assert.That(code, Is.Zero, m_error.ToString());
+
+            string target = Path.Combine(m_folder, "out", "A.Child.NodeSet2.xml");
+            string[] paths = Directory.GetFiles(target);
+            Assert.That(paths, Has.Length.EqualTo(additionalRoot ? 2 : 1),
+                "Dependency nodes must not become source documents.");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(
+                Path.Combine(target, "model.TM.json")).ConfigureAwait(false));
+            JsonElement root = document.RootElement;
+            Assert.That(root.GetProperty("@type").EnumerateArray().Select(t => t.GetString()),
+                Does.Contain(expectedType));
+            if (expectedType == "uav:eventType")
+            {
+                JsonElement data = root.GetProperty("data");
+                Assert.That(data.GetProperty("properties").TryGetProperty("EventId", out _), Is.True);
+                if (ancestorId is "i=2782" or "i=2915")
+                {
+                    Assert.That(data.GetProperty("properties").TryGetProperty("ConditionId", out _), Is.True);
+                    Assert.That(data.GetProperty("properties").TryGetProperty("Retain", out _), Is.True);
+                    Assert.That(data.GetProperty("required").EnumerateArray().Select(field => field.GetString()),
+                        Does.Contain("ConditionId").And.Contain("Retain"));
+                }
+            }
+            else
+            {
+                Assert.That(root.TryGetProperty("data", out _), Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Resolves shared argument properties through forward references without importing dependency nodes.
+        /// </summary>
+        [TestCase("A", "Z", "valid")]
+        [TestCase("Z", "A", "valid")]
+        [TestCase("A", "Z", "missing")]
+        [TestCase("A", "Z", "invalid")]
+        [TestCase("A", "Z", "empty")]
+        public async Task ExportResolvesRequiredModelMethodArgumentsAsync(
+            string sourcePrefix,
+            string dependencyPrefix,
+            string metadata)
+        {
+            const string source = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>urn:export:child</Uri><Uri>urn:export:arguments</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:child" Version="1.0">
+                <RequiredModel ModelUri="urn:export:arguments" Version="1.0" />
+              </Model></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:AssetType">
+                <DisplayName>AssetType</DisplayName>
+                <References>
+                  <Reference ReferenceType="i=45" IsForward="false">i=58</Reference>
+                  <Reference ReferenceType="i=47">ns=1;i=7000</Reference>
+                </References>
+              </UAObjectType>
+              <UAMethod NodeId="ns=1;i=7000" BrowseName="2:VerifyAsset" ParentNodeId="ns=1;i=1">
+                <DisplayName>VerifyAsset</DisplayName>
+                <References>
+                  <Reference ReferenceType="i=46">ns=2;i=1422</Reference>
+                  <Reference ReferenceType="i=46">ns=2;i=1423</Reference>
+                  <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1</Reference>
+                </References>
+              </UAMethod>
+            </UANodeSet>
+            """;
+            const string dependency = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
+                       xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+              <NamespaceUris><Uri>urn:export:arguments</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:arguments" Version="1.0" /></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:SharedAssetType">
+                <DisplayName>SharedAssetType</DisplayName>
+                <References><Reference ReferenceType="i=47">ns=1;i=1476</Reference></References>
+              </UAObjectType>
+              <UAMethod NodeId="ns=1;i=1476" BrowseName="1:VerifyAsset" ParentNodeId="ns=1;i=1">
+                <References>
+                  <Reference ReferenceType="i=46">ns=1;i=1422</Reference>
+                  <Reference ReferenceType="i=46">ns=1;i=1423</Reference>
+                </References>
+              </UAMethod>
+              <UAVariable NodeId="ns=1;i=1422" BrowseName="InputArguments" ParentNodeId="ns=1;i=1476"
+                          DataType="i=296" ValueRank="1" ArrayDimensions="1">
+                <References><Reference ReferenceType="i=40">i=68</Reference></References>
+                <Value><uax:ListOfExtensionObject><uax:ExtensionObject>
+                  <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+                  <uax:Body><uax:Argument>
+                    <uax:Name>VerificationMode</uax:Name>
+                    <uax:DataType><uax:Identifier>ns=1;i=3001</uax:Identifier></uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank><uax:ArrayDimensions />
+                  </uax:Argument></uax:Body>
+                </uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+              </UAVariable>
+              <UAVariable NodeId="ns=1;i=1423" BrowseName="OutputArguments" ParentNodeId="ns=1;i=1476"
+                          DataType="i=296" ValueRank="1" ArrayDimensions="1">
+                <References><Reference ReferenceType="i=40">i=68</Reference></References>
+                <Value><uax:ListOfExtensionObject><uax:ExtensionObject>
+                  <uax:TypeId><uax:Identifier>i=297</uax:Identifier></uax:TypeId>
+                  <uax:Body><uax:Argument>
+                    <uax:Name>VerificationErrors</uax:Name>
+                    <uax:DataType><uax:Identifier>i=19</uax:Identifier></uax:DataType>
+                    <uax:ValueRank>1</uax:ValueRank>
+                    <uax:ArrayDimensions><uax:UInt32>0</uax:UInt32></uax:ArrayDimensions>
+                  </uax:Argument></uax:Body>
+                </uax:ExtensionObject></uax:ListOfExtensionObject></Value>
+              </UAVariable>
+              <UADataType NodeId="ns=1;i=3001" BrowseName="1:VerificationModeEnum">
+                <References><Reference ReferenceType="i=45" IsForward="false">i=29</Reference></References>
+                <Definition Name="1:VerificationModeEnum"><Field Name="Identity" Value="0" /></Definition>
+              </UADataType>
+            </UANodeSet>
+            """;
+            string sourceName = sourcePrefix + ".Child.NodeSet2.xml";
+            await File.WriteAllTextAsync(Path.Combine(m_folder, sourceName), source).ConfigureAwait(false);
+            if (metadata != "missing")
+            {
+                string dependencyText = metadata == "invalid"
+                    ? dependency.Replace(
+                        "<uax:Identifier>i=297</uax:Identifier>",
+                        "<uax:Identifier>i=999</uax:Identifier>", StringComparison.Ordinal)
+                    : dependency;
+                if (metadata == "empty")
+                {
+                    var xml = new System.Xml.XmlDocument();
+                    xml.LoadXml(dependency);
+                    foreach (System.Xml.XmlElement arguments in xml.GetElementsByTagName(
+                        "ListOfExtensionObject", "http://opcfoundation.org/UA/2008/02/Types.xsd"))
+                    {
+                        arguments.RemoveAll();
+                    }
+                    dependencyText = xml.OuterXml;
+                }
+                await File.WriteAllTextAsync(
+                    Path.Combine(m_folder, dependencyPrefix + ".Arguments.NodeSet2.xml"), dependencyText)
+                    .ConfigureAwait(false);
+            }
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+            if (metadata is "missing" or "invalid")
+            {
+                Assert.That(code, Is.EqualTo(1));
+                Assert.That(m_error.ToString(),
+                    Does.Contain("argument metadata").And.Contain("nsu=urn:export:arguments;i=1422"));
+                Assert.That(Directory.Exists(Path.Combine(m_folder, "out", sourceName)), Is.False);
+                return;
+            }
+            Assert.That(code, Is.Zero, m_error.ToString());
+
+            string[] paths = Directory.GetFiles(Path.Combine(m_folder, "out", sourceName));
+            Assert.That(paths, Has.Length.EqualTo(1), "Dependency nodes must remain in their own source partition.");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(paths[0]).ConfigureAwait(false));
+            JsonElement action = document.RootElement.GetProperty("actions").GetProperty("VerifyAsset");
+            if (metadata == "empty")
+            {
+                Assert.That(action.TryGetProperty("input", out _), Is.False);
+                Assert.That(action.TryGetProperty("output", out _), Is.False);
+                return;
+            }
+            Assert.That(action.TryGetProperty("input", out JsonElement input), Is.True);
+            Assert.That(action.TryGetProperty("output", out JsonElement output), Is.True);
+            Assert.That(input.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
+            Assert.That(input.GetProperty("uav:fieldOrder")[0].GetString(), Is.EqualTo("VerificationMode"));
+            JsonElement mode = input.GetProperty("properties").GetProperty("VerificationMode");
+            Assert.That(mode.GetProperty("type").GetString(), Is.EqualTo("integer"));
+            Assert.That(mode.GetProperty("uav:mapToType").GetString(),
+                Is.EqualTo("nsu=urn:export:arguments;i=3001"));
+            Assert.That(output.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
+            Assert.That(output.GetProperty("uav:fieldOrder")[0].GetString(), Is.EqualTo("VerificationErrors"));
+            JsonElement errors = output.GetProperty("properties").GetProperty("VerificationErrors");
+            Assert.That(errors.GetProperty("type").GetString(), Is.EqualTo("array"));
+            Assert.That(errors.GetProperty("uav:valueRank").GetInt32(), Is.EqualTo(1));
+            Assert.That(errors.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=19"));
+
+            using var dependencyXml = new MemoryStream(Encoding.UTF8.GetBytes(dependency));
+            var resolver = WotDocumentNodeResolver.FromNodeSets([UANodeSet.Read(dependencyXml)]);
+            foreach (string argumentName in (string[])["VerificationMode", "VerificationErrors"])
+            {
+                string changed = document.RootElement.GetRawText().Replace(
+                    "\"" + argumentName + "\"", "\"ChangedArgument\"", StringComparison.Ordinal);
+                using var tampered = WotDocument.Parse(Encoding.UTF8.GetBytes(changed));
+                WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetResultAsync(
+                    tampered, null, null, null, resolver).ConfigureAwait(false);
+                Assert.That(restored.Success, Is.False);
+                Assert.That(restored.Diagnostics.Any(
+                    diagnostic => diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Matches catalogue URNs without deriving identity from display text or the BrowseName namespace.
+        /// </summary>
+        [TestCase("http://opcfoundation.org/UA/ADI/", "1:PumpType", "urn:org.opcfoundation.UA.ADI.PumpType")]
+        [TestCase("http://opcfoundation.org/UA/ADI/", "PumpType", "urn:org.opcfoundation.UA.ADI.PumpType")]
+        [TestCase("http://opcfoundation.org/UA/ADI/", "1:AccessorySlotStateMachineType",
+            "urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType")]
+        [TestCase("http://opcfoundation.org/UA/", "PumpType", "urn:org.opcfoundation.UA.PumpType")]
+        [TestCase("https://opcfoundation.org/UA/MTConnect/v2/", "1:PumpType",
+            "urn:org.opcfoundation.UA.MTConnect.v2.PumpType")]
+        [TestCase("http://www.opcfoundation.org/UA/2013/01/ISA95", "1:PumpType",
+            "urn:org.opcfoundation.www.UA.2013.01.ISA95.PumpType")]
+        [TestCase("http://fdi-cooperation.com/OPCUA/FDI5/", "1:PumpType",
+            "urn:com.fdi-cooperation.OPCUA.FDI5.PumpType")]
+        [TestCase("urn:export:test", "1:PumpType", "urn:export:test.PumpType")]
+        public async Task ExportGeneratesBaselineModelIdsAsync(
+            string namespaceUri, string browseName, string expectedId)
+        {
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            string xml = k_nodeSet.Replace("urn:export:test", namespaceUri, StringComparison.Ordinal)
+                .Replace("BrowseName=\"1:PumpType\"", $"BrowseName=\"{browseName}\"", StringComparison.Ordinal)
+                .Replace("<DisplayName>PumpType</DisplayName>", "<DisplayName>A pump</DisplayName>",
+                    StringComparison.Ordinal);
+            if (namespaceUri == Types.Namespaces.OpcUa)
+            {
+                xml = xml.Replace("ns=1;i=", "i=100000", StringComparison.Ordinal)
+                    .Replace("BrowseName=\"1:", "BrowseName=\"0:", StringComparison.Ordinal);
+            }
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
+            Assert.That(document.RootElement.GetProperty("id").GetString(), Is.EqualTo(expectedId));
+            Assert.That(document.RootElement.GetProperty("title").GetString(), Is.EqualTo("A pump"));
+            string nativeId = namespaceUri == Types.Namespaces.OpcUa ? "i=1000001" : $"nsu={namespaceUri};i=1";
+            Assert.That(document.RootElement.GetProperty("uav:id").GetString(), Is.EqualTo(nativeId));
+        }
+
+        /// <summary>
+        /// Gives every supported type-root kind its own document identity.
+        /// </summary>
+        [TestCase("UAVariableType", "i=62")]
+        [TestCase("UADataType", "i=12")]
+        [TestCase("UAReferenceType", "i=31")]
+        public async Task ExportGeneratesIdsForOtherTypeKindsAsync(string nodeClass, string parentId)
+        {
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            string xml = k_nodeSet.Replace("UAObjectType", nodeClass, StringComparison.Ordinal)
+                .Replace(">i=58<", $">{parentId}<", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
+            Assert.That(document.RootElement.GetProperty("id").GetString(),
+                Is.EqualTo("urn:export:test.PumpType"));
+        }
+
+        /// <summary>
+        /// Disambiguates duplicate native names in source order, including instance names.
+        /// </summary>
+        [Test]
+        public async Task DuplicateNamesReceiveBaselineSuffixesAsync()
+        {
+            const string xml = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>http://opcfoundation.org/UA/AMLLibs/</Uri></NamespaceUris>
+              <UAObject NodeId="ns=1;i=100" BrowseName="Communication">
+                <DisplayName>Communication</DisplayName>
+                <References><Reference ReferenceType="i=40">i=58</Reference></References>
+              </UAObject>
+              <UAObjectType NodeId="ns=1;i=40" BrowseName="Communication">
+                <DisplayName>Communication</DisplayName>
+                <References><Reference ReferenceType="i=45" IsForward="false">i=58</Reference></References>
+              </UAObjectType>
+              <UAObjectType NodeId="ns=1;i=179" BrowseName="Communication">
+                <DisplayName>Communication</DisplayName>
+                <References><Reference ReferenceType="i=45" IsForward="false">i=58</Reference></References>
+              </UAObjectType>
+            </UANodeSet>
+            """;
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            var ids = new Dictionary<string, string?>(StringComparer.Ordinal);
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml");
+            foreach (string path in Directory.GetFiles(target))
+            {
+                using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path).ConfigureAwait(false));
+                JsonElement root = document.RootElement;
+                if (root.TryGetProperty("id", out JsonElement id))
+                {
+                    ids.Add(root.GetProperty("uav:id").GetString()!, id.GetString());
+                }
+            }
+            Assert.That(ids, Has.Count.EqualTo(2));
+            Assert.That(ids["nsu=http://opcfoundation.org/UA/AMLLibs/;i=40"],
+                Is.EqualTo("urn:org.opcfoundation.UA.AMLLibs.Communication_2"));
+            Assert.That(ids["nsu=http://opcfoundation.org/UA/AMLLibs/;i=179"],
+                Is.EqualTo("urn:org.opcfoundation.UA.AMLLibs.Communication_3"));
+        }
+
+        /// <summary>
+        /// Keeps an authored document identity carried through native residue.
+        /// </summary>
+        [Test]
+        public async Task ExportPreservesAuthoredModelIdAsync()
+        {
+            using var original = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                /*lang=json,strict*/
+                """
+            {
+              "@context": ["https://www.w3.org/2022/wot/td/v1.1"],
+              "@type": ["tm:ThingModel", "uav:objectType"],
+              "id": "urn:catalogue:authored:pump",
+              "title": "Pump",
+              "uav:id": "nsu=urn:export:test;i=1",
+              "uav:browseName": "nsu=urn:export:test;PumpType"
+            }
+            """));
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            using (var buffer = new MemoryStream())
+            {
+                nodeSet.Write(buffer);
+                await File.WriteAllBytesAsync(source, buffer.ToArray()).ConfigureAwait(false);
+            }
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
+            Assert.That(document.RootElement.GetProperty("id").GetString(), Is.EqualTo(original.Id));
+        }
+
+        /// <summary>
         /// Keeps processing after a malformed source and returns a failing exit code.
         /// </summary>
         [Test]
@@ -156,6 +511,25 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(code, Is.EqualTo(1));
             Assert.That(m_error.ToString(), Does.Contain("A.NodeSet2.xml").And.Contain("ERROR:"));
             Assert.That(Directory.GetFiles(target, "*", SearchOption.AllDirectories), Has.Length.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Excludes an invalid native type context without preventing valid models from being exported.
+        /// </summary>
+        [Test]
+        public async Task InvalidTypeContextDoesNotStopOtherFilesAsync()
+        {
+            string duplicate = k_nodeSet.Replace(
+                "NodeId=\"ns=1;i=2\"", "NodeId=\"ns=1;i=1\"", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "A.NodeSet2.xml"), duplicate).ConfigureAwait(false);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "B.NodeSet2.xml"), k_nodeSet).ConfigureAwait(false);
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+
+            Assert.That(code, Is.EqualTo(1));
+            Assert.That(m_error.ToString(), Does.Contain("A.NodeSet2.xml").And.Contain("ERROR:"));
+            Assert.That(Directory.GetFiles(Path.Combine(m_folder, "out"), "*", SearchOption.AllDirectories),
+                Has.Length.EqualTo(2));
         }
 
         /// <summary>
@@ -204,11 +578,13 @@ namespace Opc.Ua.Wot.Exporter.Tests
 
             await cancellation.CancelAsync().ConfigureAwait(false);
 
-            Assert.That(() => files.MoveNext(), Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(files.MoveNext, Throws.InstanceOf<OperationCanceledException>());
             Assert.That(Directory.Exists(Path.Combine(m_folder, "out")), Is.False);
         }
 
-        /// <summary>Contains two independent type roots.</summary>
+        /// <summary>
+        /// Contains two independent type roots.
+        /// </summary>
         private const string k_nodeSet = """
         <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
           <NamespaceUris><Uri>urn:export:test</Uri></NamespaceUris>
