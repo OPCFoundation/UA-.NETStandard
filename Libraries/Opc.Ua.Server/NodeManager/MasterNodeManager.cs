@@ -1170,9 +1170,30 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                // charge the hop and every target it produced, before the external
+                // targets are looked up.
+                int work = 1 + targetIds.Count + externalTargetIds.Count;
+                pathWork += work;
+                budget.Remaining -= work;
+
+                if (pathWork > kMaxTranslateBrowsePathWork || budget.Remaining < 0)
+                {
+                    return StatusCodes.BadQueryTooComplex;
+                }
+
+                // the ids of the targets found so far, created with the first match.
+                HashSet<NodeId> targetNodeIds = null;
+
                 // must check the browse name on all external targets.
                 for (int ii = 0; ii < externalTargetIds.Count; ii++)
                 {
+                    // check if request has timed out or been cancelled.
+                    operationStatus = context.OperationStatus;
+                    if (StatusCode.IsBad(operationStatus))
+                    {
+                        return operationStatus;
+                    }
+
                     // get the browse name from another node manager.
                     var description = new ReferenceDescription();
 
@@ -1188,32 +1209,36 @@ namespace Opc.Ua.Server
                     // add to list if target name matches.
                     if (description.BrowseName == element.TargetName)
                     {
-                        bool found = false;
-
-                        for (int jj = 0; jj < targetIds.Count; jj++)
+                        // a target equals an external target if their node ids are equal.
+                        if (targetNodeIds == null)
                         {
-                            if (targetIds[jj] == externalTargetIds[ii])
+                            targetNodeIds = [];
+
+                            for (int jj = 0; jj < targetIds.Count; jj++)
                             {
-                                found = true;
-                                break;
+                                NodeId targetNodeId = targetIds[jj]?.InnerNodeId;
+
+                                if (targetNodeId != null)
+                                {
+                                    targetNodeIds.Add(targetNodeId);
+                                }
                             }
                         }
 
-                        if (!found)
+                        if (externalTargetIds[ii] is not null && targetNodeIds.Add(externalTargetIds[ii]))
                         {
                             targetIds.Add(externalTargetIds[ii]);
+
+                            // charge the target that was added.
+                            pathWork++;
+                            budget.Remaining--;
+
+                            if (pathWork > kMaxTranslateBrowsePathWork || budget.Remaining < 0)
+                            {
+                                return StatusCodes.BadQueryTooComplex;
+                            }
                         }
                     }
-                }
-
-                // charge the hop and every target it produced.
-                int work = 1 + targetIds.Count + externalTargetIds.Count;
-                pathWork += work;
-                budget.Remaining -= work;
-
-                if (pathWork > kMaxTranslateBrowsePathWork || budget.Remaining < 0)
-                {
-                    return StatusCodes.BadQueryTooComplex;
                 }
 
                 if (visited == null && targetIds.Count > 1)
@@ -1226,6 +1251,13 @@ namespace Opc.Ua.Server
                 {
                     for (int ii = 0; ii < targetIds.Count; ii++)
                     {
+                        // check if request has timed out or been cancelled.
+                        operationStatus = context.OperationStatus;
+                        if (StatusCode.IsBad(operationStatus))
+                        {
+                            return operationStatus;
+                        }
+
                         // a target that another branch reached as well is returned once.
                         if (visited != null && !visited.Add((targetIds[ii], index + 1)))
                         {

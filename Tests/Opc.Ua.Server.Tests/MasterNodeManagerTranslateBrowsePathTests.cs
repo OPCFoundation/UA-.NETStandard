@@ -153,6 +153,160 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// One element leads to many targets in another node manager. The request times
+        /// out while the first of them is looked up. The remaining ones are not looked
+        /// up any more and the request fails with the timeout.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TranslateBrowsePathStopsLookingUpTargetsAfterATimeout(bool externalTargets)
+        {
+            const int targetCount = 1000;
+            OperationContext context = CreateContext();
+            int lookups = 0;
+
+            BrowsePath browsePath = RegisterFanOutNodeManager(
+                targetCount,
+                externalTargets,
+                () =>
+                {
+                    lookups++;
+                    context.SetStatusCode(StatusCodes.BadTimeout);
+                });
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_server.CurrentInstance.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
+                    context,
+                    [browsePath],
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(lookups, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// One element leads to many targets in another node manager, all with the
+        /// name that is asked for. Each of them is returned once, in the order the node
+        /// manager listed them, without comparing every target with every other one.
+        /// </summary>
+        [Test]
+        public async Task TranslateBrowsePathReturnsManyExternalTargetsAsync()
+        {
+            const int targetCount = 40000;
+            BrowsePath browsePath = RegisterFanOutNodeManager(targetCount, true, null);
+
+            BrowsePathResultCollection results = await TranslateAsync(browsePath).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(results[0].Targets, Has.Count.EqualTo(targetCount));
+            for (int ii = 0; ii < targetCount; ii++)
+            {
+                Assert.That(
+                    results[0].Targets[ii].TargetId.Identifier,
+                    Is.EqualTo((uint)(ii + 1)),
+                    "the order of the node manager is kept");
+            }
+        }
+
+        /// <summary>
+        /// One element leads to more external targets than the work limit of a path allows.
+        /// </summary>
+        [Test]
+        public async Task TranslateBrowsePathWithTooManyExternalTargetsReturnsBadQueryTooComplexAsync()
+        {
+            BrowsePath browsePath = RegisterFanOutNodeManager(60000, true, null);
+
+            BrowsePathResultCollection results = await TranslateAsync(browsePath).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadQueryTooComplex));
+            Assert.That(results[0].Targets, Is.Empty);
+        }
+
+        /// <summary>
+        /// Registers a node manager for a namespace of its own. Its node 0 has a reference
+        /// to the nodes 1 to <paramref name="targetCount"/>, which all have the same name.
+        /// </summary>
+        /// <param name="targetCount">The number of targets.</param>
+        /// <param name="externalTargets">Whether the targets are reported as nodes of
+        /// another node manager, so that their name has to be looked up.</param>
+        /// <param name="onTargetLookup">Called when a target is looked up.</param>
+        /// <returns>The path from node 0 to the targets.</returns>
+        private BrowsePath RegisterFanOutNodeManager(int targetCount, bool externalTargets, Action onTargetLookup)
+        {
+            string namespaceUri = "http://test.org/UA/FanOut/" + Guid.NewGuid();
+            var targetName = new QualifiedName("Target");
+            ushort namespaceIndex = 0;
+
+            var nodeManager = new Mock<INodeManager>();
+            nodeManager.Setup(m => m.NamespaceUris).Returns([namespaceUri]);
+            nodeManager
+                .Setup(m => m.GetManagerHandle(It.IsAny<NodeId>()))
+                .Returns((NodeId nodeId) => nodeId.NamespaceIndex == namespaceIndex ? nodeId : null);
+            nodeManager
+                .Setup(m => m.GetNodeMetadata(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<object>(),
+                    It.IsAny<BrowseResultMask>()))
+                .Returns((OperationContext _, object handle, BrowseResultMask _) =>
+                {
+                    var nodeId = (NodeId)handle;
+                    if ((uint)nodeId.Identifier != 0)
+                    {
+                        onTargetLookup?.Invoke();
+                    }
+                    return new NodeMetadata(handle, nodeId) { BrowseName = targetName };
+                });
+            nodeManager
+                .Setup(m => m.TranslateBrowsePath(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<object>(),
+                    It.IsAny<RelativePathElement>(),
+                    It.IsAny<IList<ExpandedNodeId>>(),
+                    It.IsAny<IList<NodeId>>()))
+                .Callback((
+                    OperationContext _,
+                    object _,
+                    RelativePathElement _,
+                    IList<ExpandedNodeId> targetIds,
+                    IList<NodeId> unresolvedTargetIds) =>
+                {
+                    for (uint ii = 1; ii <= targetCount; ii++)
+                    {
+                        var targetId = new NodeId(ii, namespaceIndex);
+                        if (externalTargets)
+                        {
+                            unresolvedTargetIds.Add(targetId);
+                        }
+                        else
+                        {
+                            targetIds.Add(targetId);
+                        }
+                    }
+                });
+
+            m_server.CurrentInstance.NodeManager.RegisterNamespaceManager(namespaceUri, nodeManager.Object);
+            namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(namespaceUri);
+
+            return new BrowsePath
+            {
+                StartingNode = new NodeId(0u, namespaceIndex),
+                RelativePath = new RelativePath
+                {
+                    Elements =
+                    [
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.Organizes,
+                            IsInverse = false,
+                            IncludeSubtypes = false,
+                            TargetName = targetName
+                        }
+                    ]
+                }
+            };
+        }
+
+        /// <summary>
         /// Translates the paths and fails the test if that takes longer than the time limit.
         /// </summary>
         private async Task<BrowsePathResultCollection> TranslateAsync(params BrowsePath[] browsePaths)
