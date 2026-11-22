@@ -262,7 +262,7 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">A cancellation token.</param>
         public ValueTask PublishAsync(CancellationToken cancellationToken = default)
         {
-            return PublishAsync(null, cancellationToken);
+            return PublishStagedAsync(null, cancellationToken);
         }
 
         /// <summary>
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes staged contributions only for generations visible in the serving routing image.
         /// </summary>
-        internal async ValueTask PublishAsync(
+        internal async ValueTask PublishStagedAsync(
             Dictionary<NodeManagerGeneration, NodeManagerContribution>? staged,
             CancellationToken cancellationToken)
         {

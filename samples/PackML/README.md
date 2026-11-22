@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # PackML sample
 
 `PackMLSample` hosts a standalone OPC 30050 unit and drives it with the typed

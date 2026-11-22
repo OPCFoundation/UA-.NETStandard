@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
             int targetSlot = -1;
             await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                 m_lifecycleCallbackPermit,
-                GetAdmissionCapabilities(admission));
+                GetAdmissionCapabilities(admission)).ConfigureAwait(false);
             try
             {
                 ApplyDeferredReferencePrunes();

@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Opc.Ua.PackML.Client
 
 Typed discovery, status and administration reads, shared subscriptions and

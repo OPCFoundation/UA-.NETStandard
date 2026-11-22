@@ -967,7 +967,7 @@ namespace Opc.Ua.Server
             List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken)
         {
-            using INodeManagerBatchAdmission? admission = TryAcquireDynamicMutationAdmission();
+            using BatchAdmission? admission = TryAcquireDynamicMutationAdmission();
             if (admission is null)
             {
                 ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(owner);
@@ -980,7 +980,7 @@ namespace Opc.Ua.Server
                 {
                     await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                         m_lifecycleCallbackPermit,
-                        NodeManagerAdmissionCapability.None);
+                        NodeManagerAdmissionCapability.None).ConfigureAwait(false);
                     if (GetPublishedRootNotifierOwner(owner) is null)
                     {
                         owner.RetainRemovedExternalReferences(referencesToRemove);
@@ -1015,7 +1015,7 @@ namespace Opc.Ua.Server
             }
             await using var admittedCallback = new LegacyNodeManagerCallbackScope(
                 m_lifecycleCallbackPermit,
-                GetAdmissionCapabilities(admission));
+                GetAdmissionCapabilities(admission)).ConfigureAwait(false);
             var admittedRemovals = new List<DeferredServingReference>();
             await RemoveServingReferencesAsync(owner, referencesToRemove, admittedRemovals, cancellationToken)
                 .ConfigureAwait(false);
@@ -1172,7 +1172,7 @@ namespace Opc.Ua.Server
         /// Enters mutation admission without waiting for another holder or a pending lifecycle decision.
         /// </summary>
         /// <returns>The admission, or null if obtaining it would require a wait.</returns>
-        private INodeManagerBatchAdmission? TryAcquireDynamicMutationAdmission()
+        private BatchAdmission? TryAcquireDynamicMutationAdmission()
         {
             if (Volatile.Read(ref m_lifecycleDecisionWindow) is not null)
             {
@@ -1183,7 +1183,20 @@ namespace Opc.Ua.Server
                 (permit.Capabilities & NodeManagerAdmissionCapability.AddressSpaceMutation) != 0)
             {
                 NodeManagerCallbackPermit.Borrow? borrow = permit.TryBorrow(permit.Capabilities);
-                return borrow is null ? null : new BatchAdmission(null, null, borrow);
+                try
+                {
+                    if (borrow is null)
+                    {
+                        return null;
+                    }
+                    var admission = new BatchAdmission(null, null, borrow);
+                    borrow = null;
+                    return admission;
+                }
+                finally
+                {
+                    borrow?.Dispose();
+                }
             }
             if (!m_dynamicMutationSemaphore.Wait(0, CancellationToken.None))
             {
@@ -1366,7 +1379,7 @@ namespace Opc.Ua.Server
                 }
                 await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                     m_lifecycleCallbackPermit,
-                    GetAdmissionCapabilities(admission));
+                    GetAdmissionCapabilities(admission)).ConfigureAwait(false);
                 var outcome = DeferredReferenceDrainOutcome.Completed;
                 var retainedTypes = new List<DeferredTypeRemoval>();
                 var retained = new List<DeferredServingRemoval>();
@@ -2068,7 +2081,7 @@ namespace Opc.Ua.Server
 
                 await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                     m_lifecycleCallbackPermit,
-                    GetAdmissionCapabilities(admission));
+                    GetAdmissionCapabilities(admission)).ConfigureAwait(false);
                 await AddReferencesAsync(
                     ObjectIds.Server,
                     [
@@ -2105,7 +2118,7 @@ namespace Opc.Ua.Server
 
                 await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                     m_lifecycleCallbackPermit,
-                    GetAdmissionCapabilities(admission));
+                    GetAdmissionCapabilities(admission)).ConfigureAwait(false);
                 (object? handle, IAsyncNodeManager? currentOwner) =
                     await GetManagerHandleAsync(notifierId, cancellationToken).ConfigureAwait(false);
                 if ((handle is not null && !ReferenceEquals(currentOwner, registeredFacade)) ||

@@ -741,7 +741,7 @@ namespace Opc.Ua.Server
             }
             lock (record.Sync)
             {
-                if (record.RetainsDisposal)
+                if (record.State == GenerationEventBindingState.Removed || record.RetainsDisposal)
                 {
                     return;
                 }

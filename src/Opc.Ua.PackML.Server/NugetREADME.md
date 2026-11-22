@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Opc.Ua.PackML.Server
 
 Provider-backed standalone OPC 30050 PackML 1.01 units with status,

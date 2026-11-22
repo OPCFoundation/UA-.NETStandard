@@ -2536,7 +2536,7 @@ namespace Opc.Ua.Server
                     await reconciliation.RunAsync(
                         NodeManagerReconciliationStage.Publication,
                         [],
-                        () => conformanceUnitsManager.PublishAsync(stagedConformance, CancellationToken.None))
+                        () => conformanceUnitsManager.PublishStagedAsync(stagedConformance, CancellationToken.None))
                         .ConfigureAwait(false);
                 }
                 try
