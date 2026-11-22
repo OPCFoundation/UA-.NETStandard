@@ -17,7 +17,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// <summary>
     /// Publishes one generated ProvisionableDevice under the Part 22 Resources object.
     /// </summary>
-    public sealed class ProvisionableDeviceNodeManagerFactory : IAsyncNodeManagerFactory
+    public sealed partial class ProvisionableDeviceNodeManagerFactory : INodeManagerHandoffFactory
     {
         /// <summary>
         /// Creates a factory that borrows the hosted device runtime.
@@ -70,13 +70,23 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ArgumentNullException(nameof(configuration));
             }
             cancellationToken.ThrowIfCancellationRequested();
+#pragma warning disable CA2000 // The returned manager is owned by the server. TODO: Express ownership transfer to the analyzer.
+            return new ValueTask<IAsyncNodeManager>(CreateManager(server, configuration));
+#pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// Creates a generation-local node manager for the configured runtime.
+        /// </summary>
+        private ProvisionableDeviceNodeManager CreateManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ProvisionableDeviceNodeManager? predecessor = null)
+        {
             server.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
             server.MessageContext.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
-#pragma warning disable CA2000 // Ownership transfers to the server's manager collection.
-            return new ValueTask<IAsyncNodeManager>(
-                new ProvisionableDeviceNodeManager(
-                    server, configuration, m_runtime, m_applicationsProvider, m_security, m_softwareUpdates));
-#pragma warning restore CA2000
+            return new ProvisionableDeviceNodeManager(
+                server, configuration, m_runtime, m_applicationsProvider, m_security, m_softwareUpdates, predecessor);
         }
 
         /// <summary>
@@ -201,7 +211,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Owns the generated device and its application components while leaving Resources to its standard manager.
         /// </summary>
-        private sealed class ProvisionableDeviceNodeManager :
+        private sealed partial class ProvisionableDeviceNodeManager :
             AsyncCustomNodeManager, INodeManagerShutdown, INodeManagerNodeOverrides
         {
             /// <summary>
@@ -213,7 +223,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 IProvisionableDeviceRuntime runtime,
                 IProvisionableDeviceApplicationsProvider? applicationsProvider,
                 IProvisionableDeviceSecurity? security,
-                IProvisionableDeviceSoftwareUpdatePolicy? softwareUpdates)
+                IProvisionableDeviceSoftwareUpdatePolicy? softwareUpdates,
+                ProvisionableDeviceNodeManager? predecessor)
                 : base(server, configuration, server.Telemetry.CreateLogger<ProvisionableDeviceNodeManager>())
             {
                 m_runtime = runtime;
@@ -221,6 +232,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 m_security = security;
                 m_softwareUpdates = softwareUpdates;
                 m_managementConfiguration = configuration;
+                m_predecessor = predecessor;
+                m_calls = new DeviceCalls(this, server, runtime, predecessor?.Singleton);
                 NamespaceUris = [NamespaceUri];
             }
 
@@ -239,7 +252,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ProvisionableDeviceState device = CreateProvisionableDevice(context, m_runtime);
+                ProvisionableDeviceState device = CreateProvisionableDevice(context, m_calls);
                 m_device = device;
                 return new ValueTask<NodeStateCollection>([device]);
             }
@@ -273,6 +286,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     throw new ServiceResultException(
                         StatusCodes.BadConfigurationError, "The standard Resources node is missing.");
                 }
+                if (m_predecessor is { } predecessor)
+                {
+                    foreach (ApplicationSurface surface in predecessor.m_applicationSurfaces)
+                    {
+                        await CreateApplicationAsync(device, surface.Descriptor, surface.Binding,
+                            externalReferences, cancellationToken).ConfigureAwait(false);
+                    }
+                    m_predecessor = null;
+                    return;
+                }
                 if (m_applicationsProvider == null)
                 {
                     return;
@@ -302,8 +325,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         cancellationToken.ThrowIfCancellationRequested();
                         ManagedApplicationPushRegistration registration = applications[i] ??
                             throw new ServiceResultException(StatusCodes.BadConfigurationError);
-                        await CreateApplicationAsync(
-                            device, registration, security, applicationUris, externalReferences, cancellationToken)
+                        ApplicationConfiguration configuration = registration.Target.Configuration;
+                        string uri = configuration.ApplicationUri ??
+                            throw new ServiceResultException(StatusCodes.BadConfigurationError);
+                        if (!applicationUris.Add(uri))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                                "Application URIs on one provisionable device must be unique.");
+                        }
+                        var descriptor = new ApplicationDescriptor(registration, security, uri,
+                            configuration.ApplicationName, configuration.ProductUri, configuration.ApplicationType);
+                        await CreateApplicationAsync(device, descriptor, null, externalReferences, cancellationToken)
                             .ConfigureAwait(false);
                     }
                 }
@@ -380,22 +412,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
             /// </summary>
             private async ValueTask CreateApplicationAsync(
                 ProvisionableDeviceState device,
-                ManagedApplicationPushRegistration registration,
-                IProvisionableDeviceSecurity security,
-                HashSet<string> applicationUris,
+                ApplicationDescriptor descriptor,
+                ApplicationConfigurationPushBinding? predecessor,
                 IDictionary<NodeId, IList<IReference>> externalReferences,
                 CancellationToken cancellationToken)
             {
-                ApplicationConfiguration configuration = registration.Target.Configuration;
-                string applicationUri = configuration.ApplicationUri ??
-                    throw new ServiceResultException(StatusCodes.BadConfigurationError);
-                if (!applicationUris.Add(applicationUri))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
-                        "Application URIs on one provisionable device must be unique.");
-                }
-
+                ManagedApplicationPushRegistration registration = descriptor.Registration;
+                string applicationUri = descriptor.Uri;
                 ushort namespaceIndex = NamespaceIndexes[0];
                 string path = $"Application:{applicationUri}";
                 var node = new ApplicationConfigurationState(device);
@@ -403,15 +426,15 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     SystemContext,
                     new NodeId(path, namespaceIndex),
                     new QualifiedName(applicationUri, namespaceIndex),
-                    new LocalizedText(configuration.ApplicationName ?? applicationUri),
+                    new LocalizedText(descriptor.Name ?? applicationUri),
                     assignNodeIds: false);
                 node.AddProductUri(SystemContext);
                 node.AddIsNonUaApplication(SystemContext);
                 node.WriteMask = AttributeWriteMask.None;
                 node.UserWriteMask = AttributeWriteMask.None;
                 node.ApplicationUri!.Value = applicationUri;
-                node.ProductUri!.Value = configuration.ProductUri ?? string.Empty;
-                node.ApplicationType!.Value = configuration.ApplicationType;
+                node.ProductUri!.Value = descriptor.ProductUri ?? string.Empty;
+                node.ApplicationType!.Value = descriptor.Type;
                 node.Enabled!.Value = true;
                 node.IsNonUaApplication!.Value = false;
                 if (registration.ConfigurationFileProvider != null)
@@ -427,22 +450,25 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     path, namespaceIndex, mapping, assigned);
                 node.UpdateReferenceTargets(SystemContext, mapping);
 
-                var authorization = new ProvisionableDeviceApplicationAuthorization(
-                    applicationUri, security, m_softwareUpdates, registration.Authorization);
                 ApplicationConfigurationPushBinding? binding = null;
                 try
                 {
-                    binding = new ApplicationConfigurationPushBinding(
-                        Server,
-                        m_managementConfiguration,
-                        SystemContext,
-                        node,
-                        registration.Target,
-                        authorization,
-                        registration.PendingKeyStore,
-                        registration.KeyGenerator,
-                        registration.ConfigurationFileProvider);
-                    await binding.RecoverConfigurationFileUpdateAsync(cancellationToken).ConfigureAwait(false);
+                    if (predecessor == null)
+                    {
+                        var authorization = new ProvisionableDeviceApplicationAuthorization(
+                            applicationUri, descriptor.Security, m_softwareUpdates, registration.Authorization);
+                        binding = new ApplicationConfigurationPushBinding(
+                            Server, m_managementConfiguration, SystemContext, node,
+                            registration.Target, authorization, registration.PendingKeyStore,
+                            registration.KeyGenerator, registration.ConfigurationFileProvider,
+                            this, m_calls.IsServing, m_calls.Enter, m_calls.Exit);
+                        await binding.RecoverConfigurationFileUpdateAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        binding = new ApplicationConfigurationPushBinding(
+                            predecessor, SystemContext, node, this, m_calls.IsServing, m_calls.Enter, m_calls.Exit);
+                    }
                     await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
                     node.AddReference(ReferenceTypeIds.HasComponent, true, device.NodeId);
                     if (!externalReferences.TryGetValue(device.NodeId, out IList<IReference>? references))
@@ -453,6 +479,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     references.Add(new NodeStateReference(ReferenceTypeIds.HasComponent, false, node.NodeId));
                     device.AddChild(node);
                     m_pushBindings.Add(binding);
+                    m_applicationSurfaces.Add(new ApplicationSurface(descriptor, binding));
                     binding = null;
                 }
                 finally
@@ -534,6 +561,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
             /// <summary>The independent push handlers owned by this node manager.</summary>
             private readonly List<ApplicationConfigurationPushBinding> m_pushBindings = [];
+
+            private readonly List<ApplicationSurface> m_applicationSurfaces = [];
+            private ProvisionableDeviceNodeManager? m_predecessor;
+
+            private sealed record ApplicationDescriptor(
+                ManagedApplicationPushRegistration Registration,
+                IProvisionableDeviceSecurity Security,
+                string Uri,
+                string? Name,
+                string? ProductUri,
+                ApplicationType Type);
+
+            private sealed record ApplicationSurface(
+                ApplicationDescriptor Descriptor,
+                ApplicationConfigurationPushBinding Binding);
 
             /// <summary>The device instance loaded into this manager's namespace.</summary>
             private ProvisionableDeviceState? m_device;

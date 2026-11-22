@@ -117,12 +117,35 @@ namespace Opc.Ua.Server
             Func<IAsyncNodeManager, bool> isRegistered,
             CancellationToken cancellationToken)
         {
+            (IAsyncNodeManager manager, _) = await CreateNodeManagerAsync(
+                factory, configuration, replacement, isRegistered, null, cancellationToken).ConfigureAwait(false);
+            return manager;
+        }
+
+        /// <summary>
+        /// Invokes a first-party handoff factory with the captured predecessor when one was admitted.
+        /// </summary>
+        internal async ValueTask<(IAsyncNodeManager Manager, NodeManagerHandoffCandidate? Handoff)> CreateNodeManagerAsync(
+            IAsyncNodeManagerFactory factory,
+            ApplicationConfiguration configuration,
+            bool replacement,
+            Func<IAsyncNodeManager, bool> isRegistered,
+            IAsyncNodeManager? handoffPredecessor,
+            CancellationToken cancellationToken)
+        {
             using var server = new StagingServer(this);
             IAsyncNodeManager manager;
+            NodeManagerHandoffCandidate? handoff = null;
             try
             {
-                manager = await factory.CreateAsync(server, configuration, cancellationToken)
-                    .ConfigureAwait(false) ??
+                if (handoffPredecessor is not null)
+                {
+                    handoff = await ((INodeManagerHandoffFactory)factory).PrepareReplacementAsync(
+                        server, configuration, handoffPredecessor, cancellationToken).ConfigureAwait(false);
+                }
+                manager = (handoffPredecessor is null
+                    ? await factory.CreateAsync(server, configuration, cancellationToken).ConfigureAwait(false)
+                    : handoff?.Manager) ??
                     throw new InvalidOperationException(replacement
                         ? "The replacement NodeManager factory returned null."
                         : "The NodeManager factory returned null.");
@@ -170,7 +193,7 @@ namespace Opc.Ua.Server
                 }
                 throw;
             }
-            return manager;
+            return (manager, handoff);
         }
 
         /// <summary>

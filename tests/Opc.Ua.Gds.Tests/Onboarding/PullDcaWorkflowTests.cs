@@ -4106,14 +4106,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase("endpoint")]
         [TestCase("registrar")]
         [TestCase("directory")]
-        [TestCase("application")]
-        [TestCase("profile-group")]
-        [TestCase("profile-type")]
         [TestCase("client-channel")]
         [TestCase("registrar-channel")]
         [TestCase("registrar-application")]
         [TestCase("namespace")]
-        public async Task RecoverableKeyPairBindingRejectsScopeMismatchBeforeTransport(string mismatch)
+        public async Task RecoverableKeyPairBindingRejectsConnectionScopeMismatchBeforeTransport(string mismatch)
         {
             int calls = 0;
             await using var session = CreateConfidentialSession(_ =>
@@ -4138,15 +4135,6 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 "directory" => scope with
                 {
                     Registrar = scope.Registrar with { CertificateDirectoryId = new NodeId("other-directory", 2) }
-                },
-                "application" => scope with { ApplicationId = new NodeId("other-app", 2) },
-                "profile-group" => scope with
-                {
-                    Profile = scope.Profile with { CertificateGroupId = new NodeId("other-group", 2) }
-                },
-                "profile-type" => scope with
-                {
-                    Profile = scope.Profile with { CertificateTypeId = new NodeId("other-type", 2) }
                 },
                 "client-channel" => scope with
                 {

@@ -229,6 +229,8 @@ namespace Opc.Ua.Gds.Tests
                     update.updateId, It.IsAny<CancellationToken>()), Times.Once);
                 configurationFile.Verify(provider => provider.ConfirmPendingUpdateAsync(
                     update.updateId, It.IsAny<CancellationToken>()), Times.Once);
+                configurationFile.Verify(provider => provider.ReadConfigurationAsync(
+                    It.IsAny<CancellationToken>()), Times.Once);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
 
                 using Opc.Ua.Client.ISession observer = await client.ConnectAsync(
@@ -245,7 +247,7 @@ namespace Opc.Ua.Gds.Tests
                     await observerFile.OpenAsync((byte)OpenFileMode.Read).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(fileDenied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 configurationFile.Verify(provider => provider.ReadConfigurationAsync(
-                    It.IsAny<CancellationToken>()), Times.Never);
+                    It.IsAny<CancellationToken>()), Times.Once);
                 await observer.CloseAsync(5000, true).ConfigureAwait(false);
             }
             finally
@@ -504,6 +506,158 @@ namespace Opc.Ua.Gds.Tests
             await using IPreparedChanges retry = await lifecycle.PrepareAsync(
                 [FirstPartyAddition()], timeout.Token).ConfigureAwait(false);
             Assert.That(retry.IsCommitted, Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(60_000)]
+        public async Task DeviceHandoffRetainsManagedTargetWithoutRepeatingProviderRecovery(
+            bool holdFileHandle, CancellationToken cancellationToken)
+        {
+            using var target = await TestTarget.CreateAsync("urn:managed:handoff").ConfigureAwait(false);
+            Mock<IRecoverableApplicationConfigurationFileProvider> file = CreateConfigurationFileProvider();
+            var application = new ManagedApplicationPushRegistration(
+                target, Mock.Of<IPushConfigurationAuthorization>(), configurationFileProvider: file.Object);
+            var provider = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            provider.Setup(value => value.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>([application]));
+            var security = new Mock<IProvisionableDeviceSecurity>();
+            security.Setup(value => value.CreateApplicationOperations()).Returns(new TestApplicationOperations());
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(false);
+            var releaseTickets = new TaskCompletionSource<ArrayOf<string>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            runtime.Setup(value => value.RequestTicketsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<string>>(releaseTickets.Task));
+            var factory = new ProvisionableDeviceNodeManagerFactory(runtime.Object, provider.Object, security.Object);
+            INodeManagerLifecycle lifecycle = ReferenceServer.NodeManagerLifecycle;
+            await using IPreparedChanges added = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], cancellationToken).ConfigureAwait(false);
+            LifecycleResult initial = await added.CommitAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            NodeManagerSlot slot = initial.Registrations[0].Slot;
+            try
+            {
+                Assert.That(initial.Registrations[0].TryGetRegistration(out NodeManagerRegistration? before), Is.True);
+                Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot old), Is.True);
+                ApplicationConfigurationState original = await GetApplicationAsync(old.NodeManager)
+                    .ConfigureAwait(false);
+                long revision = lifecycle.Revision;
+                if (holdFileHandle)
+                {
+                    var context = ((AsyncCustomNodeManager)old.NodeManager).SystemContext;
+                    ApplicationConfigurationFileState originalFile = original.ConfigurationFile!;
+                    OpenMethodStateResult opened = await originalFile.Open!.OnCallAsync!(
+                        context, originalFile.Open, originalFile.NodeId, (byte)OpenFileMode.Read, cancellationToken)
+                        .ConfigureAwait(false);
+                    Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                    object deviceHandle = await old.NodeManager.GetManagerHandleAsync(new NodeId(29878u),
+                        cancellationToken).ConfigureAwait(false);
+                    var device = (ProvisionableDeviceState)((NodeHandle)deviceHandle).Node;
+                    Task<ServiceResult> tickets = device.RequestTickets!.OnCallMethod2Async!(
+                        context, device.RequestTickets, device.NodeId, [], [Variant.Null], cancellationToken)
+                        .AsTask();
+                    try
+                    {
+                        Assert.That(factory.QueueReplacement(lifecycle, before!, cancellationToken),
+                            Is.EqualTo(StatusCodes.Good));
+                        await WaitForCertificatesStatusAsync(context, original, StatusCodes.BadWouldBlock)
+                            .ConfigureAwait(false);
+                        Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+                    }
+                    finally
+                    {
+                        releaseTickets.TrySetResult([]);
+                        await tickets.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    await WaitForCertificatesStatusAsync(context, original, StatusCodes.Good)
+                        .ConfigureAwait(false);
+                    Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+                    CloseMethodStateResult closed = await originalFile.Close!.OnCallAsync!(
+                        context, originalFile.Close, originalFile.NodeId, opened.FileHandle, cancellationToken)
+                        .ConfigureAwait(false);
+                    Assert.That(closed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+
+                StatusCode queued;
+                do
+                {
+                    queued = factory.QueueReplacement(lifecycle, before!, cancellationToken);
+                    if (queued == StatusCodes.BadWouldBlock)
+                    {
+                        await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                while (queued == StatusCodes.BadWouldBlock);
+                Assert.That(queued, Is.EqualTo(StatusCodes.Good));
+                while (lifecycle.Revision == revision)
+                {
+                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                }
+                Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(current.Generation, Is.Not.EqualTo(old.Generation));
+                ApplicationConfigurationState successor = await GetApplicationAsync(current.NodeManager)
+                    .ConfigureAwait(false);
+                Assert.That(successor, Is.Not.SameAs(original));
+                Assert.That(successor.NodeId, Is.EqualTo(original.NodeId));
+                Assert.That(successor.ConfigurationFile, Is.Not.SameAs(original.ConfigurationFile));
+                Assert.That(successor.ConfigurationFile!.CurrentVersion!.Value, Is.EqualTo(1u));
+                var certificates = await successor.GetCertificates!.OnCallAsync!(
+                    ((AsyncCustomNodeManager)current.NodeManager).SystemContext,
+                    successor.GetCertificates, successor.NodeId, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(certificates.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(certificates.Certificates.Count, Is.EqualTo(1));
+                provider.Verify(value => value.GetApplicationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+                security.Verify(value => value.CreateApplicationOperations(), Times.Once);
+                file.Verify(value => value.GetPendingUpdateAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await using IPreparedChanges removal = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Remove(slot)], cleanup.Token).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(cancellationToken: cleanup.Token)
+                    .ConfigureAwait(false);
+                await removed.Retired.WaitAsync(cleanup.Token).ConfigureAwait(false);
+            }
+
+            async ValueTask<ApplicationConfigurationState> GetApplicationAsync(IAsyncNodeManager manager)
+            {
+                ushort ns = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
+                    ProvisionableDeviceNodeManagerFactory.NamespaceUri));
+                object handle = await manager.GetManagerHandleAsync(
+                    new NodeId($"Application:{target.Configuration.ApplicationUri}", ns), cancellationToken)
+                    .ConfigureAwait(false);
+                return (ApplicationConfigurationState)((NodeHandle)handle).Node;
+            }
+
+            async Task WaitForCertificatesStatusAsync(
+                ServerSystemContext context, ApplicationConfigurationState node, StatusCode expected)
+            {
+                while (true)
+                {
+                    StatusCode actual;
+                    try
+                    {
+                        var result = await node.GetCertificates!.OnCallAsync!(
+                            context, node.GetCertificates, node.NodeId, NodeId.Null, cancellationToken)
+                            .ConfigureAwait(false);
+                        actual = result.ServiceResult.StatusCode;
+                    }
+                    catch (ServiceResultException error) when (error.StatusCode == StatusCodes.BadWouldBlock)
+                    {
+                        actual = error.StatusCode;
+                    }
+                    if (actual == expected)
+                    {
+                        return;
+                    }
+                    Assert.That(actual, Is.AnyOf(StatusCodes.Good, StatusCodes.BadWouldBlock));
+                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
 
         /// <summary>

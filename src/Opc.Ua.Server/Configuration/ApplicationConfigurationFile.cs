@@ -178,6 +178,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports whether this attachment still owns file work that cannot be transferred.
+        /// </summary>
+        internal bool HasOutstandingAttachmentWork
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_handles.Count != 0 || m_pendingOpens != 0 || m_updateInProgress ||
+                        m_deferredApplyPending || m_pendingUpdateId.Guid != Guid.Empty || m_pendingRevertCts != null;
+                }
+            }
+        }
+
+        /// <summary>
         /// Stops deferred work and waits for active configuration updates before runtime release.
         /// </summary>
         public async ValueTask StopAsync()

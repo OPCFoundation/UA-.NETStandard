@@ -44,7 +44,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var requestId = new NodeId("request", 1);
             var profile = new PullDcaCertificateProfile(new NodeId("group", 1),
                 global::Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
-            var trust = new TrustListDataType();
+            var trust = new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All };
             var localIdentity = new Mock<IPullDcaIdentityProvider>(MockBehavior.Strict);
             localIdentity.Setup(value => value.ActivateAsync(identity, It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
             var installation = security.Setup(value => value.InstallFromPullAsync(context.ManagedSession, "urn:registrar",
                     It.Is<ProvisionableDeviceCredentials>(credentials =>
-                        credentials.Certificate == certificate && credentials.TrustList == trust),
+                        credentials.Certificate == certificate && credentials.TrustList.IsEqual(trust)),
                     It.IsAny<CancellationToken>()));
             var expectedFailure = new InvalidOperationException("Device installation failed.");
             if (failInstallation)

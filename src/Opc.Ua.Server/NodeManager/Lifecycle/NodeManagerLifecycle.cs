@@ -1948,6 +1948,7 @@ namespace Opc.Ua.Server
         /// The server factory does not support prepared publication,
         /// or a manager being replaced does not support safe reload.
         /// </exception>
+        /// <param name="handoff">The worker that owns this replacement, if any.</param>
         private async ValueTask<IPreparedChanges> PrepareChangesAsync(
             ArrayOf<LifecycleChange> changes,
             LifecycleWriter.PublicationSession? publication,
@@ -1958,7 +1959,8 @@ namespace Opc.Ua.Server
             InitialPublication? initial = null,
             ShutdownPublication? shutdown = null,
             NodeManagerReadinessScope? readiness = null,
-            bool bindReadiness = false)
+            bool bindReadiness = false,
+            HandoffRequest? handoff = null)
         {
             if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0 && initial is null))
             {
@@ -2045,6 +2047,12 @@ namespace Opc.Ua.Server
                         }
                         if (change.Factory is { } slotFactory)
                         {
+                            if (current is not null && slotFactory is INodeManagerHandoffFactory &&
+                                (handoff is null || !ReferenceEquals(current.Registration, handoff.Predecessor)))
+                            {
+                                throw new NotSupportedException(
+                                    "This replacement requires the exact predecessor and the server handoff worker.");
+                            }
                             ValidateFactoryRegistration(slotFactory, target);
                         }
                         if (current is not null)
@@ -2069,11 +2077,12 @@ namespace Opc.Ua.Server
                         {
                             continue;
                         }
-                        entry.Manager = await preparation.CreateNodeManagerAsync(
+                        (entry.Manager, entry.Handoff) = await preparation.CreateNodeManagerAsync(
                             change.Factory,
                             m_server.CurrentConfiguration,
                             current is not null,
                             IsOwnedNodeManager,
+                            handoff is null ? null : current?.Prepared.NodeManager,
                             cancellationToken).ConfigureAwait(false);
                         ChangePreparer.StagingServer stagingServer = ChangePreparer.GetServer(entry.Manager)!;
                         try
@@ -2094,7 +2103,7 @@ namespace Opc.Ua.Server
                             }
                             await ValidateDataTypeCompatibilityAsync(stagingServer, entry.Manager, cancellationToken)
                                 .ConfigureAwait(false);
-                            if (current is not null)
+                            if (current is not null && entry.Handoff is null)
                             {
                                 if (current.Prepared.NodeManager is not INodeManagerReloadParticipant participant)
                                 {
@@ -2145,7 +2154,10 @@ namespace Opc.Ua.Server
                         preparation.TypeTree, preparation.OriginalTypes,
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
                         preparation.FactoryRevision, resolver, preparation, publication,
-                        initial, shutdown, callbackPermit);
+                        initial, shutdown, callbackPermit)
+                    {
+                        Handoff = handoff
+                    };
                     var prepared = new PreparedChanges(payload, validationOnly, bindReadiness ? readiness : null);
                     if (readImages.Count != 0)
                     {
@@ -3379,6 +3391,11 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Gets or sets the drain plan for the exact borrowed successor.
+            /// </summary>
+            public NodeManagerHandoffCandidate? Handoff { get; set; }
+
+            /// <summary>
             /// Gets or sets the prepared node manager of the change.
             /// </summary>
             public PreparedNodeManager? Prepared { get; set; }
@@ -3530,6 +3547,11 @@ namespace Opc.Ua.Server
             public bool DecisionCommitted { get; set; }
 
             /// <summary>
+            /// Gets the sole worker allowed to commit this replacement.
+            /// </summary>
+            public HandoffRequest? Handoff { get; init; }
+
+            /// <summary>
             /// Tracks the first irreversible core mutation independently of the decision and route swap.
             /// </summary>
             public AddressSpacePublisher.PublicationProgress PublicationProgress { get; } = new();
@@ -3617,6 +3639,7 @@ namespace Opc.Ua.Server
                 PreparationPayload payload, bool validationOnly, NodeManagerReadinessScope? readiness)
             {
                 m_payload = payload;
+                m_requiresHandoff = payload.Handoff is not null;
                 m_validationOnly = validationOnly;
                 m_readiness = readiness;
                 Registrations = payload.Registrations;
@@ -3728,11 +3751,16 @@ namespace Opc.Ua.Server
                 return DisposeCoreAsync(decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)));
             }
 
-            private ValueTask DisposeCoreAsync(NodeManagerDecisionContext? decisionContext)
+            private ValueTask DisposeCoreAsync(
+                NodeManagerDecisionContext? decisionContext, HandoffRequest? handoff = null)
             {
                 PreparationPayload payload;
                 lock (m_state)
                 {
+                    if (m_requiresHandoff && handoff is null)
+                    {
+                        throw new NotSupportedException("Only the owning server worker may dispose this handoff.");
+                    }
                     if (decisionContext is not null)
                     {
                         m_payload?.Owner.ThrowIfDecisionCallbackActive(decisionContext);
@@ -3749,6 +3777,14 @@ namespace Opc.Ua.Server
                 }
                 _ = AbortAsync(payload);
                 return new ValueTask(m_finished.Task);
+            }
+
+            /// <summary>
+            /// Releases the worker's private preparation without exposing its completion to other callers.
+            /// </summary>
+            public ValueTask DisposeHandoffAsync(HandoffRequest handoff)
+            {
+                return DisposeCoreAsync(null, handoff);
             }
 
             /// <summary>
@@ -3864,12 +3900,20 @@ namespace Opc.Ua.Server
                 Action? publishCommittedState,
                 NodeManagerDecisionContext? decisionContext,
                 NodeManagerReadinessScope? readiness,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                HandoffRequest? handoff = null)
             {
                 PreparationPayload payload;
                 TaskCompletionSource<LifecycleResult> commitCompletion;
                 lock (m_state)
                 {
+                    if (m_requiresHandoff &&
+                        (handoff is null || m_payload is null || !ReferenceEquals(handoff, m_payload.Handoff) ||
+                            m_commitCompletion is not null || decideAsync is not null ||
+                            publishCommittedState is not null || readiness is not null))
+                    {
+                        throw new NotSupportedException("Only the owning server worker may commit this handoff.");
+                    }
                     if (decisionContext is not null)
                     {
                         m_payload?.Owner.ThrowIfDecisionCallbackActive(decisionContext);
@@ -3897,6 +3941,15 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Consumes the worker's authority to commit its exact prepared successor.
+            /// </summary>
+            public ValueTask<LifecycleResult> CommitHandoffAsync(
+                HandoffRequest handoff, CancellationToken cancellationToken)
+            {
+                return CommitCoreAsync(null, null, null, null, cancellationToken, handoff);
+            }
+
+            /// <summary>
             /// Executes one commit or validation and releases preparation after publication or cleanup transfer.
             /// </summary>
             // TODO: Remove this suppression when RCS1140 distinguishes failure on a separate completion task.
@@ -3918,10 +3971,12 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        result = await payload.Owner.CompleteChangesAsync(
-                            payload, decideAsync, m_validationOnly, readiness,
-                            publishCommittedState, cancellationToken)
-                            .ConfigureAwait(false);
+                        result = payload.Handoff is null
+                            ? await payload.Owner.CompleteChangesAsync(
+                                payload, decideAsync, m_validationOnly, readiness,
+                                publishCommittedState, cancellationToken).ConfigureAwait(false)
+                            : await payload.Owner.CompleteHandoffAsync(payload, cancellationToken)
+                                .ConfigureAwait(false);
                         if (!m_validationOnly && result is null)
                         {
                             throw new InvalidOperationException("A publication returned no committed result.");
@@ -4104,6 +4159,9 @@ namespace Opc.Ua.Server
 
             /// <summary>Whether this unit admits validation only.</summary>
             private readonly bool m_validationOnly;
+
+            /// <summary>Whether ordinary callers must be denied even after preparation has been consumed.</summary>
+            private readonly bool m_requiresHandoff;
 
             private readonly NodeManagerReadinessScope? m_readiness;
         }

@@ -75,8 +75,7 @@ namespace Opc.Ua.Server
 
                 foreach (ServerCertificateGroup certGroup in m_certificateGroups)
                 {
-                    if (certGroup.Node?.TrustList == null ||
-                        !Utils.IsEqual(certGroup.Node.TrustList.NodeId, trustListId))
+                    if (!Utils.IsEqual(certGroup.EffectiveTrustListId, trustListId))
                     {
                         continue;
                     }
@@ -146,7 +145,7 @@ namespace Opc.Ua.Server
             TrustListIdentifier scope = GetGroupValidationScope(certGroup);
             return new TrustListChangeEffect
             {
-                TrustListId = certGroup.Node?.TrustList?.NodeId ?? NodeId.Null,
+                TrustListId = certGroup.EffectiveTrustListId,
                 CertificateGroupId = certGroup.NodeId,
                 Kind = scope == TrustListIdentifier.Users
                     ? TrustListEffectKind.UserIdentityTrust
@@ -306,6 +305,47 @@ namespace Opc.Ua.Server
             HashSet<TrustListIdentifier> scopes,
             CancellationToken cancellationToken)
         {
+            if (m_applicationPushTarget == null)
+            {
+                await EnforceTrustMaterialScopesCoreAsync(scopes).ConfigureAwait(false);
+                return;
+            }
+
+            TaskCompletionSource<bool> active;
+            while (true)
+            {
+                Task<bool> admission;
+                lock (m_trustHandoffLock)
+                {
+                    if (m_trustHandoff is null)
+                    {
+                        if (m_trustHandoffClosed)
+                        {
+                            return;
+                        }
+                        active = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_activeTrustEffect = active.Task;
+                        break;
+                    }
+                    admission = m_trustHandoff.Released.Task;
+                }
+                if (!await admission.WaitAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    return;
+                }
+            }
+            try
+            {
+                await EnforceTrustMaterialScopesCoreAsync(scopes).ConfigureAwait(false);
+            }
+            finally
+            {
+                active.TrySetResult(true);
+            }
+        }
+
+        private async ValueTask EnforceTrustMaterialScopesCoreAsync(HashSet<TrustListIdentifier> scopes)
+        {
             CancellationToken shutdownToken;
             try
             {
@@ -338,5 +378,44 @@ namespace Opc.Ua.Server
             await ApplyTrustListEffectsAsync(effects, listeners, shutdownToken)
                 .ConfigureAwait(false);
         }
+
+        internal TrustHandoff PauseTrustEffects()
+        {
+            lock (m_trustHandoffLock)
+            {
+                if (m_trustHandoff is not null || m_trustHandoffClosed)
+                {
+                    throw new ServiceResultException(StatusCodes.BadWouldBlock);
+                }
+                return m_trustHandoff = new TrustHandoff(this, m_activeTrustEffect);
+            }
+        }
+
+        internal sealed class TrustHandoff(ConfigurationNodeManager owner, Task drained)
+        {
+            internal Task Drained { get; } = drained;
+
+            internal TaskCompletionSource<bool> Released { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            internal void Finish(bool serving)
+            {
+                lock (owner.m_trustHandoffLock)
+                {
+                    if (!ReferenceEquals(owner.m_trustHandoff, this))
+                    {
+                        return;
+                    }
+                    owner.m_trustHandoffClosed = !serving;
+                    owner.m_trustHandoff = null;
+                    Released.TrySetResult(serving);
+                }
+            }
+        }
+
+        private readonly Lock m_trustHandoffLock = new();
+        private Task m_activeTrustEffect = Task.CompletedTask;
+        private TrustHandoff? m_trustHandoff;
+        private bool m_trustHandoffClosed;
     }
 }

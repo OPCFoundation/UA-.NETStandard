@@ -296,12 +296,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             var runtime1 = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
             runtime1.SetupGet(runtime => runtime.IsSingleton).Returns(true);
-            runtime1.Setup(runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync((ArrayOf<string>)["generation-1-ticket"]);
-
-            var runtime2 = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
-            runtime2.SetupGet(runtime => runtime.IsSingleton).Returns(false);
-            runtime2.Setup(runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()))
+            runtime1.SetupSequence(runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ArrayOf<string>)["generation-1-ticket"])
                 .ReturnsAsync((ArrayOf<string>)["generation-2-ticket"]);
 
             var runtime3 = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
@@ -324,6 +320,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     TestContext.CurrentContext.Test.Name,
                     useSecurity: false).ConfigureAwait(false);
                 sessionActive = true;
+                var identity = new Mock<IUserIdentity>();
+                identity.SetupGet(value => value.GrantedRoleIds)
+                    .Returns((ArrayOf<NodeId>)[Ua.ObjectIds.WellKnownRole_AuthenticatedUser]);
+                server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken)!
+                    .RefreshEffectiveIdentity(identity.Object);
+                DataValue fallbackRead = await ReadSingletonAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                CallMethodResult fallbackCall = await RequestTicketsAsync(
+                    server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
+                Assert.That(fallbackRead.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(StatusCode.IsBad(fallbackCall.StatusCode), Is.True);
 
                 await using IPreparedChanges preparedAdd = await server.NodeManagerLifecycle
                     .PrepareAsync(
@@ -357,25 +364,21 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 runtime1.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
 
-                await using IPreparedChanges preparedReplace = await server.NodeManagerLifecycle
-                    .PrepareAsync(
-                        [
-                            LifecycleChange.Replace(
-                                slot1,
-                                new ProvisionableDeviceNodeManagerFactory(runtime2.Object))
-                        ],
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                LifecycleResult replaced = await preparedReplace
-                    .CommitAsync(cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
-                Assert.That(replaced.CleanupFailure, Is.Null);
-                Assert.That(replaced.Registrations, Has.Count.EqualTo(1));
-                NodeManagerSlot replacementSlot = replaced.Registrations[0].Slot;
-                retirements.Add(replaced.Retired);
-                await replaced.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
+                Assert.That(
+                    added.Registrations[0].TryGetRegistration(out NodeManagerRegistration? original), Is.True);
+                var replacementFactory = new ProvisionableDeviceNodeManagerFactory(runtime1.Object);
+                long originalRevision = server.NodeManagerLifecycle.Revision;
+                Assert.That(
+                    replacementFactory.QueueReplacement(server.NodeManagerLifecycle, original!, cancellationToken),
+                    Is.EqualTo(StatusCodes.Good));
+                while (server.NodeManagerLifecycle.Revision == originalRevision ||
+                    !slot1.TryGetCurrent(out NodeManagerSlotSnapshot replacement) ||
+                    replacement.Generation == original!.Generation)
+                {
+                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                }
 
-                // Verify the retired generation's cleanup did not remove the replacement's Resources binding.
+                // The successor retains the host runtime but owns a new routing generation.
                 await AssertResourcesBindingAsync(
                     server, requestHeader, secureChannelContext, expectedPresent: true, cancellationToken)
                     .ConfigureAwait(false);
@@ -383,7 +386,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
                 Assert.That(replacementRead.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(replacementRead.WrappedValue.TryGetValue(out bool replacementSingleton), Is.True);
-                Assert.That(replacementSingleton, Is.False);
+                Assert.That(replacementSingleton, Is.True);
 
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 ushort deviceNamespace = checked((ushort)server.CurrentInstance.NamespaceUris.GetIndex(
@@ -397,7 +400,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         {
                             NodeId = new NodeId(29879u),
                             AttributeId = Attributes.Value,
-                            Value = new DataValue(new Variant(true))
+                            Value = new DataValue(new Variant(false))
                         },
                         new WriteValue
                         {
@@ -415,7 +418,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
                 Assert.That(unchangedSingleton.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(unchangedSingleton.WrappedValue.TryGetValue(out bool stillReplacementSingleton), Is.True);
-                Assert.That(stillReplacementSingleton, Is.False);
+                Assert.That(stillReplacementSingleton, Is.True);
 
                 CallMethodResult replacementCall = await RequestTicketsAsync(
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
@@ -426,13 +429,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Is.True);
                 Assert.That(replacementTickets.ToArray(), Is.EqualTo(s_generation2Tickets));
                 runtime1.Verify(
-                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
-                runtime2.Verify(
-                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
+                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
 
                 await using IPreparedChanges preparedRemove = await server.NodeManagerLifecycle
                     .PrepareAsync(
-                        [LifecycleChange.Remove(replacementSlot)],
+                        [LifecycleChange.Remove(slot1)],
                         cancellationToken)
                     .ConfigureAwait(false);
                 LifecycleResult removed = await preparedRemove
@@ -454,10 +455,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Is.False);
                 DataValue removedRead = await ReadSingletonAsync(
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                Assert.That(removedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(removedRead.StatusCode, Is.EqualTo(fallbackRead.StatusCode));
+                Assert.That(removedRead.WrappedValue, Is.EqualTo(fallbackRead.WrappedValue));
                 CallMethodResult removedCall = await RequestTicketsAsync(
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                Assert.That(removedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(removedCall.StatusCode, Is.EqualTo(fallbackCall.StatusCode));
                 Assert.That(removedCall.OutputArguments, Is.Empty);
 
                 await using (IPreparedChanges abandonedFreshAdd = await server.NodeManagerLifecycle
@@ -481,10 +483,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Is.False);
                 DataValue abandonedRead = await ReadSingletonAsync(
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                Assert.That(abandonedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(abandonedRead.StatusCode, Is.EqualTo(fallbackRead.StatusCode));
+                Assert.That(abandonedRead.WrappedValue, Is.EqualTo(fallbackRead.WrappedValue));
                 CallMethodResult abandonedCall = await RequestTicketsAsync(
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                Assert.That(abandonedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(abandonedCall.StatusCode, Is.EqualTo(fallbackCall.StatusCode));
                 runtime3.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Never);
 
@@ -560,16 +563,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Is.False);
                 DataValue freshRemovedRead = await ReadSingletonAsync(
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                Assert.That(freshRemovedRead.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(freshRemovedRead.StatusCode, Is.EqualTo(fallbackRead.StatusCode));
+                Assert.That(freshRemovedRead.WrappedValue, Is.EqualTo(fallbackRead.WrappedValue));
                 CallMethodResult freshRemovedCall = await RequestTicketsAsync(
                     server, requestHeader, secureChannelContext, cancellationToken).ConfigureAwait(false);
-                Assert.That(freshRemovedCall.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(freshRemovedCall.StatusCode, Is.EqualTo(fallbackCall.StatusCode));
                 Assert.That(freshRemovedCall.OutputArguments, Is.Empty);
 
                 runtime1.Verify(
-                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
-                runtime2.Verify(
-                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
+                    runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
                 runtime3.Verify(
                     runtime => runtime.RequestTicketsAsync(It.IsAny<CancellationToken>()), Times.Once);
             }
