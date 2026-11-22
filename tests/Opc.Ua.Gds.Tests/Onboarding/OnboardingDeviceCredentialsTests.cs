@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.IO;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -372,6 +373,47 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
                 It.IsAny<ValidationOptions>(), cancellation.Token), Times.Once);
             VerifyNoInstallation(verifyNoValidation: false);
+        }
+
+        [Test]
+        public async Task KeyPairInstallationRejectsStoreThatCannotReloadPrivateKeyAsync()
+        {
+            var store = new Mock<ICertificateStore>(MockBehavior.Strict);
+            store.Setup(s => s.Open(m_identifier.StorePath!, false));
+            store.Setup(s => s.Dispose());
+            store.Setup(s => s.FindByThumbprintAsync(m_identity.Thumbprint, CancellationToken.None))
+                .ReturnsAsync(() => new CertificateCollection());
+            store.Setup(s => s.AddAsync(It.IsAny<Certificate>(), It.IsAny<char[]>(), CancellationToken.None))
+                .Returns(Task.CompletedTask);
+            store.Setup(s => s.LoadPrivateKeyAsync(
+                    m_identity.Thumbprint, null, null, CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    It.IsAny<char[]>(), CancellationToken.None))
+                .ReturnsAsync((Certificate?)null);
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(p => p.StoreTypeName).Returns("SampleCredentialStore");
+            provider.Setup(p => p.CreateStore(m_telemetry)).Returns(store.Object);
+            m_identifier.StoreType = "SampleCredentialStore";
+            m_credentials = new OnboardingDeviceCredentials(m_configuration, m_telemetry, [provider.Object]);
+            m_manager.Setup(m => m.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), CancellationToken.None))
+                .ReturnsAsync(CertificateValidationResult.Success);
+            var credentials = new PullDcaCredentials(Encoded(m_identity), [], CompleteTrustList());
+            byte[] pfx = m_identity.Export(X509ContentType.Pfx);
+            try
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await m_credentials.InstallNewKeyPairAsync(s_applicationId, s_profile, credentials,
+                        ByteString.From(pfx)).ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                store.Verify(s => s.AddAsync(It.IsAny<Certificate>(), It.IsAny<char[]>(), CancellationToken.None),
+                    Times.Once);
+                VerifyNoInstallation(verifyNoValidation: false);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(pfx);
+            }
         }
 
         /// <summary>

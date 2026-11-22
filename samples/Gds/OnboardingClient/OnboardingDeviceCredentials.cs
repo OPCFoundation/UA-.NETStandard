@@ -338,7 +338,13 @@ namespace OnboardingClientSample
                 }
                 using Certificate combined = DefaultCertificateFactory.Instance.CreateWithPrivateKey(
                     issued, returnedKeyPair);
-                await InstallCombinedAsync(issued, combined, credentials, cancellationToken).ConfigureAwait(false);
+                await InstallCombinedAsync(issued, combined, credentials, cancellationToken, verifyPersistedKey: true)
+                    .ConfigureAwait(false);
+                if (!await HasAppliedPullCredentialsAsync(credentials, cancellationToken).ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed, "The new DCA credentials could not be verified.");
+                }
             }
             finally
             {
@@ -1032,7 +1038,8 @@ namespace OnboardingClientSample
             Certificate issued,
             Certificate combined,
             PullDcaCredentials credentials,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool verifyPersistedKey = false)
         {
             using CertificateCollection chain = await ValidateChainAsync(issued, credentials, cancellationToken)
                 .ConfigureAwait(false);
@@ -1049,7 +1056,7 @@ namespace OnboardingClientSample
                 .GetPassword(identifier) ?? [];
             try
             {
-                if (m_journal == null)
+                if (m_journal == null && !verifyPersistedKey)
                 {
                     await store.AddAsync(combined, password, cancellationToken).ConfigureAwait(false);
                 }
@@ -1066,7 +1073,9 @@ namespace OnboardingClientSample
                         cancellationToken).ConfigureAwait(false);
                     if (persisted == null || !persisted.HasPrivateKey ||
                         !persisted.RawData.AsSpan().SequenceEqual(combined.RawData) ||
-                        !HasSamePublicKey(persisted, combined))
+                        (verifyPersistedKey
+                            ? !X509Utils.VerifyKeyPair(issued, persisted)
+                            : !HasSamePublicKey(persisted, combined)))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
