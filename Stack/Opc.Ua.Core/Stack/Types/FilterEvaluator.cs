@@ -587,9 +587,12 @@ namespace Opc.Ua
                     RegexOptions.None,
                     TimeSpan.FromMilliseconds(engineTimeMs));
 
-                // the time to convert the pattern counts as well.
+                // the time to convert the pattern counts as well. It is converted in
+                // ticks: TimeSpan.FromSeconds rounds to milliseconds on .NET Framework,
+                // which would not count a match that takes less than half of one.
                 long elapsed = Stopwatch.GetTimestamp() - start;
-                m_likeTimeLeft -= TimeSpan.FromSeconds((double)elapsed / Stopwatch.Frequency);
+                m_likeTimeLeft -= TimeSpan.FromTicks(
+                    (long)((double)elapsed * TimeSpan.TicksPerSecond / Stopwatch.Frequency));
                 return isMatch;
             }
             catch (RegexMatchTimeoutException)
