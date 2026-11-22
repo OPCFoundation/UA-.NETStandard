@@ -102,9 +102,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_server.HostBoundary.Publication = (plan, publish) =>
                 {
                     var commit = new Mock<INodeManagerPublicationCommit>();
-                    commit.SetupGet(value => value.HasDecision).Returns(() => plan.Commit.HasDecision);
-                    commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
-                        .Returns<CancellationToken>(plan.Commit.DecideAsync);
+                    commit.SetupGet(value => value.Publishes).Returns(() => plan.Commit.Publishes);
+                    commit.Setup(value => value.EnterPublicationScope())
+                        .Returns(() => plan.Commit.EnterPublicationScope());
+                    commit.Setup(value => value.DecideAsync(
+                            It.IsAny<LifecycleWriter.Mutation.DecisionWindow?>(), It.IsAny<CancellationToken>()))
+                        .Returns<LifecycleWriter.Mutation.DecisionWindow?, CancellationToken>(
+                            plan.Commit.DecideAsync);
                     commit.Setup(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()))
                         .Callback<PublishedReferenceChanges>(plan.Commit.CaptureCommittedReferences);
                     commit.Setup(value => value.Publish(It.IsAny<bool>())).Callback<bool>(historianChanged =>

@@ -569,7 +569,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     TestableAsyncCustomNodeManager owner = RequireLifecycleValue(resource);
                     IServerInternal candidateServer = RequireLifecycleValue(staged);
                     NodeManagerGeneration candidate = NodeManagerGenerationRegistry.GetOrCreate(facade.Object);
-                    Assert.That(source.Generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                    Assert.That(RequireLifecycleValue(source.Generation)
+                        .TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
                     Assert.Multiple(() =>
                     {
                         Assert.That(admittedDuringFactory, Is.False);
@@ -609,7 +610,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (!publish)
                 {
                     MonitoredNode2 source = RequireLifecycleValue(monitored);
-                    Assert.That(source.Generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                    Assert.That(RequireLifecycleValue(source.Generation)
+                        .TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
                     Assert.That(bound!.Gate.TryEnter(out int _), Is.False);
                     facade.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
                 }

@@ -74,7 +74,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await manager.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
                 MonitoredNode2 monitored = manager.MonitoredNodes[root.NodeId];
                 Assert.That(monitored.EventMonitoredItems[item.Id], Is.SameAs(item));
-                Assert.That(monitored.Generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                NodeManagerGenerationReference generation = monitored.Generation
+                    ?? throw new AssertionException("The monitored node has no generation.");
+                Assert.That(generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
                 Assert.That(bound!.NodeManager, Is.SameAs(manager));
                 if (forwarded)
                 {

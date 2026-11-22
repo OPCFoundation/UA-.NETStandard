@@ -177,17 +177,18 @@ namespace Opc.Ua.PackML.Tests
                 using var clientFixture = new ClientFixture(telemetry);
                 await clientFixture.LoadClientConfigurationAsync(Path.Combine(
                     TestContext.CurrentContext.WorkDirectory, "packml-client", Guid.NewGuid().ToString("N")));
-                ServiceResultException? halted = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await CoreClientUtils.SelectEndpointAsync(
-                        clientFixture.Config, endpointUrl, false, 15000, telemetry, CancellationToken.None));
-                Assert.That(halted!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
-                Assert.That(started.Task.IsCompleted, Is.False);
-                Assert.That(gated.IsCompleted, Is.False, "The fixture must wait for server startup.");
+                Task<EndpointDescription?> discovery = CoreClientUtils.SelectEndpointAsync(
+                    clientFixture.Config, endpointUrl, false, 15000, telemetry, CancellationToken.None).AsTask();
+                Task firstRequest = await Task.WhenAny(discovery, Task.Delay(TimeSpan.FromSeconds(2)));
+                bool startedWhileBlocked = started.Task.IsCompleted;
+                bool fixtureCompletedWhileBlocked = gated.IsCompleted;
 
                 release.TrySetResult(true);
                 await Task.WhenAll(startup, gated);
-                EndpointDescription? endpoint = await CoreClientUtils.SelectEndpointAsync(
-                    clientFixture.Config, endpointUrl, false, 15000, telemetry, CancellationToken.None);
+                EndpointDescription? endpoint = await discovery;
+                Assert.That(firstRequest, Is.Not.SameAs(discovery), "Discovery must wait for PackML configuration.");
+                Assert.That(startedWhileBlocked, Is.False);
+                Assert.That(fixtureCompletedWhileBlocked, Is.False, "The fixture must wait for server startup.");
                 Assert.That(endpoint, Is.Not.Null);
             }
             finally
@@ -4643,10 +4644,10 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
-        /// Does not transfer a staged external reference to an unrelated replacement with the same NodeId.
+        /// Rejects an unrelated node at a reserved ID and publishes the original staged reference.
         /// </summary>
         [Test]
-        public async Task ReplacedPreparedPackMLNodeDoesNotInheritStagedReference()
+        public async Task PreparedPackMLNodeRejectsReplacementAtReservedId()
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             CancellationToken ct = deadline.Token;
@@ -4671,13 +4672,16 @@ namespace Opc.Ua.PackML.Tests
                 DisplayName = original.DisplayName,
                 TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
             };
-            await candidate.AddPredefinedNodeAsync(replacement, ct).ConfigureAwait(false);
-            Assert.That(candidate.Find(original.NodeId), Is.SameAs(replacement));
+            ServiceResultException conflict = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await candidate.AddPredefinedNodeAsync(replacement, ct).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
+            Assert.That(conflict.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdExists));
+            Assert.That(candidate.Find(original.NodeId), Is.SameAs(original));
 
             LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             Assert.That(objects.ReferenceExists(
-                Ua.ReferenceTypeIds.Organizes, false, original.NodeId), Is.False);
+                Ua.ReferenceTypeIds.Organizes, false, original.NodeId), Is.True);
             Assert.That(enumeration.ReferenceExists(
                 Ua.ReferenceTypeIds.HasSubtype, false, modeId), Is.True);
             await RetirePackMLManagerAsync(lifecycle, committed, ct).ConfigureAwait(false);

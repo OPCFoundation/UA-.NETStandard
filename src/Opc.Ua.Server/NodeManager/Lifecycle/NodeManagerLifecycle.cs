@@ -2331,7 +2331,7 @@ namespace Opc.Ua.Server
                 if (batch.Entries.Count != 0 && stagedConformance is not null &&
                     batch.Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } catalog } &&
                     batch.Server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnostics &&
-                    batch.RoutingRevision.TryGetGeneration(diagnostics, out _))
+                    batch.RoutingRevision.TryGetGeneration(diagnostics, out NodeManagerGeneration? diagnosticsOwner))
                 {
                     var retiringGenerations = new HashSet<NodeManagerGeneration>(RefEqualityComparer.Default);
                     foreach (BatchEntry entry in batch.Entries)
@@ -2341,12 +2341,15 @@ namespace Opc.Ua.Server
                             retiringGenerations.Add(current.Registration.Identity);
                         }
                     }
-                    readImages =
-                    [
-                        .. readImages,
-                        catalog.PrepareReadImage(diagnostics, batch.RoutingRevision,
-                            retiringGenerations, stagedConformance)
-                    ];
+                    if (diagnosticsOwner is not null && !retiringGenerations.Contains(diagnosticsOwner))
+                    {
+                        readImages =
+                        [
+                            .. readImages,
+                            catalog.PrepareReadImage(diagnostics, batch.RoutingRevision,
+                                retiringGenerations, stagedConformance)
+                        ];
+                    }
                 }
                 using PreparedAddressSpaceReferences references =
                     await batch.Host.PrepareReferencesAsync(
