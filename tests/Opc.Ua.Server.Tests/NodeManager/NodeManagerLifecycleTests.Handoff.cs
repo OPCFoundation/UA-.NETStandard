@@ -98,6 +98,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [Test]
+        public async Task HandoffWorkerCancelsDrainWithoutReopeningWhenShutdownStartsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))],
+                timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration predecessor = RequireRegistration(added.Registrations[0]);
+            TrackingLifecycleNodeManager? candidate = null;
+            var pause = new TestHandoffPause();
+            var factory = new TestHandoffFactory(
+                CreateTrackingNodeManagementFactory(kGeneration2Value, manager => candidate = manager), pause);
+
+            Assert.That(lifecycle.QueueHandoff(predecessor, factory, timeout.Token), Is.EqualTo(StatusCodes.Good));
+            try
+            {
+                await pause.Entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await lifecycle.BeginShutdownAsync(m_server.CurrentInstance, timeout.Token).ConfigureAwait(false);
+                Assert.That(await pause.Finished.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.False);
+                Assert.That(pause.AllowDrain.Task.IsCompleted, Is.False);
+                Assert.That(lifecycle.Revision, Is.EqualTo(added.Revision));
+                AssertLifecycleValue(candidate);
+                Assert.That(candidate.DisposeCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                pause.AllowDrain.TrySetResult(true);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task HandoffWorkerDoesNotReopenAfterCorePublicationStartsAsync(bool started)
