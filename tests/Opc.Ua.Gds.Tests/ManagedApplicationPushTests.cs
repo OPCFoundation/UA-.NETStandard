@@ -468,6 +468,45 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// Independently prepared facades share the live host's target isolation reservation.
+        /// </summary>
+        [Test]
+        public async Task PreparedApplicationBindingsCannotReserveTheSameTargetAcrossStagingFacades()
+        {
+            using var target = await TestTarget.CreateAsync("urn:managed:staged-isolation").ConfigureAwait(false);
+            var registration = new ManagedApplicationPushRegistration(
+                target, Mock.Of<IPushConfigurationAuthorization>());
+            var applications = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            applications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>([registration]));
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(false);
+            IProvisionableDeviceSecurity security = Mock.Of<IProvisionableDeviceSecurity>();
+            INodeManagerLifecycle lifecycle = ReferenceServer.NodeManagerLifecycle;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            LifecycleChange FirstPartyAddition()
+            {
+                return LifecycleChange.Add(new ProvisionableDeviceNodeManagerFactory(
+                    runtime.Object, applications.Object, security));
+            }
+
+            await using (IPreparedChanges first = await lifecycle.PrepareAsync(
+                [FirstPartyAddition()], timeout.Token).ConfigureAwait(false))
+            {
+                ArgumentException? failure = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                {
+                    await using IPreparedChanges unexpected = await lifecycle.PrepareAsync(
+                        [FirstPartyAddition()], timeout.Token).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+                Assert.That(failure!.Message, Does.Contain("independent identities"));
+            }
+
+            await using IPreparedChanges retry = await lifecycle.PrepareAsync(
+                [FirstPartyAddition()], timeout.Token).ConfigureAwait(false);
+            Assert.That(retry.IsCommitted, Is.False);
+        }
+
+        /// <summary>
         /// An injected pending-key store cannot become shared mutable signing state across applications.
         /// </summary>
         [Test]

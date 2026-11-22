@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -50,7 +51,10 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(node));
             }
-            m_target = target ?? throw new ArgumentNullException(nameof(target));
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
             if (authorization == null)
             {
                 throw new ArgumentNullException(nameof(authorization));
@@ -76,9 +80,13 @@ namespace Opc.Ua.Server
                     "The target requires configured application certificate slots.", nameof(target));
             }
             IPendingCertificateKeyStore pendingKeys = pendingKeyStore ?? new DirectoryPendingCertificateKeyStore();
-            m_registry = s_registries.GetValue(server, static _ => new BindingRegistry());
-            m_registry.Reserve(configuration, managementConfiguration, pendingKeys, configurationFileProvider,
-                server.ConfigurationNodeManager as ConfigurationNodeManager);
+            IServerInternal servingServer = server is ChangePreparer.StagingServer staging
+                ? staging.ServingServer
+                : server;
+            BindingRegistry registry = s_registries.GetValue(servingServer, static _ => new BindingRegistry());
+            m_reservation = registry.Reserve(
+                configuration, managementConfiguration, pendingKeys, configurationFileProvider,
+                servingServer.ConfigurationNodeManager as ConfigurationNodeManager);
             try
             {
                 m_manager = new ConfigurationNodeManager(
@@ -108,7 +116,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    ReleaseRegistration();
+                    m_reservation.Dispose();
                 }
                 throw;
             }
@@ -286,7 +294,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                ReleaseRegistration();
+                m_reservation.Dispose();
             }
             if (errors.Count == 1)
             {
@@ -308,14 +316,6 @@ namespace Opc.Ua.Server
                     errors.Add(error);
                 }
             }
-        }
-
-        /// <summary>
-        /// Releases the target's isolation reservation after its engine can no longer write.
-        /// </summary>
-        private void ReleaseRegistration()
-        {
-            m_registry.Release(m_target.Configuration);
         }
 
         /// <summary>
@@ -387,7 +387,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Reserves an application's security after excluding the host and all other active applications.
             /// </summary>
-            public void Reserve(
+            public TargetReservation Reserve(
                 ApplicationConfiguration configuration,
                 ApplicationConfiguration managementConfiguration,
                 IPendingCertificateKeyStore pendingKeyStore,
@@ -405,39 +405,42 @@ namespace Opc.Ua.Server
                     }
                     if (configurationFileProvider != null &&
                         (host?.UsesConfigurationFileProvider(configurationFileProvider) == true ||
-                            m_configurationFiles.ContainsValue(configurationFileProvider)))
+                            m_applications.Values.Any(owner =>
+                                EqualityComparer<IApplicationConfigurationFileProvider>.Default.Equals(
+                                    owner.ConfigurationFileProvider, configurationFileProvider))))
                     {
                         throw new ArgumentException(
                             "The target cannot reuse another application's configuration-file provider.",
                             nameof(configurationFileProvider));
                     }
-                    foreach (KeyValuePair<ApplicationConfiguration, IPendingCertificateKeyStore> existing
-                        in m_applications)
+                    foreach (TargetReservation existing in m_applications.Values)
                     {
-                        ValidateIsolation(configuration, existing.Key);
-                        if (ReferenceEquals(pendingKeyStore, existing.Value))
+                        ValidateIsolation(configuration, existing.Configuration);
+                        if (ReferenceEquals(pendingKeyStore, existing.PendingKeyStore))
                         {
                             throw new ArgumentException("The target cannot reuse another application's pending keys.",
                                 nameof(pendingKeyStore));
                         }
                     }
-                    m_applications.Add(configuration, pendingKeyStore);
-                    if (configurationFileProvider != null)
-                    {
-                        m_configurationFiles.Add(configuration, configurationFileProvider);
-                    }
+                    var reservation = new TargetReservation(this, configuration, pendingKeyStore,
+                        configurationFileProvider);
+                    m_applications.Add(configuration, reservation);
+                    return reservation;
                 }
             }
 
             /// <summary>
             /// Releases an application's security reservation after its binding has drained.
             /// </summary>
-            public void Release(ApplicationConfiguration configuration)
+            public void Release(TargetReservation reservation)
             {
                 lock (m_sync)
                 {
-                    m_applications.Remove(configuration);
-                    m_configurationFiles.Remove(configuration);
+                    if (m_applications.TryGetValue(reservation.Configuration, out TargetReservation? owner) &&
+                        ReferenceEquals(owner, reservation))
+                    {
+                        m_applications.Remove(reservation.Configuration);
+                    }
                 }
             }
 
@@ -445,15 +448,28 @@ namespace Opc.Ua.Server
             private readonly Lock m_sync = new();
 
             /// <summary>The configurations and pending keys reserved until their bindings have drained.</summary>
-            private readonly Dictionary<ApplicationConfiguration, IPendingCertificateKeyStore> m_applications = [];
-
-            /// <summary>The externally owned configuration providers reserved by live bindings.</summary>
-            private readonly Dictionary<ApplicationConfiguration, IApplicationConfigurationFileProvider>
-                m_configurationFiles = [];
+            private readonly Dictionary<ApplicationConfiguration, TargetReservation> m_applications = [];
         }
 
-        /// <summary>The externally owned application runtime.</summary>
-        private readonly IApplicationConfigurationPushTarget m_target;
+        /// <summary>
+        /// Binds an isolation claim to its original host, target configuration and provider instances.
+        /// </summary>
+        /// <param name="Registry">The canonical host registry that owns this claim.</param>
+        /// <param name="Configuration">The target configuration captured at admission.</param>
+        /// <param name="PendingKeyStore">The effective pending key store.</param>
+        /// <param name="ConfigurationFileProvider">The optional target file provider.</param>
+        private sealed record TargetReservation(
+            BindingRegistry Registry,
+            ApplicationConfiguration Configuration,
+            IPendingCertificateKeyStore PendingKeyStore,
+            IApplicationConfigurationFileProvider? ConfigurationFileProvider) : IDisposable
+        {
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Registry.Release(this);
+            }
+        }
 
         /// <summary>The deployment admission shared by calls and deferred effects.</summary>
         private readonly IApplicationConfigurationPushOperations? m_operations;
@@ -464,8 +480,8 @@ namespace Opc.Ua.Server
         /// <summary>The binding-owned push engine.</summary>
         private readonly ConfigurationNodeManager m_manager;
 
-        /// <summary>The management server's active security reservations.</summary>
-        private readonly BindingRegistry m_registry;
+        /// <summary>The exact host-owned target reservation held until the engine stops.</summary>
+        private readonly TargetReservation m_reservation;
 
         /// <summary>Serializes dispatch admission and shutdown state.</summary>
         private readonly Lock m_lifetime = new();

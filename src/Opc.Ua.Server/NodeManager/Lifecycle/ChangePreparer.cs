@@ -336,6 +336,11 @@ namespace Opc.Ua.Server
                     : null;
             }
 
+            /// <summary>
+            /// Gets the canonical server for reservations that must survive staging and publication.
+            /// </summary>
+            internal IServerInternal ServingServer => m_server;
+
             /// <inheritdoc/>
             public NamespaceTable NamespaceUris { get; }
 
