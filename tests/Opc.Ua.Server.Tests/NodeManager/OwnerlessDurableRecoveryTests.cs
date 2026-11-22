@@ -120,11 +120,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 Assert.That(item.NodeManager, Is.Null);
 
-                using (new NodeManagerReadinessScope(server.Object, generation))
-                {
-                    await host.ResolveUnresolvedSourcesAsync(manager.Object, null, CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
+                var otherGeneration = new NodeManagerGeneration(
+                    generation.Slot, generation.Number, manager.Object, NodeManagerGenerationState.Live);
+                await host.ResolvePublishedSourcesAsync(otherGeneration, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(item.NodeManager, Is.Null);
+
+                await host.ResolvePublishedSourcesAsync(generation, CancellationToken.None)
+                    .ConfigureAwait(false);
 
                 Assert.That(item.NodeManager, Is.SameAs(manager.Object));
                 source.Verify(value => value.AdoptSourceAsync(

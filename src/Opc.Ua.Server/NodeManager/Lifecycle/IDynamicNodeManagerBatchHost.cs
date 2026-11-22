@@ -80,18 +80,19 @@ namespace Opc.Ua.Server
     internal sealed class NodeManagerCallbackPermit : IAsyncDisposable
     {
         /// <summary>
-        /// Establishes a scoped permit in the current asynchronous execution context.
+        /// Creates a revocable permit for a callback.
         /// </summary>
-        /// <param name="current">The execution-context slot for callback permits.</param>
         /// <param name="capabilities">The lifecycle capabilities granted to the callback.</param>
+        /// <param name="previous">The enclosing permit, if any.</param>
+        /// <param name="hostId">The issuing host for an explicit permit.</param>
         internal NodeManagerCallbackPermit(
-            AsyncLocal<NodeManagerCallbackPermit?> current,
-            NodeManagerAdmissionCapability capabilities)
+            NodeManagerAdmissionCapability capabilities,
+            NodeManagerCallbackPermit? previous = null,
+            Guid hostId = default)
         {
-            m_current = current;
-            Previous = current.Value;
+            Previous = previous;
             Capabilities = capabilities;
-            current.Value = this;
+            HostId = hostId;
         }
 
         /// <summary>
@@ -103,6 +104,11 @@ namespace Opc.Ua.Server
         /// Gets the lifecycle capabilities granted to this callback.
         /// </summary>
         internal NodeManagerAdmissionCapability Capabilities { get; }
+
+        /// <summary>
+        /// Identifies the host that granted an explicit callback permit.
+        /// </summary>
+        internal Guid HostId { get; }
 
         /// <summary>
         /// Gets whether this permit remains active.
@@ -222,7 +228,6 @@ namespace Opc.Ua.Server
                 }
                 disposal = m_disposal;
             }
-            RestoreContext();
             return new ValueTask(disposal);
         }
 
@@ -264,14 +269,6 @@ namespace Opc.Ua.Server
             private NodeManagerCallbackPermit? m_owner;
         }
 
-        private void RestoreContext()
-        {
-            if (ReferenceEquals(m_current.Value, this))
-            {
-                m_current.Value = Previous;
-            }
-        }
-
         /// <summary>
         /// Releases one accepted child after its wait or borrowed operation has stopped using the semaphore.
         /// </summary>
@@ -295,7 +292,6 @@ namespace Opc.Ua.Server
             drained?.TrySetResult(true);
         }
 
-        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
         private readonly Lock m_gate = new();
         private readonly SemaphoreSlim m_childAdmission = new(1, 1);
         private TaskCompletionSource<bool>? m_drained;
@@ -310,6 +306,42 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Adapts released session callbacks that cannot pass a lifecycle permit.
+    /// </summary>
+    internal readonly struct LegacyNodeManagerCallbackScope : IAsyncDisposable
+    {
+        /// <summary>
+        /// Installs a callback permit for context-free calls made by the legacy callback.
+        /// </summary>
+        internal LegacyNodeManagerCallbackScope(
+            AsyncLocal<NodeManagerCallbackPermit?> current,
+            NodeManagerAdmissionCapability capabilities)
+        {
+            m_current = current;
+            Permit = new NodeManagerCallbackPermit(capabilities, current.Value);
+            current.Value = Permit;
+        }
+
+        /// <summary>
+        /// Gets the permit granted to this callback.
+        /// </summary>
+        internal NodeManagerCallbackPermit Permit { get; }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            ValueTask disposal = Permit.DisposeAsync();
+            if (ReferenceEquals(m_current.Value, Permit))
+            {
+                m_current.Value = Permit.Previous;
+            }
+            return disposal;
+        }
+
+        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
+    }
+
+    /// <summary>
     /// Owns the lifecycle decision and atomic registration publication, independently of host reservations.
     /// </summary>
     internal interface INodeManagerPublicationCommit
@@ -317,14 +349,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets whether this plan should publish rather than only validate.
         /// </summary>
-        bool HasDecision { get; }
+        bool Publishes { get; }
+
+        /// <summary>
+        /// Associates namespace admission with the writer's scope before publication callbacks run.
+        /// </summary>
+        /// <returns>The scope that expires the host reservation marker.</returns>
+        LifecycleWriter.Mutation.DecisionWindow EnterPublicationScope();
 
         /// <summary>
         /// Executes the durable decision once under lifecycle mutation ownership.
         /// </summary>
+        /// <param name="reservation">The host's publication reservation, if it opened one.</param>
         /// <param name="cancellationToken">Cancels before the durable decision.</param>
         /// <returns>Completion of the decision.</returns>
-        ValueTask DecideAsync(CancellationToken cancellationToken);
+        ValueTask DecideAsync(
+            LifecycleWriter.Mutation.DecisionWindow? reservation,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Installs committed registration and retirement bookkeeping at the routing swap.

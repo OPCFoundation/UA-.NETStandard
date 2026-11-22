@@ -36,11 +36,12 @@ namespace Opc.Ua.Server
     /// Prepares and publishes transactions over stable NodeManager slots.
     /// </summary>
     /// <remarks>
-    /// Prepare an addition, replacement, removal, or batch with <see cref="PrepareAsync"/>, then commit
+    /// Prepare an addition, replacement, removal, or batch with
+    /// <see cref="PrepareAsync"/>, then commit
     /// the returned owner. Commit waits through reconciliation and readiness, but not generation drain.
     /// Its result describes the authoritative published revision, registrations, slots, post-commit
     /// failures, and asynchronous retirement. Dispose an uncommitted owner to release its candidates.
-    /// Request callbacks use the same context-free transaction API as external callers.
+    /// Callback re-entry uses <see cref="INodeManagerCallbackLifecycle"/> when admission must be passed explicitly.
     /// Capture revisions before acquiring application inputs with <see cref="CaptureChanges"/>.
     /// A writer advances its evidence only through its own commits; stale work never retries factories or decisions.
     /// </remarks>
@@ -85,6 +86,43 @@ namespace Opc.Ua.Server
         /// <returns>The unpublished prepared unit.</returns>
         ValueTask<IPreparedChanges> PrepareAsync(
             ArrayOf<LifecycleChange> changes,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Captures and prepares lifecycle changes from callbacks with explicitly supplied admission.
+    /// </summary>
+    public interface INodeManagerCallbackLifecycle : INodeManagerLifecycle
+    {
+        /// <summary>
+        /// Captures changes using the readiness initializer's explicit admission.
+        /// </summary>
+        /// <param name="readiness">The context supplied to the initializer.</param>
+        /// <returns>The optimistic publication capture.</returns>
+        ILifecycleCapture CaptureFromReadiness(NodeManagerReadinessContext readiness);
+
+        /// <summary>
+        /// Prepares changes requested by a durable decision, rejecting re-entry into that decision's lifecycle.
+        /// </summary>
+        /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
+        /// <param name="decisionContext">The context supplied to the durable decision.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared changes.</returns>
+        ValueTask<IPreparedChanges> PrepareFromDecisionAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Prepares changes that may borrow admission from an active node-management callback.
+        /// </summary>
+        /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
+        /// <param name="context">The operation context supplied to the callback.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared changes.</returns>
+        ValueTask<IPreparedChanges> PrepareFromCallbackAsync(
+            ArrayOf<LifecycleChange> changes,
+            OperationContext context,
             CancellationToken cancellationToken = default);
     }
 }

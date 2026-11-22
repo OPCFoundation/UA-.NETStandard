@@ -1295,20 +1295,20 @@ namespace Opc.Ua.Server
             public AddressSpaceEpoch Epoch { get; }
 
             /// <summary>
-            /// Checks readiness policy without changing the owner selected by this routing view.
+            /// Finds the exact selected generation that still requires readiness admission.
             /// </summary>
             /// <param name="nodeManager">The owner selected by these namespace routes.</param>
-            /// <returns>Whether this request may dispatch to the selected owner.</returns>
-            internal bool CanDispatchTo(IAsyncNodeManager nodeManager)
+            /// <returns>The pending generation, or null when no readiness check is needed.</returns>
+            internal NodeManagerGeneration? FindPendingReadiness(IAsyncNodeManager nodeManager)
             {
                 foreach (NodeManagerGeneration generation in m_pendingReadiness)
                 {
                     if (ReferenceEquals(generation.NodeManager, nodeManager) && generation.ReadinessPending)
                     {
-                        return NodeManagerReadinessScope.Allows(generation);
+                        return generation;
                     }
                 }
-                return true;
+                return null;
             }
 
             /// <summary>

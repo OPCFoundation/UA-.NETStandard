@@ -35,6 +35,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Di.Tests
@@ -202,6 +203,8 @@ namespace Opc.Ua.Di.Tests
             public DiNodeManager Manager => throw new NotSupportedException();
 
             public System.Threading.CancellationToken CancellationToken => default;
+
+            public NodeManagerReadinessContext? Readiness => null;
 
             public T GetRequiredService<T>() where T : notnull
             {

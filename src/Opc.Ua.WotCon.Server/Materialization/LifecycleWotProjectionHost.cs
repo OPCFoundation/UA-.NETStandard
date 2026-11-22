@@ -47,7 +47,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// requests or continuations. The stable WoT registry NodeManager is never
     /// touched.
     /// </summary>
-    public sealed partial class LifecycleWotProjectionHost : IWotInvocationProjectionHost
+    public sealed partial class LifecycleWotProjectionHost : IWotReadinessProjectionHost
     {
         /// <summary>
         /// Initializes a new host over the supplied lifecycle.
@@ -125,12 +125,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return null;
             }
 
-            IWotPreparedProjectionPublication prepared = await PrepareAsync(
-                [WotProjectionChange.Remove(handle)], null, null, cancellationToken).ConfigureAwait(false);
+            PreparedPublication prepared = await PrepareStandaloneAsync(
+                [WotProjectionChange.Remove(handle)], null, cancellationToken).ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
-            await prepared.CommitAsync(static _ => default, static () => { }, cancellationToken)
+            await prepared.CommitAsync(null, static () => { }, cancellationToken)
                 .ConfigureAwait(false);
-            LifecycleResult result = ((PreparedPublication)prepared).Result!;
+            LifecycleResult result = prepared.Result!;
             try
             {
                 await result.Retired.ConfigureAwait(false);
@@ -150,10 +150,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionChange change,
             CancellationToken cancellationToken)
         {
-            IWotPreparedProjectionPublication prepared = await PrepareAsync(
-                [change], null, null, cancellationToken).ConfigureAwait(false);
+            PreparedPublication prepared = await PrepareStandaloneAsync(
+                [change], null, cancellationToken).ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
-            await prepared.CommitAsync(static _ => default, static () => { }, cancellationToken)
+            await prepared.CommitAsync(null, static () => { }, cancellationToken)
                 .ConfigureAwait(false);
             WotProjectionHandle candidate = prepared.Projections[0];
             return new WotProjectionHandle(

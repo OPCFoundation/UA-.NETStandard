@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Di.Server.Hosting
@@ -59,15 +60,23 @@ namespace Opc.Ua.Di.Server.Hosting
         /// <summary>
         /// Awaits matching configurators and aborts startup with diagnostics on the first failure.
         /// </summary>
-        public async ValueTask RunAsync(
+        public ValueTask RunAsync(
             DiNodeManager manager,
+            CancellationToken cancellationToken)
+        {
+            return RunAsync(manager, null, cancellationToken);
+        }
+
+        internal async ValueTask RunAsync(
+            DiNodeManager manager,
+            NodeManagerReadinessContext? readiness,
             CancellationToken cancellationToken)
         {
             if (manager == null)
             {
                 throw new ArgumentNullException(nameof(manager));
             }
-            var context = new DiPostSetupContext(manager, m_services, cancellationToken);
+            var context = new DiPostSetupContext(manager, m_services, cancellationToken) { Readiness = readiness };
             Type managerType = manager.GetType();
             int index = 0;
 

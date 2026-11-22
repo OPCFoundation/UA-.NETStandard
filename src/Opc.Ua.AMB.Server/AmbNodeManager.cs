@@ -74,7 +74,7 @@ namespace Opc.Ua.AMB.Server
     /// </para>
     /// </remarks>
     public sealed partial class AmbNodeManager : FluentNodeManagerBase, IConformanceContributor,
-        INodeManagerReadinessNotification
+        INodeManagerReadinessNotification, INodeManagerReadinessInitializer
     {
         /// <summary>
         /// Creates the node manager without hosting integration.
@@ -166,7 +166,8 @@ namespace Opc.Ua.AMB.Server
             await InitializeLocationsAsync(cancellationToken).ConfigureAwait(false);
             if (m_setupRunner is { } runner)
             {
-                DeferPublishedAuthoringUntilReady(builder, (published, ct) => runner.RunAsync(this, published, ct));
+                DeferPublishedAuthoringUntilReady(
+                    builder, (published, readiness, ct) => runner.RunAsync(this, published, readiness, ct));
             }
         }
 
@@ -174,6 +175,14 @@ namespace Opc.Ua.AMB.Server
         public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
         {
             return CompletePublishedConfigurationAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessInitializer.OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(readiness, cancellationToken);
         }
 
         /// <summary>

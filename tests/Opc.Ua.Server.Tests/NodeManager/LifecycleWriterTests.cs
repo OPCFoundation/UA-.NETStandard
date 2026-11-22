@@ -87,21 +87,108 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var rejected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var expired = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task? spawned = null;
-            await mutation.DecideAsync(async token =>
+            using var otherWriter = new LifecycleWriter();
+            await mutation.DecideAsync(async (decision, token) =>
             {
-                Assert.Throws<InvalidOperationException>(() => writer.EnterOperation());
+                Assert.That(() => writer.ThrowIfDecisionCallbackActive(decision), Throws.InvalidOperationException);
+                otherWriter.ThrowIfDecisionCallbackActive(decision);
                 spawned = Task.Run(async () =>
                 {
-                    Assert.Throws<InvalidOperationException>(() => writer.EnterOperation());
+                    Assert.That(() => writer.ThrowIfDecisionCallbackActive(decision), Throws.InvalidOperationException);
                     rejected.TrySetResult(true);
                     await expired.Task.WaitAsync(token).ConfigureAwait(false);
-                    using LifecycleWriter.OperationLifetime allowed = writer.EnterOperation();
+                    writer.ThrowIfDecisionCallbackActive(decision);
                 }, token);
                 await rejected.Task.WaitAsync(token).ConfigureAwait(false);
             }, timeout.Token).ConfigureAwait(false);
             expired.TrySetResult(true);
             Assert.That(spawned, Is.Not.Null);
             await spawned!.WaitAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The host window stays visible to callback descendants until the host releases its reservation.
+        /// </summary>
+        [Test]
+        public async Task HostDecisionWindowOutlivesCallbackOnlyInItsOwnFlowAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var writer = new LifecycleWriter();
+            using LifecycleWriter.OperationLifetime operation = writer.EnterOperation();
+            using LifecycleWriter.Mutation mutation = await writer.BeginMutationAsync(timeout.Token)
+                .ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var callbackReturned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var stillInWindow = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            // Schedule the independent probe before entering the reservation's compatibility scope.
+            LifecycleWriter.Mutation.DecisionWindow? reservation = null;
+            Task<bool> independent = Task.Run(async () =>
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                return reservation!.IsInCurrentFlow;
+            }, timeout.Token);
+
+            Task<bool> descended;
+            using (reservation = mutation.EnterDecisionWindow())
+            {
+                Assert.That(reservation.IsInCurrentFlow, Is.False);
+                Task<bool>? captured = null;
+                await mutation.DecideAsync(async (decision, token) =>
+                {
+                    entered.TrySetResult(true);
+                    Assert.That(await independent.WaitAsync(token).ConfigureAwait(false), Is.False);
+                    Assert.That(reservation.IsInCurrentFlow, Is.False);
+                    Assert.That(reservation.Includes(decision), Is.True);
+                    captured = Task.Run(async () =>
+                    {
+                        await callbackReturned.Task.WaitAsync(token).ConfigureAwait(false);
+                        stillInWindow.TrySetResult(reservation.Includes(decision));
+                        await release.Task.WaitAsync(token).ConfigureAwait(false);
+                        return reservation.Includes(decision);
+                    }, token);
+                }, reservation, timeout.Token).ConfigureAwait(false);
+                Assert.That(reservation.IsInCurrentFlow, Is.False);
+                callbackReturned.TrySetResult(true);
+                Assert.That(await stillInWindow.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.True);
+                Assert.That(captured, Is.Not.Null);
+                descended = captured!;
+            }
+
+            release.TrySetResult(true);
+            Assert.That(await descended.WaitAsync(timeout.Token).ConfigureAwait(false), Is.False);
+        }
+
+        /// <summary>
+        /// A host cannot run a decision against an expired reservation or another mutation's reservation.
+        /// </summary>
+        [Test]
+        public async Task DecisionRequiresAnActiveReservationFromItsMutationAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var writer = new LifecycleWriter();
+            using var otherWriter = new LifecycleWriter();
+            using LifecycleWriter.Mutation mutation = await writer.BeginMutationAsync(timeout.Token)
+                .ConfigureAwait(false);
+            using LifecycleWriter.Mutation otherMutation = await otherWriter.BeginMutationAsync(timeout.Token)
+                .ConfigureAwait(false);
+            using LifecycleWriter.Mutation.DecisionWindow reservation = mutation.EnterDecisionWindow();
+
+            static ValueTask UnexpectedDecision(NodeManagerDecisionContext _, CancellationToken __) =>
+                throw new AssertionException("An invalid reservation must not invoke the durable decision.");
+
+            await Assert.ThatAsync(
+                async () => await otherMutation.DecideAsync(UnexpectedDecision, reservation, timeout.Token)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains("not active for this mutation"))
+                .ConfigureAwait(false);
+
+            reservation.Dispose();
+            await Assert.ThatAsync(
+                async () => await mutation.DecideAsync(UnexpectedDecision, reservation, timeout.Token)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains("not active for this mutation"))
+                .ConfigureAwait(false);
         }
 
         /// <summary>

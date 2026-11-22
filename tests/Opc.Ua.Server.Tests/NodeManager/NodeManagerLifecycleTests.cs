@@ -7120,13 +7120,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using INodeManagerBatchAdmission admission = await batchHost.AcquireCommitAdmissionAsync(
                 null, CancellationToken.None).ConfigureAwait(false);
             int decisions = 0;
+            using var writer = new LifecycleWriter();
+            using LifecycleWriter.Mutation mutation = await writer.BeginMutationAsync(CancellationToken.None)
+                .ConfigureAwait(false);
             var commit = new Mock<INodeManagerPublicationCommit>();
-            commit.SetupGet(value => value.HasDecision).Returns(true);
-            commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>())).Returns(() =>
-            {
-                decisions++;
-                return default;
-            });
+            commit.SetupGet(value => value.Publishes).Returns(true);
+            commit.Setup(value => value.EnterPublicationScope()).Returns(mutation.EnterDecisionWindow);
+            commit.Setup(value => value.DecideAsync(
+                    It.IsAny<LifecycleWriter.Mutation.DecisionWindow?>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    decisions++;
+                    return default;
+                });
             commit.Setup(value => value.Publish(It.IsAny<bool>()))
                 .Callback<bool>(_ => Assert.Fail("An unprepared candidate must not be published."));
             var context = new NodeManagerPublicationPlan(
@@ -7774,9 +7780,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (fail && !notifyBeforeFailure)
                 {
                     var commit = new Mock<INodeManagerPublicationCommit>();
-                    commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
-                    commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
-                        .Returns<CancellationToken>(context.Commit.DecideAsync);
+                    commit.SetupGet(value => value.Publishes).Returns(() => context.Commit.Publishes);
+                    commit.Setup(value => value.EnterPublicationScope())
+                        .Returns(() => context.Commit.EnterPublicationScope());
+                    commit.Setup(value => value.DecideAsync(
+                            It.IsAny<LifecycleWriter.Mutation.DecisionWindow?>(), It.IsAny<CancellationToken>()))
+                        .Returns<LifecycleWriter.Mutation.DecisionWindow?, CancellationToken>(
+                            context.Commit.DecideAsync);
                     commit.Setup(value => value.CaptureCommittedReferences(It.IsAny<PublishedReferenceChanges>()))
                         .Callback<PublishedReferenceChanges>(context.Commit.CaptureCommittedReferences);
                     commit.Setup(value => value.Publish(It.IsAny<bool>())).Callback<bool>(historianChanged =>

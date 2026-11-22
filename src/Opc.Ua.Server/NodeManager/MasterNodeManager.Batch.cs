@@ -539,18 +539,16 @@ namespace Opc.Ua.Server
             bool decisionCommitted = false;
             bool lifecycleDecisionWindowStarted = false;
             bool namespaceRegistrationAdmissionHeld = false;
-            TaskCompletionSource<bool>? namespacePublication = null;
+            LifecycleWriter.Mutation.DecisionWindow? publicationScope = null;
             NamespacePublication? namespaceReservation = null;
-            Task? previousNamespacePublication = m_currentNamespacePublication.Value;
             NodeManagerRoutingTable.PreparedRoutes? routes = null;
             PublishedReferenceChanges? committedReferences = null;
             try
             {
                 await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 namespaceRegistrationAdmissionHeld = true;
-                namespacePublication = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                m_currentNamespacePublication.Value = namespacePublication.Task;
+                publicationScope = commit.EnterPublicationScope();
+                Volatile.Write(ref m_namespacePublicationOwner, publicationScope);
                 if (!dynamicMutationSemaphoreHeld)
                 {
                     throw new InvalidOperationException(
@@ -612,13 +610,17 @@ namespace Opc.Ua.Server
                             referenceOwners.Add(source.Key, source.Value);
                         }
 
-                        routes = m_nodeManagers.PrepareBatch(
+                        // Route preparation can invoke context-free manager properties and enumerate their results.
+                        using (publicationScope.EnterCallbackFlow())
+                        {
+                            routes = m_nodeManagers.PrepareBatch(
                                 candidates, removed,
                                 manager => (manager.NamespaceUris ?? Enumerable.Empty<string>())
                                     .Concat(ChangePreparer.GetServer(manager)?.NamespaceRegistrations ??
                                         Enumerable.Empty<string>())
                                     .Select(uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri)),
                                 originalTypes, originalFactory, readImages);
+                        }
                         routes.Reserve();
                         using TypeTable.Publication types =
                             Server.TypeTree.BeginPublication(originalTypes, typeRevision);
@@ -657,11 +659,11 @@ namespace Opc.Ua.Server
                                 }
                             });
                         cancellationToken.ThrowIfCancellationRequested();
-                        if (!commit.HasDecision)
+                        if (!commit.Publishes)
                         {
                             return null;
                         }
-                        BeginLifecycleDecisionWindow();
+                        BeginLifecycleDecisionWindow(publicationScope);
                         lifecycleDecisionWindowStarted = true;
                         // The lifecycle writer excludes server teardown; do not hold the startup/shutdown semaphore
                         // while the durable decision callback performs external I/O. The prepared batch retains
@@ -677,7 +679,7 @@ namespace Opc.Ua.Server
                             dynamicMutationSemaphoreHeld = false;
                         }
                         // Enter the decision under admission so its final revision check precedes permitted aliases.
-                        ValueTask decision = commit.DecideAsync(cancellationToken);
+                        ValueTask decision = commit.DecideAsync(publicationScope, cancellationToken);
                         if (decision.IsCompleted)
                         {
                             await decision.ConfigureAwait(false);
@@ -726,8 +728,8 @@ namespace Opc.Ua.Server
                         // release.
                         EndLifecycleDecisionWindow();
                         lifecycleDecisionWindowStarted = false;
-                        namespacePublication.TrySetResult(true);
-                        m_currentNamespacePublication.Value = previousNamespacePublication;
+                        publicationScope.Dispose();
+                        Volatile.Write(ref m_namespacePublicationOwner, null);
                         if (ReferenceEquals(m_namespacePublication, namespaceReservation))
                         {
                             m_namespacePublication = null;
@@ -779,8 +781,8 @@ namespace Opc.Ua.Server
             {
                 if (namespaceRegistrationAdmissionHeld)
                 {
-                    namespacePublication?.TrySetResult(true);
-                    m_currentNamespacePublication.Value = previousNamespacePublication;
+                    publicationScope?.Dispose();
+                    Volatile.Write(ref m_namespacePublicationOwner, null);
                     if (ReferenceEquals(m_namespacePublication, namespaceReservation))
                     {
                         m_namespacePublication = null;

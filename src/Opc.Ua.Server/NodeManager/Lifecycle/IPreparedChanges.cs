@@ -148,6 +148,110 @@ namespace Opc.Ua.Server
             Func<CancellationToken, ValueTask>? decideAsync,
             Action publishCommittedState,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Commits with a durable decision that can identify its own reservation when calling back into the host.
+        /// </summary>
+        /// <param name="decideAsync">The durable decision, called with its revocable context.</param>
+        /// <param name="publishCommittedState">Optional application state to install after the routing swap.</param>
+        /// <param name="cancellationToken">Cancels before publication.</param>
+        /// <returns>The authoritative committed result.</returns>
+        ValueTask<LifecycleResult> CommitWithDecisionAsync(
+            Func<NodeManagerDecisionContext, CancellationToken, ValueTask> decideAsync,
+            Action? publishCommittedState = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Publishes in memory, rejecting re-entry from an active decision on the owning lifecycle.
+        /// </summary>
+        /// <param name="decisionContext">The context supplied to the durable decision.</param>
+        /// <param name="cancellationToken">Cancels before publication.</param>
+        /// <returns>The authoritative committed result.</returns>
+        ValueTask<LifecycleResult> CommitInMemoryAsync(
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Disposes the prepared changes, rejecting re-entry from an active decision on the owning lifecycle.
+        /// </summary>
+        /// <param name="decisionContext">The context supplied to the durable decision.</param>
+        /// <returns>Completion of disposal.</returns>
+        ValueTask DisposeAsync(NodeManagerDecisionContext decisionContext);
+    }
+
+    /// <summary>
+    /// Identifies a durable decision without owning its writer, server, or routing image.
+    /// </summary>
+    public sealed class NodeManagerDecisionContext
+    {
+        internal NodeManagerDecisionContext(Guid writerId)
+        {
+            WriterId = writerId;
+        }
+
+        /// <summary>
+        /// Rejects namespace and node-management mutations on the host that owns this reservation.
+        /// The check remains in effect until publication releases its reservation.
+        /// </summary>
+        /// <param name="host">The host to call.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="host"/> is null.</exception>
+        internal void CheckAddressSpaceMutation(IMasterNodeManager host)
+        {
+            if (host is null)
+            {
+                throw new ArgumentNullException(nameof(host));
+            }
+            if (host is MasterNodeManager stock)
+            {
+                stock.ThrowIfDecisionReservesAddressSpace(this);
+            }
+        }
+
+        /// <summary>
+        /// Gets the identity of the writer invoking the decision.
+        /// </summary>
+        internal Guid WriterId { get; }
+
+        /// <summary>
+        /// Gets whether the decision callback is still running.
+        /// </summary>
+        internal bool IsActive => Volatile.Read(ref m_active) != 0;
+
+        /// <summary>
+        /// Gets whether the publication reservation is still open.
+        /// </summary>
+        internal bool IsOpen => Volatile.Read(ref m_open) != 0;
+
+        /// <summary>
+        /// Marks the decision active until the callback exits.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The decision is already active.</exception>
+        internal void Activate()
+        {
+            if (Interlocked.CompareExchange(ref m_active, 1, 0) != 0)
+            {
+                throw new InvalidOperationException("The durable decision callback is already active.");
+            }
+        }
+
+        /// <summary>
+        /// Ends callback activity without closing the publication reservation.
+        /// </summary>
+        internal void Deactivate()
+        {
+            Volatile.Write(ref m_active, 0);
+        }
+
+        /// <summary>
+        /// Revokes access to the publication reservation.
+        /// </summary>
+        internal bool Close()
+        {
+            return Interlocked.Exchange(ref m_open, 0) != 0;
+        }
+
+        private int m_active;
+        private int m_open = 1;
     }
 
     /// <summary>
