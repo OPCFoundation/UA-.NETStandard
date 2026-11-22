@@ -88,6 +88,37 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Creates a workflow with a host-owned durable new key-pair recovery provider.
+        /// </summary>
+        public PullDcaWorkflow(
+            PullDcaOptions options,
+            Func<PullDcaRegistrar, CancellationToken, ValueTask<ManagedSession>> sessionAccessor,
+            IPullDcaIdentityProvider identityProvider,
+            IPullDcaCredentialProvider credentialProvider,
+            ITelemetryContext telemetry,
+            IPullDcaSoftwareUpdateProvider? softwareUpdateProvider,
+            IPullDcaRegistrarDiscovery? discovery,
+            IPullDcaCertificateReceiptStore? receipts,
+            IPullDcaSigningRecoveryProvider? signingRecovery,
+            IPullDcaSigningJournal? signingJournal,
+            IPullDcaNewKeyPairCredentialProvider? newKeyPairCredentialProvider,
+            IPullDcaNewKeyPairRecoveryProvider? newKeyPairRecoveryProvider)
+            : this(
+                options,
+                CreateConnectionFactory(options, sessionAccessor, telemetry, signingJournal, signingRecovery),
+                identityProvider,
+                credentialProvider,
+                softwareUpdateProvider,
+                discovery,
+                receipts,
+                signingRecovery,
+                signingJournal,
+                newKeyPairCredentialProvider,
+                newKeyPairRecoveryProvider)
+        {
+        }
+
+        /// <summary>
         /// Creates a workflow with a typed transport boundary for deterministic tests.
         /// </summary>
         internal PullDcaWorkflow(
@@ -100,7 +131,8 @@ namespace Opc.Ua.Gds.Client
             IPullDcaCertificateReceiptStore? receipts = null,
             IPullDcaSigningRecoveryProvider? signingRecovery = null,
             IPullDcaSigningJournal? signingJournal = null,
-            IPullDcaNewKeyPairCredentialProvider? newKeyPairCredentialProvider = null)
+            IPullDcaNewKeyPairCredentialProvider? newKeyPairCredentialProvider = null,
+            IPullDcaNewKeyPairRecoveryProvider? newKeyPairRecoveryProvider = null)
         {
             if (options is null)
             {
@@ -134,6 +166,7 @@ namespace Opc.Ua.Gds.Client
             m_signingJournal = signingJournal;
             m_newKeyPairCredentialProvider = newKeyPairCredentialProvider ??
                 credentialProvider as IPullDcaNewKeyPairCredentialProvider;
+            m_newKeyPairRecoveryProvider = newKeyPairRecoveryProvider;
             m_registrars = options.Registrars.ToArray() ?? [];
             m_maximumFinishAttempts = options.MaximumFinishAttempts;
             m_maximumNewKeyPairRestarts = options.MaximumNewKeyPairRestarts;
@@ -534,7 +567,7 @@ namespace Opc.Ua.Gds.Client
             if (requestMode == PullDcaCertificateRequestMode.NewKeyPairRequest)
             {
                 PullDcaCredentials keyPairCredentials = await ProvisionNewKeyPairAsync(
-                    connection, applicationId, profile, progress, ct).ConfigureAwait(false);
+                    registrar, connection, applicationId, profile, progress, ct).ConfigureAwait(false);
                 return (keyPairCredentials, null);
             }
             Report(progress, PullDcaStage.RequestingCertificate, applicationId);
@@ -601,41 +634,116 @@ namespace Opc.Ua.Gds.Client
         /// fresh key-pair request, as required by Part 12 §7.9.5.
         /// </summary>
         private async ValueTask<PullDcaCredentials> ProvisionNewKeyPairAsync(
+            PullDcaRegistrar registrar,
             IPullDcaConnection connection,
             NodeId applicationId,
             PullDcaCertificateProfile profile,
             IProgress<PullDcaProgress>? progress,
             CancellationToken ct)
         {
-            if (m_newKeyPairCredentialProvider == null)
+            if (m_newKeyPairCredentialProvider == null || m_newKeyPairRecoveryProvider == null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
-                    $"A {nameof(IPullDcaNewKeyPairCredentialProvider)} is required for a new key-pair request.");
+                    $"Both {nameof(IPullDcaNewKeyPairCredentialProvider)} and " +
+                    $"{nameof(IPullDcaNewKeyPairRecoveryProvider)} are required for a new key-pair request.");
+            }
+            if (connection is not IPullDcaRecoverableNewKeyPairConnection recoveryConnection)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The connection cannot validate durable new key-pair recovery bindings.");
+            }
+
+            applicationId = PullDcaConnection.SnapshotNodeId(applicationId);
+            profile = PullDcaConnection.SnapshotProfile(profile);
+            PullDcaNewKeyPairRecoveryScope scope = PullDcaConnection.SnapshotRecoveryScope(
+                await recoveryConnection.CaptureNewKeyPairRecoveryScopeAsync(applicationId, profile, ct)
+                    .ConfigureAwait(false));
+            RequireRecoveryScope(scope, registrar, applicationId, profile);
+            PullDcaNewKeyPairRecoveryAttempt? storedAttempt =
+                await m_newKeyPairRecoveryProvider.GetPendingAsync(scope, ct).ConfigureAwait(false);
+            PullDcaNewKeyPairRecoveryAttempt? recoveryAttempt = null;
+            if (storedAttempt != null)
+            {
+                try
+                {
+                    recoveryAttempt = SnapshotRecoveryAttempt(storedAttempt);
+                }
+                finally
+                {
+                    PullDcaConnection.ClearPrivateKeyMaterial(storedAttempt.PrivateKeyPfx);
+                }
+                try
+                {
+                    RequireRecoveryScope(recoveryAttempt.Binding.Scope, registrar, applicationId, profile);
+                    PullDcaConnection.RequireSameRecoveryScope(scope, recoveryAttempt.Binding.Scope);
+                    if (recoveryAttempt.State == PullDcaNewKeyPairRecoveryState.Dispatching)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            "A key-pair dispatch has an unknown outcome and cannot be sent again automatically.");
+                    }
+                }
+                catch
+                {
+                    PullDcaConnection.ClearPrivateKeyMaterial(recoveryAttempt.PrivateKeyPfx);
+                    throw;
+                }
             }
             for (int restart = 0; restart <= m_maximumNewKeyPairRestarts; restart++)
             {
-                Report(progress, PullDcaStage.RequestingCertificate, applicationId);
-                NodeId requestId = await connection.StartNewKeyPairAsync(applicationId, profile, ct)
-                    .ConfigureAwait(false);
-                requestId = PullDcaConnection.SnapshotNodeId(requestId);
-                if (requestId.IsNull)
+                if (recoveryAttempt == null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                    Report(progress, PullDcaStage.RequestingCertificate, applicationId);
+                    var candidateBinding = new PullDcaNewKeyPairRecoveryBinding(
+                        PullDcaConnection.SnapshotRecoveryScope(scope), NodeId.Null, Guid.NewGuid());
+                    PullDcaNewKeyPairRecoveryBinding startedBinding =
+                        await recoveryConnection.StartRecoverableNewKeyPairAsync(
+                            candidateBinding,
+                            (binding, token) => m_newKeyPairRecoveryProvider.RecordDispatchAsync(binding, token),
+                            ct).ConfigureAwait(false);
+                    startedBinding = PullDcaConnection.SnapshotRecoveryBinding(startedBinding);
+                    PullDcaConnection.RequireSameRecoveryScope(
+                        candidateBinding.Scope, startedBinding.Scope);
+                    if (startedBinding.AttemptId != candidateBinding.AttemptId || startedBinding.RequestId.IsNull)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The connection returned a different key-pair recovery attempt.");
+                    }
+                    await m_newKeyPairRecoveryProvider.RecordStartedAsync(
+                        startedBinding, CancellationToken.None).ConfigureAwait(false);
+                    recoveryAttempt = new PullDcaNewKeyPairRecoveryAttempt(
+                        startedBinding,
+                        PullDcaNewKeyPairRecoveryState.Started,
+                        default,
+                        default,
+                        default);
                 }
 
                 bool restartRequest = false;
                 for (int attempt = 0; attempt < m_maximumFinishAttempts; attempt++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    Report(progress, PullDcaStage.FinishingCertificate, applicationId, requestId);
+                    if (recoveryAttempt.State == PullDcaNewKeyPairRecoveryState.Received)
+                    {
+                        return await InstallReceivedNewKeyPairAsync(
+                            connection, recoveryConnection, recoveryAttempt, progress, ct).ConfigureAwait(false);
+                    }
+
+                    PullDcaNewKeyPairRecoveryBinding binding = recoveryAttempt.Binding;
+                    await recoveryConnection.ValidateNewKeyPairRecoveryBindingAsync(binding, ct)
+                        .ConfigureAwait(false);
+                    Report(progress, PullDcaStage.FinishingCertificate, applicationId, binding.RequestId);
                     ByteString certificate;
                     ByteString privateKeyPfx;
                     ArrayOf<ByteString> issuers;
                     try
                     {
-                        (certificate, privateKeyPfx, issuers) = await connection.FinishNewKeyPairAsync(
-                            applicationId, requestId, ct).ConfigureAwait(false);
+                        (certificate, privateKeyPfx, issuers) =
+                            await recoveryConnection.FinishRecoverableNewKeyPairAsync(binding, ct)
+                                .ConfigureAwait(false);
                     }
                     catch (ServiceResultException error) when (error.StatusCode == StatusCodes.BadNothingToDo)
                     {
@@ -654,6 +762,9 @@ namespace Opc.Ua.Gds.Client
                         error.StatusCode == StatusCodes.BadInvalidArgument &&
                         restart < m_maximumNewKeyPairRestarts)
                     {
+                        await m_newKeyPairRecoveryProvider.RetireLostRequestAsync(
+                            binding, CancellationToken.None).ConfigureAwait(false);
+                        recoveryAttempt = null;
                         restartRequest = true;
                         break;
                     }
@@ -678,23 +789,31 @@ namespace Opc.Ua.Gds.Client
                                         "The key-pair request returned an empty issuer certificate.");
                                 }
                             }
-                            certificate = certificate.Copy();
+                            certificate = ByteString.From(certificate.Span);
                             issuers = SnapshotBytes(issuers);
-                            ct.ThrowIfCancellationRequested();
-                            Report(progress, PullDcaStage.ReadingTrustList, applicationId, requestId);
-                            TrustListDataType trustList = await connection.ReadTrustListAsync(
-                                applicationId, profile.CertificateGroupId, ct).ConfigureAwait(false);
-                            if (trustList == null)
+                            ByteString retainedPrivateKeyPfx = ByteString.From(privateKeyPfx.Span);
+                            try
                             {
-                                throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                                await m_newKeyPairRecoveryProvider!.RecordReceivedAsync(
+                                    binding,
+                                    ByteString.From(certificate.Span),
+                                    SnapshotBytes(issuers),
+                                    retainedPrivateKeyPfx,
+                                    CancellationToken.None).ConfigureAwait(false);
+                                recoveryAttempt = new PullDcaNewKeyPairRecoveryAttempt(
+                                    binding,
+                                    PullDcaNewKeyPairRecoveryState.Received,
+                                    ByteString.From(certificate.Span),
+                                    SnapshotBytes(issuers),
+                                    ByteString.From(retainedPrivateKeyPfx.Span));
+                                return await InstallReceivedNewKeyPairAsync(
+                                    connection, recoveryConnection, recoveryAttempt, progress, ct)
+                                    .ConfigureAwait(false);
                             }
-                            var credentials = new PullDcaCredentials(certificate, issuers, SnapshotTrustList(trustList));
-                            Report(progress, PullDcaStage.InstallingCredentials, applicationId, requestId);
-                            await m_newKeyPairCredentialProvider!.InstallNewKeyPairAsync(
-                                PullDcaConnection.SnapshotNodeId(applicationId),
-                                PullDcaConnection.SnapshotProfile(profile),
-                                SnapshotCredentials(credentials), privateKeyPfx, ct).ConfigureAwait(false);
-                            return credentials;
+                            finally
+                            {
+                                PullDcaConnection.ClearPrivateKeyMaterial(retainedPrivateKeyPfx);
+                            }
                         }
 
                         if (attempt + 1 < m_maximumFinishAttempts)
@@ -712,9 +831,151 @@ namespace Opc.Ua.Gds.Client
                 {
                     continue;
                 }
-                throw new PullDcaCertificatePendingException(applicationId, requestId);
+                if (recoveryAttempt == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+                throw new PullDcaCertificatePendingException(applicationId, recoveryAttempt.Binding.RequestId);
             }
             throw new ServiceResultException(StatusCodes.BadInvalidState);
+        }
+
+        /// <summary>
+        /// Completes trust retrieval and idempotent installation from durably received key-pair material.
+        /// </summary>
+        private async ValueTask<PullDcaCredentials> InstallReceivedNewKeyPairAsync(
+            IPullDcaConnection connection,
+            IPullDcaRecoverableNewKeyPairConnection recoveryConnection,
+            PullDcaNewKeyPairRecoveryAttempt attempt,
+            IProgress<PullDcaProgress>? progress,
+            CancellationToken ct)
+        {
+            if (attempt.State != PullDcaNewKeyPairRecoveryState.Received ||
+                attempt.Certificate.IsEmpty || attempt.PrivateKeyPfx.IsEmpty)
+            {
+                PullDcaConnection.ClearPrivateKeyMaterial(attempt.PrivateKeyPfx);
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The retained key-pair response is incomplete.");
+            }
+
+            PullDcaNewKeyPairRecoveryBinding binding =
+                PullDcaConnection.SnapshotRecoveryBinding(attempt.Binding);
+            NodeId applicationId = binding.Scope.ApplicationId;
+            PullDcaCertificateProfile profile = binding.Scope.Profile;
+            ByteString certificate = ByteString.From(attempt.Certificate.Span);
+            ArrayOf<ByteString> issuers = SnapshotBytes(attempt.IssuerCertificates);
+            ByteString privateKeyPfx = ByteString.From(attempt.PrivateKeyPfx.Span);
+            try
+            {
+                foreach (ByteString issuer in issuers)
+                {
+                    if (issuer.IsEmpty)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The retained key-pair response contains an empty issuer certificate.");
+                    }
+                }
+                await recoveryConnection.ValidateNewKeyPairRecoveryBindingAsync(binding, ct)
+                    .ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                Report(progress, PullDcaStage.ReadingTrustList, applicationId, binding.RequestId);
+                TrustListDataType trustList = await connection.ReadTrustListAsync(
+                    applicationId, profile.CertificateGroupId, ct).ConfigureAwait(false);
+                if (trustList == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                }
+                var credentials = new PullDcaCredentials(certificate, issuers, SnapshotTrustList(trustList));
+                Report(progress, PullDcaStage.InstallingCredentials, applicationId, binding.RequestId);
+                await m_newKeyPairCredentialProvider!.InstallNewKeyPairAsync(
+                    applicationId,
+                    PullDcaConnection.SnapshotProfile(profile),
+                    SnapshotCredentials(credentials),
+                    privateKeyPfx,
+                    ct).ConfigureAwait(false);
+                await m_newKeyPairRecoveryProvider!.CompleteAsync(
+                    binding, ByteString.From(certificate.Span), CancellationToken.None).ConfigureAwait(false);
+                recoveryConnection.SetInstalledNewKeyPairBinding(binding);
+                return credentials;
+            }
+            finally
+            {
+                PullDcaConnection.ClearPrivateKeyMaterial(attempt.PrivateKeyPfx);
+                PullDcaConnection.ClearPrivateKeyMaterial(privateKeyPfx);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the scope returned by a recovery provider before using its retained state.
+        /// </summary>
+        private static void RequireRecoveryScope(
+            PullDcaNewKeyPairRecoveryScope scope,
+            PullDcaRegistrar registrar,
+            NodeId applicationId,
+            PullDcaCertificateProfile profile)
+        {
+            if (scope == null || scope.Registrar == null || scope.Registrar.EndpointUrl == null ||
+                registrar == null || registrar.EndpointUrl == null || scope.Profile == null ||
+                !scope.Registrar.EndpointUrl.Equals(registrar.EndpointUrl) ||
+                scope.Registrar.RegistrarId != registrar.RegistrarId ||
+                scope.Registrar.CertificateDirectoryId != registrar.CertificateDirectoryId ||
+                scope.ApplicationId != applicationId ||
+                scope.Profile.CertificateGroupId != profile.CertificateGroupId ||
+                scope.Profile.CertificateTypeId != profile.CertificateTypeId ||
+                scope.ClientChannelCertificate.IsEmpty ||
+                scope.RegistrarChannelCertificate.IsEmpty ||
+                string.IsNullOrWhiteSpace(scope.RegistrarApplicationUri) ||
+                scope.NamespaceUris.IsNull || scope.NamespaceUris.Count == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The key-pair recovery scope is incomplete or mismatched.");
+            }
+        }
+
+        /// <summary>
+        /// Detaches and validates a recovery provider's returned attempt.
+        /// </summary>
+        private static PullDcaNewKeyPairRecoveryAttempt SnapshotRecoveryAttempt(
+            PullDcaNewKeyPairRecoveryAttempt attempt)
+        {
+            if (attempt == null || attempt.Binding == null || attempt.Binding.Scope == null ||
+                attempt.Binding.AttemptId == Guid.Empty)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The key-pair recovery provider returned an invalid attempt.");
+            }
+            if (attempt.State is not PullDcaNewKeyPairRecoveryState.Dispatching and
+                not PullDcaNewKeyPairRecoveryState.Started and
+                not PullDcaNewKeyPairRecoveryState.Received)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The key-pair recovery provider returned an unknown state.");
+            }
+            if (attempt.State == PullDcaNewKeyPairRecoveryState.Dispatching && !attempt.Binding.RequestId.IsNull ||
+                attempt.State != PullDcaNewKeyPairRecoveryState.Dispatching && attempt.Binding.RequestId.IsNull)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The key-pair recovery request identifier is inconsistent.");
+            }
+            if (attempt.State == PullDcaNewKeyPairRecoveryState.Received &&
+                (attempt.Certificate.IsEmpty || attempt.PrivateKeyPfx.IsEmpty) ||
+                attempt.State != PullDcaNewKeyPairRecoveryState.Received &&
+                (!attempt.Certificate.IsEmpty || !attempt.PrivateKeyPfx.IsEmpty ||
+                    attempt.IssuerCertificates.Count > 0))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The key-pair recovery payload is inconsistent.");
+            }
+            return attempt with
+            {
+                Binding = PullDcaConnection.SnapshotRecoveryBinding(attempt.Binding),
+                Certificate = attempt.Certificate.IsNull ? default : ByteString.From(attempt.Certificate.Span),
+                IssuerCertificates = SnapshotBytes(attempt.IssuerCertificates),
+                PrivateKeyPfx = attempt.PrivateKeyPfx.IsNull
+                    ? default
+                    : ByteString.From(attempt.PrivateKeyPfx.Span)
+            };
         }
 
         /// <summary>
@@ -1063,24 +1324,27 @@ namespace Opc.Ua.Gds.Client
             PullDcaCertificateRequestMode dcaRequestMode,
             ArrayOf<PullDcaManagedApplication> managedApplications)
         {
-            if (m_newKeyPairCredentialProvider != null)
+            bool requiresNewKeyPair = dcaRequestMode == PullDcaCertificateRequestMode.NewKeyPairRequest;
+            for (int i = 0; i < managedApplications.Count; i++)
+            {
+                requiresNewKeyPair |=
+                    managedApplications[i].CertificateRequestMode == PullDcaCertificateRequestMode.NewKeyPairRequest;
+            }
+            if (!requiresNewKeyPair)
             {
                 return;
             }
-            if (dcaRequestMode == PullDcaCertificateRequestMode.NewKeyPairRequest)
+            if (m_newKeyPairCredentialProvider == null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
                     $"A {nameof(IPullDcaNewKeyPairCredentialProvider)} is required for a new key-pair request.");
             }
-            for (int i = 0; i < managedApplications.Count; i++)
+            if (m_newKeyPairRecoveryProvider == null)
             {
-                if (managedApplications[i].CertificateRequestMode == PullDcaCertificateRequestMode.NewKeyPairRequest)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
-                        $"A {nameof(IPullDcaNewKeyPairCredentialProvider)} is required for a new key-pair request.");
-                }
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    $"A {nameof(IPullDcaNewKeyPairRecoveryProvider)} is required for a new key-pair request.");
             }
         }
 
@@ -1307,6 +1571,9 @@ namespace Opc.Ua.Gds.Client
 
         /// <summary>Optional host-owned installer for server-generated key pairs.</summary>
         private readonly IPullDcaNewKeyPairCredentialProvider? m_newKeyPairCredentialProvider;
+
+        /// <summary>Optional host-owned durable recovery for server-generated key pairs.</summary>
+        private readonly IPullDcaNewKeyPairRecoveryProvider? m_newKeyPairRecoveryProvider;
 
         /// <summary>
         /// Configured registrar candidates, not a durable lifecycle store.

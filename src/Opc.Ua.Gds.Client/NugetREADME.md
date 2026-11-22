@@ -55,6 +55,16 @@ assignments before output is retained or installed. Persistence alone cannot
 recover an accepted response lost before local publication. The sample does not
 yet supply the request evidence needed for this recovery path.
 
+New-key-pair provisioning requires both `IPullDcaNewKeyPairCredentialProvider`
+and `IPullDcaNewKeyPairRecoveryProvider`. The recovery provider must atomically
+and durably retain request identity and protected PFX material before trust
+retrieval or installation, and coordinate one active writer for its scope in
+the host process. The PFX is retired only after the installer verifies the
+installed key. A consumed key-pair `FinishRequest` response starts a fresh
+key-pair request; it does not use signing recovery. A plain `ISecretStore`
+registration does not by itself provide the required durability and
+coordination guarantees.
+
 ## Target frameworks
 
 `net48`, `net10.0`,

@@ -285,7 +285,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the bounded pull-DCA workflow. Hosts register <see cref="IPullDcaIdentityProvider"/> and
         /// <see cref="IPullDcaCredentialProvider"/> for real certificate selection and installation.
         /// A separate <see cref="IPullDcaNewKeyPairCredentialProvider"/> or the credential provider handles
-        /// requested private-key output. Discovery, software-update and signing-journal providers are optional.
+        /// requested private-key output. New key-pair mode also requires a host-owned
+        /// <see cref="IPullDcaNewKeyPairRecoveryProvider"/> with atomic durable state transitions.
+        /// Discovery, software-update and signing-journal providers are optional.
         /// The existing managed-session accessor owns every session.
         /// A multi-endpoint host may register a registrar-aware session accessor before resolving the workflow.
         /// </summary>
@@ -320,7 +322,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetService<IPullDcaCertificateReceiptStore>(),
                 sp.GetService<IPullDcaSigningRecoveryProvider>(),
                 sp.GetService<IPullDcaSigningJournal>(),
-                sp.GetService<IPullDcaNewKeyPairCredentialProvider>()));
+                sp.GetService<IPullDcaNewKeyPairCredentialProvider>(),
+                sp.GetService<IPullDcaNewKeyPairRecoveryProvider>()));
             return builder;
         }
 

@@ -107,9 +107,54 @@ namespace Opc.Ua.Gds.Client
     }
 
     /// <summary>
+    /// Captures and validates channel-bound context for a recoverable new key-pair request.
+    /// </summary>
+    internal interface IPullDcaRecoverableNewKeyPairConnection
+    {
+        /// <summary>
+        /// Captures the exact registrar and client identity used to scope recovery.
+        /// </summary>
+        ValueTask<PullDcaNewKeyPairRecoveryScope> CaptureNewKeyPairRecoveryScopeAsync(
+            NodeId applicationId,
+            PullDcaCertificateProfile profile,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Persists the request binding through the callback before dispatching StartNewKeyPairRequest.
+        /// </summary>
+        ValueTask<PullDcaNewKeyPairRecoveryBinding> StartRecoverableNewKeyPairAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            Func<PullDcaNewKeyPairRecoveryBinding, CancellationToken, ValueTask> recordDispatchAsync,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Finishes a request using its retained registrar and client identity binding.
+        /// </summary>
+        ValueTask<(ByteString Certificate, ByteString PrivateKeyPfx, ArrayOf<ByteString> Issuers)>
+            FinishRecoverableNewKeyPairAsync(
+                PullDcaNewKeyPairRecoveryBinding binding,
+                CancellationToken ct);
+
+        /// <summary>
+        /// Verifies a retained recovery binding against the current session channel.
+        /// </summary>
+        ValueTask ValidateNewKeyPairRecoveryBindingAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Retains the validated request channel for the post-install manager call.
+        /// </summary>
+        void SetInstalledNewKeyPairBinding(PullDcaNewKeyPairRecoveryBinding binding);
+    }
+
+    /// <summary>
     /// Generated method proxy adapter over a factory-owned managed session.
     /// </summary>
-    internal sealed class PullDcaConnection : IPullDcaConnection, IPullDcaBoundSigningConnection
+    internal sealed class PullDcaConnection :
+        IPullDcaConnection,
+        IPullDcaBoundSigningConnection,
+        IPullDcaRecoverableNewKeyPairConnection
     {
         /// <summary>
         /// Creates proxies for one explicitly selected endpoint.
@@ -333,6 +378,84 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
+        public async ValueTask<PullDcaNewKeyPairRecoveryScope> CaptureNewKeyPairRecoveryScopeAsync(
+            NodeId applicationId,
+            PullDcaCertificateProfile profile,
+            CancellationToken ct)
+        {
+            applicationId = SnapshotNodeId(applicationId);
+            profile = SnapshotProfile(profile);
+            SessionRequestContext context = await CaptureConfidentialAsync(ct).ConfigureAwait(false);
+            await using var lifetime = context.ConfigureAwait(false);
+            RequireNamespaces(
+                context.Session.NamespaceUris, m_originalNamespaces, m_selectedRegistrar.RegistrarId,
+                m_selectedRegistrar.CertificateDirectoryId, applicationId,
+                profile.CertificateGroupId, profile.CertificateTypeId);
+            PullDcaNewKeyPairRecoveryScope scope = CreateRecoveryScope(context, applicationId, profile);
+            return SnapshotRecoveryScope(scope);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<PullDcaNewKeyPairRecoveryBinding> StartRecoverableNewKeyPairAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            Func<PullDcaNewKeyPairRecoveryBinding, CancellationToken, ValueTask> recordDispatchAsync,
+            CancellationToken ct)
+        {
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            if (recordDispatchAsync == null)
+            {
+                throw new ArgumentNullException(nameof(recordDispatchAsync));
+            }
+            if (binding.AttemptId == Guid.Empty || !binding.RequestId.IsNull)
+            {
+                throw new ArgumentException(
+                    "A new attempt with a null request identifier is required.", nameof(binding));
+            }
+
+            binding = SnapshotRecoveryBinding(binding);
+            PullDcaNewKeyPairRecoveryScope scope = binding.Scope;
+            SessionRequestContext context = await CaptureConfidentialAsync(ct).ConfigureAwait(false);
+            await using var lifetime = context.ConfigureAwait(false);
+            RequireNamespaces(
+                context.Session.NamespaceUris, scope.NamespaceUris, m_selectedRegistrar.RegistrarId,
+                m_selectedRegistrar.CertificateDirectoryId, scope.ApplicationId,
+                scope.Profile.CertificateGroupId, scope.Profile.CertificateTypeId);
+            PullDcaNewKeyPairRecoveryScope currentScope = CreateRecoveryScope(
+                context, scope.ApplicationId, scope.Profile);
+            RequireSameRecoveryScope(scope, currentScope);
+            var requestBinding = ToKeyPairRequestBinding(binding);
+            RequireKeyPairChannel(context, requestBinding);
+            ct.ThrowIfCancellationRequested();
+            await recordDispatchAsync(SnapshotRecoveryBinding(binding), ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+
+            var directory = new CertificateDirectoryTypeClient(
+                context.Session, m_selectedRegistrar.CertificateDirectoryId, m_telemetry);
+            NodeId requestId = await directory.StartNewKeyPairRequestAsync(
+                scope.ApplicationId,
+                scope.Profile.CertificateGroupId,
+                scope.Profile.CertificateTypeId,
+                string.Empty,
+                [],
+                "PFX",
+                string.Empty,
+                ct).ConfigureAwait(false);
+            requestId = SnapshotNodeId(requestId);
+            if (requestId.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+            }
+            RequireNamespaces(
+                context.Session.NamespaceUris, scope.NamespaceUris, m_selectedRegistrar.RegistrarId,
+                m_selectedRegistrar.CertificateDirectoryId, scope.ApplicationId, requestId,
+                scope.Profile.CertificateGroupId, scope.Profile.CertificateTypeId);
+            return SnapshotRecoveryBinding(binding with { RequestId = requestId });
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<NodeId> StartWithEvidenceAsync(
             NodeId applicationId,
             PullDcaCertificateProfile profile,
@@ -451,7 +574,7 @@ namespace Opc.Ua.Gds.Client
             await using var lifetime = context.ConfigureAwait(false);
             RequireNamespaces(
                 context.Session.NamespaceUris, binding.NamespaceUris, m_selectedRegistrar.RegistrarId,
-                m_selectedRegistrar.CertificateDirectoryId, applicationId,
+                m_selectedRegistrar.CertificateDirectoryId, applicationId, requestId,
                 binding.Profile.CertificateGroupId, binding.Profile.CertificateTypeId);
             RequireKeyPairChannel(context, binding);
             var directory = new CertificateDirectoryTypeClient(
@@ -476,6 +599,87 @@ namespace Opc.Ua.Gds.Client
                 m_keyPairRequests.TryRemove(key, out _);
                 throw;
             }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<(ByteString Certificate, ByteString PrivateKeyPfx, ArrayOf<ByteString> Issuers)>
+            FinishRecoverableNewKeyPairAsync(
+                PullDcaNewKeyPairRecoveryBinding binding,
+                CancellationToken ct)
+        {
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            if (binding.AttemptId == Guid.Empty || binding.RequestId.IsNull)
+            {
+                throw new ArgumentException("A started key-pair attempt is required.", nameof(binding));
+            }
+
+            binding = SnapshotRecoveryBinding(binding);
+            PullDcaNewKeyPairRecoveryScope scope = binding.Scope;
+            SessionRequestContext context = await CaptureConfidentialAsync(ct).ConfigureAwait(false);
+            await using var lifetime = context.ConfigureAwait(false);
+            RequireNamespaces(
+                context.Session.NamespaceUris, scope.NamespaceUris, m_selectedRegistrar.RegistrarId,
+                m_selectedRegistrar.CertificateDirectoryId, scope.ApplicationId, binding.RequestId,
+                scope.Profile.CertificateGroupId, scope.Profile.CertificateTypeId);
+            PullDcaNewKeyPairRecoveryScope currentScope = CreateRecoveryScope(
+                context, scope.ApplicationId, scope.Profile);
+            RequireSameRecoveryScope(scope, currentScope);
+            KeyPairRequestBinding requestBinding = ToKeyPairRequestBinding(binding);
+            RequireKeyPairChannel(context, requestBinding);
+
+            var directory = new CertificateDirectoryTypeClient(
+                context.Session, m_selectedRegistrar.CertificateDirectoryId, m_telemetry);
+            var (certificate, privateKey, issuers) = await directory.FinishRequestAsync(
+                scope.ApplicationId, binding.RequestId, ct).ConfigureAwait(false);
+            if (!certificate.IsEmpty || !privateKey.IsEmpty)
+            {
+                m_installedKeyPairBinding = requestBinding;
+            }
+            return (certificate, privateKey, issuers);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ValidateNewKeyPairRecoveryBindingAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            CancellationToken ct)
+        {
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            if (binding.AttemptId == Guid.Empty)
+            {
+                throw new ArgumentException("The attempt identifier is required.", nameof(binding));
+            }
+            binding = SnapshotRecoveryBinding(binding);
+            PullDcaNewKeyPairRecoveryScope scope = binding.Scope;
+            SessionRequestContext context = await CaptureConfidentialAsync(ct).ConfigureAwait(false);
+            await using var lifetime = context.ConfigureAwait(false);
+            RequireNamespaces(
+                context.Session.NamespaceUris, scope.NamespaceUris, m_selectedRegistrar.RegistrarId,
+                m_selectedRegistrar.CertificateDirectoryId, scope.ApplicationId, binding.RequestId,
+                scope.Profile.CertificateGroupId, scope.Profile.CertificateTypeId);
+            PullDcaNewKeyPairRecoveryScope currentScope = CreateRecoveryScope(
+                context, scope.ApplicationId, scope.Profile);
+            RequireSameRecoveryScope(scope, currentScope);
+            RequireKeyPairChannel(context, ToKeyPairRequestBinding(binding));
+        }
+
+        /// <inheritdoc/>
+        public void SetInstalledNewKeyPairBinding(PullDcaNewKeyPairRecoveryBinding binding)
+        {
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            if (binding.AttemptId == Guid.Empty || binding.RequestId.IsNull)
+            {
+                throw new ArgumentException("A completed key-pair attempt is required.", nameof(binding));
+            }
+            m_installedKeyPairBinding = ToKeyPairRequestBinding(SnapshotRecoveryBinding(binding));
         }
 
         /// <summary>
@@ -715,6 +919,117 @@ namespace Opc.Ua.Gds.Client
                     ? default(ArrayOf<string>)
                     : binding.NamespaceUris.Span.ToArray()
             };
+        }
+
+        /// <summary>
+        /// Creates a recovery scope from the current secure channel and validates its certificate identities.
+        /// </summary>
+        private PullDcaNewKeyPairRecoveryScope CreateRecoveryScope(
+            SessionRequestContext context,
+            NodeId applicationId,
+            PullDcaCertificateProfile profile)
+        {
+            ITransportChannel channel = context.Session.TransportChannel;
+            RequireSelectedIdentityChannel(applicationId, channel);
+            var scope = new PullDcaNewKeyPairRecoveryScope(
+                SnapshotRegistrar(m_selectedRegistrar),
+                SnapshotNodeId(applicationId),
+                SnapshotProfile(profile),
+                ByteString.From(channel.ClientChannelCertificate.AsSpan()),
+                ByteString.From(channel.ServerChannelCertificate.AsSpan()),
+                channel.EndpointDescription.Server?.ApplicationUri ?? string.Empty,
+                context.Session.NamespaceUris.ToArrayOf());
+            RequireKeyPairChannel(context, ToKeyPairRequestBinding(
+                new PullDcaNewKeyPairRecoveryBinding(scope, NodeId.Null, Guid.NewGuid())));
+            return scope;
+        }
+
+        /// <summary>
+        /// Requires a retained scope to match every identity component of the current channel.
+        /// </summary>
+        internal static void RequireSameRecoveryScope(
+            PullDcaNewKeyPairRecoveryScope expected,
+            PullDcaNewKeyPairRecoveryScope actual)
+        {
+            if (!expected.Registrar.EndpointUrl.Equals(actual.Registrar.EndpointUrl) ||
+                expected.Registrar.RegistrarId != actual.Registrar.RegistrarId ||
+                expected.Registrar.CertificateDirectoryId != actual.Registrar.CertificateDirectoryId ||
+                expected.ApplicationId != actual.ApplicationId ||
+                expected.Profile.CertificateGroupId != actual.Profile.CertificateGroupId ||
+                expected.Profile.CertificateTypeId != actual.Profile.CertificateTypeId ||
+                !expected.ClientChannelCertificate.Span.SequenceEqual(actual.ClientChannelCertificate.Span) ||
+                !expected.RegistrarChannelCertificate.Span.SequenceEqual(actual.RegistrarChannelCertificate.Span) ||
+                !string.Equals(
+                    expected.RegistrarApplicationUri, actual.RegistrarApplicationUri, StringComparison.Ordinal) ||
+                !expected.NamespaceUris.Span.SequenceEqual(actual.NamespaceUris.Span))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The key-pair recovery attempt belongs to a different registrar or DCA identity.");
+            }
+        }
+
+        /// <summary>
+        /// Detaches all opaque identifiers and channel material in a recovery scope.
+        /// </summary>
+        internal static PullDcaNewKeyPairRecoveryScope SnapshotRecoveryScope(
+            PullDcaNewKeyPairRecoveryScope scope)
+        {
+            if (scope == null)
+            {
+                throw new ArgumentNullException(nameof(scope));
+            }
+            if (scope.Registrar == null || scope.Profile == null)
+            {
+                throw new ArgumentException("The recovery scope requires a registrar and certificate profile.");
+            }
+            return scope with
+            {
+                Registrar = SnapshotRegistrar(scope.Registrar),
+                ApplicationId = SnapshotNodeId(scope.ApplicationId),
+                Profile = SnapshotProfile(scope.Profile),
+                ClientChannelCertificate = CopyByteString(scope.ClientChannelCertificate),
+                RegistrarChannelCertificate = CopyByteString(scope.RegistrarChannelCertificate),
+                NamespaceUris = scope.NamespaceUris.IsNull
+                    ? default(ArrayOf<string>)
+                    : scope.NamespaceUris.Span.ToArray()
+            };
+        }
+
+        /// <summary>
+        /// Detaches the binding returned by a recovery provider.
+        /// </summary>
+        internal static PullDcaNewKeyPairRecoveryBinding SnapshotRecoveryBinding(
+            PullDcaNewKeyPairRecoveryBinding binding)
+        {
+            if (binding == null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+            return binding with
+            {
+                Scope = SnapshotRecoveryScope(binding.Scope),
+                RequestId = SnapshotNodeId(binding.RequestId)
+            };
+        }
+
+        /// <summary>
+        /// Converts a durable public binding to the connection's validated channel identity.
+        /// </summary>
+        private static KeyPairRequestBinding ToKeyPairRequestBinding(
+            PullDcaNewKeyPairRecoveryBinding binding)
+        {
+            PullDcaNewKeyPairRecoveryScope scope = binding.Scope;
+            return new KeyPairRequestBinding(
+                SnapshotNodeId(scope.ApplicationId),
+                SnapshotNodeId(binding.RequestId),
+                SnapshotProfile(scope.Profile),
+                CopyByteString(scope.ClientChannelCertificate),
+                CopyByteString(scope.RegistrarChannelCertificate),
+                scope.RegistrarApplicationUri,
+                scope.NamespaceUris.IsNull
+                    ? default(ArrayOf<string>)
+                    : scope.NamespaceUris.Span.ToArray());
         }
 
         /// <summary>

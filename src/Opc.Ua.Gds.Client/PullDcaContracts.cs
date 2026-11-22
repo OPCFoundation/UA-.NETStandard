@@ -332,12 +332,137 @@ namespace Opc.Ua.Gds.Client
     {
         /// <summary>
         /// Validates and installs the issued certificate and returned private key through host-owned stores.
+        /// Returns only after verifying that the installed certificate and private key are available for use.
+        /// Repeating the operation for the same certificate and private key must be safe.
         /// </summary>
         ValueTask InstallNewKeyPairAsync(
             NodeId applicationId,
             PullDcaCertificateProfile profile,
             PullDcaCredentials credentials,
             ByteString privateKeyPfx,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Identifies the registrar channel and application scope of a new key-pair recovery attempt.
+    /// </summary>
+    public sealed record PullDcaNewKeyPairRecoveryScope(
+        PullDcaRegistrar Registrar,
+        NodeId ApplicationId,
+        PullDcaCertificateProfile Profile,
+        ByteString ClientChannelCertificate,
+        ByteString RegistrarChannelCertificate,
+        string RegistrarApplicationUri,
+        ArrayOf<string> NamespaceUris);
+
+    /// <summary>
+    /// Identifies one new key-pair request. A null <see cref="RequestId"/> is valid only before dispatch returns.
+    /// </summary>
+    public sealed record PullDcaNewKeyPairRecoveryBinding(
+        PullDcaNewKeyPairRecoveryScope Scope,
+        NodeId RequestId,
+        Guid AttemptId);
+
+    /// <summary>
+    /// Durable state of a new key-pair request.
+    /// </summary>
+    public enum PullDcaNewKeyPairRecoveryState
+    {
+        /// <summary>
+        /// The attempt was durably recorded before dispatch, but the request identifier was not durably recorded.
+        /// The dispatch outcome is unknown and the request must not be sent again automatically.
+        /// </summary>
+        Dispatching,
+
+        /// <summary>
+        /// The request identifier was durably recorded and the registrar has not returned credentials.
+        /// </summary>
+        Started,
+
+        /// <summary>
+        /// The certificate, issuer chain, and protected private-key PFX were durably received.
+        /// </summary>
+        Received
+    }
+
+    /// <summary>
+    /// A detached snapshot of one recoverable new key-pair attempt.
+    /// </summary>
+    public sealed record PullDcaNewKeyPairRecoveryAttempt(
+        PullDcaNewKeyPairRecoveryBinding Binding,
+        PullDcaNewKeyPairRecoveryState State,
+        ByteString Certificate,
+        ArrayOf<ByteString> IssuerCertificates,
+        ByteString PrivateKeyPfx)
+    {
+        /// <summary>
+        /// Returns a diagnostic representation without exposing private-key material.
+        /// </summary>
+        public override string ToString()
+        {
+            return $"{nameof(PullDcaNewKeyPairRecoveryAttempt)} {{ State = {State}, PrivateKeyPfx = [REDACTED] }}";
+        }
+    }
+
+    /// <summary>
+    /// Persists request-bound recovery for OPC 10000-12 new key-pair provisioning.
+    /// </summary>
+    /// <remarks>
+    /// Implementations must provide atomic, durable transitions and enforce a single active writer for their scope
+    /// within the host process. A plain <see cref="ISecretStore"/> is not sufficient unless the selected store and
+    /// adapter provide those guarantees. The private-key PFX must be protected secret material, never a signing
+    /// receipt, log entry, or unprotected temporary file. Implementations must return detached snapshots.
+    /// </remarks>
+    public interface IPullDcaNewKeyPairRecoveryProvider
+    {
+        /// <summary>
+        /// Returns the active attempt for the exact recovery scope, or null when no attempt exists.
+        /// A scope mismatch or ambiguous state must throw rather than appear as an empty scope.
+        /// </summary>
+        ValueTask<PullDcaNewKeyPairRecoveryAttempt?> GetPendingAsync(
+            PullDcaNewKeyPairRecoveryScope scope,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Atomically records a new attempt before StartNewKeyPairRequest is dispatched.
+        /// The request identifier must be null and the attempt identifier must be non-empty.
+        /// </summary>
+        ValueTask RecordDispatchAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Durably records the request identifier returned by StartNewKeyPairRequest.
+        /// </summary>
+        ValueTask RecordStartedAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Durably retains the complete FinishRequest response and private-key PFX before trust retrieval or install.
+        /// </summary>
+        ValueTask RecordReceivedAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            ByteString certificate,
+            ArrayOf<ByteString> issuerCertificates,
+            ByteString privateKeyPfx,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Retires a started attempt after Part 12 reports that its accepted FinishRequest response was lost,
+        /// allowing the workflow to issue a fresh key-pair request.
+        /// </summary>
+        ValueTask RetireLostRequestAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Marks installation verified and retires the stored private-key PFX.
+        /// The installed certificate must match the attempt's received certificate.
+        /// </summary>
+        ValueTask CompleteAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            ByteString installedCertificate,
             CancellationToken cancellationToken = default);
     }
 
