@@ -812,18 +812,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var targetId = new NodeId(kValueNodeId, source.NamespaceIndex);
             var rootId = new NodeId(kRootNodeId, source.NamespaceIndex);
             NodeState root = RequireLifecycleValue(source.Manager.Find(rootId));
-            NodeState target = RequireLifecycleValue(source.Manager.Find(targetId));
             root.AddReference(ReferenceTypeIds.Organizes, false, targetId);
-            root.OnPopulateBrowser = (_, _, browser) =>
-                browser.Add(ReferenceTypeIds.HasProperty, false, target);
-            root.OnCreateBrowser = (context, _, view, type, subtypes, direction, name, additional, internalOnly) =>
-                new OpaqueLazyDependencyBrowser(
-                    context, view, type, subtypes, direction, name,
-                    [
-                        .. (additional ?? []),
-                        new NodeStateReference(ReferenceTypeIds.HasNotifier, false, target)
-                    ],
-                    internalOnly, targetId, () => { });
+            root.AddReference(ReferenceTypeIds.HasProperty, false, targetId);
+            root.AddReference(ReferenceTypeIds.HasNotifier, false, targetId);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
@@ -960,9 +951,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 source.Manager.ValidateNodeCallback = null!;
-                root.OnCreateBrowser = null;
-                root.OnPopulateBrowser = null;
                 root.RemoveReference(ReferenceTypeIds.Organizes, false, targetId);
+                root.RemoveReference(ReferenceTypeIds.HasProperty, false, targetId);
+                root.RemoveReference(ReferenceTypeIds.HasNotifier, false, targetId);
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
 

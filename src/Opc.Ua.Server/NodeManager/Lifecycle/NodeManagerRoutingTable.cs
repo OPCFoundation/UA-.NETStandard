@@ -1242,6 +1242,7 @@ namespace Opc.Ua.Server
                 bool registered = false;
                 try
                 {
+                    Epoch.Attach(this);
                     foreach (NodeManagerGeneration generation in Generations)
                     {
                         generation.RegisterViewEpoch(Epoch);
