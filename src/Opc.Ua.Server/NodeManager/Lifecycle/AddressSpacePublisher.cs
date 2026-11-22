@@ -24,7 +24,8 @@ namespace Opc.Ua.Server
             EncodeableFactory factory,
             ArrayOf<PreparedNodeManager> candidates,
             IReadOnlyDictionary<NodeState.ReferenceUpdate, NodeManagerGeneration> referenceOwners,
-            Action<bool> viewPublished)
+            Action<bool> viewPublished,
+            PublicationProgress? progress = null)
         {
             m_routes = routes;
             m_namespaces = namespaces;
@@ -34,6 +35,7 @@ namespace Opc.Ua.Server
             m_typeTree = typeTree;
             m_factory = factory;
             m_viewPublished = viewPublished;
+            m_progress = progress;
             m_stagingServers = new ChangePreparer.StagingServer?[candidates.Count];
             for (int index = 0; index < candidates.Count; index++)
             {
@@ -76,6 +78,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void Publish()
         {
+            m_progress?.BeginCorePublication();
             m_namespaces.Complete();
             m_serverUris.Complete();
             m_types.Complete(m_typeTree);
@@ -127,5 +130,28 @@ namespace Opc.Ua.Server
         private readonly Dictionary<NodeState, ArrayOf<IReference>> m_nextReferenceImages;
         private readonly Dictionary<NodeState, ArrayOf<IReference>> m_emptyReferenceImages = [];
         private readonly Action<bool> m_viewPublished;
+
+        /// <summary>The transaction recording whether core publication has started.</summary>
+        private readonly PublicationProgress? m_progress;
+
+        /// <summary>
+        /// Tracks whether a transaction can still prove that it has not mutated the serving address space.
+        /// A started publication is not proof that the new routing image is visible.
+        /// </summary>
+        internal sealed class PublicationProgress
+        {
+            /// <summary>
+            /// Gets whether the publisher reached its first irreversible step.
+            /// </summary>
+            internal bool CorePublicationStarted { get; private set; }
+
+            /// <summary>
+            /// Marks the transaction immediately before the publisher starts mutating live state.
+            /// </summary>
+            internal void BeginCorePublication()
+            {
+                CorePublicationStarted = true;
+            }
+        }
     }
 }

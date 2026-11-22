@@ -632,7 +632,8 @@ namespace Opc.Ua.Server
                                     candidate.Publish();
                                     SetPreparing(candidate.NodeManager, preparing: false);
                                 }
-                            });
+                            },
+                            context.Progress);
                         cancellationToken.ThrowIfCancellationRequested();
                         if (!commit.Publishes)
                         {

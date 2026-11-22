@@ -2452,7 +2452,8 @@ namespace Opc.Ua.Server
                         Preparation: batch.Preparation,
                         References: references,
                         CallbackPermit: batch.CallbackPermit,
-                        Admission: admission);
+                        Admission: admission,
+                        Progress: batch.PublicationProgress);
                     committedReferences = await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (
@@ -2464,9 +2465,12 @@ namespace Opc.Ua.Server
                     _ = await AbortBatchEntriesAsync(
                         batch.Server, batch.Host, batch.Entries,
                         deferUntilShutdown: true).ConfigureAwait(false);
+                    string phase = batch.PublicationProgress.CorePublicationStarted
+                        ? "Core publication started; the prior routing view alone does not prove integrity. "
+                        : "Core publication did not start. ";
                     throw new InvalidOperationException(
-                        "The durable NodeManager decision succeeded, but routing publication failed before the " +
-                        "serving view changed. Candidate cleanup is deferred until server shutdown; " +
+                        "The durable NodeManager decision succeeded, but publication did not complete. " +
+                        phase + "Candidate cleanup is deferred until server shutdown; " +
                         "restart the server to recover.",
                         failure);
                 }
@@ -3524,6 +3528,11 @@ namespace Opc.Ua.Server
             /// Gets or sets whether the durable decision succeeded before routing publication.
             /// </summary>
             public bool DecisionCommitted { get; set; }
+
+            /// <summary>
+            /// Tracks the first irreversible core mutation independently of the decision and route swap.
+            /// </summary>
+            public AddressSpacePublisher.PublicationProgress PublicationProgress { get; } = new();
 
             /// <summary>
             /// Gets the server the batch was prepared for.

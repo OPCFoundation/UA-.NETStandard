@@ -304,6 +304,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRoutingTable.RoutingSnapshot before = table.Revision;
                 bool callbackObservedCommittedView = false;
                 bool callbackObservedOrderedRemoval = false;
+                var progress = new AddressSpacePublisher.PublicationProgress();
                 var publisher = new AddressSpacePublisher(
                     routes, namespaces, serverUris, types, factory,
                     preparation.TypeTree, preparation.Factory, [prepared],
@@ -322,8 +323,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         {
                             throw new InvalidOperationException("Post-commit application state failed.");
                         }
-                    });
+                    },
+                    progress);
                 Assert.That(candidateLookups, Is.EqualTo(1));
+                Assert.That(progress.CorePublicationStarted, Is.False);
 
                 decisionReturned = true;
                 if (callbackFails)
@@ -338,6 +341,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
 
                 Assert.That(candidateLookups, Is.EqualTo(1));
+                Assert.That(progress.CorePublicationStarted, Is.True);
                 Assert.That(callbackObservedCommittedView, Is.True);
                 Assert.That(callbackObservedOrderedRemoval, Is.True);
                 Assert.That(table.Revision.Revision, Is.GreaterThan(before.Revision));
