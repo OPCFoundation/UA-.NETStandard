@@ -24,7 +24,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// <summary>
     /// Captures candidate source owners and verifies their node-manager registrations before publication.
     /// </summary>
-    internal sealed class WotPreparedSourceImage
+    internal sealed class WotPreparedSourceImage(NodeManagerReadinessContext? readiness = null)
     {
         /// <summary>
         /// Gets the namespace mapping shared by the prepared source candidates.
@@ -118,8 +118,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return (found, owner);
             }
+            using OperationContext? context = readiness is null ? null : new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None)
+            {
+                Readiness = readiness.Scope
+            };
             (object? liveHandle, IAsyncNodeManager? liveOwner) = await server.NodeManager
-                .GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
+                .ResolveManagerHandleAsync(context, nodeId, cancellationToken).ConfigureAwait(false);
             return liveOwner is null || m_removed.Contains(liveOwner) ? (null, null) : (liveHandle, liveOwner);
         }
 
@@ -155,7 +160,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly List<IAsyncNodeManager> m_candidates = [];
-        private readonly HashSet<IAsyncNodeManager> m_removed = [];
+        private readonly HashSet<IAsyncNodeManager> m_removed = new(RefEqualityComparer.Default);
         private IServerInternal? m_server;
         private bool m_bound;
     }

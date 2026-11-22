@@ -17,7 +17,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [TestFixture]
     [Category("NodeManager")]
     [Parallelizable(ParallelScope.All)]
-    public class AsyncNodeManagerAdapterReadinessTests
+    public sealed class AsyncNodeManagerAdapterReadinessTests
     {
         /// <summary>
         /// Disposing a round-trip facade reaches its underlying asynchronous manager exactly once.
@@ -43,47 +43,63 @@ namespace Opc.Ua.Server.Tests.NodeManager
             asyncDisposable.Verify(value => value.DisposeAsync(), asynchronous ? Times.Once() : Times.Never());
         }
 
+        /// <summary>
+        /// A classic manager's TAP readiness callback receives the caller's cancellation token.
+        /// </summary>
         [Test]
-        public async Task AsyncReadinessIsPreferredOverSyncReadinessAsync()
+        public async Task ClassicReadinessReceivesCallerCancellationTokenAsync()
         {
             var manager = new Mock<INodeManager>();
             var asyncReady = manager.As<INodeManagerReadinessNotification>();
-            var syncReady = manager.As<ISyncNodeManagerReadinessNotification>();
             using var adapter = new AsyncNodeManagerAdapter(manager.Object);
+            using var cancellation = new CancellationTokenSource();
 
-            await adapter.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
+            await adapter.OnServerReadyAsync(cancellation.Token).ConfigureAwait(false);
 
-            asyncReady.Verify(m => m.OnServerReadyAsync(It.IsAny<CancellationToken>()), Times.Once);
-            syncReady.Verify(m => m.OnServerReady(), Times.Never);
+            asyncReady.Verify(m => m.OnServerReadyAsync(cancellation.Token), Times.Once);
             Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.True);
         }
 
+        /// <summary>
+        /// A classic manager's synchronously completed TAP readiness callback is called once.
+        /// </summary>
         [Test]
         public async Task SyncOnlyReadinessIsInvokedOnceAsync()
         {
             var manager = new Mock<INodeManager>();
-            var syncReady = manager.As<ISyncNodeManagerReadinessNotification>();
+            Mock<INodeManagerReadinessNotification> ready = manager.As<INodeManagerReadinessNotification>();
+            ready.Setup(value => value.OnServerReadyAsync(CancellationToken.None)).Returns(default(ValueTask));
             using var adapter = new AsyncNodeManagerAdapter(manager.Object);
 
+            Assert.That(manager.Object, Is.Not.InstanceOf<IAsyncNodeManager>());
             await adapter.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
 
-            syncReady.Verify(m => m.OnServerReady(), Times.Once);
+            ready.Verify(value => value.OnServerReadyAsync(CancellationToken.None), Times.Once);
             Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.True);
         }
 
+        /// <summary>
+        /// A classic manager's TAP readiness callback receives and observes cancellation.
+        /// </summary>
         [Test]
-        public void SyncReadinessIsNotInvokedWhenCancelledBeforeCall()
+        public async Task ClassicReadinessReceivesCanceledTokenAsync()
         {
             var manager = new Mock<INodeManager>();
-            var syncReady = manager.As<ISyncNodeManagerReadinessNotification>();
+            Mock<INodeManagerReadinessNotification> ready = manager.As<INodeManagerReadinessNotification>();
+            ready.Setup(value => value.OnServerReadyAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    return default;
+                });
             using var adapter = new AsyncNodeManagerAdapter(manager.Object);
             using var cts = new CancellationTokenSource();
-            cts.Cancel();
+            await cts.CancelAsync().ConfigureAwait(false);
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await adapter.OnServerReadyAsync(cts.Token).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>());
-            syncReady.Verify(m => m.OnServerReady(), Times.Never);
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            ready.Verify(value => value.OnServerReadyAsync(cts.Token), Times.Once);
         }
 
         [Test]

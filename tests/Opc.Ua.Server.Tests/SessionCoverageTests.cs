@@ -80,7 +80,8 @@ namespace Opc.Ua.Server.Tests
         private ServerSession CreateSession(
             EndpointDescription endpoint,
             string channelId = "channel-1",
-            Certificate? clientCertificate = null)
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null)
         {
             OperationContext context = CreateContext(endpoint, channelId);
             return new ServerSession(
@@ -94,7 +95,7 @@ namespace Opc.Ua.Server.Tests
                 new ApplicationDescription { ApplicationUri = "urn:coverage:client" },
                 endpoint.EndpointUrl!,
                 clientCertificate!,
-                [],
+                clientCertificateChain ?? [],
                 60_000,
                 10,
                 10);
@@ -578,6 +579,38 @@ namespace Opc.Ua.Server.Tests
                 session.ContinuationPoints.RestoreHistory(new ByteString(first.ToByteArray())),
                 Is.Null,
                 "The oldest history continuation point should have been evicted.");
+        }
+
+        /// <summary>
+        /// Session disposal attempts independent certificate cleanup after a continuation failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DisposeAttemptsCertificatesAfterHistoryCleanupFailure(bool certificateFails)
+        {
+            var historyFailure = new InvalidOperationException("History cleanup failed.");
+            var certificateFailure = new InvalidOperationException("Certificate cleanup failed.");
+            var client = new TrackingCertificate(
+                m_serverCertificate.RawData, certificateFails ? certificateFailure : null);
+            var chain = new TrackingCertificateCollection();
+            ServerSession session = CreateSession(
+                CreateEndpoint(), clientCertificate: client, clientCertificateChain: chain);
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(Guid.NewGuid());
+            point.Setup(value => value.Dispose()).Throws(historyFailure);
+            session.ContinuationPoints.SaveHistory(point.Object);
+
+            AggregateException reported = Assert.Throws<AggregateException>(session.Dispose)!;
+
+            Assert.That(reported.Flatten().InnerExceptions, Has.Exactly(1).SameAs(historyFailure));
+            Assert.That(reported.Flatten().InnerExceptions, Has.Count.EqualTo(certificateFails ? 2 : 1));
+            if (certificateFails)
+            {
+                Assert.That(reported.Flatten().InnerExceptions, Has.Exactly(1).SameAs(certificateFailure));
+            }
+            Assert.That(client.DisposeCount, Is.EqualTo(1));
+            Assert.That(chain.DisposeCount, Is.EqualTo(1));
+            point.Verify(value => value.Dispose(), Times.Once);
         }
 
         [Test]
@@ -1298,6 +1331,52 @@ namespace Opc.Ua.Server.Tests
             Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Never);
             session.Verify(s => s.GetNewEphemeralKey(), Times.Never);
+        }
+
+        /// <summary>
+        /// Observes one certificate disposal and optionally reports a failure after releasing it.
+        /// </summary>
+        private sealed class TrackingCertificate(byte[] rawData, Exception? failure) : Certificate(rawData)
+        {
+            /// <summary>
+            /// Gets the number of disposal callbacks.
+            /// </summary>
+            public int DisposeCount { get; private set; }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing)
+                {
+                    DisposeCount++;
+                    if (failure is not null)
+                    {
+                        throw failure;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Observes disposal of an independently owned client certificate chain.
+        /// </summary>
+        private sealed class TrackingCertificateCollection : CertificateCollection
+        {
+            /// <summary>
+            /// Gets the number of disposal callbacks.
+            /// </summary>
+            public int DisposeCount { get; private set; }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing)
+                {
+                    DisposeCount++;
+                }
+            }
         }
     }
 }

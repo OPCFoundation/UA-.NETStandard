@@ -1261,7 +1261,8 @@ namespace Opc.Ua.Server
         private readonly ThreadLocal<bool> m_selfTrustNotification = new();
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(ConfigurationNodeManager), AmbientMessageContext.Telemetry);
-        private readonly AsyncLocal<List<PendingCertificateRotation>?> m_activeRotationCollector = new();
+        /// <summary>The revocable rotation collector for the current apply callback.</summary>
+        private readonly AsyncLocal<NodeManagerAmbientScope<RotationCollector>?> m_activeRotationCollector = new();
 
         private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
 

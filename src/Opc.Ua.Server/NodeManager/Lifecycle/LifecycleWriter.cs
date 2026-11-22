@@ -44,12 +44,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects operations that cannot be admitted by the running writer.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// A durable publication failed, or shutdown has excluded new operations.
+        /// </exception>
         internal void EnsureRunning()
         {
-            ThrowIfDecisionCallbackActive();
             if (m_disposed)
             {
                 throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
+            }
+            if (m_publicationFailed)
+            {
+                throw new InvalidOperationException(
+                    "The NodeManager lifecycle failed after a durable decision; restart the server to recover.");
             }
             if (m_shuttingDown)
             {
@@ -58,11 +65,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Excludes further mutations after a durable decision could not publish its routing image.
+        /// </summary>
+        internal void MarkPublicationFailed()
+        {
+            lock (m_state)
+            {
+                m_publicationFailed = true;
+            }
+        }
+
+        /// <summary>
         /// Restarts admission only after the previous shutdown and its owned operations have ended.
         /// </summary>
         internal void BeginStartup(Action reset)
         {
-            ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 if (m_disposed)
@@ -71,6 +88,7 @@ namespace Opc.Ua.Server
                 }
                 if (!m_shuttingDown)
                 {
+                    EnsureRunning();
                     return;
                 }
                 if (m_shutdownPrepared || m_activeOperations != 0 || m_activeShutdownMethods != 0)
@@ -79,6 +97,7 @@ namespace Opc.Ua.Server
                         "The previous NodeManager lifecycle shutdown did not complete.");
                 }
                 reset();
+                m_publicationFailed = false;
                 m_shuttingDown = false;
             }
         }
@@ -88,7 +107,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal OperationLifetime EnterOperation()
         {
-            ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 EnsureRunning();
@@ -103,7 +121,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal async ValueTask<Mutation> BeginMutationAsync(CancellationToken cancellationToken)
         {
-            ThrowIfDecisionCallbackActive();
             await m_mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
             return new Mutation(this);
         }
@@ -113,7 +130,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal PublicationSession BeginPublication(PublicationRevision revision)
         {
-            ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 EnsureRunning();
@@ -131,7 +147,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal ValueTask<Task> BeginShutdownAsync(CancellationToken cancellationToken)
         {
-            ThrowIfDecisionCallbackActive();
             cancellationToken.ThrowIfCancellationRequested();
             lock (m_state)
             {
@@ -176,7 +191,6 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 m_disposed = true;
@@ -186,11 +200,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rejects lifecycle entry from an active decision, including execution contexts spawned by it.
+        /// Rejects lifecycle entry from this writer's active decision.
         /// </summary>
-        internal void ThrowIfDecisionCallbackActive()
+        internal void ThrowIfDecisionCallbackActive(NodeManagerDecisionContext context)
         {
-            if (m_decision.Value is { IsActive: true })
+            if (context.WriterId == m_decisionIdentity && context.IsActive)
             {
                 throw new InvalidOperationException(
                     "NodeManager lifecycle operations cannot be started from the durable decision callback.");
@@ -220,8 +234,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private void TryDisposeSynchronization()
         {
-            if (m_disposed && !m_synchronizationDisposed && m_activeOperations == 0 &&
-                m_activeShutdownMethods == 0 && !m_shutdownPrepared && m_canDispose())
+            if (m_disposed &&
+                !m_synchronizationDisposed &&
+                m_activeOperations == 0 &&
+                m_activeShutdownMethods == 0 &&
+                !m_shutdownPrepared &&
+                m_canDispose())
             {
                 m_synchronizationDisposed = true;
                 m_mutation.Dispose();
@@ -260,29 +278,108 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Immutable revisions checked before preparation and again before the durable publication decision.
+        /// Non-owning revision evidence checked before preparation and the durable publication decision.
         /// </summary>
-        internal sealed record PublicationRevision(
-            LifecycleWriter Owner,
-            IServerInternal Server,
-            IDynamicNodeManagerHost OwnerHost,
-            NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
-            TypeTable Types,
-            long TypeRevision,
-            EncodeableFactory Factory,
-            long FactoryRevision)
+        internal sealed class PublicationRevision
         {
+            /// <summary>
+            /// Records exact serving identities without extending server or superseded image lifetimes.
+            /// </summary>
+            internal PublicationRevision(
+                LifecycleWriter owner,
+                IServerInternal server,
+                IDynamicNodeManagerHost host,
+                NodeManagerRoutingTable.RoutingSnapshot routingRevision,
+                TypeTable types,
+                long typeRevision,
+                EncodeableFactory factory,
+                long factoryRevision)
+            {
+                Owner = owner;
+                m_server = new WeakReference<IServerInternal>(server);
+                m_host = new WeakReference<IDynamicNodeManagerHost>(host);
+                m_routingRevision = new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(routingRevision);
+                m_types = new WeakReference<TypeTable>(types);
+                m_factory = new WeakReference<EncodeableFactory>(factory);
+                m_typeRevision = typeRevision;
+                m_factoryRevision = factoryRevision;
+            }
+
+            /// <summary>
+            /// Gets the synchronization owner, which holds no server or candidate ownership.
+            /// </summary>
+            internal LifecycleWriter Owner { get; }
+
+            /// <summary>
+            /// Gets the server only while its original identity remains available.
+            /// </summary>
+            /// <exception cref="ObjectDisposedException">The captured server is no longer available.</exception>
+            internal IServerInternal Server => m_server.TryGetTarget(out IServerInternal? server)
+                ? server
+                : throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
+
+            /// <summary>
+            /// Gets the exact original host without recapturing serving evidence.
+            /// </summary>
+            /// <exception cref="ObjectDisposedException">The captured host is no longer available.</exception>
+            internal IDynamicNodeManagerHost OwnerHost => m_host.TryGetTarget(out IDynamicNodeManagerHost? host)
+                ? host
+                : throw new ObjectDisposedException(nameof(INodeManagerLifecycle));
+
+            /// <summary>
+            /// Checks server incarnation without recapturing any routing or metadata evidence.
+            /// </summary>
+            internal bool MatchesServer(IServerInternal server)
+            {
+                return m_server.TryGetTarget(out IServerInternal? captured) &&
+                    ReferenceEquals(captured, server) &&
+                    m_host.TryGetTarget(out IDynamicNodeManagerHost? host) &&
+                    ReferenceEquals(server.NodeManager, host);
+            }
+
             /// <summary>
             /// Checks routing, type and encodeable revisions together.
             /// </summary>
             internal bool IsCurrent()
             {
-                _ = ((EncodeableFactory)Server.Factory).CaptureSnapshot(
+                if (Owner.m_publicationFailed ||
+                    !m_server.TryGetTarget(out IServerInternal? server) ||
+                    !m_host.TryGetTarget(out IDynamicNodeManagerHost? host) ||
+                    !m_routingRevision.TryGetTarget(out NodeManagerRoutingTable.RoutingSnapshot? routing) ||
+                    !m_types.TryGetTarget(out TypeTable? types) ||
+                    !m_factory.TryGetTarget(out EncodeableFactory? expectedFactory) ||
+                    server.Factory is not EncodeableFactory currentFactory)
+                {
+                    return false;
+                }
+                _ = currentFactory.CaptureSnapshot(
                     out EncodeableFactory factory, out long factoryRevision);
-                return ReferenceEquals(OwnerHost.RoutingRevision, RoutingRevision) &&
-                    Server.TypeTree.IsCurrentSnapshot(Types, TypeRevision) &&
-                    ReferenceEquals(factory, Factory) && factoryRevision == FactoryRevision;
+                return ReferenceEquals(host.RoutingRevision, routing) &&
+                    server.TypeTree.IsCurrentSnapshot(types, m_typeRevision) &&
+                    ReferenceEquals(factory, expectedFactory) &&
+                    factoryRevision == m_factoryRevision;
             }
+
+            /// <summary>The server identity, without lifetime ownership.</summary>
+            private readonly WeakReference<IServerInternal> m_server;
+
+            /// <summary>The host identity, without lifetime ownership.</summary>
+            private readonly WeakReference<IDynamicNodeManagerHost> m_host;
+
+            /// <summary>The original routing image, without retaining its generations.</summary>
+            private readonly WeakReference<NodeManagerRoutingTable.RoutingSnapshot> m_routingRevision;
+
+            /// <summary>The original type image, without retaining superseded types.</summary>
+            private readonly WeakReference<TypeTable> m_types;
+
+            /// <summary>The original factory image, without retaining superseded types.</summary>
+            private readonly WeakReference<EncodeableFactory> m_factory;
+
+            /// <summary>The original type-table revision.</summary>
+            private readonly long m_typeRevision;
+
+            /// <summary>The original factory revision.</summary>
+            private readonly long m_factoryRevision;
         }
 
         /// <summary>
@@ -291,28 +388,58 @@ namespace Opc.Ua.Server
         internal sealed class Mutation(LifecycleWriter owner) : IDisposable
         {
             /// <summary>
-            /// Invokes the sole callback allowed under mutation ownership.
+            /// Opens a decision window without binding it to the caller's execution context.
             /// </summary>
-            internal async ValueTask DecideAsync(
-                Func<CancellationToken, ValueTask> callback,
-                CancellationToken cancellationToken)
+            /// <exception cref="InvalidOperationException">
+            /// The mutation is not held or already has a decision window.
+            /// </exception>
+            internal DecisionWindow EnterDecisionWindow()
             {
-                owner.ThrowIfDecisionCallbackActive();
                 if (!m_held)
                 {
                     throw new InvalidOperationException("The durable decision requires mutation ownership.");
                 }
-                DecisionScope? previous = owner.m_decision.Value;
-                var scope = new DecisionScope();
-                owner.m_decision.Value = scope;
+                var scope = new NodeManagerDecisionContext(owner.m_decisionIdentity);
+                if (Interlocked.CompareExchange(ref m_activeDecision, scope, null) is not null)
+                {
+                    throw new InvalidOperationException("The mutation already has a durable decision window.");
+                }
+                return new DecisionWindow(this, owner, scope);
+            }
+
+            /// <summary>
+            /// Invokes the sole callback allowed under mutation ownership.
+            /// </summary>
+            internal ValueTask DecideAsync(
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask> callback,
+                CancellationToken cancellationToken)
+            {
+                return DecideAsync(callback, null, cancellationToken);
+            }
+
+            /// <summary>
+            /// Executes the decision using the host's reservation, or owns a local reservation if there is no host.
+            /// </summary>
+            internal async ValueTask DecideAsync(
+                Func<NodeManagerDecisionContext, CancellationToken, ValueTask> callback,
+                DecisionWindow? reservation,
+                CancellationToken cancellationToken)
+            {
+                if (!m_held)
+                {
+                    throw new InvalidOperationException("The durable decision requires mutation ownership.");
+                }
+                using DecisionWindow? local = reservation is null ? EnterDecisionWindow() : null;
+                DecisionWindow window = reservation ?? local!;
+                NodeManagerDecisionContext scope = window.GetScope(this);
+                scope.Activate();
                 try
                 {
-                    await callback(cancellationToken).ConfigureAwait(false);
+                    await callback(scope, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
                     scope.Deactivate();
-                    owner.m_decision.Value = previous;
                 }
             }
 
@@ -344,17 +471,106 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>The exact reservation for this mutation, cleared on release.</summary>
+            private NodeManagerDecisionContext? m_activeDecision;
+
             /// <summary>Whether this owner currently holds mutation admission.</summary>
             private bool m_held = true;
+
+            /// <summary>
+            /// Revokes the marker shared by the host and writer before relinquishing the window.
+            /// </summary>
+            internal sealed class DecisionWindow(
+                Mutation mutation,
+                LifecycleWriter writer,
+                NodeManagerDecisionContext scope) : IDisposable
+            {
+                /// <summary>
+                /// Determines whether the explicit context identifies this open reservation.
+                /// </summary>
+                internal bool Includes(NodeManagerDecisionContext context)
+                {
+                    return ReferenceEquals(scope, context) && scope.IsOpen;
+                }
+
+                /// <summary>
+                /// Identifies re-entry from this reservation's current flow.
+                /// </summary>
+                internal bool IsInCurrentFlow =>
+                    scope.IsOpen && ReferenceEquals(writer.m_namespaceGetter.Value, scope);
+
+                /// <summary>
+                /// Adapts a callback that cannot receive a reservation. The bound marker carries no
+                /// reservation owner and remains revocable for any flow captured by the callback.
+                /// </summary>
+                /// <exception cref="InvalidOperationException">The reservation has closed.</exception>
+                internal CallbackFlow EnterCallbackFlow()
+                {
+                    if (!scope.IsOpen)
+                    {
+                        throw new InvalidOperationException("The publication reservation has already closed.");
+                    }
+                    var flow = new CallbackFlow(writer, writer.m_namespaceGetter.Value);
+                    writer.m_namespaceGetter.Value = scope;
+                    return flow;
+                }
+
+                /// <summary>
+                /// Requires the live reservation owned by this exact mutation.
+                /// </summary>
+                /// <exception cref="InvalidOperationException">
+                /// The reservation has closed or belongs to another mutation.
+                /// </exception>
+                internal NodeManagerDecisionContext GetScope(Mutation expected)
+                {
+                    if (!scope.IsOpen || !ReferenceEquals(mutation, expected))
+                    {
+                        throw new InvalidOperationException(
+                            "The decision reservation is not active for this mutation.");
+                    }
+                    return scope;
+                }
+
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                    if (!scope.Close())
+                    {
+                        return;
+                    }
+                    Interlocked.CompareExchange(ref mutation.m_activeDecision, null, scope);
+                }
+
+                /// <summary>
+                /// Restores the caller's context after invoking a callback.
+                /// </summary>
+                internal readonly struct CallbackFlow(
+                    LifecycleWriter writer, NodeManagerDecisionContext? previous) : IDisposable
+                {
+                    /// <inheritdoc/>
+                    public void Dispose()
+                    {
+                        writer.m_namespaceGetter.Value = previous;
+                    }
+                }
+            }
         }
 
         /// <summary>
         /// Owns an invocation's optimistic revision, sequential preparation and prepared transaction disposal.
         /// </summary>
-        internal sealed class PublicationSession(
-            LifecycleWriter owner,
-            PublicationRevision revision) : IAsyncDisposable
+        internal sealed class PublicationSession : IAsyncDisposable
         {
+            /// <summary>
+            /// Owns writer admission until terminal disposal, retaining only private synchronization afterward.
+            /// </summary>
+            internal PublicationSession(LifecycleWriter owner, PublicationRevision revision)
+            {
+                m_state = owner.m_state;
+                m_revision = revision;
+                m_operation = owner.EnterOperation();
+            }
+
             /// <summary>
             /// Gets whether this invocation's expected serving revisions remain current.
             /// </summary>
@@ -362,9 +578,9 @@ namespace Opc.Ua.Server
             {
                 get
                 {
-                    lock (owner.m_state)
+                    lock (m_state)
                     {
-                        return !m_closing && m_revision.IsCurrent();
+                        return !m_closing && Revision.IsCurrent();
                     }
                 }
             }
@@ -372,11 +588,12 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Rejects stale captured evidence under mutation ownership before preparation or a durable decision.
             /// </summary>
-            internal void ValidateRevision()
+            internal void ValidateRevision(IServerInternal? server = null)
             {
-                lock (owner.m_state)
+                lock (m_state)
                 {
-                    if (!m_revision.IsCurrent())
+                    PublicationRevision revision = Revision;
+                    if (!revision.IsCurrent() || (server is not null && !revision.MatchesServer(server)))
                     {
                         throw new InvalidOperationException(
                             "The publication invocation conflicts with a newer address-space revision.");
@@ -385,15 +602,31 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Checks the lifecycle's current server incarnation as well as captured serving revisions.
+            /// </summary>
+            internal bool IsCurrentFor(INodeManagerLifecycleHost host)
+            {
+                if (Volatile.Read(ref m_closing))
+                {
+                    return false;
+                }
+                IServerInternal server = host.CurrentInstance;
+                lock (m_state)
+                {
+                    return !m_closing && Revision.MatchesServer(server) && Revision.IsCurrent();
+                }
+            }
+
+            /// <summary>
             /// Observes only this invocation's successful publication, immediately after its swap under the writer.
             /// </summary>
             internal void AdvanceRevision()
             {
-                lock (owner.m_state)
+                lock (m_state)
                 {
-                    m_revision = owner.CaptureRevisionCore(
-                        m_revision.Server, m_revision.OwnerHost,
-                        (EncodeableFactory)m_revision.Server.Factory);
+                    PublicationRevision revision = Revision;
+                    m_revision = revision.Owner.CaptureRevisionCore(
+                        revision.Server, revision.OwnerHost, (EncodeableFactory)revision.Server.Factory);
                 }
             }
 
@@ -403,40 +636,83 @@ namespace Opc.Ua.Server
             internal Task Finished => m_finished.Task;
 
             /// <summary>
+            /// Gets active revision ownership, including while admitted work drains during disposal.
+            /// </summary>
+            /// <exception cref="ObjectDisposedException">The publication revision has been released.</exception>
+            private PublicationRevision Revision =>
+                m_revision ?? throw new ObjectDisposedException(nameof(ILifecycleWriter));
+
+            /// <summary>
             /// Prepares one transaction while preventing overlapping preparation or premature disposal.
             /// </summary>
             /// <typeparam name="T">The prepared transaction type.</typeparam>
+            /// <exception cref="ObjectDisposedException">
+            /// The publication invocation is closing or its revision has been released.
+            /// </exception>
             internal async ValueTask<T> PrepareAsync<T>(Func<ValueTask<T>> prepare)
                 where T : IAsyncDisposable
             {
-                owner.ThrowIfDecisionCallbackActive();
-                lock (owner.m_state)
+                TaskCompletionSource<bool> preparation;
+                lock (m_state)
                 {
+                    LifecycleWriter owner = Revision.Owner;
                     owner.EnsureRunning();
                     if (m_closing)
                     {
-                        throw new ObjectDisposedException(nameof(INodeManagerPublication));
+                        throw new ObjectDisposedException(nameof(ILifecycleWriter));
                     }
                     ValidateRevision();
-                    if (m_preparing)
+                    if (m_prepared is not null)
                     {
                         throw new InvalidOperationException("Prepare invocation units sequentially.");
                     }
-                    m_preparing = true;
-                    m_prepared = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    preparation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_prepared = preparation;
                 }
                 try
                 {
                     T batch = await prepare().ConfigureAwait(false);
-                    m_batches.Add(batch);
+                    lock (m_state)
+                    {
+                        m_batches.Add(batch);
+                    }
                     return batch;
                 }
                 finally
                 {
-                    lock (owner.m_state)
+                    lock (m_state)
                     {
-                        m_preparing = false;
-                        m_prepared.TrySetResult(true);
+                        m_prepared = null;
+                        preparation.TrySetResult(true);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Releases an exact consumed unit after publication or transfer to lifecycle-owned cleanup.
+            /// </summary>
+            /// <param name="batch">The prepared unit whose cleanup finished.</param>
+            /// <param name="failure">An earlier disposal failure that the invocation must still report.</param>
+            internal void ReleaseCompletedBatch(IAsyncDisposable batch, Exception? failure = null)
+            {
+                lock (m_state)
+                {
+                    if (m_closing)
+                    {
+                        return;
+                    }
+                    bool found = false;
+                    for (int index = m_batches.Count - 1; index >= 0; index--)
+                    {
+                        if (ReferenceEquals(m_batches[index], batch))
+                        {
+                            m_batches.RemoveAt(index);
+                            found = true;
+                        }
+                    }
+                    if (found && failure is not null)
+                    {
+                        (m_completedDisposalFailures ??= []).Add(failure);
                     }
                 }
             }
@@ -444,27 +720,28 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
-                owner.ThrowIfDecisionCallbackActive();
                 Task? prepared;
                 bool ownsDisposal;
-                lock (owner.m_state)
+                lock (m_state)
                 {
                     ownsDisposal = !m_closing;
                     m_closing = true;
-                    prepared = m_preparing ? m_prepared.Task : null;
+                    prepared = m_prepared?.Task;
                 }
                 if (!ownsDisposal)
                 {
                     await Finished.ConfigureAwait(false);
                     return;
                 }
+                Exception? cleanupFailure = null;
                 try
                 {
                     if (prepared is not null)
                     {
                         await prepared.ConfigureAwait(false);
                     }
-                    var failures = new List<Exception>();
+                    // Closing excludes further releases, so disposal now owns the retained failure list.
+                    List<Exception> failures = m_completedDisposalFailures ?? [];
                     foreach (IAsyncDisposable batch in m_batches)
                     {
                         try
@@ -481,33 +758,57 @@ namespace Opc.Ua.Server
                         throw new AggregateException("Publication invocation cleanup failed.", failures);
                     }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    cleanupFailure = failure;
+                }
+                catch (OutOfMemoryException failure)
+                {
+                    cleanupFailure = failure;
+                    throw;
+                }
                 finally
                 {
-                    m_batches.Clear();
+                    lock (m_state)
+                    {
+                        m_batches.Clear();
+                        m_completedDisposalFailures?.Clear();
+                        m_revision = null;
+                    }
                     m_operation.Dispose();
-                    m_finished.TrySetResult(true);
+                    if (cleanupFailure is null)
+                    {
+                        m_finished.TrySetResult(true);
+                    }
+                    else
+                    {
+                        m_finished.TrySetException(cleanupFailure);
+                    }
                 }
+                await Finished.ConfigureAwait(false);
             }
 
-            /// <summary>Transactions retained until invocation disposal.</summary>
+            /// <summary>Transactions retained until their cleanup or invocation disposal.</summary>
             private readonly List<IAsyncDisposable> m_batches = [];
 
-            /// <summary>Expected serving metadata, advanced only by this invocation's own publication.</summary>
-            private PublicationRevision m_revision = revision;
+            /// <summary>Earlier disposal failures retained after their units finish physical cleanup.</summary>
+            private List<Exception>? m_completedDisposalFailures;
 
-            /// <summary>Completion shared by disposal and shutdown waiters.</summary>
+            /// <summary>Expected serving metadata, advanced only by this invocation's own publication.</summary>
+            private PublicationRevision? m_revision;
+
+            /// <summary>Outcome shared by callers joining the active cleanup attempt.</summary>
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>Completion of the currently admitted preparation.</summary>
-            private TaskCompletionSource<bool> m_prepared =
-                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private TaskCompletionSource<bool>? m_prepared;
 
             /// <summary>The operation admitted and owned by this invocation until its cleanup finishes.</summary>
-            private readonly OperationLifetime m_operation = owner.EnterOperation();
+            private readonly OperationLifetime m_operation;
 
-            /// <summary>Whether a transaction is being prepared.</summary>
-            private bool m_preparing;
+            /// <summary>Private synchronization that remains usable after writer ownership is released.</summary>
+            private readonly Lock m_state;
 
             /// <summary>Whether disposal has excluded further preparation.</summary>
             private bool m_closing;
@@ -553,7 +854,6 @@ namespace Opc.Ua.Server
                 lock (owner.m_state)
                 {
                     Validate(owner);
-                    owner.ThrowIfDecisionCallbackActive();
                     owner.m_activeOperations++;
                     return new OperationLifetime(owner);
                 }
@@ -564,7 +864,8 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void Validate(LifecycleWriter writer)
             {
-                if (!ReferenceEquals(owner, writer) || Volatile.Read(ref m_disposed) != 0 ||
+                if (!ReferenceEquals(owner, writer) ||
+                    Volatile.Read(ref m_disposed) != 0 ||
                     !owner.IsShuttingDown)
                 {
                     throw new InvalidOperationException("The shutdown publication no longer owns writer admission.");
@@ -584,28 +885,6 @@ namespace Opc.Ua.Server
             private int m_disposed;
         }
 
-        /// <summary>
-        /// Shared decision state expires even in execution contexts spawned by the callback.
-        /// </summary>
-        private sealed class DecisionScope
-        {
-            /// <summary>
-            /// Gets whether the decision is still executing.
-            /// </summary>
-            internal bool IsActive => Volatile.Read(ref m_active) != 0;
-
-            /// <summary>
-            /// Expires this decision in every captured execution context.
-            /// </summary>
-            internal void Deactivate()
-            {
-                Volatile.Write(ref m_active, 0);
-            }
-
-            /// <summary>Decision activity shared across execution contexts.</summary>
-            private int m_active = 1;
-        }
-
         /// <summary>Checks whether independent cleanup still requires shutdown synchronization.</summary>
         private readonly Func<bool> m_canDispose;
 
@@ -618,8 +897,11 @@ namespace Opc.Ua.Server
         /// <summary>Protects operation and invocation admission.</summary>
         private readonly Lock m_state = new();
 
-        /// <summary>Active durable decision in the current execution context.</summary>
-        private readonly AsyncLocal<DecisionScope?> m_decision = new();
+        /// <summary>The adapter for context-free namespace getters.</summary>
+        private readonly AsyncLocal<NodeManagerDecisionContext?> m_namespaceGetter = new();
+
+        /// <summary>Identifies this writer without retaining it in a callback context.</summary>
+        private readonly Guid m_decisionIdentity = Guid.NewGuid();
 
         /// <summary>Completion of outstanding operations after shutdown admission.</summary>
         private TaskCompletionSource<bool>? m_operationsDrained;
@@ -641,5 +923,8 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether shutdown has excluded new admission.</summary>
         private volatile bool m_shuttingDown;
+
+        /// <summary>Whether a durable decision failed to install its routing image.</summary>
+        private volatile bool m_publicationFailed;
     }
 }

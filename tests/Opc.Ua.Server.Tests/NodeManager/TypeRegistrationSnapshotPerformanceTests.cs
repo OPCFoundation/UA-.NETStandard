@@ -101,13 +101,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     for (int ii = 0; ii < revisions.Length; ii++)
                     {
-                        Assert.That(revisions[ii].Types, Is.SameAs(types));
-                        Assert.That(revisions[ii].TypeRevision, Is.EqualTo(revisions[0].TypeRevision));
-                        Assert.That(revisions[ii].Factory, Is.SameAs(revisions[0].Factory));
-                        Assert.That(revisions[ii].FactoryRevision, Is.EqualTo(revisions[0].FactoryRevision));
-                        Assert.That(revisions[ii].RoutingRevision, Is.SameAs(revisions[0].RoutingRevision));
+                        Assert.That(revisions[ii].Owner, Is.SameAs(writer));
+                        Assert.That(revisions[ii].Server, Is.SameAs(server.Object));
+                        Assert.That(revisions[ii].OwnerHost, Is.SameAs(host.Object));
+                        Assert.That(revisions[ii].MatchesServer(server.Object), Is.True);
+                        Assert.That(revisions[ii].IsCurrent(), Is.True);
                     }
                 }
+                server.SetupGet(value => value.TypeTree).Returns(CreateTypeTable(64));
+                Assert.That(revisions.Select(revision => revision.IsCurrent()), Has.All.False);
+                server.SetupGet(value => value.TypeTree).Returns(types);
+                Assert.That(revisions.Select(revision => revision.IsCurrent()), Has.All.True);
             }
         }
 
@@ -212,6 +216,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable.RoutingSnapshot routingRevision = routing.Revision;
             var host = new Mock<IDynamicNodeManagerHost>();
             host.SetupGet(value => value.RoutingRevision).Returns(routingRevision);
+            IMasterNodeManager master = host.As<IMasterNodeManager>().Object;
+            server.SetupGet(value => value.NodeManager).Returns(master);
+            // Materialize the lazily created proxy before capture workers can race their first Object access.
+            _ = server.Object;
             return (new LifecycleWriter(), server, host);
         }
     }

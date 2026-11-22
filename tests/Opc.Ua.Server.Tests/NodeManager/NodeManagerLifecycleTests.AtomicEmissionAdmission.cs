@@ -26,18 +26,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task RemovalWithoutSourceProviderCutoffCommitsAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri);
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
-            NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, null, timeout.Token)
-                .ConfigureAwait(false);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            Assert.That(added.Issues, Is.Empty);
+            NodeManagerRegistration registration = RequireRegistration(added.Registrations[0]);
+            await using ILifecycleWriter writer = await LifecycleInspection.Capture(lifecycle, registration)
+                .BeginAsync(timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await writer.PrepareAsync(
+                [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
             int decisions = 0;
-            NodeManagerBatchResult result = await prepared.CommitAsync(_ =>
+            LifecycleResult result = await prepared.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
@@ -46,7 +50,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(prepared.IsCommitted, Is.True);
             Assert.That(decisions, Is.EqualTo(1));
             Assert.That(GetBranchRegistrations(lifecycle).Count, Is.Zero);
-            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
             manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -61,11 +65,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var decision = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? manager = null;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, value => manager = value), null, timeout.Token)
-                .ConfigureAwait(false);
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(101, value => manager = value))],
+                timeout.Token).ConfigureAwait(false);
+            Assert.That(added.Issues, Is.Empty);
+            NodeManagerRegistration registration = RequireRegistration(added.Registrations[0]);
             AssertLifecycleValue(manager);
             NodeId valueId = new(kValueNodeId, manager.NamespaceIndexes[0]);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -77,11 +83,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factoryCalls++;
                 return context.CreatePushMonitoredItem();
             });
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
+            await using ILifecycleWriter writer = await LifecycleInspection.Capture(lifecycle, registration)
+                .BeginAsync(timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await writer.PrepareAsync(
+                [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -139,12 +147,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var abortCallback = new CancellationTokenSource();
             IServerInternal server = m_server.CurrentInstance;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? original = null;
             TrackingLifecycleNodeManager? nested = null;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, manager => original = manager),
-                null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(101, manager => original = manager))],
+                timeout.Token).ConfigureAwait(false);
+            Assert.That(added.Issues, Is.Empty);
+            NodeManagerRegistration registration = RequireRegistration(added.Registrations[0]);
             AssertLifecycleValue(original);
             NodeId valueId = new(kValueNodeId, original.NamespaceIndexes[0]);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -158,10 +168,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var deciding = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseDecision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerRegistration>? adding = null;
+            Task<LifecycleResult>? adding = null;
             variable.OnReadValueAsync = async (_, _, _, _, _) =>
             {
-                adding = lifecycle.AddAsync(factory, null, timeout.Token).AsTask();
+                adding = lifecycle.ApplyAsync([LifecycleChange.Add(factory)], timeout.Token).AsTask();
                 queued.TrySetResult(true);
                 try
                 {
@@ -173,9 +183,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 return new AttributeReadResult(ServiceResult.Good, new Variant(404), StatusCodes.Good, DateTimeUtc.Now);
             };
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
-            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            await using ILifecycleWriter writer = await LifecycleInspection.Capture(lifecycle, registration)
+                .BeginAsync(timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await writer.PrepareAsync(
+                [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
+            Task<LifecycleResult> commit = prepared.CommitAsync(async token =>
             {
                 deciding.TrySetResult(true);
                 await releaseDecision.Task.WaitAsync(token).ConfigureAwait(false);
@@ -194,6 +206,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 Assert.That((await commit.ConfigureAwait(false)).CleanupFailure, Is.Null);
                 Assert.That(factory.CreateCount, Is.EqualTo(1));
+                Assert.That((await adding!.ConfigureAwait(false)).Issues, Is.Empty);
                 AssertLifecycleValue(nested);
                 Assert.That(nested.DisposeCount, Is.Zero);
                 Assert.That(lifecycle.Registrations.Contains(value =>
@@ -224,12 +237,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task ShutdownWaitsForCapturedSourceSamplingOwnershipAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            using var lifecycle = new NodeManagerLifecycle(m_server);
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
             TrackingLifecycleNodeManager? original = null;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, manager => original = manager),
-                null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(101, manager => original = manager))],
+                timeout.Token).ConfigureAwait(false);
+            Assert.That(added.Issues, Is.Empty);
+            NodeManagerRegistration registration = RequireRegistration(added.Registrations[0]);
             AssertLifecycleValue(original);
             NodeId valueId = new(kValueNodeId, original.NamespaceIndexes[0]);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -254,9 +269,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 // Migrating reload returns once the replacement is live; the captured sample keeps the retired
                 // generation draining in the background.
-                await RunWithoutExecutionContext(() => lifecycle.ShadowReloadAsync(
-                    registration, CreateNodeManagementFactory(202, false), timeout.Token).AsTask())
-                    .ConfigureAwait(false);
+                await RunWithoutExecutionContext(async () =>
+                {
+                    await using ILifecycleWriter writer = await LifecycleInspection.Capture(lifecycle, registration)
+                        .BeginAsync(timeout.Token).ConfigureAwait(false);
+                    await using IPreparedChanges prepared = await writer.PrepareAsync(
+                        [LifecycleChange.Replace(
+                        registration.Slot, CreateNodeManagementFactory(
+                        202, false))], timeout.Token).ConfigureAwait(false);
+                    LifecycleResult replaced = await prepared.CommitAsync(cancellationToken: timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(replaced.Issues, Is.Empty);
+                }).ConfigureAwait(false);
                 await lifecycle.BeginShutdownAsync(server, timeout.Token).ConfigureAwait(false);
                 await DeleteMonitoredItemAsync(services, subscriptionId, itemId).ConfigureAwait(false);
                 shutdown = RunWithoutExecutionContext(

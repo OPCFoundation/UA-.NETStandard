@@ -45,6 +45,7 @@ namespace Opc.Ua.AMB.Tests
 
             Assert.That(failure!.Message, Does.Contain("requires a BackgroundService"));
             Assert.That(root, Is.Not.Null);
+            Assert.That(Path.GetDirectoryName(root), Is.EqualTo(Path.Combine(Path.GetTempPath(), "amb")));
             Assert.That(Directory.Exists(root), Is.False);
             disposable.Verify(service => service.Dispose(), Times.Once);
             hosted.Verify(service => service.StartAsync(It.IsAny<CancellationToken>()), Times.Never);

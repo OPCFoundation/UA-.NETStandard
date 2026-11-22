@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -61,10 +62,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(item.NodeManager, Is.Null);
                 Assert.That(binding.IsSourceUnavailable, Is.True);
                 Assert.That(item.ItemsInQueue, Is.EqualTo(1));
-                registration = await m_server.NodeManagerLifecycle.AddAsync(
-                    CreateTrackingNodeManagementFactory(kGeneration2Value, value => manager = value),
-                    null,
-                    timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                LifecycleResult publicationResult1 = await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    kGeneration2Value, value => manager = value)), timeout.Token).WaitAsync(
+                    timeout.Token).ConfigureAwait(false);
+                registration = RequireRegistration(publicationResult1.Registrations[0]);
                 AssertLifecycleValue(manager);
 
                 if (addNodeLater)

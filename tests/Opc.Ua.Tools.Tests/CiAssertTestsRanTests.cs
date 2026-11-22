@@ -164,19 +164,12 @@ namespace Opc.Ua.Tools.Tests
             return (process.ExitCode, PowerShellScriptOutput.Normalize(output + error));
         }
 
+        /// <summary>
+        /// Resolves the checkout containing the executed-tests guard.
+        /// </summary>
         private static string FindRepositoryRoot()
         {
-            string? current = TestContext.CurrentContext.TestDirectory;
-            while (!string.IsNullOrWhiteSpace(current))
-            {
-                if (File.Exists(Path.Combine(current, ".github", "scripts", "assert-tests-ran.ps1")))
-                {
-                    return current;
-                }
-                current = Directory.GetParent(current)?.FullName;
-            }
-
-            throw new InvalidOperationException("Could not find the repository root.");
+            return RepositoryTestRoot.Find(Path.Combine(".github", "scripts", "assert-tests-ran.ps1"));
         }
     }
 }

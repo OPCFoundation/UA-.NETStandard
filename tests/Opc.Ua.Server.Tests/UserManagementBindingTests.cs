@@ -750,6 +750,85 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A callback captured by a provider cannot admit teardown after its user change and binding have ended.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task CapturedUserChangeDeactivationExpiresAfterDisposalAsync(bool remove, bool escape)
+        {
+            (TestableAsyncCustomNodeManager manager, UserManagementState state) =
+                CreateNodeManagerWithCreatedUserManagementNode();
+            using TestableAsyncCustomNodeManager managerLifetime = manager;
+            Mock<ISession> session = CreateSessionWithUser("bob");
+            var sessionManager = new Mock<ISessionManager>();
+            sessionManager.Setup(value => value.GetSessions()).Returns([session.Object]);
+            EventHandler<UserDeactivatedEventArgs>? notification = null;
+            m_userManagement.SetupAdd(value => value.UserDeactivated +=
+                    It.IsAny<EventHandler<UserDeactivatedEventArgs>>())
+                .Callback<EventHandler<UserDeactivatedEventArgs>>(value => notification = value);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task child = Task.CompletedTask;
+
+            async Task NotifyAfterReleaseAsync()
+            {
+                started.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                notification!(m_userManagement.Object, new UserDeactivatedEventArgs("bob"));
+            }
+
+            void Notify()
+            {
+                if (escape)
+                {
+                    child = NotifyAfterReleaseAsync();
+                }
+                else
+                {
+                    notification!(m_userManagement.Object, new UserDeactivatedEventArgs("bob"));
+                }
+            }
+
+            m_userManagement.Setup(value => value.RemoveUser("bob", "admin"))
+                .Callback(Notify).Returns(ServiceResult.Good);
+            m_userManagement.Setup(value => value.ModifyUser(
+                    "bob", false, string.Empty, true, UserConfigurationMask.Disabled, false, string.Empty, "admin"))
+                .Callback(Notify).Returns(ServiceResult.Good);
+            await using UserManagementBinding binding =
+                UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object)!;
+            Assert.That(notification, Is.Not.Null);
+            try
+            {
+                ServiceResult result = await InvokeUserChangeAsync(
+                    state, BuildAdminContext(), remove, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                if (escape)
+                {
+                    Assert.That(started.Task.IsCompleted, Is.True,
+                        "The child must capture the user-change context before its callback returns.");
+                    Assert.That(child.IsCompleted, Is.False);
+                }
+                await binding.DisposeAsync().ConfigureAwait(false);
+                release.TrySetResult(true);
+                await child.ConfigureAwait(false);
+                await binding.DisposeAsync().ConfigureAwait(false);
+
+                sessionManager.Verify(value => value.GetSessions(), escape ? Times.Never() : Times.Once());
+                m_mockServer.Verify(value => value.CloseSessionAsync(
+                    It.IsAny<OperationContext>(), session.Object.Id, true, CancellationToken.None),
+                    escape ? Times.Never() : Times.Once());
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await child.ConfigureAwait(false);
+                await binding.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Verifies that asynchronous disposal drains external deactivation once, including after synchronous disposal.
         /// </summary>
         [TestCase(false)]

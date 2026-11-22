@@ -149,7 +149,9 @@ The rules that apply to every NodeManager registered at runtime -- what happens 
 
 The default `Migrate` transition replaces a generation that still owns active monitored items.
 Compatible items move to the replacement and retain their identities; incompatible nodes become
-unresolved. The old generation is not retained for existing subscriptions or continuation points.
+unresolved. Retirement does not wait for existing subscriptions or saved continuation points.
+Cursor data retained by a caller or custom store can still hold references after retirement; see
+[Continuation points](NodeManagers.md#continuation-points).
 
 ```csharp
 public ValueTask<LifecycleResult> ReplaceAsync(CancellationToken ct)

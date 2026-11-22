@@ -697,14 +697,16 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
             public async Task ReloadInstancesAsync(CancellationToken ct)
             {
                 INodeManagerLifecycle lifecycle = m_fixture.Server.NodeManagerLifecycle;
+                ILifecycleCapture capture = lifecycle.CaptureChanges();
                 NodeManagerRegistration registration = lifecycle.Registrations.ToList().Single(value =>
                     value.NamespaceUris.ToList().Contains(InstanceNamespaceUri));
-                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Replace(
-                        registration,
+                await using ILifecycleWriter writer = await capture.BeginAsync(ct).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await writer.PrepareAsync(
+                    [LifecycleChange.Reload(
+                        registration.Slot,
                         new ReplicaNodeManagerFactory(InstanceNamespaceUri, PlantRootName, true, 0))],
                     ct).ConfigureAwait(false);
-                NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct)
+                LifecycleResult result = await prepared.CommitAsync(static _ => default, ct)
                     .ConfigureAwait(false);
                 if (result.CleanupFailure is { } failure)
                 {

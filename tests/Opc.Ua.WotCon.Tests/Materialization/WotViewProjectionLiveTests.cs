@@ -5,7 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
@@ -79,7 +81,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_registry, projectionHost, documentConverter: new FakeWotDocumentConverter());
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
             await m_server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null)
+                .ApplyAsync([LifecycleChange.Add(factory)])
                 .ConfigureAwait(false);
 
             IServerInternal server = m_server.CurrentInstance;
@@ -437,6 +439,336 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
         }
 
+        /// <summary>
+        /// Recovery clears the live warning without republishing the manager or losing the original failure.
+        /// </summary>
+        [Test]
+        public async Task RecoveredInitializationRefreshesWarningsWithoutReplacingTheViewOwner()
+        {
+            var failure = new InvalidOperationException("initial View reconciliation failure");
+            int publications = 0;
+            LifecycleResult? committed = null;
+            Mock<INodeManagerLifecycle> lifecycle = ObserveInitialization(
+                () =>
+                {
+                    if (++publications == 1)
+                    {
+                        throw failure;
+                    }
+                },
+                result => committed = result);
+            m_viewHost.Dispose();
+            m_viewHost = new LifecycleWotViewProjectionHost(lifecycle.Object);
+            NodeId viewNodeId = ViewNodeId("reconciliation");
+            WotViewProjectionHandle first = await m_viewHost.ApplyAsync(
+                Request(viewNodeId, Plan(1u, Members(Ua.ObjectIds.Server)))).ConfigureAwait(false);
+            ArrayOf<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations;
+            NodeManagerRegistration owner = registrations[^1];
+            long revision = m_server.NodeManagerLifecycle.Revision;
+            Assert.That(first.Message, Does.Contain(failure.Message));
+            Assert.That(committed, Is.Not.Null);
+            Assert.That(committed!.Issues.Count, Is.EqualTo(1));
+            Assert.That(committed.Issues[0].Stage, Is.EqualTo(NodeManagerReconciliationStage.ApplicationState));
+            Exception? originalFailure = committed.CleanupFailure;
+            Assert.That(committed.Issues[0].InitialFailure, Is.SameAs(failure));
+            Assert.That(m_viewHost.InitializationResult, Is.SameAs(committed));
+
+            await m_viewHost.InitializationResult!.RetryReconciliationAsync().ConfigureAwait(false);
+            WotViewProjectionHandle recovered = await m_viewHost.ApplyAsync(
+                Request(viewNodeId, Plan(2u, Members(Ua.ObjectIds.ObjectsFolder)))).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(recovered.Omissions, Is.Empty, "A recovered issue must not remain a live warning.");
+                Assert.That(committed.Issues, Is.Empty);
+                Assert.That(committed.CleanupFailure, Is.SameAs(originalFailure));
+                Assert.That(m_server.NodeManagerLifecycle.Registrations[registrations.Count - 1], Is.SameAs(owner));
+                Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision));
+                Assert.That(publications, Is.EqualTo(2), "Only the failed reconciliation callback is retried.");
+            });
+            lifecycle.Verify(value => value.PrepareAsync(
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()), Times.Once);
+            await m_viewHost.RemoveAsync(first).ConfigureAwait(false);
+            Assert.That(await ReadViewVersionAsync(viewNodeId).ConfigureAwait(false), Is.EqualTo(2u));
+            await m_viewHost.RemoveAsync(recovered).ConfigureAwait(false);
+            DataValue removed = await ReadAsync(viewNodeId).ConfigureAwait(false);
+            Assert.That(StatusCode.IsBad(removed.StatusCode), Is.True);
+        }
+
+        /// <summary>
+        /// Host retries preserve initial failure provenance, update pending warnings and never repeat initialization.
+        /// </summary>
+        [Test]
+        public async Task HostRetryRetainsFailedAttemptsAndClearsOnlyRecoveredWarnings()
+        {
+            var initial = new InvalidOperationException("initial initialization failure");
+            var subsequent = new InvalidOperationException("subsequent reconciliation failure");
+            Exception? failure = initial;
+            int publications = 0;
+            int decisions = 0;
+            int disposals = 0;
+            Mock<INodeManagerLifecycle> lifecycle = ObserveInitialization(
+                () =>
+                {
+                    publications++;
+                    if (failure is not null)
+                    {
+                        throw failure;
+                    }
+                },
+                _ => { },
+                () => decisions++,
+                () => disposals++);
+            m_viewHost.Dispose();
+            m_viewHost = new LifecycleWotViewProjectionHost(lifecycle.Object);
+
+            await m_viewHost.RetryReconciliationAsync().ConfigureAwait(false);
+            Assert.That(m_viewHost.InitializationResult, Is.Null);
+            lifecycle.Verify(value => value.PrepareAsync(
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()), Times.Never);
+            NodeId viewNodeId = ViewNodeId("retry");
+            WotViewProjectionHandle first = await m_viewHost.ApplyAsync(
+                Request(viewNodeId, Plan(1u, Members(Ua.ObjectIds.Server)))).ConfigureAwait(false);
+            LifecycleResult result = m_viewHost.InitializationResult!;
+            Exception? originalFailure = result.CleanupFailure;
+            ArrayOf<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations;
+            using (var canceled = new CancellationTokenSource())
+            {
+                await canceled.CancelAsync().ConfigureAwait(false);
+                await Assert.ThatAsync(
+                    async () => await m_viewHost.RetryReconciliationAsync(canceled.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            }
+            Assert.That(publications, Is.EqualTo(1), "Cancellation must not admit another attempt.");
+            Assert.That(first.Message, Does.Contain(initial.Message));
+
+            failure = subsequent;
+            await m_viewHost.RetryReconciliationAsync().ConfigureAwait(false);
+            WotViewProjectionHandle pending = await m_viewHost.ApplyAsync(
+                Request(viewNodeId, Plan(2u, Members(Ua.ObjectIds.Server)))).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Issues.Count, Is.EqualTo(1));
+                Assert.That(result.Issues[0].InitialFailure, Is.SameAs(initial));
+                Assert.That(result.Issues[0].CurrentFailure, Is.SameAs(subsequent));
+                Assert.That(result.Issues[0].IsRetryable, Is.True);
+                Assert.That(pending.Message, Does.Contain(subsequent.Message).And.Not.Contain(initial.Message));
+            });
+
+            failure = null;
+            await m_viewHost.RetryReconciliationAsync().ConfigureAwait(false);
+            await m_viewHost.RetryReconciliationAsync().ConfigureAwait(false);
+            WotViewProjectionHandle recovered = await m_viewHost.ApplyAsync(
+                Request(viewNodeId, Plan(3u, Members(Ua.ObjectIds.ObjectsFolder)))).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(recovered.Omissions, Is.Empty);
+                Assert.That(result.Issues, Is.Empty);
+                Assert.That(result.CleanupFailure, Is.SameAs(originalFailure));
+                Assert.That(m_viewHost.InitializationResult, Is.SameAs(result));
+                Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(result.Revision));
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.ToArray(), Is.EqualTo(registrations.ToArray()));
+                Assert.That(publications, Is.EqualTo(3));
+                Assert.That(decisions, Is.EqualTo(1));
+                Assert.That(disposals, Is.EqualTo(1), "The prepared owner must be disposed before retry.");
+            });
+            lifecycle.Verify(value => value.PrepareAsync(
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_viewHost.Dispose();
+            await Assert.ThatAsync(
+                async () => await m_viewHost.RetryReconciliationAsync().ConfigureAwait(false),
+                Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Concurrent host retries share native work and cancellation releases only the canceled caller.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentHostRetriesJoinWithoutBlockingApplyOrCancelingRecovery()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var canceled = new CancellationTokenSource();
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int attempts = 0;
+            Mock<INodeManagerLifecycle> lifecycle = ObserveInitialization(
+                () =>
+                {
+                    if (Interlocked.Increment(ref attempts) == 1)
+                    {
+                        throw new InvalidOperationException("pending shared reconciliation");
+                    }
+                    entered.TrySetResult(true);
+                    if (!release.Wait(TimeSpan.FromSeconds(30)))
+                    {
+                        throw new TimeoutException("The test did not release reconciliation.");
+                    }
+                },
+                _ => { });
+            m_viewHost.Dispose();
+            m_viewHost = new LifecycleWotViewProjectionHost(lifecycle.Object);
+            NodeId viewNodeId = ViewNodeId("concurrent-retry");
+            WotViewProjectionRequest request = Request(viewNodeId, Plan(1u, Members(Ua.ObjectIds.Server)));
+            _ = await m_viewHost.ApplyAsync(request, timeout.Token).ConfigureAwait(false);
+            LifecycleResult result = m_viewHost.InitializationResult!;
+            ArrayOf<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations;
+            Task first = m_viewHost.RetryReconciliationAsync(canceled.Token).AsTask();
+            Task? second = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                second = m_viewHost.RetryReconciliationAsync(timeout.Token).AsTask();
+                await canceled.CancelAsync().ConfigureAwait(false);
+                await Assert.ThatAsync(async () => await first.ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                WotViewProjectionHandle pending = await m_viewHost.ApplyAsync(request, timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(second.IsCompleted, Is.False);
+                    Assert.That(attempts, Is.EqualTo(2), "Concurrent callers must join the same native attempt.");
+                    Assert.That(pending.Message, Does.Contain("pending shared reconciliation"));
+                    Assert.That(m_server.NodeManagerLifecycle.Registrations.ToArray(),
+                        Is.EqualTo(registrations.ToArray()));
+                    Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(result.Revision));
+                });
+            }
+            finally
+            {
+                release.Set();
+                try
+                {
+                    await first.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (canceled.IsCancellationRequested)
+                {
+                }
+                if (second is not null)
+                {
+                    await second.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+            }
+            WotViewProjectionHandle recovered = await m_viewHost.ApplyAsync(request, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(recovered.Omissions, Is.Empty);
+            Assert.That(result.Issues, Is.Empty);
+            Assert.That(attempts, Is.EqualTo(2));
+            lifecycle.Verify(value => value.PrepareAsync(
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// An obsolete reconciliation callback remains an explicit unresolved warning, not a false recovery.
+        /// </summary>
+        [Test]
+        public async Task SupersededInitializationRemainsUnresolvedWithoutReinitializingTheManager()
+        {
+            var failure = new InvalidOperationException("superseded initialization failure");
+            int publications = 0;
+            Mock<INodeManagerLifecycle> lifecycle = ObserveInitialization(
+                () =>
+                {
+                    publications++;
+                    throw failure;
+                },
+                _ => { });
+            m_viewHost.Dispose();
+            m_viewHost = new LifecycleWotViewProjectionHost(lifecycle.Object);
+            NodeId viewNodeId = ViewNodeId("superseded-reconciliation");
+            WotViewProjectionRequest request = Request(viewNodeId, Plan(1u, Members(Ua.ObjectIds.Server)));
+            _ = await m_viewHost.ApplyAsync(request).ConfigureAwait(false);
+            LifecycleResult result = m_viewHost.InitializationResult!;
+            Exception? originalFailure = result.CleanupFailure;
+            ArrayOf<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations;
+            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+            factory.SetupGet(value => value.NamespacesUris).Returns(["urn:opcfoundation:test:unrelated-view-owner"]);
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration _, CancellationToken _) =>
+                    new ValueTask<IAsyncNodeManager>(new UnrelatedNodeManager(server)));
+            await using (IPreparedChanges unrelated =
+                await m_server.NodeManagerLifecycle.PrepareAsync([LifecycleChange.Add(factory.Object)])
+                    .ConfigureAwait(false))
+            {
+                LifecycleResult added = await unrelated.CommitAsync().ConfigureAwait(false);
+                Assert.That(added.CleanupFailure, Is.Null);
+            }
+            long revision = m_server.NodeManagerLifecycle.Revision;
+
+            await m_viewHost.RetryReconciliationAsync().ConfigureAwait(false);
+            WotViewProjectionHandle unresolved = await m_viewHost.ApplyAsync(request).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Issues.Count, Is.EqualTo(1));
+                Assert.That(result.Issues[0].IsSuperseded, Is.True);
+                Assert.That(result.Issues[0].IsRetryable, Is.False);
+                Assert.That(result.Issues[0].InitialFailure, Is.SameAs(failure));
+                Assert.That(result.CleanupFailure, Is.SameAs(originalFailure));
+                Assert.That(unresolved.Message, Does.Contain("unresolved: ").And.Contain("superseded"));
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(registrations.Count + 1));
+                Assert.That(m_server.NodeManagerLifecycle.Registrations[registrations.Count - 1],
+                    Is.SameAs(registrations[^1]));
+                Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision));
+                Assert.That(publications, Is.EqualTo(1), "A superseded callback must never replay.");
+            });
+            lifecycle.Verify(value => value.PrepareAsync(
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Injects a retryable failure into the native application-state callback without replacing its result.
+        /// </summary>
+        private Mock<INodeManagerLifecycle> ObserveInitialization(
+            Action publishAttempt,
+            Action<LifecycleResult> committed,
+            Action? decideAttempt = null,
+            Action? disposed = null)
+        {
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            lifecycle.SetupGet(value => value.IsShuttingDown)
+                .Returns(() => m_server.NodeManagerLifecycle.IsShuttingDown);
+            lifecycle.Setup(value => value.PrepareAsync(
+                It.IsAny<ArrayOf<LifecycleChange>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<LifecycleChange> changes, CancellationToken token) =>
+                {
+                    IPreparedChanges prepared = await m_server.NodeManagerLifecycle.PrepareAsync(changes, token)
+                        .ConfigureAwait(false);
+                    var observed = new Mock<IPreparedChanges>(MockBehavior.Strict);
+                    observed.Setup(value => value.CommitAsync(
+                        It.IsAny<Func<CancellationToken, ValueTask>?>(), It.IsAny<Action>(),
+                        It.IsAny<CancellationToken>()))
+                        .Returns(async (Func<CancellationToken, ValueTask>? decide, Action publish,
+                            CancellationToken cancellation) =>
+                        {
+                            LifecycleResult result = await prepared.CommitAsync(
+                                async decisionToken =>
+                                {
+                                    decideAttempt?.Invoke();
+                                    if (decide is not null)
+                                    {
+                                        await decide(decisionToken).ConfigureAwait(false);
+                                    }
+                                },
+                                () =>
+                                {
+                                    publish();
+                                    publishAttempt();
+                                },
+                                cancellation).ConfigureAwait(false);
+                            committed(result);
+                            return result;
+                        });
+                    observed.Setup(value => value.DisposeAsync()).Returns(async () =>
+                    {
+                        await prepared.DisposeAsync().ConfigureAwait(false);
+                        disposed?.Invoke();
+                    });
+                    return observed.Object;
+                });
+            return lifecycle;
+        }
+
         private async Task<uint> ReadViewVersionAsync(NodeId viewNodeId)
         {
             List<ReferenceDescription> properties = await BrowseAsync(
@@ -560,5 +892,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private WotMaterializationCoordinator m_coordinator = null!;
         private LifecycleWotViewProjectionHost m_viewHost = null!;
         private ushort m_wotConNamespaceIndex;
+
+        /// <summary>
+        /// Publishes an unrelated generation without changing the immediate View owner.
+        /// </summary>
+        /// <param name="server">The native server that owns the generation.</param>
+        private sealed class UnrelatedNodeManager(IServerInternal server)
+            : AsyncCustomNodeManager(server, "urn:opcfoundation:test:unrelated-view-owner")
+        {
+        }
     }
 }

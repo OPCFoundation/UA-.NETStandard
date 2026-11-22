@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -86,7 +85,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static UANodeSet ReadCompanionModel(string fileName)
         {
             string path = Path.Combine(
-                RepositoryRoot,
+                WotAggregationDocumentGenerator.RepositoryRoot,
                 "tests",
                 "Opc.Ua.SourceGeneration.Core.Tests",
                 "Resources",
@@ -96,24 +95,6 @@ namespace Opc.Ua.WotCon.Tests.Samples
             UANodeSet? nodeSet = UANodeSet.Read(stream);
             Assert.That(nodeSet, Is.Not.Null);
             return nodeSet!;
-        }
-
-        private static string RepositoryRoot
-        {
-            get
-            {
-                DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
-                while (directory is not null &&
-                    !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
-                {
-                    directory = directory.Parent;
-                }
-                if (directory is null)
-                {
-                    throw new InvalidOperationException("The repository root was not found.");
-                }
-                return directory.FullName;
-            }
         }
     }
 }

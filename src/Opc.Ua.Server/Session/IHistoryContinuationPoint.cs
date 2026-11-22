@@ -13,6 +13,8 @@ namespace Opc.Ua.Server
     /// <remarks>
     /// Implementations carry whatever the reader needs to resume; nothing outside the
     /// component that created a point interprets its contents.
+    /// The historian's built-in continuation state holds the provider and, when available, the source node.
+    /// Disposing the point does not clear these references, so keeping the point can also keep them alive.
     /// </remarks>
     public interface IHistoryContinuationPoint : IDisposable
     {

@@ -12,8 +12,10 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 {
@@ -51,9 +53,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task OneTimeSetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(StartupRuntimeNodeSetLifecycleTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-startup-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<StartupRuntimeNodeSetServer>(
                 telemetry => new StartupRuntimeNodeSetServer(telemetry, m_includeArgumentParentHints))
@@ -210,15 +211,18 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 registration.NamespaceUris);
 
             Assert.That(
-                async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory, null)
-                    .ConfigureAwait(false),
+                async () => LifecycleInspection.Registration(
+                    (await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory), CancellationToken.None).ConfigureAwait(false)).Registrations[0]),
                 Throws.TypeOf<NodeManagerAlreadyRegisteredException>()
                     .With.Message.EqualTo("The NodeManager is already registered."));
             Assert.That(
-                async () => await m_server.NodeManagerLifecycle
-                    .ReloadAsync(registration, factory, null)
-                    .ConfigureAwait(false),
+                async () => LifecycleInspection.Registration(
+                    (await CommitChangeAsync(
+                    LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, registration), LifecycleChange.Replace(
+                    registration.Slot, factory), CancellationToken.None).ConfigureAwait(false)).Registrations[0]),
                 Throws.TypeOf<NodeManagerAlreadyRegisteredException>()
                     .With.Message.EqualTo("The NodeManager is already registered."));
 
@@ -284,12 +288,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 expectedPrimary: true,
                 expectedPeer: true);
 
-            NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
-                .ReloadRuntimeNodeSetAsync(
-                    primary,
-                    StartupRuntimeNodeSetServer.CreatePrimaryOptions(generation: 2),
-                    callerContext: null)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                Capture(
+                m_server.NodeManagerLifecycle, primary), LifecycleChange.Replace(
+                primary.Slot, new RuntimeNodeSetNodeManagerFactory(
+                StartupRuntimeNodeSetServer.CreatePrimaryOptions(
+                generation: 2))), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration reloaded = Registration(publicationResult1.Registrations[0]);
 
             Assert.Multiple(() =>
             {
@@ -298,8 +303,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             });
             Assert.That(await ReadPrimaryValueAsync().ConfigureAwait(false), Is.EqualTo(2));
 
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(reloaded, callerContext: null)
+            await CommitChangeAsync(
+                Capture(
+                m_server.NodeManagerLifecycle, reloaded), LifecycleChange.Remove(reloaded.Slot), CancellationToken.None)
                 .ConfigureAwait(false);
 
             ushort primaryNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
@@ -457,9 +463,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task ServerRestartRecreatesStartupRegistrationsAsync()
         {
             string pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(ServerRestartRecreatesStartupRegistrationsAsync),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-restart-" + Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<StartupRuntimeNodeSetServer>(
                 telemetry => new StartupRuntimeNodeSetServer(telemetry))
             {
@@ -871,13 +876,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void RecordFactory(IServerInternal server)
         {
             FactorySawMaster = server.NodeManager is not null;
-            if (m_lifecycle is not INodeManagerPublicationLifecycle publication)
-            {
-                throw new NotSupportedException("The startup probe requires the publication lifecycle.");
-            }
             try
             {
-                _ = publication.CapturePublication();
+                _ = m_lifecycle.CaptureChanges();
             }
             catch (InvalidOperationException)
             {

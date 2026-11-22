@@ -1187,7 +1187,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
-            public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+            public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
             /// <summary>
             /// Whether handles are returned without their node, which is then resolved

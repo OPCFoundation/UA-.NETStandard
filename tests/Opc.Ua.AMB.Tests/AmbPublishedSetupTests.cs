@@ -66,10 +66,10 @@ namespace Opc.Ua.AMB.Tests
                 }));
                 using ServiceProvider provider = services.BuildServiceProvider();
                 var assets = new AssetManagement();
-                await using IPreparedNodeManagerBatch prepared = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(new AmbNodeManagerFactory(assets, provider))])
+                await using IPreparedChanges prepared = await server.NodeManagerLifecycle.PrepareAsync(
+                    [LifecycleChange.Add(new AmbNodeManagerFactory(assets, provider))])
                     .ConfigureAwait(false);
-                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                LifecycleResult committed = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                 AmbNodeManager manager = assets.Manager!;
 
                 Assert.Multiple(() =>
@@ -104,10 +104,16 @@ namespace Opc.Ua.AMB.Tests
                         () => setupBuilder!.Node("First"));
                     Assert.That(sealedException!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 }
-                await using IPreparedNodeManagerBatch removal = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(committed.Registrations[0])]).ConfigureAwait(false);
-                NodeManagerBatchResult removed = await removal.CommitAsync(_ => default).ConfigureAwait(false);
-                await removed.Retirement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                ILifecycleCapture removalCapture = server.NodeManagerLifecycle.CaptureChanges();
+                Assert.That(committed.Slots[0].TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(committed.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? published), Is.True);
+                Assert.That(current.NodeManager, Is.SameAs(published));
+                Assert.That(current.Generation, Is.EqualTo(committed.Registrations[0].Generation));
+                await using ILifecycleWriter removalWriter = await removalCapture.BeginAsync().ConfigureAwait(false);
+                await using IPreparedChanges removal = await removalWriter.PrepareAsync(
+                    [LifecycleChange.Remove(committed.Slots[0])]).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(_ => default).ConfigureAwait(false);
+                await removed.Retired.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
                     Assert.That(removed.Issues.ToArray(), Is.Empty);
@@ -149,10 +155,10 @@ namespace Opc.Ua.AMB.Tests
                 }));
                 using ServiceProvider provider = services.BuildServiceProvider();
                 var assets = new AssetManagement();
-                await using IPreparedNodeManagerBatch prepared = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(new AmbNodeManagerFactory(assets, provider))])
+                await using IPreparedChanges prepared = await server.NodeManagerLifecycle.PrepareAsync(
+                    [LifecycleChange.Add(new AmbNodeManagerFactory(assets, provider))])
                     .ConfigureAwait(false);
-                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                LifecycleResult committed = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
                     Assert.That(committed.Issues.Count, Is.EqualTo(1));
@@ -175,10 +181,16 @@ namespace Opc.Ua.AMB.Tests
                     });
                     AssertExternalReferenceCount(server, 1);
                 }
-                await using IPreparedNodeManagerBatch removal = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(committed.Registrations[0])]).ConfigureAwait(false);
-                NodeManagerBatchResult removed = await removal.CommitAsync(_ => default).ConfigureAwait(false);
-                await removed.Retirement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                ILifecycleCapture removalCapture = server.NodeManagerLifecycle.CaptureChanges();
+                Assert.That(committed.Slots[0].TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(committed.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? published), Is.True);
+                Assert.That(current.NodeManager, Is.SameAs(published));
+                Assert.That(current.Generation, Is.EqualTo(committed.Registrations[0].Generation));
+                await using ILifecycleWriter removalWriter = await removalCapture.BeginAsync().ConfigureAwait(false);
+                await using IPreparedChanges removal = await removalWriter.PrepareAsync(
+                    [LifecycleChange.Remove(committed.Slots[0])]).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(_ => default).ConfigureAwait(false);
+                await removed.Retired.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 Assert.That(assets.Manager, Is.Null);
                 Assert.That(callbacks, Is.EqualTo(1));
                 AssertExternalReferenceCount(server, 0);

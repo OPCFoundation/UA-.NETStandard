@@ -117,8 +117,8 @@ namespace Opc.Ua.WotCon.Tests
             try
             {
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
-                await server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
-                    new RuntimeNodeSetOptions
+                await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
                     {
                         Sources =
                         [
@@ -126,7 +126,7 @@ namespace Opc.Ua.WotCon.Tests
                                 _ => new ValueTask<Stream>(new MemoryStream(Encoding.UTF8.GetBytes(s_model), false)),
                                 [ModelUri])
                         ]
-                    }, callerContext: null).ConfigureAwait(false);
+                    }))]).ConfigureAwait(false);
                 var options = new WotConnectivityServerOptions
                 {
                     ThingDescriptionStorageFolder = Path.Combine(directory, "documents"),
@@ -138,8 +138,9 @@ namespace Opc.Ua.WotCon.Tests
                     }
                 };
                 options.Bindings.Add(new SimulatedWotAssetProviderFactory());
-                await server.NodeManagerLifecycle.AddAsync(
-                    new WotConnectivityNodeManagerFactory(options), callerContext: null).ConfigureAwait(false);
+                await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotConnectivityNodeManagerFactory(options))])
+                    .ConfigureAwait(false);
                 clientFixture = new ClientFixture(false, false, telemetry);
                 await clientFixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 session = await clientFixture.ConnectAsync(

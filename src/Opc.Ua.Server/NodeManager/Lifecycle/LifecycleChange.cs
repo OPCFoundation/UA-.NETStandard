@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -113,25 +112,10 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Slot-targeted consumer operations over the existing prepared transaction contract.
+    /// Convenience operations over the native lifecycle transaction contract.
     /// </summary>
     public static class LifecycleChangeExtensions
     {
-        /// <summary>
-        /// Captures routing, type and factory revisions before acquiring application inputs.
-        /// Beginning the returned capture does not replace stale evidence with current revisions.
-        /// </summary>
-        /// <param name="lifecycle">The lifecycle owning the publication.</param>
-        /// <returns>The owner-bound evidence used to begin a writer later.</returns>
-        public static ILifecycleCapture CaptureChanges(this INodeManagerLifecycle lifecycle)
-        {
-            if (lifecycle is null)
-            {
-                throw new ArgumentNullException(nameof(lifecycle));
-            }
-            return new LifecycleCapture(lifecycle.CapturePublication());
-        }
-
         /// <summary>
         /// Adapts an existing synchronous factory to the asynchronous change-set boundary.
         /// Factory creation remains synchronous; this does not block on asynchronous work.
@@ -150,7 +134,7 @@ namespace Opc.Ua.Server
 #endif
         public static IAsyncNodeManagerFactory AsAsync(this INodeManagerFactory factory)
         {
-            return new NodeManagerLifecycleExtensions.SyncFactoryAdapter(
+            return new SyncFactoryAdapter(
                 factory ?? throw new ArgumentNullException(nameof(factory)));
         }
 #pragma warning restore RCS1047
@@ -176,56 +160,8 @@ namespace Opc.Ua.Server
             IPreparedChanges prepared = await lifecycle.PrepareAsync(changes, cancellationToken).ConfigureAwait(false);
             await using (prepared.ConfigureAwait(false))
             {
-                return await prepared.CommitAsync(_ => default, cancellationToken).ConfigureAwait(false);
+                return await prepared.CommitAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Resolves stable targets once through the shared preparation pipeline.
-        /// A later routing conflict consumes this prepared unit before its durable decision; it is never rebased.
-        /// </summary>
-        /// <param name="lifecycle">The lifecycle owning the target slots.</param>
-        /// <param name="changes">The change set to prepare.</param>
-        /// <param name="cancellationToken">Cancels preparation.</param>
-        /// <returns>The unpublished owner that must be committed or asynchronously disposed.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="lifecycle"/> is null.</exception>
-        public static async ValueTask<IPreparedChanges> PrepareAsync(
-            this INodeManagerLifecycle lifecycle,
-            ArrayOf<LifecycleChange> changes,
-            CancellationToken cancellationToken = default)
-        {
-            if (lifecycle is null)
-            {
-                throw new ArgumentNullException(nameof(lifecycle));
-            }
-            ArrayOf<LifecycleChange> captured = [.. changes];
-            IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                ConvertChanges(captured), cancellationToken).ConfigureAwait(false);
-            return await PreparedLifecycleChanges.CreateAsync(prepared, captured).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Prepares slot changes against an invocation's captured publication revision.
-        /// A stale invocation is rejected before candidate factories run.
-        /// </summary>
-        /// <param name="publication">The captured publication invocation.</param>
-        /// <param name="changes">The change set to prepare.</param>
-        /// <param name="cancellationToken">Cancels preparation.</param>
-        /// <returns>The unpublished owner.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="publication"/> is null.</exception>
-        public static async ValueTask<IPreparedChanges> PrepareAsync(
-            this INodeManagerPublication publication,
-            ArrayOf<LifecycleChange> changes,
-            CancellationToken cancellationToken = default)
-        {
-            if (publication is null)
-            {
-                throw new ArgumentNullException(nameof(publication));
-            }
-            ArrayOf<LifecycleChange> captured = [.. changes];
-            IPreparedNodeManagerBatch prepared = await publication.PrepareAsync(
-                ConvertChanges(captured), cancellationToken).ConfigureAwait(false);
-            return await PreparedLifecycleChanges.CreateAsync(prepared, captured).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -249,31 +185,43 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(lifecycle));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            INodeManagerPublication publication = await lifecycle.CapturePublication()
+            ILifecycleWriter writer = await lifecycle.CaptureChanges()
                 .BeginAsync(cancellationToken).ConfigureAwait(false);
             if (expectedRevision is { } revision &&
-                (lifecycle.Revision != revision || !publication.IsCurrent))
+                (lifecycle.Revision != revision || !writer.IsCurrent))
             {
-                await publication.DisposeAsync().ConfigureAwait(false);
+                await writer.DisposeAsync().ConfigureAwait(false);
                 throw new InvalidOperationException("The expected lifecycle revision is no longer current.");
             }
-            return new LifecyclePublicationWriter(publication);
+            return writer;
         }
 
         /// <summary>
-        /// Captures the input sequence without resolving slots outside preparation admission.
+        /// Adapts released synchronous factory creation without blocking asynchronous work.
         /// </summary>
-        /// <param name="changes">The caller's changes.</param>
-        /// <returns>The shared transaction representation.</returns>
-        /// <exception cref="ArgumentException">The change set is null, empty or contains a null entry.</exception>
-        internal static ArrayOf<NodeManagerBatchChange> ConvertChanges(ArrayOf<LifecycleChange> changes)
+        /// <param name="factory">The released factory-list implementation.</param>
+#pragma warning disable CS0618, UA0031 // Compatibility bridge for the released synchronous factory list.
+        // TODO: Remove this bridge when synchronous factories are removed.
+        internal sealed class SyncFactoryAdapter(INodeManagerFactory factory) : IAsyncNodeManagerFactory
         {
-            if (changes.IsNull || changes.Count == 0)
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => m_factory.NamespacesUris;
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken ct = default)
             {
-                throw new ArgumentException("A change set must contain at least one change.", nameof(changes));
+                ct.ThrowIfCancellationRequested();
+                return new ValueTask<IAsyncNodeManager>(
+                    m_factory.Create(server, configuration).ToAsyncNodeManager());
             }
-            return (changes.ToArray() ?? []).Select(change => NodeManagerBatchChange.FromChange(
-                change ?? throw new ArgumentException("A change cannot be null.", nameof(changes)))).ToArrayOf();
+
+            /// <summary>The released factory whose synchronous creation is adapted.</summary>
+            private readonly INodeManagerFactory m_factory = factory
+                ?? throw new ArgumentNullException(nameof(factory));
         }
+#pragma warning restore CS0618, UA0031
     }
 }

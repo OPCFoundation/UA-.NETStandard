@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+#pragma warning disable CS0618, UA0031 // Exercises intentionally retained synchronous compatibility.
+// TODO: Remove the legacy cases when the synchronous API is removed.
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -299,6 +302,148 @@ namespace Opc.Ua.Server.Tests
             Assert.That(() => manager.Unregister(null!), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Keeps lifecycle contributions tied to routing while explicit registrations, including
+        /// managers outside the lifecycle, stay owned by their caller.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NodeManagerContributionsFollowRoutingWithoutExplicitOwnershipAsync(bool synchronous)
+        {
+            ArrayOf<string> profiles = default;
+            var diagnostics = new Mock<IDiagnosticsNodeManager>();
+            diagnostics.Setup(value => value.PublishConformanceUnitsAsync(
+                It.IsAny<ArrayOf<QualifiedName>>(), It.IsAny<ArrayOf<string>>(),
+                It.IsAny<CancellationToken>()))
+                .Callback<ArrayOf<QualifiedName>, ArrayOf<string>, CancellationToken>(
+                    (_, current, _) => profiles = current)
+                .Returns(default(ValueTask));
+            var previous = new Mock<IAsyncNodeManager>();
+            var replacement = new Mock<IAsyncNodeManager>();
+            Mock<IConformanceContributor> previousContributor;
+            if (synchronous)
+            {
+                var sync = new Mock<INodeManager>();
+                previousContributor = sync.As<IConformanceContributor>();
+                previousContributor.SetupGet(value => value.ConformanceUnits).Returns([new("Previous Unit")]);
+                previousContributor.SetupGet(value => value.ServerProfiles).Returns(["urn:profile:previous"]);
+                previous.SetupGet(value => value.SyncNodeManager).Returns(sync.Object);
+            }
+            else
+            {
+                previousContributor = previous.As<IConformanceContributor>();
+                previousContributor.SetupGet(value => value.ConformanceUnits).Returns([new("Previous Unit")]);
+                previousContributor.SetupGet(value => value.ServerProfiles).Returns(["urn:profile:previous"]);
+            }
+            replacement.As<IConformanceContributor>()
+                .SetupGet(value => value.ConformanceUnits).Returns([new("Replacement Unit")]);
+            replacement.As<IConformanceContributor>()
+                .SetupGet(value => value.ServerProfiles).Returns(["urn:profile:replacement"]);
+            IReadOnlyList<IAsyncNodeManager> currentManagers = [previous.Object];
+            var master = new Mock<IMasterNodeManager>();
+            master.SetupGet(value => value.AsyncNodeManagers).Returns(() => currentManagers);
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(value => value.NodeManager).Returns(master.Object);
+            server.SetupGet(value => value.DiagnosticsNodeManager).Returns(diagnostics.Object);
+            using var manager = new ConformanceUnitsManager(server.Object);
+            var host = new FakeContributor([new("Host Unit")], ["urn:profile:host"]);
+            manager.Register(host);
+
+            var detached = new Mock<IAsyncNodeManager>();
+            detached.As<IConformanceContributor>()
+                .SetupGet(value => value.ConformanceUnits).Returns([new("Detached Unit")]);
+            detached.As<IConformanceContributor>()
+                .SetupGet(value => value.ServerProfiles).Returns(["urn:profile:detached"]);
+            manager.Register((IConformanceContributor)detached.Object);
+            Assert.That(manager.IsSupported(new QualifiedName("Detached Unit")), Is.True);
+
+            await manager.PublishAsync().ConfigureAwait(false);
+            Assert.That(manager.IsSupported(new QualifiedName("Previous Unit")), Is.True);
+            Assert.That(manager.Unregister(previousContributor.Object), Is.False);
+            manager.Register(previousContributor.Object);
+            Assert.That(manager.Unregister(previousContributor.Object), Is.True);
+            Assert.That(manager.IsSupported(new QualifiedName("Previous Unit")), Is.True);
+
+            currentManagers = [replacement.Object];
+            await manager.PublishAsync().ConfigureAwait(false);
+            Assert.That(manager.IsSupported(new QualifiedName("Previous Unit")), Is.False);
+            Assert.That(manager.IsSupported(new QualifiedName("Replacement Unit")), Is.True);
+            Assert.That(manager.IsSupported(new QualifiedName("Host Unit")), Is.True);
+            Assert.That(manager.IsSupported(new QualifiedName("Detached Unit")), Is.True);
+            Assert.That(profiles.ToArray(), Is.EquivalentTo(
+                s_replacementHostAndDetachedProfiles));
+
+            Assert.That(manager.Unregister((IConformanceContributor)detached.Object), Is.True);
+            Assert.That(manager.IsSupported(new QualifiedName("Detached Unit")), Is.False);
+            currentManagers = [];
+            await manager.PublishAsync().ConfigureAwait(false);
+            Assert.That(manager.IsSupported(new QualifiedName("Replacement Unit")), Is.False);
+            Assert.That(manager.IsSupported(new QualifiedName("Host Unit")), Is.True);
+            Assert.That(profiles.ToArray(), Is.EqualTo(s_hostProfiles));
+            Assert.That(manager.Unregister(host), Is.True);
+        }
+
+        /// <summary>
+        /// Holds generation admission across a getter without making synchronous registration read that manager.
+        /// </summary>
+        [Test]
+        public async Task ContributorGetterDelaysGenerationDrainUntilPublicationRefreshAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var contributor = new BlockingContributor([new("Managed Unit")]);
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager.As<IConformanceContributor>()
+                .SetupGet(value => value.ConformanceUnits).Returns(() => contributor.ConformanceUnits);
+            nodeManager.As<IConformanceContributor>()
+                .SetupGet(value => value.ServerProfiles).Returns(["urn:profile:managed"]);
+            IReadOnlyList<IAsyncNodeManager> currentManagers = [nodeManager.Object];
+            var master = new Mock<IMasterNodeManager>();
+            master.SetupGet(value => value.AsyncNodeManagers).Returns(() => currentManagers);
+            var diagnostics = new Mock<IDiagnosticsNodeManager>();
+            diagnostics.Setup(value => value.PublishConformanceUnitsAsync(
+                It.IsAny<ArrayOf<QualifiedName>>(), It.IsAny<ArrayOf<string>>(),
+                It.IsAny<CancellationToken>())).Returns(default(ValueTask));
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(value => value.NodeManager).Returns(master.Object);
+            server.SetupGet(value => value.DiagnosticsNodeManager).Returns(diagnostics.Object);
+            using var manager = new ConformanceUnitsManager(server.Object);
+            await manager.PublishAsync(timeout.Token).ConfigureAwait(false);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager.Object);
+
+            contributor.BlockNextRead();
+            var publication = Task.Run(async () => await manager.PublishAsync(timeout.Token).ConfigureAwait(false));
+            Task? refresh = null;
+            try
+            {
+                Assert.That(contributor.WaitUntilReading(TimeSpan.FromSeconds(10)), Is.True);
+                currentManagers = [];
+                generation.Gate.Retire();
+                Task drain = generation.WaitForQuiescenceAsync(timeout.Token).AsTask();
+                Assert.That(drain.IsCompleted, Is.False);
+                Assert.That(generation.Gate.ActiveCount, Is.GreaterThan(0));
+                manager.Register(new FakeContributor([new("Host Unit")], []));
+                Assert.That(manager.Unregister((IConformanceContributor)nodeManager.Object), Is.False);
+                refresh = manager.PublishAsync(timeout.Token).AsTask();
+                Assert.That(refresh.IsCompleted, Is.False);
+                contributor.CompleteRead();
+                await publication.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await refresh.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await drain.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(manager.IsSupported(new QualifiedName("Managed Unit")), Is.False);
+                Assert.That(manager.IsSupported(new QualifiedName("Host Unit")), Is.True);
+                Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            }
+            finally
+            {
+                contributor.CompleteRead();
+                await publication.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (refresh is not null)
+                {
+                    await refresh.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+            }
+        }
+
         private static List<string> NamesOf(ArrayOf<QualifiedName> units)
         {
             var names = new List<string>();
@@ -316,6 +461,13 @@ namespace Opc.Ua.Server.Tests
 
         private static readonly string[] s_expectedSortedUnitNames =
             ["Alpha Unit", "Mid Unit", "Zeta Unit"];
+
+        /// <summary>The profiles exposed by the replacement, host, and detached contributors.</summary>
+        private static readonly string[] s_replacementHostAndDetachedProfiles =
+            ["urn:profile:replacement", "urn:profile:host", "urn:profile:detached"];
+
+        /// <summary>The profile retained by the host after routed contributors are removed.</summary>
+        private static readonly string[] s_hostProfiles = ["urn:profile:host"];
 
         private sealed class MutableContributor : IConformanceContributor
         {

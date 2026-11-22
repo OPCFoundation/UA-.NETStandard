@@ -575,8 +575,23 @@ namespace Opc.Ua.Tools.Tests
             return builder.Append("]}").ToString();
         }
 
+        /// <summary>
+        /// Resolves the digest generator from the configured checkout or assembly ancestors.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The selected checkout cannot supply the generator.</exception>
         private static string FindRepositoryRoot()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, "tools", "wot-spec", "Get-WotStatementDigests.ps1")))
+                {
+                    throw new InvalidOperationException("The configured repository root has no WoT digest generator.");
+                }
+                return root;
+            }
+
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {

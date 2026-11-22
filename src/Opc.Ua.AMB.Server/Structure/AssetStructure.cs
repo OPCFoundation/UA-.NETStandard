@@ -286,21 +286,25 @@ namespace Opc.Ua.AMB.Server.Structure
             foreach ((NodeId referenceTypeId, NodeId target) in request.Relations)
             {
                 asset.AddReference(referenceTypeId, false, target);
-                // References are exposed in both directions; the target may live in
-                // any node manager, or not yet exist.
-                await manager.Server.NodeManager
-                    .AddReferencesAsync(
-                        target,
-                        [
-                            new ReferenceNode
-                            {
-                                ReferenceTypeId = referenceTypeId,
-                                IsInverse = true,
-                                TargetId = asset.NodeId
-                            }
-                        ],
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                IList<IReference> inverse = [new ReferenceNode
+                {
+                    ReferenceTypeId = referenceTypeId,
+                    IsInverse = true,
+                    TargetId = asset.NodeId
+                }];
+                // Use the owning manager for its own nodes, even before its routes serve requests.
+                if (await handle.Owner.GetManagerHandleAsync(target, cancellationToken)
+                    .ConfigureAwait(false) is not null)
+                {
+                    await handle.Owner.AddReferencesAsync(
+                        new Dictionary<NodeId, IList<IReference>> { [target] = inverse }, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await manager.Server.NodeManager.AddReferencesAsync(target, inverse, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
 
             foreach ((AssetLocationKind kind, string path) in request.LocatedIn)

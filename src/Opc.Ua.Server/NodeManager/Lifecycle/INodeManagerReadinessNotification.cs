@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,16 +41,92 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Synchronous counterpart of <see cref="INodeManagerReadinessNotification"/> for
-    /// <see cref="INodeManager"/> implementations. <see cref="AsyncNodeManagerAdapter"/> invokes it
-    /// when the wrapped manager implements it.
+    /// Initializes a published generation using explicit, revocable readiness admission.
     /// </summary>
-    public interface ISyncNodeManagerReadinessNotification
+    public interface INodeManagerReadinessInitializer
     {
         /// <summary>
-        /// Completes initialization once runtime lifecycle operations are available.
+        /// Completes initialization before ordinary requests can dispatch to this generation.
         /// </summary>
-        void OnServerReady();
+        /// <param name="readiness">The capability for the exact server and generation.</param>
+        /// <param name="cancellationToken">The host's readiness cancellation token.</param>
+        ValueTask OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Carries readiness admission without selecting or retaining a request routing image.
+    /// </summary>
+    public sealed class NodeManagerReadinessContext
+    {
+        internal NodeManagerReadinessContext(NodeManagerReadinessScope scope)
+        {
+            Scope = scope;
+        }
+
+        /// <summary>
+        /// Reads nodes through the normal server request path, including the initializer's pending generation.
+        /// </summary>
+        /// <param name="server">The local server receiving the read.</param>
+        /// <param name="channel">The channel on which the session was authenticated.</param>
+        /// <param name="header">The local request header.</param>
+        /// <param name="maxAge">The maximum acceptable cache age, in milliseconds.</param>
+        /// <param name="timestampsToReturn">The timestamps requested by the caller.</param>
+        /// <param name="nodes">The node attributes to read.</param>
+        /// <param name="requestLifetime">The lifetime of the read request.</param>
+        /// <returns>The read response.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
+        public ValueTask<ReadResponse> ReadAsync(
+            StandardServer server,
+            SecureChannelContext channel,
+            RequestHeader header,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodes,
+            RequestLifetime requestLifetime)
+        {
+            return (server ?? throw new ArgumentNullException(nameof(server))).ReadWithReadinessAsync(
+                channel, header, maxAge, timestampsToReturn, nodes, requestLifetime, Scope);
+        }
+
+        /// <summary>
+        /// Publishes dependent changes while the initializer is still active.
+        /// </summary>
+        /// <param name="server">The local server that owns the dependent changes.</param>
+        /// <param name="changes">The additions, replacements, or retirements to publish.</param>
+        /// <param name="cancellationToken">Cancels before the publication commits.</param>
+        /// <returns>The committed publication result.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
+        public ValueTask<LifecycleResult> PublishAsync(
+            StandardServer server,
+            ArrayOf<LifecycleChange> changes,
+            CancellationToken cancellationToken)
+        {
+            return (server ?? throw new ArgumentNullException(nameof(server))).PublishWithReadinessAsync(
+                changes, Scope, cancellationToken);
+        }
+
+        /// <summary>
+        /// Lets a readiness-aware lifecycle bind optimistic publication to this initializer.
+        /// Providers implementing only the primary contract keep their ordinary capture path.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The initializer has already ended.</exception>
+        internal ILifecycleCapture CaptureChanges(INodeManagerLifecycle lifecycle)
+        {
+            if (!Scope.IsActive)
+            {
+                throw new InvalidOperationException("The readiness initializer has already ended.");
+            }
+            return lifecycle is INodeManagerCallbackLifecycle callbacks
+                ? callbacks.CaptureFromReadiness(this)
+                : lifecycle.CaptureChanges();
+        }
+
+        /// <summary>
+        /// Gets the scope that the lifecycle revokes on return, failure, or cancellation.
+        /// </summary>
+        internal NodeManagerReadinessScope Scope { get; }
     }
 
     /// <summary>
@@ -69,7 +146,24 @@ namespace Opc.Ua.Server
 #pragma warning disable CS0618, UA0031 // Legacy adapters forward readiness participation.
                 AsyncNodeManagerAdapter adapter => adapter.HasReadinessParticipant,
 #pragma warning restore CS0618, UA0031
-                _ => nodeManager is INodeManagerReadinessNotification
+                _ => nodeManager is INodeManagerReadinessInitializer or INodeManagerReadinessNotification
+            };
+        }
+
+        /// <summary>
+        /// Finds the actual initializer, not an adapter that exposes an optional callback.
+        /// </summary>
+        internal static INodeManagerReadinessInitializer? FindInitializer(IAsyncNodeManager nodeManager)
+        {
+            return nodeManager switch
+            {
+#pragma warning disable CS0618, UA0031 // Unwrap legacy adapters to find their readiness initializer.
+                AsyncNodeManagerAdapter { SyncNodeManager: SyncNodeManagerAdapter sync } =>
+                    FindInitializer(sync.AsyncNodeManager),
+                AsyncNodeManagerAdapter adapter => adapter.SyncNodeManager as INodeManagerReadinessInitializer,
+#pragma warning restore CS0618, UA0031
+                INodeManagerReadinessInitializer initializer => initializer,
+                _ => null
             };
         }
     }

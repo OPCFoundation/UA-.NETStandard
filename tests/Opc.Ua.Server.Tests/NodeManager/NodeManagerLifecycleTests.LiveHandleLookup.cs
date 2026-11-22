@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -28,11 +29,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            NodeManagerRegistration current = await lifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), ct).ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))), ct).ConfigureAwait(false);
+            NodeManagerRegistration current = RequireRegistration(publicationResult1.Registrations[0]);
             using var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            NodeManagerBatchResult? publication = null;
+            LifecycleResult? publication = null;
             try
             {
                 if (ownership == 1)
@@ -48,17 +52,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var nodeId = new NodeId(kValueNodeId, ns);
                 Assert.That(await ReadContextValueAsync(master, context, nodeId, ct).ConfigureAwait(false),
                     Is.EqualTo(kFirstRegistrationValue));
-                await using (IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Replace(current, new RuntimeNodeSetNodeManagerFactory(
+                await using ILifecycleWriter exactWriter1 = await Capture(
+                    m_server.NodeManagerLifecycle, current).BeginAsync(ct).ConfigureAwait(false);
+                await using (IPreparedChanges replacement = await exactWriter1.PrepareAsync(
+                    [LifecycleChange.Replace(current.Slot, new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kModelNamespaceUri, kSecondRegistrationValue)))], ct).ConfigureAwait(false))
                 {
                     publication = await replacement.CommitAsync(_ => default, ct).ConfigureAwait(false);
-                    current = replacement.Registrations[0];
+                    await exactWriter1.DisposeAsync().ConfigureAwait(false);
+                    current = Registration(replacement.Registrations[0]);
                 }
                 Assert.That(publication.CleanupFailure, Is.Null);
                 if (ownership == 0)
                 {
-                    await publication.Retirement.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+                    await publication.Retired.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
                     Assert.That(context.HasRoutingPin, Is.False);
                     Assert.That(context.RoutingSnapshot, Is.Null);
                     Assert.That(await ReadContextValueAsync(master, context, nodeId, ct).ConfigureAwait(false),
@@ -68,10 +75,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else
                 {
-                    Assert.That(publication.Retirement.IsCompleted, Is.False);
+                    Assert.That(publication.Retired.IsCompleted, Is.False);
                     Assert.That(context.HasRoutingPin, Is.True);
                     context.Dispose();
-                    await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                    await publication.Retired.WaitAsync(ct).ConfigureAwait(false);
                 }
             }
             finally
@@ -79,7 +86,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 context.Dispose();
                 if (publication is not null)
                 {
-                    await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                    await publication.Retired.WaitAsync(ct).ConfigureAwait(false);
                 }
                 await RemoveAndRetireAsync(lifecycle, current, ct).ConfigureAwait(false);
             }
@@ -101,8 +108,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var master = (MasterNodeManager)server.NodeManager;
             var routing = (IRequestRouting)master;
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            NodeManagerRegistration current = await lifecycle.AddRuntimeNodeSetAsync(
-                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), ct).ConfigureAwait(false);
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue))), ct).ConfigureAwait(false);
+            NodeManagerRegistration current = RequireRegistration(publicationResult2.Registrations[0]);
             using var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
             OperationContext.RoutingScope outer = routing.CaptureRequest(context);
@@ -117,22 +127,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                 Assert.That(context.RoutingPinMatchesSnapshot, Is.True);
             }, ct);
-            NodeManagerBatchResult? publication = null;
+            LifecycleResult? publication = null;
             try
             {
                 await entered.Task.WaitAsync(ct).ConfigureAwait(false);
                 outer.Dispose();
                 outer.Dispose();
                 Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
-                await using (IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Replace(current, new RuntimeNodeSetNodeManagerFactory(
+                await using ILifecycleWriter exactWriter2 = await Capture(
+                    m_server.NodeManagerLifecycle, current).BeginAsync(ct).ConfigureAwait(false);
+                await using (IPreparedChanges replacement = await exactWriter2.PrepareAsync(
+                    [LifecycleChange.Replace(current.Slot, new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kModelNamespaceUri, kSecondRegistrationValue)))], ct).ConfigureAwait(false))
                 {
                     publication = await replacement.CommitAsync(_ => default, ct).ConfigureAwait(false);
-                    current = replacement.Registrations[0];
+                    await exactWriter2.DisposeAsync().ConfigureAwait(false);
+                    current = Registration(replacement.Registrations[0]);
                 }
                 Assert.That(publication.CleanupFailure, Is.Null);
-                Assert.That(publication.Retirement.IsCompleted, Is.False);
+                Assert.That(publication.Retired.IsCompleted, Is.False);
                 ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
                 var nodeId = new NodeId(kValueNodeId, ns);
                 Assert.That(await ReadContextValueAsync(master, context, nodeId, ct).ConfigureAwait(false),
@@ -149,17 +162,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(() => routing.CaptureRequest(context), Throws.TypeOf<ObjectDisposedException>());
                     Assert.That(() => routing.PinRequest(context), Throws.TypeOf<ObjectDisposedException>());
                     Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
-                    Assert.That(publication.Retirement.IsCompleted, Is.False);
+                    Assert.That(publication.Retired.IsCompleted, Is.False);
                 }
                 release.SetResult(true);
                 await overlapping.ConfigureAwait(false);
                 if (upgrade && !dispose)
                 {
-                    Assert.That(publication.Retirement.IsCompleted, Is.False);
+                    Assert.That(publication.Retired.IsCompleted, Is.False);
                     Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                     context.Dispose();
                 }
-                await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                await publication.Retired.WaitAsync(ct).ConfigureAwait(false);
                 Assert.That(captured.Epoch.ActiveCount, Is.Zero);
                 Assert.That(context.HasRoutingPin, Is.False);
                 Assert.That(context.RoutingSnapshot, Is.Null);
@@ -183,7 +196,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     context.Dispose();
                     if (publication is not null)
                     {
-                        await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                        await publication.Retired.WaitAsync(ct).ConfigureAwait(false);
                     }
                     await RemoveAndRetireAsync(lifecycle, current, ct).ConfigureAwait(false);
                 }
@@ -211,9 +224,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     routing.PinRequest(context);
                     NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
-                    registration = await m_server.NodeManagerLifecycle
-                        .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null, timeout.Token)
-                        .ConfigureAwait(false);
+                    LifecycleResult publicationResult3 = await CommitChangeAsync(
+                        m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                        new RuntimeNodeSetNodeManagerFactory(
+                        CreateGenerationOptions(generation: 1))), timeout.Token).ConfigureAwait(false);
+                    registration = RequireRegistration(publicationResult3.Registrations[0]);
 
                     ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
                     var valueNodeId = new NodeId(kValueNodeId, ns);
@@ -232,7 +247,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (registration != null)
                 {
-                    await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
+                    await CommitChangeAsync(
+                        Capture(
+                        m_server.NodeManagerLifecycle, registration), LifecycleChange.Remove(
+                        registration.Slot), CancellationToken.None).ConfigureAwait(false);
                 }
             }
         }
@@ -359,7 +377,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             public OverridingMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
-                : base(server, configuration, null, System.Array.Empty<INodeManager>())
+                : base(server, configuration, null, Array.Empty<INodeManager>())
             {
             }
 

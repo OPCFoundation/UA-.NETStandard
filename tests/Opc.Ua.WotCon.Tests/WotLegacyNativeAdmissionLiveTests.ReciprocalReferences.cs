@@ -494,16 +494,21 @@ namespace Opc.Ua.WotCon.Tests
         {
             public async Task ReloadPeerModelAsync()
             {
+                ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
                 NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToList()
                     .Single(candidate => candidate.NamespaceUris.Contains(ModelUri));
-                await m_server.NodeManagerLifecycle.ReloadRuntimeNodeSetAsync(registration,
-                    new RuntimeNodeSetOptions
+                await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                await using IPreparedChanges prepared = await writer.PrepareAsync(
+                    [LifecycleChange.Reload(registration.Slot, new RuntimeNodeSetNodeManagerFactory(
+                        new RuntimeNodeSetOptions
                     {
                         Sources = [RuntimeNodeSetSource.FromStream("R42PeerReload",
                             _ => new ValueTask<Stream>(new MemoryStream(Encoding.UTF8.GetBytes(
                                 CreateInverseReferenceModel().ToString(SaveOptions.DisableFormatting)), false)),
                             [ModelUri])]
-                    }, null);
+                    }))]).ConfigureAwait(false);
+                LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
             }
 
             /// <summary>
@@ -517,9 +522,10 @@ namespace Opc.Ua.WotCon.Tests
                 StatusCode status, bool throws, bool adapted = false,
                 NativeReferenceRetirementCheckpoint? checkpoint = null)
             {
-                await m_server.NodeManagerLifecycle.AddAsync(
-                    new RejectingPeerFactory(status, throws, adapted, checkpoint), null).ConfigureAwait(false);
-                await Session.FetchNamespaceTablesAsync();
+                await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RejectingPeerFactory(status, throws, adapted, checkpoint))])
+                    .ConfigureAwait(false);
+                await Session.FetchNamespaceTablesAsync().ConfigureAwait(false);
                 return new NodeId(4040u, Session.NamespaceUris.GetIndexOrAppend(RejectingPeerNamespaceUri));
             }
         }

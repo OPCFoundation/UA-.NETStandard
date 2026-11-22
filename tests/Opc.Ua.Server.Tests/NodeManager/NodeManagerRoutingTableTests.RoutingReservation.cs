@@ -399,13 +399,72 @@ namespace Opc.Ua.Server.Tests.NodeManager
             current.Reserve();
             stale.Dispose();
             stale.Dispose();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(candidate);
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Prepared));
             Assert.Throws<InvalidOperationException>(() => table.UnregisterNamespace(9, writer, null));
             current.Publish();
+            Assert.That(table.GetGeneration(candidate), Is.SameAs(generation));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
             current.Dispose();
             AssertSingleManagerRoute(table.NamespaceManagers, 9, writer);
             Assert.That(table.UnregisterNamespace(9, writer, null), Is.True);
             Assert.That(table.NamespaceManagers.ContainsKey(9), Is.False);
             Assert.That(previous.NamespaceManagers.ContainsKey(9), Is.False);
+        }
+
+        /// <summary>
+        /// An abandoned image releases only its routing reservation, not the shared candidate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AbandonedRoutingImageDoesNotAbortCandidateOfAnotherImage(bool reserveAbandoned)
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager candidate = CreateManager();
+            using NodeManagerRoutingTable.PreparedRoutes abandoned = PrepareRoutingCandidate(table, candidate);
+            using NodeManagerRoutingTable.PreparedRoutes successor = PrepareRoutingCandidate(table, candidate);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(candidate);
+            if (reserveAbandoned)
+            {
+                abandoned.Reserve();
+            }
+
+            abandoned.Dispose();
+
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Prepared));
+            successor.Reserve();
+            successor.Publish();
+            successor.Dispose();
+            abandoned.Dispose();
+            Assert.That(table.GetGeneration(candidate), Is.SameAs(generation));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(generation.Gate.TryEnter(out GenerationGate.Lease? admission), Is.True);
+            admission!.Dispose();
+            Assert.That(table.Revision.TryPin(out int slot), Is.True);
+            table.Revision.Epoch.Exit(slot);
+        }
+
+        /// <summary>
+        /// A failed routing image cannot leave an unreachable epoch blocking generation cleanup.
+        /// </summary>
+        [Test]
+        public async Task FailedRoutingImageDoesNotRetainAnUnreachableEpoch()
+        {
+            IAsyncNodeManager manager = CreateManager();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            var invalidRoutes = new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>
+            {
+                [2] = null!
+            };
+
+            Assert.Throws<ArgumentNullException>(() => new NodeManagerRoutingTable.RoutingSnapshot(
+                [manager], invalidRoutes, []));
+
+            generation.Gate.Retire();
+            Assert.That(generation.IsQuiescent, Is.True);
+            ValueTask quiescence = generation.WaitForQuiescenceAsync(CancellationToken.None);
+            Assert.That(quiescence.IsCompleted, Is.True);
+            await quiescence.ConfigureAwait(false);
         }
 
         [Test]

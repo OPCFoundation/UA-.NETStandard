@@ -35,11 +35,11 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Prevents this capability from preparing additions, replacements or read images.
             /// </summary>
-            internal void ValidateChanges(ArrayOf<NodeManagerBatchChange> changes)
+            internal static void ValidateChanges(ArrayOf<LifecycleChange> changes)
             {
-                foreach (NodeManagerBatchChange change in changes)
+                foreach (LifecycleChange change in changes)
                 {
-                    if (change.Current is null || change.Factory is not null)
+                    if (change.Slot is null || change.Factory is not null)
                     {
                         throw new InvalidOperationException("Shutdown publication admits only generation removals.");
                     }

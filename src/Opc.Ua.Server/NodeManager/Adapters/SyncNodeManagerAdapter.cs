@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal bool HasReadinessParticipant => m_nodeManager is AsyncNodeManagerAdapter adapter
             ? adapter.HasReadinessParticipant
-            : m_nodeManager is INodeManagerReadinessNotification;
+            : m_nodeManager is INodeManagerReadinessInitializer or INodeManagerReadinessNotification;
 
         /// <inheritdoc/>
         public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(

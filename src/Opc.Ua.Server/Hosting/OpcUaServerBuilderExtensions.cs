@@ -1701,10 +1701,24 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
-            services.TryAddSingleton<HostedNodeManagerLifecycle>();
+            services.TryAddSingleton<HostedNodeManagerLifecycle>(services =>
+                new(new NodeManagerCleanupAuthority(
+                    services.GetService<INodeManagerCleanupAuthorization>(),
+                    services.GetService<INodeManagerCleanupVerifier>(),
+                    services.GetService<INodeManagerCleanupAudit>())));
             services.TryAddSingleton<OpcUaServerAliasNameStartupTask>();
             services.TryAddSingleton<INodeManagerLifecycle>(services =>
                 services.GetRequiredService<HostedNodeManagerLifecycle>());
+            services.TryAddSingleton<INodeManagerCallbackLifecycle>(services =>
+                services.GetRequiredService<HostedNodeManagerLifecycle>());
+            services.TryAddSingleton<INodeManagerCleanupRecovery>(services =>
+            {
+                HostedNodeManagerLifecycle lifecycle = services.GetRequiredService<HostedNodeManagerLifecycle>();
+                return new NodeManagerCleanupRecovery(
+                    lifecycle.GetRecoveryOwners,
+                    lifecycle.ResumeCleanupAsync,
+                    lifecycle.CleanupAuthority);
+            });
             RegisterFallbackAnonymousAuthenticator(services);
         }
 

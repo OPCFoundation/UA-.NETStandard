@@ -19,7 +19,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public void NodesSkipsInstanceChildrenWhoseParentIsAlsoPredefined()
         {
-            NodeIdDictionary<NodeState> predefinedNodes = [];
+            PredefinedNodeDictionary predefinedNodes = [];
             BaseObjectState parent = CreateObject("Parent");
             BaseObjectState child = CreateObject("Child", parent);
             predefinedNodes[parent.NodeId] = parent;
@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeState? added = null;
             NodeState? observed = null;
             BaseObjectState node = CreateObject("Added");
-            NodeIdDictionary<NodeState> predefinedNodes = [];
+            PredefinedNodeDictionary predefinedNodes = [];
             var addressSpace = new PredefinedNodesAddressSpace(
                 CreateContext(),
                 predefinedNodes,
@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task AddOrUpdateNodeAsyncPublishesRegisteredActiveNodeAsync()
         {
-            NodeIdDictionary<NodeState> predefinedNodes = [];
+            PredefinedNodeDictionary predefinedNodes = [];
             BaseObjectState input = CreateObject("Replaced");
             var active = new FolderState(null)
             {
@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public void TryGetNodeReturnsNodeFromDictionary()
         {
-            NodeIdDictionary<NodeState> predefinedNodes = [];
+            PredefinedNodeDictionary predefinedNodes = [];
             BaseObjectState node = CreateObject("Lookup");
             predefinedNodes[node.NodeId] = node;
             PredefinedNodesAddressSpace addressSpace = CreateAddressSpace(predefinedNodes);
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void ConstructorValidatesRequiredArguments()
         {
             ISystemContext context = CreateContext();
-            NodeIdDictionary<NodeState> predefinedNodes = [];
+            PredefinedNodeDictionary predefinedNodes = [];
             static ValueTask addAsync(NodeState node, CancellationToken ct) => default;
             static ValueTask<bool> removeAsync(NodeId nodeId, CancellationToken ct) => new(false);
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         private static PredefinedNodesAddressSpace CreateAddressSpace(
-            NodeIdDictionary<NodeState> predefinedNodes)
+            PredefinedNodeDictionary predefinedNodes)
         {
             return new PredefinedNodesAddressSpace(
                 CreateContext(),

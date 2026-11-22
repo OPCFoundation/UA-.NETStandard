@@ -3330,6 +3330,30 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Checks whether this exact session object is still registered after a NodeManager callback.
+        /// </summary>
+        internal static bool ContainsRegisteredSession(ISessionManager manager, ISession session)
+        {
+            if (manager is SessionManager stock &&
+                stock.GetType() == typeof(SessionManager) &&
+                session is Session stockSession &&
+                stockSession.GetType() == typeof(Session))
+            {
+                return stockSession.IsRegisteredWith(stock);
+            }
+
+            // A custom manager may override GetSessions or register its sessions differently.
+            foreach (ISession current in manager.GetSessions())
+            {
+                if (ReferenceEquals(current, session))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Gets the lockout key for a client without using client-controlled session metadata.
         /// </summary>
         private static string GetClientLockoutKey(

@@ -151,9 +151,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             var factory = new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator);
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null).ConfigureAwait(false);
-            Assert.That(registration.NodeManager, Is.TypeOf<WotRegistryNodeManager>());
+            LifecycleResult publication = await m_server.NodeManagerLifecycle
+                .ApplyAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false);
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            Assert.That(registration!.NodeManager, Is.TypeOf<WotRegistryNodeManager>());
             m_session.MessageContext.Factory.Builder
                 .AddEncodeableType(WoTRefreshPlanDataTypeActivator.Instance)
                 .AddEnumeratedType(WoTAtomicityEnumActivator.Instance)

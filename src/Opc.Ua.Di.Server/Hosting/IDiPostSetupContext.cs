@@ -5,6 +5,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Di.Server.Builders;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Server.Hosting
 {
@@ -49,6 +50,11 @@ namespace Opc.Ua.Di.Server.Hosting
         /// startup on shutdown.
         /// </summary>
         CancellationToken CancellationToken { get; }
+
+        /// <summary>
+        /// Gets the initializer's readiness admission, or null during direct setup.
+        /// </summary>
+        NodeManagerReadinessContext? Readiness { get; }
 
         /// <summary>
         /// Resolves a required application service. Equivalent to

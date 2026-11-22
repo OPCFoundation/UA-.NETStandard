@@ -13,6 +13,7 @@ using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
@@ -24,6 +25,8 @@ using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 using Quickstarts.ReferenceServer;
+
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -96,10 +99,13 @@ namespace Opc.Ua.WotCon.Tests
                 m_projectionHost,
                 documentConverter: m_converter);
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
-            Ua.Server.NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null)
+            LifecycleResult publication = await m_server.NodeManagerLifecycle
+                .ApplyAsync([LifecycleChange.Add(factory)])
                 .ConfigureAwait(false);
-            m_nodeManager = (WotRegistryNodeManager)registration.NodeManager;
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            m_nodeManager = (WotRegistryNodeManager)registration!.NodeManager;
 
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);

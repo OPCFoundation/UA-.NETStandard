@@ -50,11 +50,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     ServerNamespaceUris = m_runtime.Namespaces
                 };
-                NodeManagerRegistration registration = await m_runtime.Lifecycle.AddAsync(
-                    new WotRegistryNodeManagerFactory(
-                        new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                    callerContext: null).ConfigureAwait(false);
-                m_registryManager = (WotRegistryNodeManager)registration.NodeManager;
+                LifecycleResult publication = await m_runtime.Lifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                        new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                    .ConfigureAwait(false);
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                m_registryManager = (WotRegistryNodeManager)registration!.NodeManager;
                 initialized = true;
             }
             finally

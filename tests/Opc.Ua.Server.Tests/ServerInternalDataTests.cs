@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Historian;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -908,11 +909,66 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task DisposeAsyncCompletesAsync()
         {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             ServerInternalData data = CreateServerInternalData();
+            var trackedBuilder = new HistorianBuilder(data);
+            var lateBuilder = new HistorianBuilder(data);
+            var registry = (IHistorianBuilderRegistry)data;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new Mock<IHistorianProvider>();
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.InsertAsync(
+                    It.IsAny<HistorianOperationContext>(), It.IsAny<NodeId>(),
+                    It.IsAny<ArrayOf<DataValue>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (HistorianOperationContext _, NodeId _,
+                    ArrayOf<DataValue> _, CancellationToken _) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    return new HistorianUpdateOutcome<DataValue>([StatusCodes.Good]);
+                });
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("shutdown-registration", 1),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            trackedBuilder.UseProvider(provider.Object).Historize(
+                variable,
+                systemContext: data.DefaultSystemContext,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.Zero
+                });
+            variable.Value = 42;
+            variable.ClearChangeMasks(data.DefaultSystemContext, includeChildren: false);
 
-            await data.DisposeAsync().ConfigureAwait(false);
-
+            Task? shutdown = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Task disposing = data.DisposeAsync().AsTask();
+                shutdown = disposing;
+                Assert.That(disposing.IsCompleted, Is.False);
+                Assert.That(() => trackedBuilder.UseInMemory(), Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(
+                    () => registry.RegisterHistorianBuilder(lateBuilder),
+                    Throws.TypeOf<ObjectDisposedException>());
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                shutdown ??= data.DisposeAsync().AsTask();
+                await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await lateBuilder.DisposeAsync().ConfigureAwait(false);
+            }
             Assert.That(data.RequestManager, Is.Null);
+            Assert.That(() => trackedBuilder.UseInMemory(), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(
+                () => registry.RegisterHistorianBuilder(lateBuilder),
+                Throws.TypeOf<ObjectDisposedException>());
         }
 
         [Test]

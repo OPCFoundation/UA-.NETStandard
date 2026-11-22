@@ -9,12 +9,12 @@ namespace Opc.Ua.Server
     /// Serializable envelope for a mirrored continuation point.
     /// </summary>
     /// <remarks>
-    /// The envelope mirrors the continuation-point id, owning session id, and re-issuable request parameters.
-    /// Generic server mirroring does not reconstruct node-manager-owned opaque <see cref="ContinuationPoint.Data"/>
-    /// on a backup replica. After failover, a mirrored-but-unreconstructable continuation point is recognized and
-    /// fails gracefully with <see cref="StatusCodes.BadContinuationPointInvalid"/> so the client re-issues Browse or
-    /// HistoryRead, as permitted by OPC UA Part 4 §6.6.2.2. Node managers that can serialize their own continuation
-    /// data may use this seam to add full-fidelity restoration.
+    /// The built-in Session creates history envelopes with only the continuation identifier, session identifier and
+    /// kind; Browse envelopes also include the original request parameters and index. The envelope does not carry
+    /// <see cref="ContinuationPoint.Data"/> or reconstruct a cursor on a backup. If lookup completes with only this
+    /// envelope, a resume through the built-in Session store returns
+    /// <see cref="StatusCodes.BadContinuationPointInvalid"/>. The client must issue a new Browse or HistoryRead to
+    /// continue. Portable historian continuations use a separate <see cref="IHistoryContinuationPointStore"/>.
     /// </remarks>
     public sealed class ContinuationPointEnvelope
     {

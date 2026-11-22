@@ -69,7 +69,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool withView, bool firstPublication)
         {
             var gate = new WotProjectionViewCanonicalLiveTests.BlockingSourceFactory();
-            await m_server.NodeManagerLifecycle.AddAsync(gate, callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(gate)]).ConfigureAwait(false);
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
             await ConfigureStockViewsAsync(views).ConfigureAwait(false);
             WotResource source = await UpsertStockSourceAsync(false).ConfigureAwait(false);
@@ -233,7 +233,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task NativeMetadataOnlyPublicationRetainsOwnersAndTheOldReadImage()
         {
             var gate = new WotProjectionViewCanonicalLiveTests.BlockingSourceFactory();
-            await m_server.NodeManagerLifecycle.AddAsync(gate, callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(gate)]).ConfigureAwait(false);
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
             await ConfigureStockViewsAsync(views).ConfigureAwait(false);
             WotResource source = await UpsertStockSourceAsync(false).ConfigureAwait(false);

@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             {
             }
 
-            public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+            public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
             public void AddPredefinedNodeSynchronouslyPublic(NodeState node)
             {

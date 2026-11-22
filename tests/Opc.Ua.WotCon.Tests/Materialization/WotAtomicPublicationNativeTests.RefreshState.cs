@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
@@ -355,9 +356,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 HandoffRequest("completed-before-native-attachment")).ConfigureAwait(false);
             Assert.That(completed.NewGeneration, Is.Zero);
             Assert.That(m_coordinator.LastRefreshSummary, Is.Not.Null);
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             await CreateRefreshStateClientAsync().ConfigureAwait(false);
 
             await AssertRefreshStateAsync(completed.Summary).ConfigureAwait(false);

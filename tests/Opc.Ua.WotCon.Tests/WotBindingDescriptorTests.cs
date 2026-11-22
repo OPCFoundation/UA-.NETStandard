@@ -859,11 +859,14 @@ namespace Opc.Ua.WotCon.Tests
                     executable ? [new MemoryWotBindingExecutor(new MemoryWotStore())] : null);
                 coordinator = new WotMaterializationCoordinator(
                     registry, new LifecycleWotProjectionHost(server.NodeManagerLifecycle), binders);
-                NodeManagerRegistration registration = await server.NodeManagerLifecycle.AddAsync(
-                    new WotRegistryNodeManagerFactory(
-                        new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
-                    callerContext: null).ConfigureAwait(false);
-                var manager = (WotRegistryNodeManager)registration.NodeManager;
+                LifecycleResult publication = await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                        new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))])
+                    .ConfigureAwait(false);
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                var manager = (WotRegistryNodeManager)registration!.NodeManager;
                 ushort ns = (ushort)manager.Server.NamespaceUris.GetIndex(Namespaces.WotCon);
                 NodeState? root = manager.Find(new NodeId(64100u, ns));
                 Assert.That(root, Is.Not.Null);

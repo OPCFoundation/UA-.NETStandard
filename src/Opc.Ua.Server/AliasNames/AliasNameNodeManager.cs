@@ -57,7 +57,8 @@ namespace Opc.Ua.Server.AliasNames
     /// </para>
     /// </remarks>
     public class AliasNameNodeManager :
-        AsyncCustomNodeManager, IAliasNameMaterializerHost, INodeManagerReadinessNotification
+        AsyncCustomNodeManager, IAliasNameMaterializerHost, INodeManagerReadinessNotification,
+        INodeManagerReadinessInitializer
     {
         /// <summary>
         /// Initializes a new instance.
@@ -146,6 +147,14 @@ namespace Opc.Ua.Server.AliasNames
 
             Store.Changed += OnStoreChanged;
             m_aliasRefresh?.RequestRefresh();
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessInitializer.OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return OnServerReadyAsync(cancellationToken);
         }
 
         /// <inheritdoc/>

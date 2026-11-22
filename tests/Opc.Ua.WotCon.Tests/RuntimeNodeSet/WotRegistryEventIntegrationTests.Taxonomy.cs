@@ -565,12 +565,16 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToList()
                 .Single(candidate => ReferenceEquals(candidate.NodeManager, m_eventManager));
-            IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle
-                .PrepareAsync([NodeManagerBatchChange.Remove(registration)]).ConfigureAwait(false);
+            ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+            await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                current => ReferenceEquals(current, registration)), Is.True);
+            IPreparedChanges removal = await writer
+                .PrepareAsync([LifecycleChange.Remove(registration.Slot)]).ConfigureAwait(false);
             await using var removalLifetime = removal.ConfigureAwait(false);
-            NodeManagerBatchResult result = await removal.CommitAsync(static _ => default).ConfigureAwait(false);
+            LifecycleResult result = await removal.CommitAsync(static _ => default).ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
-            await result.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await result.Retired.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             NodeId registryId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
             Assert.That(m_eventManager.Find(registryId), Is.Null);

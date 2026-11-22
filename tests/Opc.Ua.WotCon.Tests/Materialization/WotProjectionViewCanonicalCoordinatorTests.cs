@@ -36,9 +36,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 registry, runtime.Host,
                 documentConverter: new FakeWotDocumentConverter(),
                 viewProjectionHost: viewHost);
-            NodeManagerRegistration registration = await runtime.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator), callerContext: null)
+            LifecycleResult publication = await runtime.Lifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                    new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))])
                 .ConfigureAwait(false);
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
             NamespaceTable namespaces = runtime.Namespaces;
             ushort viewNamespace = namespaces.GetIndexOrAppend("urn:c2:views");
             coordinator.ServerNamespaceUris = namespaces;
@@ -58,7 +62,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
             }).ConfigureAwait(false);
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
-            await ((IWotRegistryRecoveryProjection)registration.NodeManager)
+            await ((IWotRegistryRecoveryProjection)registration!.NodeManager)
                 .SynchronizeAsync(registry.Current, CancellationToken.None).ConfigureAwait(false);
 
             WotRefreshResult refreshed = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -88,8 +92,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 registry, runtime.Host,
                 documentConverter: new FakeWotDocumentConverter(),
                 viewProjectionHost: viewHost);
-            await runtime.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator), callerContext: null)
+            await runtime.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))])
                 .ConfigureAwait(false);
             NamespaceTable namespaces = runtime.Namespaces;
             int originalCount = namespaces.Count;

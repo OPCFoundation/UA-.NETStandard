@@ -96,6 +96,46 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ReadUrisVersion(), Is.EqualTo(urisVersion.Value));
         }
 
+        /// <summary>
+        /// Asynchronous alias registration reports a table change once and leaves duplicate registration unchanged.
+        /// </summary>
+        [Test]
+        public async Task AsyncNamespaceRegistrationReportsUrisVersionOnlyForNewUriAsync()
+        {
+            PropertyState<uint> urisVersion = GetUrisVersion();
+            uint before = ReadUrisVersion();
+            int changes = 0;
+            void OnStateChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changeMasks)
+            {
+                if ((changeMasks & NodeStateChangeMasks.Value) != 0)
+                {
+                    changes++;
+                }
+            }
+
+            string namespaceUri = "urn:opcfoundation.org:Tests:UrisVersion:Async:" + Guid.NewGuid().ToString("N");
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.NamespaceUris).Returns([]);
+            IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
+            urisVersion.StateChanged += OnStateChanged;
+            try
+            {
+                await master.RegisterNamespaceManagerAsync(namespaceUri, manager.Object).ConfigureAwait(false);
+                uint afterRegistration = urisVersion.Value;
+                Assert.That(changes, Is.EqualTo(1));
+                Assert.That(afterRegistration, Is.GreaterThan(before));
+
+                await master.RegisterNamespaceManagerAsync(namespaceUri, manager.Object).ConfigureAwait(false);
+                Assert.That(changes, Is.EqualTo(1));
+                Assert.That(urisVersion.Value, Is.EqualTo(afterRegistration));
+            }
+            finally
+            {
+                urisVersion.StateChanged -= OnStateChanged;
+                await master.UnregisterNamespaceManagerAsync(namespaceUri, manager.Object).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public void UrisVersionIsRaisedWhenServerUriIsAdded()
         {

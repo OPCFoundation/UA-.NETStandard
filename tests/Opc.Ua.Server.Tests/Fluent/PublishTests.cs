@@ -1756,7 +1756,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             {
             }
 
-            public new NodeIdDictionary<NodeState> RootNotifiers => base.RootNotifiers;
+            public new PredefinedNodeDictionary RootNotifiers => base.RootNotifiers;
 
             /// <summary>
             /// Honours the cancellation token before the base implementation
@@ -1781,7 +1781,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             /// </summary>
             public bool FailRootNotifierRegistration { get; set; }
 
-            public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+            public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
             public int EventItemCount => MonitoredItems.Count;
 

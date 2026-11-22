@@ -4,6 +4,7 @@
 #pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -277,6 +278,53 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Cleanup cannot remove continuation points from a different candidate with the same slot and number.
+        /// </summary>
+        [Test]
+        public void RemoveForGenerationPreservesPointsFromAnotherSameNumberCandidate()
+        {
+            SessionContinuationPoints holder = NewHolder();
+            var slot = new NodeManagerSlot();
+            IAsyncNodeManager manager = NewNodeManager(new Mock<INodeManager>().Object);
+            var retired = new NodeManagerGeneration(slot, 2, manager, NodeManagerGenerationState.Prepared);
+            var owner = new NodeManagerGeneration(slot, 2, manager, NodeManagerGenerationState.Prepared);
+            var browseData = new TrackingDisposable();
+            ContinuationPoint browse = NewBrowsePoint(browseData);
+            browse.Generation = owner.Reference;
+            var history = new TrackingDisposable();
+
+            try
+            {
+                holder.SaveBrowse(browse);
+                holder.SaveHistory(history);
+                holder.BindHistoryGeneration(ToByteString(history.Id), owner);
+
+                Assert.That(holder.HasBrowseForGeneration(owner), Is.True);
+                Assert.That(holder.HasHistoryForGeneration(owner), Is.True);
+                Assert.That(holder.HasBrowseForGeneration(retired), Is.False);
+                Assert.That(holder.HasHistoryForGeneration(retired), Is.False);
+
+                holder.RemoveForGeneration(retired);
+                Assert.That(browseData.Disposed, Is.False);
+                Assert.That(history.Disposed, Is.False);
+                Assert.That(holder.HasBrowseForGeneration(owner), Is.True);
+                Assert.That(holder.HasHistoryForGeneration(owner), Is.True);
+
+                holder.RemoveForGeneration(owner);
+                Assert.That(browseData.Disposed, Is.True);
+                Assert.That(history.Disposed, Is.True);
+                Assert.That(holder.HasBrowseForGeneration(owner), Is.False);
+                Assert.That(holder.HasHistoryForGeneration(owner), Is.False);
+                Assert.That(holder.RestoreBrowse(ToByteString(browse.Id)), Is.Null);
+                Assert.That(holder.RestoreHistory(ToByteString(history.Id)), Is.Null);
+            }
+            finally
+            {
+                holder.Clear();
+            }
+        }
+
+        /// <summary>
         /// Verifies that saving a null history continuation is rejected.
         /// </summary>
         [Test]
@@ -304,6 +352,1382 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(ToByteString(id)), Is.SameAs(value));
             // The point is removed on restore, so a second restore misses.
             Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Null);
+        }
+
+        /// <summary>
+        /// A portable point transferred to its caller can be saved again with its original generation.
+        /// </summary>
+        [Test]
+        public async Task PortableCallerOwnedHistoryRetainsGenerationWhenResavedAsync()
+        {
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
+            var point = new TrackingDisposable(Guid.NewGuid());
+            ByteString token = ToByteString(point.Id);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            try
+            {
+                await holder.SaveHistoryAsync(point).ConfigureAwait(false);
+                holder.BindHistoryGeneration(token, generation);
+                IHistoryContinuationPoint? restored = await holder.RestoreHistoryAsync(token).ConfigureAwait(false);
+                Assert.That(restored, Is.SameAs(point));
+                Assert.That(holder.GetHistoryGeneration(point), Is.SameAs(generation.Reference));
+
+                await holder.SaveHistoryAsync(point).ConfigureAwait(false);
+
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                Assert.That(holder.ReleaseHistory(token), Is.True);
+                Assert.That(point.Disposed, Is.True);
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.False);
+                store.Verify(value => value.TryTakeAsync(
+                    s_sessionId, point.Id, It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                holder.Clear();
+                if (!point.Disposed)
+                {
+                    point.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Mirror and cleanup failures are both observable while the exact failed point remains retained.
+        /// </summary>
+        /// <exception cref="AssertionException"></exception>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task HistoryRestoreRetainsCleanupFailureAfterMirrorFailureAsync(
+            bool asyncRestore,
+            bool cleanupFails)
+        {
+            var id = Guid.NewGuid();
+            var mirrorFailure = new InvalidOperationException("mirror removal failed");
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var store = new Mock<IContinuationPointStore>();
+            int removalCount = 0;
+            store.Setup(value => value.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id))
+                .Callback(() =>
+                {
+                    if (Interlocked.Increment(ref removalCount) == 1)
+                    {
+                        throw mirrorFailure;
+                    }
+                });
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            if (cleanupFails)
+            {
+                point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            }
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            IAsyncNodeManager manager = NewNodeManager(Mock.Of<INodeManager>());
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            holder.SaveHistory(point.Object);
+            ByteString token = ToByteString(id);
+            holder.BindHistoryGeneration(token, generation);
+
+            Exception failure = await Assert.CatchAsync<Exception>(async () =>
+            {
+                if (asyncRestore)
+                {
+                    await holder.RestoreHistoryAsync(token).ConfigureAwait(false);
+                }
+                else
+                {
+                    holder.RestoreHistory(token);
+                }
+            }).ConfigureAwait(false) ??
+                throw new AssertionException("The mirror removal did not fail.");
+
+            if (cleanupFails)
+            {
+                Assert.That(failure, Is.TypeOf<AggregateException>());
+                var aggregate = (AggregateException)failure;
+                Assert.That(aggregate.InnerExceptions, Has.Count.EqualTo(2));
+                Assert.That(aggregate.InnerExceptions[0], Is.SameAs(mirrorFailure));
+                Assert.That(aggregate.InnerExceptions[1], Is.SameAs(cleanupFailure));
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                InvalidOperationException resaveFailure = Assert.Throws<InvalidOperationException>(
+                    () => holder.SaveHistory(point.Object))!;
+                Assert.That(resaveFailure.InnerException, Is.SameAs(cleanupFailure));
+            }
+            else
+            {
+                Assert.That(failure, Is.SameAs(mirrorFailure));
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.False);
+            }
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a failed mirror removal and a failed release are both reported without retrying disposal.
+        /// </summary>
+        [Test]
+        public void ReleaseHistoryRetainsFailureWhenMirrorRemovalAlsoFails()
+        {
+            var id = Guid.NewGuid();
+            var mirrorFailure = new InvalidOperationException("mirror removal failed");
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var store = new Mock<IContinuationPointStore>();
+            store.Setup(value => value.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id))
+                .Throws(mirrorFailure);
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            IAsyncNodeManager manager = NewNodeManager(Mock.Of<INodeManager>());
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            holder.SaveHistory(point.Object);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+
+            AggregateException failure = Assert.Throws<AggregateException>(
+                () => holder.ReleaseHistory(ToByteString(id)))!;
+
+            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(failure.InnerExceptions[0], Is.SameAs(mirrorFailure));
+            Assert.That(failure.InnerExceptions[1], Is.SameAs(cleanupFailure));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            Assert.That(holder.ReleaseHistory(ToByteString(id)), Is.False);
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A nonconforming portable store cannot hide a scheduling failure or stop point cleanup.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReleasePortableHistoryReportsSchedulingAndDisposalFailuresAsync(bool serviceError)
+        {
+            var id = Guid.NewGuid();
+            Exception schedulingFailure = serviceError
+                ? new ServiceResultException(StatusCodes.BadUnexpectedError, "history removal scheduling failed")
+                : new InvalidOperationException("history removal scheduling failed");
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            store.Setup(value => value.ScheduleRemove(s_sessionId, id)).Throws(schedulingFailure);
+            SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            await holder.SaveHistoryAsync(point.Object).ConfigureAwait(false);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+
+            AggregateException failure = Assert.Throws<AggregateException>(
+                () => holder.ReleaseHistory(ToByteString(id)))!;
+
+            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(failure.InnerExceptions[0], Is.SameAs(schedulingFailure));
+            Assert.That(failure.InnerExceptions[1], Is.SameAs(cleanupFailure));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            holder.Clear();
+            store.Verify(value => value.ScheduleRemove(s_sessionId, id), Times.Once);
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a released continuation with a failed disposal cannot be saved or disposed again.
+        /// </summary>
+        [Test]
+        public void FailedReleasedHistoryCannotBeSavedOrDisposedAgain()
+        {
+            var id = Guid.NewGuid();
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            SessionContinuationPoints holder = NewHolder();
+            IAsyncNodeManager manager = NewNodeManager(Mock.Of<INodeManager>());
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            holder.SaveHistory(point.Object);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+
+            InvalidOperationException releaseFailure = Assert.Throws<InvalidOperationException>(
+                () => holder.ReleaseHistory(ToByteString(id)))!;
+            InvalidOperationException saveFailure = Assert.Throws<InvalidOperationException>(
+                () => holder.SaveHistory(point.Object))!;
+
+            Assert.That(releaseFailure, Is.SameAs(cleanupFailure));
+            Assert.That(saveFailure.InnerException, Is.SameAs(cleanupFailure));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a continuation cannot be saved again while its release is disposing it.
+        /// </summary>
+        [Test]
+        public void ReleasedHistoryCannotBeSavedDuringDisposal()
+        {
+            var id = Guid.NewGuid();
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            SessionContinuationPoints holder = NewHolder();
+            point.Setup(value => value.Dispose()).Callback(() => Assert.That(
+                    () => holder.SaveHistory(point.Object),
+                    Throws.TypeOf<InvalidOperationException>()));
+            holder.SaveHistory(point.Object);
+
+            Assert.That(holder.ReleaseHistory(ToByteString(id)), Is.True);
+
+            point.Verify(value => value.Dispose(), Times.Once);
+            holder.Clear();
+        }
+
+        /// <summary>
+        /// Verifies that successful disposal is not repeated when only mirror removal fails.
+        /// </summary>
+        [Test]
+        public void ReleaseHistoryDisposesOnceWhenMirrorRemovalFails()
+        {
+            var id = Guid.NewGuid();
+            var mirrorFailure = new InvalidOperationException("mirror removal failed");
+            var store = new Mock<IContinuationPointStore>();
+            store.Setup(value => value.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id))
+                .Throws(mirrorFailure);
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            IAsyncNodeManager manager = NewNodeManager(Mock.Of<INodeManager>());
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            holder.SaveHistory(point.Object);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+
+            InvalidOperationException failure = Assert.Throws<InvalidOperationException>(
+                () => holder.ReleaseHistory(ToByteString(id)))!;
+
+            Assert.That(failure, Is.SameAs(mirrorFailure));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.False);
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A failed eviction retains the original point and does not retry disposal during session clear.
+        /// </summary>
+        [Test]
+        public void FailedHistoryEvictionRetainsExactPoint()
+        {
+            var id = Guid.NewGuid();
+            var cleanupFailure = new InvalidOperationException("evicted continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            var replacement = new TrackingDisposable(Guid.NewGuid());
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            IAsyncNodeManager manager = NewNodeManager(Mock.Of<INodeManager>());
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            holder.SaveHistory(point.Object);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+
+            AggregateException failure = Assert.Throws<AggregateException>(() => holder.SaveHistory(replacement))!;
+
+            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(failure.InnerExceptions[0], Is.SameAs(cleanupFailure));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            Assert.That(replacement.Disposed, Is.True);
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Admission, mirror rollback, and disposal failures remain observable without retrying a failed point.
+        /// </summary>
+        [Test]
+        public void FailedHistorySaveRetainsAllCleanupFailures()
+        {
+            var id = Guid.NewGuid();
+            var rollbackFailure = new InvalidOperationException("mirror rollback failed");
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var store = new Mock<IContinuationPointStore>();
+            store.Setup(value => value.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id))
+                .Throws(rollbackFailure);
+            var rejected = new Mock<IHistoryContinuationPoint>();
+            rejected.SetupGet(value => value.Id).Returns(id);
+            rejected.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            SessionContinuationPoints? holder = null;
+            store.Setup(value => value.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()))
+                .Callback(() => holder!.Clear());
+            holder = NewHolder(store: store.Object);
+
+            AggregateException failure = Assert.Throws<AggregateException>(
+                () => holder.SaveHistory(rejected.Object))!;
+
+            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(3));
+            Assert.That(failure.InnerExceptions[0], Is.TypeOf<ServiceResultException>());
+            Assert.That(failure.InnerExceptions[1], Is.SameAs(rollbackFailure));
+            Assert.That(failure.InnerExceptions[2], Is.SameAs(cleanupFailure));
+            ServiceResultException repeated = Assert.Throws<ServiceResultException>(
+                () => holder.SaveHistory(rejected.Object))!;
+            Assert.That(repeated.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+            holder.Clear();
+            store.Verify(value => value.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id),
+                Times.Once);
+            rejected.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A failed resave cannot reclaim an opaque point already transferred to its caller.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task FailedHistoryResavePreservesCallerOwnedPointAsync(bool asyncSave, bool failPersistence)
+        {
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            SessionContinuationPoints holder = NewHolder(
+                historyStore: failPersistence ? store.Object : null,
+                historyCodec: failPersistence ? codec.Object : null);
+            var point = new Mock<IHistoryContinuationPoint>();
+            var id = Guid.NewGuid();
+            point.SetupGet(value => value.Id).Returns(id);
+            ByteString token = ToByteString(id);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            holder.SaveHistory(point.Object);
+            holder.BindHistoryGeneration(token, generation);
+            IHistoryContinuationPoint? restored = await holder.RestoreHistoryAsync(token).ConfigureAwait(false);
+            Assert.That(restored, Is.SameAs(point.Object));
+            var saveFailure = new ServiceResultException(StatusCodes.BadInternalError, "portable save failed");
+            if (failPersistence)
+            {
+                store.Setup(value => value.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask(Task.FromException(saveFailure)));
+            }
+            else
+            {
+                holder.Clear();
+            }
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                if (asyncSave)
+                {
+                    await holder.SaveHistoryAsync(restored!).ConfigureAwait(false);
+                }
+                else
+                {
+                    holder.SaveHistory(restored!);
+                }
+            }).ConfigureAwait(false);
+
+            if (failPersistence)
+            {
+                Assert.That(failure, Is.SameAs(saveFailure));
+                store.Verify(value => value.ScheduleRemove(s_sessionId, id), Times.Once);
+            }
+            else
+            {
+                Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+            }
+            Assert.That(holder.GetHistoryGeneration(restored!), Is.SameAs(generation.Reference));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            point.Verify(value => value.Dispose(), Times.Never);
+            if (failPersistence)
+            {
+                store.Setup(value => value.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask));
+                await holder.SaveHistoryAsync(restored!).ConfigureAwait(false);
+                Assert.That(holder.ReleaseHistory(token), Is.True);
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.False);
+            }
+            else
+            {
+                holder.RemoveHistoryForGeneration(generation);
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                point.Verify(value => value.Dispose(), Times.Never);
+                restored!.Dispose();
+            }
+            point.Verify(value => value.Dispose(), Times.Once);
+            holder.Clear();
+        }
+
+        /// <summary>
+        /// An eviction failure rolls back a resave without reclaiming the caller's exact point or issuer.
+        /// </summary>
+        [Test]
+        public void FailedHistoryEvictionPreservesCallerOwnedPoint()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var borrowed = new Mock<IHistoryContinuationPoint>();
+            var id = Guid.NewGuid();
+            borrowed.SetupGet(value => value.Id).Returns(id);
+            ByteString token = ToByteString(id);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            holder.SaveHistory(borrowed.Object);
+            holder.BindHistoryGeneration(token, generation);
+            Assert.That(holder.RestoreHistory(token), Is.SameAs(borrowed.Object));
+            var cleanupFailure = new InvalidOperationException("evicted continuation cleanup failed");
+            var evicted = new Mock<IHistoryContinuationPoint>();
+            evicted.SetupGet(value => value.Id).Returns(Guid.NewGuid());
+            evicted.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            holder.SaveHistory(evicted.Object);
+
+            AggregateException failure = Assert.Throws<AggregateException>(
+                () => holder.SaveHistory(borrowed.Object))!;
+
+            Assert.That(failure.Flatten().InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(failure.Flatten().InnerExceptions[0], Is.SameAs(cleanupFailure));
+            Assert.That(holder.GetHistoryGeneration(borrowed.Object), Is.SameAs(generation.Reference));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            borrowed.Verify(value => value.Dispose(), Times.Never);
+            holder.SaveHistory(borrowed.Object);
+            Assert.That(holder.ReleaseHistory(token), Is.True);
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.False);
+            holder.Clear();
+            borrowed.Verify(value => value.Dispose(), Times.Once);
+            evicted.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Retirement rejection attempts every cleanup before releasing the exact session-owned point.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredHistoryReadRetainsAllCleanupFailuresAsync(bool portable)
+        {
+            var id = Guid.NewGuid();
+            var mirrorFailure = new InvalidOperationException("mirror removal failed");
+            var schedulingFailure = new InvalidOperationException("portable removal scheduling failed");
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            var store = new Mock<IContinuationPointStore>();
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            SessionContinuationPoints holder = NewHolder(
+                store: store.Object,
+                historyStore: portable ? historyStore.Object : null,
+                historyCodec: portable ? codec.Object : null);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            var cleanupOrder = new List<string>();
+            store.Setup(value => value.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id))
+                .Callback(() =>
+                {
+                    Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                    cleanupOrder.Add("mirror");
+                })
+                .Throws(mirrorFailure);
+            historyStore.Setup(value => value.ScheduleRemove(s_sessionId, id))
+                .Callback(() =>
+                {
+                    Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                    cleanupOrder.Add("portable");
+                })
+                .Throws(schedulingFailure);
+            point.Setup(value => value.Dispose()).Callback(() =>
+            {
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Null);
+                cleanupOrder.Add("point");
+                throw cleanupFailure;
+            });
+            await holder.SaveHistoryAsync(point.Object).ConfigureAwait(false);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+            generation.Gate.Retire();
+
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+            {
+                using SessionContinuationPoints.HistoryReadScope scope =
+                    await holder.RestoreHistoryReadAsync(ToByteString(id), CancellationToken.None)
+                        .ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            Exception[] expectedFailures = portable
+                ? [schedulingFailure, mirrorFailure, cleanupFailure]
+                : [mirrorFailure, cleanupFailure];
+            Assert.That(failure!.Flatten().InnerExceptions, Is.EqualTo(expectedFailures));
+            string[] expectedOrder = portable ? ["portable", "mirror", "point"] : ["mirror", "point"];
+            Assert.That(cleanupOrder, Is.EqualTo(expectedOrder));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Null);
+            using SessionContinuationPoints.HistoryReadScope repeated =
+                await holder.RestoreHistoryReadAsync(ToByteString(id), CancellationToken.None).ConfigureAwait(false);
+            Assert.That(repeated.Point, Is.Null);
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+            historyStore.Verify(
+                value => value.TryTakeAsync(s_sessionId, id, It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A duplicate save cannot overwrite or remove the mirror of an already saved continuation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DuplicateHistorySaveDoesNotModifyExistingMirror(bool sameInstance)
+        {
+            var id = Guid.NewGuid();
+            var store = new Mock<IContinuationPointStore>();
+            var original = new TrackingDisposable(id);
+            TrackingDisposable duplicate = sameInstance ? original : new TrackingDisposable(id);
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            holder.SaveHistory(original);
+
+            Assert.That(() => holder.SaveHistory(duplicate), Throws.InvalidOperationException);
+            store.Verify(value => value.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()), Times.Once);
+            store.Verify(value => value.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id),
+                Times.Never);
+            Assert.That(original.Disposed, Is.False);
+            Assert.That(duplicate.Disposed, Is.EqualTo(!sameInstance));
+
+            holder.Clear();
+            Assert.That(original.Disposed, Is.True);
+        }
+
+        /// <summary>
+        /// A concurrent save cannot dispose a point while its synchronous mirror is being written.
+        /// </summary>
+        [Test]
+        public async Task MirroredHistorySaveReservesExactPointDuringStoreAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var store = new Mock<IContinuationPointStore>();
+            store.Setup(value => value.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()))
+                .Callback(() =>
+                {
+                    entered.TrySetResult(true);
+                    if (!release.Wait(TimeSpan.FromMinutes(1)))
+                    {
+                        throw new TimeoutException("The test did not release the mirror store.");
+                    }
+                });
+            var point = new TrackingDisposable();
+            var duplicate = new TrackingDisposable(point.Id);
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            Task save = Task.Factory.StartNew(
+                () => holder.SaveHistory(point),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await Assert.ThatAsync(
+                    async () => await holder.SaveHistoryAsync(point).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                Assert.That(point.Disposed, Is.False);
+                await Assert.ThatAsync(
+                    async () => await holder.SaveHistoryAsync(duplicate).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                Assert.That(duplicate.Disposed, Is.True);
+                store.Verify(value => value.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()), Times.Once);
+                store.Verify(value => value.RemoveContinuationPoint(
+                    s_sessionId, ContinuationPointKind.History, point.Id), Times.Never);
+            }
+            finally
+            {
+                release.Set();
+                await save.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                holder.Clear();
+            }
+            Assert.That(point.Disposed, Is.True);
+        }
+
+        /// <summary>
+        /// A load that began before a mirrored save cannot dispose the point reserved by that save.
+        /// </summary>
+        [Test]
+        public async Task MirroredLoadDoesNotDisposePointReservedByConcurrentSaveAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var releaseStore = new ManualResetEventSlim();
+            var decodeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var decoded = new TaskCompletionSource<IHistoryContinuationPoint?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var storeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var point = new Mock<IHistoryContinuationPoint>();
+            var id = Guid.NewGuid();
+            point.SetupGet(value => value.Id).Returns(id);
+            var envelope = new HistoryContinuationPointEnvelope
+            {
+                Id = id,
+                OwnerSessionId = s_sessionId,
+                CodecId = "test",
+                CodecVersion = 1,
+                Payload = ByteString.Empty
+            };
+            var store = new Mock<IContinuationPointStore>();
+            store.Setup(value => value.LoadContinuationPointsAsync(s_sessionId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            store.Setup(value => value.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()))
+                .Callback(() =>
+                {
+                    storeEntered.TrySetResult(true);
+                    if (!releaseStore.Wait(TimeSpan.FromMinutes(1)))
+                    {
+                        throw new TimeoutException("The test did not release the mirror store.");
+                    }
+                });
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            historyStore.Setup(value => value.LoadAsync(s_sessionId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync([envelope]);
+            codec.Setup(value => value.DecodeAsync(envelope, It.IsAny<CancellationToken>()))
+                .Callback(() => decodeEntered.TrySetResult(true))
+                .Returns(() => new ValueTask<IHistoryContinuationPoint?>(decoded.Task));
+            SessionContinuationPoints holder = NewHolder(
+                store: store.Object, historyStore: historyStore.Object, historyCodec: codec.Object);
+            Task load = holder.LoadMirroredAsync(s_sessionId).AsTask();
+            Task? save = null;
+            try
+            {
+                await decodeEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                save = Task.Factory.StartNew(
+                    () => holder.SaveHistory(point.Object),
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
+                await storeEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                decoded.TrySetResult(point.Object);
+                await Assert.ThatAsync(
+                    async () => await load.ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                point.Verify(value => value.Dispose(), Times.Never);
+            }
+            finally
+            {
+                decoded.TrySetResult(point.Object);
+                releaseStore.Set();
+                try
+                {
+                    if (save is not null)
+                    {
+                        await save.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        await load.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                    }
+                    catch (InvalidOperationException failure)
+                    {
+                        Assert.That(failure.Message, Is.EqualTo("The history continuation is already being saved."));
+                    }
+                    finally
+                    {
+                        holder.Clear();
+                    }
+                }
+            }
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A rejected mirrored load retains its cleanup failure and reports each independent error.
+        /// </summary>
+        [Test]
+        public async Task RejectedMirroredLoadReportsAllCleanupFailuresAsync()
+        {
+            var id = Guid.NewGuid();
+            var schedulingFailure = new NotSupportedException("history removal scheduling failed");
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            var envelope = new HistoryContinuationPointEnvelope
+            {
+                Id = id,
+                OwnerSessionId = s_sessionId,
+                CodecId = "test",
+                CodecVersion = 1,
+                Payload = ByteString.Empty
+            };
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            historyStore.Setup(value => value.LoadAsync(s_sessionId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync([envelope]);
+            historyStore.Setup(value => value.ScheduleRemove(s_sessionId, id)).Throws(schedulingFailure);
+            SessionContinuationPoints holder = NewHolder(historyStore: historyStore.Object, historyCodec: codec.Object);
+            codec.Setup(value => value.DecodeAsync(envelope, It.IsAny<CancellationToken>()))
+                .Callback(holder.Clear)
+                .ReturnsAsync(point.Object);
+
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await holder.LoadMirroredAsync(s_sessionId).ConfigureAwait(false)).ConfigureAwait(false))!;
+
+            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(3));
+            Assert.That(failure.InnerExceptions[0], Is.TypeOf<ServiceResultException>());
+            Assert.That(failure.InnerExceptions[1], Is.SameAs(schedulingFailure));
+            Assert.That(failure.InnerExceptions[2], Is.SameAs(cleanupFailure));
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Rollback addresses the owner captured when the mirror was written, even if the session id changes.
+        /// </summary>
+        [Test]
+        public void FailedHistorySaveRollsBackOriginalMirrorOwner()
+        {
+            var id = Guid.NewGuid();
+            NodeId currentOwner = s_sessionId;
+            var store = new Mock<IContinuationPointStore>();
+            var point = new TrackingDisposable(id);
+            SessionContinuationPoints? holder = null;
+            store.Setup(value => value.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()))
+                .Callback(() =>
+                {
+                    currentOwner = s_ownerSessionId;
+                    holder!.Clear();
+                });
+            holder = new SessionContinuationPoints(() => currentOwner, 10, 10, store.Object);
+
+            Assert.That(() => holder.SaveHistory(point), Throws.TypeOf<ServiceResultException>());
+            store.Verify(value => value.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id),
+                Times.Once);
+            store.Verify(value => value.RemoveContinuationPoint(s_ownerSessionId, ContinuationPointKind.History, id),
+                Times.Never);
+            Assert.That(point.Disposed, Is.True);
+        }
+
+        /// <summary>
+        /// A failed portable save retains its exact failed point and reports independent rollback errors.
+        /// </summary>
+        [Test]
+        public async Task FailedHistoryPersistenceRetainsAllCleanupFailuresAsync()
+        {
+            var id = Guid.NewGuid();
+            var persistenceFailure = new InvalidOperationException("history persistence failed");
+            var schedulingFailure = new NotSupportedException("history removal scheduling failed");
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> historyCodec) =
+                NewPersistingHistoryMocks();
+            historyStore.Setup(value => value.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(persistenceFailure)));
+            historyStore.Setup(value => value.ScheduleRemove(s_sessionId, id)).Throws(schedulingFailure);
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            SessionContinuationPoints holder = NewHolder(
+                historyStore: historyStore.Object, historyCodec: historyCodec.Object);
+
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                async () => await holder.SaveHistoryAsync(point.Object).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(failure!.InnerExceptions, Has.Count.EqualTo(3));
+            Assert.That(failure.InnerExceptions[0], Is.SameAs(persistenceFailure));
+            Assert.That(failure.InnerExceptions[1], Is.SameAs(schedulingFailure));
+            Assert.That(failure.InnerExceptions[2], Is.SameAs(cleanupFailure));
+            InvalidOperationException? repeated = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await holder.SaveHistoryAsync(point.Object).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(repeated!.InnerException, Is.SameAs(cleanupFailure));
+            holder.Clear();
+            historyStore.Verify(value => value.ScheduleRemove(s_sessionId, id), Times.Once);
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Closing or retiring an owner defers point disposal until pending persistence exits.
+        /// </summary>
+        [TestCase(true, false, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        public async Task PendingHistoryPersistenceRetainsPointUntilCallbackExitsAsync(
+            bool closeSession,
+            bool blockStore,
+            bool encodeEnvelope)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseEncoding = new TaskCompletionSource<HistoryContinuationPointEnvelope?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseStore = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var point = new Mock<IHistoryContinuationPoint>();
+            var id = Guid.NewGuid();
+            point.SetupGet(value => value.Id).Returns(id);
+            var envelope = new HistoryContinuationPointEnvelope
+            {
+                Id = id,
+                OwnerSessionId = s_sessionId,
+                CodecId = "test",
+                CodecVersion = 1,
+                Payload = ByteString.Empty
+            };
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            codec.Setup(value => value.EncodeAsync(
+                    It.IsAny<NodeId>(), point.Object, It.IsAny<CancellationToken>()))
+                .Returns<NodeId, IHistoryContinuationPoint, CancellationToken>((_, _, _) =>
+                {
+                    if (blockStore)
+                    {
+                        return new ValueTask<HistoryContinuationPointEnvelope?>(envelope);
+                    }
+                    entered.TrySetResult(true);
+                    return new ValueTask<HistoryContinuationPointEnvelope?>(releaseEncoding.Task);
+                });
+            store.Setup(value => value.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                .Returns<HistoryContinuationPointEnvelope, CancellationToken>((_, _) =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask(releaseStore.Task);
+                });
+            SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
+            IAsyncNodeManager manager = NewNodeManager(Mock.Of<INodeManager>());
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            Task save = holder.SaveHistoryAsync(point.Object, timeout.Token).AsTask();
+            StatusCode expectedStatus = closeSession
+                ? StatusCodes.BadSessionClosed
+                : StatusCodes.BadContinuationPointInvalid;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                holder.BindHistoryGeneration(ToByteString(id), generation);
+                if (closeSession)
+                {
+                    holder.Clear();
+                    holder.Clear();
+                }
+                else
+                {
+                    holder.RemoveHistoryForGeneration(generation);
+                    holder.RemoveHistoryForGeneration(generation);
+                }
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                point.Verify(value => value.Dispose(), Times.Never);
+                Assert.That(save.IsCompleted, Is.False);
+
+                releaseEncoding.TrySetResult(encodeEnvelope ? envelope : null);
+                releaseStore.TrySetResult(true);
+                ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await save.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure!.StatusCode, Is.EqualTo(expectedStatus));
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.False);
+            }
+            finally
+            {
+                releaseEncoding.TrySetResult(encodeEnvelope ? envelope : null);
+                releaseStore.TrySetResult(true);
+                try
+                {
+                    await save.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                }
+                catch (ServiceResultException failure) when (failure.StatusCode == expectedStatus)
+                {
+                }
+                finally
+                {
+                    holder.Clear();
+                }
+            }
+
+            point.Verify(value => value.Dispose(), Times.Once);
+            store.Verify(value => value.StoreAsync(
+                It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()),
+                blockStore ? Times.Once() : Times.Never());
+            store.Verify(value => value.ScheduleRemove(s_sessionId, id),
+                blockStore ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
+        /// A failed request retains its pending save until persistence exits and then releases it.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, true, true)]
+        public async Task FailedHistoryRequestDrainsPendingSaveAsync(
+            bool blockStore,
+            bool encodeEnvelope,
+            bool cleanupFails)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseEncoding = new TaskCompletionSource<HistoryContinuationPointEnvelope?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseStore = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cleanupFailure = new InvalidOperationException("Continuation cleanup failed.");
+            var point = new Mock<IHistoryContinuationPoint>();
+            var id = Guid.NewGuid();
+            point.SetupGet(value => value.Id).Returns(id);
+            if (cleanupFails)
+            {
+                point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            }
+            var envelope = new HistoryContinuationPointEnvelope
+            {
+                Id = id,
+                OwnerSessionId = s_sessionId,
+                CodecId = "test",
+                CodecVersion = 1,
+                Payload = ByteString.Empty
+            };
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            codec.Setup(value => value.EncodeAsync(
+                    It.IsAny<NodeId>(), point.Object, It.IsAny<CancellationToken>()))
+                .Returns<NodeId, IHistoryContinuationPoint, CancellationToken>((_, _, _) =>
+                {
+                    if (blockStore)
+                    {
+                        return new ValueTask<HistoryContinuationPointEnvelope?>(envelope);
+                    }
+                    entered.TrySetResult(true);
+                    return new ValueTask<HistoryContinuationPointEnvelope?>(releaseEncoding.Task);
+                });
+            store.Setup(value => value.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                .Returns<HistoryContinuationPointEnvelope, CancellationToken>((_, _) =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask(releaseStore.Task);
+                });
+            SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            IDisposable request = holder.BeginHistoryRequest(ArrayOf<HistoryReadValueId>.Empty);
+            Task save = holder.SaveHistoryAsync(point.Object, timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                holder.BindHistoryGeneration(ToByteString(id), generation);
+                holder.ReleaseSavedHistory(request);
+                request.Dispose();
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                Assert.That(save.IsCompleted, Is.False);
+                point.Verify(value => value.Dispose(), Times.Never);
+
+                releaseEncoding.TrySetResult(encodeEnvelope ? envelope : null);
+                releaseStore.TrySetResult(true);
+                if (cleanupFails)
+                {
+                    AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                        async () => await save.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(failure!.InnerExceptions, Has.Count.EqualTo(2));
+                    Assert.That(failure.InnerExceptions[0], Is.InstanceOf<ServiceResultException>());
+                    Assert.That(((ServiceResultException)failure.InnerExceptions[0]).StatusCode,
+                        Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    Assert.That(failure.InnerExceptions[1], Is.SameAs(cleanupFailure));
+                }
+                else
+                {
+                    ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await save.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                }
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.EqualTo(cleanupFails));
+            }
+            finally
+            {
+                releaseEncoding.TrySetResult(encodeEnvelope ? envelope : null);
+                releaseStore.TrySetResult(true);
+                try
+                {
+                    await save.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                }
+                catch (ServiceResultException failure)
+                    when (failure.StatusCode == StatusCodes.BadContinuationPointInvalid)
+                {
+                }
+                catch (AggregateException failure) when (cleanupFails &&
+                    failure.InnerExceptions.Count == 2 &&
+                    failure.InnerExceptions[0] is ServiceResultException serviceFailure &&
+                    serviceFailure.StatusCode == StatusCodes.BadContinuationPointInvalid &&
+                    ReferenceEquals(failure.InnerExceptions[1], cleanupFailure))
+                {
+                }
+                finally
+                {
+                    request.Dispose();
+                    try
+                    {
+                        holder.Clear();
+                    }
+                    catch (AggregateException failure) when (cleanupFails &&
+                        failure.Flatten().InnerExceptions.Count == 1 &&
+                        ReferenceEquals(failure.Flatten().InnerExceptions[0], cleanupFailure))
+                    {
+                    }
+                }
+            }
+
+            point.Verify(value => value.Dispose(), Times.Once);
+            store.Verify(value => value.StoreAsync(
+                It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()),
+                blockStore ? Times.Once() : Times.Never());
+            store.Verify(value => value.ScheduleRemove(s_sessionId, id),
+                blockStore ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
+        /// A failed portable claim releases the local point once and retains a disposal failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedPortableClaimRetainsFailedPointCleanupAsync(bool cleanupFails)
+        {
+            var id = Guid.NewGuid();
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            if (cleanupFails)
+            {
+                point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            }
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            store.Setup(value => value.TryTakeAsync(s_sessionId, id, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(false));
+            SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            await holder.SaveHistoryAsync(point.Object).ConfigureAwait(false);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+
+            if (cleanupFails)
+            {
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await holder.RestoreHistoryAsync(ToByteString(id)).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(failure, Is.SameAs(cleanupFailure));
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                InvalidOperationException? rejected = Assert.Throws<InvalidOperationException>(
+                    () => holder.SaveHistory(point.Object));
+                Assert.That(rejected!.InnerException, Is.SameAs(cleanupFailure));
+            }
+            else
+            {
+                Assert.That(await holder.RestoreHistoryAsync(ToByteString(id)).ConfigureAwait(false), Is.Null);
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.False);
+            }
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// An invalidated portable claim finishes its store callback before releasing the local point.
+        /// </summary>
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        public async Task InvalidatedPortableClaimDoesNotTransferPointAsync(
+            bool closeSession,
+            bool claimed,
+            bool cleanupFails)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var result = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            var id = Guid.NewGuid();
+            point.SetupGet(value => value.Id).Returns(id);
+            if (cleanupFails)
+            {
+                point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            }
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            store.Setup(value => value.TryTakeAsync(s_sessionId, id, It.IsAny<CancellationToken>()))
+                .Returns<NodeId, Guid, CancellationToken>((_, _, _) =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask<bool>(result.Task);
+                });
+            SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            await holder.SaveHistoryAsync(point.Object).ConfigureAwait(false);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+            Task<IHistoryContinuationPoint?> restore = holder.RestoreHistoryAsync(ToByteString(id), timeout.Token)
+                .AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (closeSession)
+                {
+                    holder.Clear();
+                    holder.Clear();
+                }
+                else
+                {
+                    holder.RemoveHistoryForGeneration(generation);
+                    holder.RemoveHistoryForGeneration(generation);
+                }
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                Assert.That(restore.IsCompleted, Is.False);
+                point.Verify(value => value.Dispose(), Times.Never);
+                result.TrySetResult(claimed);
+
+                if (cleanupFails)
+                {
+                    InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                        async () => await restore.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(failure, Is.SameAs(cleanupFailure));
+                    Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                }
+                else
+                {
+                    Assert.That(await restore.WaitAsync(timeout.Token).ConfigureAwait(false), Is.Null);
+                    Assert.That(holder.HasHistoryForGeneration(generation), Is.False);
+                }
+            }
+            finally
+            {
+                result.TrySetResult(claimed);
+                try
+                {
+                    await restore.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException failure) when (ReferenceEquals(failure, cleanupFailure))
+                {
+                }
+                finally
+                {
+                    holder.Clear();
+                }
+            }
+
+            point.Verify(value => value.Dispose(), Times.Once);
+            store.Verify(value => value.ScheduleRemove(s_sessionId, id), Times.Never);
+        }
+
+        /// <summary>
+        /// A failed request retains its claimed point until the portable claim finishes.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        public async Task FailedHistoryRequestDrainsPendingClaimAsync(
+            bool claimed,
+            bool cleanupFails,
+            bool claimFails)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            ExecutionContext independentContext = ExecutionContext.Capture() ??
+                throw new InvalidOperationException("The test requires execution context flow.");
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseClaim = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var claimFailure = new NotSupportedException("Portable claim failed.");
+            var cleanupFailure = new InvalidOperationException("Continuation cleanup failed.");
+            var point = new Mock<IHistoryContinuationPoint>();
+            var id = Guid.NewGuid();
+            point.SetupGet(value => value.Id).Returns(id);
+            if (cleanupFails)
+            {
+                point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            }
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            store.Setup(value => value.TryTakeAsync(s_sessionId, id, It.IsAny<CancellationToken>()))
+                .Returns<NodeId, Guid, CancellationToken>((_, _, _) =>
+                {
+                    entered.TrySetResult(true);
+                    return new ValueTask<bool>(releaseClaim.Task);
+                });
+            SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            IDisposable request = holder.BeginHistoryRequest(ArrayOf<HistoryReadValueId>.Empty);
+            Task<IHistoryContinuationPoint?>? restore = null;
+            Exception? observedFailure = null;
+            try
+            {
+                await holder.SaveHistoryAsync(point.Object, timeout.Token).ConfigureAwait(false);
+                holder.BindHistoryGeneration(ToByteString(id), generation);
+                ExecutionContext.Run(
+                    independentContext,
+                    _ => restore = holder.RestoreHistoryAsync(ToByteString(id), timeout.Token).AsTask(),
+                    null);
+                Task<IHistoryContinuationPoint?> pending = restore ??
+                    throw new InvalidOperationException("The test did not start the claim.");
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                holder.ReleaseSavedHistory(request);
+                request.Dispose();
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+                Assert.That(pending.IsCompleted, Is.False);
+                point.Verify(value => value.Dispose(), Times.Never);
+
+                if (claimFails)
+                {
+                    releaseClaim.TrySetException(claimFailure);
+                }
+                else
+                {
+                    releaseClaim.TrySetResult(claimed);
+                }
+                if (claimFails && cleanupFails)
+                {
+                    AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                        async () => await pending.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(
+                        failure!.Flatten().InnerExceptions,
+                        Is.EquivalentTo(new Exception[] { claimFailure, cleanupFailure }));
+                    observedFailure = failure;
+                }
+                else if (claimFails)
+                {
+                    NotSupportedException? failure = await Assert.ThrowsAsync<NotSupportedException>(
+                        async () => await pending.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(failure, Is.SameAs(claimFailure));
+                    observedFailure = failure;
+                }
+                else if (cleanupFails)
+                {
+                    InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                        async () => await pending.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(failure, Is.SameAs(cleanupFailure));
+                    observedFailure = failure;
+                }
+                else
+                {
+                    Assert.That(await pending.WaitAsync(timeout.Token).ConfigureAwait(false), Is.Null);
+                }
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.EqualTo(cleanupFails));
+            }
+            finally
+            {
+                if (claimFails)
+                {
+                    releaseClaim.TrySetException(claimFailure);
+                }
+                else
+                {
+                    releaseClaim.TrySetResult(claimed);
+                }
+                try
+                {
+                    if (restore is not null)
+                    {
+                        IHistoryContinuationPoint? escaped =
+                            await restore.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                        escaped?.Dispose();
+                    }
+                }
+                catch (Exception failure) when (ReferenceEquals(failure, observedFailure))
+                {
+                }
+                finally
+                {
+                    request.Dispose();
+                    try
+                    {
+                        holder.Clear();
+                    }
+                    catch (AggregateException failure) when (cleanupFails &&
+                        failure.Flatten().InnerExceptions.Count == 1 &&
+                        ReferenceEquals(failure.Flatten().InnerExceptions[0], cleanupFailure))
+                    {
+                    }
+                }
+            }
+
+            point.Verify(value => value.Dispose(), Times.Once);
+            store.Verify(value => value.ScheduleRemove(s_sessionId, id),
+                claimFails ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
+        /// A failed claim and failed invalidated-point cleanup both remain observable.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedInvalidatedClaimPreservesClaimAndCleanupFailuresAsync(bool closeSession)
+        {
+            var id = Guid.NewGuid();
+            var claimFailure = new NotSupportedException("portable claim failed");
+            var cleanupFailure = new InvalidOperationException("continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            SessionContinuationPoints holder = NewHolder(historyStore: store.Object, historyCodec: codec.Object);
+            NodeManagerGeneration generation =
+                NodeManagerGenerationRegistry.GetOrCreate(NewNodeManager(Mock.Of<INodeManager>()));
+            await holder.SaveHistoryAsync(point.Object).ConfigureAwait(false);
+            holder.BindHistoryGeneration(ToByteString(id), generation);
+            store.Setup(value => value.TryTakeAsync(s_sessionId, id, It.IsAny<CancellationToken>()))
+                .Callback(() =>
+                {
+                    if (closeSession)
+                    {
+                        holder.Clear();
+                    }
+                    else
+                    {
+                        holder.RemoveHistoryForGeneration(generation);
+                    }
+                })
+                .Returns(() => new ValueTask<bool>(Task.FromException<bool>(claimFailure)));
+
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                async () => await holder.RestoreHistoryAsync(ToByteString(id)).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                failure!.Flatten().InnerExceptions,
+                Is.EquivalentTo(new Exception[] { claimFailure, cleanupFailure }));
+            Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A failed request-saved point remains owned instead of being forgotten or disposed again.
+        /// </summary>
+        [Test]
+        public void FailedSavedHistoryCleanupRetainsExactPoint()
+        {
+            var id = Guid.NewGuid();
+            var cleanupFailure = new InvalidOperationException("request continuation cleanup failed");
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(id);
+            point.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            SessionContinuationPoints holder = NewHolder();
+            IAsyncNodeManager manager = NewNodeManager(Mock.Of<INodeManager>());
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            using (IDisposable request = holder.BeginHistoryRequest(ArrayOf<HistoryReadValueId>.Empty))
+            {
+                holder.SaveHistory(point.Object);
+                holder.BindHistoryGeneration(ToByteString(id), generation);
+
+                AggregateException failure = Assert.Throws<AggregateException>(
+                    () => holder.ReleaseSavedHistory(request))!;
+
+                Assert.That(failure.InnerExceptions, Has.Count.EqualTo(1));
+                Assert.That(failure.InnerExceptions[0], Is.SameAs(cleanupFailure));
+                Assert.That(holder.HasHistoryForGeneration(generation), Is.True);
+            }
+            holder.Clear();
+            point.Verify(value => value.Dispose(), Times.Once);
         }
 
         /// <summary>
@@ -959,6 +2383,145 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 await holder.RestoreHistoryAsync(ToByteString(held.Id)).ConfigureAwait(false),
                 Is.SameAs(held));
+        }
+
+        /// <summary>
+        /// Closing an earlier request does not clear a later request's reservation on the same entry.
+        /// </summary>
+        [Test]
+        public async Task ClosingEarlierRequestPreservesLaterHistoryReservationAsync()
+        {
+            var held = new TrackingDisposable();
+            var competing = new TrackingDisposable();
+            var storeFailure = new ServiceResultException(StatusCodes.BadInternalError, "store failed");
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            var firstSaved = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finishFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var storeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finishStore = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondFailed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finishSecond = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            store.Setup(value => value.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                .Callback(() => storeEntered.TrySetResult(true))
+                .Returns(() => new ValueTask(finishStore.Task));
+            SessionContinuationPoints holder = NewHolder(
+                maxHistory: 1, historyStore: store.Object, historyCodec: codec.Object);
+            ByteString token = ToByteString(held.Id);
+            holder.SaveHistory(held);
+
+            var first = Task.Run(async () =>
+            {
+                using IDisposable request = holder.BeginHistoryRequest(
+                    [new HistoryReadValueId { ContinuationPoint = token }]);
+                Assert.That(holder.RestoreHistory(token), Is.SameAs(held));
+                holder.SaveHistory(held);
+                firstSaved.TrySetResult(true);
+                await finishFirst.Task.ConfigureAwait(false);
+            });
+            Task second = Task.CompletedTask;
+            try
+            {
+                await firstSaved.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                second = Task.Run(async () =>
+                {
+                    using IDisposable request = holder.BeginHistoryRequest(
+                        [new HistoryReadValueId { ContinuationPoint = token }]);
+                    Assert.That(holder.RestoreHistory(token), Is.SameAs(held));
+                    ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await holder.SaveHistoryAsync(held).ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                    Assert.That(failure, Is.SameAs(storeFailure));
+                    secondFailed.TrySetResult(true);
+                    await finishSecond.Task.ConfigureAwait(false);
+                });
+                await storeEntered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                finishFirst.TrySetResult(true);
+                await first.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                finishStore.TrySetException(storeFailure);
+                await secondFailed.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+                ServiceResultException failure = Assert.Throws<ServiceResultException>(
+                    () => holder.SaveHistory(competing))!;
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(competing.Disposed, Is.True);
+            }
+            finally
+            {
+                finishFirst.TrySetResult(true);
+                finishStore.TrySetResult(false);
+                finishSecond.TrySetResult(true);
+                try
+                {
+                    await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    holder.Clear();
+                }
+            }
+        }
+
+        /// <summary>
+        /// A later unreserved save cannot restore the reservation consumed by an earlier save.
+        /// </summary>
+        [Test]
+        public async Task FailedUnreservedResaveDoesNotRestoreEarlierReservationAsync()
+        {
+            var held = new TrackingDisposable();
+            var competing = new TrackingDisposable();
+            var storeFailure = new ServiceResultException(StatusCodes.BadInternalError, "store failed");
+            (Mock<IHistoryContinuationPointStore> store, Mock<IHistoryContinuationPointCodec> codec) =
+                NewPersistingHistoryMocks();
+            store.Setup(value => value.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(Task.FromException(storeFailure)));
+            SessionContinuationPoints holder = NewHolder(
+                maxHistory: 1, historyStore: store.Object, historyCodec: codec.Object);
+            ByteString token = ToByteString(held.Id);
+            holder.SaveHistory(held);
+            var firstSaved = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finishFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var first = Task.Run(async () =>
+            {
+                using IDisposable request = holder.BeginHistoryRequest(
+                    [new HistoryReadValueId { ContinuationPoint = token }]);
+                Assert.That(holder.RestoreHistory(token), Is.SameAs(held));
+                holder.SaveHistory(held);
+                firstSaved.TrySetResult(true);
+                await finishFirst.Task.ConfigureAwait(false);
+            });
+            try
+            {
+                await firstSaved.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                await Task.Run(async () =>
+                {
+                    using IDisposable request = holder.BeginHistoryRequest(ArrayOf<HistoryReadValueId>.Empty);
+                    Assert.That(holder.RestoreHistory(token), Is.SameAs(held));
+                    ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await holder.SaveHistoryAsync(held).ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                    Assert.That(failure, Is.SameAs(storeFailure));
+                }).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+                holder.SaveHistory(competing);
+                Assert.That(competing.Disposed, Is.False);
+                Assert.That(holder.ReleaseHistory(ToByteString(competing.Id)), Is.True);
+                Assert.That(competing.Disposed, Is.True);
+            }
+            finally
+            {
+                finishFirst.TrySetResult(true);
+                try
+                {
+                    await first.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    holder.Clear();
+                }
+            }
         }
 
         /// <summary>

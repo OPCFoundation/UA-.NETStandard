@@ -1094,7 +1094,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ByteString expected = ByteString.From(Enumerable.Range(0, 32).Select(value => (byte)value).ToArray());
             var factory = new CapturedDigestFactory(
                 resource, expected, separateNamespace ? "urn:c2:custom-views" : Namespaces.WotCon);
-            await harness.Lifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+            await harness.Lifecycle.ApplyAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false);
             NodeId property = harness.Target((await harness.BrowseAsync(resource, Ua.ReferenceTypeIds.HasProperty)
                 .ConfigureAwait(false)).ToList().Single(reference => reference.BrowseName ==
                     new QualifiedName("ProjectionMembershipDigest", harness.NamespaceIndex)));
@@ -1778,7 +1778,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task<BlockingSource> AddBlockingSourceAsync()
             {
                 var factory = new BlockingSourceFactory();
-                await Lifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+                await Lifecycle.ApplyAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false);
                 return factory.Created;
             }
 
@@ -1904,10 +1904,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task<NodeManagerRegistration> PublishCanonicalAsync(
                 WotCanonicalViewState state, NodeManagerRegistration? previous = null)
             {
-                IAsyncNodeManagerFactory factory = WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous);
-                return previous is null
-                    ? await m_server!.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false)
-                    : await m_server!.NodeManagerLifecycle.ShadowReloadAsync(previous, factory).ConfigureAwait(false);
+                IAsyncNodeManagerFactory factory = WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(
+                    state, previous);
+                ILifecycleCapture capture = m_server!.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                if (previous is not null && !IsCurrent(previous))
+                {
+                    throw new InvalidOperationException("The canonical owner is stale.");
+                }
+                await using IPreparedChanges prepared = await writer.PrepareAsync(
+                    [previous is null ? LifecycleChange.Add(factory) : LifecycleChange.Reload(previous.Slot, factory)])
+                    .ConfigureAwait(false);
+                LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                return registration!;
             }
 
             /// <summary>
@@ -1915,11 +1927,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             /// <param name="state">The WoT canonical view state.</param>
             /// <param name="previous">The node manager registration.</param>
-            public ValueTask<NodeManagerRegistration> AddCanonicalAsync(
+            public async ValueTask<NodeManagerRegistration> AddCanonicalAsync(
                 WotCanonicalViewState state, NodeManagerRegistration previous)
             {
-                return m_server!.NodeManagerLifecycle.AddAsync(
-                    WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), callerContext: null);
+                LifecycleResult result = await m_server!.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous))])
+                    .ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                return registration!;
             }
 
             /// <summary>
@@ -1930,11 +1947,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task PrepareCanonicalAdditionAsync(
                 WotCanonicalViewState state, NodeManagerRegistration previous)
             {
-                var lifecycle = (INodeManagerBatchLifecycle)m_server!.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server!.NodeManagerLifecycle;
                 IAsyncNodeManagerFactory factory = WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(
                     state, previous);
-                IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
+                IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(factory)]).ConfigureAwait(false);
                 await prepared.DisposeAsync().ConfigureAwait(false);
             }
 
@@ -1947,14 +1964,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task PublishCanonicalBatchAsync(
                 WotCanonicalViewState state, NodeManagerRegistration previous, bool immediate)
             {
-                var lifecycle = (INodeManagerBatchLifecycle)m_server!.NodeManagerLifecycle;
-                IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Replace(previous,
-                        WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), immediate)])
+                ILifecycleCapture capture = m_server!.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                if (!IsCurrent(previous))
+                {
+                    throw new InvalidOperationException("The canonical owner is stale.");
+                }
+                IPreparedChanges prepared = await writer.PrepareAsync(
+                    [LifecycleChange.Reload(previous.Slot,
+                        WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous),
+                        immediate ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                            : NodeManagerMonitoredItemTransitionMode.Migrate)])
                     .ConfigureAwait(false);
                 await using (prepared.ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                    LifecycleResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
             }
@@ -2171,9 +2195,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                     }
                 };
-                RegistryRegistration = await m_server.NodeManagerLifecycle.AddAsync(
-                    new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator), callerContext: null)
+                LifecycleResult registry = await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator))])
                     .ConfigureAwait(false);
+                Assert.That(registry.CleanupFailure, Is.Null);
+                Assert.That(registry.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                RegistryRegistration = registration!;
                 if (withGraphResources)
                 {
                     foreach (string resource in new[] { "child", "left", "right" })

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -100,9 +101,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: m_failureConverter);
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
-            var registration = await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null)
+            LifecycleResult publication = await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(factory)])
                 .ConfigureAwait(false);
-            m_eventManager = (WotRegistryNodeManager)registration.NodeManager;
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            m_eventManager = (WotRegistryNodeManager)registration!.NodeManager;
         }
 
         /// <summary>

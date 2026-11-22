@@ -33,12 +33,12 @@ namespace Opc.Ua.History.Tests
         [OneTimeSetUp]
         public async Task RegisterHistoryNodesAsync()
         {
-            await using IPreparedNodeManagerBatch prepared = await ReferenceServer.NodeManagerLifecycle
+            await using IPreparedChanges prepared = await ReferenceServer.NodeManagerLifecycle
                 .PrepareAsync(
-                    [NodeManagerBatchChange.Add(
+                    [LifecycleChange.Add(
                         new HistoryRegressionNodeManagerFactory(m_streamingProvider, m_retentionClock))])
                 .ConfigureAwait(false);
-            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
             await Session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             int namespaceIndex = Session.NamespaceUris.GetIndex(kNamespaceUri);

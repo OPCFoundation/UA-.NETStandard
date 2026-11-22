@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -28,9 +29,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task NativeDependencyFailureEventMatchesTheActualResultPhase()
         {
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotResource first = await AddAsync("cycle-first").ConfigureAwait(false);
             WotResource second = await AddAsync("cycle-second").ConfigureAwait(false);
             await SetUnitReferenceAsync(first, second.ResourceId, "tm:extends").ConfigureAwait(false);

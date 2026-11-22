@@ -9,7 +9,10 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The parameters, state, and generation ownership of a resumable Browse operation.
     /// </summary>
-    /// <remarks>This class is thread safe.</remarks>
+    /// <remarks>
+    /// The mutable properties and their referenced data are not synchronized by this class. The owner must
+    /// serialize access to them, including changes made while the point is being disposed.
+    /// </remarks>
     public class ContinuationPoint : IDisposable
     {
         /// <summary>
@@ -20,7 +23,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Frees any unmanaged resources.
+        /// Disposes the continuation point.
         /// </summary>
         public void Dispose()
         {
@@ -80,8 +83,15 @@ namespace Opc.Ua.Server
         public Guid Id { get; set; }
 
         /// <summary>
-        /// The node manager that created the continuation point.
+        /// Gets the manager associated with the recorded generation or assigns a manager to record its identity.
         /// </summary>
+        /// <remarks>
+        /// The getter can return <c>null</c> when the weak generation identity no longer resolves. Assigning a stack
+        /// adapter can record a generation owned by its wrapped manager, so the getter can return a different manager
+        /// from the one assigned. The base disposal implementation clears the identity, but a later assignment can
+        /// set it again.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">The assigned manager is <c>null</c>.</exception>
         public IAsyncNodeManager Manager
         {
             get => Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
@@ -99,7 +109,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets or sets the weak identity of the generation that issued this continuation.
+        /// Gets or sets the weak identity of the generation recorded for this continuation.
         /// It does not keep the generation or its manager alive.
         /// </summary>
         internal NodeManagerGenerationReference? Generation { get; set; }
@@ -155,13 +165,13 @@ namespace Opc.Ua.Server
         public int Index { get; set; }
 
         /// <summary>
-        /// Node manager specific data that is necessary to continue the browse.
+        /// Gets or sets node-manager-specific data used to continue the browse.
         /// </summary>
         /// <remarks>
-        /// A node manager needs to hold onto unmanaged resources to continue the browse.
-        /// If this is the case then the object stored here must implement the Idispose
-        /// interface. This will ensure the unmanaged resources are freed if the continuation
-        /// point expires.
+        /// If the data owns resources that need disposal, it must implement <see cref="IDisposable"/>. The base
+        /// disposal implementation calls <see cref="IDisposable.Dispose"/> at most once and does not clear this
+        /// property. The data can therefore retain a manager or other objects after disposal. If disposal starts
+        /// asynchronous cleanup, its completion must be coordinated separately.
         /// </remarks>
         public object? Data { get; set; }
 

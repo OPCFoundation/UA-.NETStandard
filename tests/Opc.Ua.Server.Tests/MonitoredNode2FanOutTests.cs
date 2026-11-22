@@ -275,20 +275,37 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A rebuild waiting on the lock while the dictionary is exposed does not publish the cache.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [Test]
         public async Task RebuildDuringExposureDoesNotPublishCacheAsync()
         {
             BaseDataVariableState node = CreateNode();
-            var monitoredNode = new MonitoredNode2(CreateNodeManager().Object, CreateServer().Object, node);
+            await using var monitoredNode = new MonitoredNode2(CreateNodeManager().Object, CreateServer().Object, node);
             monitoredNode.Add(CreateItem(1u, Attributes.Value).Object);
             var rebindLock = (Lock)typeof(MonitoredNode2)
                 .GetField("m_rebindLock", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .GetValue(monitoredNode)!;
 
             MethodInfo getItems = typeof(MonitoredNode2)
-                .GetMethod("GetDataChangeItems", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                .GetMethod("GetDataChangeItemSet", BindingFlags.NonPublic | BindingFlags.Instance) ??
+                throw new InvalidOperationException("The monitored-item snapshot method was not found.");
 
-            var rebuild = new Thread(() => getItems.Invoke(monitoredNode, null)) { IsBackground = true };
+            var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var rebuild = new Thread(() =>
+            {
+                try
+                {
+                    getItems.Invoke(monitoredNode, null);
+                    completed.TrySetResult(true);
+                }
+                catch (Exception failure)
+                {
+                    completed.TrySetException(failure);
+                }
+            })
+            {
+                IsBackground = true
+            };
             lock (rebindLock)
             {
                 rebuild.Start();
@@ -303,10 +320,9 @@ namespace Opc.Ua.Server.Tests
                 _ = monitoredNode.DataChangeMonitoredItems;
             }
             Assert.That(rebuild.Join(TimeSpan.FromSeconds(30)), Is.True);
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             Assert.That(CachedItemSet(monitoredNode), Is.Null);
-
-            await monitoredNode.DisposeAsync().ConfigureAwait(false);
         }
 
         private static object? CachedItemSet(MonitoredNode2 monitoredNode)

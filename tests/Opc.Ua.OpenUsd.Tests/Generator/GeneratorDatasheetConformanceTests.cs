@@ -3,9 +3,7 @@
 
 using System;
 using System.IO;
-using System.Linq;
 using Generators;
-using GeneratorModel = Opc.Ua.Generators;
 using NUnit.Framework;
 
 namespace Opc.Ua.OpenUsd.Tests.Generator
@@ -206,11 +204,20 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
         }
 
         /// <summary>
-        /// Locates DATASHEET.md by walking up from the test output directory.
+        /// Locates DATASHEET.md in the configured checkout or above the test output directory.
         /// </summary>
         /// <returns>The full path to the datasheet.</returns>
         private static string FindDatasheet()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string path = Path.Combine(
+                    Path.GetFullPath(configured), "samples", "OpenUsd", "GeneratorServer", "DATASHEET.md");
+                Assert.That(File.Exists(path), Is.True, $"The configured checkout has no generator datasheet: {path}");
+                return path;
+            }
+
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)
             {

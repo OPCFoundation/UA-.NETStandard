@@ -90,7 +90,11 @@ namespace Opc.Ua.Server.Tests
                         new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
                         0,
                         TimestampsToReturn.Neither,
-                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        [new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }],
                         RequestLifetime.None).ConfigureAwait(false)))!;
 
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
@@ -148,7 +152,11 @@ namespace Opc.Ua.Server.Tests
                         },
                         0,
                         TimestampsToReturn.Neither,
-                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        [new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }],
                         lifetime).ConfigureAwait(false)))!;
 
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
@@ -387,6 +395,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A parked Publish retains its request admission without retaining a NodeManager routing epoch.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public async Task ParkedPublishDoesNotDelayNodeManagerRetirementAsync()
         {
@@ -398,7 +407,7 @@ namespace Opc.Ua.Server.Tests
             parkSink.Setup(value => value.NotifyParked()).Callback(() => parked.TrySetResult(true));
             using var lifetime = new RequestLifetime { ParkSink = parkSink.Object };
             Task<PublishResponse>? publish = null;
-            NodeManagerBatchResult? removal = null;
+            LifecycleResult? removal = null;
             try
             {
                 AdmissionServer server = await fixture.StartAsync().ConfigureAwait(false);
@@ -410,13 +419,15 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(manager.Object);
                 NodeManagerRegistration registration;
-                await using (IPreparedNodeManagerBatch addition = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false))
+                await using (IPreparedChanges addition = await server.NodeManagerLifecycle.PrepareAsync(
+                    [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult added = await addition.CommitAsync(static _ => default, timeout.Token)
+                    LifecycleResult added = await addition.CommitAsync(static _ => default, timeout.Token)
                         .ConfigureAwait(false);
                     Assert.That(added.CleanupFailure, Is.Null);
-                    registration = added.Registrations[0];
+                    Assert.That(
+                        added.Registrations[0].TryGetRegistration(out NodeManagerRegistration? current), Is.True);
+                    registration = current ?? throw new AssertionException("The live registration was not available.");
                 }
                 (RequestHeader header, SecureChannelContext channel) =
                     await server.CreateAndActivateSessionAsync("ParkedPublishRouting").ConfigureAwait(false);
@@ -429,13 +440,17 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(publish.IsCompleted, Is.False);
                 Assert.That(server.CurrentInstance.RequestManager.TrackedRequestCount, Is.EqualTo(1));
 
-                await using (IPreparedNodeManagerBatch prepared = await server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false))
+                ILifecycleCapture capture = server.NodeManagerLifecycle.CaptureChanges();
+                Assert.That(server.NodeManagerLifecycle.Registrations.Contains(value =>
+                    ReferenceEquals(value.Identity, registration.Identity)), Is.True);
+                await using (ILifecycleWriter writer = await capture.BeginAsync(timeout.Token).ConfigureAwait(false))
                 {
+                    await using IPreparedChanges prepared = await writer.PrepareAsync(
+                        [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
                     removal = await prepared.CommitAsync(static _ => default, timeout.Token).ConfigureAwait(false);
                 }
                 Assert.That(removal.CleanupFailure, Is.Null);
-                await removal.Retirement.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
+                await removal.Retired.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
 
                 Assert.That(publish.IsCompleted, Is.False,
                     "Physical retirement must complete while the Publish request is still parked.");
@@ -457,7 +472,7 @@ namespace Opc.Ua.Server.Tests
                     }
                     if (removal is not null)
                     {
-                        await removal.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        await removal.Retired.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                     }
                 }
                 finally

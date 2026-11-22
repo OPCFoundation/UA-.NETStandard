@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
             }
             var initial = new InitialPublication(this, server, host);
             await initial.StartAsync(
-                factories.ToList().Select(NodeManagerBatchChange.Add).ToArrayOf(),
+                factories.ToList().Select(LifecycleChange.Add).ToArrayOf(),
                 cancellationToken).ConfigureAwait(false);
             return initial;
         }
@@ -68,7 +68,8 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IDynamicNodeManagerHost host,
             InitialPublication? initial,
-            ShutdownPublication? shutdown = null)
+            ShutdownPublication? shutdown,
+            NodeManagerReadinessScope? readiness)
         {
             if (shutdown is not null)
             {
@@ -77,7 +78,7 @@ namespace Opc.Ua.Server
             }
             if (initial is null)
             {
-                EnsureSameRunningServer(server, host);
+                EnsureSameRunningServer(server, host, readiness);
                 return;
             }
             initial.Validate(this, server, host);
@@ -115,10 +116,10 @@ namespace Opc.Ua.Server
             /// Prepares an ordinary Add batch and returns once its view has been published.
             /// </summary>
             internal async ValueTask StartAsync(
-                ArrayOf<NodeManagerBatchChange> changes,
+                ArrayOf<LifecycleChange> changes,
                 CancellationToken cancellationToken)
             {
-                IPreparedNodeManagerBatch batch = await m_owner.PrepareBatchAsync(
+                IPreparedChanges batch = await m_owner.PrepareChangesAsync(
                     changes,
                     null,
                     m_owner.CaptureLifecycleCallbackPermit(),
@@ -152,7 +153,7 @@ namespace Opc.Ua.Server
             internal async ValueTask CompleteAsync()
             {
                 m_runtimeReady.TrySetResult(true);
-                NodeManagerBatchResult result = await Completion.ConfigureAwait(false);
+                LifecycleResult result = await Completion.ConfigureAwait(false);
                 if (result.CleanupFailure is { } failure)
                 {
                     throw new InvalidOperationException("Initial generation reconciliation failed.", failure);
@@ -220,13 +221,13 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Runs the same commit/readiness path as runtime additions, retaining batch disposal ownership.
             /// </summary>
-            private async Task<NodeManagerBatchResult> CommitAsync(
-                IPreparedNodeManagerBatch batch,
+            private async Task<LifecycleResult> CommitAsync(
+                IPreparedChanges batch,
                 CancellationToken cancellationToken)
             {
                 await using var lifetime = batch.ConfigureAwait(false);
                 return await batch.CommitAsync(
-                    static _ => default,
+                    decideAsync: null,
                     () => m_published.TrySetResult(true),
                     cancellationToken).ConfigureAwait(false);
             }
@@ -234,7 +235,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the commit task after preparation has transferred its operation ownership.
             /// </summary>
-            private Task<NodeManagerBatchResult> Completion =>
+            private Task<LifecycleResult> Completion =>
                 m_completion ?? throw new InvalidOperationException("Initial preparation has not completed.");
 
             /// <summary>The lifecycle that owns the commit operation.</summary>
@@ -255,7 +256,7 @@ namespace Opc.Ua.Server
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>The owned canonical commit and reconciliation task.</summary>
-            private Task<NodeManagerBatchResult>? m_completion;
+            private Task<LifecycleResult>? m_completion;
         }
     }
 }

@@ -32,7 +32,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             await AssertSetIsEquivalentAsync(
                 Path.Combine(
-                    RepositoryRoot,
+                    WotAggregationDocumentGenerator.RepositoryRoot,
                     "tests",
                     "Opc.Ua.SourceGeneration.Core.Tests",
                     "Resources",
@@ -46,7 +46,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             await AssertSetIsEquivalentAsync(
                 Path.Combine(
-                    RepositoryRoot,
+                    WotAggregationDocumentGenerator.RepositoryRoot,
                     "samples",
                     "Di",
                     "PumpDeviceIntegrationServer",
@@ -61,7 +61,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             await AssertSetIsEquivalentAsync(
                 Path.Combine(
-                    RepositoryRoot,
+                    WotAggregationDocumentGenerator.RepositoryRoot,
                     "samples",
                     "Di",
                     "PumpDeviceIntegrationServer",
@@ -76,7 +76,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             await AssertSetIsEquivalentAsync(
                 Path.Combine(
-                    RepositoryRoot,
+                    WotAggregationDocumentGenerator.RepositoryRoot,
                     "samples",
                     "WotCon",
                     "AggregationClient",
@@ -125,24 +125,6 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(
                 comparison.AreEquivalent, Is.True,
                 $"{Path.GetFileName(sourcePath)}: {string.Join("; ", comparison.Differences)}");
-        }
-
-        private static string RepositoryRoot
-        {
-            get
-            {
-                DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
-                while (directory is not null &&
-                    !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
-                {
-                    directory = directory.Parent;
-                }
-                if (directory is null)
-                {
-                    throw new InvalidOperationException("The repository root was not found.");
-                }
-                return directory.FullName;
-            }
         }
     }
 }

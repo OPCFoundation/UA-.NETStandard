@@ -5,6 +5,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Di.Server.Builders;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Server.Hosting
 {
@@ -38,6 +39,9 @@ namespace Opc.Ua.Di.Server.Hosting
         /// Gets the owner's setup cancellation token.
         /// </summary>
         public CancellationToken CancellationToken { get; }
+
+        /// <inheritdoc/>
+        public NodeManagerReadinessContext? Readiness { get; init; }
 
         /// <summary>
         /// Resolves a required service, throwing when it is not registered.

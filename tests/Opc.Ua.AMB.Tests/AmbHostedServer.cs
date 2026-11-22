@@ -59,7 +59,7 @@ namespace Opc.Ua.AMB.Tests
             string name, Action<IOpcUaServerBuilder> compose, CancellationToken ct = default)
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 "amb",
                 Guid.NewGuid().ToString("N"));
             string endpointUrl = "opc.tcp://localhost:" +

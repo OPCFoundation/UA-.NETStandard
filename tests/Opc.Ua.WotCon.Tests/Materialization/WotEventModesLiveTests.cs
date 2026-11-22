@@ -12,6 +12,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
@@ -21,6 +22,9 @@ using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Server.Materialization;
 using Quickstarts.ReferenceServer;
 using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
+using ISession = Opc.Ua.Client.ISession;
+using MonitoredItem = Opc.Ua.Client.MonitoredItem;
+using Subscription = Opc.Ua.Client.Subscription;
 
 #pragma warning disable CS0618 // tests exercise the obsolete classic API
 
@@ -264,7 +268,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task InstallAsync(UANodeSet nodes, CancellationToken ct)
             {
                 byte[] bytes = Serialize(nodes);
-                _ = await Server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(new RuntimeNodeSetOptions
+                _ = await Server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
                 {
                     Sources =
                     [
@@ -272,7 +277,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             _ => new ValueTask<Stream>(new MemoryStream(bytes, writable: false)),
                             nodes.NamespaceUris!.ToArrayOf())
                     ]
-                }, null, ct).ConfigureAwait(false);
+                }))], ct).ConfigureAwait(false);
             }
 
             /// <summary>

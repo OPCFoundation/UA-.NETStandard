@@ -27,6 +27,7 @@ namespace Opc.Ua.WotCon.Server
     public sealed class WotRegistryNodeManager :
         AsyncCustomNodeManager,
         INodeManagerReadinessNotification,
+        INodeManagerReadinessInitializer,
         IWotRegistryReadImageProjection,
         ILocalAddressSpaceOwnership
     {
@@ -269,7 +270,21 @@ namespace Opc.Ua.WotCon.Server
         /// </summary>
         /// <inheritdoc/>
         /// <param name="cancellationToken">The caller's startup or registration cancellation token.</param>
-        public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            return InitializeAsync(null, cancellationToken);
+        }
+
+        ValueTask INodeManagerReadinessInitializer.OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return InitializeAsync(readiness, cancellationToken);
+        }
+
+        private async ValueTask InitializeAsync(
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
         {
             await m_refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -279,9 +294,10 @@ namespace Opc.Ua.WotCon.Server
                     await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
                     return;
                 }
-                bool recovered = await Coordinator.RecoverAsync(cancellationToken).ConfigureAwait(false);
+                bool recovered = await Coordinator.RecoverAsync(readiness, cancellationToken).ConfigureAwait(false);
                 WotRefreshResult? result = recovered ? null : await Coordinator.RefreshAsync(
-                    new WotRefreshRequest { RequestId = "startup" }, cancellationToken).ConfigureAwait(false);
+                    new WotRefreshRequest { RequestId = "startup" }, readiness, cancellationToken)
+                    .ConfigureAwait(false);
                 await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
                 await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
                 if (result?.Summary.Failed > 0)

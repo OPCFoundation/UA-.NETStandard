@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -1426,14 +1427,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
             /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
+            public ValueTask<LifecycleResult?> RemoveAsync(
+                WotProjectionHandle handle, CancellationToken cancellationToken = default)
             {
                 if (capture() is not { } pending)
                 {
                     return inner.RemoveAsync(handle, cancellationToken);
                 }
-                pending.Changes.Add(new CapturedProjection(WotProjectionChange.Remove(handle), null));
+                RecordRemoval(pending, handle);
                 return default;
+            }
+
+            /// <summary>
+            /// Records removal intent; its committed diagnostics belong to the aggregate prepared publication.
+            /// </summary>
+            public static void RecordRemoval(PublicationCapture capture, WotProjectionHandle handle)
+            {
+                capture.Changes.Add(new CapturedProjection(WotProjectionChange.Remove(handle), null));
             }
 
             private static ValueTask<WotProjectionHandle> Record(

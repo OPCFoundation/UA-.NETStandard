@@ -22,20 +22,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public Task DrainPendingApplyChangesAsync(CancellationToken cancellationToken = default)
         {
-            Task? pending;
+            Task pending;
             lock (m_pendingApplyChangesLock)
             {
-                pending = m_pendingApplyChangesTask;
-            }
-
-            if (pending is null)
-            {
-                return Task.CompletedTask;
-            }
-
-            if (!cancellationToken.CanBeCanceled || pending.IsCompleted)
-            {
-                return pending;
+                pending = m_pendingApplyChangesTask ?? Task.CompletedTask;
             }
 
             return pending.WaitAsync(cancellationToken);
@@ -313,9 +303,11 @@ namespace Opc.Ua.Server
             // transaction whose (uncommitted) targets a snapshot would report.
             var committedEffects = new PushConfigurationApplyEffects();
             ServiceResult result;
+            bool keepRotations = false;
+            using var rotationScope = new NodeManagerAmbientScope<RotationCollector>(
+                m_activeRotationCollector, new RotationCollector(rotations));
             try
             {
-                m_activeRotationCollector.Value = rotations;
                 if (m_serverConfigurationOptions.PushAuthorization is IPushConfigurationCompletion completion)
                 {
                     if (m_coordinator is not IPushConfigurationTransactionCompletion transactionalCompletion)
@@ -338,23 +330,24 @@ namespace Opc.Ua.Server
                     result = await m_coordinator.ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
                         .ConfigureAwait(false);
                 }
+                keepRotations = ServiceResult.IsGood(result);
             }
             finally
             {
-                m_activeRotationCollector.Value = null;
+                lock (m_pendingApplyChangesLock)
+                {
+                    rotationScope.Dispose();
+                }
+                if (!keepRotations)
+                {
+                    DisposeRotations(rotations);
+                }
             }
 
             UpdateTransactionDiagnostics(context);
 
-            if (!ServiceResult.IsGood(result))
+            if (!keepRotations)
             {
-                // The transaction failed and was reverse-compensated;
-                // nothing actually rotated, so any provisionally-recorded
-                // rotations must be discarded rather than scheduled.
-                foreach (PendingCertificateRotation rotation in rotations)
-                {
-                    rotation.OldCertificate?.Dispose();
-                }
                 return result;
             }
 
@@ -675,7 +668,14 @@ namespace Opc.Ua.Server
             {
                 rotation.OldCertificate?.Dispose();
             }
+            rotations.Clear();
         }
+
+        /// <summary>
+        /// Carries the certificate references collected by an active apply callback.
+        /// </summary>
+        /// <param name="Rotations">The callback's collection, or null when no scope is active.</param>
+        private readonly record struct RotationCollector(List<PendingCertificateRotation>? Rotations);
 
         /// <summary>
         /// Captured payload for a single certificate-group rotation

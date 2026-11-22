@@ -1718,6 +1718,93 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A node installed during deletion remains indexed even when it compares equal to the old node.
+        /// </summary>
+        [Test]
+        public async Task DeleteAddressSpacePreservesEqualReplacementInstalledDuringDeletionAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var original = new EqualReplacementProbeState(null);
+            original.CreateAsPredefinedNode(context);
+            original.NodeId = new NodeId("Replacement", namespaceIndex);
+            original.BrowseName = new QualifiedName("Replacement", namespaceIndex);
+            var replacement = new EqualReplacementProbeState(null);
+            replacement.CreateAsPredefinedNode(context);
+            replacement.NodeId = original.NodeId;
+            replacement.BrowseName = original.BrowseName;
+            original.BeforeDelete = () => manager.PredefinedNodes[original.NodeId] = replacement;
+            manager.PredefinedNodes[original.NodeId] = original;
+            SetDeletionFailureCallback(
+                manager, original, new InvalidOperationException("The replaced node was removed from the index."));
+
+            Assert.That(original, Is.EqualTo(replacement));
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(manager.PredefinedNodes[original.NodeId], Is.SameAs(replacement));
+            Assert.That(replacement.DeleteCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Removing a captured subtree does not remove a replacement installed while its parent is cleaned up.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodePreservesEqualChildReplacementInstalledDuringParentCleanupAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("Parent", namespaceIndex);
+            parent.BrowseName = new QualifiedName("Parent", namespaceIndex);
+            var child = new EqualReplacementProbeState(parent);
+            child.CreateAsPredefinedNode(context);
+            child.NodeId = new NodeId("Child", namespaceIndex);
+            child.BrowseName = new QualifiedName("Child", namespaceIndex);
+            parent.AddChild(child);
+            var replacement = new EqualReplacementProbeState(null);
+            replacement.CreateAsPredefinedNode(context);
+            replacement.NodeId = child.NodeId;
+            replacement.BrowseName = child.BrowseName;
+            manager.PredefinedNodes[parent.NodeId] = parent;
+            manager.PredefinedNodes[child.NodeId] = child;
+
+            bool childRemoved = false;
+            void OnRemoved(NodeState removed)
+            {
+                if (ReferenceEquals(removed, parent))
+                {
+                    manager.PredefinedNodes[child.NodeId] = replacement;
+                }
+                if (ReferenceEquals(removed, child))
+                {
+                    childRemoved = true;
+                }
+            }
+            if (manager is TestableAsyncCustomNodeManager asynchronous)
+            {
+                asynchronous.NodeRemovedCallback = (removed, _) =>
+                {
+                    OnRemoved(removed);
+                    return default;
+                };
+            }
+            else
+            {
+                ((TestableCustomNodeManager2)manager.SyncNodeManager).NodeRemovedCallback = OnRemoved;
+            }
+
+            Assert.That(child, Is.EqualTo(replacement));
+            Assert.That(await manager.DeleteNodeAsync(context, parent.NodeId).ConfigureAwait(false), Is.True);
+
+            Assert.That(manager.PredefinedNodes[child.NodeId], Is.SameAs(replacement));
+            Assert.That(childRemoved, Is.False);
+            Assert.That(replacement.DeleteCount, Is.Zero);
+        }
+
+        /// <summary>
         /// Verifies that address-space deletion invokes node-state deletion callbacks.
         /// </summary>
         [Test]
@@ -11050,6 +11137,35 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        private sealed class EqualReplacementProbeState : BaseObjectState
+        {
+            public EqualReplacementProbeState(NodeState? parent)
+                : base(parent)
+            {
+            }
+
+            public Action? BeforeDelete { get; set; }
+
+            public int DeleteCount { get; private set; }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is EqualReplacementProbeState;
+            }
+
+            public override int GetHashCode()
+            {
+                return 0;
+            }
+
+            protected override void OnBeforeDelete(ISystemContext context)
+            {
+                DeleteCount++;
+                BeforeDelete?.Invoke();
+                base.OnBeforeDelete(context);
+            }
+        }
+
         private sealed class LifecycleProbeState : BaseObjectState
         {
             public LifecycleProbeState(NodeState parent)
@@ -11157,12 +11273,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets the registered predefined nodes for fixture inspection.
         /// </summary>
-        public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+        public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
         /// <summary>
         /// Gets the registered root event notifiers for fixture inspection.
         /// </summary>
-        public new NodeIdDictionary<NodeState> RootNotifiers => base.RootNotifiers;
+        public new IDictionary<NodeId, NodeState> RootNotifiers => base.RootNotifiers;
 
         /// <summary>
         /// Gets the monitored nodes maintained by the node manager.
@@ -11966,7 +12082,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets the predefined nodes registered by the selected node-manager implementation.
         /// </summary>
-        NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        PredefinedNodeDictionary PredefinedNodes { get; }
 
         /// <summary>
         /// Gets the monitored nodes maintained by the selected implementation.
@@ -12148,7 +12264,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets the root notifiers dictionary.
         /// </summary>
-        NodeIdDictionary<NodeState> RootNotifiers { get; }
+        IDictionary<NodeId, NodeState> RootNotifiers { get; }
 
         /// <summary>
         /// Adds a root notifier.
@@ -12265,7 +12381,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets the legacy node manager's registered predefined nodes.
         /// </summary>
-        public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+        public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
         /// <summary>
         /// Gets the legacy node manager's monitored nodes.
@@ -12501,7 +12617,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// ITestNodeManager state properties — delegate to m_cnm2
         /// </summary>
-        public NodeIdDictionary<NodeState> PredefinedNodes => m_cnm2.PredefinedNodes;
+        public PredefinedNodeDictionary PredefinedNodes => m_cnm2.PredefinedNodes;
 
         /// <summary>
         /// Gets the monitored nodes from the wrapped legacy node manager.
@@ -13121,7 +13237,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets a snapshot of root event notifiers from the wrapped legacy node manager.
         /// </summary>
-        public NodeIdDictionary<NodeState> RootNotifiers => m_cnm2.RootNotifiersDictionary;
+        public IDictionary<NodeId, NodeState> RootNotifiers => m_cnm2.RootNotifiersDictionary;
 
         /// <summary>
         /// Registers a legacy root notifier and returns a completed asynchronous operation.

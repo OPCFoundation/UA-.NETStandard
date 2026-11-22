@@ -48,7 +48,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             await WriteSourceAsync().ConfigureAwait(false);
             ArrayOf<SampleDocument> generated = await WotAggregationDocumentGenerator
-                .GenerateAggregationDocumentsAsync(RepositoryRoot).ConfigureAwait(false);
+                .GenerateAggregationDocumentsAsync(WotAggregationDocumentGenerator.RepositoryRoot).ConfigureAwait(false);
             await WotAggregationDocumentGenerator.WriteDocumentsAsync(
                 DocumentsDirectory, generated).ConfigureAwait(false);
 
@@ -56,7 +56,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             {
                 ModelSource model = WotAggregationDocumentGenerator.CompanionModels[modelIndex];
                 ByteString standalone = ByteString.From(WotAggregationDocumentGenerator.GenerateThingModel(
-                    Path.Combine(RepositoryRoot, model.SourcePath), model.Title));
+                    Path.Combine(WotAggregationDocumentGenerator.RepositoryRoot, model.SourcePath), model.Title));
                 await WotAggregationDocumentGenerator.WriteBytesAsync(
                     Path.Combine(DocumentsDirectory, model.StandaloneFile), standalone).ConfigureAwait(false);
             }
@@ -105,20 +105,6 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         private static string DocumentsDirectory => Path.Combine(
-            RepositoryRoot, "samples", "WotCon", "AggregationClient", "Documents");
-
-        private static string RepositoryRoot
-        {
-            get
-            {
-                DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
-                while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
-                {
-                    directory = directory.Parent;
-                }
-                return directory?.FullName
-                    ?? throw new DirectoryNotFoundException("The repository root was not found.");
-            }
-        }
+            WotAggregationDocumentGenerator.RepositoryRoot, "samples", "WotCon", "AggregationClient", "Documents");
     }
 }

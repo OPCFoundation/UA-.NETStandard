@@ -104,7 +104,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <inheritdoc/>
         /// <param name="handle">The WoT projection handle.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-        public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
+        public ValueTask<LifecycleResult?> RemoveAsync(
+            WotProjectionHandle handle, CancellationToken cancellationToken = default)
         {
             return inner.RemoveAsync(handle, cancellationToken);
         }
@@ -291,6 +292,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             /// <inheritdoc />
             public Exception? CleanupFailure => inner.CleanupFailure;
+
+            /// <inheritdoc/>
+            public Task Retired => inner.Retired;
 
             /// <inheritdoc />
             public void BindReadImages(ArrayOf<INodeManagerReadImage> images)

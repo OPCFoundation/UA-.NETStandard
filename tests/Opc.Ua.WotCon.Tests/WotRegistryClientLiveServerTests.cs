@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
@@ -19,6 +20,8 @@ using Opc.Ua.WotCon.Tests.Materialization;
 using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry;
 using Quickstarts.ReferenceServer;
+
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -83,7 +86,7 @@ namespace Opc.Ua.WotCon.Tests
                 documentConverter: new FakeWotDocumentConverter());
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
             _ = await m_server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null)
+                .ApplyAsync([LifecycleChange.Add(factory)])
                 .ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture(false, false, m_telemetry);

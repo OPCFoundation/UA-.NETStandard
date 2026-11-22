@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-#if NET8_0_OR_GREATER
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 
@@ -55,12 +54,24 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
         /// <summary>
         /// Loads every MCP assembly in the server's output folder.
         /// </summary>
+        /// <exception cref="FileNotFoundException">The MCP server output is missing.</exception>
         public static List<Assembly> LoadAssemblies()
         {
             string directory = FindOutputDirectory();
-            var assemblies = new List<Assembly>();
+            string serverAssembly = Path.Combine(directory, "Opc.Ua.Mcp.dll");
+            if (!File.Exists(serverAssembly))
+            {
+                throw new FileNotFoundException(
+                    $"Expected MCP server assembly at '{serverAssembly}'.", serverAssembly);
+            }
+
+            var assemblies = new List<Assembly> { Assembly.LoadFrom(serverAssembly) };
             foreach (string path in Directory.EnumerateFiles(directory, "Opc.Ua.Mcp*.dll"))
             {
+                if (string.Equals(path, serverAssembly, StringComparison.Ordinal))
+                {
+                    continue;
+                }
                 try
                 {
                     assemblies.Add(Assembly.LoadFrom(path));
@@ -70,49 +81,45 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
                 }
             }
 
-            if (assemblies.Count == 0)
-            {
-                Assert.Ignore(
-                    "The MCP assemblies are not built for this CI leg " +
-                    "(the MCP server targets net10.0 and net11.0 only); skipping the reflective MCP server test.");
-            }
-
             return assemblies;
         }
 
+        /// <summary>
+        /// Selects MCP assemblies from the same artifacts pivot or conventional configuration and target.
+        /// </summary>
         private static string FindOutputDirectory()
         {
+            var currentOutput = new DirectoryInfo(AppContext.BaseDirectory);
+            if (currentOutput.Parent is { Parent: { Name: "bin" } outputBin } projectOutput &&
+                projectOutput.Name == typeof(McpAssemblyProbe).Assembly.GetName().Name)
+            {
+                return Path.Combine(outputBin.FullName, "Opc.Ua.Mcp", currentOutput.Name);
+            }
+
             string repoRoot = FindRepositoryRoot();
             string configuration = GetBuildConfiguration();
-            string directory = Path.Combine(
+            return Path.Combine(
                 repoRoot, "tools", "Opc.Ua.Mcp", "bin", configuration,
                 FormattableString.Invariant($"net{Environment.Version.Major}.0"));
-
-            if (Directory.Exists(directory))
-            {
-                return directory;
-            }
-
-            string binPath = Path.Combine(repoRoot, "tools", "Opc.Ua.Mcp", "bin");
-            string? found = Directory.Exists(binPath)
-                ? Directory.EnumerateFiles(binPath, "Opc.Ua.Mcp.dll", SearchOption.AllDirectories)
-                    .Select(Path.GetDirectoryName)
-                    .FirstOrDefault(d => d is not null)
-                : null;
-
-            if (found is null)
-            {
-                Assert.Ignore(
-                    "The MCP assemblies are not built for this CI leg " +
-                    "(the MCP server targets net10.0 and net11.0 only); skipping the reflective MCP server test.");
-            }
-
-            return found!;
         }
 
+        /// <summary>
+        /// Resolves an explicitly configured checkout before searching assembly ancestors.
+        /// </summary>
+        /// <exception cref="DirectoryNotFoundException">The configured checkout has no solution.</exception>
         private static string FindRepositoryRoot()
         {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                }
+                return root;
+            }
+            DirectoryInfo? directory = new(AppContext.BaseDirectory);
 
             while (directory != null)
             {

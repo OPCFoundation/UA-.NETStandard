@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -356,30 +357,54 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             m_writeOutput($"[{Name}] {e.Data}");
         }
 
+        /// <summary>
+        /// Resolves the application from the same artifacts pivot or conventional configuration and framework.
+        /// </summary>
+        /// <exception cref="FileNotFoundException">The application is not built for the selected output.</exception>
         private static string LocateApplicationAssembly(string applicationDirectory, string assemblyName)
         {
+            var currentOutput = new DirectoryInfo(AppContext.BaseDirectory);
+            if (currentOutput.Parent is { Parent: { Name: "bin" } outputBin } projectOutput &&
+                projectOutput.Name == typeof(SampleAppProcess).Assembly.GetName().Name)
+            {
+                string[] pivot = currentOutput.Name.Split('_');
+                if (pivot.Length < 2)
+                {
+                    throw new DirectoryNotFoundException("Cannot infer the test target framework from its pivot.");
+                }
+                string artifactsAssembly = Path.Combine(
+                    outputBin.FullName, assemblyName, pivot[0], assemblyName + ".dll");
+                if (!File.Exists(artifactsAssembly))
+                {
+                    throw new FileNotFoundException(
+                        $"The sample '{assemblyName}' is not built for this test output pivot.", artifactsAssembly);
+                }
+                using JsonDocument runtime = JsonDocument.Parse(
+                    File.ReadAllText(Path.ChangeExtension(artifactsAssembly, ".runtimeconfig.json")));
+                if (runtime.RootElement.GetProperty("runtimeOptions").GetProperty("tfm").GetString() != pivot[1])
+                {
+                    throw new InvalidOperationException("The sample is not built for the test target framework.");
+                }
+                return artifactsAssembly;
+            }
             string repoRoot = FindRepositoryRoot();
             (string configuration, string targetFramework) = CurrentOutputLayout();
-            var probePaths = new List<string>();
-            foreach (string config in new[] { configuration, "Release", "Debug" })
+            string path = Path.Combine(
+                repoRoot, "samples", applicationDirectory, "bin", configuration, targetFramework, assemblyName + ".dll");
+            if (File.Exists(path))
             {
-                probePaths.Add(Path.Combine(
-                    repoRoot, "samples", applicationDirectory, "bin", config, targetFramework, assemblyName + ".dll"));
-            }
-
-            foreach (string path in probePaths)
-            {
-                if (File.Exists(path))
-                {
-                    return path;
-                }
+                return path;
             }
 
             throw new FileNotFoundException(
-                $"Could not locate the '{assemblyName}' sample assembly. Probed: {string.Join("; ", probePaths)}. " +
-                "Ensure the sample applications are built (they are referenced by this test project).");
+                $"Could not locate the '{assemblyName}' sample assembly. " +
+                "Build its referenced project with the same configuration and target framework.", path);
         }
 
+        /// <summary>
+        /// Reads the conventional configuration and framework without guessing another output.
+        /// </summary>
+        /// <exception cref="DirectoryNotFoundException">The test output layout is not recognized.</exception>
         private static (string Configuration, string TargetFramework) CurrentOutputLayout()
         {
             // The test assembly runs from .../bin/<Configuration>/<tfm>/; the samples
@@ -395,12 +420,26 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 }
             }
 
-            return ("Release", "net10.0");
+            throw new DirectoryNotFoundException("Cannot infer the test output configuration and target framework.");
         }
 
+        /// <summary>
+        /// Resolves the configured checkout before searching test-output ancestors.
+        /// </summary>
+        /// <exception cref="DirectoryNotFoundException">The selected directory does not identify a checkout.</exception>
         private static string FindRepositoryRoot()
         {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                }
+                return root;
+            }
+            DirectoryInfo? directory = new(AppContext.BaseDirectory);
             while (directory != null)
             {
                 if (File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
@@ -437,10 +476,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         private readonly Process m_process;
         private readonly Action<string> m_writeOutput;
         private readonly List<string> m_lines = [];
-#if NET9_0_OR_GREATER
+        /// <summary>Protects the captured output lines.</summary>
         private readonly Lock m_lock = new();
-#else
-        private readonly object m_lock = new();
-#endif
     }
 }

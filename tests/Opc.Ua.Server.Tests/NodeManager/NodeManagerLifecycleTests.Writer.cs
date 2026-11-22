@@ -5,6 +5,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -18,27 +19,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            INodeManagerPublicationCapture stale = lifecycle.CapturePublication();
-            await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }), timeout.Token)
-                .ConfigureAwait(false);
+            ILifecycleCapture stale = lifecycle.CaptureChanges();
+            RequireRegistration(
+                (await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                kGeneration1Value, _ => { })), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             var factory = new CountingNodeManagerFactory(
                 [kSecondModelNamespaceUri],
                 CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri).CreateAsync);
             long revision = lifecycle.Revision;
-            await using (INodeManagerPublication invocation = await stale.BeginAsync(timeout.Token)
+            await using (ILifecycleWriter invocation = await stale.BeginAsync(timeout.Token)
                 .ConfigureAwait(false))
             {
                 Assert.That(invocation.IsCurrent, Is.False);
                 await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                    await invocation.PrepareAsync(
-                        [NodeManagerBatchChange.Add(factory)], timeout.Token).ConfigureAwait(false))
+                    await invocation.PrepareAsync([LifecycleChange.Add(factory)], timeout.Token).ConfigureAwait(false))
                     .ConfigureAwait(false);
-                await using INodeManagerPublication peer = await lifecycle.CapturePublication()
+                await using ILifecycleWriter peer = await lifecycle.CaptureChanges()
                     .BeginAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(peer.IsCurrent, Is.True);
-                NodeManagerRegistration added = await lifecycle.AddAsync(factory, timeout.Token).ConfigureAwait(false);
+                LifecycleResult publicationResult1 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(factory), timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration added = RequireRegistration(publicationResult1.Registrations[0]);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(factory.CreateCount, Is.EqualTo(1));
@@ -57,27 +61,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            INodeManagerPublicationCapture capture = lifecycle.CapturePublication();
-            await using INodeManagerPublication first = await capture.BeginAsync(timeout.Token).ConfigureAwait(false);
-            await using INodeManagerPublication second = await capture.BeginAsync(timeout.Token).ConfigureAwait(false);
+            ILifecycleCapture capture = lifecycle.CaptureChanges();
+            await using ILifecycleWriter first = await capture.BeginAsync(timeout.Token).ConfigureAwait(false);
+            await using ILifecycleWriter second = await capture.BeginAsync(timeout.Token).ConfigureAwait(false);
             TrackingLifecycleNodeManager? candidate = null;
             var factory = new CountingNodeManagerFactory(
                 [kSecondModelNamespaceUri],
                 CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, manager => candidate = manager, kSecondModelNamespaceUri).CreateAsync);
-            await using IPreparedNodeManagerBatch firstBatch = await first.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+            await using IPreparedChanges firstBatch = await first.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                     kGeneration1Value, _ => { }))], timeout.Token).ConfigureAwait(false);
-            await using IPreparedNodeManagerBatch secondBatch = await second.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await firstBatch.CommitAsync(_ => default, timeout.Token)
+            await using IPreparedChanges secondBatch = await second.PrepareAsync(
+                [LifecycleChange.Add(factory)], timeout.Token).ConfigureAwait(false);
+            LifecycleResult committed = await firstBatch.CommitAsync(_ => default, timeout.Token)
                 .ConfigureAwait(false);
             int decisions = 0;
             await Assert.ThatAsync(() => secondBatch.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
-            }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }, timeout.Token).AsTask(), Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
             await second.DisposeAsync().ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
@@ -99,17 +103,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using INodeManagerPublication invocation = await lifecycle.CapturePublication()
+            await using ILifecycleWriter invocation = await lifecycle.CaptureChanges()
                 .BeginAsync(timeout.Token).ConfigureAwait(false);
-            await using IPreparedNodeManagerBatch first = await invocation.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+            await using IPreparedChanges first = await invocation.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                     kGeneration1Value, _ => { }))], timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult added = await first.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+            LifecycleResult added = await first.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
             Assert.That(invocation.IsCurrent, Is.True);
-            await using IPreparedNodeManagerBatch second = await invocation.PrepareAsync(
-                [NodeManagerBatchChange.Replace(added.Registrations[0], CreateTrackingNodeManagementFactory(
+            await using IPreparedChanges second = await invocation.PrepareAsync(
+                [LifecycleChange.Replace(added.Registrations[0].Slot, CreateTrackingNodeManagementFactory(
                     kGeneration2Value, _ => { }))], timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult replaced = await second.CommitAsync(_ => default, timeout.Token)
+            LifecycleResult replaced = await second.CommitAsync(_ => default, timeout.Token)
                 .ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
@@ -117,13 +121,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(replaced.Revision, Is.GreaterThan(added.Revision));
                 Assert.That(replaced.Registrations[0].Generation, Is.EqualTo(2));
             }
-            await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri), timeout.Token).ConfigureAwait(false);
+            RequireRegistration(
+                (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri)), timeout.Token).ConfigureAwait(
+                    false)).Registrations[0]);
             var rejectedFactory = new CountingNodeManagerFactory(
                 [kModelNamespaceUri], CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }).CreateAsync);
-            await Assert.ThatAsync(() => invocation.PrepareAsync(
-                [NodeManagerBatchChange.Replace(replaced.Registrations[0], rejectedFactory)],
-                timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                () => invocation.PrepareAsync(
+                [LifecycleChange.Replace(
+                replaced.Registrations[0].Slot, rejectedFactory)], timeout.Token).AsTask(),
+                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(invocation.IsCurrent, Is.False);
@@ -139,25 +147,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using INodeManagerPublication invocation = await lifecycle.CapturePublication()
+            await using ILifecycleWriter invocation = await lifecycle.CaptureChanges()
                 .BeginAsync(timeout.Token).ConfigureAwait(false);
             TrackingLifecycleNodeManager? candidate = null;
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 kGeneration1Value, manager => candidate = manager);
             var factory = new CountingNodeManagerFactory([kModelNamespaceUri], async (server, config, token) =>
             {
-                await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri), token).ConfigureAwait(false);
+                RequireRegistration(
+                    (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri)), token).ConfigureAwait(
+                        false)).Registrations[0]);
                 return await inner.CreateAsync(server, config, token).ConfigureAwait(false);
             });
-            await using IPreparedNodeManagerBatch batch = await invocation.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges batch = await invocation.PrepareAsync(
+                [LifecycleChange.Add(factory)], timeout.Token).ConfigureAwait(false);
             int decisions = 0;
             await Assert.ThatAsync(() => batch.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
-            }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }, timeout.Token).AsTask(), Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
             await invocation.DisposeAsync().ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
@@ -177,7 +187,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using INodeManagerPublication invocation = await lifecycle.CapturePublication()
+            await using ILifecycleWriter invocation = await lifecycle.CaptureChanges()
                 .BeginAsync(timeout.Token).ConfigureAwait(false);
             var factory = new CountingNodeManagerFactory([kModelNamespaceUri], (server, config, _) =>
                 new ValueTask<IAsyncNodeManager>(new ReadinessLifecycleNodeManager(
@@ -185,14 +195,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     ReadinessCallback = async token =>
                     {
-                        await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                            kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri), token)
-                            .ConfigureAwait(false);
+                        RequireRegistration(
+                            (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                            kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri)), token)
+                                .ConfigureAwait(false)).Registrations[0]);
                     }
                 }));
-            await using IPreparedNodeManagerBatch batch = await invocation.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await batch.CommitAsync(_ => default, timeout.Token)
+            await using IPreparedChanges batch = await invocation.PrepareAsync(
+                [LifecycleChange.Add(factory)], timeout.Token).ConfigureAwait(false);
+            LifecycleResult committed = await batch.CommitAsync(_ => default, timeout.Token)
                 .ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
@@ -214,16 +225,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
-            INodeManagerPublicationCapture capture = lifecycle.CapturePublication();
+            ILifecycleCapture capture = lifecycle.CaptureChanges();
             await Assert.ThatAsync(() => capture.BeginAsync(cancellation.Token).AsTask(),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
             var factory = new CountingNodeManagerFactory(
                 [kModelNamespaceUri], CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }).CreateAsync);
-            await using (INodeManagerPublication invocation = await capture.BeginAsync(timeout.Token)
+            await using (ILifecycleWriter invocation = await capture.BeginAsync(timeout.Token)
                 .ConfigureAwait(false))
             {
-                await Assert.ThatAsync(() => invocation.PrepareAsync(
-                    [NodeManagerBatchChange.Add(factory)], cancellation.Token).AsTask(),
+                await Assert.ThatAsync(
+                    () => invocation.PrepareAsync([LifecycleChange.Add(factory)], cancellation.Token).AsTask(),
                     Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
                 Assert.That(invocation.IsCurrent, Is.True);
             }
@@ -245,12 +256,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? candidate = null;
-            INodeManagerPublication invocation = await lifecycle.CapturePublication().BeginAsync(timeout.Token)
+            ILifecycleWriter invocation = await lifecycle.CaptureChanges().BeginAsync(timeout.Token)
                 .ConfigureAwait(false);
             try
             {
-                IPreparedNodeManagerBatch batch = await invocation.PrepareAsync(
-                    [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                IPreparedChanges batch = await invocation.PrepareAsync(
+                    [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
                         kGeneration1Value, manager => candidate = manager))], timeout.Token).ConfigureAwait(false);
                 Task shutdown = lifecycle.BeginShutdownAsync(m_server.CurrentInstance, timeout.Token).AsTask();
                 using (Assert.EnterMultipleScope())

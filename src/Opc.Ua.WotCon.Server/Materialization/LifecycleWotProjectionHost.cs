@@ -21,7 +21,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// requests or continuations. The stable WoT registry NodeManager is never
     /// touched.
     /// </summary>
-    public sealed partial class LifecycleWotProjectionHost : IWotInvocationProjectionHost
+    public sealed partial class LifecycleWotProjectionHost : IWotReadinessProjectionHost
     {
         /// <summary>
         /// Initializes a new host over the supplied lifecycle.
@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken = default)
         {
             return CommitProjectionAsync(
-                document, null, NodeManagerMonitoredItemTransitionMode.Migrate, cancellationToken);
+                WotProjectionChange.Add(document), cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -67,9 +67,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken = default)
         {
             return CommitProjectionAsync(
-                document,
-                (current?.Registration as NodeManagerProjectionRegistration)?.Registration,
-                NodeManagerMonitoredItemTransitionMode.Migrate,
+                current?.Registration is NodeManagerProjectionRegistration
+                    ? WotProjectionChange.Replace(current, document)
+                    : WotProjectionChange.Add(document),
                 cancellationToken);
         }
 
@@ -83,100 +83,62 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken = default)
         {
             return CommitProjectionAsync(
-                document,
-                (current?.Registration as NodeManagerProjectionRegistration)?.Registration,
-                NodeManagerMonitoredItemTransitionMode.Invalidate,
+                current?.Registration is NodeManagerProjectionRegistration
+                    ? WotProjectionChange.Replace(current, document, WotProjectionRetirementPolicy.Invalidate)
+                    : WotProjectionChange.Add(document),
                 cancellationToken);
         }
 
         /// <inheritdoc/>
-        public async ValueTask RemoveAsync(
+        public async ValueTask<LifecycleResult?> RemoveAsync(
             WotProjectionHandle handle,
             CancellationToken cancellationToken = default)
         {
             if (m_lifecycle.IsShuttingDown)
             {
-                return;
+                return null;
             }
 
-            if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
+            PreparedPublication prepared = await PrepareStandaloneAsync(
+                [WotProjectionChange.Remove(handle)], null, cancellationToken).ConfigureAwait(false);
+            await using var preparedLifetime = prepared.ConfigureAwait(false);
+            await prepared.CommitAsync(null, static () => { }, cancellationToken)
+                .ConfigureAwait(false);
+            LifecycleResult result = prepared.Result!;
+            try
             {
-                RequireCurrent(wrapper.Registration);
-                IPreparedChanges prepared = await m_lifecycle
-                    .PrepareAsync([LifecycleChange.Remove(wrapper.Registration.Slot)], cancellationToken)
-                    .ConfigureAwait(false);
-                await using var preparedLifetime = prepared.ConfigureAwait(false);
-                RequireCurrent(wrapper.Registration);
-                LifecycleResult result = await prepared.CommitAsync(
-                    static _ => default, cancellationToken).ConfigureAwait(false);
-                if (result.CleanupFailure is { } failure)
-                {
-                    throw new NodeManagerRemovalCommittedException(wrapper.Registration, result, failure);
-                }
-                try
-                {
-                    await result.Retired.ConfigureAwait(false);
-                }
-                catch (Exception retirementFailure) when (retirementFailure is not OutOfMemoryException)
-                {
-                    throw new NodeManagerRemovalCommittedException(
-                        wrapper.Registration, result, retirementFailure);
-                }
+                await result.Retired.ConfigureAwait(false);
             }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                // The committed result retains the original faulted retirement task; removal must not be replayed.
+                return result;
+            }
+            return result;
         }
 
         /// <summary>
         /// Publishes the runtime and registration in the same prepared transaction before readiness.
         /// </summary>
         private async ValueTask<WotProjectionHandle> CommitProjectionAsync(
-            WotProjectionDocument document,
-            NodeManagerRegistration? current,
-            NodeManagerMonitoredItemTransitionMode transitionMode,
+            WotProjectionChange change,
             CancellationToken cancellationToken)
         {
-            RuntimeNodeSetOptions options = BuildOptions(document);
-            var publication = new WotProjectionRuntimePublication(options);
-            var factory = new RuntimeNodeSetNodeManagerFactory(options);
-            if (current is not null)
-            {
-                RequireCurrent(current);
-            }
-            LifecycleChange change = current is null
-                ? LifecycleChange.Add(factory)
-                : LifecycleChange.Reload(current.Slot, factory, transitionMode);
-            IPreparedChanges prepared = await m_lifecycle.PrepareAsync(
-                [change], cancellationToken).ConfigureAwait(false);
+            PreparedPublication prepared = await PrepareStandaloneAsync(
+                [change], null, cancellationToken).ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
-            if (current is not null)
-            {
-                RequireCurrent(current);
-            }
-            if (!prepared.Registrations[0].TryGetRegistration(out NodeManagerRegistration? candidate) ||
-                candidate is null)
-            {
-                throw new InvalidOperationException("The prepared projection registration is no longer available.");
-            }
-            LifecycleResult result = await prepared.CommitAsync(
-                static _ => default,
-                () => publication.Publish(candidate.Generation),
-                cancellationToken).ConfigureAwait(false);
-            string warning = string.Empty;
-            if (result.CleanupFailure is { } failure)
-            {
-                if (current is null)
-                {
-                    throw new NodeManagerAddCommittedException(
-                        candidate, result, "The WoT projection is live, but reconciliation failed.", failure);
-                }
-                warning = "The replacement is active, but prior-generation cleanup is pending: " + failure.Message;
-            }
+            await prepared.CommitAsync(null, static () => { }, cancellationToken)
+                .ConfigureAwait(false);
+            WotProjectionHandle candidate = prepared.Projections[0];
             return new WotProjectionHandle(
-                document.ClosureKey,
+                candidate.ClosureKey,
                 candidate.Generation,
-                new NodeManagerProjectionRegistration(candidate),
-                [],
-                0,
-                warning);
+                candidate.Registration,
+                candidate.RootNodeIds,
+                candidate.MaterializedNodeCount,
+                prepared.CleanupFailure is { } failure
+                    ? "The projection is active, but reconciliation is pending: " + failure.Message
+                    : string.Empty);
         }
 
         /// <summary>

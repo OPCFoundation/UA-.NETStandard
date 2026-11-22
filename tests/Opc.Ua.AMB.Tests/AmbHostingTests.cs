@@ -223,6 +223,7 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(captured.Assets, Is.SameAs(server.AssetManagement));
                 Assert.That(resolved, Is.SameAs(server.AssetManagement));
                 Assert.That(captured.Builder, Is.Not.Null);
+                Assert.That(captured.Readiness, Is.Not.Null);
                 Assert.That(captured.GetService<IDisposable>(), Is.Null);
                 Assert.That(captured.CancellationToken.IsCancellationRequested, Is.False);
             });
@@ -242,9 +243,8 @@ namespace Opc.Ua.AMB.Tests
                 options.ApplicationUri = "urn:localhost:" + nameof(AFailingSetupDelegateAbortsTheStartupAsync);
                 // Leave room for certificate filenames under the .NET Framework path limit.
                 options.PkiRoot = Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    "amb",
-                    Guid.NewGuid().ToString("N"));
+                    Path.GetTempPath(),
+                    "amb-hosting-" + Guid.NewGuid().ToString("N"));
                 options.AutoAcceptUntrustedCertificates = true;
                 options.EndpointUrls.Clear();
                 string port = ServerFixtureUtils.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture);

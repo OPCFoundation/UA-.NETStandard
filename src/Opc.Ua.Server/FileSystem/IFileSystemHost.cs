@@ -39,6 +39,28 @@ namespace Opc.Ua.Server.FileSystem
         bool UsesVirtualDirectoryBrowsing { get; }
 
         /// <summary>
+        /// Registers cursor ownership before the provider creates an enumerator.
+        /// </summary>
+        /// <param name="ownership">The lifetime and failure owner for the new cursor.</param>
+        void RegisterDirectoryCursor(DirectoryCursorOwnership ownership);
+
+        /// <summary>
+        /// Releases successful cursor ownership or retains a failed cleanup for recovery.
+        /// </summary>
+        /// <param name="ownership">The completed cursor ownership.</param>
+        void CompleteDirectoryCursor(DirectoryCursorOwnership ownership);
+
+        /// <summary>
+        /// Retains asynchronous directory cursor cleanup associated with synchronous browser disposal,
+        /// so the host can join it before tearing down the resources the cursor uses.
+        /// </summary>
+        /// <remarks>
+        /// The browser registers the task before starting cleanup, including when cleanup completes synchronously.
+        /// </remarks>
+        /// <param name="cleanup">The task returned by the browser's asynchronous cleanup.</param>
+        void TrackCursorCleanup(Task cleanup);
+
+        /// <summary>
         /// Returns the NodeId that represents a directory at the given
         /// provider path.
         /// </summary>

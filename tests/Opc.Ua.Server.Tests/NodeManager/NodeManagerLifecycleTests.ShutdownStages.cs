@@ -8,6 +8,7 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -55,7 +56,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(manager.Object);
-                await testServer.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+                Registration(
+                    (await CommitChangeAsync(
+                    testServer.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
                 IServerInternal server = testServer.CurrentInstance;
                 timeProvider.Advance(TimeSpan.FromSeconds(1));
                 Assert.That(workerCreations, Is.EqualTo(1));
@@ -113,7 +117,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                 It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(manager.Object);
-            await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+            RequireRegistration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             NodeManagerGeneration application = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
             NodeManagerGeneration core = NodeManagerGenerationRegistry.GetOrCreate(
                 server.NodeManager.CoreNodeManager!);
@@ -172,7 +179,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(manager.Object);
-                await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+                RequireRegistration(
+                    (await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             }
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
@@ -228,7 +238,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(),
                     It.IsAny<CancellationToken>())).ReturnsAsync(manager.Object);
-                await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+                RequireRegistration(
+                    (await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             }
 
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
@@ -295,7 +308,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                 It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(manager.Object);
-            await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+            RequireRegistration(
+                (await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                factory.Object), timeout.Token).ConfigureAwait(false)).Registrations[0]);
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
             Task? first = null;

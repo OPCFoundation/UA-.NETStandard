@@ -58,7 +58,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <param name="nodes">
         /// The dictionary to query, typically <c>PredefinedNodes</c> on
         /// a custom node manager (which is a
-        /// <see cref="NodeIdDictionary{T}"/>).
+        /// <see cref="PredefinedNodeDictionary"/>).
         /// </param>
         /// <param name="nodeId">NodeId to look up.</param>
         /// <exception cref="ArgumentNullException">

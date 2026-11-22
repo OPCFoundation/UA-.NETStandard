@@ -31,7 +31,10 @@ namespace Opc.Ua.Server
         /// <param name="generation">The identity assigned before address-space callbacks.</param>
         /// <param name="replacedNodeManager">The exact predecessor, or null for an addition.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        /// <returns>The prepared NodeManager, which is the input to every later stage.</returns>
+        /// <returns>
+        /// The private candidate, including its original preparation failure when preparation started but failed.
+        /// The lifecycle must retain that candidate for abort cleanup before propagating the failure.
+        /// </returns>
         ValueTask<PreparedNodeManager> PrepareAsync(
             IAsyncNodeManager nodeManager,
             NodeManagerGeneration generation,
@@ -121,6 +124,16 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Recovers monitored-item sources on the exact generation just published by the lifecycle,
+        /// including before the server starts accepting requests.
+        /// </summary>
+        /// <param name="generation">The published generation to recover sources on.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        ValueTask ResolvePublishedSourcesAsync(
+            NodeManagerGeneration generation,
+            CancellationToken cancellationToken);
+
+        /// <summary>
         /// Closes generation admission, waits for admitted callbacks to drain, and releases
         /// the generation's remaining exact all-events binding records.
         /// </summary>
@@ -155,8 +168,7 @@ namespace Opc.Ua.Server
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             ExternalReferences = externalReferences ?? throw new ArgumentNullException(nameof(externalReferences));
             Generation = generation ?? throw new ArgumentNullException(nameof(generation));
-            if (!ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(nodeManager),
-                NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager)))
+            if (!NodeManagerGenerationRegistry.HasSameGenerationIdentity(nodeManager, generation.NodeManager))
             {
                 throw new ArgumentException("The generation belongs to another NodeManager.", nameof(generation));
             }
@@ -195,6 +207,12 @@ namespace Opc.Ua.Server
         /// Gets the predecessor retained only until this candidate's publication.
         /// </summary>
         public IAsyncNodeManager? ReplacedNodeManager => m_replacedNodeManager;
+
+        /// <summary>
+        /// Gets or sets the original failure after private preparation started.
+        /// The lifecycle retains this candidate for cleanup before rethrowing the failure.
+        /// </summary>
+        internal Exception? PreparationFailure { get; set; }
 
         /// <summary>
         /// Validates a private candidate before reserving publication.

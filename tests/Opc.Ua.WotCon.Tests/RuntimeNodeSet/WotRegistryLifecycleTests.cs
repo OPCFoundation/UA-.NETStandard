@@ -109,8 +109,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: new SensorConverter());
             var factory = new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator);
-            m_registryRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null).ConfigureAwait(false);
+            m_registryRegistration = RequireStartupRegistration(await m_server.NodeManagerLifecycle
+                .ApplyAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false));
         }
 
         /// <summary>

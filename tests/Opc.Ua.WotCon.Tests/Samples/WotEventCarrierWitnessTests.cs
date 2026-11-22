@@ -273,13 +273,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static string DocumentsDirectory()
         {
-            DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
-            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
-            {
-                directory = directory.Parent;
-            }
             return Path.Combine(
-                directory?.FullName ?? throw new DirectoryNotFoundException("Could not locate the repository root."),
+                WotAggregationDocumentGenerator.RepositoryRoot,
                 "samples", "WotCon", "AggregationClient", "Documents");
         }
 

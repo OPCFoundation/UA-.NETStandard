@@ -14,6 +14,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
@@ -23,6 +24,8 @@ using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 using Opc.Ua.WotCon.Tests.Providers;
 using Quickstarts.ReferenceServer;
+
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests.Hosting
 {
@@ -574,7 +577,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 }
 
                 m_server = await m_fixture.StartAsync(m_directory).ConfigureAwait(false);
-                await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+                await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(factory)])
+                    .ConfigureAwait(false);
                 await ConnectClientAsync().ConfigureAwait(false);
             }
 
