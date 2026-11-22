@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -212,11 +186,14 @@ namespace Opc.Ua.Recycling.Samples.Tests
 
         /// <summary>
         /// Both owners embed identical bytes and retain the pre-extraction XML across Git newline conversions.
+        /// The SPDX header revision keeps the journal identity of the model it replaced.
         /// </summary>
-        [TestCase("\n", "C6DEB4B037F05F83E541E1851C82FE166A3D22E163B732544C5AB9C570777D51")]
-        [TestCase("\r\n", "7E331A9A4370B2F70C5135140DC83D8D92AFAF40641D2607AF17D8CF6B8DDA7A")]
+        [TestCase("\n", "EC77150443F931C59763C8EB69CEE4C86CFB7E8207059DF7F928FF007BD03557",
+            "C6DEB4B037F05F83E541E1851C82FE166A3D22E163B732544C5AB9C570777D51")]
+        [TestCase("\r\n", "2060988C6B818657303433FDF8D6AB67C1ECDF5911BB075C7CE24FA25BFE304C",
+            "7E331A9A4370B2F70C5135140DC83D8D92AFAF40641D2607AF17D8CF6B8DDA7A")]
         public async Task ModelResourceBytesAndLogicalNameRemainCompatibleWithExistingJournals(
-            string checkoutNewLine, string expectedOriginalHash)
+            string checkoutNewLine, string expectedOriginalHash, string expectedJournalHash)
         {
             await using Stream clientModel = typeof(RecyclingCoordinatorClient).Assembly
                 .GetManifestResourceStream("Recycling.Model.xml")!;
@@ -235,12 +212,14 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 .Replace("\r\n", "\n", StringComparison.Ordinal);
             byte[] canonicalHash = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalModel));
             Assert.That(Convert.ToHexString(canonicalHash),
-                Is.EqualTo("C6DEB4B037F05F83E541E1851C82FE166A3D22E163B732544C5AB9C570777D51"));
+                Is.EqualTo("EC77150443F931C59763C8EB69CEE4C86CFB7E8207059DF7F928FF007BD03557"));
 
             byte[] originalCheckoutBytes = Encoding.UTF8.GetBytes(
                 canonicalModel.Replace("\n", checkoutNewLine, StringComparison.Ordinal));
-            Assert.That(Convert.ToHexString(SHA256.HashData(originalCheckoutBytes)),
-                Is.EqualTo(expectedOriginalHash));
+            byte[] checkoutHash = SHA256.HashData(originalCheckoutBytes);
+            Assert.That(Convert.ToHexString(checkoutHash), Is.EqualTo(expectedOriginalHash));
+            Assert.That(Convert.ToHexString(RecyclingCoordinator.JournalModelHash(checkoutHash)),
+                Is.EqualTo(expectedJournalHash));
         }
 
         /// <summary>

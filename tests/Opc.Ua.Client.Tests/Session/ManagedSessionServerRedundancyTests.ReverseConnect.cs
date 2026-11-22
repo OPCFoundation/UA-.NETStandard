@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -236,6 +210,49 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
                 Assert.That(set.Source.RequestCount(set.Backup.ApplicationUri), Is.Zero);
                 Assert.That(set.Source.GetAvailableEndpointUrls(set.Backup.ApplicationUri), Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// A member that holds no connection while the session connects, as
+        /// before its first connection or between two of its connections, is
+        /// reported as not connected by that snapshot; a failover refreshes the
+        /// snapshot, sees the member's connection and takes it.
+        /// </summary>
+        [Test]
+        public async Task ReverseConnectMemberWithoutConnectionAtConnectIsTakenByFailoverAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
+                .ConfigureAwait(false);
+            set.Primary.SetServiceLevel(250);
+            set.Backup.SetServiceLevel(210);
+            var members = new ControlledMemberConnections(set.Source);
+            members.Hide(set.Backup.ApplicationUri);
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions { ProbeMemberServiceLevel = true }, null, timeout.Token, members)
+                .ConfigureAwait(false);
+
+            ServerRedundancyInfo info = await WaitForMemberAsync(
+                session, set.Backup, server => server.ResolutionError != null, timeout.Token).ConfigureAwait(false);
+            RedundantServer backup = Member(info, set.Backup);
+            Assert.Multiple(() =>
+            {
+                Assert.That(backup.ResolutionError?.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotConnected));
+                Assert.That(backup.Endpoint, Is.Null);
+                Assert.That(set.Source.RequestCount(set.Backup.ApplicationUri), Is.Zero);
+            });
+
+            members.Show(set.Backup.ApplicationUri);
+            await session.FailoverAsync(ct: timeout.Token).ConfigureAwait(false);
+
+            DataValue level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
+                Assert.That(level.GetValue<byte>(0), Is.EqualTo(210));
+                Assert.That(set.Source.RequestCount(set.Backup.ApplicationUri), Is.GreaterThan(0));
             });
         }
 
@@ -547,6 +564,14 @@ namespace Opc.Ua.Client.Tests
                         set.Backup.DialClient(clientUrl, ReverseConnectTimeoutMs);
                     }
                     set.m_primaryEndpoint = await set.GetPrimaryEndpointAsync(ct).ConfigureAwait(false);
+                    if (backupDials)
+                    {
+                        // A session that connects before the backup's first connection
+                        // arrives reports the backup as not connected, and nothing
+                        // refreshes that while the session stays connected.
+                        await (set.MemberSource ?? set.Source)
+                            .WaitUntilSeenAsync(set.Backup.ApplicationUri, ct).ConfigureAwait(false);
+                    }
                     return set;
                 }
                 catch
@@ -682,6 +707,15 @@ namespace Opc.Ua.Client.Tests
         /// Hands out the connections of a reverse connect manager and records
         /// every wait and the last connection handed out per server.
         /// </summary>
+        /// <remarks>
+        /// The manager holds a connection only until its hold time ends, and the
+        /// member opens the next one at its following connect tick, so it holds
+        /// none for a part of every cycle. A server seen with a connection keeps
+        /// being reported with the urls it announced, as a member that keeps
+        /// connecting, so whether a redundancy refresh sees the member does not
+        /// depend on where in that cycle it runs. Waits still take the next
+        /// connection of the manager.
+        /// </remarks>
         private sealed class RecordingMemberConnections : IReverseConnectionAvailability
         {
             public RecordingMemberConnections(IReverseConnectionAvailability inner)
@@ -693,6 +727,18 @@ namespace Opc.Ua.Client.Tests
             /// Controls whether the fixture reports its held connections during the initial refresh.
             /// </summary>
             public bool HideAvailability { get; set; }
+
+            /// <summary>
+            /// Waits until the manager holds a connection of the server, so the
+            /// server is reported as connecting from then on.
+            /// </summary>
+            public async Task WaitUntilSeenAsync(string serverUri, CancellationToken ct)
+            {
+                while (GetAvailableEndpointUrls(serverUri).Count == 0)
+                {
+                    await Task.Delay(50, ct).ConfigureAwait(false);
+                }
+            }
 
             public int RequestCount(string serverUri)
             {
@@ -708,7 +754,18 @@ namespace Opc.Ua.Client.Tests
 
             public IReadOnlyList<Uri> GetAvailableEndpointUrls(string serverUri)
             {
-                return HideAvailability ? [] : m_inner.GetAvailableEndpointUrls(serverUri);
+                if (HideAvailability)
+                {
+                    return [];
+                }
+
+                IReadOnlyList<Uri> available = m_inner.GetAvailableEndpointUrls(serverUri);
+                if (available.Count > 0)
+                {
+                    m_announced[serverUri] = available;
+                    return available;
+                }
+                return m_announced.TryGetValue(serverUri, out IReadOnlyList<Uri>? announced) ? announced : [];
             }
 
             public async ValueTask<ITransportWaitingConnection> WaitForConnectionAsync(
@@ -726,6 +783,8 @@ namespace Opc.Ua.Client.Tests
             private readonly IReverseConnectionAvailability m_inner;
             private readonly ConcurrentDictionary<string, int> m_requests = new(StringComparer.Ordinal);
             private readonly ConcurrentDictionary<string, ITransportWaitingConnection> m_connections =
+                new(StringComparer.Ordinal);
+            private readonly ConcurrentDictionary<string, IReadOnlyList<Uri>> m_announced =
                 new(StringComparer.Ordinal);
         }
 
@@ -758,6 +817,23 @@ namespace Opc.Ua.Client.Tests
             public void Stop(string serverUri)
             {
                 m_stopped[serverUri] = 0;
+            }
+
+            /// <summary>
+            /// Reports no held connection of the server until <see cref="Show"/>;
+            /// waits still take its connections.
+            /// </summary>
+            public void Hide(string serverUri)
+            {
+                m_hidden[serverUri] = 0;
+            }
+
+            /// <summary>
+            /// Reports the held connections of the server again.
+            /// </summary>
+            public void Show(string serverUri)
+            {
+                m_hidden.TryRemove(serverUri, out _);
             }
 
             public IReadOnlyList<Uri> GetAvailableEndpointUrls(string serverUri)

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
@@ -213,6 +187,264 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var annotation = ExtensionObject.ToEncodeable(annotExt) as Annotation;
             Assert.That(annotation, Is.Not.Null);
             Assert.That(annotation!.Message, Is.EqualTo("note1"));
+        }
+
+        /// <summary>
+        /// Verifies that an annotation-property read is denied when the parent variable
+        /// denies history read to the user, although the property itself allows it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HistoryReadAnnotationsPropertyAppliesParentAccessAsync(bool denyByRolePermissions)
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (BaseDataVariableState parent, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "DeniedReadParent").ConfigureAwait(false);
+            if (denyByRolePermissions)
+            {
+                parent.RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = (uint)PermissionType.ReadHistory
+                    }
+                ];
+            }
+            else
+            {
+                parent.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte value) =>
+                {
+                    value = AccessLevels.None;
+                    return ServiceResult.Good;
+                };
+            }
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = BaseTime,
+                EndTime = BaseTime.AddMinutes(1)
+            };
+            var nodesToRead = new List<HistoryReadValueId> { new() { NodeId = annotProp.NodeId } };
+            var results = new List<HistoryReadResult> { null! };
+            var errors = new List<ServiceResult> { null! };
+
+            await h.Manager.HistoryReadAsync(
+                h.OperationContext, details, TimestampsToReturn.Source,
+                false, nodesToRead, results, errors).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(results[0].HistoryData.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that an annotation-property update is denied when the role permissions
+        /// of the parent variable withhold the history permission from the user.
+        /// </summary>
+        [Test]
+        public async Task HistoryUpdateAnnotationsPropertyAppliesParentRolePermissionsAsync()
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (BaseDataVariableState parent, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "DeniedUpdateParent").ConfigureAwait(false);
+            parent.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                    Permissions = (uint)PermissionType.InsertHistory
+                }
+            ];
+
+            var update = new UpdateStructureDataDetails
+            {
+                NodeId = annotProp.NodeId,
+                PerformInsertReplace = PerformUpdateType.Insert,
+                UpdateValues =
+                [
+                    new DataValue(
+                        new Variant(new ExtensionObject(new Annotation
+                        {
+                            AnnotationTime = BaseTime.AddSeconds(7),
+                            UserName = "intruder",
+                            Message = "forged"
+                        })),
+                        StatusCodes.Good,
+                        BaseTime.AddSeconds(7))
+                ]
+            };
+            var nodesToUpdate = new List<HistoryUpdateDetails> { update };
+            var results = new List<HistoryUpdateResult> { null! };
+            var errors = new List<ServiceResult> { null! };
+
+            await h.Manager.HistoryUpdateAsync(
+                h.OperationContext, typeof(UpdateStructureDataDetails),
+                nodesToUpdate, results, errors).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        /// <summary>
+        /// Verifies that the parent access checks also apply when the node of the handle
+        /// is resolved only after the request was scanned.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HistoryOnDeferredAnnotationsHandleAppliesParentAccessAsync(bool denied)
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (BaseDataVariableState parent, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "DeferredParent").ConfigureAwait(false);
+            if (denied)
+            {
+                parent.RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = (uint)(PermissionType.ReadHistory | PermissionType.InsertHistory)
+                    }
+                ];
+            }
+            h.Manager.DeferHandles = true;
+            StatusCode expected = denied ? StatusCodes.BadUserAccessDenied : StatusCodes.Good;
+
+            (ServiceResult readError, HistoryReadResult readResult) =
+                await ReadAnnotationsAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(readError.StatusCode, Is.EqualTo(expected));
+            Assert.That(readResult.HistoryData.IsNull, Is.EqualTo(denied));
+
+            // the provider of the harness does not advertise annotation inserts, so an
+            // update that passes the access checks is rejected by the provider instead.
+            ServiceResult updateError = await InsertAnnotationAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(
+                updateError.StatusCode,
+                Is.EqualTo(denied ? StatusCodes.BadUserAccessDenied : StatusCodes.BadHistoryOperationUnsupported));
+        }
+
+        /// <summary>
+        /// Verifies that a deferred handle which cannot be resolved for the access checks
+        /// is not passed on, although a second resolution would succeed.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HistoryOnDeferredAnnotationsHandleStopsWhenResolutionFailsOnceAsync(bool missingNode)
+        {
+            StatusCode expected = missingNode ? StatusCodes.BadNodeIdUnknown : StatusCodes.BadResourceUnavailable;
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (BaseDataVariableState parent, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "FailOnceParent").ConfigureAwait(false);
+            parent.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                    Permissions = (uint)(PermissionType.ReadHistory | PermissionType.InsertHistory)
+                }
+            ];
+            h.Manager.DeferHandles = true;
+            h.Manager.FailWithMissingNode = missingNode;
+
+            h.Manager.FailNextValidation = true;
+            (ServiceResult readError, HistoryReadResult readResult) =
+                await ReadAnnotationsAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(readError.StatusCode, Is.EqualTo(expected));
+            Assert.That(readResult.HistoryData.IsNull, Is.True);
+
+            h.Manager.FailNextValidation = true;
+            ServiceResult updateError = await InsertAnnotationAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(updateError.StatusCode, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Verifies that a failing user access level callback of the parent variable denies
+        /// the operation although it leaves the stored history bits untouched.
+        /// </summary>
+        [Test]
+        public async Task HistoryOnAnnotationsPropertyPropagatesParentAccessCallbackFailureAsync()
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (BaseDataVariableState parent, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "FailingCallbackParent").ConfigureAwait(false);
+            parent.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte _) =>
+                StatusCodes.BadConfigurationError;
+
+            (ServiceResult readError, HistoryReadResult readResult) =
+                await ReadAnnotationsAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(readError.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(readResult.HistoryData.IsNull, Is.True);
+
+            ServiceResult updateError = await InsertAnnotationAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(updateError.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        /// <summary>
+        /// Verifies that the user access level of the Annotations property itself applies
+        /// to an update although the parent variable allows history writes.
+        /// </summary>
+        [Test]
+        public async Task HistoryUpdateAnnotationsPropertyAppliesPropertyUserAccessLevelAsync()
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            (_, PropertyState annotProp) =
+                await AddAnnotatedVariableAsync(h, "ReadOnlyAnnotations").ConfigureAwait(false);
+            annotProp.UserAccessLevel = AccessLevels.HistoryRead;
+
+            (ServiceResult readError, _) = await ReadAnnotationsAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(readError.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            ServiceResult updateError = await InsertAnnotationAsync(h, annotProp.NodeId).ConfigureAwait(false);
+            Assert.That(updateError.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        private static async Task<(ServiceResult Error, HistoryReadResult Result)> ReadAnnotationsAsync(
+            Harness h,
+            NodeId annotationsId)
+        {
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = BaseTime,
+                EndTime = BaseTime.AddMinutes(1)
+            };
+            var nodesToRead = new List<HistoryReadValueId> { new() { NodeId = annotationsId } };
+            var results = new List<HistoryReadResult> { null! };
+            var errors = new List<ServiceResult> { null! };
+
+            await h.Manager.HistoryReadAsync(
+                h.OperationContext, details, TimestampsToReturn.Source,
+                false, nodesToRead, results, errors).ConfigureAwait(false);
+
+            return (errors[0], results[0]);
+        }
+
+        private static async Task<ServiceResult> InsertAnnotationAsync(Harness h, NodeId annotationsId)
+        {
+            var update = new UpdateStructureDataDetails
+            {
+                NodeId = annotationsId,
+                PerformInsertReplace = PerformUpdateType.Insert,
+                UpdateValues =
+                [
+                    new DataValue(
+                        new Variant(new ExtensionObject(new Annotation
+                        {
+                            AnnotationTime = BaseTime.AddSeconds(9),
+                            UserName = "tester",
+                            Message = "note2"
+                        })),
+                        StatusCodes.Good,
+                        BaseTime.AddSeconds(9))
+                ]
+            };
+            var nodesToUpdate = new List<HistoryUpdateDetails> { update };
+            var results = new List<HistoryUpdateResult> { null! };
+            var errors = new List<ServiceResult> { null! };
+
+            await h.Manager.HistoryUpdateAsync(
+                h.OperationContext, typeof(UpdateStructureDataDetails),
+                nodesToUpdate, results, errors).ConfigureAwait(false);
+
+            return errors[0];
         }
 
         /// <summary>
@@ -785,6 +1017,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return variable;
         }
 
+        /// <summary>
+        /// Adds a historized variable with one stored annotation and an Annotations
+        /// property that itself allows history read and write.
+        /// </summary>
+        private static async ValueTask<(BaseDataVariableState Parent, PropertyState Annotations)>
+            AddAnnotatedVariableAsync(Harness h, string name)
+        {
+            ushort nsIdx = h.Manager.NamespaceIndexes[0];
+            BaseDataVariableState parent = CreateHistoryWriteVariable(h, name);
+
+            var annotProp = new PropertyState(parent);
+            annotProp.CreateAsPredefinedNode(h.Context);
+            annotProp.NodeId = new NodeId(name + "_Annotations", nsIdx);
+            annotProp.BrowseName = new QualifiedName(BrowseNames.Annotations, 0);
+            annotProp.DataType = DataTypeIds.Annotation;
+            annotProp.ValueRank = ValueRanks.Scalar;
+            annotProp.AccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+            annotProp.UserAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+
+            await h.Manager.AddNodeAsync(h.Context, default, parent).ConfigureAwait(false);
+            await h.Manager.AddNodeAsync(h.Context, default, annotProp).ConfigureAwait(false);
+
+            InMemoryHistorianProvider provider = CreateProvider();
+            h.RegisterProvider(parent.NodeId, provider);
+            provider.Register(parent.NodeId);
+            await provider.InsertAnnotationsAsync(
+                h.CreateHistorianOpContext(),
+                parent.NodeId,
+                [new Annotation { AnnotationTime = BaseTime.AddSeconds(5), UserName = "tester", Message = "note1" }],
+                CancellationToken.None).ConfigureAwait(false);
+
+            return (parent, annotProp);
+        }
+
         private static BaseDataVariableState CreateHistoryWriteVariable(Harness h, string name)
         {
             ushort nsIdx = h.Manager.NamespaceIndexes[0];
@@ -922,6 +1188,61 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
+
+            /// <summary>
+            /// Whether handles are returned without their node, which is then resolved
+            /// when the handle is validated.
+            /// </summary>
+            public bool DeferHandles { get; set; }
+
+            /// <summary>
+            /// Whether the next validation of a handle fails; later validations succeed.
+            /// </summary>
+            public bool FailNextValidation { get; set; }
+
+            /// <summary>
+            /// Whether a failing validation finds no node instead of throwing.
+            /// </summary>
+            public bool FailWithMissingNode { get; set; }
+
+            protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
+                ServerSystemContext context,
+                NodeId nodeId,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                NodeHandle handle = await base.GetManagerHandleAsync(context, nodeId, cache, cancellationToken)
+                    .ConfigureAwait(false);
+                if (DeferHandles && handle != null)
+                {
+                    handle.Node = null!;
+                    handle.Validated = false;
+                }
+                return handle!;
+            }
+
+            protected override ValueTask<NodeState> ValidateNodeAsync(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                if (FailNextValidation)
+                {
+                    FailNextValidation = false;
+                    if (FailWithMissingNode)
+                    {
+                        return default;
+                    }
+                    throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+                }
+                if (handle.Node == null && base.PredefinedNodes.TryGetValue(handle.NodeId, out NodeState? node))
+                {
+                    handle.Node = node;
+                    handle.Validated = true;
+                }
+                return base.ValidateNodeAsync(context, handle, cache, cancellationToken);
+            }
 
             protected override IHistorianProvider? GetHistorianProvider(NodeState node)
             {

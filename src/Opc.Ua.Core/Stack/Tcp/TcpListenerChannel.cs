@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -330,6 +304,16 @@ namespace Opc.Ua.Bindings
         internal bool HoldsPartialMessage => HasPartialMessage;
 
         /// <summary>
+        /// How long outstanding response writes keep a channel without a session from
+        /// being reclaimed for admission.
+        /// </summary>
+        /// <remarks>
+        /// Long enough to deliver a discovery response over a slow link; a peer that
+        /// needs longer while the server is out of channel slots connects again.
+        /// </remarks>
+        internal static readonly TimeSpan SessionlessWriteGrace = TimeSpan.FromSeconds(5);
+
+        /// <summary>
         /// Closes an unused channel to make room for admission unless it is disposed, closing, or serving a session.
         /// </summary>
         /// <remarks>
@@ -338,6 +322,12 @@ namespace Opc.Ua.Bindings
         /// Otherwise a peer without credentials could pin every channel slot by
         /// trickling chunks of messages it never finishes. Callers try channels
         /// without an unfinished message first (<see cref="HoldsPartialMessage"/>).
+        /// <para>
+        /// A response still being written protects such a channel only for
+        /// <see cref="SessionlessWriteGrace"/>. The peer decides how fast it reads,
+        /// so it could otherwise keep one response outstanding on every channel by
+        /// reading slowly, and hold every slot without a credential.
+        /// </para>
         /// </remarks>
         internal bool TryIdleCleanupForAdmission()
         {
@@ -352,7 +342,8 @@ namespace Opc.Ua.Bindings
                 }
                 lock (m_pendingRequestLock)
                 {
-                    if (m_pendingServiceRequests != 0 || HasPendingWrites)
+                    if (m_pendingServiceRequests != 0 ||
+                        (HasPendingWrites && GetPendingWriteAge() <= SessionlessWriteGrace))
                     {
                         return false;
                     }

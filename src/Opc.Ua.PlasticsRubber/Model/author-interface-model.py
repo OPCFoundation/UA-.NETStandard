@@ -1,28 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 The OPC Foundation, Inc. All rights reserved.
-#
-# OPC Foundation MIT License 1.00
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-#
-# The complete license agreement can be found here:
-# http://opcfoundation.org/License/MIT/1.00/
+# SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+# SPDX-License-Identifier: MIT
 """Build an independently maintained interface model from the MIT 1.02 basis.
 
 Only the licensed basis is an input. The 1.03 interface changes below are
@@ -48,7 +26,7 @@ NODESET = "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
 TYPES = "http://opcfoundation.org/UA/2008/02/Types.xsd"
 BINARY = "http://opcfoundation.org/BinarySchema/"
 XSD = "http://www.w3.org/2001/XMLSchema"
-BASIS_HASH = "5fe4469bf64ebab5a828d2f888dca85e985cf2d48286029d37565c09e4ac9ba8"
+BASIS_HASH = "c4e2c75ef4e1edadc2e0ca7a568879ea4d08ddac8d2638c3402fef77e16ef776"
 DIRECTORY = Path(__file__).resolve().parent
 BASIS = DIRECTORY / "Basis" / "Opc.Ua.PlasticsRubber.GeneralTypes.1.02.NodeSet2.xml"
 OUTPUT = DIRECTORY / "Opc.Ua.PlasticsRubber.NodeSet2.xml"
@@ -326,7 +304,7 @@ def build_model():
         raise ValueError("The MIT 1.02 basis does not match the pinned source.")
     text = source.decode("utf-8-sig")
     license_notice = text[text.index("<!--"):text.index("-->") + 3]
-    if "OPC Foundation MIT License 1.00" not in license_notice:
+    if "SPDX-License-Identifier: MIT" not in license_notice:
         raise ValueError("The redistribution licence is missing.")
     for _, (prefix, uri) in ET.iterparse(BASIS, events=["start-ns"]):
         ET.register_namespace(prefix, uri)

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics;
@@ -36,7 +10,7 @@ namespace UaLens.Views;
 
 /// <summary>
 /// Modal About dialog showing the UaLens product name, runtime assembly
-/// version, copyright notice, the OPC Foundation MIT 1.00 license body,
+/// version, copyright notice, the MIT license body,
 /// and a "Visit website" shortcut to the upstream GitHub repo.
 /// Triggered from the Help → About… menu entry on <see cref="MainWindow"/>.
 /// </summary>
@@ -45,15 +19,13 @@ internal sealed partial class AboutDialog : Window
     private const string s_websiteUrl = "https://github.com/OPCFoundation/UA-.NETStandard";
 
     /// <summary>
-    /// Verbatim copy of the OPC Foundation MIT 1.00 license body that
-    /// appears at the head of every UaLens source file, with the leading
-    /// <c>" * "</c> comment prefixes stripped so the text reads cleanly
-    /// in a multi-line <see cref="TextBox"/>.
+    /// Text of the MIT license (SPDX-License-Identifier: MIT) that covers
+    /// UaLens, shown in a multi-line <see cref="TextBox"/>.
     /// </summary>
     private const string s_licenseText =
-        "Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.\r\n" +
+        "Copyright (c) 2005-2026, OPC Federation AISBL\r\n" +
         "\r\n" +
-        "OPC Foundation MIT License 1.00\r\n" +
+        "MIT License\r\n" +
         "\r\n" +
         "Permission is hereby granted, free of charge, to any person\r\n" +
         "obtaining a copy of this software and associated documentation\r\n" +
@@ -73,10 +45,7 @@ internal sealed partial class AboutDialog : Window
         "HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\r\n" +
         "WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\r\n" +
         "FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR\r\n" +
-        "OTHER DEALINGS IN THE SOFTWARE.\r\n" +
-        "\r\n" +
-        "The complete license agreement can be found here:\r\n" +
-        "http://opcfoundation.org/License/MIT/1.00/";
+        "OTHER DEALINGS IN THE SOFTWARE.";
 
     public AboutDialog()
     {

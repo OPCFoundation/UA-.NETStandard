@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -197,6 +171,103 @@ namespace Opc.Ua.Server.Tests
                 "a published item without pending values is not tracked");
         }
 
+        [Test]
+        public async Task SignalledItemClearedBeforePromotionIsNotPublishedAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+
+            // the item signals ready to report, then an identity change drops its value.
+            scenario.Queue(2, 20);
+            scenario.Item(2).ClearQueuedNotifications();
+            scenario.Tick("cleared");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]").And.Not.Contain("2=20"),
+                "an item without notifications must not be promoted");
+
+            scenario.Queue(2, 21);
+            scenario.Tick("new value");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Contain("[2=21]"));
+        }
+
+        [Test]
+        public async Task ClearedItemKeepsASingleCandidateAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+
+            // the value after the clear must not signal a second candidate for the item.
+            scenario.Queue(2, 20);
+            scenario.Item(2).ClearQueuedNotifications();
+            scenario.Queue(2, 21);
+            Assert.That(scenario.ReadyCandidateCount + scenario.ReadyIntakeCount, Is.EqualTo(1));
+
+            scenario.Tick("new value");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Contain("[2=21]"));
+            scenario.Tick("idle");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]"));
+            Assert.That(scenario.ReadyCandidateCount + scenario.ReadyIntakeCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task InvalidationDuringScanIsKeptForCandidatesAsync()
+        {
+            using var scenario = new Scenario(withScanItem: true, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+
+            // leave the scan, so the next value signals ready to report.
+            await scenario.DeleteAsync(1000).ConfigureAwait(false);
+            scenario.Tick("candidates");
+            scenario.Tick("idle");
+
+            // the item signals ready to report, then the subscription scans again and the
+            // item is cleared before the scan pass.
+            scenario.Queue(2, 20);
+            await scenario.AddScanItemAsync(1001).ConfigureAwait(false);
+            scenario.Item(2).ClearQueuedNotifications();
+            scenario.Tick("scan");
+
+            // without the item that does not signal, the subscription uses the candidates.
+            await scenario.DeleteAsync(1001).ConfigureAwait(false);
+            scenario.Tick("candidates again");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Is.EqualTo("candidates again: Idle"),
+                "the invalidation consumed by a scan must still apply to the candidates");
+        }
+
+        [Test]
+        public async Task RolledBackResendIsNotPublishedAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+            scenario.Queue(2, 20);
+            scenario.Tick("drained");
+
+            // a failed transfer sets up the resend and then rolls it back.
+            scenario.Item(2).SetupResendDataTrigger();
+            ((IMonitoredItemTransferState)scenario.Item(2)).RestoreResendDataTrigger(false);
+            scenario.Tick("rolled back");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]"),
+                "a rolled-back resend must not be promoted");
+        }
+
+        [Test]
+        public async Task LongerSamplingIntervalTakesBackReadinessAsync()
+        {
+            using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
+            await scenario.CreateAsync(itemCount: 3).ConfigureAwait(false);
+            scenario.Tick("initial");
+
+            // the value signals ready to report, then a modification moves the deadline out.
+            scenario.Queue(2, 20);
+            scenario.Item(2).SetSamplingInterval(1e9);
+            scenario.Tick("deadline ahead");
+            Assert.That(scenario.Trace[scenario.Trace.Count - 1], Does.Not.Contain("[none]").And.Not.Contain("2=20"),
+                "an item whose sampling deadline is ahead must not be promoted");
+        }
+
         private static async Task AssertSameAsScanAsync(
             Func<Scenario, Task> run,
             uint maxNotificationsPerPublish = 0,
@@ -289,7 +360,7 @@ namespace Opc.Ua.Server.Tests
 
             public List<string> Trace { get; } = [];
 
-            public int ReadyCandidateCount => ((List<IMonitoredItem>)typeof(Subscription)
+            public int ReadyCandidateCount => ((System.Collections.ICollection)typeof(Subscription)
                 .GetField("m_readyCandidates", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
                 .GetValue(Subscription)!).Count;
 
@@ -364,6 +435,55 @@ namespace Opc.Ua.Server.Tests
                     TimestampsToReturn.Neither,
                     requests,
                     CancellationToken.None).ConfigureAwait(false);
+            }
+
+            public MonitoredItem Item(uint id) => m_items[id];
+
+            public int ReadyIntakeCount => ((System.Collections.ICollection)typeof(Subscription)
+                .GetField("m_readyIntake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .GetValue(Subscription)!).Count;
+
+            public async Task AddScanItemAsync(uint id)
+            {
+                var scanItem = new Mock<IMonitoredItem>();
+                scanItem.SetupGet(i => i.Id).Returns(id);
+                scanItem.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Disabled);
+                var createResult = new MonitoredItemCreateResult { MonitoredItemId = id };
+                scanItem.Setup(i => i.GetCreateResult(out createResult)).Returns(ServiceResult.Good);
+                m_nodeManager
+                    .Setup(n => n.CreateMonitoredItemsAsync(
+                        It.IsAny<OperationContext>(),
+                        Subscription.Id,
+                        It.IsAny<double>(),
+                        It.IsAny<TimestampsToReturn>(),
+                        It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.IsAny<IList<MonitoringFilterResult>>(),
+                        It.IsAny<IList<IMonitoredItem>>(),
+                        It.IsAny<bool>(),
+                        It.IsAny<CancellationToken>()))
+                    .Callback<OperationContext, uint, double, TimestampsToReturn, ArrayOf<MonitoredItemCreateRequest>,
+                        IList<ServiceResult>, IList<MonitoringFilterResult>, IList<IMonitoredItem>, bool, CancellationToken>(
+                        (_, _, _, _, _, _, _, created, _, _) => created[0] = scanItem.Object)
+                    .Returns(default(ValueTask));
+                await Subscription.CreateMonitoredItemsAsync(
+                    m_context,
+                    TimestampsToReturn.Neither,
+                    [new MonitoredItemCreateRequest { MonitoringMode = MonitoringMode.Reporting }],
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+
+            public async Task DeleteAsync(uint id)
+            {
+                m_nodeManager
+                    .Setup(n => n.DeleteMonitoredItemsAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<IList<IMonitoredItem>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(default(ValueTask));
+                await Subscription.DeleteMonitoredItemsAsync(m_context, [id]).ConfigureAwait(false);
             }
 
             public void Queue(uint id, int value)

@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * Licensed under the OPC Foundation MIT License 1.00.
- * See http://opcfoundation.org/License/MIT/1.00/.
- -->
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
 <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>urn:opcfoundation.org:UA:WotAggregation:PumpInstance</Uri>

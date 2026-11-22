@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;

@@ -12,7 +12,7 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageTags>opc-ua;opcua;client;avalonia;dotnet-tool</PackageTags>
-    <Copyright>Copyright © 2025 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2005-2026, OPC Federation AISBL</Copyright>
     <RootNamespace>UaLens</RootNamespace>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
     <LangVersion>14.0</LangVersion>

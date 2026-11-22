@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -346,18 +320,21 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// The event field lists of a message are copied into an array rented from the shared
-        /// pool; the array is returned once the payload is recycled, and the message encodes
-        /// only its slice of it.
+        /// The event field lists and admission stamps of a message are copied into a pooled
+        /// event buffer; the buffer is returned once the payload is recycled, and the message
+        /// encodes only its slice of it.
         /// </summary>
         [Test]
         public void RentedEventArrayIsReturnedWithThePayload([Values(false, true)] bool acknowledgeFirst)
         {
             var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
-            EventFieldList[] rented = System.Buffers.ArrayPool<EventFieldList>.Shared.Rent(3);
+            var buffer = EventNotificationBuffer.Rent(3);
+            EventFieldList[] rented = buffer.Events;
+            object?[] stamps = buffer.Stamps;
             for (int ii = 0; ii < 3; ii++)
             {
                 rented[ii] = new EventFieldList { ClientHandle = (uint)ii + 1, EventFields = [ii] };
+                stamps[ii] = new object();
             }
             var message = new NotificationMessage
             {
@@ -371,7 +348,7 @@ namespace Opc.Ua.Server.Tests
             EventFieldList[] originals = rented.Take(3).ToArray();
             NotificationMessage sent = queue.Enqueue(
                 [message], [], out _, out _, out NotificationMessageLease lease,
-                [new RentedNotificationArrays(null, rented)]);
+                [new RentedNotificationArrays(null, buffer)]);
             var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
             PublishResponse decoded = Encode(response);
             Assert.That(
@@ -385,17 +362,19 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(queue.TryAcknowledge(1), Is.True);
                 Assert.That(rented[0], Is.EqualTo(originals[0]), "still being sent");
+                Assert.That(stamps[0], Is.Not.Null, "stamps held while being sent");
                 ((IPooledEncodeable)response).Reuse();
             }
             else
             {
                 ((IPooledEncodeable)response).Reuse();
                 Assert.That(rented[0], Is.EqualTo(originals[0]), "still retained for republish");
+                Assert.That(stamps[0], Is.Not.Null, "stamps held for republish");
                 Assert.That(queue.TryAcknowledge(1), Is.True);
             }
 
-            // returned with clearArray, so it no longer references the recycled field values
-            // (another test may have rented it again since).
+            // cleared on return, so it no longer references the recycled field values or the
+            // admission stamps (another test may have rented it again since).
             for (int ii = 0; ii < originals.Length; ii++)
             {
                 Assert.That(rented[ii], Is.Not.EqualTo(originals[ii]));

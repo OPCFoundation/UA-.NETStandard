@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -103,6 +77,130 @@ namespace Opc.Ua.PubSub.MetaData
         /// </summary>
         public int MaxEntries { get; init; } = DefaultMaxEntries;
 
+        /// <summary>
+        /// Default for <see cref="MaxUnauthenticatedCost"/>.
+        /// </summary>
+        public const long DefaultMaxUnauthenticatedCost = 16 * 1024 * 1024;
+
+        /// <summary>
+        /// Budget for metadata received without verified message security.
+        /// The count of identities alone does not bound the memory such
+        /// metadata retains, because one announcement can be megabytes in
+        /// size. Every unauthenticated entry is charged the length of the
+        /// frame that carried it plus a fixed amount per decoded element, and
+        /// an announcement that would take the total above this budget is not
+        /// registered. Zero or less disables the limit.
+        /// </summary>
+        public long MaxUnauthenticatedCost { get; init; } = DefaultMaxUnauthenticatedCost;
+
+        /// <summary>
+        /// Default for <see cref="UnauthenticatedIdleTimeout"/>.
+        /// </summary>
+        public static readonly TimeSpan DefaultUnauthenticatedIdleTimeout = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Time after which metadata received without verified message
+        /// security may be evicted when it was neither announced again nor
+        /// looked up. Such an entry is only evicted to make room: when a new
+        /// unauthenticated announcement would exceed
+        /// <see cref="MaxUnauthenticatedCost"/>, the entries that were idle
+        /// for at least this long are removed, the longest idle first, until
+        /// the announcement fits. A sender that filled the budget and went
+        /// silent therefore cannot keep later publishers out for longer than
+        /// this. Zero or less disables eviction.
+        /// </summary>
+        public TimeSpan UnauthenticatedIdleTimeout { get; init; } = DefaultUnauthenticatedIdleTimeout;
+
+        /// <summary>
+        /// Clock used to measure <see cref="UnauthenticatedIdleTimeout"/>.
+        /// </summary>
+        internal TimeProvider Clock { get; init; } = TimeProvider.System;
+
+        /// <summary>
+        /// Notified, outside the lock of the registry, for every
+        /// unauthenticated entry that was evicted because it was idle.
+        /// </summary>
+        internal UnauthenticatedEvictedHandler? UnauthenticatedEvicted { get; init; }
+
+        /// <summary>
+        /// Handler for <see cref="UnauthenticatedEvicted"/>.
+        /// </summary>
+        /// <param name="key">Key of the evicted entry.</param>
+        internal delegate void UnauthenticatedEvictedHandler(in DataSetMetaDataKey key);
+
+        /// <summary>
+        /// Evicts unauthenticated entries that were idle for at least
+        /// <see cref="UnauthenticatedIdleTimeout"/>, the longest idle first,
+        /// until the requested number of entries is removed.
+        /// </summary>
+        /// <param name="entries">Number of entries to remove.</param>
+        /// <returns><see langword="true"/> when that many entries were
+        /// removed; otherwise nothing was removed.</returns>
+        internal bool EvictIdleUnauthenticated(int entries)
+        {
+            List<DataSetMetaDataKey>? evicted;
+            lock (m_lock)
+            {
+                evicted = EvictIdleUnauthenticatedLocked(null, 0, entries, Clock.GetTimestamp());
+            }
+            NotifyEvicted(evicted);
+            return evicted is not null;
+        }
+
+        /// <summary>
+        /// Like <see cref="EvictIdleUnauthenticated(int)"/>, but never
+        /// removes the entry of <paramref name="keep"/>.
+        /// </summary>
+        internal bool EvictIdleUnauthenticated(int entries, in DataSetMetaDataKey keep)
+        {
+            var kept = new IdentityKey(keep.PublisherId, keep.WriterGroupId, keep.DataSetWriterId);
+            List<DataSetMetaDataKey>? evicted;
+            lock (m_lock)
+            {
+                evicted = EvictIdleUnauthenticatedLocked(kept, 0, entries, Clock.GetTimestamp());
+            }
+            NotifyEvicted(evicted);
+            return evicted is not null;
+        }
+
+        /// <summary>
+        /// Whether at least one unauthenticated entry was idle for
+        /// <see cref="UnauthenticatedIdleTimeout"/> and could be evicted.
+        /// Removes nothing.
+        /// </summary>
+        internal bool HasIdleUnauthenticated()
+        {
+            lock (m_lock)
+            {
+                return CollectIdleLocked(null, 0, 1, Clock.GetTimestamp()) is not null;
+            }
+        }
+
+        /// <summary>
+        /// Notified, outside the lock of the registry, when a lookup finds
+        /// no metadata for a key.
+        /// </summary>
+        internal UnauthenticatedEvictedHandler? LookupMissed { get; init; }
+
+        /// <summary>
+        /// Number of unauthenticated announcements that were not registered
+        /// because they would have exceeded <see cref="MaxUnauthenticatedCost"/>.
+        /// </summary>
+        public long RejectedUnauthenticatedCount => Interlocked.Read(ref m_rejectedUnauthenticatedCount);
+
+        /// <summary>
+        /// Whether this registry itself holds an entry for the identity of
+        /// the key, not counting the host-trusted registry behind it.
+        /// </summary>
+        internal bool ContainsLocal(in DataSetMetaDataKey key)
+        {
+            var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
+            lock (m_lock)
+            {
+                return m_entries.ContainsKey(identity);
+            }
+        }
+
         /// <inheritdoc/>
         public event EventHandler<DataSetMetaDataChangedEventArgs>? MetaDataChanged;
 
@@ -168,7 +266,13 @@ namespace Opc.Ua.PubSub.MetaData
             if (!found)
             {
                 metaData = null;
+                LookupMissed?.Invoke(in key);
                 return MetaDataMatchResult.NotFound;
+            }
+            if (entry.LastUse is { } lastUse)
+            {
+                // Unauthenticated metadata that is in use is not idle.
+                Volatile.Write(ref lastUse.Timestamp, Clock.GetTimestamp());
             }
             metaData = entry.MetaData;
             ConfigurationVersionDataType version = entry.MetaData.ConfigurationVersion
@@ -228,7 +332,11 @@ namespace Opc.Ua.PubSub.MetaData
         /// Registers received metadata with its authentication provenance.
         /// Unauthenticated metadata may replace only other unauthenticated metadata.
         /// </summary>
-        internal bool RegisterReceived(in DataSetMetaDataKey key, DataSetMetaDataType metaData, bool authenticated)
+        internal bool RegisterReceived(
+            in DataSetMetaDataKey key,
+            DataSetMetaDataType metaData,
+            bool authenticated,
+            int frameLength = 0)
         {
             if (metaData is null)
             {
@@ -242,6 +350,9 @@ namespace Opc.Ua.PubSub.MetaData
             }
 
             var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
+            long cost = authenticated ? 0 : EstimateCost(metaData, frameLength);
+            long now = authenticated ? 0 : Clock.GetTimestamp();
+            List<DataSetMetaDataKey>? evicted = null;
             DataSetMetaDataChangedEventArgs? evt;
             lock (m_lock)
             {
@@ -259,8 +370,55 @@ namespace Opc.Ua.PubSub.MetaData
                         MaxEntries.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                         ").");
                 }
-                m_entries[identity] = new RegisteredEntry(key, metaData, authenticated);
-                evt = new DataSetMetaDataChangedEventArgs(key, existing.MetaData, metaData);
+                long previousCost = found ? existing.Cost : 0;
+                if (!authenticated && MaxUnauthenticatedCost > 0 && cost <= MaxUnauthenticatedCost)
+                {
+                    long excess = m_unauthenticatedCost - previousCost + cost - MaxUnauthenticatedCost;
+                    if (excess > 0)
+                    {
+                        // Entries nobody announced or used for a while make
+                        // room, so that a sender that filled the budget and
+                        // went silent does not keep everyone else out.
+                        evicted = EvictIdleUnauthenticatedLocked(identity, excess, 0, now);
+                    }
+                }
+                if (!authenticated &&
+                    MaxUnauthenticatedCost > 0 &&
+                    m_unauthenticatedCost - previousCost + cost > MaxUnauthenticatedCost)
+                {
+                    evt = null;
+                }
+                else
+                {
+                    m_unauthenticatedCost += cost - previousCost;
+                    m_entries[identity] = new RegisteredEntry(
+                        key,
+                        metaData,
+                        authenticated,
+                        cost,
+                        authenticated ? null : new UseStamp { Timestamp = now });
+                    evt = new DataSetMetaDataChangedEventArgs(key, existing.MetaData, metaData);
+                }
+            }
+            NotifyEvicted(evicted);
+            if (evt is null)
+            {
+                // The sender is unauthenticated and can repeat a rejected
+                // announcement at packet rate, so the warning is emitted for
+                // the 1st, 2nd, 4th, 8th ... rejection only; the counter
+                // carries the total.
+                long rejected = Interlocked.Increment(ref m_rejectedUnauthenticatedCount);
+                if ((rejected & (rejected - 1)) == 0)
+                {
+                    m_logger.UnauthenticatedMetadataOverBudget(
+                        key.PublisherId,
+                        key.WriterGroupId,
+                        key.DataSetWriterId,
+                        cost,
+                        MaxUnauthenticatedCost,
+                        rejected);
+                }
+                return false;
             }
             m_logger.RegisteredMetadata(
                 key.PublisherId,
@@ -278,7 +436,127 @@ namespace Opc.Ua.PubSub.MetaData
             var identity = new IdentityKey(key.PublisherId, key.WriterGroupId, key.DataSetWriterId);
             lock (m_lock)
             {
+                if (m_entries.TryGetValue(identity, out RegisteredEntry removed))
+                {
+                    m_unauthenticatedCost -= removed.Cost;
+                    _ = m_entries.Remove(identity);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes unauthenticated entries that were idle for at least
+        /// <see cref="UnauthenticatedIdleTimeout"/>, the longest idle first,
+        /// until the requested cost and number of entries are freed. Removes
+        /// nothing when the idle entries do not free that much. Must be
+        /// called with the lock held.
+        /// </summary>
+        private List<DataSetMetaDataKey>? EvictIdleUnauthenticatedLocked(
+            IdentityKey? keep,
+            long costToFree,
+            int entriesToFree,
+            long now)
+        {
+            List<(IdentityKey Identity, long LastUse, long Cost, DataSetMetaDataKey Key)>? idle =
+                CollectIdleLocked(keep, costToFree, entriesToFree, now);
+            if (idle is null)
+            {
+                return null;
+            }
+            var evicted = new List<DataSetMetaDataKey>();
+            foreach ((IdentityKey identity, long _, long cost, DataSetMetaDataKey key) in idle)
+            {
+                if (costToFree <= 0 && entriesToFree <= 0)
+                {
+                    break;
+                }
                 _ = m_entries.Remove(identity);
+                m_unauthenticatedCost -= cost;
+                costToFree -= cost;
+                entriesToFree--;
+                evicted.Add(key);
+            }
+            return evicted;
+        }
+
+        /// <summary>
+        /// Returns the unauthenticated entries that were idle for at least
+        /// <see cref="UnauthenticatedIdleTimeout"/>, the longest idle first,
+        /// or <see langword="null"/> when they do not free the requested
+        /// cost and number of entries. Must be called with the lock held.
+        /// </summary>
+        private List<(IdentityKey Identity, long LastUse, long Cost, DataSetMetaDataKey Key)>? CollectIdleLocked(
+            IdentityKey? keep,
+            long costToFree,
+            int entriesToFree,
+            long now)
+        {
+            TimeSpan idleTimeout = UnauthenticatedIdleTimeout;
+            if (idleTimeout <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
+            // The sender that is refused is unauthenticated and can repeat its
+            // announcement at packet rate. A scan that found too little to
+            // evict leaves a summary of what is idle; until it expires, a
+            // request that needs more than that is refused without walking
+            // the entries again, while a smaller one still scans and evicts.
+            if (now < m_idleSummaryValidUntil &&
+                (costToFree > m_idleSummaryCost || entriesToFree > m_idleSummaryCount))
+            {
+                return null;
+            }
+            List<(IdentityKey Identity, long LastUse, long Cost, DataSetMetaDataKey Key)>? idle = null;
+            long idleCost = 0;
+            long allIdleCost = 0;
+            int allIdleCount = 0;
+            foreach (KeyValuePair<IdentityKey, RegisteredEntry> pair in m_entries)
+            {
+                if (pair.Value.LastUse is not { } stamp)
+                {
+                    continue;
+                }
+                long lastUse = Volatile.Read(ref stamp.Timestamp);
+                if (Clock.GetElapsedTime(lastUse, now) < idleTimeout)
+                {
+                    continue;
+                }
+                allIdleCost += pair.Value.Cost;
+                allIdleCount++;
+                if (keep is { } kept && kept.Equals(pair.Key))
+                {
+                    continue;
+                }
+                idle ??= [];
+                idle.Add((pair.Key, lastUse, pair.Value.Cost, pair.Value.Key));
+                idleCost += pair.Value.Cost;
+            }
+            if (idle is null || idleCost < costToFree || idle.Count < entriesToFree)
+            {
+                m_idleSummaryCost = allIdleCost;
+                m_idleSummaryCount = allIdleCount;
+                m_idleSummaryValidUntil = now +
+                    (long)(idleTimeout.TotalSeconds / kIdleScanDivisor * Clock.TimestampFrequency);
+                return null;
+            }
+            idle.Sort(static (a, b) => a.LastUse.CompareTo(b.LastUse));
+            return idle;
+        }
+
+        private void NotifyEvicted(List<DataSetMetaDataKey>? evicted)
+        {
+            if (evicted is null)
+            {
+                return;
+            }
+            m_logger.EvictedIdleUnauthenticatedMetadata(evicted.Count, UnauthenticatedIdleTimeout);
+            if (UnauthenticatedEvicted is { } handler)
+            {
+                foreach (DataSetMetaDataKey key in evicted)
+                {
+                    handler(in key);
+                }
             }
         }
 
@@ -298,6 +576,133 @@ namespace Opc.Ua.PubSub.MetaData
             return m_trustedRegistry is not null &&
                 m_trustedRegistry.TryGet(in key, out _) != MetaDataMatchResult.NotFound;
         }
+
+        /// <summary>
+        /// Estimates what an unauthenticated metadata entry retains: the bytes of
+        /// the frame that carried it plus a fixed amount per decoded element, since
+        /// an element that is a few bytes on the wire becomes a full object.
+        /// </summary>
+        private static long EstimateCost(DataSetMetaDataType metaData, int frameLength)
+        {
+            long elements = 1;
+            elements += metaData.Namespaces.Count;
+            elements += metaData.SimpleDataTypes.Count;
+            foreach (StructureDescription structure in metaData.StructureDataTypes.Span)
+            {
+                elements += 1 + (structure?.StructureDefinition?.Fields.Count ?? 0);
+            }
+            foreach (EnumDescription enumeration in metaData.EnumDataTypes.Span)
+            {
+                elements += 1 + (enumeration?.EnumDefinition?.Fields.Count ?? 0);
+            }
+            long values = 0;
+            bool opaqueValues = false;
+            foreach (FieldMetaData field in metaData.Fields.Span)
+            {
+                if (field is null)
+                {
+                    elements++;
+                    continue;
+                }
+                elements += 1 + field.Properties.Count;
+                foreach (KeyValuePair property in field.Properties.Span)
+                {
+                    if (property is not null)
+                    {
+                        values += EstimateValueCost(property.Value, ref opaqueValues);
+                    }
+                }
+            }
+            long frame = Math.Max(frameLength, 0);
+            if (opaqueValues)
+            {
+                // A property holds values whose decoded size cannot be walked
+                // cheaply. Every such element occupies at least one byte of
+                // the frame, so the frame length bounds what they retain.
+                values += frame * kOpaqueExpansion;
+            }
+            return frame + (elements * kElementCost) + values;
+        }
+
+        /// <summary>
+        /// Estimates what the value of a field property retains beyond the
+        /// frame bytes. Arrays of types that are small on the wire and large
+        /// in memory are charged per element; values that nest further values
+        /// (DataValue, Variant, ExtensionObject) and matrices are reported as
+        /// opaque and charged from the frame length by the caller.
+        /// </summary>
+        private static long EstimateValueCost(in Variant value, ref bool opaque)
+        {
+            if (value.IsNull)
+            {
+                return 0;
+            }
+            TypeInfo typeInfo = value.TypeInfo;
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.DataValue:
+                case BuiltInType.Variant:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DiagnosticInfo:
+                    opaque = true;
+                    return 0;
+            }
+            if (typeInfo.IsScalar)
+            {
+                return 0;
+            }
+            if (value.TryGetValue(out ArrayOf<string> strings))
+            {
+                return strings.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<ByteString> byteStrings))
+            {
+                return byteStrings.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<NodeId> nodeIds))
+            {
+                return nodeIds.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<ExpandedNodeId> expandedNodeIds))
+            {
+                return expandedNodeIds.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<QualifiedName> qualifiedNames))
+            {
+                return qualifiedNames.Count * (long)kReferenceElementCost;
+            }
+            if (value.TryGetValue(out ArrayOf<LocalizedText> localizedTexts))
+            {
+                return localizedTexts.Count * (long)kReferenceElementCost;
+            }
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.String:
+                case BuiltInType.ByteString:
+                case BuiltInType.XmlElement:
+                case BuiltInType.NodeId:
+                case BuiltInType.ExpandedNodeId:
+                case BuiltInType.QualifiedName:
+                case BuiltInType.LocalizedText:
+                    // A matrix of one of the types above.
+                    opaque = true;
+                    break;
+            }
+
+            // Arrays of fixed-size primitives occupy as many bytes in memory
+            // as in the frame, which is already charged.
+            return 0;
+        }
+
+        private const int kElementCost = 128;
+        private const int kReferenceElementCost = 48;
+        private const int kOpaqueExpansion = 64;
+        private const int kIdleScanDivisor = 16;
+        private long m_idleSummaryValidUntil = long.MinValue;
+        private long m_idleSummaryCost;
+        private int m_idleSummaryCount;
+        private long m_unauthenticatedCost;
+        private long m_rejectedUnauthenticatedCount;
 
         private void RaiseChanged(DataSetMetaDataChangedEventArgs evt)
         {
@@ -322,8 +727,15 @@ namespace Opc.Ua.PubSub.MetaData
 
         private readonly struct RegisteredEntry
         {
-            public RegisteredEntry(DataSetMetaDataKey key, DataSetMetaDataType metaData, bool authenticated)
+            public RegisteredEntry(
+                DataSetMetaDataKey key,
+                DataSetMetaDataType metaData,
+                bool authenticated,
+                long cost,
+                UseStamp? lastUse = null)
             {
+                LastUse = lastUse;
+                Cost = cost;
                 Key = key;
                 MetaData = metaData;
                 Authenticated = authenticated;
@@ -333,9 +745,27 @@ namespace Opc.Ua.PubSub.MetaData
             public DataSetMetaDataType MetaData { get; }
 
             /// <summary>
+            /// Amount charged to the budget for unauthenticated metadata;
+            /// zero for an authenticated entry.
+            /// </summary>
+            public long Cost { get; }
+
+            /// <summary>
             /// Whether this entry was authenticated or registered by the host.
             /// </summary>
             public bool Authenticated { get; }
+
+            /// <summary>
+            /// When an unauthenticated entry was last announced or looked up;
+            /// <see langword="null"/> for an authenticated entry, which is
+            /// never evicted.
+            /// </summary>
+            public UseStamp? LastUse { get; }
+        }
+
+        private sealed class UseStamp
+        {
+            public long Timestamp;
         }
     }
 
@@ -363,6 +793,27 @@ namespace Opc.Ua.PubSub.MetaData
             PublisherId publisher,
             ushort group,
             ushort writer);
+
+        [LoggerMessage(EventId = PubSubEventIds.DataSetMetaDataRegistry + 2, Level = LogLevel.Warning,
+            Message = "DataSetMetaDataRegistry ignored unauthenticated metadata for {Publisher}/{Group}/{Writer}: " +
+                "cost {Cost} exceeds the remaining budget ({Budget} in total). " +
+                "{Rejected} announcements were rejected so far.")]
+        public static partial void UnauthenticatedMetadataOverBudget(
+            this ILogger logger,
+            PublisherId publisher,
+            ushort group,
+            ushort writer,
+            long cost,
+            long budget,
+            long rejected);
+
+        [LoggerMessage(EventId = PubSubEventIds.DataSetMetaDataRegistry + 3, Level = LogLevel.Information,
+            Message = "DataSetMetaDataRegistry evicted {Count} unauthenticated metadata entries that were " +
+                "idle for at least {IdleTimeout} to make room for a new announcement.")]
+        public static partial void EvictedIdleUnauthenticatedMetadata(
+            this ILogger logger,
+            int count,
+            TimeSpan idleTimeout);
     }
 
 }

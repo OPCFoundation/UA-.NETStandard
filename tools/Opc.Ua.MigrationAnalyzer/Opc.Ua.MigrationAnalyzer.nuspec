@@ -7,12 +7,12 @@
     <authors>OPC Foundation</authors>
     <owners>OPC Foundation</owners>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
-    <license type="file">LICENSE.txt</license>
+    <license type="expression">MIT</license>
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
     <icon>images/logo.jpg</icon>
     <readme>NugetREADME.md</readme>
     <description>26 OPC UA analyzers (through UA0030, with gaps), code fixes, and a 1.5.378 API shim.</description>
-    <copyright>Copyright (c) 2004-2025 OPC Foundation, Inc</copyright>
+    <copyright>Copyright (c) 2005-2026, OPC Federation AISBL</copyright>
     <tags>OPCFoundation OPC UA analyzer codefix roslyn migration shim</tags>
     <developmentDependency>true</developmentDependency>
     <repository type="git" url="https://github.com/OPCFoundation/UA-.NETStandard" />
@@ -45,7 +45,6 @@
     <file src="$shimBin$\net48\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net48\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$shimBin$\net10.0\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net10.0\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$propsFile$" target="build\OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props" />
-    <file src="$repoRoot$\LICENSE.txt" target="LICENSE.txt" />
     <file src="$repoRoot$\nuget\logo.jpg" target="images\logo.jpg" />
     <file src="$readme$" target="NugetREADME.md" />
   </files>

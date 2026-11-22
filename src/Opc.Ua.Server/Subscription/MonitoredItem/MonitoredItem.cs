@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -715,6 +689,11 @@ namespace Opc.Ua.Server
                 {
                     SignalReady();
                 }
+                else
+                {
+                    // a rolled-back resend may have signalled ready to report.
+                    InvalidateReadiness();
+                }
             }
         }
 
@@ -769,8 +748,52 @@ namespace Opc.Ua.Server
                 m_subscription is IMonitoredItemReadySink sink &&
                 Interlocked.CompareExchange(ref m_readySignal, 1, 0) == 0)
             {
-                sink.OnMonitoredItemReady(this);
+                sink.OnMonitoredItemReady(this, Id, IsReadyToReportNow());
             }
+        }
+
+        /// <summary>
+        /// Tells the owning subscription that a ready-to-report flag this item signalled
+        /// earlier may no longer hold, so its next publish-timer pass checks every candidate.
+        /// Called while holding <c>m_lock</c> after a change that can take readiness back.
+        /// </summary>
+        private void InvalidateReadiness()
+        {
+            (m_subscription as IMonitoredItemReadySink)?.OnMonitoredItemReadinessInvalidated();
+        }
+
+        /// <summary>
+        /// Whether the subscription would report this item now: the REPORTING case of the
+        /// subscription's readiness rule, decided while the writer has the item in its cache.
+        /// <c>false</c> for every state the subscription has to look at itself (other modes,
+        /// aggregates, a sampling deadline still ahead). Called while holding <c>m_lock</c>.
+        /// </summary>
+        private bool IsReadyToReportNow()
+        {
+            if (MonitoringMode != MonitoringMode.Reporting || AggregateFilter != null)
+            {
+                return false;
+            }
+
+            if (m_resendData)
+            {
+                return true;
+            }
+
+            if (!m_readyToPublish)
+            {
+                return false;
+            }
+
+            if (m_triggered ||
+                m_sourceSamplingInterval != 0 ||
+                (MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
+            {
+                return true;
+            }
+
+            // the deadline only passes: an item ready now stays ready until it publishes.
+            return m_nextSamplingTime <= m_timeProvider.GetTimestampMilliseconds();
         }
 
         /// <summary>
@@ -1444,6 +1467,9 @@ namespace Opc.Ua.Server
 
                 InitializeQueue();
 
+                // the queue or filter change may take back a ready to report signalled earlier.
+                InvalidateReadiness();
+
                 return null;
             }
         }
@@ -1813,6 +1839,9 @@ namespace Opc.Ua.Server
                 {
                     m_nextSamplingTime = 0;
                 }
+
+                // a later deadline takes back a ready to report signalled earlier.
+                InvalidateReadiness();
             }
         }
 
@@ -1860,6 +1889,8 @@ namespace Opc.Ua.Server
                     m_readyToTrigger = false;
                     m_triggered = false;
                 }
+
+                InvalidateReadiness();
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
@@ -1926,7 +1957,11 @@ namespace Opc.Ua.Server
                 m_readyToTrigger = false;
                 m_resendData = false;
                 m_triggered = false;
-                Interlocked.Exchange(ref m_readySignal, 0);
+
+                // the signal stays with its holder (a candidate or the publish list), which
+                // checks the item again and releases it; resetting it here would let a later
+                // value add a second candidate for the item.
+                InvalidateReadiness();
             }
         }
 

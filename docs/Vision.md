@@ -89,8 +89,8 @@ Repository-compatible identifier guards are derived with
 
 | Part | Upstream release commit | NodeSet version and publication | SHA-256 |
 | --- | --- | --- | --- |
-| 1 | [`ba1b53eedd87da6ee9c79ef76e85f9f1d7bff0d0`](https://github.com/OPCFoundation/UA-Nodeset/tree/ba1b53eedd87da6ee9c79ef76e85f9f1d7bff0d0/MachineVision) | `1.0.0`, `2019-07-11T10:18:27Z` | `81B77250E5DE8D4FCCEDA7E05FD32BF199299CAAC32D15DF8F1FE25ED907C053` |
-| 2 | [`5cbfb6506684ffba82610ea50a95927389f46b8e`](https://github.com/OPCFoundation/UA-Nodeset/tree/5cbfb6506684ffba82610ea50a95927389f46b8e/MachineVision/AMCM) | `1.00.0`, `2024-05-17T00:00:00Z` | `C70ED87915AB9A9F72F471C1B852A16EF7596921C0937A93FE2C3F73A6C0EC1F` |
+| 1 | [`ba1b53eedd87da6ee9c79ef76e85f9f1d7bff0d0`](https://github.com/OPCFoundation/UA-Nodeset/tree/ba1b53eedd87da6ee9c79ef76e85f9f1d7bff0d0/MachineVision) | `1.0.0`, `2019-07-11T10:18:27Z` | `DF542BF2BC1666818A035B5874B484CA505E0F432569146D33CA2BCB94A9CE03` |
+| 2 | [`5cbfb6506684ffba82610ea50a95927389f46b8e`](https://github.com/OPCFoundation/UA-Nodeset/tree/5cbfb6506684ffba82610ea50a95927389f46b8e/MachineVision/AMCM) | `1.00.0`, `2024-05-17T00:00:00Z` | `D084C88790A0700CBAF3FDBB790A8513C081495205082F0EA4900532ACA79B80` |
 
 The document publication date for Part 1 is 2019-08-01, distinct from its NodeSet date.
 Part 2's required floors are DI 1.04.0 and Machinery 1.03.0; the implementation

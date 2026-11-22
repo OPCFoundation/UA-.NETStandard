@@ -4,7 +4,7 @@
     <RepositoryUrl>https://github.com/OPCFoundation/UA-.NETStandard</RepositoryUrl>
     <VersionPrefix>2.0</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
-    <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2005-2026, OPC Federation AISBL</Copyright>
     <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
     <AssemblyPrefix>Opc.Ua</AssemblyPrefix>
     <Company>OPC Foundation</Company>
@@ -54,14 +54,13 @@
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <!--
-      Every package ships the OPC Foundation MIT License 1.00 as a license
-      file. Do NOT replace this with
-      <PackageLicenseExpression>MIT</PackageLicenseExpression>: the SPDX `MIT`
-      license is a different text than the OPC Foundation one, and NuGet
-      rejects a project that carries both an expression and a license file
-      (NU5033). `Directory.Build.targets` enforces this.
+      Every package declares the SPDX license identifier `MIT`, the same
+      identifier every source file carries in its `SPDX-License-Identifier`
+      header. Do NOT add a <PackageLicenseFile>: NuGet rejects a project
+      that carries both an expression and a license file (NU5033).
+      `Directory.Build.targets` enforces this.
     -->
-    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <!--
       Every package ships its own package-local README (`NugetREADME.md`
@@ -113,11 +112,6 @@
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <None
-      Include="$(MSBuildThisFileDirectory)/LICENSE.txt"
-      Pack="true"
-      PackagePath="$(PackageLicenseFile)"
-    />
     <None
       Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg"
       Pack="true"

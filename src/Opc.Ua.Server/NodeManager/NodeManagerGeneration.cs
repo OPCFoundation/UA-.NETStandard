@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -2207,6 +2181,8 @@ namespace Opc.Ua.Server
             {
                 return nodeManager;
             }
+            // TODO: Remove legacy adapter normalization when synchronous managers are removed.
+#pragma warning disable CS0618, UA0031 // Normalize transparent legacy adapters without changing the generation key.
             var adapter = (AsyncNodeManagerAdapter)nodeManager;
             if (adapter.SyncNodeManager.GetType() == typeof(SyncNodeManagerAdapter))
             {
@@ -2214,6 +2190,7 @@ namespace Opc.Ua.Server
                 return GetGenerationIdentity(synchronous.AsyncNodeManager);
             }
             return adapter.SyncNodeManager.ToAsyncNodeManager();
+#pragma warning restore CS0618, UA0031
         }
 
         /// <summary>
@@ -2221,7 +2198,9 @@ namespace Opc.Ua.Server
         /// </summary>
         internal static bool IsStandardAdapter(IAsyncNodeManager nodeManager)
         {
+#pragma warning disable CS0618, UA0031 // Only the exact legacy stack adapter is transparent.
             return nodeManager.GetType() == typeof(AsyncNodeManagerAdapter);
+#pragma warning restore CS0618, UA0031
         }
 
         /// <summary>
@@ -2249,6 +2228,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeManager">The facade supplied by the owner.</param>
         /// <returns>The canonical resource key.</returns>
+#pragma warning disable CS0618, UA0031 // Unwraps legacy adapters to one canonical identity.
         internal static IAsyncNodeManager GetIdentity(IAsyncNodeManager nodeManager)
         {
             return s_resourceIdentities.GetValue(nodeManager, static manager =>
@@ -2896,6 +2876,7 @@ namespace Opc.Ua.Server
             /// <summary>Records disposal without removing the physical resource's terminal tombstone.</summary>
             private bool m_cleanupDisposed;
         }
+#pragma warning restore CS0618, UA0031
 
         /// <summary>Serializes generation identity changes on writer paths.</summary>
         private static readonly Lock s_lock = new();

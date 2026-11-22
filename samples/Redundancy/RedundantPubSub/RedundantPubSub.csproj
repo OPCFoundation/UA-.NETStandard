@@ -7,7 +7,7 @@
     <PackageId>RedundantPubSub</PackageId>
     <Company>OPC Foundation</Company>
     <Description>OPC UA PubSub active/standby high-availability sample with SequenceNumber continuity.</Description>
-    <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2005-2026, OPC Federation AISBL</Copyright>
     <RootNamespace>RedundantPubSub</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>false</IsPackable>

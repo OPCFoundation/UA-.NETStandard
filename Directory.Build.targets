@@ -133,30 +133,29 @@
     <Message Importance="high" Text="Skipping $(MSBuildProjectName) for CustomTestTarget=$(CustomTestTarget) (.NET 8+ only)." />
   </Target>
   <!--
-    Every package in this repository is licensed under the OPC Foundation MIT
-    License 1.00 and ships the shared `LICENSE.txt` that `common.props` wires
-    up as `<PackageLicenseFile>`. That license is NOT the plain SPDX `MIT`
-    license: it carries the OPC Foundation copyright and preamble, so a package
-    declaring `<PackageLicenseExpression>MIT</PackageLicenseExpression>` would
-    advertise the wrong license on nuget.org (generic MIT plus a
-    `licenses.nuget.org/MIT` URL) instead of the OPC Foundation text.
+    Every package in this repository is licensed under the MIT license and
+    declares it with the SPDX license expression `MIT` that `common.props`
+    sets as `<PackageLicenseExpression>`. This is the same identifier every
+    source file carries in its `SPDX-License-Identifier` header, so nuget.org
+    shows one license for the whole repository.
 
-    Such a declaration also breaks the build outright: NuGet refuses to pack a
-    project that carries both a license expression and the inherited license
-    file (`NU5033: Cannot specify both a PackageLicenseExpression and a
-    PackageLicenseFile`), which fails `pack` for the whole solution rather than
-    just the offending project.
+    A project must not override that with another expression or with a
+    `<PackageLicenseFile>`. A license file also breaks the build outright:
+    NuGet refuses to pack a project that carries both a license expression and
+    a license file (`NU5033: Cannot specify both a PackageLicenseExpression and
+    a PackageLicenseFile`), which fails `pack` for the whole solution rather
+    than just the offending project.
 
     `common.props` cannot catch this itself - it is imported from
     `Directory.Build.props`, i.e. before the project body, so it never observes
-    a project-level license expression. `Directory.Build.targets` is imported
+    a project-level license property. `Directory.Build.targets` is imported
     after the project body, so it is the earliest place that can, and it fails
     with an actionable message instead of the cryptic NuGet error.
   -->
   <Target Name="_ValidatePackageLicense" BeforeTargets="Build;Pack"
-          Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' != ''">
+          Condition="'$(IsPackable)' != 'false' AND ('$(PackageLicenseExpression)' != 'MIT' OR '$(PackageLicenseFile)' != '')">
     <Error Code="OPCUA0001"
-           Text="$(MSBuildProjectName) sets PackageLicenseExpression=$(PackageLicenseExpression). Every package must ship the OPC Foundation MIT License 1.00 via the shared LICENSE.txt that common.props sets as PackageLicenseFile, which the SPDX expression neither matches nor is allowed to coexist with (NU5033). Remove the PackageLicenseExpression property." />
+           Text="$(MSBuildProjectName) sets PackageLicenseExpression='$(PackageLicenseExpression)' and PackageLicenseFile='$(PackageLicenseFile)'. Every package must declare the SPDX license expression MIT that common.props sets as PackageLicenseExpression, and must not ship a license file (NU5033). Remove the PackageLicenseExpression and PackageLicenseFile properties from the project." />
   </Target>
   <!--
     On netstandard target frameworks two [LoggerMessage] source generators can be active at once:
