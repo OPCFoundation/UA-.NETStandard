@@ -693,7 +693,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             fixture.Connection = new FakeBoundConnection(fixture, binding);
             var retained = new PullDcaCredentials(
                 kCertificate.Copy(), [kIssuer.Copy()],
-                new TrustListDataType { TrustedCertificates = [ByteString.From(new byte[] { 5 })] });
+                new TrustListDataType
+                {
+                    SpecifiedLists = (uint)TrustListMasks.All,
+                    TrustedCertificates = [ByteString.From(new byte[] { 5 })]
+                });
             fixture.Host.OnCredentialsInstalled = credentials =>
             {
                 MutateBytes(credentials.Certificate);
@@ -718,6 +722,38 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(retained.IssuerCertificates[0], Is.EqualTo(kIssuer));
             Assert.That(retained.TrustList.TrustedCertificates[0], Is.EqualTo(ByteString.From(new byte[] { 5 })));
             journal.VerifyAll();
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SigningInstallationRejectsIncompleteFinalTrustList(bool journalResume)
+        {
+            var fixture = new Fixture();
+            Mock<IPullDcaSigningJournal>? journal = null;
+            fixture.Connection.TrustList.SpecifiedLists = (uint)TrustListMasks.TrustedCertificates;
+            if (journalResume)
+            {
+                var binding = new PullDcaSigningBinding(
+                    kRegistrar, kDcaId, kRequestId, kProfile, kCsr, kCertificate,
+                    default, default, string.Empty, default, Guid.NewGuid());
+                var retained = new PullDcaCredentials(kCertificate, [kIssuer], fixture.Connection.TrustList);
+                fixture.Connection = new FakeBoundConnection(fixture, binding);
+                journal = new Mock<IPullDcaSigningJournal>(MockBehavior.Strict);
+                journal.Setup(value => value.GetReceivedAsync(
+                        It.IsAny<PullDcaSigningBinding>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<PullDcaCredentials?>(retained));
+            }
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create(signingJournal: journal?.Object)
+                    .CompleteCertificateRequestAsync(kRegistrar, kDcaId, kRequestId, kProfile)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fixture.Host.InstalledIds, Is.Empty);
+            Assert.That(fixture.Calls.Contains("finish:dca"), Is.EqualTo(!journalResume));
+            Assert.That(fixture.Calls.Contains("trust:dca"), Is.EqualTo(!journalResume));
+            journal?.VerifyAll();
         }
 
         [Test]
@@ -2408,8 +2444,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Part 12 signing recovery requires the original binding and explicit host validation before installation.
         /// </summary>
-        [Test]
-        public async Task ConsumedSigningRequestRecoversOnlyAfterRequestBoundValidation()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConsumedSigningRequestRecoversOnlyAfterRequestBoundValidation(bool finalListIncomplete)
         {
             var fixture = new Fixture();
             fixture.Connection.CertificateError = StatusCodes.BadInvalidArgument;
@@ -2428,15 +2465,85 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Assert.That(credentials.TrustList, Is.Not.SameAs(fixture.Connection.TrustList));
                     Assert.That(credentials.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
                     Assert.That(fixture.Host.InstalledIds, Is.Empty);
+                    if (finalListIncomplete)
+                    {
+                        fixture.Connection.TrustList.SpecifiedLists = (uint)TrustListMasks.TrustedCertificates;
+                    }
                 })
                 .Returns(default(ValueTask));
 
-            PullDcaCredentials result = await fixture.Create(signingRecovery: recovery.Object)
+            PullDcaWorkflow workflow = fixture.Create(signingRecovery: recovery.Object);
+            if (finalListIncomplete)
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await workflow.CompleteCertificateRequestAsync(kRegistrar, kDcaId, kRequestId, kProfile)
+                        .ConfigureAwait(false));
+
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                Assert.That(fixture.Calls.Count(call => call == "trust:dca"), Is.EqualTo(2));
+                Assert.That(fixture.Host.InstalledIds, Is.Empty);
+                recovery.VerifyAll();
+                return;
+            }
+
+            PullDcaCredentials result = await workflow
                 .CompleteCertificateRequestAsync(kRegistrar, kDcaId, kRequestId, kProfile).ConfigureAwait(false);
 
             Assert.That(result.Certificate, Is.EqualTo(kCertificate));
             Assert.That(fixture.Calls, Is.EqualTo(s_recoveryCalls));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
+            recovery.VerifyAll();
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConsumedSigningRequestUsesInstallerVerdictOnChangedCompleteTrustList(bool rejectFinalList)
+        {
+            var fixture = new Fixture();
+            fixture.Connection.CertificateError = StatusCodes.BadInvalidArgument;
+            ByteString originalAnchor = ByteString.From(new byte[] { 21 });
+            ByteString finalAnchor = ByteString.From(new byte[] { 22 });
+            fixture.Connection.TrustList.TrustedCertificates = [originalAnchor];
+            fixture.Connection.TrustList.IssuerCertificates = [kIssuer];
+            var recovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            recovery.Setup(r => r.ValidateAsync(
+                    kRegistrar, kDcaId, kRequestId, kProfile, It.IsAny<PullDcaCredentials>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((PullDcaRegistrar _, NodeId _, NodeId _, PullDcaCertificateProfile _,
+                    PullDcaCredentials recovered, CancellationToken _) =>
+                {
+                    Assert.That(recovered.TrustList.TrustedCertificates[0], Is.EqualTo(originalAnchor));
+                    fixture.Connection.TrustList.TrustedCertificates = [finalAnchor];
+                    return default;
+                });
+            fixture.Host.ValidateSigningInstallation = credentials =>
+            {
+                Assert.That(credentials.Certificate, Is.EqualTo(kCertificate));
+                Assert.That(credentials.IssuerCertificates[0], Is.EqualTo(kIssuer));
+                Assert.That(credentials.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
+                Assert.That(credentials.TrustList.TrustedCertificates[0], Is.EqualTo(finalAnchor));
+                if (rejectFinalList)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateUntrusted);
+                }
+            };
+
+            PullDcaWorkflow workflow = fixture.Create(signingRecovery: recovery.Object);
+            if (rejectFinalList)
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await workflow.CompleteCertificateRequestAsync(kRegistrar, kDcaId, kRequestId, kProfile)
+                        .ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+                Assert.That(fixture.Host.InstalledIds, Is.Empty);
+            }
+            else
+            {
+                PullDcaCredentials result = await workflow
+                    .CompleteCertificateRequestAsync(kRegistrar, kDcaId, kRequestId, kProfile).ConfigureAwait(false);
+                Assert.That(result.TrustList.TrustedCertificates[0], Is.EqualTo(finalAnchor));
+                Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
+            }
             recovery.VerifyAll();
         }
 
@@ -3148,7 +3255,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 new(kIdentity, new DeviceIdentityTicketType(), kDcaId, null);
             public PullDcaIdentityOffer? Offer { get; private set; }
             public PullDcaManagedApplication? RegisteredApplication { get; private set; }
-            public TrustListDataType TrustList { get; } = new();
+            public TrustListDataType TrustList { get; } = new() { SpecifiedLists = (uint)TrustListMasks.All };
             public ArrayOf<ManagerDescription> Managers { get; } =
                 [new ManagerDescription { Name = new LocalizedText("manager") }];
             /// <summary>
@@ -3488,6 +3595,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// Gets or sets an action invoked with credentials passed to the installer.
             /// </summary>
             public Action<PullDcaCredentials>? OnCredentialsInstalled { get; set; }
+            public Action<PullDcaCredentials>? ValidateSigningInstallation { get; set; }
             public List<NodeId> InstalledIds { get; } = [];
             public List<NodeId> KeyPairInstalledIds { get; } = [];
             public ByteString ReceivedPrivateKeyPfx { get; private set; }
@@ -3531,6 +3639,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(credentials.IssuerCertificates, Is.EqualTo(new[] { kIssuer }.ToArrayOf()));
                 Assert.That(credentials.TrustList.SpecifiedLists,
                     Is.EqualTo(m_fixture.Connection.TrustList.SpecifiedLists));
+                ValidateSigningInstallation?.Invoke(credentials);
                 InstalledIds.Add(applicationId);
                 OnInstall?.Invoke(applicationId);
                 OnCredentialsInstalled?.Invoke(credentials);

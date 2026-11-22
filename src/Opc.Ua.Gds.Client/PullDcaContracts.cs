@@ -311,6 +311,9 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Installs and validates issued credentials and trust through the host's certificate stores.
         /// For the DCA, updates the application configuration used by the borrowed managed session.
+        /// Validates the issued certificate and issuer chain against the complete trust list in
+        /// <paramref name="credentials"/> before installing that same credential set. Prior validation
+        /// of a recovered assignment does not validate the trust list supplied for installation.
         /// Returns only after installation; a receipt without installation is not success.
         /// </summary>
         ValueTask InstallAsync(
@@ -472,7 +475,9 @@ namespace Opc.Ua.Gds.Client
     public interface IPullDcaBoundCredentialProvider
     {
         /// <summary>
-        /// Verifies and applies credentials against the supplied signing binding.
+        /// Verifies the supplied signing binding and validates the issued certificate and issuer chain
+        /// against the complete trust list in <paramref name="credentials"/> before installing that same
+        /// credential set, including when resuming a journaled request.
         /// </summary>
         ValueTask InstallAsync(
             PullDcaSigningBinding binding,

@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard — GDS client
 
 `OPCFoundation.NetStandard.Opc.Ua.Gds.Client` is the
@@ -54,6 +59,11 @@ The provider must prove the retained request/key binding and reject stale
 assignments before output is retained or installed. Persistence alone cannot
 recover an accepted response lost before local publication. The sample does not
 yet supply the request evidence needed for this recovery path.
+
+Signing installation requires a complete TrustList, including on journal resume.
+The credential installer must validate the issued certificate and issuer chain
+against the exact list it installs. Validation of a recovered assignment does
+not validate a later TrustList.
 
 New-key-pair provisioning requires both `IPullDcaNewKeyPairCredentialProvider`
 and `IPullDcaNewKeyPairRecoveryProvider`. The recovery provider must atomically

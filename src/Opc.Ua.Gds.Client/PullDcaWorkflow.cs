@@ -1016,6 +1016,7 @@ namespace Opc.Ua.Gds.Client
             if (credentials != null)
             {
                 credentials = SnapshotCredentials(credentials);
+                RequireCompleteSigningTrustList(credentials.TrustList);
             }
             if (credentials == null)
             {
@@ -1052,6 +1053,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 credentials = new PullDcaCredentials(
                     receipt.Certificate, receipt.IssuerCertificates, SnapshotTrustList(trustList));
+                RequireCompleteSigningTrustList(credentials.TrustList);
                 if (m_signingJournal != null)
                 {
                     await m_signingJournal.RecordReceivedAsync(
@@ -1078,6 +1080,19 @@ namespace Opc.Ua.Gds.Client
                     .ConfigureAwait(false);
             }
             return (credentials, binding);
+        }
+
+        /// <summary>
+        /// Rejects partial trust images before recording or installing signing credentials.
+        /// </summary>
+        private static void RequireCompleteSigningTrustList(TrustListDataType trustList)
+        {
+            if (trustList.SpecifiedLists != (uint)TrustListMasks.All)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Signing credential installation requires a complete trust list.");
+            }
         }
 
         /// <summary>
