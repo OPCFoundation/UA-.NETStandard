@@ -58,6 +58,46 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [Test]
+        public async Task HandoffWorkerAllowsUnrelatedPublicationAndRejectsStaleSuccessorAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))],
+                timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration predecessor = RequireRegistration(added.Registrations[0]);
+            var pause = new TestHandoffPause();
+            var factory = new TestHandoffFactory(
+                CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), pause);
+
+            Assert.That(lifecycle.QueueHandoff(predecessor, factory, timeout.Token), Is.EqualTo(StatusCodes.Good));
+            try
+            {
+                await pause.Entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                LifecycleResult unrelated = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                        kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri))],
+                    timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(unrelated.Revision, Is.GreaterThan(added.Revision));
+                Assert.That(RequireRegistration(unrelated.Registrations[0]).Slot,
+                    Is.Not.SameAs(predecessor.Slot));
+                Assert.That(pause.Finished.Task.IsCompleted, Is.False);
+
+                pause.AllowDrain.TrySetResult(true);
+                Assert.That(await pause.Finished.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.True);
+                Assert.That(lifecycle.Revision, Is.EqualTo(unrelated.Revision));
+                Assert.That(predecessor.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(current.NodeManager, Is.SameAs(predecessor.NodeManager));
+                Assert.That(current.Generation, Is.EqualTo(predecessor.Generation));
+            }
+            finally
+            {
+                timeout.Cancel();
+                pause.AllowDrain.TrySetResult(true);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task HandoffWorkerDoesNotReopenAfterCorePublicationStartsAsync(bool started)
