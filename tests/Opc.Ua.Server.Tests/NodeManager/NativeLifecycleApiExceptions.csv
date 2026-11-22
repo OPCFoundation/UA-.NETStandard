@@ -1,0 +1,3 @@
+Id,Declaring type,Getter,Released return,Current return,Release source,Disposition
+FactoryNamespacesSync,Opc.Ua.Server.INodeManagerFactory,get_NamespacesUris,Opc.Ua.StringCollection,Opc.Ua.ArrayOf`1<System.String>,6cca32dd6d79c8b57d2e00e4d2071b991d2cf71b,Inherited 2.x binary break explicitly retained; rebuild 1.5.378 providers
+FactoryNamespacesAsync,Opc.Ua.Server.IAsyncNodeManagerFactory,get_NamespacesUris,Opc.Ua.StringCollection,Opc.Ua.ArrayOf`1<System.String>,6cca32dd6d79c8b57d2e00e4d2071b991d2cf71b,Inherited 2.x binary break explicitly retained; rebuild 1.5.378 providers

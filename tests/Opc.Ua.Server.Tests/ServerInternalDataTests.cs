@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
 
@@ -36,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Historian;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -934,11 +909,66 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task DisposeAsyncCompletesAsync()
         {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             ServerInternalData data = CreateServerInternalData();
+            var trackedBuilder = new HistorianBuilder(data);
+            var lateBuilder = new HistorianBuilder(data);
+            var registry = (IHistorianBuilderRegistry)data;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new Mock<IHistorianProvider>();
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.InsertAsync(
+                    It.IsAny<HistorianOperationContext>(), It.IsAny<NodeId>(),
+                    It.IsAny<ArrayOf<DataValue>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (HistorianOperationContext _, NodeId _,
+                    ArrayOf<DataValue> _, CancellationToken _) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    return new HistorianUpdateOutcome<DataValue>([StatusCodes.Good]);
+                });
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("shutdown-registration", 1),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            trackedBuilder.UseProvider(provider.Object).Historize(
+                variable,
+                systemContext: data.DefaultSystemContext,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.Zero
+                });
+            variable.Value = 42;
+            variable.ClearChangeMasks(data.DefaultSystemContext, includeChildren: false);
 
-            await data.DisposeAsync().ConfigureAwait(false);
-
+            Task? shutdown = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Task disposing = data.DisposeAsync().AsTask();
+                shutdown = disposing;
+                Assert.That(disposing.IsCompleted, Is.False);
+                Assert.That(() => trackedBuilder.UseInMemory(), Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(
+                    () => registry.RegisterHistorianBuilder(lateBuilder),
+                    Throws.TypeOf<ObjectDisposedException>());
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                shutdown ??= data.DisposeAsync().AsTask();
+                await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await lateBuilder.DisposeAsync().ConfigureAwait(false);
+            }
             Assert.That(data.RequestManager, Is.Null);
+            Assert.That(() => trackedBuilder.UseInMemory(), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(
+                () => registry.RegisterHistorianBuilder(lateBuilder),
+                Throws.TypeOf<ObjectDisposedException>());
         }
 
         [Test]

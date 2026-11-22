@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -43,19 +17,16 @@ namespace Opc.Ua
         protected bool TryBeginEventReport(IFilterTarget e, out IDisposable scope)
         {
             EventPropagationFrame? previous = s_eventPropagation.Value;
-            EventPropagationFrame frame;
-            if (previous == null || !previous.IsActive || !ReferenceEquals(previous.Event, e))
+            if (previous is not null && previous.TryJoin(e, this, out bool firstVisit))
             {
-                frame = new EventPropagationFrame(e);
-                s_eventPropagation.Value = frame;
-                scope = new EventPropagationScope(frame, previous);
-            }
-            else
-            {
-                frame = previous;
                 scope = EmptyEventPropagationScope.Instance;
+                return firstVisit;
             }
-            return frame.TryVisit(this);
+
+            var frame = new EventPropagationFrame(e, this);
+            s_eventPropagation.Value = frame;
+            scope = new EventPropagationScope(frame, previous);
+            return true;
         }
 
         /// <summary>
@@ -64,31 +35,28 @@ namespace Opc.Ua
         private sealed class EventPropagationFrame
         {
             /// <summary>
-            /// Creates the visited set for one event publication.
+            /// Creates the visited set with the first source of one event publication.
             /// </summary>
-            public EventPropagationFrame(IFilterTarget e)
+            public EventPropagationFrame(IFilterTarget e, NodeState source)
             {
-                Event = e;
+                m_event = e;
+                m_nodes.Add(source);
             }
 
             /// <summary>
-            /// Gets the event whose nested propagation shares this scope.
+            /// Joins only the same active occurrence and marks a source atomically with publication closure.
             /// </summary>
-            public IFilterTarget Event { get; }
-
-            /// <summary>
-            /// Gets whether its top-level publisher is still active.
-            /// </summary>
-            public bool IsActive => Volatile.Read(ref m_active);
-
-            /// <summary>
-            /// Marks one node before invoking any of its callbacks.
-            /// </summary>
-            public bool TryVisit(NodeState node)
+            public bool TryJoin(IFilterTarget e, NodeState node, out bool firstVisit)
             {
                 lock (m_gate)
                 {
-                    return m_nodes.Add(node);
+                    firstVisit = false;
+                    if (!m_active || !ReferenceEquals(m_event, e))
+                    {
+                        return false;
+                    }
+                    firstVisit = m_nodes.Add(node);
+                    return true;
                 }
             }
 
@@ -99,13 +67,18 @@ namespace Opc.Ua
             {
                 lock (m_gate)
                 {
-                    Volatile.Write(ref m_active, false);
+                    m_active = false;
                     m_nodes.Clear();
+                    m_event = null;
                 }
             }
 
             private readonly Lock m_gate = new();
             private readonly HashSet<NodeState> m_nodes = new(new NodeIdentityComparer());
+
+            /// <summary>The occurrence retained only while this publication remains active.</summary>
+            private IFilterTarget? m_event;
+
             private bool m_active = true;
         }
 

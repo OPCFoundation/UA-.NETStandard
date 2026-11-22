@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,15 +25,22 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="addressSpaceAdmission">The private address-space admission, if acquired.</param>
             /// <param name="serverLifecycleAdmission">The private server-lifecycle admission, if acquired.</param>
+            /// <param name="callbackBorrow">The complete callback-owned admission, if borrowed.</param>
             internal BatchAdmission(
                 SemaphoreSlim? addressSpaceAdmission,
-                SemaphoreSlim? serverLifecycleAdmission)
+                SemaphoreSlim? serverLifecycleAdmission,
+                NodeManagerCallbackPermit.Borrow? callbackBorrow = null)
             {
                 m_addressSpaceAdmission = addressSpaceAdmission;
                 m_serverLifecycleAdmission = serverLifecycleAdmission;
+                m_callbackBorrow = callbackBorrow;
+                m_borrowedCapabilities = (int)(callbackBorrow?.Capabilities ?? NodeManagerAdmissionCapability.None);
                 m_capabilities =
-                    (addressSpaceAdmission is null ? 0 : (int)NodeManagerAdmissionCapability.AddressSpaceMutation) |
-                    (serverLifecycleAdmission is null ? 0 : (int)NodeManagerAdmissionCapability.ServerLifecycle);
+                    (addressSpaceAdmission is null
+                        ? 0 : (int)NodeManagerAdmissionCapability.AddressSpaceMutation) |
+                    (serverLifecycleAdmission is null
+                        ? 0 : (int)NodeManagerAdmissionCapability.ServerLifecycle) |
+                    m_borrowedCapabilities;
             }
 
             /// <inheritdoc/>
@@ -81,6 +63,7 @@ namespace Opc.Ua.Server
                     Revoke(NodeManagerAdmissionCapability.AddressSpaceMutation);
                     Interlocked.Exchange(ref m_addressSpaceAdmission, null)?.Release();
                 }
+                ReleaseBorrowedCapabilities(capability);
             }
 
             /// <inheritdoc/>
@@ -104,8 +87,27 @@ namespace Opc.Ua.Server
                 }
             }
 
+            private void ReleaseBorrowedCapabilities(NodeManagerAdmissionCapability capability)
+            {
+                while (true)
+                {
+                    int current = Volatile.Read(ref m_borrowedCapabilities);
+                    int next = current & ~(int)capability;
+                    if (Interlocked.CompareExchange(ref m_borrowedCapabilities, next, current) == current)
+                    {
+                        if (current != 0 && next == 0)
+                        {
+                            Interlocked.Exchange(ref m_callbackBorrow, null)?.Dispose();
+                        }
+                        return;
+                    }
+                }
+            }
+
             private SemaphoreSlim? m_addressSpaceAdmission;
             private SemaphoreSlim? m_serverLifecycleAdmission;
+            private NodeManagerCallbackPermit.Borrow? m_callbackBorrow;
+            private int m_borrowedCapabilities;
             private int m_capabilities;
         }
 
@@ -170,14 +172,6 @@ namespace Opc.Ua.Server
                 foreach (NodeManagerGeneration generation in generations)
                 {
                     AddIfMissing(generation);
-                    if (generation.PrivateSourceGeneration is { } source)
-                    {
-                        AddIfMissing(source);
-                    }
-                    if (generation.PrivateFacadeGeneration is { } facade)
-                    {
-                        AddIfMissing(facade);
-                    }
                 }
                 Volatile.Write(ref m_retiringEventGenerations, [.. next]);
 
@@ -207,6 +201,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Prepares reference owners under the captured routing view.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// A manager being removed or replaced has no registered owner in the captured routing view.
+        /// </exception>
         private async ValueTask<PreparedAddressSpaceReferences> PrepareReferencesAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
@@ -223,15 +220,16 @@ namespace Opc.Ua.Server
                 Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previous;
                 Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previousSnapshot;
                 Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> next;
-                HashSet<IAsyncNodeManager> retiring = CreateRetiringSet(removed);
-                bool dynamicMutationSemaphoreHeld = false;
-                if (!HasActiveCallbackPermit(
-                        callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation))
+                var retiring = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+                for (int index = 0; index < removed.Count; index++)
                 {
-                    await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    dynamicMutationSemaphoreHeld = true;
+                    retiring.Add(view.FindRegisteredOwner(removed[index]) ??
+                        throw new InvalidOperationException("A batch retirement is not registered."));
                 }
-                try
+                using (await AcquireHostAdmissionAsync(
+                    callbackPermit,
+                    NodeManagerAdmissionCapability.AddressSpaceMutation,
+                    cancellationToken).ConfigureAwait(false))
                 {
                     if (!ReferenceEquals(view, m_nodeManagers.Revision))
                     {
@@ -240,33 +238,26 @@ namespace Opc.Ua.Server
                     }
                     ApplyDeferredReferencePrunes();
                     previous = m_dynamicExternalReferences;
-                    IEqualityComparer<IAsyncNodeManager> managerComparer = RefEqualityComparer.Default;
-                    previousSnapshot = previous.ToDictionary(
-                        entry => entry.Key, entry => entry.Value, managerComparer);
+                    previousSnapshot = new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>(
+                        previous, RefEqualityComparer.Default);
                     foreach (PreparedNodeManager candidate in candidates)
                     {
                         ValidatePreparedNodeManager(candidate);
                         if (candidate.ReplacedNodeManager is { } old)
                         {
-                            retiring.Add(old);
+                            retiring.Add(view.FindRegisteredOwner(old) ??
+                                throw new InvalidOperationException("A batch retirement is not registered."));
                         }
                     }
+                    IEqualityComparer<IAsyncNodeManager> ownerComparer = RefEqualityComparer.Default;
                     next = previousSnapshot.Where(entry => !retiring.Contains(entry.Key))
-                        .ToDictionary(entry => entry.Key, entry => entry.Value, managerComparer);
+                        .ToDictionary(entry => entry.Key, entry => entry.Value, ownerComparer);
                     foreach (PreparedNodeManager candidate in candidates)
                     {
                         ChangePreparer.GetServer(candidate.NodeManager)?.PruneStagedExternalReferences();
                         next.Add(candidate.NodeManager, candidate.ExternalReferences);
                     }
                 }
-                finally
-                {
-                    if (dynamicMutationSemaphoreHeld)
-                    {
-                        m_dynamicMutationSemaphore.Release();
-                    }
-                }
-
                 (
                     ArrayOf<PreparedReferenceSource> sources,
                     Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> additions,
@@ -293,94 +284,187 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Acquires the host capabilities required by a lifecycle commit.
         /// </summary>
-        async ValueTask<INodeManagerBatchAdmission> IDynamicNodeManagerBatchHost.AcquireCommitAdmissionAsync(
+        ValueTask<INodeManagerBatchAdmission> IDynamicNodeManagerBatchHost.AcquireCommitAdmissionAsync(
             NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken)
         {
-            bool needsDynamicMutationSemaphore =
-                !HasActiveCallbackPermit(
-                    callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation);
-            bool needsStartupShutdownSemaphore =
-                !HasActiveCallbackPermit(callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle);
-            if (!needsDynamicMutationSemaphore && !needsStartupShutdownSemaphore)
-            {
-                return new BatchAdmission(null, null);
-            }
+            return AcquireHostAdmissionAsync(
+                callbackPermit,
+                NodeManagerAdmissionCapability.AddressSpaceMutation |
+                NodeManagerAdmissionCapability.ServerLifecycle,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Acquires the requested host admission and any capabilities inherited from the active callback.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The missing callback capabilities identify neither address-space mutation nor server lifecycle admission.
+        /// </exception>
+        // BatchAdmission owns a successful borrow; the finally blocks dispose every untransferred borrow.
+        // TODO: Remove this exception when the native lifecycle admission contract replaces this adapter.
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "Returned BatchAdmission owns transferred borrows; failure paths release them in finally.")]
+        private async ValueTask<INodeManagerBatchAdmission> AcquireHostAdmissionAsync(
+            NodeManagerCallbackPermit? callbackPermit,
+            NodeManagerAdmissionCapability required,
+            CancellationToken cancellationToken)
+        {
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                needsDynamicMutationSemaphore =
-                    !HasActiveCallbackPermit(
-                        callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation);
-                needsStartupShutdownSemaphore =
-                    !HasActiveCallbackPermit(callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle);
-                if (!needsDynamicMutationSemaphore && !needsStartupShutdownSemaphore)
+                NodeManagerCallbackPermit? permit = FindActiveCallbackPermit(callbackPermit);
+                if (permit is null)
                 {
-                    return new BatchAdmission(null, null);
+                    return await AcquireUnborrowedAdmissionAsync(required, cancellationToken).ConfigureAwait(false);
                 }
-                if (!needsDynamicMutationSemaphore)
+
+                NodeManagerAdmissionCapability inherited = permit.Capabilities;
+                NodeManagerAdmissionCapability missing = required & ~inherited;
+                if (missing == NodeManagerAdmissionCapability.None)
                 {
-                    await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    if (needsDynamicMutationSemaphore ==
-                            !HasActiveCallbackPermit(
-                                callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
-                        needsStartupShutdownSemaphore ==
-                            !HasActiveCallbackPermit(
-                                callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle))
+                    NodeManagerCallbackPermit.Borrow? borrow = await permit.BorrowAsync(inherited, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (borrow is not null)
                     {
-                        return new BatchAdmission(null, m_startupShutdownSemaphoreSlim);
+                        try
+                        {
+                            var admission = new BatchAdmission(null, null, borrow);
+                            borrow = null;
+                            return admission;
+                        }
+                        finally
+                        {
+                            borrow?.Dispose();
+                        }
                     }
-                    m_startupShutdownSemaphoreSlim.Release();
-                    continue;
-                }
-                if (!needsStartupShutdownSemaphore)
-                {
-                    await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    if (needsDynamicMutationSemaphore ==
-                            !HasActiveCallbackPermit(
-                                callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
-                        needsStartupShutdownSemaphore ==
-                            !HasActiveCallbackPermit(
-                                callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle))
-                    {
-                        return new BatchAdmission(m_dynamicMutationSemaphore, null);
-                    }
-                    m_dynamicMutationSemaphore.Release();
                     continue;
                 }
 
-                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                if (m_startupShutdownSemaphoreSlim.Wait(0, CancellationToken.None))
+                SemaphoreSlim missingSemaphore = missing switch
                 {
-                    if (needsDynamicMutationSemaphore ==
-                            !HasActiveCallbackPermit(
-                                callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
-                        needsStartupShutdownSemaphore ==
-                            !HasActiveCallbackPermit(callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle))
+                    NodeManagerAdmissionCapability.AddressSpaceMutation => m_dynamicMutationSemaphore,
+                    NodeManagerAdmissionCapability.ServerLifecycle => m_startupShutdownSemaphoreSlim,
+                    _ => throw new InvalidOperationException("The callback admission has invalid capabilities.")
+                };
+                for (int attempt = 0; attempt < 2; attempt++)
+                {
+                    SemaphoreSlim? acquired = null;
+                    NodeManagerCallbackPermit.Borrow? borrow = null;
+                    try
                     {
-                        return new BatchAdmission(
-                            m_dynamicMutationSemaphore, m_startupShutdownSemaphoreSlim);
-                    }
-                    m_startupShutdownSemaphoreSlim.Release();
-                }
-                m_dynamicMutationSemaphore.Release();
+                        if (attempt == 0)
+                        {
+                            await missingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            acquired = missingSemaphore;
+                            borrow = permit.TryBorrow(inherited);
+                        }
+                        else
+                        {
+                            borrow = await permit.BorrowAsync(inherited, cancellationToken).ConfigureAwait(false);
+                            if (borrow is null || !missingSemaphore.Wait(0, CancellationToken.None))
+                            {
+                                continue;
+                            }
+                            acquired = missingSemaphore;
+                        }
+                        if (borrow is null)
+                        {
+                            if (!permit.IsActive)
+                            {
+                                break;
+                            }
+                            continue;
+                        }
 
-                await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-                if (m_dynamicMutationSemaphore.Wait(0, CancellationToken.None))
-                {
-                    if (needsDynamicMutationSemaphore ==
-                            !HasActiveCallbackPermit(
-                                callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
-                        needsStartupShutdownSemaphore ==
-                            !HasActiveCallbackPermit(callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle))
-                    {
-                        return new BatchAdmission(
-                            m_dynamicMutationSemaphore, m_startupShutdownSemaphoreSlim);
+                        var admission = new BatchAdmission(
+                            missing == NodeManagerAdmissionCapability.AddressSpaceMutation ? acquired : null,
+                            missing == NodeManagerAdmissionCapability.ServerLifecycle ? acquired : null,
+                            borrow);
+                        acquired = null;
+                        borrow = null;
+                        return admission;
                     }
-                    m_dynamicMutationSemaphore.Release();
+                    finally
+                    {
+                        try
+                        {
+                            acquired?.Release();
+                        }
+                        finally
+                        {
+                            borrow?.Dispose();
+                        }
+                    }
                 }
-                m_startupShutdownSemaphoreSlim.Release();
             }
+        }
+
+        /// <summary>
+        /// Acquires host semaphores without retaining one while waiting for the other.
+        /// </summary>
+        private async ValueTask<INodeManagerBatchAdmission> AcquireUnborrowedAdmissionAsync(
+            NodeManagerAdmissionCapability required,
+            CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                SemaphoreSlim? addressSpaceAdmission = null;
+                SemaphoreSlim? serverLifecycleAdmission = null;
+                try
+                {
+                    if ((required & NodeManagerAdmissionCapability.AddressSpaceMutation) != 0)
+                    {
+                        await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        addressSpaceAdmission = m_dynamicMutationSemaphore;
+                    }
+                    if ((required & NodeManagerAdmissionCapability.ServerLifecycle) != 0)
+                    {
+                        if (addressSpaceAdmission is null)
+                        {
+                            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            serverLifecycleAdmission = m_startupShutdownSemaphoreSlim;
+                        }
+                        else if (m_startupShutdownSemaphoreSlim.Wait(0, CancellationToken.None))
+                        {
+                            serverLifecycleAdmission = m_startupShutdownSemaphoreSlim;
+                        }
+                        else
+                        {
+                            addressSpaceAdmission.Release();
+                            addressSpaceAdmission = null;
+                            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            serverLifecycleAdmission = m_startupShutdownSemaphoreSlim;
+                            if (!m_dynamicMutationSemaphore.Wait(0, CancellationToken.None))
+                            {
+                                continue;
+                            }
+                            addressSpaceAdmission = m_dynamicMutationSemaphore;
+                        }
+                    }
+                    var admission = new BatchAdmission(addressSpaceAdmission, serverLifecycleAdmission);
+                    addressSpaceAdmission = null;
+                    serverLifecycleAdmission = null;
+                    return admission;
+                }
+                finally
+                {
+                    serverLifecycleAdmission?.Release();
+                    addressSpaceAdmission?.Release();
+                }
+            }
+        }
+
+        private static NodeManagerCallbackPermit? FindActiveCallbackPermit(NodeManagerCallbackPermit? permit)
+        {
+            for (; permit is not null; permit = permit.Previous)
+            {
+                if (permit.IsActive && permit.Capabilities != NodeManagerAdmissionCapability.None)
+                {
+                    return permit;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -441,29 +525,24 @@ namespace Opc.Ua.Server
             bool decisionCommitted = false;
             bool lifecycleDecisionWindowStarted = false;
             bool namespaceRegistrationAdmissionHeld = false;
-            TaskCompletionSource<bool>? namespacePublication = null;
-            Task? previousNamespacePublication = m_currentNamespacePublication.Value;
+            LifecycleWriter.Mutation.DecisionWindow? publicationScope = null;
+            NamespacePublication? namespaceReservation = null;
             NodeManagerRoutingTable.PreparedRoutes? routes = null;
             PublishedReferenceChanges? committedReferences = null;
             try
             {
                 await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 namespaceRegistrationAdmissionHeld = true;
-                namespacePublication = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                m_currentNamespacePublication.Value = namespacePublication.Task;
-                if (!HasActiveCallbackPermit(
-                        context.CallbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
-                    !dynamicMutationSemaphoreHeld)
+                publicationScope = commit.EnterPublicationScope();
+                Volatile.Write(ref m_namespacePublicationOwner, publicationScope);
+                if (!dynamicMutationSemaphoreHeld)
                 {
                     throw new InvalidOperationException(
                         "Lifecycle commit lacks address-space mutation admission.");
                 }
                 try
                 {
-                    if (!HasActiveCallbackPermit(
-                            context.CallbackPermit, NodeManagerAdmissionCapability.ServerLifecycle) &&
-                        !startupShutdownSemaphoreHeld)
+                    if (!startupShutdownSemaphoreHeld)
                     {
                         throw new InvalidOperationException(
                             "Lifecycle commit lacks server lifecycle admission.");
@@ -513,26 +592,34 @@ namespace Opc.Ua.Server
                             referenceOwners.Add(source.Key, source.Value);
                         }
 
-                        routes = m_nodeManagers.PrepareBatch(
+                        // Route preparation can invoke context-free manager properties and enumerate their results.
+                        using (publicationScope.EnterCallbackFlow())
+                        {
+                            routes = m_nodeManagers.PrepareBatch(
                                 candidates, removed,
                                 manager => (manager.NamespaceUris ?? Enumerable.Empty<string>())
                                     .Concat(ChangePreparer.GetServer(manager)?.NamespaceRegistrations ??
                                         Enumerable.Empty<string>())
                                     .Select(uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri)),
                                 originalTypes, originalFactory, readImages);
+                        }
                         routes.Reserve();
-                        using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
+                        using TypeTable.Publication types =
+                            Server.TypeTree.BeginPublication(originalTypes, typeRevision);
                         using EncodeableFactory.Publication registrations =
                             originalFactory.BeginPublication(originalFactory, factoryRevision);
                         using StringTable.Publication namespaces = Server.NamespaceUris.BeginPublication(
                             context.Preparation.NamespaceUris, context.Preparation.NamespaceRevision);
+                        namespaceReservation = new NamespacePublication(
+                            routes, namespaces,
+                            context.Preparation.NamespaceUris.ToArray().Skip(Server.NamespaceUris.Count));
                         using StringTable.Publication serverUris = Server.ServerUris.BeginPublication(
                             context.Preparation.ServerUris, context.Preparation.ServerRevision);
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                         {
                             update.Reserve();
                         }
-                        using var publisher = new AddressSpacePublisher(
+                        var publisher = new AddressSpacePublisher(
                             routes,
                             namespaces,
                             serverUris,
@@ -561,11 +648,11 @@ namespace Opc.Ua.Server
                                 }
                             });
                         cancellationToken.ThrowIfCancellationRequested();
-                        if (!commit.HasDecision)
+                        if (!commit.Publishes)
                         {
                             return null;
                         }
-                        BeginLifecycleDecisionWindow();
+                        BeginLifecycleDecisionWindow(publicationScope);
                         lifecycleDecisionWindowStarted = true;
                         // The lifecycle writer excludes server teardown; do not hold the startup/shutdown semaphore
                         // while the durable decision callback performs external I/O. The prepared batch retains
@@ -580,8 +667,32 @@ namespace Opc.Ua.Server
                             admission.Release(NodeManagerAdmissionCapability.AddressSpaceMutation);
                             dynamicMutationSemaphoreHeld = false;
                         }
-                        await commit.DecideAsync(cancellationToken).ConfigureAwait(false);
-                        decisionCommitted = true;
+                        // Enter the decision under admission so its final revision check precedes permitted aliases.
+                        ValueTask decision = commit.DecideAsync(publicationScope, cancellationToken);
+                        if (decision.IsCompleted)
+                        {
+                            await decision.ConfigureAwait(false);
+                            decisionCommitted = true;
+                        }
+                        else
+                        {
+                            m_namespacePublication = namespaceReservation;
+                            m_namespaceRegistrationSemaphore.Release();
+                            namespaceRegistrationAdmissionHeld = false;
+                            try
+                            {
+                                await decision.ConfigureAwait(false);
+                                decisionCommitted = true;
+                            }
+                            finally
+                            {
+                                // Reacquire before either publication or reservation disposal. A completed durable
+                                // decision cannot be cancelled while excluding an in-flight permitted alias mutation.
+                                await m_namespaceRegistrationSemaphore.WaitAsync(CancellationToken.None)
+                                    .ConfigureAwait(false);
+                                namespaceRegistrationAdmissionHeld = true;
+                            }
+                        }
 
                         // The publication invocation remains an active lifecycle operation until
                         // reconciliation finishes, so shutdown cannot tear down this host first.
@@ -602,11 +713,17 @@ namespace Opc.Ua.Server
                             update.Dispose();
                         }
                         routes.Dispose();
-                        // Application-state reconciliation can re-enter lifecycle publication after reservations release.
+                        // Application-state reconciliation can re-enter lifecycle publication after reservations
+                        // release.
                         EndLifecycleDecisionWindow();
                         lifecycleDecisionWindowStarted = false;
-                        namespacePublication.TrySetResult(true);
-                        m_currentNamespacePublication.Value = previousNamespacePublication;
+                        publicationScope.Dispose();
+                        Volatile.Write(ref m_namespacePublicationOwner, null);
+                        if (ReferenceEquals(m_namespacePublication, namespaceReservation))
+                        {
+                            m_namespacePublication = null;
+                        }
+                        namespaceReservation.ReleaseWaiters();
                         m_namespaceRegistrationSemaphore.Release();
                         namespaceRegistrationAdmissionHeld = false;
                     }
@@ -653,8 +770,13 @@ namespace Opc.Ua.Server
             {
                 if (namespaceRegistrationAdmissionHeld)
                 {
-                    namespacePublication?.TrySetResult(true);
-                    m_currentNamespacePublication.Value = previousNamespacePublication;
+                    publicationScope?.Dispose();
+                    Volatile.Write(ref m_namespacePublicationOwner, null);
+                    if (ReferenceEquals(m_namespacePublication, namespaceReservation))
+                    {
+                        m_namespacePublication = null;
+                    }
+                    namespaceReservation?.ReleaseWaiters();
                     m_namespaceRegistrationSemaphore.Release();
                 }
                 if (dynamicMutationSemaphoreHeld)
@@ -670,10 +792,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves the in-memory node that can contribute an abortable reference update.
+        /// </summary>
+        private static NodeState? GetPreparedReferenceNode(
+            IAsyncNodeManager owner,
+            NodeId sourceId,
+            object handle)
+        {
+            if (handle is not NodeHandle { Validated: true, Node: { } node })
+            {
+                return null;
+            }
+            if (owner is AsyncCustomNodeManager)
+            {
+                return node;
+            }
+#pragma warning disable CS0618, UA0031 // Preserve reference staging for legacy synchronous owners until they are removed.
+            if (owner.SyncNodeManager is CustomNodeManager2)
+            {
+                return node;
+            }
+#pragma warning restore CS0618, UA0031
+            // A facade may return a validated handle without owning an in-memory node.
+            // Only adopt the handle when the underlying manager indexes that exact instance.
+            return NodeManagerGenerationRegistry.GetIdentity(owner) is AsyncCustomNodeManager resource &&
+                ReferenceEquals(resource.Find(sourceId), node)
+                ? node
+                : null;
+        }
+
+        /// <summary>
         /// Collects the exact managers explicitly retired by a lifecycle batch.
         /// </summary>
-        /// <param name="removed">The managers to retire.</param>
-        /// <returns>The managers distinguished by reference identity.</returns>
         private static HashSet<IAsyncNodeManager> CreateRetiringSet(ArrayOf<IAsyncNodeManager> removed)
         {
             var retiring = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
@@ -745,27 +895,25 @@ namespace Opc.Ua.Server
                     {
                         throw new InvalidOperationException("A reference owner retired during discovery.");
                     }
-                    object handle;
+                    NodeState? node;
                     try
                     {
-                        handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
+                        object handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
                             .ConfigureAwait(false);
+                        if (handle is null)
+                        {
+                            continue;
+                        }
+                        node = GetPreparedReferenceNode(owner, sourceId, handle);
+                        if (node is null)
+                        {
+                            hasUnsupportedOwner = true;
+                            continue;
+                        }
                     }
                     finally
                     {
                         generation?.Gate.Exit(stripe);
-                    }
-                    if (handle is null)
-                    {
-                        continue;
-                    }
-#pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners support batch handles.
-                    if ((owner is not AsyncCustomNodeManager && owner.SyncNodeManager is not CustomNodeManager2) ||
-#pragma warning restore CS0618, UA0031
-                        handle is not NodeHandle { Validated: true, Node: { } node })
-                    {
-                        hasUnsupportedOwner = true;
-                        continue;
                     }
                     if (!nodes.Add(node))
                     {

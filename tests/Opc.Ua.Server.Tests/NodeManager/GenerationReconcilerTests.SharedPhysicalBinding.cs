@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -185,7 +164,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await reconciler.BindAsync(original, CancellationToken.None).ConfigureAwait(false);
                     routing.Add(facade.Object, [raw.NamespaceIndex]);
                     NodeManagerGeneration forwarded = routing.Revision.GetGeneration(facade.Object);
-                    Assert.That(forwarded.ForwardedSourceGeneration, Is.SameAs(original));
+                    Assert.That(forwarded, Is.Not.SameAs(original));
+                    Assert.That(forwarded.ResourceOwnership, Is.SameAs(original.ResourceOwnership));
                     await reconciler.BindAsync(forwarded, CancellationToken.None).ConfigureAwait(false);
                     NodeManagerGeneration retiring = facadeFirst ? forwarded : original;
                     NodeManagerGeneration remaining = facadeFirst ? original : forwarded;
@@ -427,7 +407,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var routing = new NodeManagerRoutingTable();
                 routing.Add(facade.Object, [1]);
                 NodeManagerGeneration generation = routing.Revision.GetGeneration(facade.Object);
-                Assert.That(generation.ForwardedSourceGeneration, Is.SameAs(original));
+                Assert.That(generation, Is.Not.SameAs(original));
+                Assert.That(generation.ResourceOwnership, Is.SameAs(original.ResourceOwnership));
                 var reconciler = new GenerationReconciler(server.Object);
                 try
                 {

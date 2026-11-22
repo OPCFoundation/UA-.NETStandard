@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -1270,12 +1244,28 @@ namespace Opc.Ua.Bindings
             IHttpsTransportAdmissionFeature? physical = context.Features.Get<IHttpsTransportAdmissionFeature>();
             if (physical != null)
             {
-                await AcceptAdmittedWebSocketAsync(context, selected, physical.Lease).ConfigureAwait(false);
-                return;
+                if (context.Request.Protocol.StartsWith("HTTP/1.", StringComparison.Ordinal))
+                {
+                    // The upgrade takes over the connection, so the socket is
+                    // what the connection's lease accounts for.
+                    await AcceptAdmittedWebSocketAsync(context, selected, physical.Lease).ConfigureAwait(false);
+                    return;
+                }
+                // An HTTP/2 connection carries many streams. Each WebSocket is
+                // admitted, counted, reclaimed and aborted on its own lease:
+                // sharing the connection's lease would count a hundred sockets
+                // as one and let its close end only the last of them.
+                physical.Lease.CompleteHandshake();
             }
-            if (m_admission == null ||
-                !m_admission.TryAcquire(
-                    remoteEndpoint, out UaScConnectionAdmission.Lease? lease, GetReclaimCallback()))
+            // The stream is counted in the scope that counts its connection.
+            // On a shared host that is the scope of the host, where the
+            // HTTP/1.1 WebSockets of all its listeners are counted too: a
+            // scope of its own would admit MaxChannelCount sockets a second time.
+            UaScConnectionAdmission? admission = physical?.Lease.Owner ?? m_admission;
+            Func<bool>? reclaim = physical?.SharedReclaimCapacity ?? GetReclaimCallback();
+            if (admission == null ||
+                !admission.TryAcquire(
+                    remoteEndpoint, out UaScConnectionAdmission.Lease? lease, reclaim))
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -1638,7 +1628,8 @@ namespace Opc.Ua.Bindings
             ConnectionContext connection,
             ConnectionDelegate next,
             UaScConnectionAdmission? admission,
-            Func<bool>? tryReclaimCapacity = null)
+            Func<bool>? tryReclaimCapacity = null,
+            Func<bool>? sharedReclaimCapacity = null)
         {
             if (connection == null)
             {
@@ -1670,7 +1661,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 lease.SetAbortAction(connection.Abort);
-                connection.Features.Set<IHttpsTransportAdmissionFeature>(new HttpsTransportAdmissionFeature(lease));
+                connection.Features.Set<IHttpsTransportAdmissionFeature>(new HttpsTransportAdmissionFeature(lease, sharedReclaimCapacity));
                 await next(connection).ConfigureAwait(false);
             }
             finally
@@ -2115,7 +2106,8 @@ namespace Opc.Ua.Bindings
                     connection,
                     next,
                     admission,
-                    sharedReclaimCapacity ?? GetReclaimCallback()));
+                    sharedReclaimCapacity ?? GetReclaimCallback(),
+                    sharedReclaimCapacity));
             options.UseHttps(httpsOptions);
         }
 
@@ -3989,15 +3981,27 @@ namespace Opc.Ua.Bindings
             /// Gets the physical connection lease shared by requests on this transport.
             /// </summary>
             UaScConnectionAdmission.Lease Lease { get; }
+
+            /// <summary>
+            /// Gets the reclaim callback of a shared host, which looks at all its listeners,
+            /// or null when the listener owns the host.
+            /// </summary>
+            Func<bool>? SharedReclaimCapacity { get; }
         }
 
         /// <summary>
         /// Exposes a borrowed physical lease without transferring ownership to individual HTTP requests.
         /// </summary>
         /// <param name="lease">Lease retained by the physical connection pipeline.</param>
-        private sealed class HttpsTransportAdmissionFeature(UaScConnectionAdmission.Lease lease)
+        /// <param name="sharedReclaimCapacity">Reclaim callback of a shared host.</param>
+        private sealed class HttpsTransportAdmissionFeature(
+            UaScConnectionAdmission.Lease lease,
+            Func<bool>? sharedReclaimCapacity)
             : IHttpsTransportAdmissionFeature
         {
+            /// <inheritdoc/>
+            public Func<bool>? SharedReclaimCapacity { get; } = sharedReclaimCapacity;
+
             /// <summary>
             /// Gets the physical reservation rather than a separate per-request admission.
             /// </summary>

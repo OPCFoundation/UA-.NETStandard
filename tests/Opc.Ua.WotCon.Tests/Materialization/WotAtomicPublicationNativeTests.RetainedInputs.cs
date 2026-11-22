@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -36,9 +10,11 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -180,9 +156,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_coordinator.Event += (_, change) => m_events.Add(change);
             if (nativeOrigin)
             {
-                await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                    new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                    callerContext: null).ConfigureAwait(false);
+                await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                    new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                    .ConfigureAwait(false);
             }
             WotResource model = await AddUnitModelAsync("retained-input").ConfigureAwait(false);
             WotResource source = await AddAsync("retained-dependent").ConfigureAwait(false);
@@ -314,11 +290,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             if (damage != RetainedInputDamage.None)
             {
                 int before = restarted.Lifecycle.Registrations.Count;
-                await Assert.ThatAsync(async () => await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                    new WotRegistryServerOptions { AutoRefresh = false }, registry, recovered),
-                    callerContext: null).ConfigureAwait(false),
-                    Throws.InstanceOf<Opc.Ua.Server.NodeManagerAddCommittedException>())
+                LifecycleResult recovery = await restarted.Lifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                        new WotRegistryServerOptions { AutoRefresh = false }, registry, recovered))])
                     .ConfigureAwait(false);
+                Assert.That(recovery.CleanupFailure, Is.Not.Null);
+                Assert.That(recovery.Registrations.Count, Is.EqualTo(1));
                 Assert.That(recovered.Generation, Is.Zero);
                 Assert.That(restarted.Lifecycle.Registrations.Count, Is.EqualTo(before + 1));
                 Assert.That(consumed, Is.Empty);
@@ -326,9 +303,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That((await store.LoadAsync().ConfigureAwait(false)).Generation, Is.EqualTo(decided.Generation));
                 return;
             }
-            await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, recovered),
-                callerContext: null).ConfigureAwait(false);
+            await restarted.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, recovered))]).ConfigureAwait(false);
             using ISession session = await m_client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{restarted.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);

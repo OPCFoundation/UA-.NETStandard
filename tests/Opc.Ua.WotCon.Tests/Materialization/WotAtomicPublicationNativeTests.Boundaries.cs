@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
 
@@ -104,8 +78,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             factory.Setup(owner => owner.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IAsyncNodeManager>(probe.Object));
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
-                factory.Object, null, ct).ConfigureAwait(false);
+            LifecycleResult publication = await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], ct).ConfigureAwait(false);
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
             var converter = new Mock<IWotDocumentConverter>(MockBehavior.Strict);
             converter.Setup(value => value.ConvertAsync(
                 It.IsAny<WotResource>(), It.IsAny<ByteString>(), It.IsAny<WotRegistrySnapshot>(),
@@ -150,11 +127,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 else
                 {
-                    await Assert.ThatAsync(async () => await coordinator.RefreshAsync(
-                        HandoffRequest("real-reference-conflict"), ct).ConfigureAwait(false),
-                        Throws.TypeOf<InvalidOperationException>()
-                            .With.Message.EqualTo("Serving references changed during preparation."))
+                    InvalidOperationException? failure = await Assert.CatchAsync<InvalidOperationException>(
+                        async () => await coordinator.RefreshAsync(
+                            HandoffRequest("real-reference-conflict"), ct).ConfigureAwait(false))
                         .ConfigureAwait(false);
+                    Assert.That(failure!.GetType().FullName,
+                        Is.EqualTo("Opc.Ua.OptimisticPublicationConflictException"));
+                    Assert.That(failure.Message, Is.EqualTo("Serving references changed during preparation."));
                     Assert.That(coordinator.Generation, Is.Zero);
                     Assert.That(m_registry.Current, Is.SameAs(before));
                     Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
@@ -173,11 +152,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_failDecision = false;
                 objects.RemoveReference(Ua.ReferenceTypeIds.Organizes, false, Ua.ObjectIds.ViewsFolder);
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                await using IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration)], cleanup.Token).ConfigureAwait(false);
-                NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, cleanup.Token)
+                ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync(cleanup.Token).ConfigureAwait(false);
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                    current => ReferenceEquals(current, registration)), Is.True);
+                await using IPreparedChanges removal = await writer.PrepareAsync(
+                    [LifecycleChange.Remove(registration!.Slot)], cleanup.Token).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(_ => default, cleanup.Token)
                     .ConfigureAwait(false);
-                await removed.Retirement.WaitAsync(cleanup.Token).ConfigureAwait(false);
+                await removed.Retired.WaitAsync(cleanup.Token).ConfigureAwait(false);
             }
         }
 

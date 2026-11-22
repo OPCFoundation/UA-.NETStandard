@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -80,18 +54,19 @@ namespace Opc.Ua.Server
     internal sealed class NodeManagerCallbackPermit : IAsyncDisposable
     {
         /// <summary>
-        /// Establishes a scoped permit in the current asynchronous execution context.
+        /// Creates a revocable permit for a callback.
         /// </summary>
-        /// <param name="current">The execution-context slot for callback permits.</param>
         /// <param name="capabilities">The lifecycle capabilities granted to the callback.</param>
+        /// <param name="previous">The enclosing permit, if any.</param>
+        /// <param name="hostId">The issuing host for an explicit permit.</param>
         internal NodeManagerCallbackPermit(
-            AsyncLocal<NodeManagerCallbackPermit?> current,
-            NodeManagerAdmissionCapability capabilities)
+            NodeManagerAdmissionCapability capabilities,
+            NodeManagerCallbackPermit? previous = null,
+            Guid hostId = default)
         {
-            m_current = current;
-            Previous = current.Value;
+            Previous = previous;
             Capabilities = capabilities;
-            current.Value = this;
+            HostId = hostId;
         }
 
         /// <summary>
@@ -105,28 +80,239 @@ namespace Opc.Ua.Server
         internal NodeManagerAdmissionCapability Capabilities { get; }
 
         /// <summary>
+        /// Identifies the host that granted an explicit callback permit.
+        /// </summary>
+        internal Guid HostId { get; }
+
+        /// <summary>
         /// Gets whether this permit remains active.
         /// </summary>
         internal bool IsActive => Volatile.Read(ref m_active) != 0;
 
-        /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        /// <summary>
+        /// Attempts to borrow this callback's admission without waiting for another child.
+        /// </summary>
+        /// <param name="capability">The capability required by the nested operation.</param>
+        /// <returns>A lease, or null when the callback is closed or another child owns its admission.</returns>
+        internal Borrow? TryBorrow(NodeManagerAdmissionCapability capability)
         {
-            Volatile.Write(ref m_active, 0);
-            RestoreContext();
-            return default;
-        }
-
-        private void RestoreContext()
-        {
-            if (ReferenceEquals(m_current.Value, this))
+            if (!TryStartBorrow(capability))
             {
-                m_current.Value = Previous;
+                return null;
+            }
+            bool admitted = false;
+            try
+            {
+                admitted = m_childAdmission.Wait(0);
+                return admitted ? CompleteBorrow() : null;
+            }
+            finally
+            {
+                if (!admitted)
+                {
+                    ReleaseBorrow(releaseAdmission: false);
+                }
             }
         }
 
-        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
+        /// <summary>
+        /// Waits for exclusive child admission while the callback remains active.
+        /// </summary>
+        /// <param name="capability">The capability required by the nested operation.</param>
+        /// <param name="cancellationToken">Cancels the wait for child admission.</param>
+        /// <returns>A lease, or null if the callback has closed.</returns>
+        internal async ValueTask<Borrow?> BorrowAsync(
+            NodeManagerAdmissionCapability capability,
+            CancellationToken cancellationToken)
+        {
+            if (!TryStartBorrow(capability))
+            {
+                return null;
+            }
+            bool admitted = false;
+            try
+            {
+                await m_childAdmission.WaitAsync(cancellationToken).ConfigureAwait(false);
+                admitted = true;
+                return CompleteBorrow();
+            }
+            finally
+            {
+                if (!admitted)
+                {
+                    ReleaseBorrow(releaseAdmission: false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retains child admission before a wait can race with permit disposal.
+        /// </summary>
+        private bool TryStartBorrow(NodeManagerAdmissionCapability capability)
+        {
+            lock (m_gate)
+            {
+                if (m_active == 0 ||
+                    capability == NodeManagerAdmissionCapability.None ||
+                    (Capabilities & capability) != capability)
+                {
+                    return false;
+                }
+                m_borrows++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Transfers accepted admission to a child only while the callback remains active.
+        /// </summary>
+        private Borrow? CompleteBorrow()
+        {
+            lock (m_gate)
+            {
+                if (m_active != 0)
+                {
+                    return new Borrow(this);
+                }
+            }
+            ReleaseBorrow();
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            Task disposal;
+            lock (m_gate)
+            {
+                Volatile.Write(ref m_active, 0);
+                if (m_disposal is null)
+                {
+                    if (m_borrows == 0)
+                    {
+                        m_childAdmission.Dispose();
+                        m_disposal = Task.CompletedTask;
+                    }
+                    else
+                    {
+                        m_drained ??= new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_disposal = DisposeChildAdmissionAsync(m_drained.Task);
+                    }
+                }
+                disposal = m_disposal;
+            }
+            return new ValueTask(disposal);
+        }
+
+        /// <summary>
+        /// Disposes the semaphore after both borrowed admissions and waiting children have exited.
+        /// </summary>
+        private async Task DisposeChildAdmissionAsync(Task drain)
+        {
+            await drain.ConfigureAwait(false);
+            m_childAdmission.Dispose();
+        }
+
+        /// <summary>
+        /// Owns one nested operation's use of a callback capability.
+        /// </summary>
+        internal sealed class Borrow : IDisposable
+        {
+            /// <summary>
+            /// Creates an admission borrow for its exact callback permit.
+            /// </summary>
+            /// <param name="owner">The permit that granted the capability.</param>
+            internal Borrow(NodeManagerCallbackPermit owner)
+            {
+                m_owner = owner;
+                Capabilities = owner.Capabilities;
+            }
+
+            /// <summary>
+            /// Gets the complete admission retained for the nested operation.
+            /// </summary>
+            internal NodeManagerAdmissionCapability Capabilities { get; }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_owner, null)?.ReleaseBorrow();
+            }
+
+            private NodeManagerCallbackPermit? m_owner;
+        }
+
+        /// <summary>
+        /// Releases one accepted child after its wait or borrowed operation has stopped using the semaphore.
+        /// </summary>
+        /// <param name="releaseAdmission">Whether the child acquired the semaphore.</param>
+        private void ReleaseBorrow(bool releaseAdmission = true)
+        {
+            if (releaseAdmission)
+            {
+                m_childAdmission.Release();
+            }
+            TaskCompletionSource<bool>? drained = null;
+            lock (m_gate)
+            {
+                m_borrows--;
+                if (m_borrows == 0)
+                {
+                    drained = m_drained;
+                    m_drained = null;
+                }
+            }
+            drained?.TrySetResult(true);
+        }
+
+        private readonly Lock m_gate = new();
+        private readonly SemaphoreSlim m_childAdmission = new(1, 1);
+        private TaskCompletionSource<bool>? m_drained;
+
+        /// <summary>The single shared completion of permit disposal.</summary>
+        private Task? m_disposal;
+
         private int m_active = 1;
+
+        /// <summary>Counts accepted children, including pending semaphore waits.</summary>
+        private int m_borrows;
+    }
+
+    /// <summary>
+    /// Adapts released session callbacks that cannot pass a lifecycle permit.
+    /// </summary>
+    internal readonly struct LegacyNodeManagerCallbackScope : IAsyncDisposable
+    {
+        /// <summary>
+        /// Installs a callback permit for context-free calls made by the legacy callback.
+        /// </summary>
+        internal LegacyNodeManagerCallbackScope(
+            AsyncLocal<NodeManagerCallbackPermit?> current,
+            NodeManagerAdmissionCapability capabilities)
+        {
+            m_current = current;
+            Permit = new NodeManagerCallbackPermit(capabilities, current.Value);
+            current.Value = Permit;
+        }
+
+        /// <summary>
+        /// Gets the permit granted to this callback.
+        /// </summary>
+        internal NodeManagerCallbackPermit Permit { get; }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            ValueTask disposal = Permit.DisposeAsync();
+            if (ReferenceEquals(m_current.Value, Permit))
+            {
+                m_current.Value = Permit.Previous;
+            }
+            return disposal;
+        }
+
+        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
     }
 
     /// <summary>
@@ -137,14 +323,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets whether this plan should publish rather than only validate.
         /// </summary>
-        bool HasDecision { get; }
+        bool Publishes { get; }
+
+        /// <summary>
+        /// Associates namespace admission with the writer's scope before publication callbacks run.
+        /// </summary>
+        /// <returns>The scope that expires the host reservation marker.</returns>
+        LifecycleWriter.Mutation.DecisionWindow EnterPublicationScope();
 
         /// <summary>
         /// Executes the durable decision once under lifecycle mutation ownership.
         /// </summary>
+        /// <param name="reservation">The host's publication reservation, if it opened one.</param>
         /// <param name="cancellationToken">Cancels before the durable decision.</param>
         /// <returns>Completion of the decision.</returns>
-        ValueTask DecideAsync(CancellationToken cancellationToken);
+        ValueTask DecideAsync(
+            LifecycleWriter.Mutation.DecisionWindow? reservation,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Installs committed registration and retirement bookkeeping at the routing swap.

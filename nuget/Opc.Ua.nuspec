@@ -9,7 +9,7 @@
     <language>en-US</language>
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
     <icon>images/logo.jpg</icon>
-    <license type="file">licenses/LICENSE.txt</license>
+    <license type="expression">MIT</license>
     <readme>README.md</readme>
     <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore</tags>
@@ -29,7 +29,6 @@
   </metadata>
   <files>
     <file src="logo.jpg" target="images/" />
-    <file src="../LICENSE.txt" target="licenses/LICENSE.txt"/>
     <file src="MetaPackageREADME.md" target="README.md"/>
   </files>
 </package>

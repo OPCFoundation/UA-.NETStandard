@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # PackML
 
 The PackML packages expose a standalone OPC 30050 unit with its nested state
@@ -111,16 +116,18 @@ For runtimes borrowing the same node manager, a matching parent and qualified
 browse name is rejected with `BadBrowseNameDuplicated` before the configuration
 callback or equipment provider is invoked if another runtime is composing the
 unit or its published unit or `ModeDataType` node is still indexed. This check
-covers PackML runtime claims. A NodeId conflict with another node in the same
-manager is rejected with `BadNodeIdExists` after unit creation, so
-configuration or provider access may already have happened.
+covers PackML runtime claims. After configuration and private model creation,
+the runtime checks the generated unit and mode enumeration, including their
+children, for NodeId conflicts on the same manager. It returns
+`BadNodeIdExists` before reading the administration store or equipment.
 
-A conflicting NodeId owned by another node manager must be rejected with
-`BadNodeIdExists` before side effects while that manager is live or its
-physical cleanup is pending or has failed. Reuse is allowed only after physical
-cleanup succeeds. This requires shared server-wide NodeId admission, which is
-not yet available, so early rejection of arbitrary and cross-manager conflicts
-is not yet guaranteed.
+With the standard master node manager, a PackML runtime reserves its generated
+NodeIds as a set before reading the administration store or equipment. The
+server compares identifiers by namespace URI and returns `BadNodeIdExists`
+for a conflicting claim. Reserved IDs can index only the reserved node
+instances through the built-in custom node managers. Manager retirement
+keeps its claims until physical cleanup succeeds. A custom address space
+that bypasses built-in indexing must coordinate its own writes with PackML.
 
 During lifecycle preparation, the references from Objects, `PackMLObjects`,
 and the Enumeration DataType remain private until publication. A failed unit
@@ -492,13 +499,18 @@ server profile URI. A configured capability describes the SDK path available
 to the equipment integration; it does not establish that the provider or
 installed equipment meets the corresponding specification requirement.
 
-`StandardServer` registers node managers that implement `IConformanceContributor`
-at startup, but node-manager retirement and replacement do not update those
-registrations. The host must keep them aligned with the serving managers.
+The standard server includes contributions from visible node managers.
+For lifecycle changes, the catalog values read through the server's
+diagnostics nodes follow the routing publication: a candidate contributes
+only after publication, and a retired manager no longer contributes even
+if its physical cleanup is still pending. Contributions from unrelated
+registrations and profiles declared by the server remain available.
+
 The server does not automatically register a runtime composed into another
 node manager. The host can include that runtime in the owner's contribution
-or register the runtime with `ConformanceUnitsManager`. Adding units or
-disposing the runtime does not publish an updated contribution.
+or register it with `ConformanceUnitsManager`. Call `PublishAsync` after
+adding units or removing an explicitly registered contribution on a running
+server.
 
 Disposing a runtime does not clear `Units` or unregister its contribution. If
 the server remains running, unregister a stopped `PackMLNodeManager` or a

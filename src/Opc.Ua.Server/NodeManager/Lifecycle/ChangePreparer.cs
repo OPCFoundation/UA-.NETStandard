@@ -1,36 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Identity;
@@ -137,266 +110,68 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Invokes a candidate factory with its own stable metadata handles.
         /// </summary>
-        internal ValueTask<IAsyncNodeManager> CreateNodeManagerAsync(
-            IAsyncNodeManagerFactory factory,
-            ApplicationConfiguration configuration,
-            bool replacement,
-            Func<IAsyncNodeManager, bool> isRegistered,
-            CancellationToken cancellationToken)
-        {
-            return CreateNodeManagerAsync(
-                factory, configuration, replacement, isRegistered, isRegistered, cancellationToken);
-        }
-
-        /// <summary>
-        /// Invokes a candidate factory and distinguishes exact facades from borrowed resources.
-        /// </summary>
         internal async ValueTask<IAsyncNodeManager> CreateNodeManagerAsync(
             IAsyncNodeManagerFactory factory,
             ApplicationConfiguration configuration,
             bool replacement,
             Func<IAsyncNodeManager, bool> isRegistered,
-            Func<IAsyncNodeManager, bool> isExactlyRegistered,
             CancellationToken cancellationToken)
         {
-            using var server = new StagingServer(
-                this,
-                factory is INodeManagerBorrowedResourceFactory,
-                isRegistered,
-                isExactlyRegistered);
-            BorrowedNodeManagerLeaseState? borrowed = null;
+            using var server = new StagingServer(this);
             IAsyncNodeManager manager;
             try
             {
-                if (factory is INodeManagerBorrowedResourceFactory borrowedFactory)
-                {
-                    try
-                    {
-                        await borrowedFactory.CreateBorrowedAsync(server, configuration, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        await server.CloseBorrowedFactoryAsync().ConfigureAwait(false);
-                    }
-                    server.ThrowBorrowedDeclarationFailure();
-                    borrowed = server.BorrowedLease ??
-                        throw new InvalidOperationException("The borrowed NodeManager factory declared no lease.");
-                    manager = server.GetDeclaredBorrowedCandidate();
-                    if (!ReferenceEquals(borrowed.Lease.NodeManager, manager))
-                    {
-                        throw new InvalidOperationException(
-                            "The borrowed NodeManager lease changed its declared candidate.");
-                    }
-                }
-                else
-                {
-                    manager = await factory.CreateAsync(server, configuration, cancellationToken)
-                        .ConfigureAwait(false) ??
-                        throw new InvalidOperationException(replacement
-                            ? "The replacement NodeManager factory returned null."
-                            : "The NodeManager factory returned null.");
-                }
+                manager = await factory.CreateAsync(server, configuration, cancellationToken)
+                    .ConfigureAwait(false) ??
+                    throw new InvalidOperationException(replacement
+                        ? "The replacement NodeManager factory returned null."
+                        : "The NodeManager factory returned null.");
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
-            {
-                borrowed ??= server.BorrowedLease;
-                Exception? cleanupFailure = await CleanupFailedCreationAsync(null, borrowed, server, false)
-                    .ConfigureAwait(false);
-                if (cleanupFailure is not null)
-                {
-                    throw new AggregateException(
-                        "Candidate creation and cleanup both failed.",
-                        failure,
-                        cleanupFailure);
-                }
-                throw;
-            }
-
-            bool ownsManager = false;
-            try
-            {
-                if (borrowed is null &&
-                    HasKnownBorrowedResource(manager, server, isRegistered, isExactlyRegistered))
-                {
-                    throw new NodeManagerBorrowedResourceException(manager);
-                }
-                if (borrowed is not null)
-                {
-                    if (isExactlyRegistered(manager))
-                    {
-                        throw new NodeManagerAlreadyRegisteredException();
-                    }
-                    IAsyncNodeManager resource = MasterNodeManager.GetReferenceOwnerIdentity(manager);
-                    if (ReferenceEquals(manager, resource))
-                    {
-                        StagingServer? previousServer = GetServer(manager);
-                        if (isRegistered(manager))
-                        {
-                            throw new NodeManagerAlreadyRegisteredException();
-                        }
-                        if ((previousServer is { IsDetached: false } &&
-                                !ReferenceEquals(previousServer, server)) ||
-                            HasKnownBorrowedResource(manager, server, isRegistered, isExactlyRegistered))
-                        {
-                            throw new InvalidOperationException(
-                                "A borrowed live NodeManager requires a distinct facade for its candidate.");
-                        }
-                    }
-                    if (!ReferenceEquals(s_borrowedCandidates.GetValue(manager, _ => server), server))
-                    {
-                        throw new NodeManagerAlreadyRegisteredException();
-                    }
-                }
-                else
-                {
-                    if (isRegistered(manager))
-                    {
-                        throw new NodeManagerAlreadyRegisteredException();
-                    }
-                    IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
-                    if (!ReferenceEquals(s_candidates.GetValue(identity, _ => server), server))
-                    {
-                        throw new NodeManagerAlreadyRegisteredException();
-                    }
-                }
-                if (borrowed is not null && isRegistered(manager))
-                {
-                    throw new NodeManagerAlreadyRegisteredException();
-                }
-                server.CompleteFactory(manager);
-                ownsManager = true;
-                ValidateHistorianReadiness(manager);
-            }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
-            {
-                Exception? cleanupFailure = await CleanupFailedCreationAsync(manager, borrowed, server, ownsManager)
-                    .ConfigureAwait(false);
-                if (cleanupFailure is not null)
-                {
-                    throw new AggregateException(
-                        "Candidate validation and cleanup both failed.",
-                        failure,
-                        cleanupFailure);
-                }
-                throw;
-            }
-            return manager;
-        }
-
-        /// <summary>
-        /// Detects a resource already associated with another candidate or a live generation.
-        /// </summary>
-        private static bool HasKnownBorrowedResource(
-            IAsyncNodeManager manager,
-            StagingServer candidate,
-            Func<IAsyncNodeManager, bool> isRegistered,
-            Func<IAsyncNodeManager, bool> isExactlyRegistered)
-        {
-            IAsyncNodeManager resource = MasterNodeManager.GetReferenceOwnerIdentity(manager);
-            if (ReferenceEquals(manager, resource))
-            {
-                StagingServer? directServer = GetServer(resource);
-                if (ReferenceEquals(directServer, candidate))
-                {
-                    return false;
-                }
-                if (directServer is { IsDetached: false } ||
-                    isRegistered(resource) ||
-                    isExactlyRegistered(resource))
-                {
-                    return false;
-                }
-                if (NodeManagerGenerationRegistry.TryGet(resource, out NodeManagerGeneration? direct) &&
-                    direct is not null &&
-                    !candidate.OwnsProvisionalSource(
-                        NodeManagerGenerationRegistry.GetIdentity(resource), direct))
-                {
-                    return true;
-                }
-                IServerInternal? directOwner = GetKnownResourceServer(resource);
-                return directOwner is not null && !ReferenceEquals(directOwner, candidate);
-            }
-            StagingServer? resourceServer = GetServer(resource);
-            if (ReferenceEquals(resourceServer, candidate))
-            {
-                return false;
-            }
-            if (resourceServer is not null && !resourceServer.IsDetached)
-            {
-                return true;
-            }
-            if (NodeManagerGenerationRegistry.TryGet(resource, out NodeManagerGeneration? existing) &&
-                existing is not null &&
-                !candidate.OwnsProvisionalSource(
-                    NodeManagerGenerationRegistry.GetIdentity(resource), existing))
-            {
-                return true;
-            }
-            if (isRegistered(resource) || isExactlyRegistered(resource))
-            {
-                return true;
-            }
-            IServerInternal? resourceOwner = GetKnownResourceServer(resource);
-            return resourceOwner is not null && !ReferenceEquals(resourceOwner, candidate);
-        }
-
-        /// <summary>
-        /// Gets the server exposed by a built-in resource manager, if available.
-        /// </summary>
-        /// <param name="resource">The physical resource manager.</param>
-        /// <returns>The resource's server, or null when it does not expose one.</returns>
-        internal static IServerInternal? GetKnownResourceServer(IAsyncNodeManager resource)
-        {
-            return resource is AsyncCustomNodeManager asynchronous
-                ? asynchronous.Server
-#pragma warning disable CS0618, UA0031 // Existing legacy owner lookup; TODO: remove with synchronous manager support.
-                : (resource.SyncNodeManager as CustomNodeManager2)?.Server;
-#pragma warning restore CS0618, UA0031
-        }
-
-        /// <summary>
-        /// Releases candidate-owned state after creation or validation fails.
-        /// </summary>
-        private static async ValueTask<Exception?> CleanupFailedCreationAsync(
-            IAsyncNodeManager? manager,
-            BorrowedNodeManagerLeaseState? borrowed,
-            StagingServer server,
-            bool ownsManager)
-        {
-            List<Exception>? failures = null;
-            try
-            {
-                if (borrowed is not null)
-                {
-                    await borrowed.RollbackAsync().ConfigureAwait(false);
-                }
-                else if (ownsManager && manager is not null)
-                {
-                    await DisposeCreatedManagerAsync(manager).ConfigureAwait(false);
-                }
-            }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
-            {
-                failures = [failure];
-            }
-            if (borrowed is null)
             {
                 try
                 {
                     await server.DisposeAsync().ConfigureAwait(false);
                 }
-                catch (Exception failure) when (failure is not OutOfMemoryException)
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                 {
-                    (failures ??= []).Add(failure);
+                    throw new AggregateException(
+                        "Candidate creation and historian cleanup both failed.",
+                        failure,
+                        cleanupFailure);
                 }
+                throw;
             }
-            return failures switch
+
+            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetGenerationIdentity(manager);
+            if (isRegistered(manager) ||
+                !ReferenceEquals(s_candidates.GetValue(identity, _ => server), server))
             {
-                null => null,
-                { Count: 1 } => failures[0],
-                _ => new AggregateException("Candidate cleanup failed.", failures)
-            };
+                await server.DisposeAsync().ConfigureAwait(false);
+                throw new NodeManagerAlreadyRegisteredException();
+            }
+            try
+            {
+                NodeManagerGenerationRegistry.ReserveCandidate(manager);
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                s_candidates.Remove(identity);
+                try
+                {
+                    await server.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "Candidate identity admission and staging cleanup both failed.",
+                        failure,
+                        cleanupFailure);
+                }
+                throw;
+            }
+            server.RegisteredFacade = manager;
+            return manager;
         }
 
         /// <summary>
@@ -424,28 +199,12 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static async ValueTask DisposeCreatedManagerAsync(IAsyncNodeManager manager)
-        {
-            if (manager is IAsyncDisposable asyncDisposable)
-            {
-                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-            }
-            else if (manager is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-        }
-
         /// <summary>
         /// Gets the candidate's explicit staging server, if it has one.
         /// </summary>
         internal static StagingServer? GetServer(IAsyncNodeManager manager)
         {
-            if (s_borrowedCandidates.TryGetValue(manager, out StagingServer? borrowedServer))
-            {
-                return borrowedServer;
-            }
-            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
+            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetGenerationIdentity(manager);
             if (s_candidates.TryGetValue(identity, out StagingServer? server))
             {
                 return server;
@@ -453,114 +212,10 @@ namespace Opc.Ua.Server
             return identity is AsyncCustomNodeManager asynchronous
                 ? asynchronous.Server as StagingServer
 #pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners stage through their server.
-                : (identity.SyncNodeManager as CustomNodeManager2)?.Server as StagingServer;
+                : identity is AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 synchronous }
+                    ? synchronous.Server as StagingServer
+                    : null;
 #pragma warning restore CS0618, UA0031
-        }
-
-        /// <summary>
-        /// Gets the cleanup state for an exact borrowed candidate.
-        /// </summary>
-        internal static BorrowedNodeManagerLeaseState? GetBorrowedLease(IAsyncNodeManager manager)
-        {
-            return s_borrowedCandidates.TryGetValue(manager, out StagingServer? server)
-                ? server.BorrowedLease
-                : null;
-        }
-
-        /// <summary>
-        /// Determines whether the exact facade owns a borrowed-resource lease.
-        /// </summary>
-        internal static bool IsBorrowedCandidate(IAsyncNodeManager manager)
-        {
-            return s_borrowedCandidates.TryGetValue(manager, out _);
-        }
-
-        /// <summary>
-        /// Determines whether the candidate server declared the exact borrowed facade.
-        /// </summary>
-        internal static bool IsBorrowedCandidateOf(IAsyncNodeManager manager, StagingServer server)
-        {
-            return s_borrowedCandidates.TryGetValue(manager, out StagingServer? current) &&
-                ReferenceEquals(current, server);
-        }
-
-        /// <summary>
-        /// Associates an exact borrowed facade with its candidate server.
-        /// </summary>
-        internal static bool TryAssociateBorrowedCandidate(IAsyncNodeManager manager, StagingServer server)
-        {
-            return ReferenceEquals(s_borrowedCandidates.GetValue(manager, _ => server), server);
-        }
-
-        /// <summary>
-        /// Removes a borrowed facade association after its declaration fails.
-        /// </summary>
-        internal static void RemoveBorrowedCandidate(IAsyncNodeManager manager, StagingServer server)
-        {
-            if (s_borrowedCandidates.TryGetValue(manager, out StagingServer? current) &&
-                ReferenceEquals(current, server))
-            {
-                s_borrowedCandidates.Remove(manager);
-            }
-        }
-
-        /// <summary>
-        /// Reserves one lease until its candidate is accepted or the declaration is rejected.
-        /// </summary>
-        private static BorrowedOwnershipClaim ClaimBorrowedLease(INodeManagerBorrowedResourceLease lease)
-        {
-            lock (s_borrowedOwnershipLock)
-            {
-                if (s_borrowedLeaseClaims.TryGetValue(lease, out _))
-                {
-                    throw new NodeManagerAlreadyRegisteredException(
-                        "The borrowed NodeManager lease is already owned by another candidate.");
-                }
-                var claim = new BorrowedOwnershipClaim();
-                s_borrowedLeaseClaims.Add(lease, claim);
-                return claim;
-            }
-        }
-
-        /// <summary>
-        /// Reserves the exact facade without transferring cleanup for an existing candidate.
-        /// </summary>
-        private static void ClaimBorrowedFacade(IAsyncNodeManager manager, BorrowedOwnershipClaim claim)
-        {
-            lock (s_borrowedOwnershipLock)
-            {
-                if (s_borrowedFacadeClaims.TryGetValue(manager, out _) ||
-                    s_borrowedCandidates.TryGetValue(manager, out _))
-                {
-                    throw new NodeManagerAlreadyRegisteredException(
-                        "The borrowed NodeManager candidate is already owned by another lease.");
-                }
-                s_borrowedFacadeClaims.Add(manager, claim);
-            }
-        }
-
-        /// <summary>
-        /// Releases reservations when declaration fails before cleanup ownership transfers.
-        /// </summary>
-        private static void ReleaseUnacceptedBorrowedClaims(
-            INodeManagerBorrowedResourceLease lease,
-            IAsyncNodeManager? manager,
-            BorrowedOwnershipClaim claim)
-        {
-            lock (s_borrowedOwnershipLock)
-            {
-                if (s_borrowedLeaseClaims.TryGetValue(lease, out BorrowedOwnershipClaim? leaseClaim) &&
-                    ReferenceEquals(leaseClaim, claim))
-                {
-                    s_borrowedLeaseClaims.Remove(lease);
-                }
-                if (manager is not null &&
-                    s_borrowedFacadeClaims.TryGetValue(manager, out BorrowedOwnershipClaim? facadeClaim) &&
-                    ReferenceEquals(facadeClaim, claim))
-                {
-                    s_borrowedFacadeClaims.Remove(manager);
-                }
-            }
         }
 
         /// <summary>
@@ -608,6 +263,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Releases the exact candidate association after verified cleanup, never a shared resource's association.
+        /// </summary>
+        internal static void Release(IAsyncNodeManager manager)
+        {
+            s_candidates.Remove(NodeManagerGenerationRegistry.GetGenerationIdentity(manager));
+        }
+
+        /// <summary>
         /// Revokes a manager's service-level writer as soon as its generation leaves routing.
         /// </summary>
         /// <param name="manager">The retiring NodeManager.</param>
@@ -616,36 +279,14 @@ namespace Opc.Ua.Server
             GetServer(manager)?.RevokeServiceLevelControl();
         }
 
-        /// <summary>Retains candidate-owned handles without extending manager lifetimes.</summary>
+        /// <summary>Associates managers with staging servers through weak keys.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, StagingServer> s_candidates = new();
-
-        /// <summary>Associates a leased facade without replacing its borrowed resource's staging owner.</summary>
-        private static readonly ConditionalWeakTable<IAsyncNodeManager, StagingServer> s_borrowedCandidates = new();
-
-        /// <summary>Serializes reservations of lease and facade identities.</summary>
-        private static readonly Lock s_borrowedOwnershipLock = new();
-
-        /// <summary>Retains accepted lease identities while their keys remain reachable.</summary>
-        private static readonly ConditionalWeakTable<INodeManagerBorrowedResourceLease, BorrowedOwnershipClaim>
-            s_borrowedLeaseClaims = new();
-
-        /// <summary>Retains accepted facade identities while their keys remain reachable.</summary>
-        private static readonly ConditionalWeakTable<IAsyncNodeManager, BorrowedOwnershipClaim>
-            s_borrowedFacadeClaims = new();
-
-        /// <summary>
-        /// Identifies one reservation without retaining the lease, facade, or staging server.
-        /// </summary>
-        private sealed class BorrowedOwnershipClaim
-        {
-        }
 
         /// <summary>
         /// Candidate-specific server facade. Metadata handles are stable even when copied into a system context.
         /// </summary>
         internal sealed class StagingServer :
             IServerInternal, INodeIdFactoryProvider, ITimeProviderProvider,
-            INodeManagerBorrowedResourcePreparation,
             IHistorianRegistryProvider, IHistorianBuilderRegistry,
             AliasNames.IAliasNameStoreRegistryProvider, AliasNames.IAliasNameStoreRegistrationValidator,
             IConformanceUnitsManagerProvider, IServerEndpointRegistryProvider, ITransportListenerRegistryProvider,
@@ -656,16 +297,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Creates a candidate's metadata handles over the preparation's shared private storage.
             /// </summary>
-            internal StagingServer(
-                ChangePreparer preparation,
-                bool usesBorrowedFactory = false,
-                Func<IAsyncNodeManager, bool>? isRegistered = null,
-                Func<IAsyncNodeManager, bool>? isExactlyRegistered = null)
+            internal StagingServer(ChangePreparer preparation)
             {
                 m_server = preparation.Server;
-                UsesBorrowedFactory = usesBorrowedFactory;
-                m_isRegistered = isRegistered;
-                m_isExactlyRegistered = isExactlyRegistered;
                 m_servingNamespaceUris = m_server.NamespaceUris;
                 m_servingServerUris = m_server.ServerUris;
                 m_servingTypes = preparation.OriginalTypes;
@@ -705,9 +339,6 @@ namespace Opc.Ua.Server
 
             /// <inheritdoc/>
             public NamespaceTable NamespaceUris { get; }
-
-            /// <inheritdoc/>
-            IServerInternal INodeManagerBorrowedResourcePreparation.Server => this;
 
             /// <inheritdoc/>
             public StringTable ServerUris { get; }
@@ -905,300 +536,12 @@ namespace Opc.Ua.Server
             internal bool IsStaging => Volatile.Read(ref m_isStaging);
 
             /// <summary>
-            /// Gets whether the factory declared borrowed-resource ownership before creating its candidate.
-            /// </summary>
-            internal bool UsesBorrowedFactory { get; }
-
-            /// <summary>
-            /// Gets the candidate's borrowed-resource cleanup state.
-            /// </summary>
-            internal BorrowedNodeManagerLeaseState? BorrowedLease => Volatile.Read(ref m_borrowedLease);
-
-            /// <summary>
-            /// Stops declarations and waits for one already in progress.
-            /// </summary>
-            internal async ValueTask CloseBorrowedFactoryAsync()
-            {
-                Task? pending;
-                lock (m_borrowedDeclarationLock)
-                {
-                    m_borrowedFactoryClosed = true;
-                    pending = m_borrowedDeclaration?.Task;
-                }
-                if (pending is not null)
-                {
-                    await pending.ConfigureAwait(false);
-                }
-            }
-
-            /// <summary>
-            /// Gets the declared facade after factory completion.
-            /// </summary>
-            internal IAsyncNodeManager GetDeclaredBorrowedCandidate()
-            {
-                ThrowBorrowedDeclarationFailure();
-                return Volatile.Read(ref m_declaredBorrowedCandidate) ??
-                    throw new InvalidOperationException("The borrowed NodeManager factory declared no candidate.");
-            }
-
-            /// <summary>
-            /// Preserves a declaration failure even when the factory catches it.
-            /// </summary>
-            internal void ThrowBorrowedDeclarationFailure()
-            {
-                Volatile.Read(ref m_borrowedDeclarationFailure)?.Throw();
-            }
-
-            /// <summary>
-            /// Rejects a candidate identity that belongs to another registration.
-            /// </summary>
-            private void ValidateBorrowedCandidateIdentity(IAsyncNodeManager manager, IAsyncNodeManager resource)
-            {
-                Func<IAsyncNodeManager, bool> isRegistered = m_isRegistered ??
-                    throw new InvalidOperationException("The candidate has no registration lookup.");
-                Func<IAsyncNodeManager, bool> isExactlyRegistered = m_isExactlyRegistered ??
-                    throw new InvalidOperationException("The candidate has no exact registration lookup.");
-                if (isExactlyRegistered(manager))
-                {
-                    throw new NodeManagerAlreadyRegisteredException();
-                }
-                if (ReferenceEquals(manager, resource))
-                {
-                    StagingServer? previousServer = GetServer(manager);
-                    if (isRegistered(manager))
-                    {
-                        throw new NodeManagerAlreadyRegisteredException();
-                    }
-                    if ((previousServer is { IsDetached: false } && !ReferenceEquals(previousServer, this)) ||
-                        HasKnownBorrowedResource(manager, this, isRegistered, isExactlyRegistered))
-                    {
-                        throw new InvalidOperationException(
-                            "A borrowed live NodeManager requires a distinct facade for its candidate.");
-                    }
-                }
-            }
-
-            /// <summary>
-            /// Validates a borrowed resource before associating its facade with this server.
-            /// </summary>
-            private void ValidateBorrowedCandidate(IAsyncNodeManager manager, IAsyncNodeManager resource)
-            {
-                ValidateBorrowedCandidateIdentity(manager, resource);
-                IServerInternal? owner = GetKnownResourceServer(resource);
-                while (owner is StagingServer stagingOwner)
-                {
-                    owner = stagingOwner.m_server;
-                }
-                IServerInternal serving = m_server;
-                while (serving is StagingServer stagingServer)
-                {
-                    serving = stagingServer.m_server;
-                }
-                if (owner is not null && !ReferenceEquals(owner, serving))
-                {
-                    throw new NotSupportedException(
-                        "A borrowed NodeManager resource belongs to another server.");
-                }
-            }
-
-            /// <summary>
             /// Gets or sets the exact candidate facade returned by the factory.
             /// </summary>
             internal IAsyncNodeManager? RegisteredFacade
             {
                 get => Volatile.Read(ref m_registeredFacade);
                 set => Volatile.Write(ref m_registeredFacade, value);
-            }
-
-            /// <inheritdoc/>
-            public void DeclareCandidate(INodeManagerBorrowedResourceLease lease)
-            {
-                if (lease is null)
-                {
-                    throw new ArgumentNullException(nameof(lease));
-                }
-
-                TaskCompletionSource<bool> completion;
-                lock (m_borrowedDeclarationLock)
-                {
-                    if (!UsesBorrowedFactory || m_borrowedFactoryClosed || IsDetached)
-                    {
-                        throw new InvalidOperationException("The borrowed factory no longer accepts a candidate.");
-                    }
-                    if (m_borrowedDeclaration is not null)
-                    {
-                        throw new InvalidOperationException("The borrowed factory already declared a candidate.");
-                    }
-                    m_borrowedDeclaration = completion = new TaskCompletionSource<bool>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                }
-
-                BorrowedOwnershipClaim? claim = null;
-                IAsyncNodeManager? manager = null;
-                bool accepted = false;
-                try
-                {
-                    claim = ClaimBorrowedLease(lease);
-                    manager = lease.NodeManager ??
-                        throw new InvalidOperationException("The borrowed NodeManager lease returned no candidate.");
-                    IAsyncNodeManager resource = MasterNodeManager.GetReferenceOwnerIdentity(manager);
-                    ValidateBorrowedCandidateIdentity(manager, resource);
-                    ClaimBorrowedFacade(manager, claim);
-                    var state = new BorrowedNodeManagerLeaseState(lease, this);
-                    state.SetCandidate(manager);
-                    Volatile.Write(ref m_borrowedLease, state);
-                    accepted = true;
-                    ValidateBorrowedCandidate(manager, resource);
-                    NodeManagerGenerationRegistry.DeclareBorrowedCandidate(this, manager, resource);
-                    Volatile.Write(ref m_declaredBorrowedCandidate, manager);
-                }
-                catch (Exception failure) when (failure is not OutOfMemoryException)
-                {
-                    lock (m_borrowedDeclarationLock)
-                    {
-                        m_borrowedDeclarationFailure = ExceptionDispatchInfo.Capture(failure);
-                    }
-                    throw;
-                }
-                finally
-                {
-                    if (!accepted && claim is not null)
-                    {
-                        ReleaseUnacceptedBorrowedClaims(lease, manager, claim);
-                    }
-                    completion.TrySetResult(true);
-                }
-            }
-
-            /// <summary>
-            /// Creates an initial source generation using the private resource's shared gate.
-            /// </summary>
-            /// <param name="identity">The source registry key.</param>
-            /// <param name="resource">The physical resource behind the source.</param>
-            /// <param name="manager">The exact source manager.</param>
-            /// <returns>The new provisional source generation.</returns>
-            internal NodeManagerGeneration CreateProvisionalSource(
-                IAsyncNodeManager identity,
-                IAsyncNodeManager resource,
-                IAsyncNodeManager manager)
-            {
-                lock (m_provisionalSourcesLock)
-                {
-                    if (IsDetached ||
-                        (m_factoryCompleted &&
-                            !ReferenceEquals(m_sourceIdentity, identity) &&
-                            !ReferenceEquals(m_facadeIdentity, identity)))
-                    {
-                        throw new InvalidOperationException(
-                            "The staging server no longer accepts this source manager.");
-                    }
-                    GenerationGate? gate = null;
-                    foreach (var source in m_provisionalSources)
-                    {
-                        if (ReferenceEquals(source.Resource, resource))
-                        {
-                            gate = source.Generation.Gate;
-                            break;
-                        }
-                    }
-                    var generation = new NodeManagerGeneration(
-                        new NodeManagerSlot(),
-                        1,
-                        manager,
-                        NodeManagerGenerationState.Prepared,
-                        privateGate: gate);
-                    m_provisionalSources.Add((identity, resource, generation));
-                    return generation;
-                }
-            }
-
-            /// <summary>
-            /// Determines whether this candidate created the exact provisional source.
-            /// </summary>
-            /// <param name="identity">The source registry key.</param>
-            /// <param name="generation">The source generation.</param>
-            /// <returns>Whether the source belongs to this candidate.</returns>
-            internal bool OwnsProvisionalSource(
-                IAsyncNodeManager identity,
-                NodeManagerGeneration generation)
-            {
-                lock (m_provisionalSourcesLock)
-                {
-                    return m_provisionalSources.Exists(source =>
-                        ReferenceEquals(source.Identity, identity) &&
-                        ReferenceEquals(source.Generation, generation));
-                }
-            }
-
-            /// <summary>
-            /// Retains the selected resource's private bindings and releases unrelated provisional identities.
-            /// </summary>
-            /// <param name="manager">The facade returned by the factory.</param>
-            internal void CompleteFactory(IAsyncNodeManager manager)
-            {
-                IAsyncNodeManager source = NodeManagerGenerationRegistry.GetIdentity(
-                    MasterNodeManager.GetReferenceOwnerIdentity(manager));
-                IAsyncNodeManager facade = NodeManagerGenerationRegistry.GetIdentity(manager);
-                List<(IAsyncNodeManager Identity, NodeManagerGeneration Generation, bool AbortGate)> released;
-                lock (m_provisionalSourcesLock)
-                {
-                    if (IsDetached)
-                    {
-                        throw new InvalidOperationException("The staging server has been detached.");
-                    }
-                    m_factoryCompleted = true;
-                    m_sourceIdentity = source;
-                    m_facadeIdentity = facade;
-                    RegisteredFacade = manager;
-                    var retainedGates = new HashSet<GenerationGate>();
-                    foreach (var entry in m_provisionalSources)
-                    {
-                        if (ReferenceEquals(entry.Resource, source) || ReferenceEquals(entry.Identity, facade))
-                        {
-                            retainedGates.Add(entry.Generation.Gate);
-                        }
-                    }
-                    released = [];
-                    foreach (var entry in m_provisionalSources)
-                    {
-                        if (!ReferenceEquals(entry.Resource, source) && !ReferenceEquals(entry.Identity, facade))
-                        {
-                            released.Add((
-                                entry.Identity,
-                                entry.Generation,
-                                !retainedGates.Contains(entry.Generation.Gate)));
-                        }
-                    }
-                    m_provisionalSources.RemoveAll(entry =>
-                        !ReferenceEquals(entry.Resource, source) && !ReferenceEquals(entry.Identity, facade));
-                }
-                foreach ((IAsyncNodeManager identity, NodeManagerGeneration generation, bool abortGate) in released)
-                {
-                    NodeManagerGenerationRegistry.ReleaseProvisionalSource(identity, generation, abortGate);
-                }
-            }
-
-            /// <summary>
-            /// Releases the provisional source identities still owned by this candidate.
-            /// </summary>
-            private void ReleaseProvisionalSources()
-            {
-                List<(
-                    IAsyncNodeManager Identity,
-                    IAsyncNodeManager Resource,
-                    NodeManagerGeneration Generation)> released;
-                lock (m_provisionalSourcesLock)
-                {
-                    m_factoryCompleted = true;
-                    m_sourceIdentity = null;
-                    m_facadeIdentity = null;
-                    released = [.. m_provisionalSources];
-                    m_provisionalSources.Clear();
-                }
-                foreach (var entry in released)
-                {
-                    NodeManagerGenerationRegistry.ReleaseProvisionalSource(entry.Identity, entry.Generation);
-                }
             }
 
             /// <summary>
@@ -1209,7 +552,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets whether preparation recorded candidate-owned historian bindings that require readiness.
             /// </summary>
-            internal bool HasPendingHistorianState => m_historianRegistry?.HasRegistrations == true;
+            internal bool HasPendingHistorianState => m_historianRegistry?.RequiresReadiness == true;
 
             /// <summary>
             /// Gets whether the serving historian registry supports owner-scoped publication.
@@ -1276,7 +619,6 @@ namespace Opc.Ua.Server
                 }
                 if (alreadyDisposed)
                 {
-                    ReleaseProvisionalSources();
                     ReleaseAbandonedReferences();
                     return;
                 }
@@ -1348,7 +690,6 @@ namespace Opc.Ua.Server
                     m_historianBuilders.Clear();
                     m_historianBuildersDisposed = true;
                 }
-                ReleaseProvisionalSources();
                 ReleaseAbandonedReferences();
             }
 
@@ -1984,15 +1325,8 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void Attach(IAsyncNodeManager manager)
             {
-                if (s_borrowedCandidates.TryGetValue(manager, out StagingServer? borrowedServer))
-                {
-                    if (!ReferenceEquals(borrowedServer, this))
-                    {
-                        throw new NodeManagerAlreadyRegisteredException();
-                    }
-                    return;
-                }
-                if (!ReferenceEquals(s_candidates.GetValue(manager, _ => this), this))
+                IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetGenerationIdentity(manager);
+                if (!ReferenceEquals(s_candidates.GetValue(identity, _ => this), this))
                 {
                     throw new NodeManagerAlreadyRegisteredException();
                 }
@@ -2034,50 +1368,8 @@ namespace Opc.Ua.Server
             /// <summary>The running server whose non-metadata services are forwarded.</summary>
             private readonly IServerInternal m_server;
 
-            /// <summary>Looks up resources owned by the lifecycle.</summary>
-            private readonly Func<IAsyncNodeManager, bool>? m_isRegistered;
-
-            /// <summary>Looks up exact facades owned by the lifecycle.</summary>
-            private readonly Func<IAsyncNodeManager, bool>? m_isExactlyRegistered;
-
-            /// <summary>Protects the borrowed factory's declaration and completion.</summary>
-            private readonly Lock m_borrowedDeclarationLock = new();
-
-            /// <summary>The cleanup lease transferred by the factory.</summary>
-            private BorrowedNodeManagerLeaseState? m_borrowedLease;
-
-            /// <summary>The declared candidate facade.</summary>
-            private IAsyncNodeManager? m_declaredBorrowedCandidate;
-
-            /// <summary>The first declaration failure, even if the factory catches it.</summary>
-            private ExceptionDispatchInfo? m_borrowedDeclarationFailure;
-
-            /// <summary>The current or completed declaration.</summary>
-            private TaskCompletionSource<bool>? m_borrowedDeclaration;
-
-            /// <summary>Whether the borrowed factory has returned or failed.</summary>
-            private bool m_borrowedFactoryClosed;
-
             /// <summary>The exact facade associated with this candidate.</summary>
             private IAsyncNodeManager? m_registeredFacade;
-
-            /// <summary>The source identities created before the candidate was selected.</summary>
-            private readonly List<(
-                IAsyncNodeManager Identity,
-                IAsyncNodeManager Resource,
-                NodeManagerGeneration Generation)> m_provisionalSources = [];
-
-            /// <summary>Protects provisional source ownership and factory completion.</summary>
-            private readonly Lock m_provisionalSourcesLock = new();
-
-            /// <summary>The resource selected by the completed factory, if any.</summary>
-            private IAsyncNodeManager? m_sourceIdentity;
-
-            /// <summary>The facade selected by the completed factory, if any.</summary>
-            private IAsyncNodeManager? m_facadeIdentity;
-
-            /// <summary>Whether the factory result has been selected or cleanup has started.</summary>
-            private bool m_factoryCompleted;
 
             /// <summary>Whether the candidate's metadata is still private.</summary>
             private bool m_isStaging = true;

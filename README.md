@@ -196,7 +196,7 @@ Contributors must sign the OPC Foundation
 The CLA "I AGREE" gate is presented automatically on your first PR.
 
 The project is licensed under the
-[OPC Foundation MIT License](LICENSE.txt). Report security
+[MIT License](LICENSE.txt). Report security
 vulnerabilities via the process documented in
 [SECURITY.md](SECURITY.md).
 

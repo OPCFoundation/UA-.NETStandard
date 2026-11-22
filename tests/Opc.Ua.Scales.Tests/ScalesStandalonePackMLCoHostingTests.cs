@@ -1,25 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Globalization;
@@ -195,15 +175,11 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(
                     serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, late.Node.NodeId),
                     Is.True);
-                await using (IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration)], ct).ConfigureAwait(false))
-                {
-                    NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, ct)
-                        .ConfigureAwait(false);
-                    Assert.That(removed.Issues.Count, Is.Zero);
-                    Assert.That(removed.CleanupFailure, Is.Null);
-                    await removed.Retirement.WaitAsync(ct).ConfigureAwait(false);
-                }
+                LifecycleResult removed = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Remove(registration.Slot)], ct).ConfigureAwait(false);
+                Assert.That(removed.Issues.Count, Is.Zero);
+                Assert.That(removed.CleanupFailure, Is.Null);
+                await removed.Retired.WaitAsync(ct).ConfigureAwait(false);
                 // Reads raw Server node state once, only after the sequential await of old retirement.
                 // Browse hides an edge whose target has no serving owner, so it cannot show this.
                 // This is not a concurrency or manager-recreation-policy claim.
@@ -225,14 +201,10 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(deleted.Results[1].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdUnknown));
                 await AssertEmbeddedControlAsync(scalesClient, embedded.NodeId, ct).ConfigureAwait(false);
 
-                NodeManagerBatchResult recreatedRegistration;
-                await using (IPreparedNodeManagerBatch addition = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false))
-                {
-                    recreatedRegistration = await addition.CommitAsync(_ => default, ct).ConfigureAwait(false);
-                    Assert.That(recreatedRegistration.Issues.Count, Is.Zero);
-                    Assert.That(recreatedRegistration.CleanupFailure, Is.Null);
-                }
+                LifecycleResult recreatedRegistration = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+                Assert.That(recreatedRegistration.Issues.Count, Is.Zero);
+                Assert.That(recreatedRegistration.CleanupFailure, Is.Null);
                 PackMLNodeManager replacement = packMLManager
                     ?? throw new AssertionException("The replacement configuration did not run.");
                 StandaloneUnit recreated = initial
@@ -255,15 +227,12 @@ namespace Opc.Ua.Scales.Tests
                     [recreated.Node.NodeId, recreatedLate.Node.NodeId], ct).ConfigureAwait(false);
                 await AssertEmbeddedControlAsync(scalesClient, embedded.NodeId, ct).ConfigureAwait(false);
 
-                await using (IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(recreatedRegistration.Registrations[0])], ct).ConfigureAwait(false))
-                {
-                    NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, ct)
-                        .ConfigureAwait(false);
-                    Assert.That(removed.Issues.Count, Is.Zero);
-                    Assert.That(removed.CleanupFailure, Is.Null);
-                    await removed.Retirement.WaitAsync(ct).ConfigureAwait(false);
-                }
+                LifecycleResult removedRecreation = await lifecycle.ApplyAsync(
+                    [LifecycleChange.Remove(recreatedRegistration.Registrations[0].Slot)], ct)
+                    .ConfigureAwait(false);
+                Assert.That(removedRecreation.Issues.Count, Is.Zero);
+                Assert.That(removedRecreation.CleanupFailure, Is.Null);
+                await removedRecreation.Retired.WaitAsync(ct).ConfigureAwait(false);
                 Assert.That(
                     serverObject.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, recreated.Node.NodeId),
                     Is.False);

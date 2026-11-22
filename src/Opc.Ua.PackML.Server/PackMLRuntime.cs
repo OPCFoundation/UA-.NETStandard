@@ -1,25 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -123,6 +103,36 @@ namespace Opc.Ua.PackML.Server
                 token => AddUnitCoreAsync(browseName, provider, configure, parent, token), cancellationToken);
         }
 
+        private Dictionary<NodeId, NodeState> CheckLocalNodeIds(NodeState unit, NodeState modeDataType)
+        {
+            var claimed = new Dictionary<NodeId, NodeState>();
+            CheckTree(unit);
+            CheckTree(modeDataType);
+            return claimed;
+
+            void CheckTree(NodeState node)
+            {
+                if (node.NodeId.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "A PackML instance node has no assigned NodeId.");
+                }
+                if (claimed.ContainsKey(node.NodeId) || m_manager.Find(node.NodeId) is not null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdExists, "A PackML instance NodeId is already in use.");
+                }
+                claimed.Add(node.NodeId, node);
+
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(m_manager.SystemContext, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    CheckTree(child);
+                }
+            }
+        }
+
         /// <summary>
         /// Creates and registers one admitted composition operation.
         /// </summary>
@@ -153,35 +163,34 @@ namespace Opc.Ua.PackML.Server
                 ?? throw new ServiceResultException(
                     StatusCodes.BadBrowseNameDuplicated,
                     "Another PackML runtime still owns a unit with this name under the same parent.");
+            NodeIdReservations.Reservation? reservation = null;
+            Dictionary<NodeId, NodeState>? reservedNodes = null;
             PackMLUnit unit;
             try
             {
                 var options = new PackMLUnitOptions();
                 configure?.Invoke(options);
-                unit = await PackMLUnit.CreateAsync(
-                    m_manager.SystemContext, parent, browseName, provider, options, cancellationToken)
+                unit = await PackMLUnit.CreateCoreAsync(
+                    m_manager.SystemContext, parent, browseName, provider, options,
+                    AdmitNodesAsync, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch
             {
+                reservation?.ReleaseAfterRollback();
                 m_claims.Release(claim);
                 throw;
             }
             bool ownsNodeIds = false;
             try
             {
-                if (m_manager.Find(unit.Node.NodeId) is not null ||
-                    m_manager.Find(unit.ModeDataType.NodeId) is not null)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeIdExists,
-                        "The owner still indexes a node with this unit's NodeId.");
-                }
+                CheckLocalNodeIds(unit.Node, unit.ModeDataType);
                 ownsNodeIds = true;
                 lock (m_unitsLock)
                 {
                     m_pendingUnits.Add(unit);
                 }
+
                 await m_manager.AddPredefinedNodeAsync(unit.ModeDataType, cancellationToken).ConfigureAwait(false);
                 await m_manager.AddExternalReferenceAsync(
                     unit.ModeDataType,
@@ -287,10 +296,23 @@ namespace Opc.Ua.PackML.Server
                         errors.Add(cleanupError);
                     }
                 }
+                if (reservedNodes is not null)
+                {
+                    foreach (KeyValuePair<NodeId, NodeState> entry in reservedNodes)
+                    {
+                        if (ReferenceEquals(m_manager.Find(entry.Key), entry.Value))
+                        {
+                            errors.Add(new InvalidOperationException(
+                                $"PackML rollback left node {entry.Key} indexed."));
+                            break;
+                        }
+                    }
+                }
                 if (errors.Count > 1)
                 {
                     throw new AggregateException("PackML composition failed and rollback could not finish.", errors);
                 }
+                reservation?.ReleaseAfterRollback();
                 throw;
             }
             finally
@@ -302,6 +324,17 @@ namespace Opc.Ua.PackML.Server
                 if (claim is not null)
                 {
                     m_claims.Release(claim);
+                }
+            }
+
+            async ValueTask AdmitNodesAsync(NodeState root, NodeState modeType, CancellationToken token)
+            {
+                Dictionary<NodeId, NodeState> nodes = CheckLocalNodeIds(root, modeType);
+                if (m_manager.Server.NodeManager is MasterNodeManager master)
+                {
+                    reservation = await master.ReserveManagedNodeIdsAsync(m_manager, [.. nodes.Keys], nodes, token)
+                        .ConfigureAwait(false);
+                    reservedNodes = nodes;
                 }
             }
         }

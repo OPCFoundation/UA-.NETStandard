@@ -41,10 +41,12 @@ No formal certification is claimed.
 
 - [Pinned official NodeSet](https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/PlasticsRubber/Extrusion_v2/GeneralTypes/2.00/Opc.Ua.PlasticsRubber.Extrusion_v2.GeneralTypes.NodeSet2.xml)
 - Upstream revision: `96a08945425d0295edb3607d2a38f6841ef44046`
-- SHA-256: `20f4ce69b4701646ccbbedfb64450097d699d9eeae23496918e1fea9da4d1fe6`
+- Upstream SHA-256: `20f4ce69b4701646ccbbedfb64450097d699d9eeae23496918e1fea9da4d1fe6`
+- Repository copy SHA-256: `16a6e59e7bac0967b840e6c798ba9d9f9870794925917c241e4d26190e6828e6`
 
-The NodeSet is the byte-for-byte upstream publication with its individual MIT
-notice preserved. `Model\*.Upstream.NodeIds.csv` retains the published table;
+The repository copy is the upstream publication with one change: its license
+banner is replaced by the SPDX header, so it hashes differently from the
+download. `Model\*.Upstream.NodeIds.csv` retains the published table;
 `tools\nodesets\derive-identifier-table.py` derives the generator-compatible
 identifier guard without changing node identifiers.
 Where the published table and XML differ, the guard covers the XML nodes only.

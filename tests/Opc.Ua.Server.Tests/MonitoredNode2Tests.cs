@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -848,7 +822,40 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CachedEventPermissionHonorsRestrictionsAndInvalidationOnNativeSessionAsync()
         {
-            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            const string namespaceUri = "urn:opcfoundation:server:tests:native-event-permission";
+            int validations = 0;
+            var notifier = new BaseObjectState(null)
+            {
+                AccessRestrictions = AccessRestrictionType.None
+            };
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager.SetupGet(value => value.NamespaceUris).Returns([namespaceUri]);
+            nodeManager.Setup(value => value.GetManagerHandleAsync(
+                    It.Is<NodeId>(id => id == notifier.NodeId), It.IsAny<CancellationToken>()))
+                .Returns<NodeId, CancellationToken>((id, _) => new ValueTask<object>(new NodeHandle(id, notifier)));
+            nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref validations);
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.SetupGet(value => value.NamespacesUris).Returns([namespaceUri]);
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal instance, ApplicationConfiguration _, CancellationToken _) =>
+                {
+                    notifier.NodeId = new NodeId(
+                        "NativeEventPermissionSource", instance.NamespaceUris.GetIndexOrAppend(namespaceUri));
+                    return new ValueTask<IAsyncNodeManager>(nodeManager.Object);
+                });
+            var fixture = new ServerFixture<StandardServer>(telemetry =>
+            {
+                var instance = new ReferenceServer(telemetry);
+                instance.AddNodeManager(factory.Object);
+                return instance;
+            });
             StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
             try
             {
@@ -857,24 +864,10 @@ namespace Opc.Ua.Server.Tests
                 ISession? session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
                 Assert.That(session, Is.InstanceOf<global::Opc.Ua.Server.Session>());
 
-                int validations = 0;
-                var nodeManager = new Mock<IAsyncNodeManager>();
-                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
-                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
-                    .Returns(() =>
-                    {
-                        Interlocked.Increment(ref validations);
-                        return new ValueTask<ServiceResult>(ServiceResult.Good);
-                    });
                 var item = new Mock<IEventMonitoredItem>();
                 item.Setup(value => value.Id).Returns(1);
                 item.Setup(value => value.Session).Returns(session);
 
-                var notifier = new BaseObjectState(null)
-                {
-                    NodeId = ObjectIds.Server,
-                    AccessRestrictions = AccessRestrictionType.None
-                };
                 await using var monitored = new MonitoredNode2(nodeManager.Object, server.CurrentInstance, notifier);
                 monitored.Add(item.Object);
 
@@ -885,7 +878,7 @@ namespace Opc.Ua.Server.Tests
                 };
                 notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
                 {
-                    Value = ObjectIds.Server
+                    Value = notifier.NodeId
                 };
 
                 async Task ReportAsync()

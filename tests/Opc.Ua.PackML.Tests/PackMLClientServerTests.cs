@@ -1,25 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #pragma warning disable CS0618, UA0031 // Legacy adapter coverage; TODO: remove with synchronous manager support.
 
@@ -1029,6 +1009,52 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
+        /// Rejects a generated child collision before reading the store or the equipment.
+        /// </summary>
+        [Test]
+        public async Task GeneratedChildCollisionDoesNotInitializeEquipmentOrStoreAsync()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = deadline.Token;
+            var name = new QualifiedName("ConflictingChild", m_manager.NamespaceIndexes[0]);
+            await using Unit probe = await Unit.CreateAsync(
+                m_manager.SystemContext, null, name, new EquipmentProvider(), cancellationToken: ct)
+                .ConfigureAwait(false);
+            var children = new List<BaseInstanceState>();
+            probe.ModeDataType.GetChildren(m_manager.SystemContext, children);
+            NodeId childId = children.Single().NodeId;
+            var existing = new BaseObjectState(null)
+            {
+                NodeId = childId,
+                BrowseName = new QualifiedName("ExistingNode", name.NamespaceIndex)
+            };
+            await m_manager.AddPredefinedNodeAsync(existing, ct).ConfigureAwait(false);
+            try
+            {
+                var provider = new Mock<IPackMLEquipmentProvider>(MockBehavior.Strict);
+                var store = new MemoryAdministrationStore();
+                await using var runtime = new PackMLRuntime(m_manager);
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await runtime.AddUnitAsync(
+                        name, provider.Object, options => options.AdministrationStore = store,
+                        cancellationToken: ct).ConfigureAwait(false)).ConfigureAwait(false))!;
+                Assert.That(failure.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdExists));
+                Assert.That(store.Loads, Is.Zero);
+                Assert.That(store.Saves, Is.Zero);
+                provider.VerifyNoOtherCalls();
+                Assert.That(runtime.Units.Count, Is.Zero);
+                Assert.That(m_manager.Find(childId), Is.SameAs(existing));
+                Assert.That(m_manager.Find(probe.Node.NodeId), Is.Null);
+                Assert.That(m_manager.Find(probe.ModeDataType.NodeId), Is.Null);
+            }
+            finally
+            {
+                await m_manager.DeleteNodeAsync(m_manager.SystemContext, childId, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Rejects a same-name unit from another runtime on the same owner until the original nodes are deleted.
         /// </summary>
         [Test]
@@ -1519,8 +1545,8 @@ namespace Opc.Ua.PackML.Tests
 
             INodeManagerLifecycle lifecycle = m_services.GetRequiredService<INodeManagerLifecycle>();
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
             int unitCount = candidate.Runtime.Units.Count;
@@ -2538,12 +2564,12 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
-            NodeManagerBatchResult? committed = null;
+            LifecycleResult? committed = null;
             NodeId unitId;
             NodeId modeId;
 
-            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false))
+            await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false))
             {
                 PreparedPackMLManager candidate = factory.Manager
                     ?? throw new InvalidOperationException("The candidate manager was not created.");
@@ -2583,11 +2609,11 @@ namespace Opc.Ua.PackML.Tests
             NodeState servingFolder = m_manager.Find(folderId)
                 ?? throw new InvalidOperationException("PackMLObjects folder is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, duplicateFolder: true);
-            NodeManagerBatchResult? committed = null;
+            LifecycleResult? committed = null;
             NodeId unitId;
 
-            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false))
+            await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false))
             {
                 PreparedPackMLManager candidate = factory.Manager
                     ?? throw new InvalidOperationException("The candidate manager was not created.");
@@ -2662,9 +2688,9 @@ namespace Opc.Ua.PackML.Tests
                 ?? throw new InvalidOperationException("The serving folder is unavailable.");
             var firstFactory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false, namespaceUri: "urn:packml:multiple:first", duplicateFolder: true);
-            await using IPreparedNodeManagerBatch firstPreparation = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult first = await firstPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges firstPreparation = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            LifecycleResult first = await firstPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(first.CleanupFailure, Is.Null);
             PreparedPackMLManager firstManager = firstFactory.Manager
                 ?? throw new InvalidOperationException("The first manager was not created.");
@@ -2674,9 +2700,9 @@ namespace Opc.Ua.PackML.Tests
 
             var secondFactory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false, namespaceUri: "urn:packml:multiple:second", duplicateFolder: true);
-            await using IPreparedNodeManagerBatch secondPreparation = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(secondFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult second = await secondPreparation.CommitAsync(_ => default, ct)
+            await using IPreparedChanges secondPreparation = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(secondFactory)], ct).ConfigureAwait(false);
+            LifecycleResult second = await secondPreparation.CommitAsync(_ => default, ct)
                 .ConfigureAwait(false);
             Assert.That(second.CleanupFailure, Is.Null);
             PreparedPackMLManager secondManager = secondFactory.Manager
@@ -2717,9 +2743,9 @@ namespace Opc.Ua.PackML.Tests
 
             var thirdFactory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false, namespaceUri: "urn:packml:multiple:third", duplicateFolder: true);
-            await using IPreparedNodeManagerBatch thirdPreparation = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(thirdFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult third = await thirdPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges thirdPreparation = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(thirdFactory)], ct).ConfigureAwait(false);
+            LifecycleResult third = await thirdPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(third.CleanupFailure, Is.Null);
             PreparedPackMLManager thirdManager = thirdFactory.Manager
                 ?? throw new InvalidOperationException("The third manager was not created.");
@@ -2795,15 +2821,27 @@ namespace Opc.Ua.PackML.Tests
 
             var firstFactory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false, duplicateFolder: duplicateFolder);
-            await using IPreparedNodeManagerBatch firstPreparation = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult first = await firstPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges firstPreparation = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            LifecycleResult first = await firstPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(first.CleanupFailure, Is.Null);
             PreparedPackMLManager firstManager = firstFactory.Manager
                 ?? throw new InvalidOperationException("The first manager was not created.");
             Unit firstUnit = firstManager.CreatedUnit;
             NodeId unitId = firstUnit.Node.NodeId;
             NodeId modeId = firstUnit.ModeDataType.NodeId;
+            await AssertGenerationAsync(unitId, modeId, expected: true).ConfigureAwait(false);
+            var overlappingFactory = new PreparedPackMLManagerFactory(
+                failFirstUnit: false, duplicateFolder: duplicateFolder);
+            ServiceResultException collision = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                {
+                    await using IPreparedChanges overlapping = await lifecycle.PrepareAsync(
+                        [LifecycleChange.Add(overlappingFactory)], ct).ConfigureAwait(false);
+                }).ConfigureAwait(false))!;
+            Assert.That(collision.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdExists));
+            Assert.That(firstManager.Find(unitId), Is.SameAs(firstUnit.Node));
+            Assert.That(firstManager.Find(modeId), Is.SameAs(firstUnit.ModeDataType));
             await AssertGenerationAsync(unitId, modeId, expected: true).ConfigureAwait(false);
             if (duplicateFolder)
             {
@@ -2828,9 +2866,9 @@ namespace Opc.Ua.PackML.Tests
 
             var secondFactory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false, duplicateFolder: duplicateFolder);
-            await using IPreparedNodeManagerBatch secondPreparation = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(secondFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult second = await secondPreparation.CommitAsync(_ => default, ct)
+            await using IPreparedChanges secondPreparation = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(secondFactory)], ct).ConfigureAwait(false);
+            LifecycleResult second = await secondPreparation.CommitAsync(_ => default, ct)
                 .ConfigureAwait(false);
             Assert.That(second.CleanupFailure, Is.Null);
             PreparedPackMLManager secondManager = secondFactory.Manager
@@ -2891,7 +2929,7 @@ namespace Opc.Ua.PackML.Tests
                 DisplayName = new LocalizedText("ExternalFolderProbe"),
                 TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
             };
-            NodeManagerBatchResult? mirrorRegistration = null;
+            LifecycleResult? mirrorRegistration = null;
             try
             {
                 if (mirrorAlreadyPresent)
@@ -2954,11 +2992,11 @@ namespace Opc.Ua.PackML.Tests
                 }
             }
 
-            async Task<NodeManagerBatchResult> PublishMirrorAsync()
+            async Task<LifecycleResult> PublishMirrorAsync()
             {
-                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(mirrorFactory)], ct).ConfigureAwait(false);
-                NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(mirrorFactory)], ct).ConfigureAwait(false);
+                LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
                 mirrorRegistration = committed;
                 Assert.That(committed.CleanupFailure, Is.Null);
                 return committed;
@@ -2982,8 +3020,8 @@ namespace Opc.Ua.PackML.Tests
             try
             {
                 var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
-                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
                 PreparedPackMLManager candidate = factory.Manager
                     ?? throw new InvalidOperationException("The candidate manager was not created.");
                 Unit addedAfterPreparation = await candidate.Runtime.AddUnitAsync(
@@ -3006,7 +3044,7 @@ namespace Opc.Ua.PackML.Tests
                 };
                 await candidate.AddPredefinedNodeAsync(lateRoot, ct).ConfigureAwait(false);
 
-                NodeManagerBatchResult committed = await prepared.CommitAsync(async token =>
+                LifecycleResult committed = await prepared.CommitAsync(async token =>
                 {
                     await candidate.RegisterRootNotifierAsync(lateRoot, token).ConfigureAwait(false);
                     Assert.That(lateRoot.AreEventsMonitored, Is.False);
@@ -3061,8 +3099,8 @@ namespace Opc.Ua.PackML.Tests
             {
                 var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
                 Unit[] units;
-                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false))
+                await using (IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(factory)], ct).ConfigureAwait(false))
                 {
                     PreparedPackMLManager candidate = factory.Manager
                         ?? throw new InvalidOperationException("The candidate manager was not created.");
@@ -3109,8 +3147,8 @@ namespace Opc.Ua.PackML.Tests
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: true);
 
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
             Assert.That(candidate.FailedUnitId.IsNull, Is.False);
@@ -3121,7 +3159,7 @@ namespace Opc.Ua.PackML.Tests
                 objects, enumeration, candidate.FailedUnitId, candidate.FailedModeId, expected: false);
             AssertPackMLFolderReference(candidate.FailedUnitId, expected: false);
 
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             AssertPackMLExternalReferences(
                 objects, enumeration, candidate.FailedUnitId, candidate.FailedModeId, expected: false);
@@ -3152,9 +3190,9 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var originalFactory = new PreparedPackMLManagerFactory(failFirstUnit: false);
-            await using IPreparedNodeManagerBatch originalPreparation = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(originalFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult original = await originalPreparation.CommitAsync(_ => default, ct)
+            await using IPreparedChanges originalPreparation = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(originalFactory)], ct).ConfigureAwait(false);
+            LifecycleResult original = await originalPreparation.CommitAsync(_ => default, ct)
                 .ConfigureAwait(false);
             Assert.That(original.CleanupFailure, Is.Null);
             PreparedPackMLManager serving = originalFactory.Manager
@@ -3164,8 +3202,8 @@ namespace Opc.Ua.PackML.Tests
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
 
             var replacementFactory = new PreparedPackMLManagerFactory(failFirstUnit: true, failServingUnit: true);
-            await using (IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Replace(original.Registrations[0], replacementFactory)], ct)
+            await using (IPreparedChanges replacement = await lifecycle.PrepareAsync(
+                [LifecycleChange.Replace(original.Registrations[0].Slot, replacementFactory)], ct)
                 .ConfigureAwait(false))
             {
                 PreparedPackMLManager candidate = replacementFactory.Manager
@@ -3196,8 +3234,8 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
             NodeId unitId = candidate.CreatedUnit.Node.NodeId;
@@ -3208,7 +3246,7 @@ namespace Opc.Ua.PackML.Tests
                 Is.True);
             Assert.That(await candidate.DeleteNodeAsync(candidate.SystemContext, modeId, ct).ConfigureAwait(false),
                 Is.True);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
             AssertPackMLFolderReference(unitId, expected: false);
@@ -3233,8 +3271,8 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
             Unit added = await candidate.Runtime.AddUnitAsync(
@@ -3247,7 +3285,7 @@ namespace Opc.Ua.PackML.Tests
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
                 Ua.ReferenceTypeIds.HasNotifier, false, unitId), Is.False);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: true);
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
@@ -3275,8 +3313,8 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
             Unit unit = candidate.CreatedUnit;
@@ -3318,8 +3356,8 @@ namespace Opc.Ua.PackML.Tests
             NodeState objects = core.FindPredefinedNode<NodeState>(Ua.ObjectIds.ObjectsFolder)
                 ?? throw new InvalidOperationException("Objects folder is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
             NodeState target = candidate.CreatedUnit.Node;
@@ -3334,7 +3372,7 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(objects.ReferenceExists(
                 Ua.ReferenceTypeIds.HasComponent, isInverse, target.NodeId), Is.False);
 
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             Assert.That(objects.ReferenceExists(
                 Ua.ReferenceTypeIds.HasComponent, isInverse, target.NodeId), Is.True);
@@ -3368,13 +3406,14 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
-            Assert.That(committed.Registrations[0].NodeManager, Is.SameAs(factory.RegisteredManager));
+            Assert.That(committed.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? registered), Is.True);
+            Assert.That(registered, Is.SameAs(factory.RegisteredManager));
             Assert.That(ReferenceEquals(factory.RegisteredManager, candidate),
                 Is.EqualTo(facade == ManagerFacadeKind.Direct));
             Assert.That(factory.RegisteredManager is AsyncNodeManagerAdapter,
@@ -3425,13 +3464,14 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
-            Assert.That(committed.Registrations[0].NodeManager, Is.SameAs(factory.RegisteredManager));
+            Assert.That(committed.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? registered), Is.True);
+            Assert.That(registered, Is.SameAs(factory.RegisteredManager));
             Assert.That(ReferenceEquals(factory.RegisteredManager, candidate),
                 Is.EqualTo(facade == ManagerFacadeKind.Direct));
             Assert.That(factory.RegisteredManager is AsyncNodeManagerAdapter,
@@ -3491,13 +3531,14 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false, facade: facade);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
-            Assert.That(committed.Registrations[0].NodeManager, Is.SameAs(factory.RegisteredManager));
+            Assert.That(committed.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? registered), Is.True);
+            Assert.That(registered, Is.SameAs(factory.RegisteredManager));
             Assert.That(ReferenceEquals(factory.RegisteredManager, candidate),
                 Is.EqualTo(facade == ManagerFacadeKind.Direct));
             Assert.That(factory.RegisteredManager is AsyncNodeManagerAdapter,
@@ -3526,9 +3567,9 @@ namespace Opc.Ua.PackML.Tests
 
             var otherFactory = new PreparedPackMLManagerFactory(
                 failFirstUnit: false, namespaceUri: "urn:opcfoundation:tests:packml:second-prepared");
-            await using IPreparedNodeManagerBatch otherPreparation = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(otherFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult other = await otherPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges otherPreparation = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(otherFactory)], ct).ConfigureAwait(false);
+            LifecycleResult other = await otherPreparation.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(other.CleanupFailure, Is.Null);
             AssertPackMLExternalReferences(objects, enumeration, unitId, modeId, expected: false);
             Assert.That(candidate.Server.ServerObject.ReferenceExists(
@@ -3586,13 +3627,14 @@ namespace Opc.Ua.PackML.Tests
                 failFirstUnit: false,
                 namespaceUri: "urn:opcfoundation:tests:packml:decision-deletion",
                 facade: facade);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
-            Assert.That(committed.Registrations[0].NodeManager, Is.SameAs(factory.RegisteredManager));
+            Assert.That(committed.Registrations[0].TryGetNodeManager(out IAsyncNodeManager? registered), Is.True);
+            Assert.That(registered, Is.SameAs(factory.RegisteredManager));
             Assert.That(factory.RegisteredManager!.SyncNodeManager, Is.SameAs(candidate.SyncNodeManager));
             NodeId unitId = candidate.CreatedUnit.Node.NodeId;
             NodeId modeId = candidate.CreatedUnit.ModeDataType.NodeId;
@@ -3604,8 +3646,8 @@ namespace Opc.Ua.PackML.Tests
             var decidingFactory = new ComposedNodeManagerFactory(
                 _ => { },
                 "urn:opcfoundation:tests:packml:deciding");
-            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false);
             async ValueTask DecideAsync(CancellationToken token)
             {
                 Task<bool> deletion;
@@ -3631,7 +3673,7 @@ namespace Opc.Ua.PackML.Tests
                 }
             }
 
-            NodeManagerBatchResult? decided = null;
+            LifecycleResult? decided = null;
             if (publish)
             {
                 decided = await deciding.CommitAsync(DecideAsync, ct).ConfigureAwait(false);
@@ -3710,9 +3752,9 @@ namespace Opc.Ua.PackML.Tests
                 namespaceUri: "urn:opcfoundation:tests:packml:reserved-deletion",
                 facade: facade,
                 duplicateFolder: duplicateFolder);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
@@ -3739,8 +3781,8 @@ namespace Opc.Ua.PackML.Tests
                 failFirstUnit: false,
                 namespaceUri: "urn:opcfoundation:tests:packml:reserving",
                 duplicateFolder: duplicateFolder);
-            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false);
             async ValueTask DecideAsync(CancellationToken token)
             {
                 Task<bool> deletion;
@@ -3762,7 +3804,7 @@ namespace Opc.Ua.PackML.Tests
                 }
             }
 
-            NodeManagerBatchResult? decided = null;
+            LifecycleResult? decided = null;
             if (publish)
             {
                 decided = await deciding.CommitAsync(DecideAsync, ct).ConfigureAwait(false);
@@ -3858,9 +3900,9 @@ namespace Opc.Ua.PackML.Tests
                 .ConfigureAwait(false);
             var factory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:unrelated-failure", source.NodeId);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             ExternalProbeManager probe = factory.Manager
                 ?? throw new InvalidOperationException("The probe manager was not created.");
@@ -3870,9 +3912,9 @@ namespace Opc.Ua.PackML.Tests
             var decidingFactory = new ComposedNodeManagerFactory(
                 _ => { },
                 "urn:opcfoundation:tests:packml:unrelated-deciding");
-            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+            await using IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            LifecycleResult decided = await deciding.CommitAsync(async token =>
             {
                 m_composed.FailReferenceDeletes = true;
                 try
@@ -3925,9 +3967,9 @@ namespace Opc.Ua.PackML.Tests
                 .ConfigureAwait(false);
             var factory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:drain-fault-1", source.NodeId);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             ExternalProbeManager probe = factory.Manager
                 ?? throw new InvalidOperationException("The probe manager was not created.");
@@ -3938,9 +3980,9 @@ namespace Opc.Ua.PackML.Tests
             // while its decision is pending and the deletion's removal is queued.
             var decidingFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:drain-fault-2", source.NodeId);
-            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+            await using IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            LifecycleResult decided = await deciding.CommitAsync(async token =>
             {
                 Task<bool> deletion;
                 using (ExecutionContext.SuppressFlow())
@@ -3987,18 +4029,18 @@ namespace Opc.Ua.PackML.Tests
             FolderState source = await AddComposedSourceFolderAsync("DrainHandoffSource", ct).ConfigureAwait(false);
             var firstFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:drain-handoff-1", source.NodeId);
-            await using IPreparedNodeManagerBatch firstPrepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges firstPrepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            LifecycleResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(first.CleanupFailure, Is.Null);
             ExternalProbeManager firstProbe = firstFactory.Manager
                 ?? throw new InvalidOperationException("The first probe manager was not created.");
 
             var secondFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:drain-handoff-2", source.NodeId);
-            await using IPreparedNodeManagerBatch secondPrepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(secondFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult second = await secondPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges secondPrepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(secondFactory)], ct).ConfigureAwait(false);
+            LifecycleResult second = await secondPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(second.CleanupFailure, Is.Null);
             ExternalProbeManager secondProbe = secondFactory.Manager
                 ?? throw new InvalidOperationException("The second probe manager was not created.");
@@ -4011,9 +4053,9 @@ namespace Opc.Ua.PackML.Tests
             int attempts = 0;
             var decidingFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:drain-handoff-deciding", source.NodeId);
-            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult decided;
+            await using IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            LifecycleResult decided;
             try
             {
                 decided = await deciding.CommitAsync(async token =>
@@ -4099,9 +4141,9 @@ namespace Opc.Ua.PackML.Tests
                 .ConfigureAwait(false);
             var firstFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:live-replacement", source.NodeId);
-            await using IPreparedNodeManagerBatch firstPrepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges firstPrepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            LifecycleResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(first.CleanupFailure, Is.Null);
             ExternalProbeManager firstProbe = firstFactory.Manager
                 ?? throw new InvalidOperationException("The first probe manager was not created.");
@@ -4110,9 +4152,9 @@ namespace Opc.Ua.PackML.Tests
 
             var sentinelFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:live-replacement-sentinel", source.NodeId);
-            await using IPreparedNodeManagerBatch sentinelPrepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
+            await using IPreparedChanges sentinelPrepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
+            LifecycleResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
                 .ConfigureAwait(false);
             Assert.That(sentinel.CleanupFailure, Is.Null);
             ExternalProbeManager sentinelProbe = sentinelFactory.Manager
@@ -4147,9 +4189,9 @@ namespace Opc.Ua.PackML.Tests
             {
                 var decidingFactory = new ExternalProbeManagerFactory(
                     "urn:opcfoundation:tests:packml:live-replacement-deciding", source.NodeId);
-                await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
-                NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+                await using IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+                LifecycleResult decided = await deciding.CommitAsync(async token =>
                 {
                     using (ExecutionContext.SuppressFlow())
                     {
@@ -4185,9 +4227,9 @@ namespace Opc.Ua.PackML.Tests
 
                 var queueFactory = new ExternalProbeManagerFactory(
                     "urn:opcfoundation:tests:packml:live-replacement-queue", source.NodeId);
-                await using IPreparedNodeManagerBatch queueDecision = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(queueFactory)], ct).ConfigureAwait(false);
-                NodeManagerBatchResult queued = await queueDecision.CommitAsync(async token =>
+                await using IPreparedChanges queueDecision = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(queueFactory)], ct).ConfigureAwait(false);
+                LifecycleResult queued = await queueDecision.CommitAsync(async token =>
                 {
                     releaseFailure.TrySetResult(true);
                     Assert.That(await deletionTask.WaitAsync(token).ConfigureAwait(false), Is.True);
@@ -4254,9 +4296,9 @@ namespace Opc.Ua.PackML.Tests
                 .ConfigureAwait(false);
             var factory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:immediate-replacement", source.NodeId);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             ExternalProbeManager probe = factory.Manager
                 ?? throw new InvalidOperationException("The probe manager was not created.");
@@ -4320,9 +4362,9 @@ namespace Opc.Ua.PackML.Tests
             string? sourceNamespace = duplicateSource ? m_composed.NamespaceUris.Single() : null;
             var firstFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:replacement-during-deletion", source.NodeId, sourceNamespace);
-            await using IPreparedNodeManagerBatch firstPrepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges firstPrepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            LifecycleResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(first.CleanupFailure, Is.Null);
             ExternalProbeManager firstProbe = firstFactory.Manager
                 ?? throw new InvalidOperationException("The first probe manager was not created.");
@@ -4336,9 +4378,9 @@ namespace Opc.Ua.PackML.Tests
 
             var sentinelFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:replacement-deletion-sentinel", source.NodeId, sourceNamespace);
-            await using IPreparedNodeManagerBatch sentinelPrepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
+            await using IPreparedChanges sentinelPrepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
+            LifecycleResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
                 .ConfigureAwait(false);
             Assert.That(sentinel.CleanupFailure, Is.Null);
             ExternalProbeManager sentinelProbe = sentinelFactory.Manager
@@ -4356,8 +4398,8 @@ namespace Opc.Ua.PackML.Tests
 
             var decidingFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:replacement-deletion-deciding", source.NodeId, sourceNamespace);
-            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false);
             var entered = PackMLTestSupport.Signal();
             var release = PackMLTestSupport.Signal();
             var sentinelRemoved = PackMLTestSupport.Signal();
@@ -4392,7 +4434,7 @@ namespace Opc.Ua.PackML.Tests
 
             try
             {
-                NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+                LifecycleResult decided = await deciding.CommitAsync(async token =>
                 {
                     Task<bool> deletion;
                     using (ExecutionContext.SuppressFlow())
@@ -4476,9 +4518,9 @@ namespace Opc.Ua.PackML.Tests
                 .ConfigureAwait(false);
             var firstFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:replacement-after-check", source.NodeId);
-            await using IPreparedNodeManagerBatch firstPrepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(firstFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges firstPrepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(firstFactory)], ct).ConfigureAwait(false);
+            LifecycleResult first = await firstPrepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(first.CleanupFailure, Is.Null);
             ExternalProbeManager firstProbe = firstFactory.Manager
                 ?? throw new InvalidOperationException("The first probe manager was not created.");
@@ -4489,9 +4531,9 @@ namespace Opc.Ua.PackML.Tests
 
             var sentinelFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:replacement-after-check-sentinel", source.NodeId);
-            await using IPreparedNodeManagerBatch sentinelPrepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
-            NodeManagerBatchResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
+            await using IPreparedChanges sentinelPrepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(sentinelFactory)], ct).ConfigureAwait(false);
+            LifecycleResult sentinel = await sentinelPrepared.CommitAsync(_ => default, ct)
                 .ConfigureAwait(false);
             Assert.That(sentinel.CleanupFailure, Is.Null);
             ExternalProbeManager sentinelProbe = sentinelFactory.Manager
@@ -4501,8 +4543,8 @@ namespace Opc.Ua.PackML.Tests
 
             var decidingFactory = new ExternalProbeManagerFactory(
                 "urn:opcfoundation:tests:packml:replacement-after-check-deciding", source.NodeId);
-            await using IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false);
             var replaced = PackMLTestSupport.Signal();
             var sentinelRemoved = PackMLTestSupport.Signal();
             var replacement = new BaseObjectState(null)
@@ -4543,7 +4585,7 @@ namespace Opc.Ua.PackML.Tests
 
             try
             {
-                NodeManagerBatchResult decided = await deciding.CommitAsync(async token =>
+                LifecycleResult decided = await deciding.CommitAsync(async token =>
                 {
                     Task<bool> deletion;
                     using (ExecutionContext.SuppressFlow())
@@ -4616,8 +4658,8 @@ namespace Opc.Ua.PackML.Tests
             NodeState enumeration = core.FindPredefinedNode<NodeState>(Ua.DataTypeIds.Enumeration)
                 ?? throw new InvalidOperationException("Enumeration type is unavailable.");
             var factory = new PreparedPackMLManagerFactory(failFirstUnit: false);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], ct).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], ct).ConfigureAwait(false);
             PreparedPackMLManager candidate = factory.Manager
                 ?? throw new InvalidOperationException("The candidate manager was not created.");
             NodeState original = candidate.CreatedUnit.Node;
@@ -4632,7 +4674,7 @@ namespace Opc.Ua.PackML.Tests
             await candidate.AddPredefinedNodeAsync(replacement, ct).ConfigureAwait(false);
             Assert.That(candidate.Find(original.NodeId), Is.SameAs(replacement));
 
-            NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            LifecycleResult committed = await prepared.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(committed.CleanupFailure, Is.Null);
             Assert.That(objects.ReferenceExists(
                 Ua.ReferenceTypeIds.Organizes, false, original.NodeId), Is.False);
@@ -4733,14 +4775,14 @@ namespace Opc.Ua.PackML.Tests
         /// </summary>
         private static async Task RetirePackMLManagerAsync(
             INodeManagerLifecycle lifecycle,
-            NodeManagerBatchResult committed,
+            LifecycleResult committed,
             CancellationToken ct)
         {
-            await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(committed.Registrations[0])], ct).ConfigureAwait(false);
-            NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, ct).ConfigureAwait(false);
+            await using IPreparedChanges removal = await lifecycle.PrepareAsync(
+                [LifecycleChange.Remove(committed.Registrations[0].Slot)], ct).ConfigureAwait(false);
+            LifecycleResult removed = await removal.CommitAsync(_ => default, ct).ConfigureAwait(false);
             Assert.That(removed.CleanupFailure, Is.Null);
-            await removed.Retirement.WaitAsync(ct).ConfigureAwait(false);
+            await removed.Retired.WaitAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>

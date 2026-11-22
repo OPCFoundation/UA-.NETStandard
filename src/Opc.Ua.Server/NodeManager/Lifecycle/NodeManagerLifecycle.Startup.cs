@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -82,7 +56,7 @@ namespace Opc.Ua.Server
             }
             var initial = new InitialPublication(this, server, host);
             await initial.StartAsync(
-                factories.ToList().Select(NodeManagerBatchChange.Add).ToArrayOf(),
+                factories.ToList().Select(LifecycleChange.Add).ToArrayOf(),
                 cancellationToken).ConfigureAwait(false);
             return initial;
         }
@@ -94,7 +68,8 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IDynamicNodeManagerHost host,
             InitialPublication? initial,
-            ShutdownPublication? shutdown = null)
+            ShutdownPublication? shutdown,
+            NodeManagerReadinessScope? readiness)
         {
             if (shutdown is not null)
             {
@@ -103,7 +78,7 @@ namespace Opc.Ua.Server
             }
             if (initial is null)
             {
-                EnsureSameRunningServer(server, host);
+                EnsureSameRunningServer(server, host, readiness);
                 return;
             }
             initial.Validate(this, server, host);
@@ -141,10 +116,10 @@ namespace Opc.Ua.Server
             /// Prepares an ordinary Add batch and returns once its view has been published.
             /// </summary>
             internal async ValueTask StartAsync(
-                ArrayOf<NodeManagerBatchChange> changes,
+                ArrayOf<LifecycleChange> changes,
                 CancellationToken cancellationToken)
             {
-                IPreparedNodeManagerBatch batch = await m_owner.PrepareBatchAsync(
+                IPreparedChanges batch = await m_owner.PrepareChangesAsync(
                     changes,
                     null,
                     m_owner.CaptureLifecycleCallbackPermit(),
@@ -178,7 +153,7 @@ namespace Opc.Ua.Server
             internal async ValueTask CompleteAsync()
             {
                 m_runtimeReady.TrySetResult(true);
-                NodeManagerBatchResult result = await Completion.ConfigureAwait(false);
+                LifecycleResult result = await Completion.ConfigureAwait(false);
                 if (result.CleanupFailure is { } failure)
                 {
                     throw new InvalidOperationException("Initial generation reconciliation failed.", failure);
@@ -246,13 +221,13 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Runs the same commit/readiness path as runtime additions, retaining batch disposal ownership.
             /// </summary>
-            private async Task<NodeManagerBatchResult> CommitAsync(
-                IPreparedNodeManagerBatch batch,
+            private async Task<LifecycleResult> CommitAsync(
+                IPreparedChanges batch,
                 CancellationToken cancellationToken)
             {
                 await using var lifetime = batch.ConfigureAwait(false);
                 return await batch.CommitAsync(
-                    static _ => default,
+                    decideAsync: null,
                     () => m_published.TrySetResult(true),
                     cancellationToken).ConfigureAwait(false);
             }
@@ -260,7 +235,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the commit task after preparation has transferred its operation ownership.
             /// </summary>
-            private Task<NodeManagerBatchResult> Completion =>
+            private Task<LifecycleResult> Completion =>
                 m_completion ?? throw new InvalidOperationException("Initial preparation has not completed.");
 
             /// <summary>The lifecycle that owns the commit operation.</summary>
@@ -281,7 +256,7 @@ namespace Opc.Ua.Server
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>The owned canonical commit and reconciliation task.</summary>
-            private Task<NodeManagerBatchResult>? m_completion;
+            private Task<LifecycleResult>? m_completion;
         }
     }
 }

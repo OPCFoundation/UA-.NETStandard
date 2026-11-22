@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -120,13 +94,9 @@ namespace Opc.Ua.Server
             bool enableMultipleEventConsumers,
             TimeProvider? timeProvider)
         {
-            if (nodeManager is null)
-            {
-                throw new ArgumentNullException(nameof(nodeManager));
-            }
             m_server = server ?? throw new ArgumentNullException(nameof(server));
-            NodeManager = nodeManager;
-            Node = node ?? throw new ArgumentNullException(nameof(node));
+            m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            m_nodeBinding = new NodeBinding(node ?? throw new ArgumentNullException(nameof(node)));
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -148,28 +118,98 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the NodeManager which the MonitoredNode belongs to.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Disposal has been transferred to the retired generation and the new manager differs from its owner.
+        /// </exception>
+        /// <exception cref="ArgumentNullException">The assigned node manager is null.</exception>
         public IAsyncNodeManager NodeManager
         {
             get => m_nodeManager;
             set
             {
-                IAsyncNodeManager nodeManager = value ?? throw new ArgumentNullException(nameof(value));
-                NodeManagerGenerationReference generation =
-                    NodeManagerGenerationRegistry.GetOrCreate(nodeManager, m_server).Reference;
-                m_nodeManager = nodeManager;
-                Generation = generation;
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                lock (m_rebindLock)
+                {
+                    if (m_retirementOwner is not null)
+                    {
+                        if (ReferenceEquals(m_nodeManager, value))
+                        {
+                            return;
+                        }
+                        throw new InvalidOperationException(
+                            "A monitored node whose disposal was transferred cannot be rebound.");
+                    }
+                    m_nodeManager = value;
+                    Volatile.Write(ref m_generation, null);
+                    RenewNodeBinding();
+                }
             }
         }
 
         /// <summary>
         /// Gets the non-owning identity of the generation currently bound to this monitored node.
         /// </summary>
-        internal NodeManagerGenerationReference Generation { get; private set; } = null!;
+        internal NodeManagerGenerationReference? Generation
+        {
+            get
+            {
+                NodeManagerGenerationReference? reference = Volatile.Read(ref m_generation);
+                if (reference is not null)
+                {
+                    return reference;
+                }
+                lock (m_rebindLock)
+                {
+                    if (m_generation is not null)
+                    {
+                        return m_generation;
+                    }
+                    NodeManagerGeneration? generation;
+                    if (m_server.NodeManager is MasterNodeManager master)
+                    {
+                        if (!master.TryGetSourceGeneration(m_nodeManager, out generation) &&
+                            !master.TryGetLegacySourceGeneration(m_nodeManager, out generation))
+                        {
+                            return null;
+                        }
+                    }
+                    else if (m_server.NodeManager is null)
+                    {
+                        return null;
+                    }
+                    else
+                    {
+                        generation = NodeManagerGenerationRegistry.GetOrCreate(m_nodeManager);
+                    }
+                    reference = generation!.Reference;
+                    Volatile.Write(ref m_generation, reference);
+                    return reference;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets or sets the Node being monitored.
         /// </summary>
-        public NodeState Node { get; set; }
+        /// <remarks>
+        /// Assigning the property does not move callbacks from the previous node.
+        /// </remarks>
+        public NodeState Node
+        {
+            get => CaptureNodeBinding().Node;
+            set => Interlocked.Exchange(ref m_nodeBinding, new NodeBinding(value));
+        }
+
+        /// <summary>
+        /// Captures the current node-binding identity.
+        /// </summary>
+        internal NodeBinding CaptureNodeBinding()
+        {
+            return Volatile.Read(ref m_nodeBinding);
+        }
 
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
@@ -439,13 +479,17 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (node == null || node.NodeId != Node.NodeId)
+            if (node == null)
             {
                 return StatusCodes.BadNodeIdInvalid;
             }
 
             lock (m_rebindLock)
             {
+                if (node.NodeId != Node.NodeId)
+                {
+                    return StatusCodes.BadNodeIdInvalid;
+                }
                 if (m_disposed)
                 {
                     return StatusCodes.BadInvalidState;
@@ -592,26 +636,35 @@ namespace Opc.Ua.Server
 
             if ((changes & NodeStateChangeMasks.Deleted) != 0)
             {
-                if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
-                    generation?.Gate.State == NodeManagerGenerationState.Live)
+                NodeManagerGenerationReference? reference;
+                NodeBinding binding;
+                KeyValuePair<uint, IDataChangeMonitoredItem2>[] dataChangeItems;
+                KeyValuePair<uint, IEventMonitoredItem>[] eventItems;
+                lock (m_rebindLock)
                 {
-                    foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in GetDataChangeItems())
+                    binding = CaptureNodeBinding();
+                    if (m_disposed || !ReferenceEquals(node, binding.Node))
                     {
-                        IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
-                        if (IsInCurrentGeneration(monitoredItem) &&
-                            monitoredItem is IMonitoredItemGenerationBinding binding)
-                        {
-                            binding.Invalidate(terminal: false);
-                        }
+                        return;
                     }
-                    foreach (IEventMonitoredItem monitoredItem in m_eventMonitoredItems.Values)
+                    reference = Generation;
+                    if (reference is null ||
+                        !reference.TryGetGeneration(out NodeManagerGeneration? generation) ||
+                        generation is null ||
+                        generation.Gate.State != NodeManagerGenerationState.Live)
                     {
-                        if (IsInCurrentGeneration(monitoredItem) &&
-                            monitoredItem is IMonitoredItemGenerationBinding binding)
-                        {
-                            binding.Invalidate(terminal: false);
-                        }
+                        return;
                     }
+                    dataChangeItems = m_dataChangeMonitoredItems.ToArray();
+                    eventItems = m_eventMonitoredItems.ToArray();
+                }
+                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> entry in dataChangeItems)
+                {
+                    InvalidateDeletedSource(entry.Key, entry.Value, binding, reference, isEvent: false);
+                }
+                foreach (KeyValuePair<uint, IEventMonitoredItem> entry in eventItems)
+                {
+                    InvalidateDeletedSource(entry.Key, entry.Value, binding, reference, isEvent: true);
                 }
                 return;
             }
@@ -2533,6 +2586,85 @@ namespace Opc.Ua.Server
             InvalidatePermissionCaches();
         }
 
+        /// <summary>
+        /// Invalidates an item only while the deleted source still owns its binding.
+        /// </summary>
+        private void InvalidateDeletedSource(
+            uint itemId,
+            IMonitoredItem monitoredItem,
+            NodeBinding binding,
+            NodeManagerGenerationReference generation,
+            bool isEvent)
+        {
+            if (monitoredItem is MonitoredItem concrete)
+            {
+                if (concrete.TryMarkDeletedSource(
+                    generation, this, binding, itemId, isEvent, out long sourceRevision,
+                    out NodeManagerGenerationReference? sourceGeneration))
+                {
+                    concrete.QueueDeletedSourceStatus(sourceRevision, sourceGeneration, this, binding);
+                }
+            }
+            else if (monitoredItem is IMonitoredItemGenerationBinding legacyBinding &&
+                IsCurrentDeletedSource(itemId, monitoredItem, binding, generation, isEvent))
+            {
+                legacyBinding.Invalidate(terminal: false);
+            }
+        }
+
+        /// <summary>
+        /// Checks a deleted source without acquiring the monitored-node gate.
+        /// </summary>
+        internal bool IsCurrentDeletedSource(
+            uint itemId,
+            IMonitoredItem monitoredItem,
+            NodeBinding binding,
+            NodeManagerGenerationReference generation,
+            bool isEvent)
+        {
+            if (Volatile.Read(ref m_disposed) ||
+                !ReferenceEquals(CaptureNodeBinding(), binding) ||
+                !ReferenceEquals(Volatile.Read(ref m_generation), generation) ||
+                !generation.TryGetGeneration(out NodeManagerGeneration? currentGeneration) ||
+                currentGeneration?.Gate.State != NodeManagerGenerationState.Live)
+            {
+                return false;
+            }
+            if (isEvent)
+            {
+                return m_eventMonitoredItems.TryGetValue(itemId, out IEventMonitoredItem? currentEvent) &&
+                    ReferenceEquals(currentEvent, monitoredItem) &&
+                    ReferenceEquals(CaptureNodeBinding(), binding);
+            }
+            return m_dataChangeMonitoredItems.TryGetValue(itemId, out IDataChangeMonitoredItem2? currentDataChange) &&
+                ReferenceEquals(currentDataChange, monitoredItem) &&
+                ReferenceEquals(CaptureNodeBinding(), binding);
+        }
+
+        private void RenewNodeBinding()
+        {
+            NodeBinding previous;
+            NodeBinding replacement;
+            do
+            {
+                previous = CaptureNodeBinding();
+                replacement = new NodeBinding(previous.Node);
+            }
+            while (!ReferenceEquals(
+                Interlocked.CompareExchange(ref m_nodeBinding, replacement, previous), previous));
+        }
+
+        /// <summary>
+        /// Identifies one assignment of a monitored node and its manager.
+        /// </summary>
+        internal sealed class NodeBinding(NodeState node)
+        {
+            /// <summary>
+            /// Gets the node captured by this binding.
+            /// </summary>
+            internal NodeState Node { get; } = node;
+        }
+
         private bool IsInCurrentGeneration(IMonitoredItem monitoredItem)
         {
             if (monitoredItem is not MonitoredItem { Generation: { } itemGeneration })
@@ -2540,8 +2672,10 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            return itemGeneration.SlotId == Generation.SlotId &&
-                itemGeneration.Number == Generation.Number;
+            NodeManagerGenerationReference? generation = Generation;
+            return generation is null
+                ? m_server.NodeManager is not MasterNodeManager
+                : ReferenceEquals(itemGeneration, generation);
         }
 
         private void InvalidatePermissionCaches()
@@ -2632,11 +2766,6 @@ namespace Opc.Ua.Server
         /// so every change captures them without a copy, a lock or an enumerator allocation.
         /// Snapshots share the array, so it is never modified.
         /// </summary>
-        private KeyValuePair<uint, IDataChangeMonitoredItem2>[] GetDataChangeItems()
-        {
-            return GetDataChangeItemSet().Items;
-        }
-
         private DataChangeItemSet GetDataChangeItemSet()
         {
             if (Volatile.Read(ref m_dataChangeItemsExposed))
@@ -2770,6 +2899,9 @@ namespace Opc.Ua.Server
         private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
         private IAsyncNodeManager m_nodeManager = null!;
+        private NodeBinding m_nodeBinding;
+        private NodeManagerGenerationReference? m_generation;
+        private NodeManagerGenerationReference? m_retirementOwner;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;
         private readonly Channel<INodeNotification> m_channel;
@@ -2805,9 +2937,17 @@ namespace Opc.Ua.Server
         /// Drains queued notifications before releasing the consumer resources.
         /// Use <see cref="Dispose()"/> instead to cancel delivery immediately.
         /// </summary>
-        /// <returns>A task that completes after queued notifications and resource cleanup finish.</returns>
+        /// <remarks>
+        /// If a retiring generation still has admitted work, disposal transfers to that generation rather than
+        /// waiting for the caller's own admission. The generation's retirement reports the physical cleanup outcome.
+        /// </remarks>
+        /// <returns>A task that completes after cleanup or after disposal has transferred to a retiring generation.</returns>
         public async ValueTask DisposeAsync()
         {
+            if (TryTransferRetiredDisposal())
+            {
+                return;
+            }
             try
             {
                 await DrainAsync().ConfigureAwait(false);
@@ -2820,10 +2960,42 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        // Retirement admission must precede derived Dispose(bool) implementations that release resources.
+        // TODO: Remove this exception when the analyzer supports guarded virtual-disposal admission.
+        [SuppressMessage("Design", "CA1063:Implement IDisposable Correctly",
+            Justification = "Retirement admission must run before any derived disposal hook releases resources.")]
         public void Dispose()
         {
+            if (TryTransferRetiredDisposal())
+            {
+                return;
+            }
             Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        private bool TryTransferRetiredDisposal()
+        {
+            lock (m_rebindLock)
+            {
+                if (m_disposed)
+                {
+                    return true;
+                }
+                if (m_retirementOwner is { } owner)
+                {
+                    return !owner.TryGetGeneration(out NodeManagerGeneration? retained) ||
+                        !retained!.TryEnterRetiredConsumerDisposal(this);
+                }
+                if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
+                    generation!.TryDeferDisposal(this))
+                {
+                    m_retirementOwner = generation.Reference;
+                    m_draining = true;
+                    return true;
+                }
+                return false;
+            }
         }
 
         /// <summary>
@@ -2838,9 +3010,10 @@ namespace Opc.Ua.Server
                     return;
                 }
                 if (disposing &&
-                    Generation.TryGetGeneration(out NodeManagerGeneration? generation) &&
+                    Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
                     generation!.TryDeferDisposal(this))
                 {
+                    m_retirementOwner ??= generation.Reference;
                     m_draining = true;
                     return;
                 }

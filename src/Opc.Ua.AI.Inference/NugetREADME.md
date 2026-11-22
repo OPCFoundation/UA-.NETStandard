@@ -19,4 +19,4 @@ routes inference, and `ModelManagementClient` walks it.
 
 ## License
 
-MIT - see the [license](https://opcfoundation.org/license/mit.html).
+MIT (`SPDX-License-Identifier: MIT`)

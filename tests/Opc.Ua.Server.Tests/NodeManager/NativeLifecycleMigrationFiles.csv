@@ -1,0 +1,66 @@
+Path,Disposition
+tests\Opc.Ua.Server.Tests\Fluent\EventMonitoredItemReadinessTests.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\Hosting\HostedNodeManagerLifecycleTests.cs,Modified native forwarding cases
+tests\Opc.Ua.Server.Tests\NodeManager\GenerationReconcilerTests.Reconciliation.cs,Modified result construction
+tests\Opc.Ua.Server.Tests\NodeManager\LifecycleWriterTests.cs,Modified cached terminal cleanup outcomes and explicit serving-owner lifetime for weak captures
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerCleanupAuthorityTests.cs,Modified server-owned acquisition
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerConflictExceptionTests.cs,Modified native conflict cases
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleCompatibilityTests.cs,Modified retired-contract replacements
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleNamespaceRefreshTests.cs,Modified native callers
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleParentContractTests.cs,Modified native capture and metadata
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.AsyncNamespaceRegistration.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.AtomicEmissionAdmission.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.AtomicEmissionControls.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.AtomicEmissionCutoff.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.AtomicSurvivorServices.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.Batch.cs,Modified native units
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.BindingAdmission.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.BindingPublication.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.BrowseDependencies.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ChangeSet.cs,Modified native contract cases and shared test factories
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.CleanupRecovery.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ConcurrentBindings.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ConformanceReadDrain.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.Continuations.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.cs,Modified native caller and committed issues plus guaranteed fixture shutdown after failed session close
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ExternalReadiness.cs,Modified native result
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ExternalServiceReadiness.cs,Modified native result
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.FactoryBatch.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.HistoryContinuations.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ImmediateCutoff.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.Lease.cs,Modified native acquisition and caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.LiveHandleLookup.cs,Modified native inspection
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.NamespaceDecision.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.OptimisticPreparation.cs,Modified no-replay and explicit-recapture controls
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.OwnerlessRecovery.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.PrivateRootNotifiers.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ReadAuthorization.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.Readiness.cs,Modified native committed results
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ReconciliationRetry.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ReferenceBatch.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.RetiredBindingAdmission.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.RoutingReservation.cs,Modified exact-conflict and unrelated-progress controls
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.ShutdownStages.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.Validation.cs,Modified native metadata and validation
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerLifecycleTests.Writer.cs,Modified native writer
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerSystemSlotTests.cs,Modified native protected-slot controls
+tests\Opc.Ua.Server.Tests\NodeManager\PreparedNodeManagerTests.cs,Modified native ownership and snapshot controls
+tests\Opc.Ua.Server.Tests\NodeManager\TypeRegistrationSnapshotPerformanceTests.cs,Modified native weak revision source and invalidation controls
+tests\Opc.Ua.Server.Tests\RuntimeNodeSet\RuntimeNodeSetCrossSourceReferenceTests.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\RuntimeNodeSet\RuntimeNodeSetDataTypeDefinitionTests.cs,Modified native caller
+tests\Opc.Ua.Server.Tests\RuntimeNodeSet\RuntimeNodeSetLifecycleExtensionsTests.cs,Modified retired-contract replacements
+tests\Opc.Ua.Server.Tests\RuntimeNodeSet\RuntimeNodeSetLifecycleTests.cs,Modified native caller and guards
+tests\Opc.Ua.Server.Tests\RuntimeNodeSet\StartupRuntimeNodeSetLifecycleTests.cs,Modified native caller and startup capture
+tests\Opc.Ua.Server.Tests\SessionRequestAdmissionRegressionTests.cs,Modified native parked-request controls
+tests\Opc.Ua.Server.Tests\NodeManager\LifecycleInspection.cs,Added shared native inspection and transaction helper
+tests\Opc.Ua.Server.Tests\NodeManager\NativeLifecycleMigrationCases.csv,Added explicit same-name case ledger
+tests\Opc.Ua.Server.Tests\NodeManager\NativeLifecycleMigrationFiles.csv,Added source-only handoff inventory
+tests\Opc.Ua.Server.Tests\NodeManager\NodeManagerHistoryReadScopeTests.cs,Aligned rejected-restore cleanup and caller-owned failed-resave controls without changing case identities
+tests\Opc.Ua.AMB.Tests\AmbPublishedSetupTests.cs,Native prepared changes and committed reconciliation retry with independent retirement
+tests\Opc.Ua.Features.Tests\NodeContractIntegrationTests.cs,Native changes and explicit weak-registration resolution
+tests\Opc.Ua.History.Tests\HistorianBugRegressionTests.cs,Native prepared addition
+tests\Opc.Ua.History.Tests\HistoryClientEventIntegrationTests.cs,Native prepared addition
+tests\Opc.Ua.Pumps.Tests\PumpsHistoryTests.cs,Native prepared addition and explicit weak-manager resolution
+tests\Opc.Ua.Redundancy.Server.Tests\Identity\ReplicaNodeIdentityIntegrationTests.cs,Native exact-registration reload with capture preceding inspection
+tests\Opc.Ua.Subscriptions.Tests\SamplingModeRegressionTests.cs,Native prepared addition
+tests\Opc.Ua.Server.Tests\NodeManager\NativeLifecycleReflectionSites.csv,Maps all eight immutable historical setup sites to existing typed construction without claiming newly fixed behavior

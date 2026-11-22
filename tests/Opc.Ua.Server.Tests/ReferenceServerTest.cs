@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -2447,23 +2421,64 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, writeValues);
             Assert.IsTrue(StatusCode.IsGood(writeResponse.Results[0]));
 
-            // Wait for subscription to deliver the event and data change notification
-            await Task.Delay(200).ConfigureAwait(false);
-
-            // Step 3: Issue publish to receive DataChangeNotification and SemanticChangeEvent
-            publishResponse = await services.PublishAsync(
-                requestHeader,
-                acknowledgements).ConfigureAwait(false);
-
-            Assert.IsNotNull(publishResponse.NotificationMessage);
-            Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
-            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count == 2, "One Event and One DataChangeNotification expected.");
-
+            // Step 3: Publish until the DataChangeNotification and the SemanticChangeEvent arrived.
+            // The event and the resampled value reach the subscription on separate threads, so a
+            // publishing cycle can fall between them and they arrive in separate messages.
             bool dataChangeReceived = false;
             bool semanticsChangedBitSet = false;
             bool eventReceived = false;
 
-            foreach (ExtensionObject data in publishResponse.NotificationMessage.NotificationData)
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!(semanticsChangedBitSet && eventReceived) && DateTime.UtcNow < deadline)
+            {
+                requestHeader.Timestamp = DateTime.UtcNow;
+                publishResponse = await services.PublishAsync(
+                    requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+
+                Assert.IsNotNull(publishResponse.NotificationMessage);
+                acknowledgements = [];
+                if (publishResponse.NotificationMessage.NotificationData.IsNull ||
+                    publishResponse.NotificationMessage.NotificationData.Count == 0)
+                {
+                    continue;
+                }
+
+                acknowledgements =
+                [
+                    new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                    }
+                ];
+
+                CollectSemanticChangeNotifications(
+                    publishResponse.NotificationMessage,
+                    nodeId,
+                    ref dataChangeReceived,
+                    ref semanticsChangedBitSet,
+                    ref eventReceived);
+            }
+
+            Assert.IsTrue(dataChangeReceived, "Did not receive DataChangeNotification.");
+            Assert.IsTrue(semanticsChangedBitSet, "SemanticsChanged bit is not set.");
+            Assert.IsTrue(eventReceived, "Did not receive SemanticChangeEvent.");
+
+            // Delete subscription
+            await services.DeleteSubscriptionsAsync(
+                requestHeader,
+                [subscriptionId]).ConfigureAwait(false);
+        }
+
+        private static void CollectSemanticChangeNotifications(
+            NotificationMessage message,
+            NodeId nodeId,
+            ref bool dataChangeReceived,
+            ref bool semanticsChangedBitSet,
+            ref bool eventReceived)
+        {
+            foreach (ExtensionObject data in message.NotificationData)
             {
                 if (data.TryGetValue(out DataChangeNotification? dcn))
                 {
@@ -2503,15 +2518,6 @@ namespace Opc.Ua.Server.Tests
                     }
                 }
             }
-
-            Assert.IsTrue(dataChangeReceived, "Did not receive DataChangeNotification.");
-            Assert.IsTrue(semanticsChangedBitSet, "SemanticsChanged bit is not set.");
-            Assert.IsTrue(eventReceived, "Did not receive SemanticChangeEvent.");
-
-            // Delete subscription
-            await services.DeleteSubscriptionsAsync(
-                requestHeader,
-                [subscriptionId]).ConfigureAwait(false);
         }
 
         /// <summary>

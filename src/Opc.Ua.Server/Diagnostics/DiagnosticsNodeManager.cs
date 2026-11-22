@@ -1,37 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1820,68 +1795,140 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask PublishConformanceUnitsAsync(
+        public ValueTask PublishConformanceUnitsAsync(
             ArrayOf<QualifiedName> conformanceUnits,
             ArrayOf<string> serverProfiles,
             CancellationToken cancellationToken = default)
+        {
+            return PublishConformanceUnitsAsync(conformanceUnits, serverProfiles,
+                ReadConformanceImage(null), cancellationToken);
+        }
+
+        /// <summary>
+        /// Refreshes the diagnostics values for the routing image observed by the catalog publisher.
+        /// </summary>
+        internal async ValueTask PublishConformanceUnitsAsync(
+            ArrayOf<QualifiedName> conformanceUnits,
+            ArrayOf<string> serverProfiles,
+            ConformanceUnitsManager.ConformanceReadImage? image,
+            CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
                 .ConfigureAwait(false);
             try
             {
+                if (!ReferenceEquals(image, ReadConformanceImage(null)))
+                {
+                    return;
+                }
                 BaseVariableState? conformanceUnitsNode = FindPredefinedNode<BaseVariableState>(
                     VariableIds.Server_ServerCapabilities_ConformanceUnits);
 
                 if (conformanceUnitsNode != null)
                 {
-                    conformanceUnitsNode.Value = Variant.From(conformanceUnits);
-                    conformanceUnitsNode.ClearChangeMasks(SystemContext, false);
+                    conformanceUnitsNode.OnSimpleReadValue = ReadConformanceValue;
                 }
 
                 BaseVariableState? profileArrayNode = FindPredefinedNode<BaseVariableState>(
                     VariableIds.Server_ServerCapabilities_ServerProfileArray);
 
-                if (profileArrayNode == null)
-                {
-                    return;
-                }
-
                 // The profiles the server declares itself (from configuration)
                 // are taken from the first publish on and always kept. The
                 // contributed ones are replaced on every publish, so a profile
                 // no contributor reports any more disappears.
-                if (m_declaredServerProfiles == null)
+                if (profileArrayNode is not null && m_declaredServerProfiles is null)
                 {
-                    m_declaredServerProfiles = [];
+                    var declared = new List<string>();
                     if (profileArrayNode.Value.TryGetValue(out ArrayOf<string> existing))
                     {
                         foreach (string profile in existing)
                         {
-                            if (!string.IsNullOrEmpty(profile) && !m_declaredServerProfiles.Contains(profile))
+                            if (!string.IsNullOrEmpty(profile) && !declared.Contains(profile))
                             {
-                                m_declaredServerProfiles.Add(profile);
+                                declared.Add(profile);
                             }
                         }
                     }
+                    m_declaredServerProfiles = declared;
                 }
 
-                var merged = new List<string>(m_declaredServerProfiles);
-                foreach (string profile in serverProfiles)
+                var catalog = new ConformanceUnitsManager.ConformanceReadImage(this, conformanceUnits, serverProfiles);
+                if (image is null)
                 {
-                    if (!string.IsNullOrEmpty(profile) && !merged.Contains(profile))
-                    {
-                        merged.Add(profile);
-                    }
+                    Volatile.Write(ref m_initialConformanceRefresh, catalog);
                 }
-
-                profileArrayNode.Value = Variant.From(merged.ToArrayOf());
-                profileArrayNode.ClearChangeMasks(SystemContext, false);
+                else
+                {
+                    ConformanceRefresh refresh = m_conformanceRefreshes.GetValue(
+                        image, static key => new ConformanceRefresh(key));
+                    Volatile.Write(ref refresh.Catalog, catalog);
+                }
+                if (conformanceUnitsNode is not null)
+                {
+                    conformanceUnitsNode.Value = Variant.From(conformanceUnits);
+                    conformanceUnitsNode.ClearChangeMasks(SystemContext, false);
+                }
+                if (profileArrayNode is not null)
+                {
+                    profileArrayNode.OnSimpleReadValue = ReadConformanceValue;
+                    profileArrayNode.Value = Variant.From(MergeDeclaredProfiles(serverProfiles));
+                    profileArrayNode.ClearChangeMasks(SystemContext, false);
+                }
             }
             finally
             {
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
         }
+
+        private ConformanceUnitsManager.ConformanceReadImage? ReadConformanceImage(OperationContext? context)
+        {
+            return (Server.NodeManager as INodeManagerReadImageSource)
+                ?.GetReadImage(context, this) as ConformanceUnitsManager.ConformanceReadImage;
+        }
+
+        private ServiceResult ReadConformanceValue(ISystemContext context, NodeState node, ref Variant value)
+        {
+            ConformanceUnitsManager.ConformanceReadImage? image = ReadConformanceImage(
+                (context as ServerSystemContext)?.OperationContext);
+            if (image is null)
+            {
+                image = Volatile.Read(ref m_initialConformanceRefresh);
+            }
+            else if (m_conformanceRefreshes.TryGetValue(image, out ConformanceRefresh? refresh))
+            {
+                image = Volatile.Read(ref refresh.Catalog);
+            }
+            if (image is not null)
+            {
+                value = node.NodeId == VariableIds.Server_ServerCapabilities_ConformanceUnits
+                    ? Variant.From(image.Units)
+                    : Variant.From(MergeDeclaredProfiles(image.Profiles));
+            }
+            return ServiceResult.Good;
+        }
+
+        private ArrayOf<string> MergeDeclaredProfiles(ArrayOf<string> serverProfiles)
+        {
+            var merged = new List<string>(m_declaredServerProfiles ?? []);
+            foreach (string profile in serverProfiles)
+            {
+                if (!string.IsNullOrEmpty(profile) && !merged.Contains(profile))
+                {
+                    merged.Add(profile);
+                }
+            }
+            return merged.ToArrayOf();
+        }
+
+        private sealed class ConformanceRefresh(ConformanceUnitsManager.ConformanceReadImage catalog)
+        {
+            internal ConformanceUnitsManager.ConformanceReadImage Catalog = catalog;
+        }
+
+        private readonly ConditionalWeakTable<ConformanceUnitsManager.ConformanceReadImage, ConformanceRefresh>
+            m_conformanceRefreshes = new();
+        private ConformanceUnitsManager.ConformanceReadImage? m_initialConformanceRefresh;
 
         /// <summary>
         /// Updates the server diagnostics summary structure.

@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -153,6 +128,103 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(reports, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// A captured callback context retains the event graph only while its publication is active.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CapturedEventContextReleasesCompletedEventGraphAsync(bool completed)
+        {
+            (Task publication, TaskCompletionSource<bool> release,
+                Task<ExecutionContext> entered, WeakReference occurrence, WeakReference owner) =
+                StartCapturedEventPublication();
+            ExecutionContext? captured = null;
+            try
+            {
+                captured = await entered.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                if (completed)
+                {
+                    release.TrySetResult(true);
+                    await publication.ConfigureAwait(false);
+                }
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    await Task.Yield();
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(occurrence.IsAlive, Is.EqualTo(!completed), "Event occurrence");
+                    Assert.That(owner.IsAlive, Is.EqualTo(!completed), "Event parent");
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await publication.ConfigureAwait(false);
+                GC.KeepAlive(captured);
+            }
+        }
+
+        /// <summary>
+        /// An awaited child shares deduplication, but work released after the publisher exits starts a new occurrence.
+        /// </summary>
+        /// <exception cref="AssertionException">The publisher did not start its inherited child.</exception>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InheritedEventContextExpiresAfterPublisherReturnsAsync(bool escaped)
+        {
+            SystemContext context = CreateSystemContext();
+            var source = new BaseObjectState(null);
+            var occurrence = new BaseObjectState(null);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task? child = null;
+            int reports = 0;
+            source.OnReportEventAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref reports) != 1)
+                {
+                    return;
+                }
+                child = Task.Run(async () =>
+                {
+                    started.TrySetResult(true);
+                    if (escaped)
+                    {
+                        await release.Task.ConfigureAwait(false);
+                    }
+                    await source.ReportEventAsync(context, occurrence).ConfigureAwait(false);
+                }, CancellationToken.None);
+                await started.Task.ConfigureAwait(false);
+                if (!escaped)
+                {
+                    await child.ConfigureAwait(false);
+                }
+            };
+            Task publication = source.ReportEventAsync(context, occurrence).AsTask();
+            try
+            {
+                await publication.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(reports, Is.EqualTo(1));
+                release.TrySetResult(true);
+                await (child ?? throw new AssertionException("The inherited child was not started."))
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(reports, Is.EqualTo(escaped ? 2 : 1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await publication.ConfigureAwait(false);
+                if (child is not null)
+                {
+                    await child.ConfigureAwait(false);
+                }
+            }
+        }
+
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -164,6 +236,30 @@ namespace Opc.Ua.Types.Tests.State
         protected void OneTimeTearDown()
         {
             (m_messageContext as IDisposable)?.Dispose();
+        }
+
+        /// <summary>
+        /// Separates event allocation from the caller retaining the captured callback context.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private (Task Publication, TaskCompletionSource<bool> Release,
+            Task<ExecutionContext> Entered, WeakReference Occurrence, WeakReference Owner)
+            StartCapturedEventPublication()
+        {
+            var entered = new TaskCompletionSource<ExecutionContext>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var source = new BaseObjectState(null);
+            var owner = new BaseObjectState(null);
+            var occurrence = new BaseObjectState(owner);
+            source.OnReportEventAsync = (_, _, _, _) =>
+            {
+                entered.SetResult(ExecutionContext.Capture() ??
+                    throw new InvalidOperationException("The callback context was not captured."));
+                return new ValueTask(release.Task);
+            };
+            Task publication = source.ReportEventAsync(CreateSystemContext(), occurrence).AsTask();
+            return (publication, release, entered.Task, new WeakReference(occurrence), new WeakReference(owner));
         }
 
         private SystemContext CreateSystemContext()

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -57,7 +31,7 @@ namespace Opc.Ua.Server
     /// so the shutdown does not block their thread.
     /// </remarks>
     public partial class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
-        IRequestParkingPolicySource, IServerApplicationCertificateActivator
+        IRequestParkingPolicySource, IServerApplicationCertificateActivator, INodeManagerLifecycleHost
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -139,6 +113,17 @@ namespace Opc.Ua.Server
         public INodeManagerLifecycle NodeManagerLifecycle => m_nodeManagerLifecycle;
 
         /// <summary>
+        /// Publishes dependent changes from an initializer on this server.
+        /// </summary>
+        internal ValueTask<LifecycleResult> PublishWithReadinessAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerReadinessScope readiness,
+            CancellationToken cancellationToken)
+        {
+            return m_nodeManagerLifecycle.PublishWithReadinessAsync(changes, readiness, cancellationToken);
+        }
+
+        /// <summary>
         /// Gets or sets the factory that every <see cref="AsyncCustomNodeManager"/>
         /// this server hosts mints runtime NodeIds with.
         /// </summary>
@@ -184,6 +169,24 @@ namespace Opc.Ua.Server
         internal ApplicationConfiguration CurrentConfiguration
             => Configuration
                 ?? throw new InvalidOperationException("The server has not been configured.");
+
+        /// <inheritdoc/>
+        ApplicationConfiguration INodeManagerLifecycleHost.CurrentConfiguration => CurrentConfiguration;
+
+        /// <inheritdoc/>
+        ValueTask<IDataTypeDefinitionResolver?> INodeManagerLifecycleHost.PrepareComplexTypesAsync(
+            IServerInternal server,
+            IAsyncNodeManager manager,
+            CancellationToken cancellationToken)
+        {
+            return RefreshComplexTypesAsync(server, manager, publishResolver: false, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        void INodeManagerLifecycleHost.PublishComplexTypeResolver(IDataTypeDefinitionResolver resolver)
+        {
+            ComplexTypeResolverHolder?.SetResolver(resolver);
+        }
 
         /// <summary>
         /// The <see cref="TimeProvider"/> used by the server for all
@@ -831,13 +834,15 @@ namespace Opc.Ua.Server
             RequestLifetime requestLifetime,
             TRequest request,
             ServiceHandler<TRequest, TResponse> service,
-            ServiceFaultAudit<TRequest>? faultAudit = null)
+            ServiceFaultAudit<TRequest>? faultAudit = null,
+            NodeManagerReadinessScope? readiness = null)
         {
             using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 requestType,
-                requestLifetime).ConfigureAwait(false);
+                requestLifetime,
+                readiness).ConfigureAwait(false);
 
             try
             {
@@ -1381,6 +1386,22 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             RequestLifetime requestLifetime)
         {
+            return ReadWithReadinessAsync(secureChannelContext, requestHeader, maxAge, timestampsToReturn,
+                nodesToRead, requestLifetime, null);
+        }
+
+        /// <summary>
+        /// Runs the standard read path with explicitly supplied readiness admission.
+        /// </summary>
+        internal ValueTask<ReadResponse> ReadWithReadinessAsync(
+            SecureChannelContext secureChannelContext,
+            RequestHeader? requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodesToRead,
+            RequestLifetime requestLifetime,
+            NodeManagerReadinessScope? readiness)
+        {
             return ExecuteServiceAsync(
                 secureChannelContext,
                 requestHeader,
@@ -1412,7 +1433,8 @@ namespace Opc.Ua.Server
                     return response;
                 },
                 static (server, context, _, e) =>
-                    server.ServerInternal.ReportAuditEvent(context, "Read", e, server.m_logger));
+                    server.ServerInternal.ReportAuditEvent(context, "Read", e, server.m_logger),
+                readiness);
         }
 
         /// <inheritdoc/>
@@ -2206,6 +2228,14 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected override void ValidateRequest([NotNull] RequestHeader? requestHeader)
         {
+            ValidateRequest(requestHeader, null);
+        }
+
+        /// <summary>
+        /// Applies service-entry checks with explicitly supplied startup admission.
+        /// </summary>
+        internal void ValidateRequest([NotNull] RequestHeader? requestHeader, NodeManagerReadinessScope? readiness)
+        {
             // check for server error.
             ServiceResult error = ServerError;
 
@@ -2217,8 +2247,8 @@ namespace Opc.Ua.Server
             // check server state.
             ServerInternalData? serverInternal = m_serverInternal;
 
-            if (serverInternal == null ||
-                (!serverInternal.IsRunning && !NodeManagerReadinessScope.Allows(serverInternal)))
+            if (serverInternal is null ||
+                (!serverInternal.IsRunning && readiness?.Includes(serverInternal) != true))
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -2321,17 +2351,36 @@ namespace Opc.Ua.Server
         /// <param name="requestType">Type of the request.</param>
         /// <param name="requestLifetime">The request lifetime.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected async ValueTask<OperationContext> ValidateRequestAsync(
+        protected ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             [NotNull] RequestHeader? requestHeader,
             RequestType requestType,
             RequestLifetime requestLifetime)
         {
+            return ValidateRequestAsync(
+                secureChannelContext, requestHeader, requestType, requestLifetime, null);
+        }
+
+        /// <summary>
+        /// Validates the session and pins its request independently of initializer admission.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The server cannot admit the request.</exception>
+        private async ValueTask<OperationContext> ValidateRequestAsync(
+            SecureChannelContext secureChannelContext,
+            [NotNull] RequestHeader? requestHeader,
+            RequestType requestType,
+            RequestLifetime requestLifetime,
+            NodeManagerReadinessScope? readiness)
+        {
             base.ValidateRequest(requestHeader);
 
-            ServerInternalData? serverInternal = m_serverInternal;
-            if (serverInternal == null ||
-                (!serverInternal.IsRunning && !NodeManagerReadinessScope.Allows(serverInternal)))
+            ServerInternalData serverInternal = m_serverInternal ??
+                throw new ServiceResultException(StatusCodes.BadServerHalted);
+            if (readiness?.Includes(serverInternal) != true)
+            {
+                readiness = null;
+            }
+            if (!serverInternal.IsRunning && readiness is null)
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -2352,6 +2401,8 @@ namespace Opc.Ua.Server
                 CountRejectedRequest(serverInternal, requestType, e.StatusCode);
                 throw;
             }
+
+            context.Readiness = readiness;
 
             if (m_eventLogger.IsEventLogEnabled())
             {
@@ -2668,6 +2719,14 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             return m_configurationReload.ApplyAsync(configuration, cancellationToken);
+        }
+
+        /// <summary>
+        /// Seals cleanup recovery configuration before overridable startup callbacks run.
+        /// </summary>
+        internal sealed override void SealStartupBindings()
+        {
+            m_nodeManagerLifecycle.SealCleanupAuthority();
         }
 
         /// <summary>
@@ -3186,19 +3245,6 @@ namespace Opc.Ua.Server
         {
             var manager = new ConformanceUnitsManager(server);
 
-            foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
-            {
-                // A natively-async node manager is the contributor itself; a
-                // wrapped synchronous node manager exposes it through its
-                // SyncNodeManager. Honour either shape.
-                if ((nodeManager as IConformanceContributor
-                    ?? nodeManager.SyncNodeManager as IConformanceContributor)
-                    is IConformanceContributor contributor)
-                {
-                    manager.Register(contributor);
-                }
-            }
-
             await manager.PublishAsync(cancellationToken).ConfigureAwait(false);
 
             return manager;
@@ -3253,7 +3299,7 @@ namespace Opc.Ua.Server
             [
                 .. m_asyncNodeManagerFactories,
                 .. m_nodeManagerFactories.Select(
-                    static factory => new NodeManagerLifecycleExtensions.SyncFactoryAdapter(factory))
+                    static factory => new LifecycleChangeExtensions.SyncFactoryAdapter(factory))
             ];
         }
 

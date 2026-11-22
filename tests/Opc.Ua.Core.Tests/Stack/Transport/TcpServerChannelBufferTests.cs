@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -919,6 +892,95 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             finally
             {
                 transport.Complete();
+            }
+        }
+
+        /// <summary>
+        /// A peer without a session decides how fast it reads a response. A write
+        /// it keeps outstanding must not hold the channel slot for longer than the
+        /// grace period, or slow readers could hold every slot without a credential.
+        /// </summary>
+        [Test]
+        public async Task AdmissionReclaimsSessionlessChannelWhoseResponseWriteOutlastsTheGraceAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock);
+            var transport = new GateByteTransport(expectedSendCount: 1);
+            channel.SetTransport(transport);
+            try
+            {
+                using (channel.TrackPendingRequest())
+                {
+                    Assert.That(await channel.SendResponseAsync(1, CreateResponse()).ConfigureAwait(false), Is.False);
+                    await transport.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                Assert.That(channel.HasPendingWrites, Is.True);
+
+                clock.Advance(TcpListenerChannel.SessionlessWriteGrace);
+                Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TcpListenerChannel.SessionlessWriteGrace));
+                Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(channel.TryIdleCleanupForAdmission(), Is.True);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+
+                transport.Complete();
+                Assert.That(await WaitForOutstandingCountAsync(pool, 0, 5).ConfigureAwait(false), Is.True);
+                Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            }
+            finally
+            {
+                transport.Complete();
+            }
+        }
+
+        /// <summary>
+        /// The age of outstanding writes restarts once the queue ran empty.
+        /// </summary>
+        [Test]
+        public async Task PendingWriteAgeRestartsAfterTheQueueRanEmptyAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, clock: clock);
+            var first = new GateByteTransport(expectedSendCount: 1);
+            channel.SetTransport(first);
+            try
+            {
+                Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TimeSpan.Zero));
+                Assert.That(await channel.SendResponseAsync(1, CreateResponse()).ConfigureAwait(false), Is.False);
+                await first.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromSeconds(3));
+                Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TimeSpan.FromSeconds(3)));
+
+                first.Complete();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                while (channel.HasPendingWrites)
+                {
+                    await Task.Delay(1, timeout.Token).ConfigureAwait(false);
+                }
+                Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TimeSpan.Zero));
+
+                clock.Advance(TimeSpan.FromSeconds(10));
+                var second = new GateByteTransport(expectedSendCount: 1);
+                channel.SetTransport(second);
+                try
+                {
+                    Assert.That(await channel.SendResponseAsync(2, CreateResponse()).ConfigureAwait(false), Is.False);
+                    await second.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(channel.GetPendingWriteAge(), Is.EqualTo(TimeSpan.Zero));
+                    Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+                }
+                finally
+                {
+                    second.Complete();
+                }
+            }
+            finally
+            {
+                first.Complete();
             }
         }
 

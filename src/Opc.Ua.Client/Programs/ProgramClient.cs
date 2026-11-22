@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -150,6 +124,36 @@ namespace Opc.Ua.Client.Programs
         }
 
         /// <summary>
+        /// Fails a walk over server-supplied references that visited more nodes than
+        /// <paramref name="limit"/>. The visited set and the results are kept in memory and the
+        /// server decides how many nodes there are, so a walk has to end.
+        /// </summary>
+        private static void EnsureWalkBudget(int visited, int limit)
+        {
+            if (visited > limit)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                    "The server returned more nodes than the Program client follows in one operation.");
+            }
+        }
+
+        /// <summary>
+        /// Nodes one type or invocation discovery visits.
+        /// </summary>
+        internal const int MaxDiscoveryNodes = 100_000;
+
+        /// <summary>
+        /// Nodes read beneath one FinalResultData object.
+        /// </summary>
+        internal const int MaxFinalResultNodes = 10_000;
+
+        /// <summary>
+        /// Levels followed beneath one FinalResultData object. Every result keeps its browse
+        /// path, so the depth bounds the memory per result.
+        /// </summary>
+        internal const int MaxFinalResultDepth = 32;
+
+        /// <summary>
         /// Resolves only local references using the current session's namespace mapping.
         /// </summary>
         private NodeId LocalNodeId(ExpandedNodeId id)
@@ -187,6 +191,10 @@ namespace Opc.Ua.Client.Programs
             ];
             ByteString continuationPoint = default;
             var references = new List<ReferenceDescription>();
+            // The server decides how many pages follow; the pages are kept in
+            // memory, so the chain is followed within the browser's default limits.
+            BrowsePagingLimits limits = BrowsePagingLimits.StartDefault();
+            var pages = new BrowsePageCounter();
             bool failed = false;
             try
             {
@@ -206,9 +214,16 @@ namespace Opc.Ua.Client.Programs
                     {
                         references.Add(reference);
                     }
-                    if (continuationPoint.IsNull || continuationPoint.Length == 0)
+                    bool more = !continuationPoint.IsNull && continuationPoint.Length > 0;
+                    ServiceResult? stop = pages.Record(in limits, result.References.Count, more);
+                    if (!more)
                     {
                         return ArrayOf.Wrapped(references.ToArray());
+                    }
+                    if (stop != null)
+                    {
+                        // the continuation point is released in the finally block.
+                        throw new ServiceResultException(stop);
                     }
                     ArrayOf<ByteString> points = [continuationPoint];
                     BrowseNextResponse next = await Session.BrowseNextAsync(null, false, points, ct)

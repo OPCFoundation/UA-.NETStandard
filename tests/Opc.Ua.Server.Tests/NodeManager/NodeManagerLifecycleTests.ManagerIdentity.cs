@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -57,14 +31,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, firstFactory.Target), Is.False);
                 Assert.That(
                     objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, peerFactory.Target), Is.False);
-                await using (IPreparedNodeManagerBatch batch = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(firstFactory), NodeManagerBatchChange.Add(peerFactory)],
+                await using (IPreparedChanges batch = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(firstFactory), LifecycleChange.Add(peerFactory)],
                     timeout.Token).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await batch.CommitAsync(_ => default, timeout.Token)
+                    LifecycleResult result = await batch.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
-                    foreach (NodeManagerRegistration registration in result.Registrations)
+                    foreach (NodeManagerRegistrationSnapshot snapshot in result.Registrations)
                     {
+                        NodeManagerRegistration registration = RequireRegistration(snapshot);
                         owned.Add(registration);
                     }
                     Assert.That(result.CleanupFailure, Is.Null);
@@ -84,14 +59,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, peerFactory.Target), Is.True);
                 NodeManagerGeneration peerGeneration = published.GetGeneration(peer);
 
-                await using (IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(owned[0])], timeout.Token).ConfigureAwait(false))
+                await using (IPreparedChanges removal = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Remove(owned[0].Slot)], timeout.Token).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await removal.CommitAsync(_ => default, timeout.Token)
+                    LifecycleResult result = await removal.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
                     owned.RemoveAt(0);
                     Assert.That(result.CleanupFailure, Is.Null);
-                    await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
 
                 NodeManagerRoutingTable.RoutingSnapshot remaining = host.RoutingRevision;
@@ -146,6 +121,67 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Is.False);
                 Assert.That(owner.Second.ReferenceExists(ReferenceTypeIds.HasComponent, false, ObjectIds.Server),
                     Is.False);
+            }
+            finally
+            {
+                await RemoveIdentityRegistrationsAsync(lifecycle, owned).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Publishes an external reference to both direct and adapted copies of a source, or to neither on abort.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedReferenceBatchUpdatesDirectAndAdaptedOwnersTogetherAsync(bool publish)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = timeout.Token;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            string sourceNamespace = kModelNamespaceUri + ":mixed-source";
+            var directFactory = new EqualSharedSourceFactory(kModelNamespaceUri + ":mixed-direct", sourceNamespace);
+            var adaptedFactory = new EqualSharedSourceFactory(
+                kModelNamespaceUri + ":mixed-adapted", sourceNamespace, adapted: true);
+            var owned = new List<NodeManagerRegistration>();
+            try
+            {
+                owned.Add(await AddIdentityManagerAsync(lifecycle, directFactory, ct).ConfigureAwait(false));
+                owned.Add(await AddIdentityManagerAsync(lifecycle, adaptedFactory, ct).ConfigureAwait(false));
+                FolderState direct = RequireLifecycleValue(directFactory.Created).Source;
+                FolderState adapted = RequireLifecycleValue(adaptedFactory.Created).Source;
+                Assert.That(adapted, Is.Not.SameAs(direct));
+                Assert.That(adapted.NodeId, Is.EqualTo(direct.NodeId));
+                IAsyncNodeManagerFactory contributor = CreateReferenceContributorFactory(
+                    kModelNamespaceUri + ":mixed-contributor",
+                    [new LocalReference(direct.NodeId, ReferenceTypeIds.Organizes, false, ObjectIds.Server)]);
+                await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(contributor)], ct).ConfigureAwait(false);
+                int decisions = 0;
+                ValueTask DecideAsync(CancellationToken token)
+                {
+                    token.ThrowIfCancellationRequested();
+                    decisions++;
+                    AssertSharedSourceReference(direct, ObjectIds.Server, expected: false);
+                    AssertSharedSourceReference(adapted, ObjectIds.Server, expected: false);
+                    return publish ? default : new ValueTask(Task.FromException(new InvalidOperationException(
+                        "Declined the mixed-owner publication.")));
+                }
+
+                if (publish)
+                {
+                    LifecycleResult result = await prepared.CommitAsync(DecideAsync, ct).ConfigureAwait(false);
+                    owned.Add(RequireRegistration(result.Registrations[0]));
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+                else
+                {
+                    await Assert.ThatAsync(() => prepared.CommitAsync(DecideAsync, ct).AsTask(),
+                        Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
+                            "Declined the mixed-owner publication.")).ConfigureAwait(false);
+                }
+                Assert.That(decisions, Is.EqualTo(1));
+                AssertSharedSourceReference(direct, ObjectIds.Server, expected: publish);
+                AssertSharedSourceReference(adapted, ObjectIds.Server, expected: publish);
             }
             finally
             {
@@ -219,26 +255,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertSharedSourceReference(joining.Source, replacement.NodeId, expected: true);
                 AssertSharedSourceReference(joining.Source, peerNode.NodeId, expected: true);
 
-                await using (IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(owned[1])], ct).ConfigureAwait(false))
+                await using (IPreparedChanges removal = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Remove(owned[1].Slot)], ct).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await removal.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    LifecycleResult result = await removal.CommitAsync(_ => default, ct).ConfigureAwait(false);
                     owned.RemoveAt(1);
                     Assert.That(result.CleanupFailure, Is.Null);
-                    await result.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                    await result.Retired.WaitAsync(ct).ConfigureAwait(false);
                 }
                 AssertSharedSourceReference(first.Source, replacement.NodeId, expected: true);
                 AssertSharedSourceReference(joining.Source, replacement.NodeId, expected: true);
                 AssertSharedSourceReference(first.Source, peerNode.NodeId, expected: false);
                 AssertSharedSourceReference(joining.Source, peerNode.NodeId, expected: false);
 
-                await using (IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(owned[0])], ct).ConfigureAwait(false))
+                await using (IPreparedChanges removal = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Remove(owned[0].Slot)], ct).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await removal.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    LifecycleResult result = await removal.CommitAsync(_ => default, ct).ConfigureAwait(false);
                     owned.RemoveAt(0);
                     Assert.That(result.CleanupFailure, Is.Null);
-                    await result.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                    await result.Retired.WaitAsync(ct).ConfigureAwait(false);
                 }
                 AssertSharedSourceReference(joining.Source, replacement.NodeId, expected: false);
                 AssertSharedSourceReference(joining.Source, peerNode.NodeId, expected: false);
@@ -760,10 +796,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 };
                 var decidingFactory = new EqualLifecycleFactory(
                     kModelNamespaceUri + ":reentrant-deletion-decision", ObjectIds.RootFolder);
-                await using (IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false))
+                await using (IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await deciding.CommitAsync(async token =>
+                    LifecycleResult result = await deciding.CommitAsync(async token =>
                     {
                         Task<bool> deletion;
                         using (ExecutionContext.SuppressFlow())
@@ -775,7 +811,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Assert.That(await deletion.WaitAsync(TimeSpan.FromSeconds(10), token).ConfigureAwait(false),
                             Is.True);
                     }, ct).ConfigureAwait(false);
-                    owned.Add(result.Registrations[0]);
+                    owned.Add(RequireRegistration(result.Registrations[0]));
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
 
@@ -822,7 +858,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 kModelNamespaceUri + ":retiring-reference-joining", sharedNamespace);
             var owned = new List<NodeManagerRegistration>();
             EqualSharedSourceManager? source = null;
-            var retired = new TaskCompletionSource<NodeManagerBatchResult>(
+            var retired = new TaskCompletionSource<LifecycleResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
@@ -844,14 +880,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     if (references.TryGetValue(currentSource.Source.NodeId, out IList<IReference>? added) &&
                         added.Any(reference => reference.TargetId == target.NodeId))
                     {
-                        await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                            [NodeManagerBatchChange.Remove(owned[0])], token).ConfigureAwait(false);
-                        NodeManagerBatchResult result = await removal.CommitAsync(_ => default, token)
+                        await using IPreparedChanges removal = await lifecycle.PrepareAsync(
+                            [LifecycleChange.Remove(owned[0].Slot)], token).ConfigureAwait(false);
+                        LifecycleResult result = await removal.CommitAsync(_ => default, token)
                             .ConfigureAwait(false);
                         retired.TrySetResult(result);
                         owned.RemoveAt(0);
                         Assert.That(result.CleanupFailure, Is.Null);
-                        Assert.That(result.Retirement.IsCompleted, Is.False);
+                        Assert.That(result.Retired.IsCompleted, Is.False);
                     }
                 };
 
@@ -860,8 +896,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 currentSource.AfterReferenceAddAsync = null;
                 Assert.That(retired.Task.IsCompleted, Is.True, "The source retirement was not published.");
-                NodeManagerBatchResult removalResult = await retired.Task.ConfigureAwait(false);
-                await removalResult.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                LifecycleResult removalResult = await retired.Task.ConfigureAwait(false);
+                await removalResult.Retired.WaitAsync(ct).ConfigureAwait(false);
                 Assert.That(target.ReferenceExists(
                     ReferenceTypeIds.Organizes, true, currentSource.Source.NodeId), Is.True);
                 AssertSharedSourceReference(targetOwner.Source, target.NodeId, expected: true);
@@ -909,13 +945,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 source = currentSource;
                 EqualSharedSourceManager targetOwner;
                 NodeState target;
-                await using (IPreparedNodeManagerBatch candidate = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(targetFactory)], ct).ConfigureAwait(false))
+                await using (IPreparedChanges candidate = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(targetFactory)], ct).ConfigureAwait(false))
                 {
                     targetOwner = RequireLifecycleValue(targetFactory.Created);
                     target = await targetOwner.AddProbeAsync("captured-target", ct).ConfigureAwait(false);
-                    NodeManagerBatchResult result = await candidate.CommitAsync(_ => default, ct).ConfigureAwait(false);
-                    owned.Add(result.Registrations[0]);
+                    LifecycleResult result = await candidate.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    owned.Add(RequireRegistration(result.Registrations[0]));
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
 
@@ -945,10 +981,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 };
                 var decidingFactory = new EqualLifecycleFactory(
                     kModelNamespaceUri + ":failed-prune-decision", ObjectIds.RootFolder);
-                await using (IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false))
+                await using (IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await deciding.CommitAsync(async token =>
+                    LifecycleResult result = await deciding.CommitAsync(async token =>
                     {
                         Assert.That(
                             ((MasterNodeManager)m_server.CurrentInstance.NodeManager)
@@ -979,7 +1015,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Assert.That(cleanup, Is.Empty);
                         AssertSharedSourceReference(currentSource.Source, target.NodeId, expected: failRemoval);
                     }, ct).ConfigureAwait(false);
-                    owned.Add(result.Registrations[0]);
+                    owned.Add(RequireRegistration(result.Registrations[0]));
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
 
@@ -1035,13 +1071,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 source = currentSource;
                 EqualSharedSourceManager targetOwner;
                 NodeState target;
-                await using (IPreparedNodeManagerBatch candidate = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(targetFactory)], ct).ConfigureAwait(false))
+                await using (IPreparedChanges candidate = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(targetFactory)], ct).ConfigureAwait(false))
                 {
                     targetOwner = RequireLifecycleValue(targetFactory.Created);
                     target = await targetOwner.AddProbeAsync("deleted-target", ct).ConfigureAwait(false);
-                    NodeManagerBatchResult result = await candidate.CommitAsync(_ => default, ct).ConfigureAwait(false);
-                    owned.Add(result.Registrations[0]);
+                    LifecycleResult result = await candidate.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    owned.Add(RequireRegistration(result.Registrations[0]));
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
 
@@ -1066,10 +1102,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 var decidingFactory = new EqualLifecycleFactory(
                     kModelNamespaceUri + ":applied-prune-decision", ObjectIds.RootFolder);
-                await using (IPreparedNodeManagerBatch deciding = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(decidingFactory)], ct).ConfigureAwait(false))
+                await using (IPreparedChanges deciding = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(decidingFactory)], ct).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await deciding.CommitAsync(async token =>
+                    LifecycleResult result = await deciding.CommitAsync(async token =>
                     {
                         using (ExecutionContext.SuppressFlow())
                         {
@@ -1079,7 +1115,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                         await entered.Task.WaitAsync(token).ConfigureAwait(false);
                     }, ct).ConfigureAwait(false);
-                    owned.Add(result.Registrations[0]);
+                    owned.Add(RequireRegistration(result.Registrations[0]));
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
 
@@ -1187,13 +1223,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManagerFactory factory,
             CancellationToken cancellationToken)
         {
-            await using IPreparedNodeManagerBatch batch = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(factory)], cancellationToken).ConfigureAwait(false);
-            NodeManagerBatchResult result = await batch.CommitAsync(_ => default, cancellationToken)
+            await using IPreparedChanges batch = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], cancellationToken).ConfigureAwait(false);
+            LifecycleResult result = await batch.CommitAsync(_ => default, cancellationToken)
                 .ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
             Assert.That(result.Registrations.Count, Is.EqualTo(1));
-            return result.Registrations[0];
+            return RequireRegistration(result.Registrations[0]);
         }
 
         /// <summary>
@@ -1220,13 +1256,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             CancellationToken cancellationToken)
         {
             int index = owned.Count - 1;
-            await using IPreparedNodeManagerBatch batch = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(owned[index])], cancellationToken).ConfigureAwait(false);
-            NodeManagerBatchResult result = await batch.CommitAsync(_ => default, cancellationToken)
+            await using IPreparedChanges batch = await lifecycle.PrepareAsync(
+                [LifecycleChange.Remove(owned[index].Slot)], cancellationToken).ConfigureAwait(false);
+            LifecycleResult result = await batch.CommitAsync(_ => default, cancellationToken)
                 .ConfigureAwait(false);
             owned.RemoveAt(index);
             Assert.That(result.CleanupFailure, Is.Null);
-            await result.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await result.Retired.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1331,7 +1367,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Creates an equal manager with its own copy of a shared source node.
         /// </summary>
-        private sealed class EqualSharedSourceFactory(string namespaceUri, string sourceNamespaceUri)
+        private sealed class EqualSharedSourceFactory(
+            string namespaceUri,
+            string sourceNamespaceUri,
+            bool adapted = false)
             : IAsyncNodeManagerFactory
         {
             /// <summary>
@@ -1350,7 +1389,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 Created = new EqualSharedSourceManager(server, configuration, namespaceUri, sourceNamespaceUri);
-                return new ValueTask<IAsyncNodeManager>(Created);
+#pragma warning disable CS0618, UA0031 // Exercises the legacy adapter until synchronous managers are removed.
+                return new ValueTask<IAsyncNodeManager>(
+                    adapted ? new AsyncNodeManagerAdapter(Created.SyncNodeManager) : Created);
+#pragma warning restore CS0618, UA0031
             }
         }
 

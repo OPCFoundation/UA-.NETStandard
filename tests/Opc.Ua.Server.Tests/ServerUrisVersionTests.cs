@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
 
@@ -120,6 +94,46 @@ namespace Opc.Ua.Server.Tests
             Assert.That(changes, Is.EqualTo(1), "Subscribers are notified of the new UrisVersion.");
             Assert.That(urisVersion.Value, Is.GreaterThan(before));
             Assert.That(ReadUrisVersion(), Is.EqualTo(urisVersion.Value));
+        }
+
+        /// <summary>
+        /// Asynchronous alias registration reports a table change once and leaves duplicate registration unchanged.
+        /// </summary>
+        [Test]
+        public async Task AsyncNamespaceRegistrationReportsUrisVersionOnlyForNewUriAsync()
+        {
+            PropertyState<uint> urisVersion = GetUrisVersion();
+            uint before = ReadUrisVersion();
+            int changes = 0;
+            void OnStateChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changeMasks)
+            {
+                if ((changeMasks & NodeStateChangeMasks.Value) != 0)
+                {
+                    changes++;
+                }
+            }
+
+            string namespaceUri = "urn:opcfoundation.org:Tests:UrisVersion:Async:" + Guid.NewGuid().ToString("N");
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.NamespaceUris).Returns([]);
+            IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
+            urisVersion.StateChanged += OnStateChanged;
+            try
+            {
+                await master.RegisterNamespaceManagerAsync(namespaceUri, manager.Object).ConfigureAwait(false);
+                uint afterRegistration = urisVersion.Value;
+                Assert.That(changes, Is.EqualTo(1));
+                Assert.That(afterRegistration, Is.GreaterThan(before));
+
+                await master.RegisterNamespaceManagerAsync(namespaceUri, manager.Object).ConfigureAwait(false);
+                Assert.That(changes, Is.EqualTo(1));
+                Assert.That(urisVersion.Value, Is.EqualTo(afterRegistration));
+            }
+            finally
+            {
+                urisVersion.StateChanged -= OnStateChanged;
+                await master.UnregisterNamespaceManagerAsync(namespaceUri, manager.Object).ConfigureAwait(false);
+            }
         }
 
         [Test]

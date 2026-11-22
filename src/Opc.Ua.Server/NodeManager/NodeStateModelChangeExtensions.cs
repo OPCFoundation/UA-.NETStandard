@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Globalization;
@@ -48,7 +22,7 @@ namespace Opc.Ua.Server.NodeManager
         /// <see cref="EnableModelChangeTracking"/> does not re-enter and
         /// double-fire a model-change event for framework-driven bumps.
         /// </summary>
-        private static readonly AsyncLocal<bool> s_isFrameworkBump = new();
+        private static readonly AsyncLocal<NodeManagerAmbientScope<bool>?> s_isFrameworkBump = new();
 
         /// <summary>
         /// True when execution is inside a framework-driven NodeVersion
@@ -56,7 +30,8 @@ namespace Opc.Ua.Server.NodeManager
         /// <c>GeneralModelChangeEvent</c> and the OnWriteValue hook must
         /// not echo it as a <c>BaseModelChangeEvent</c>).
         /// </summary>
-        public static bool IsInsideFrameworkNodeVersionBump => s_isFrameworkBump.Value;
+        public static bool IsInsideFrameworkNodeVersionBump =>
+            NodeManagerAmbientScope<bool>.GetValue(s_isFrameworkBump);
 
         /// <summary>
         /// Returns <c>true</c> when <paramref name="node"/> has a child
@@ -127,18 +102,12 @@ namespace Opc.Ua.Server.NodeManager
                 }
             }
 
-            bool previous = s_isFrameworkBump.Value;
-            s_isFrameworkBump.Value = true;
-            try
+            using (new NodeManagerAmbientScope<bool>(s_isFrameworkBump, true))
             {
                 nodeVersion.Value = current.ToString(CultureInfo.InvariantCulture);
                 nodeVersion.Timestamp = DateTime.UtcNow;
                 nodeVersion.StatusCode = StatusCodes.Good;
                 nodeVersion.ClearChangeMasks(context, false);
-            }
-            finally
-            {
-                s_isFrameworkBump.Value = previous;
             }
         }
 

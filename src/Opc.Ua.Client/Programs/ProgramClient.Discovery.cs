@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -47,7 +22,8 @@ namespace Opc.Ua.Client.Programs
             {
                 rootTypeId = ObjectTypeIds.ProgramStateMachineType;
             }
-            if (!await IsTypeOfAsync(rootTypeId, ObjectTypeIds.ProgramStateMachineType, ct).ConfigureAwait(false))
+            if (!await IsTypeOfAsync(rootTypeId, ObjectTypeIds.ProgramStateMachineType, new StrongBox<int>(), ct)
+                .ConfigureAwait(false))
             {
                 throw new ServiceResultException(StatusCodes.BadTypeMismatch, "The root is not a Program type.");
             }
@@ -66,6 +42,7 @@ namespace Opc.Ua.Client.Programs
                     NodeId id = LocalNodeId(reference.NodeId);
                     if (visited.Add(id))
                     {
+                        EnsureWalkBudget(visited.Count, MaxDiscoveryNodes);
                         found.Add(reference);
                         pending.Enqueue(id);
                     }
@@ -90,7 +67,11 @@ namespace Opc.Ua.Client.Programs
             {
                 typeId = ObjectTypeIds.ProgramStateMachineType;
             }
-            if (!await IsTypeOfAsync(typeId, ObjectTypeIds.ProgramStateMachineType, ct).ConfigureAwait(false))
+            // one budget for every ancestry check of this discovery, so the types
+            // the server reports cannot each start a walk with a budget of its own.
+            var ancestry = new StrongBox<int>();
+            if (!await IsTypeOfAsync(typeId, ObjectTypeIds.ProgramStateMachineType, ancestry, ct)
+                .ConfigureAwait(false))
             {
                 throw new ServiceResultException(StatusCodes.BadTypeMismatch, "The requested type is not a Program.");
             }
@@ -113,8 +94,10 @@ namespace Opc.Ua.Client.Programs
                     if (!typeMatches.TryGetValue(actualType, out bool matches))
                     {
                         matches = actualType == typeId ||
-                            (includeSubtypes && await IsTypeOfAsync(actualType, typeId, ct).ConfigureAwait(false));
+                            (includeSubtypes &&
+                                await IsTypeOfAsync(actualType, typeId, ancestry, ct).ConfigureAwait(false));
                         typeMatches.Add(actualType, matches);
+                        EnsureWalkBudget(typeMatches.Count, MaxDiscoveryNodes);
                     }
                     if (matches)
                     {
@@ -130,6 +113,7 @@ namespace Opc.Ua.Client.Programs
                     NodeId childId = LocalNodeId(child.NodeId);
                     if (visited.Add(childId))
                     {
+                        EnsureWalkBudget(visited.Count, MaxDiscoveryNodes);
                         pending.Enqueue(childId);
                     }
                 }
@@ -138,12 +122,19 @@ namespace Opc.Ua.Client.Programs
         }
 
         /// <summary>
-        /// Tests type ancestry without requiring a prepopulated NodeCache.
+        /// Tests type ancestry without requiring a prepopulated NodeCache. The types
+        /// followed are counted in <paramref name="followed"/>, which the checks of one
+        /// operation share.
         /// </summary>
-        private async ValueTask<bool> IsTypeOfAsync(NodeId typeId, NodeId expected, CancellationToken ct)
+        private async ValueTask<bool> IsTypeOfAsync(
+            NodeId typeId,
+            NodeId expected,
+            StrongBox<int> followed,
+            CancellationToken ct)
         {
             var pending = new Queue<NodeId>();
-            var visited = new HashSet<NodeId>();
+            var visited = new HashSet<NodeId> { typeId };
+            EnsureWalkBudget(++followed.Value, MaxDiscoveryNodes);
             pending.Enqueue(typeId);
             while (pending.Count > 0)
             {
@@ -152,16 +143,19 @@ namespace Opc.Ua.Client.Programs
                 {
                     return true;
                 }
-                if (!visited.Add(current))
-                {
-                    continue;
-                }
                 ArrayOf<ReferenceDescription> parents = await BrowseAllAsync(
                     current, ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse, NodeClass.ObjectType, ct)
                     .ConfigureAwait(false);
                 foreach (ReferenceDescription parent in parents)
                 {
-                    pending.Enqueue(LocalNodeId(parent.NodeId));
+                    NodeId parentId = LocalNodeId(parent.NodeId);
+                    // a type is marked when it is queued, not when it is followed, so
+                    // the queue holds each type once and stays within the budget.
+                    if (visited.Add(parentId))
+                    {
+                        EnsureWalkBudget(++followed.Value, MaxDiscoveryNodes);
+                        pending.Enqueue(parentId);
+                    }
                 }
             }
             return false;

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -58,6 +32,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         private const ushort PublisherIdValue = 17;
         private const ushort WriterGroupIdValue = 7;
         private const ushort DataSetWriterIdValue = 42;
+        private const ushort SecondDataSetWriterIdValue = 43;
         private const string PublishedDataSetName = "pds-1";
         private const string SecurityGroupIdValue = "discovery-group";
 
@@ -246,6 +221,32 @@ namespace Opc.Ua.PubSub.Tests.Application
         }
 
         /// <summary>
+        /// A publisher whose transport only sends cannot be asked for its
+        /// DataSetMetaData, so the cyclic discovery announcements repeat it.
+        /// </summary>
+        [Test]
+        public async Task PublisherRepeatsDataSetMetaDataWithTheCyclicAnnouncementsAsync()
+        {
+            var bus = new LoopbackBus { AnnounceRate = 50 };
+            await using IPubSubApplication publisher = BuildPublisherApp(
+                "opc.udp://239.0.0.1:49322",
+                new LoopbackTransportFactory(bus),
+                secondDataSetWriterId: SecondDataSetWriterIdValue);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await publisher.StartAsync(cts.Token).ConfigureAwait(false);
+
+            // More than the announcement at start-up: it is repeated, and for
+            // every DataSetWriter of the WriterGroup, not only its first one.
+            while (bus.MetaDataCount(DataSetWriterIdValue) < 3 ||
+                bus.MetaDataCount(SecondDataSetWriterIdValue) < 3)
+            {
+                await Task.Delay(20, cts.Token).ConfigureAwait(false);
+            }
+            Assert.That(bus.MetaDataCount(DataSetWriterIdValue), Is.GreaterThanOrEqualTo(3));
+            Assert.That(bus.MetaDataCount(SecondDataSetWriterIdValue), Is.GreaterThanOrEqualTo(3));
+        }
+
+        /// <summary>
         /// Until the key provider has a current key, as before a Security Key Service
         /// delivers the first key, the startup discovery announcements cannot be
         /// secured. They are dropped, and the application still starts.
@@ -346,7 +347,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         private static IPubSubApplication BuildPublisherApp(
             string url,
             IPubSubTransportFactory factory,
-            IPubSubSecurityKeyProvider? securityKeyProvider = null)
+            IPubSubSecurityKeyProvider? securityKeyProvider = null,
+            ushort secondDataSetWriterId = 0)
         {
             DataSetMetaDataType metaData = NewMetaData();
             var writerGroup = new WriterGroupDataType
@@ -364,6 +366,19 @@ namespace Opc.Ua.PubSub.Tests.Application
                     }
                 ]
             };
+            if (secondDataSetWriterId != 0)
+            {
+                writerGroup.DataSetWriters =
+                [
+                    .. writerGroup.DataSetWriters.ToArray()!,
+                    new DataSetWriterDataType
+                    {
+                        Name = "second-writer",
+                        DataSetWriterId = secondDataSetWriterId,
+                        DataSetName = PublishedDataSetName
+                    }
+                ];
+            }
             var readerGroup = new ReaderGroupDataType
             {
                 Name = "discovery-listener"
@@ -630,6 +645,32 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             public int AnnouncementCount => Volatile.Read(ref m_announcementCount);
 
+            /// <summary>
+            /// DiscoveryAnnounceRate in milliseconds of the transports on this bus.
+            /// </summary>
+            public uint AnnounceRate { get; init; }
+
+            /// <summary>
+            /// Number of messages that carried DataSetMetaData, counted on a
+            /// bus with a DiscoveryAnnounceRate. They are sent to the address
+            /// of the data, where the readers listen.
+            /// </summary>
+            public int MetaDataAnnouncementCount => Volatile.Read(ref m_metaDataAnnouncementCount);
+
+            /// <summary>
+            /// Number of DataSetMetaData messages seen for a DataSetWriter.
+            /// </summary>
+            public int MetaDataCount(ushort dataSetWriterId)
+            {
+                lock (m_gate)
+                {
+                    return m_metaDataPerWriter.TryGetValue(dataSetWriterId, out int count) ? count : 0;
+                }
+            }
+
+            private readonly Dictionary<ushort, int> m_metaDataPerWriter = [];
+            private int m_metaDataAnnouncementCount;
+
             public IReadOnlyList<string> PlaintextFrames
             {
                 get
@@ -654,6 +695,28 @@ namespace Opc.Ua.PubSub.Tests.Application
                 if (isAnnouncement)
                 {
                     Interlocked.Increment(ref m_announcementCount);
+                }
+                if (AnnounceRate != 0)
+                {
+                    try
+                    {
+                        if (UadpDecoder.Decode(payload, NewContext()) is UadpDiscoveryResponseMessage
+                            {
+                                DiscoveryType: UadpDiscoveryType.DataSetMetaData
+                            } metaData)
+                        {
+                            Interlocked.Increment(ref m_metaDataAnnouncementCount);
+                            lock (m_gate)
+                            {
+                                m_metaDataPerWriter.TryGetValue(metaData.DataSetWriterId, out int count);
+                                m_metaDataPerWriter[metaData.DataSetWriterId] = count + 1;
+                            }
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Not a discovery message this bus can decode.
+                    }
                 }
                 var receivers = new List<LoopbackTransport>();
                 lock (m_gate)
@@ -727,7 +790,7 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             public bool IsConnected { get; private set; }
 
-            public uint DiscoveryAnnounceRate => 0;
+            public uint DiscoveryAnnounceRate => m_bus.AnnounceRate;
 
             public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
             {

@@ -4,7 +4,7 @@
   "specification": "OPC-30500-1",
   "referenceEdition": "1.00",
   "referenceUrl": "https://reference.opcfoundation.org/LADS/v100/docs/",
-  "hashNormalization": "UTF-8 source bytes; the publication uses LF line endings and .gitattributes keeps them on every platform.",
+  "hashNormalization": "UTF-8 source bytes; the publication uses LF line endings and .gitattributes keeps them on every platform; the OPC Foundation MIT license banner is replaced by the SPDX header.",
   "model": {
     "ModelUri": "http://opcfoundation.org/UA/LADS/",
     "Version": "1.0.0",
@@ -36,8 +36,8 @@
     {
       "file": "Opc.Ua.LADS.NodeSet2.xml",
       "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/9f529354fc05a261295b4ce3e937a47410f7cced/LADS/Opc.Ua.LADS.NodeSet2.xml",
-      "gitBlob": "abf7f8e07f99f518a1685bafb16ce62751d8001a",
-      "sha256": "15fa32b4952f12a2d696fddd2466a4c764afdac2125d198223547d787aab6adb"
+      "gitBlob": "428fc08981b4429d289b0df79892e69790f596fd",
+      "sha256": "75a45b39a19f37b2fe8acdf3449cd5b6373a6c16068f5bfd8ca87ee0f2d253d6"
     },
     {
       "file": "Opc.Ua.LADS.NodeIds.csv",
