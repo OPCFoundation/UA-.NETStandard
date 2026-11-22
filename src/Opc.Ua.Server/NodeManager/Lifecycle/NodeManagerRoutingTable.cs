@@ -1234,12 +1234,6 @@ namespace Opc.Ua.Server
                     }
                 }
                 NodeOverrides = overrides;
-                Epoch = new AddressSpaceEpoch();
-                Epoch.Attach(this);
-                foreach (NodeManagerGeneration generation in Generations)
-                {
-                    generation.RegisterViewEpoch(Epoch);
-                }
                 VisibleNamespaceManagers =
                     CreateVisibleNamespaceManagers(
                         namespaceManagers,
