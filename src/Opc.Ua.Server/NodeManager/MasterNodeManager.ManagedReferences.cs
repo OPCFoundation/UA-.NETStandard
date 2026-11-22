@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -57,8 +31,8 @@ namespace Opc.Ua.Server
                     "A reference cannot be added from this deletion callback while another " +
                     "address-space change is in progress.");
             }
-            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
-                .ConfigureAwait(false);
+            using INodeManagerBatchAdmission admission = await AcquireDynamicMutationAdmissionAsync(
+                currentPermit, cancellationToken).ConfigureAwait(false);
             var sources = new List<LiveReferenceSource>();
             bool targetAdded = false;
             bool targetAttempted = false;
@@ -67,9 +41,9 @@ namespace Opc.Ua.Server
             IAsyncNodeManager? facade = null;
             NodeManagerGeneration? targetGeneration = null;
             int targetSlot = -1;
-            await using var callbackPermit = new NodeManagerCallbackPermit(
+            await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                 m_lifecycleCallbackPermit,
-                NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                GetAdmissionCapabilities(admission));
             try
             {
                 ApplyDeferredReferencePrunes();
@@ -107,7 +81,7 @@ namespace Opc.Ua.Server
                     bool opaque = false;
                     foreach (IAsyncNodeManager source in GetReferenceSourceOwners(view, reference.SourceId))
                     {
-                        if (!view.CanDispatchTo(source))
+                        if (!NodeManagerServiceDispatcher.CanDispatchTo(view, source, null))
                         {
                             continue;
                         }
@@ -269,10 +243,6 @@ namespace Opc.Ua.Server
                 {
                     targetGeneration.Gate.Exit(targetSlot);
                 }
-                if (mutationAdmissionHeld)
-                {
-                    m_dynamicMutationSemaphore.Release();
-                }
             }
         }
 
@@ -297,7 +267,7 @@ namespace Opc.Ua.Server
         {
             NodeManagerRoutingTable.RoutingSnapshot view = m_nodeManagers.Revision;
             return Array.Exists(view.VisibleNodeManagers, manager => ReferenceEquals(manager, source.Owner)) &&
-                view.CanDispatchTo(source.Owner) &&
+                NodeManagerServiceDispatcher.CanDispatchTo(view, source.Owner, null) &&
                 ReferenceEquals(view.GetGeneration(source.Owner), source.Generation);
         }
 
@@ -314,7 +284,7 @@ namespace Opc.Ua.Server
             NodeManagerRoutingTable.RoutingSnapshot view = context.RoutingSnapshot!;
             foreach (IAsyncNodeManager source in GetReferenceSourceOwners(view, reference.SourceId))
             {
-                if (!view.CanDispatchTo(source))
+                if (!NodeManagerServiceDispatcher.CanDispatchTo(view, source, null))
                 {
                     continue;
                 }

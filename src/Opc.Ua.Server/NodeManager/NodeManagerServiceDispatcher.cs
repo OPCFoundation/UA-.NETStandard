@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Applies readiness admission to the generation selected by this dispatch.
         /// </summary>
-        private static bool CanDispatchTo(
+        internal static bool CanDispatchTo(
             NodeManagerRoutingTable.RoutingSnapshot snapshot,
             IAsyncNodeManager nodeManager,
             NodeManagerReadinessScope? readiness)

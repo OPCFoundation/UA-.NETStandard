@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Node Managers
 
 A node manager exposes part of a server's address space: variables, methods,
@@ -45,6 +50,7 @@ a server yet, start with [Getting started](GettingStarted.md).
     - [Recovering retained cleanup](#recovering-retained-cleanup)
     - [Capturing inputs and validating candidates](#capturing-inputs-and-validating-candidates)
     - [Publishing typed metadata](#publishing-typed-metadata)
+    - [Managed NodeId reservations and conformance](#managed-nodeid-reservations-and-conformance)
     - [Historian registration ownership](#historian-registration-ownership)
   - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
     - [Reload modes](#reload-modes)
@@ -1611,6 +1617,38 @@ source projections and canonical Views.
 For metadata-only publication, call `writer.PrepareReadImagesAsync(images, ct)`
 and commit the returned unit. Those images are bound during preparation and
 cannot be changed through `SetMetadata`.
+
+#### Managed NodeId reservations and conformance
+
+PackML's managed composition path reserves the complete set of instance NodeIds
+before reading the equipment provider or administration store. The standard
+master node manager compares the identifier type and value under the namespace
+URI, not the candidate's temporary namespace index. Built-in custom node
+managers only index a reserved ID for the exact node instance in the claim.
+A conflict returns `BadNodeIdExists`; a same-owner PackML browse-name conflict
+still returns `BadBrowseNameDuplicated`.
+
+An unpublished replacement may reserve IDs held by its serving predecessor in
+the same lifecycle slot. The routing commit selects the serving generation;
+aborting the candidate leaves the predecessor's claims intact. Retirement
+keeps the outgoing generation's claims until exact physical cleanup succeeds.
+Do not use node absence or runtime disposal as proof that retirement finished.
+
+The built-in diagnostics Read path selects conformance values from the same
+routing image as the request. Candidate contributions remain private until the
+routing commit. That commit withdraws the retiring generation's contribution
+without dropping unrelated contributors or configured server profiles.
+Explicitly registered, independently hosted features still use
+`ConformanceUnitsManager` to publish configuration changes.
+
+`MasterNodeManager.ReserveManagedNodeIdsAsync` is an internal entry point for
+PackML, not a public extension point. Onboarding is not yet wired to it.
+That integration would need access to the same reservation path and must
+supply the exact materialized instances for namespace-zero IDs 29878–29881
+and their generated descendants before binding or indexing them. A custom
+index that bypasses built-in registration must enforce the claims itself.
+Reservation does not transfer provider bindings or replace Onboarding's
+reversible predecessor handoff.
 
 #### Historian registration ownership
 

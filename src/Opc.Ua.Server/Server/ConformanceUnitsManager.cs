@@ -444,21 +444,21 @@ namespace Opc.Ua.Server
                         {
                             units.Add(unit);
                         }
-                        if (preparingFrom is not null && staged is not null)
-                        {
-                            foreach (NodeManagerContribution contribution in staged.Values)
-                            {
-                                foreach (QualifiedName unit in contribution.Units)
-                                {
-                                    units.Add(unit);
-                                }
-                                foreach (string profile in contribution.Profiles)
-                                {
-                                    profiles.Add(profile);
-                                }
-                            }
-                        }
                         foreach (string profile in contribution.Profiles)
+                        {
+                            profiles.Add(profile);
+                        }
+                    }
+                }
+                if (preparingFrom is not null && staged is not null)
+                {
+                    foreach (NodeManagerContribution candidate in staged.Values)
+                    {
+                        foreach (QualifiedName unit in candidate.Units)
+                        {
+                            units.Add(unit);
+                        }
+                        foreach (string profile in candidate.Profiles)
                         {
                             profiles.Add(profile);
                         }

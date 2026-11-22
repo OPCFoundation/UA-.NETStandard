@@ -967,8 +967,8 @@ namespace Opc.Ua.Server
             List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken)
         {
-            ThrowIfNodeManagementFromDecision();
-            if (!TryEnterDynamicMutationAdmission(out bool mutationAdmissionHeld))
+            using INodeManagerBatchAdmission? admission = TryAcquireDynamicMutationAdmission();
+            if (admission is null)
             {
                 ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(owner);
                 var prune = new DeferredReferencePrune(
@@ -978,9 +978,9 @@ namespace Opc.Ua.Server
                 m_deferredReferencePrunes.Enqueue(prune);
                 try
                 {
-                    await using var callbackPermit = new NodeManagerCallbackPermit(
+                    await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                         m_lifecycleCallbackPermit,
-                        NodeManagerAdmissionCapability.None).ConfigureAwait(false);
+                        NodeManagerAdmissionCapability.None);
                     if (GetPublishedRootNotifierOwner(owner) is null)
                     {
                         owner.RetainRemovedExternalReferences(referencesToRemove);
@@ -1005,35 +1005,26 @@ namespace Opc.Ua.Server
                 }
                 return;
             }
-            try
+
+            ApplyDeferredReferencePrunes();
+            IAsyncNodeManager? registeredFacade = GetPublishedRootNotifierOwner(owner);
+            if (registeredFacade is null)
             {
-                ApplyDeferredReferencePrunes();
-                IAsyncNodeManager? registeredFacade = GetPublishedRootNotifierOwner(owner);
-                if (registeredFacade is null)
-                {
-                    owner.RetainRemovedExternalReferences(referencesToRemove);
-                    return;
-                }
-                await using var callbackPermit = new NodeManagerCallbackPermit(
-                    m_lifecycleCallbackPermit,
-                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
-                var pendingRemovals = new List<DeferredServingReference>();
-                await RemoveServingReferencesAsync(owner, referencesToRemove, pendingRemovals, cancellationToken)
-                    .ConfigureAwait(false);
-                PruneDynamicExternalReferences(registeredFacade, referencesToRemove);
-                ChangePreparer.GetServer(owner)?.DiscardCapturedReferences(referencesToRemove);
-                EnqueueDeferredServingRemoval(owner, pendingRemovals);
-                if (!m_deferredServingRemovals.IsEmpty)
-                {
-                    ScheduleDeferredReferenceDrain();
-                }
+                owner.RetainRemovedExternalReferences(referencesToRemove);
+                return;
             }
-            finally
+            await using var admittedCallback = new LegacyNodeManagerCallbackScope(
+                m_lifecycleCallbackPermit,
+                GetAdmissionCapabilities(admission));
+            var admittedRemovals = new List<DeferredServingReference>();
+            await RemoveServingReferencesAsync(owner, referencesToRemove, admittedRemovals, cancellationToken)
+                .ConfigureAwait(false);
+            PruneDynamicExternalReferences(registeredFacade, referencesToRemove);
+            ChangePreparer.GetServer(owner)?.DiscardCapturedReferences(referencesToRemove);
+            EnqueueDeferredServingRemoval(owner, admittedRemovals);
+            if (!m_deferredServingRemovals.IsEmpty)
             {
-                if (mutationAdmissionHeld)
-                {
-                    m_dynamicMutationSemaphore.Release();
-                }
+                ScheduleDeferredReferenceDrain();
             }
         }
 
@@ -1062,7 +1053,7 @@ namespace Opc.Ua.Server
                 NodeState? target = reference.DeletedTarget is null ? owner.Find(reference.TargetId) : null;
                 foreach (IAsyncNodeManager source in GetReferenceSourceOwners(view, reference.SourceId))
                 {
-                    if (view.CanDispatchTo(source))
+                    if (NodeManagerServiceDispatcher.CanDispatchTo(view, source, null))
                     {
                         pending.Add(new DeferredServingReference(
                             reference, target, source, view.GetGeneration(source)));
@@ -1180,32 +1171,30 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Enters mutation admission without waiting for another holder or a pending lifecycle decision.
         /// </summary>
-        /// <param name="semaphoreHeld">True when this call acquired the mutation semaphore.</param>
-        /// <returns>True when the caller may mutate dynamic external references.</returns>
-        private bool TryEnterDynamicMutationAdmission(out bool semaphoreHeld)
+        /// <returns>The admission, or null if obtaining it would require a wait.</returns>
+        private INodeManagerBatchAdmission? TryAcquireDynamicMutationAdmission()
         {
-            semaphoreHeld = false;
-            if (Volatile.Read(ref m_lifecycleDecisionCompletion) is not null)
+            if (Volatile.Read(ref m_lifecycleDecisionWindow) is not null)
             {
-                return false;
+                return null;
             }
-            if (HasActiveCallbackPermit(
-                    CaptureLifecycleCallbackPermit(),
-                    NodeManagerAdmissionCapability.AddressSpaceMutation))
+            NodeManagerCallbackPermit? permit = FindActiveCallbackPermit(CaptureLifecycleCallbackPermit());
+            if (permit is not null &&
+                (permit.Capabilities & NodeManagerAdmissionCapability.AddressSpaceMutation) != 0)
             {
-                return true;
+                NodeManagerCallbackPermit.Borrow? borrow = permit.TryBorrow(permit.Capabilities);
+                return borrow is null ? null : new BatchAdmission(null, null, borrow);
             }
-            if (!m_dynamicMutationSemaphore.Wait(0))
+            if (!m_dynamicMutationSemaphore.Wait(0, CancellationToken.None))
             {
-                return false;
+                return null;
             }
-            if (Volatile.Read(ref m_lifecycleDecisionCompletion) is not null)
+            if (Volatile.Read(ref m_lifecycleDecisionWindow) is not null)
             {
                 m_dynamicMutationSemaphore.Release();
-                return false;
+                return null;
             }
-            semaphoreHeld = true;
-            return true;
+            return new BatchAdmission(m_dynamicMutationSemaphore, null);
         }
 
         /// <summary>
@@ -1367,18 +1356,17 @@ namespace Opc.Ua.Server
         private async Task<DeferredReferenceDrainOutcome> ApplyDeferredReferenceChangesAsync(
             CancellationToken cancellationToken)
         {
-            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
-                .ConfigureAwait(false);
-            try
+            using (INodeManagerBatchAdmission admission = await AcquireDynamicMutationAdmissionAsync(
+                CaptureLifecycleCallbackPermit(), cancellationToken).ConfigureAwait(false))
             {
                 ApplyDeferredReferencePrunes();
                 if (m_deferredServingRemovals.IsEmpty && m_deferredTypeRemovals.IsEmpty)
                 {
                     return DeferredReferenceDrainOutcome.Completed;
                 }
-                await using var callbackPermit = new NodeManagerCallbackPermit(
+                await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                     m_lifecycleCallbackPermit,
-                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                    GetAdmissionCapabilities(admission));
                 var outcome = DeferredReferenceDrainOutcome.Completed;
                 var retainedTypes = new List<DeferredTypeRemoval>();
                 var retained = new List<DeferredServingRemoval>();
@@ -1448,13 +1436,6 @@ namespace Opc.Ua.Server
                 }
                 return outcome;
             }
-            finally
-            {
-                if (mutationAdmissionHeld)
-                {
-                    m_dynamicMutationSemaphore.Release();
-                }
-            }
         }
 
         /// <summary>
@@ -1488,7 +1469,7 @@ namespace Opc.Ua.Server
                 foreach (IAsyncNodeManager source in GetReferenceSourceOwners(view, captured.Reference.SourceId))
                 {
                     NodeManagerGeneration generation = view.GetGeneration(source);
-                    if (view.CanDispatchTo(source) &&
+                    if (NodeManagerServiceDispatcher.CanDispatchTo(view, source, null) &&
                         !group.Exists(candidate =>
                             ReferenceEquals(candidate.Source, source) &&
                             ReferenceEquals(candidate.Generation, generation)))
@@ -1568,7 +1549,7 @@ namespace Opc.Ua.Server
                 {
                     if (!Array.Exists(view.VisibleNodeManagers, manager => ReferenceEquals(manager, candidate.Source)) ||
                         !ReferenceEquals(view.GetGeneration(candidate.Source), candidate.Generation) ||
-                        !view.CanDispatchTo(candidate.Source))
+                        !NodeManagerServiceDispatcher.CanDispatchTo(view, candidate.Source, null))
                     {
                         continue;
                     }
@@ -2072,9 +2053,8 @@ namespace Opc.Ua.Server
             NodeState notifier,
             CancellationToken cancellationToken)
         {
-            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
-                .ConfigureAwait(false);
-            try
+            using (INodeManagerBatchAdmission admission = await AcquireDynamicMutationAdmissionAsync(
+                CaptureLifecycleCallbackPermit(), cancellationToken).ConfigureAwait(false))
             {
                 if (!IsPublishedNodeManager(registeredFacade) || !owner.IsCurrentRootNotifier(notifier))
                 {
@@ -2086,9 +2066,9 @@ namespace Opc.Ua.Server
                     return true;
                 }
 
-                await using var callbackPermit = new NodeManagerCallbackPermit(
+                await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                     m_lifecycleCallbackPermit,
-                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                    GetAdmissionCapabilities(admission));
                 await AddReferencesAsync(
                     ObjectIds.Server,
                     [
@@ -2102,13 +2082,6 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
                 return true;
             }
-            finally
-            {
-                if (mutationAdmissionHeld)
-                {
-                    m_dynamicMutationSemaphore.Release();
-                }
-            }
         }
 
         /// <summary>
@@ -2120,9 +2093,8 @@ namespace Opc.Ua.Server
             NodeId notifierId,
             CancellationToken cancellationToken)
         {
-            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
-                .ConfigureAwait(false);
-            try
+            using (INodeManagerBatchAdmission admission = await AcquireDynamicMutationAdmissionAsync(
+                CaptureLifecycleCallbackPermit(), cancellationToken).ConfigureAwait(false))
             {
                 ApplyDeferredReferencePrunes();
                 if (!IsPublishedNodeManager(registeredFacade) || owner.IsRootNotifier(notifierId) ||
@@ -2131,9 +2103,9 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                await using var callbackPermit = new NodeManagerCallbackPermit(
+                await using var callbackPermit = new LegacyNodeManagerCallbackScope(
                     m_lifecycleCallbackPermit,
-                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                    GetAdmissionCapabilities(admission));
                 (object? handle, IAsyncNodeManager? currentOwner) =
                     await GetManagerHandleAsync(notifierId, cancellationToken).ConfigureAwait(false);
                 if ((handle is not null && !ReferenceEquals(currentOwner, registeredFacade)) ||
@@ -2147,13 +2119,6 @@ namespace Opc.Ua.Server
                     owner,
                     [new LocalReference(ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, notifierId)],
                     cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                if (mutationAdmissionHeld)
-                {
-                    m_dynamicMutationSemaphore.Release();
-                }
             }
         }
 
