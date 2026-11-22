@@ -169,6 +169,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [Test]
+        public async Task HandoffWorkerKeepsPublishedSuccessorAfterPostSwapFailureAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            var host = (IDynamicNodeManagerHost)m_server.CurrentInstance.NodeManager;
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))],
+                timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration predecessor = RequireRegistration(added.Registrations[0]);
+            TrackingLifecycleNodeManager? candidate = null;
+            var pause = new TestHandoffPause();
+            pause.AllowDrain.TrySetResult(true);
+            var factory = new TestHandoffFactory(
+                CreateTrackingNodeManagementFactory(kGeneration2Value, manager => candidate = manager), pause);
+            m_server.HostBoundary.Publication = CreatePostSwapPublicationFailure(
+                () => true, notifyBeforeFailure: false, new InvalidOperationException("Injected post-swap failure."));
+
+            try
+            {
+                Assert.That(lifecycle.QueueHandoff(predecessor, factory, timeout.Token), Is.EqualTo(StatusCodes.Good));
+                Assert.That(await pause.Finished.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.False);
+                AssertLifecycleValue(candidate);
+                Assert.That(predecessor.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(current.NodeManager, Is.SameAs(candidate));
+                Assert.That(current.Generation, Is.EqualTo(predecessor.Generation + 1));
+                Assert.That(host.RoutingRevision.TryGetGeneration(candidate, out NodeManagerGeneration? generation),
+                    Is.True);
+                Assert.That(generation!.Number, Is.EqualTo(current.Generation));
+                Assert.That(NodeManagerLifecycle.IsSelected(host, generation), Is.True);
+                Assert.That(NodeManagerLifecycle.IsSelected(host, predecessor.Identity), Is.False);
+            }
+            finally
+            {
+                m_server.HostBoundary.Publication = null;
+            }
+
+            LifecycleResult removed = await lifecycle.ApplyAsync(
+                [LifecycleChange.Remove(predecessor.Slot)], timeout.Token).ConfigureAwait(false);
+            await removed.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(removed.CleanupFailure, Is.Null);
+            Assert.That(candidate.DisposeCount, Is.EqualTo(1));
+        }
+
         /// <summary>
         /// Supplies an inert factory whose pause can be controlled by the test.
         /// </summary>
