@@ -577,9 +577,22 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
 
             // ... whose client then needs a new connection for its next request.
-            using (HttpResponseMessage response = await listener
-                .PostAsync("/read", CreateReadRequest(2), CreateAuthorizationHeader("basic-valid"), first)
-                .ConfigureAwait(false))
+            // The client may still send that request on the reclaimed connection
+            // before it sees the reset; it then fails once and is sent again.
+            HttpResponseMessage response;
+            try
+            {
+                response = await listener
+                    .PostAsync("/read", CreateReadRequest(2), CreateAuthorizationHeader("basic-valid"), first)
+                    .ConfigureAwait(false);
+            }
+            catch (HttpRequestException)
+            {
+                response = await listener
+                    .PostAsync("/read", CreateReadRequest(2), CreateAuthorizationHeader("basic-valid"), first)
+                    .ConfigureAwait(false);
+            }
+            using (response)
             {
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
                 Assert.That(response.Version, Is.EqualTo(HttpVersion.Version20));

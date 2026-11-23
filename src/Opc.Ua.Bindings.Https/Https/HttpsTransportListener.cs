@@ -1263,7 +1263,7 @@ namespace Opc.Ua.Bindings
             // scope of its own would admit MaxChannelCount sockets a second time.
             UaScConnectionAdmission? admission = physical?.Lease.Owner ?? m_admission;
             Func<bool>? reclaim = physical?.SharedReclaimCapacity ?? GetReclaimCallback();
-            Func<bool>? reclaimIdle = GetIdleConnectionReclaimer(
+            Func<bool, bool>? reclaimIdle = GetIdleConnectionReclaimer(
                 physical != null ? physical.Connections : m_reverseConnectListener ? null : m_httpConnections);
             if (admission == null ||
                 !admission.TryAcquire(
@@ -2264,7 +2264,7 @@ namespace Opc.Ua.Bindings
         /// or null when none is tracked, so that admission then refuses
         /// without consuming a rate limiter token.
         /// </summary>
-        private static Func<bool>? GetIdleConnectionReclaimer(HttpConnectionActivityRegistry? connections)
+        private static Func<bool, bool>? GetIdleConnectionReclaimer(HttpConnectionActivityRegistry? connections)
         {
             return connections is { Count: > 0 } ? connections.TryReclaimIdle : null;
         }

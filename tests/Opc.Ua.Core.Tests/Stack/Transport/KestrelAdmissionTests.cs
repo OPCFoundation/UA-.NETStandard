@@ -872,6 +872,66 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// A listener's own ceiling is relieved by any of its idle connections,
+        /// including one admitted from a protected floor.
+        /// </summary>
+        [Test]
+        public async Task ProtectedIdleConnectionRelievesTheListenerCeilingAsync()
+        {
+            var provider = new CountingIsolationProvider(protectedOwnerKey: "127.0.0.2");
+            var admission = new UaScConnectionAdmission(1, null, provider);
+            var connections = new HttpConnectionActivityRegistry();
+            await using var idle = new TestConnectionContext
+            {
+                RemoteEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.2"), 1)
+            };
+            await using var incoming = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 2) };
+            Task idleRun = RunKeepAliveConnectionAsync(idle, admission, connections, out Task served);
+            await served.ConfigureAwait(false);
+
+            bool admitted = false;
+            await HttpsTransportListener.RunHttpsConnectionAsync(incoming, _ =>
+            {
+                admitted = true;
+                return Task.CompletedTask;
+            }, admission, null, null, connections).ConfigureAwait(false);
+
+            Assert.That(admitted, Is.True);
+            await AssertAbortedAsync(idle).ConfigureAwait(false);
+            await idleRun.ConfigureAwait(false);
+        }
+        /// <summary>
+        /// Only a channel behind an admission lease that holds shared capacity
+        /// is reclaimed for shared capacity; an outbound reverse connection has
+        /// no lease and holds none.
+        /// </summary>
+        [Test]
+        public void OnlyLeasedSharedConnectionsRelieveSharedCapacity()
+        {
+            var provider = new CountingIsolationProvider(protectedOwnerKey: "127.0.0.2");
+            var admission = new UaScConnectionAdmission(0, null, provider);
+            try
+            {
+                Assert.That(UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(null), Is.False);
+                Assert.That(
+                    UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(new Mock<IUaSCByteTransport>().Object),
+                    Is.False);
+                Assert.That(admission.TryAcquire(new IPEndPoint(IPAddress.Loopback, 1), out UaScConnectionAdmission.Lease? shared), Is.True);
+                Assert.That(admission.TryAcquire(new IPEndPoint(IPAddress.Parse("127.0.0.2"), 1), out UaScConnectionAdmission.Lease? floor), Is.True);
+                using (shared)
+                using (floor)
+                {
+                    Assert.That(UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(shared), Is.True);
+                    Assert.That(UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(floor), Is.False);
+                }
+            }
+            finally
+            {
+                admission.Stop();
+            }
+        }
+
+        /// <summary>
         /// A listener that enforces a limit after admission, such as its channel
         /// table, does not reclaim another listener's connection while that
         /// limit would refuse the new connection anyway.
@@ -935,7 +995,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     tcp.TryAcquire(
                         new IPEndPoint(IPAddress.Loopback, 1),
                         out _,
-                        tryReclaimIdleConnection: () =>
+                        tryReclaimIdleConnection: _ =>
                         {
                             idleReclaims++;
                             return true;

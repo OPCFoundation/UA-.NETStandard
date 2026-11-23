@@ -74,13 +74,16 @@ namespace Opc.Ua.Bindings
         /// <param name="tryReclaimIdleConnection">
         /// Closes an established idle connection of this scope. Such a connection
         /// holds connection capacity only, so it is closed only when the startup
-        /// handshake capacity was admitted.
+        /// handshake capacity was admitted. Its argument is true when the shared
+        /// provider capacity is exhausted, which a connection admitted from a
+        /// protected floor cannot relieve, and false when only this scope's own
+        /// ceiling is reached, which any of its connections relieves.
         /// </param>
         public bool TryAcquire(
             EndPoint? remoteEndpoint,
             [NotNullWhen(true)] out Lease? lease,
             Func<bool>? tryReclaimCapacity = null,
-            Func<bool>? tryReclaimIdleConnection = null)
+            Func<bool, bool>? tryReclaimIdleConnection = null)
         {
             lease = null;
             lock (m_lock)
@@ -251,7 +254,7 @@ namespace Opc.Ua.Bindings
             bool connectionAdmitted,
             bool handshakeAdmitted,
             Func<bool>? tryReclaimCapacity,
-            Func<bool>? tryReclaimIdleConnection)
+            Func<bool, bool>? tryReclaimIdleConnection)
         {
             if (tryReclaimCapacity?.Invoke() == true)
             {
@@ -263,11 +266,11 @@ namespace Opc.Ua.Bindings
             }
             if (connectionAdmitted)
             {
-                // Only this scope's own ceiling is reached: one of its own
+                // Only this scope's own ceiling is reached: any of its own
                 // connections can free it, one of another scope cannot.
-                return !m_limitPendingHandshakesOnly && tryReclaimIdleConnection?.Invoke() == true;
+                return !m_limitPendingHandshakesOnly && tryReclaimIdleConnection?.Invoke(false) == true;
             }
-            if (tryReclaimIdleConnection?.Invoke() == true)
+            if (tryReclaimIdleConnection?.Invoke(true) == true)
             {
                 return true;
             }
@@ -418,11 +421,13 @@ namespace Opc.Ua.Bindings
 
             /// <summary>
             /// Whether closing the connection behind a channel's transport frees
-            /// shared connection capacity; true for a transport without a lease.
+            /// shared connection capacity. False for a transport without an
+            /// admission lease, such as an outbound reverse connection, which
+            /// holds no provider capacity.
             /// </summary>
             internal static bool CanRelieveSharedCapacity(IUaSCByteTransport? transport)
             {
-                return transport is not Lease lease || lease.UsesSharedConnectionCapacity;
+                return transport is Lease lease && lease.UsesSharedConnectionCapacity;
             }
 
             /// <summary>

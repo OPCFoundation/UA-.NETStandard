@@ -57,21 +57,37 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Closes the connection that has been idle longest and holds shared
+        /// connection capacity, for a new connection that found the shared
+        /// capacity exhausted. Returns false when there is none.
+        /// </summary>
+        public bool TryReclaimIdle()
+        {
+            return TryReclaimIdle(sharedCapacityOnly: true);
+        }
+
+        /// <summary>
         /// Closes the connection that has been idle longest. Returns false when
         /// every tracked connection has a request in flight.
         /// </summary>
-        /// <remarks>
-        /// A connection admitted entirely from a protected floor is never
-        /// reclaimed: closing it frees no capacity a new connection could use
-        /// unless it belongs to the same protected owner.
-        /// </remarks>
-        public bool TryReclaimIdle()
+        /// <param name="sharedCapacityOnly">
+        /// Skips a connection admitted entirely from a protected floor: closing
+        /// it frees no shared capacity, only a slot of the listener's own ceiling.
+        /// </param>
+        public bool TryReclaimIdle(bool sharedCapacityOnly)
         {
             HttpConnectionActivity[] candidates = [.. m_connections.Keys];
-            Array.Sort(candidates, static (left, right) => left.LastActivity.CompareTo(right.LastActivity));
+            // Sorted by keys read once: requests end concurrently and move
+            // LastActivity, which a comparer must not observe changing.
+            long[] lastActivity = new long[candidates.Length];
+            for (int ii = 0; ii < candidates.Length; ii++)
+            {
+                lastActivity[ii] = candidates[ii].LastActivity;
+            }
+            Array.Sort(lastActivity, candidates);
             foreach (HttpConnectionActivity candidate in candidates)
             {
-                if (candidate.UsesSharedCapacity && candidate.TryReclaim())
+                if ((!sharedCapacityOnly || candidate.UsesSharedCapacity) && candidate.TryReclaim())
                 {
                     m_connections.TryRemove(candidate, out _);
                     return true;
