@@ -159,6 +159,11 @@ static async Task RunHttpServerAsync(
     McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions,
         builder.Configuration.CreateWotMcpOptions());
 
+    // Every HTTP request must carry the host's bearer token; the token maps to a stable
+    // caller identity so session tools work and caller grants can name HTTP clients.
+    McpHttpSecurityOptions httpSecurity = McpHttpSecurityOptions.Read(builder.Configuration);
+    builder.Services.AddMcpHttpSecurity(httpSecurity);
+
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
         .WithHttpTransport();
@@ -169,8 +174,11 @@ static async Task RunHttpServerAsync(
 
     WebApplication app = builder.Build();
     McpHostBuilder.LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
-    app.MapMcp("/mcp");
+    app.UseMcpHttpSecurity(httpSecurity);
+    app.MapMcp("/mcp").RequireAuthorization();
     app.Urls.Add($"http://localhost:{port}");
+    await Console.Error.WriteLineAsync(
+        McpHttpSecurity.StartupNotice(httpSecurity, port).AsMemory(), ct).ConfigureAwait(false);
 
     await app.RunAsync(ct).ConfigureAwait(false);
 }

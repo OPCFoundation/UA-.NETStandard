@@ -942,6 +942,27 @@ opcua-mcp --transport http --port 5100
 
 The server listens at `http://localhost:5100/mcp`. `--transport sse` is a deprecated alias for `http` kept for the current major version only — prefer `http` in new configurations.
 
+Every request must carry a bearer token. Without one configured, the server generates a token at
+startup and prints it, with a ready-to-paste client command, to standard error. Set a fixed token
+(at least 32 characters) to keep client configurations stable:
+
+```powershell
+$env:McpServer__Http__Token = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+opcua-mcp --transport http
+claude mcp add --transport http opcua http://localhost:5100/mcp --header "Authorization: Bearer $env:McpServer__Http__Token"
+```
+
+In VS Code, add `"headers": { "Authorization": "Bearer <token>" }` to the server entry in `.vscode/mcp.json`.
+`OPCUA_MCP_HTTP_TOKEN` is accepted as an alternative variable name.
+
+The token authenticates the caller as subject `http-token` (change with `McpServer:Http:Subject`) and
+issuer `urn:opcfoundation:mcp:http-token`; use that pair in `McpServer:Execution:CallerGrants` to
+grant HTTP clients capabilities. Requests whose `Host` header is not `localhost`, `127.0.0.1` or
+`[::1]` are rejected (400), which blocks DNS rebinding; list other names in
+`McpServer:Http:AllowedHosts`. Requests with an `Origin` header (browsers) are rejected (403) unless
+the origin is listed in `McpServer:Http:AllowedOrigins`, for example `http://localhost:6274` for the
+MCP Inspector.
+
 ### Companion file transfers
 
 DI package uploads and Machinery result downloads use an explicitly configured,
