@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Tests;
@@ -183,6 +185,77 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 Assert.That(frame, Is.Not.Null);
                 Assert.That(frame!.Value.Payload.ToArray(), Is.EqualTo(new byte[] { 0x42 }));
             });
+        }
+
+        [Test]
+        public async Task CloseDuringHandshakeBackOffEndsReceiveAsync()
+        {
+            int port;
+            try
+            {
+                port = UdpIntegrationTestHelpers.ReserveEphemeralPort(IPAddress.Loopback);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            DtlsProfile profile = CreateProfile();
+            string url = $"opc.dtls://127.0.0.1:{port}";
+            var endpoint = new UdpEndpoint(
+                IPAddress.Loopback,
+                port,
+                UdpAddressType.Unicast,
+                url,
+                IsDtls: true,
+                DtlsProfileName: profile.Name);
+            using var peerSocket = NewLoopbackSocket();
+            var contextFactory = new MarkerContextFactory(
+                (IPEndPoint)peerSocket.LocalEndPoint!,
+                failingHandshakes: int.MaxValue);
+            // Fake time never advances, so the back-off after the failed
+            // handshake only ends when the transport is closed.
+            var time = new FakeTimeProvider();
+            await using var transport = new DtlsDatagramTransport(
+                UdpIntegrationTestHelpers.NewConnection(url, "dtls-peer-close"),
+                endpoint,
+                PubSubTransportDirection.Receive,
+                networkInterface: null,
+                NUnitTelemetryContext.Create(),
+                time,
+                UdpIntegrationTestHelpers.LoopbackOptions(),
+                diagnostics: null,
+                contextFactory,
+                profile);
+
+            try
+            {
+                await transport.OpenAsync().ConfigureAwait(false);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"DTLS loopback open failed: {ex.Message}");
+                return;
+            }
+
+            await using IAsyncEnumerator<PubSubTransportFrame> receive =
+                transport.ReceiveAsync().GetAsyncEnumerator();
+            Task<bool> next = receive.MoveNextAsync().AsTask();
+            var stopwatch = Stopwatch.StartNew();
+            while (contextFactory.HandshakeCount < 1 && stopwatch.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+            Assert.That(contextFactory.HandshakeCount, Is.EqualTo(1));
+
+            await transport.CloseAsync().ConfigureAwait(false);
+
+            Assert.That(
+                await Task.WhenAny(next, Task.Delay(5000)).ConfigureAwait(false),
+                Is.SameAs(next),
+                "Closing the transport must end a receive waiting in the handshake back-off.");
+            Assert.That(await next.ConfigureAwait(false), Is.False);
         }
 
         [Test]

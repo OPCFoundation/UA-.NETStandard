@@ -109,8 +109,11 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             {
                 m_subscriptions.AddRange(topics);
             }
+            OnSubscribe?.Invoke(topics);
             return default;
         }
+
+        public Action<IReadOnlyList<MqttTopicFilter>>? OnSubscribe { get; set; }
 
         public ValueTask UnsubscribeAsync(
             IReadOnlyList<string> topics,

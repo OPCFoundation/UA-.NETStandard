@@ -78,6 +78,8 @@ namespace Opc.Ua.PubSub.Mqtt
         private bool m_disposed;
         private CancellationTokenSource? m_reconnectCts;
         private Task? m_reconnectTask;
+        private bool m_reconnectActive;
+        private bool m_reconnectRequested;
 
         /// <summary>
         /// Initializes a new <see cref="MqttBrokerTransport"/>.
@@ -504,11 +506,20 @@ namespace Opc.Ua.PubSub.Mqtt
                     return;
                 }
                 m_isConnected = e.IsConnected;
-                startReconnect = !e.IsConnected &&
-                    m_opened &&
-                    !m_disposed &&
-                    Options.AutoReconnect &&
-                    (m_reconnectTask is null || m_reconnectTask.IsCompleted);
+                startReconnect = false;
+                if (!e.IsConnected && m_opened && !m_disposed && Options.AutoReconnect)
+                {
+                    if (m_reconnectActive)
+                    {
+                        // The running worker may be about to report success:
+                        // tell it to go round again instead of returning.
+                        m_reconnectRequested = true;
+                    }
+                    else
+                    {
+                        startReconnect = true;
+                    }
+                }
             }
             StatusCode status = e.IsConnected
                 ? StatusCodes.Good
@@ -525,12 +536,17 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             lock (m_sync)
             {
-                if (m_disposed ||
-                    !ReferenceEquals(m_adapter, adapter) ||
-                    (m_reconnectTask is not null && !m_reconnectTask.IsCompleted))
+                if (m_disposed || !ReferenceEquals(m_adapter, adapter))
                 {
                     return;
                 }
+                if (m_reconnectActive)
+                {
+                    m_reconnectRequested = true;
+                    return;
+                }
+                m_reconnectActive = true;
+                m_reconnectRequested = false;
                 m_reconnectCts?.Dispose();
                 var cts = new CancellationTokenSource();
                 m_reconnectCts = cts;
@@ -544,49 +560,87 @@ namespace Opc.Ua.PubSub.Mqtt
         /// </summary>
         private async Task ReconnectLoopAsync(IMqttClientAdapter adapter, CancellationToken ct)
         {
-            TimeSpan delay = Options.ReconnectDelay > TimeSpan.Zero
+            TimeSpan initialDelay = Options.ReconnectDelay > TimeSpan.Zero
                 ? Options.ReconnectDelay
                 : TimeSpan.FromMilliseconds(100);
-            TimeSpan maxDelay = Options.MaxReconnectDelay >= delay ? Options.MaxReconnectDelay : delay;
+            TimeSpan maxDelay = Options.MaxReconnectDelay >= initialDelay
+                ? Options.MaxReconnectDelay
+                : initialDelay;
+            TimeSpan delay = initialDelay;
             int attempt = 0;
-            while (!ct.IsCancellationRequested)
+            bool released = false;
+            try
             {
-                try
+                while (!ct.IsCancellationRequested)
                 {
-                    await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
-                    attempt++;
-                    if (!adapter.IsConnected)
+                    try
                     {
-                        await adapter.ConnectAsync(Options, ct).ConfigureAwait(false);
+                        await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
+                        attempt++;
+                        lock (m_sync)
+                        {
+                            // This attempt covers every disconnect seen so far.
+                            m_reconnectRequested = false;
+                        }
+                        if (!adapter.IsConnected)
+                        {
+                            await adapter.ConnectAsync(Options, ct).ConfigureAwait(false);
+                        }
+                        if (HasReceiveDirection && Subscriptions.Count > 0)
+                        {
+                            await adapter.SubscribeAsync(new List<MqttTopicFilter>(Subscriptions), ct)
+                                .ConfigureAwait(false);
+                        }
+                        bool again;
+                        lock (m_sync)
+                        {
+                            if (ReferenceEquals(m_adapter, adapter))
+                            {
+                                m_isConnected = adapter.IsConnected;
+                            }
+                            // A disconnect that arrived while this worker was
+                            // running was not given its own worker: handle it here.
+                            again = m_reconnectRequested && !ct.IsCancellationRequested;
+                            m_reconnectRequested = false;
+                            if (!again)
+                            {
+                                m_reconnectActive = false;
+                                released = true;
+                            }
+                        }
+                        m_logger.MqttReconnected(m_connection.Name, attempt);
+                        if (!again)
+                        {
+                            return;
+                        }
+                        delay = initialDelay;
+                        attempt = 0;
                     }
-                    if (HasReceiveDirection && Subscriptions.Count > 0)
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
-                        await adapter.SubscribeAsync(new List<MqttTopicFilter>(Subscriptions), ct)
-                            .ConfigureAwait(false);
+                        return;
                     }
+                    catch (ObjectDisposedException)
+                    {
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        TimeSpan next = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, maxDelay.Ticks));
+                        m_logger.MqttReconnectFailed(ex, attempt, m_connection.Name, next);
+                        delay = next;
+                    }
+                }
+            }
+            finally
+            {
+                if (!released)
+                {
                     lock (m_sync)
                     {
-                        if (ReferenceEquals(m_adapter, adapter))
-                        {
-                            m_isConnected = adapter.IsConnected;
-                        }
+                        m_reconnectActive = false;
+                        m_reconnectRequested = false;
                     }
-                    m_logger.MqttReconnected(m_connection.Name, attempt);
-                    return;
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (ObjectDisposedException)
-                {
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    TimeSpan next = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, maxDelay.Ticks));
-                    m_logger.MqttReconnectFailed(ex, attempt, m_connection.Name, next);
-                    delay = next;
                 }
             }
         }

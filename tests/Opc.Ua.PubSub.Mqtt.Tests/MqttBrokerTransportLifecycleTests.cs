@@ -231,6 +231,36 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         }
 
         [Test]
+        public async Task BrokerConnectionLost_DuringReconnectCompletion_ReconnectsAgainAsync()
+        {
+            var factory = new FakeMqttClientFactory();
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtt://broker.example.com:1883",
+                ReconnectDelay = TimeSpan.FromMilliseconds(10)
+            };
+            await using MqttBrokerTransport transport = NewTransport(
+                factory, PubSubTransportDirection.Receive, options);
+            await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+
+            // The first resubscribe of the reconnect worker succeeds, then the
+            // broker drops the connection before the worker has returned.
+            int dropOnSubscribe = 1;
+            factory.Adapter.OnSubscribe = _ =>
+            {
+                if (Interlocked.Exchange(ref dropOnSubscribe, 0) == 1)
+                {
+                    factory.Adapter.RaiseConnectionStateChanged(false, "dropped again");
+                }
+            };
+
+            factory.Adapter.RaiseConnectionStateChanged(false, "broker restart");
+
+            await WaitUntilAsync(() => factory.Adapter.ConnectCount == 3 && transport.IsConnected)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task BrokerConnectionLost_AutoReconnectDisabled_StaysDisconnectedAsync()
         {
             var factory = new FakeMqttClientFactory();

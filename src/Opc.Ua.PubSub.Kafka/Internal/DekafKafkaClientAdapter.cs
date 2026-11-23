@@ -40,6 +40,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         private readonly List<string> m_subscribedTopics = [];
 
         private KafkaConnectionOptions? m_options;
+        private string? m_groupId;
         private IKafkaProducer<byte[], byte[]>? m_producer;
         private IKafkaConsumer<byte[], byte[]>? m_consumer;
         private CancellationTokenSource? m_loopCts;
@@ -100,6 +101,13 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             lock (m_sync)
             {
                 m_options = options;
+                // Resolve the consumer group once per connection, so a consumer
+                // rebuilt after a failure rejoins the same group and keeps its
+                // committed offsets.
+                if (!string.IsNullOrEmpty(options.GroupId) || m_groupId is null)
+                {
+                    m_groupId = ResolveGroupId(options);
+                }
                 m_loopCts ??= new CancellationTokenSource();
                 raiseConnected = !m_connected;
                 m_connected = true;
@@ -285,6 +293,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     m_producer = null;
                     wasConnected = m_connected;
                     m_connected = false;
+                    m_groupId = null;
                     m_subscribedTopics.Clear();
                 }
 
@@ -371,7 +380,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 return m_consumer;
             }
             ConsumerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
-            ApplyConsumerConfig(builder, m_options!);
+            ApplyConsumerConfig(builder, m_options!, m_groupId ?? ResolveGroupId(m_options!));
             m_consumer = await builder.BuildAsync(ct).ConfigureAwait(false);
             return m_consumer;
         }
@@ -487,13 +496,15 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     return null;
                 }
                 ConsumerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
-                ApplyConsumerConfig(builder, m_options);
+                ApplyConsumerConfig(builder, m_options, m_groupId ?? ResolveGroupId(m_options));
                 IKafkaConsumer<byte[], byte[]> replacement = await builder.BuildAsync(ct).ConfigureAwait(false);
                 if (m_subscribedTopics.Count > 0)
                 {
                     replacement.Subscribe([.. m_subscribedTopics]);
                 }
                 m_consumer = replacement;
+                // The replacement is already current: a failure to clean up the
+                // failed consumer must not stop the loop from switching to it.
                 try
                 {
                     await failed.CloseAsync(CancellationToken.None).ConfigureAwait(false);
@@ -502,7 +513,14 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 {
                     m_logger.KafkaConsumerCloseRaisedException(ex);
                 }
-                await failed.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await failed.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.KafkaConsumerCloseRaisedException(ex);
+                }
                 return replacement;
             }
             finally
@@ -604,10 +622,11 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private static void ApplyConsumerConfig(
             ConsumerBuilder<byte[], byte[]> builder,
-            KafkaConnectionOptions options)
+            KafkaConnectionOptions options,
+            string groupId)
         {
             ApplyConsumerCommonConfig(builder, options);
-            builder.WithGroupId(ResolveGroupId(options))
+            builder.WithGroupId(groupId)
                 .WithAutoOffsetReset(MapAutoOffsetReset(options.AutoOffsetReset))
                 .WithOffsetCommitMode(options.EnableAutoCommit ? OffsetCommitMode.Auto : OffsetCommitMode.Manual);
         }

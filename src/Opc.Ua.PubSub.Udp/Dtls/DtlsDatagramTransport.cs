@@ -107,6 +107,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             cancellationToken.ThrowIfCancellationRequested();
             ClearAuthenticatedPeer();
             m_closed = false;
+            CancelLifetime();
+            m_lifetimeCts = new CancellationTokenSource();
             if (DefaultDtlsContextFactory.DetermineRole(m_connection) == DtlsEndpointRole.Server)
             {
                 await m_innerTransport.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -159,6 +161,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             m_closed = true;
             m_acceptPending = false;
+            CancelLifetime();
             IDtlsContext? context = m_context;
             m_context = null;
             ClearAuthenticatedPeer();
@@ -181,9 +184,14 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            IDtlsContext context = m_acceptPending
-                ? await AcceptWithRetryAsync(cancellationToken).ConfigureAwait(false)
+            IDtlsContext? context = m_acceptPending
+                ? await AcceptUntilClosedAsync(cancellationToken).ConfigureAwait(false)
                 : GetContext();
+            if (context is null)
+            {
+                // The transport was closed before a handshake completed.
+                yield break;
+            }
             await foreach (PubSubTransportFrame frame in m_innerTransport.ReceiveAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
@@ -221,6 +229,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             m_closed = true;
             m_acceptPending = false;
+            // Cancelled before it is disposed, so a receive that links to its
+            // token afterwards still sees the cancellation.
+            m_lifetimeCts?.Cancel();
+            m_lifetimeCts?.Dispose();
             IDtlsContext? context = m_context;
             m_context = null;
             ClearAuthenticatedPeer();
@@ -273,36 +285,58 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Runs server-side handshakes until one completes. A failed or timed-out
         /// handshake is logged and the server listens again after a back-off, so
         /// neither a missing publisher nor a host that disturbs the handshake ends
-        /// the receive path for good.
+        /// the receive path for good. Closing or disposing the transport cancels a
+        /// pending handshake or back-off; the method then returns
+        /// <see langword="null"/> so the receive sequence ends cleanly.
         /// </summary>
-        private async ValueTask<IDtlsContext> AcceptWithRetryAsync(CancellationToken cancellationToken)
+        private async ValueTask<IDtlsContext?> AcceptUntilClosedAsync(CancellationToken cancellationToken)
         {
+            CancellationToken lifetime = m_lifetimeCts?.Token ?? new CancellationToken(canceled: true);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime);
+            CancellationToken ct = linked.Token;
             int failures = 0;
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (m_closed)
+                if (m_closed || lifetime.IsCancellationRequested)
                 {
-                    throw new ObjectDisposedException(nameof(DtlsDatagramTransport));
+                    return null;
                 }
 
                 try
                 {
-                    return await AcceptOnceAsync(cancellationToken).ConfigureAwait(false);
+                    return await AcceptOnceAsync(ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     throw;
                 }
-                catch (Exception ex) when (!m_closed)
+                catch (Exception) when (m_closed || lifetime.IsCancellationRequested)
+                {
+                    return null;
+                }
+                catch (Exception ex)
                 {
                     failures++;
                     m_logger.DtlsAcceptFailed(ex, m_connection.Name, failures, GetAcceptRetryDelay(failures));
                 }
 
-                await m_timeProvider.Delay(GetAcceptRetryDelay(failures), cancellationToken)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await m_timeProvider.Delay(GetAcceptRetryDelay(failures), ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    return null;
+                }
             }
+        }
+
+        private void CancelLifetime()
+        {
+            // Not disposed: a receive that is still starting may link to its token.
+            CancellationTokenSource? cts = Interlocked.Exchange(ref m_lifetimeCts, null);
+            cts?.Cancel();
         }
 
         private static TimeSpan GetAcceptRetryDelay(int failures)
@@ -407,6 +441,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private IPEndPoint? m_authenticatedPeer;
         private volatile bool m_acceptPending;
         private volatile bool m_closed;
+        private CancellationTokenSource? m_lifetimeCts;
         private static readonly TimeSpan s_initialAcceptRetryDelay = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan s_maxAcceptRetryDelay = TimeSpan.FromSeconds(30);
     }
