@@ -229,10 +229,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             m_closed = true;
             m_acceptPending = false;
-            // Cancelled before it is disposed, so a receive that links to its
-            // token afterwards still sees the cancellation.
-            m_lifetimeCts?.Cancel();
-            m_lifetimeCts?.Dispose();
+            CancelLifetime();
             IDtlsContext? context = m_context;
             m_context = null;
             ClearAuthenticatedPeer();
@@ -441,6 +438,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private IPEndPoint? m_authenticatedPeer;
         private volatile bool m_acceptPending;
         private volatile bool m_closed;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "Detached and cancelled, never disposed: a receive that is still starting may read its token.")]
         private CancellationTokenSource? m_lifetimeCts;
         private static readonly TimeSpan s_initialAcceptRetryDelay = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan s_maxAcceptRetryDelay = TimeSpan.FromSeconds(30);

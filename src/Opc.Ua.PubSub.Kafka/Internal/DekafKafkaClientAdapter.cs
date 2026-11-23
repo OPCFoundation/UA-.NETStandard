@@ -273,6 +273,23 @@ namespace Opc.Ua.PubSub.Kafka.Internal
 
         private async ValueTask ShutdownAsync(bool raiseEvent)
         {
+            // Stop the consume loop before waiting for the client gate: a
+            // consumer rebuild holds the gate while it waits for the broker, and
+            // only this cancellation interrupts it.
+            CancellationTokenSource? runningLoop;
+            lock (m_sync)
+            {
+                runningLoop = m_loopCts;
+            }
+            try
+            {
+                runningLoop?.Cancel();
+            }
+            catch (Exception ex)
+            {
+                m_logger.KafkaConsumeLoopCancellationRaisedException(ex);
+            }
+
             await m_clientGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
@@ -379,10 +396,36 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             {
                 return m_consumer;
             }
-            ConsumerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
-            ApplyConsumerConfig(builder, m_options!, m_groupId ?? ResolveGroupId(m_options!));
-            m_consumer = await builder.BuildAsync(ct).ConfigureAwait(false);
+            m_consumer = await BuildConsumerAsync(m_options!, ct).ConfigureAwait(false);
             return m_consumer;
+        }
+
+        /// <summary>
+        /// Test hook that replaces the Dekaf consumer builder. Receives the
+        /// options and the group id resolved for the current connection.
+        /// </summary>
+        internal Func<KafkaConnectionOptions, string, CancellationToken, ValueTask<IKafkaConsumer<byte[], byte[]>>>?
+            ConsumerFactory { get; set; }
+
+        /// <summary>
+        /// Test hook for the back-off before a failed consumer is rebuilt.
+        /// </summary>
+        internal Func<int, TimeSpan> ConsumeRetryDelay { get; set; } = GetConsumeRetryDelay;
+
+        private async ValueTask<IKafkaConsumer<byte[], byte[]>> BuildConsumerAsync(
+            KafkaConnectionOptions options,
+            CancellationToken ct)
+        {
+            string groupId = m_groupId ?? ResolveGroupId(options);
+            Func<KafkaConnectionOptions, string, CancellationToken, ValueTask<IKafkaConsumer<byte[], byte[]>>>? factory =
+                ConsumerFactory;
+            if (factory is not null)
+            {
+                return await factory(options, groupId, ct).ConfigureAwait(false);
+            }
+            ConsumerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
+            ApplyConsumerConfig(builder, options, groupId);
+            return await builder.BuildAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -443,7 +486,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 catch (Exception ex)
                 {
                     failures++;
-                    TimeSpan delay = GetConsumeRetryDelay(failures);
+                    TimeSpan delay = ConsumeRetryDelay(failures);
                     m_logger.KafkaConsumeLoopRestarting(ex, failures, delay);
                     try
                     {
@@ -495,9 +538,14 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                 {
                     return null;
                 }
-                ConsumerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
-                ApplyConsumerConfig(builder, m_options, m_groupId ?? ResolveGroupId(m_options));
-                IKafkaConsumer<byte[], byte[]> replacement = await builder.BuildAsync(ct).ConfigureAwait(false);
+                IKafkaConsumer<byte[], byte[]> replacement = await BuildConsumerAsync(m_options, ct)
+                    .ConfigureAwait(false);
+                if (ct.IsCancellationRequested)
+                {
+                    // Shut down while the replacement was being built.
+                    await replacement.DisposeAsync().ConfigureAwait(false);
+                    return null;
+                }
                 if (m_subscribedTopics.Count > 0)
                 {
                     replacement.Subscribe([.. m_subscribedTopics]);
