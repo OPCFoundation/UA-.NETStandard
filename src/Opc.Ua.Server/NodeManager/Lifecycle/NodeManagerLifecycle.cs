@@ -1813,7 +1813,8 @@ namespace Opc.Ua.Server
                 new(MonitoredItemReferenceComparer.Instance);
 
             private readonly List<IMonitoredItem> m_failedItems = [];
-            private readonly HashSet<IMonitoredItem> m_markedDeletedItems = [];
+            private readonly HashSet<IMonitoredItem> m_markedDeletedItems =
+                new(MonitoredItemReferenceComparer.Instance);
 
             /// <summary>Whether the source consumers have already completed this transition's fences.</summary>
             private bool m_sourceNotificationsDrained;
