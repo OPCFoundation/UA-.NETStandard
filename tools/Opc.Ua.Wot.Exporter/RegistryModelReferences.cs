@@ -257,11 +257,15 @@ namespace Opc.Ua.Wot.Exporter
                 nativeIdentity.IdType == IdType.String)
             {
                 // A hash can belong to a string NodeId; only an explicit JSON Pointer starts a fragment.
-                int separator = reference.IndexOf("#/", StringComparison.Ordinal);
-                if (separator >= 0)
+                int separator = reference.Length;
+                while (model is null && separator > 0)
                 {
-                    model = FindTarget(reference[..separator], aliases);
-                    fragment = reference[separator..];
+                    separator = reference.AsSpan(0, separator).LastIndexOf("#/", StringComparison.Ordinal);
+                    if (separator >= 0)
+                    {
+                        model = FindTarget(reference[..separator], aliases);
+                        fragment = reference[separator..];
+                    }
                 }
             }
             else
