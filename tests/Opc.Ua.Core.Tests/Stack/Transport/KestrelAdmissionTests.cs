@@ -761,24 +761,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         /// <summary>
         /// A scope's own channel ceiling cannot be relieved by another listener,
-        /// so no other listener's connection is closed for it; neither is one
-        /// of a stopped listener.
+        /// so no other listener's connection is closed for it, also when the
+        /// provider capacity is exhausted too; neither is one of a stopped listener.
         /// </summary>
         [Test]
-        public async Task OwnCeilingOrStoppedScopeDoesNotReclaimFromOtherListenersAsync()
+        public void OwnCeilingOrStoppedScopeDoesNotReclaimFromOtherListeners()
         {
             var provider = new CountingIsolationProvider(connectionLimit: 2);
             var https = new UaScConnectionAdmission(0, null, provider);
             var tcp = new UaScConnectionAdmission(1, null, provider);
+            var httpsLeases = new List<UaScConnectionAdmission.Lease>();
             int reclaims = 0;
+            // Would release a connection of the other listener each time it is asked.
             https.SetSharedCapacityReclaimer(() =>
             {
                 reclaims++;
-                return false;
+                if (httpsLeases.Count == 0)
+                {
+                    return false;
+                }
+                httpsLeases[0].Dispose();
+                httpsLeases.RemoveAt(0);
+                return true;
             });
             try
             {
                 Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 1), out UaScConnectionAdmission.Lease? first), Is.True);
+                // Established connections, which hold connection capacity only.
+                first!.CompleteHandshake();
                 using (first)
                 {
                     // Only the scope's own ceiling is reached, which another scope cannot relieve.
@@ -786,21 +796,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Assert.That(reclaims, Is.Zero);
 
                     Assert.That(https.TryAcquire(new IPEndPoint(IPAddress.Loopback, 3), out UaScConnectionAdmission.Lease? second), Is.True);
-                    using (second)
-                    {
-                        // Provider capacity exhausted: the other scope is asked.
-                        Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 4), out _), Is.False);
-                        Assert.That(reclaims, Is.EqualTo(1));
-                    }
+                    second!.CompleteHandshake();
+                    httpsLeases.Add(second);
+                    // Provider capacity and the own ceiling are both exhausted:
+                    // closing the other listener's connection would not admit this one.
+                    Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 4), out _), Is.False);
+                    Assert.That(reclaims, Is.Zero);
+                    Assert.That(httpsLeases, Has.Count.EqualTo(1));
                 }
+
+                // With headroom under its own ceiling, the other listener is asked.
+                Assert.That(https.TryAcquire(new IPEndPoint(IPAddress.Loopback, 5), out UaScConnectionAdmission.Lease? third), Is.True);
+                third!.CompleteHandshake();
+                httpsLeases.Add(third);
+                Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 6), out UaScConnectionAdmission.Lease? reclaimed), Is.True);
+                using (reclaimed)
+                {
+                    Assert.That(reclaims, Is.EqualTo(1));
+                    Assert.That(httpsLeases, Has.Count.EqualTo(1));
+                }
+
                 https.Stop();
+                httpsLeases.Clear();
                 var other = new UaScConnectionAdmission(0, null, provider);
-                Assert.That(other.TryAcquire(new IPEndPoint(IPAddress.Loopback, 5), out UaScConnectionAdmission.Lease? a), Is.True);
-                Assert.That(other.TryAcquire(new IPEndPoint(IPAddress.Loopback, 6), out UaScConnectionAdmission.Lease? b), Is.True);
+                Assert.That(other.TryAcquire(new IPEndPoint(IPAddress.Loopback, 7), out UaScConnectionAdmission.Lease? a), Is.True);
+                Assert.That(other.TryAcquire(new IPEndPoint(IPAddress.Loopback, 8), out UaScConnectionAdmission.Lease? b), Is.True);
                 using (a)
                 using (b)
                 {
-                    Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 7), out _), Is.False);
+                    Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 9), out _), Is.False);
                     Assert.That(reclaims, Is.EqualTo(1), "a stopped scope is no longer asked");
                 }
             }
@@ -809,6 +833,92 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 https.Stop();
                 tcp.Stop();
             }
+        }
+
+        /// <summary>
+        /// When only the handshake capacity is exhausted, closing an established
+        /// connection frees nothing the new connection needs, so none is closed.
+        /// </summary>
+        [Test]
+        public void HandshakeCapacityOnlyDoesNotReclaimEstablishedConnections()
+        {
+            var provider = new CountingIsolationProvider(rejectedStage: ResourceIsolationStage.Handshake);
+            var https = new UaScConnectionAdmission(0, null, provider);
+            var tcp = new UaScConnectionAdmission(0, null, provider);
+            int sharedReclaims = 0;
+            int idleReclaims = 0;
+            https.SetSharedCapacityReclaimer(() =>
+            {
+                sharedReclaims++;
+                return true;
+            });
+            try
+            {
+                Assert.That(
+                    tcp.TryAcquire(
+                        new IPEndPoint(IPAddress.Loopback, 1),
+                        out _,
+                        tryReclaimIdleConnection: () =>
+                        {
+                            idleReclaims++;
+                            return true;
+                        }),
+                    Is.False);
+                Assert.That(sharedReclaims, Is.Zero);
+                Assert.That(idleReclaims, Is.Zero);
+            }
+            finally
+            {
+                https.Stop();
+                tcp.Stop();
+            }
+        }
+        /// <summary>
+        /// A request stays in flight until its response is complete, not only
+        /// until the application pipeline returns, so that its connection is
+        /// not reclaimed while the host still finishes the response.
+        /// </summary>
+        [Test]
+        public async Task RequestStaysInFlightUntilResponseCompletedAsync()
+        {
+            var admission = new UaScConnectionAdmission(0, null, new CountingIsolationProvider());
+            var connections = new HttpConnectionActivityRegistry();
+            await using var connection = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 1) };
+            var response = new CompletableResponseFeature();
+            await HttpsTransportListener.RunHttpsConnectionAsync(connection, async physical =>
+            {
+                var features = new FeatureCollection(physical.Features);
+                features.Set<IHttpResponseFeature>(response);
+                await HttpsTransportListener.RunHttpRequestAsync(
+                    new DefaultHttpContext(features),
+                    () => Task.CompletedTask).ConfigureAwait(false);
+
+                Assert.That(connections.TryReclaimIdle(), Is.False, "the response is not complete yet");
+                await response.CompleteAsync().ConfigureAwait(false);
+                Assert.That(connections.TryReclaimIdle(), Is.True);
+            }, admission, null, null, connections).ConfigureAwait(false);
+            await AssertAbortedAsync(connection).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A response feature that runs its completion callbacks on request.
+        /// </summary>
+        private sealed class CompletableResponseFeature : HttpResponseFeature
+        {
+            public override void OnCompleted(Func<object, Task> callback, object state)
+            {
+                m_completed.Add((callback, state));
+            }
+
+            public async Task CompleteAsync()
+            {
+                foreach ((Func<object, Task> callback, object state) in m_completed)
+                {
+                    await callback(state).ConfigureAwait(false);
+                }
+            }
+
+            private readonly List<(Func<object, Task>, object)> m_completed = [];
         }
 
         /// <summary>
