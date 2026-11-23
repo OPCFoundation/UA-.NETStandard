@@ -160,6 +160,17 @@ namespace Opc.Ua.PubSub.Security.Sks
             PubSubSecurityKey? current = Ring.Current ??
                 throw new InvalidOperationException(
                     $"No current key available for SecurityGroupId '{SecurityGroupId}'.");
+            if (current.IsExpired(m_timeProvider))
+            {
+                // Every cached key has expired (the SKS has been unreachable
+                // for the whole schedule): stop publishing rather than keep
+                // signing and encrypting with an expired key. The key stays
+                // in the ring for TryGetKeyAsync, and the background loop
+                // keeps refreshing.
+                throw new InvalidOperationException(
+                    $"The current key of SecurityGroupId '{SecurityGroupId}' has expired " +
+                    "and no newer key is available.");
+            }
             return new ValueTask<PubSubSecurityKey>(current);
         }
 
@@ -494,9 +505,9 @@ namespace Opc.Ua.PubSub.Security.Sks
                 PubSubSecurityKey key = keys[i];
                 if (previousHighest is uint h && key.TokenId <= h)
                 {
-                    // Already in the ring: take the SKS's schedule for it,
-                    // which changes when the SKS forces a rotation, then zero
-                    // this copy of the material.
+                    // Already in the ring: take an earlier expiry from the
+                    // SKS (it forced a rotation), never a later one, then
+                    // zero this copy of the material.
                     Ring.Reschedule(key.TokenId, key.IssuedAt);
                     key.Dispose();
                     continue;

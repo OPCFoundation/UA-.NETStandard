@@ -190,9 +190,10 @@ namespace Opc.Ua.PubSub.Security
         }
 
         /// <summary>
-        /// Gives the current or a future key another
-        /// <see cref="PubSubSecurityKey.IssuedAt"/>, for an SKS that has
-        /// re-timed its keys (for example after a forced rotation). Past
+        /// Moves the <see cref="PubSubSecurityKey.IssuedAt"/> of the current
+        /// or a future key earlier, for an SKS that has re-timed its keys
+        /// (a forced rotation). A later time is ignored: a schedule computed
+        /// from a delayed response must never extend a key's validity. Past
         /// keys are left alone.
         /// </summary>
         /// <param name="tokenId">Token id of the key to re-time.</param>
@@ -208,7 +209,7 @@ namespace Opc.Ua.PubSub.Security
                 ThrowIfDisposed();
                 if (m_current?.TokenId == tokenId)
                 {
-                    if (m_current.IssuedAt != issuedAt)
+                    if (issuedAt < m_current.IssuedAt)
                     {
                         m_current = m_current.WithIssuedAt(issuedAt);
                         m_byToken[tokenId] = m_current;
@@ -223,7 +224,7 @@ namespace Opc.Ua.PubSub.Security
                     if (key.TokenId == tokenId)
                     {
                         found = true;
-                        if (key.IssuedAt != issuedAt)
+                        if (issuedAt < key.IssuedAt)
                         {
                             key = key.WithIssuedAt(issuedAt);
                             m_byToken[tokenId] = key;
