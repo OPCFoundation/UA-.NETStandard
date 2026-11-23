@@ -601,7 +601,7 @@ without requesting tickets from an externally authenticated device. The
 it does not run an external authentication service or install its DCA credential.
 FDO discovery, ownership vouchers, TO0/TO1/TO2 and `fdo.csr` exchange remain
 outside these samples. No FDO SDK dependency or FDO interoperability result is
-provided. See [the handoff contract](../../docs/GDS.md#external-authentication-certificate-handoff)
+provided. See [the handoff contract](../../docs/Onboarding.md#external-authentication-certificate-handoff)
 for provider registration and recovery behavior.
 
 ### Recover a lost FinishRequest response

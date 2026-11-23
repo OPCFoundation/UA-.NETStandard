@@ -35,7 +35,7 @@ The SDK provides full or partial support for these core areas:
   transports, with platform-dependent DTLS profile limits.
 - Parts 16-20 and 23: state machines, aliases, roles, dictionary references,
   file transfer and common reference types.
-- Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
+- Part 21: [ticket validation, registrar runtime and pull/push workflows](Onboarding.md#opc-10000-21-onboardingclient),
   with retained device credentials, security reset, managed Client provisioning,
   provider-backed Server/ClientAndServer push, durable accepted-work recovery,
   signing and key-pair pull, and lifecycle-aware Part 22 `Resources` composition.
@@ -679,7 +679,7 @@ OPC UA Part 12 areas:
   one managed Server or ClientAndServer application after DCA proof. The
   provisionable-device factory publishes its standard nodes through lifecycle-aware
   routing alongside the Part 22 `Resources` manager. A host can
-  [replace the device node manager](ProvisionableDeviceReplacement.md)
+  [replace the device node manager](Onboarding.md#replace-a-provisionable-devices-node-manager)
   without replacing its runtime or managed targets. Registrar push uses
   the configured certificate type by default and permits a host-selected type
   for each managed application; the selected type must be advertised by its
@@ -690,7 +690,7 @@ OPC UA Part 12 areas:
   truncation operation.
   Pull supports signing and new-key-pair requests for the DCA and managed
   applications. Signing recovery retains the request and its private key.
-  [New-key-pair recovery](PullDcaKeyPairRecovery.md) resumes from a protected
+  [New-key-pair recovery](GDS.md#recover-pull-dca-key-pair-requests) resumes from a protected
   checkpoint. If the registrar consumed the request and the response was lost,
   the workflow starts a fresh request rather than attempting certificate-only
   recovery. Recovery retains the originally selected certificate type.
@@ -704,7 +704,7 @@ OPC UA Part 12 areas:
   software installation their deployment needs. The connected recovery test
   uses an in-memory checkpoint to verify the SDK workflow across a new session;
   it does not verify persistence across a process restart. See
-  [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
+  [the implemented scope](Onboarding.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
 features, partial support, and hosting integration. This is not a claim that every

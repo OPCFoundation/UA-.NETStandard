@@ -360,9 +360,11 @@ Assumes [stage 5](#5-prepare-for-production).
   before exposing application data.
 - [Global Discovery Server](GDS.md) — application registration and central
   certificate management.
-- [Pull DCA key-pair recovery](PullDcaKeyPairRecovery.md) — protected
+- [Device onboarding](Onboarding.md) — registrar setup and pull and push
+  provisioning.
+- [Pull DCA key-pair recovery](GDS.md#recover-pull-dca-key-pair-requests) — protected
   checkpoint storage for server-generated key pairs.
-- [Provisionable device replacement](ProvisionableDeviceReplacement.md) —
+- [Provisionable device replacement](Onboarding.md#replace-a-provisionable-devices-node-manager) —
   replace the node manager without replacing the managed targets.
 - [GDS sample](../samples/Gds/README.md) — a runnable onboarding workflow.
 - [AuthorizationService](AuthorizationService.md) — issue access tokens.

@@ -23,6 +23,19 @@ must also satisfy the inherited server-facet requirements. The implemented
 functionality does not establish certification or the result of a particular
 test run.
 
+## Contents
+
+- [Packages and ownership](#packages-and-ownership)
+- [Host a unit](#host-a-unit)
+- [Equipment acceptance and completion](#equipment-acceptance-and-completion)
+- [Modes and state subsets](#modes-and-state-subsets)
+- [Status and configuration operations](#status-and-configuration-operations)
+- [Administration and persistence](#administration-and-persistence)
+  - [Publication order](#publication-order)
+- [Typed client](#typed-client)
+- [Sample and scope](#sample-and-scope)
+- [Capability boundaries](#capability-boundaries)
+
 ## Packages and ownership
 
 | Package suffix | Responsibility |
