@@ -125,13 +125,26 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return;
             }
-            int needed = m_written + sizeHint;
-            int newSize = Math.Max(m_buffer.Length * 2, needed);
+            // Computed in 64 bits: doubling a buffer above 1 GiB overflows an int.
+            long needed = (long)m_written + sizeHint;
+            if (needed > MaxBufferLength)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The JSON buffer would exceed the maximum array length.");
+            }
+            int newSize = (int)Math.Min(Math.Max((long)m_buffer.Length * 2, needed), MaxBufferLength);
             byte[] rented = ArrayPool<byte>.Shared.Rent(newSize);
             Buffer.BlockCopy(m_buffer, 0, rented, 0, m_written);
             ArrayPool<byte>.Shared.Return(m_buffer, clearArray: false);
             m_buffer = rented;
         }
+
+        /// <summary>
+        /// Largest byte array the runtime allocates (<c>Array.MaxLength</c>,
+        /// which net48 does not have).
+        /// </summary>
+        private const int MaxBufferLength = 0x7FFFFFC7;
 
         private byte[] m_buffer;
         private int m_written;
