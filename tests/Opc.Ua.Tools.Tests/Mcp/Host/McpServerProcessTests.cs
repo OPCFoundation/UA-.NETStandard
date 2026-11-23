@@ -49,6 +49,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
     [NonParallelizable]
     public sealed class McpServerProcessTests
     {
+        private const string kHttpToken = "mcp-server-process-tests-http-token-0123456789";
+
         [Test]
         public async Task HelpCommandStartsAndExitsSuccessfullyAsync()
         {
@@ -109,6 +111,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     "Streamable HTTP server did not become ready.");
                 using HttpResponseMessage initializedResponse = mcpResponse!;
                 Assert.That(initializedResponse.IsSuccessStatusCode, Is.True);
+
+                using HttpRequestMessage anonymousRequest = CreateInitializeRequest(
+                    $"http://127.0.0.1:{port}/mcp", authorize: false);
+                using HttpResponseMessage anonymousResponse = await client.SendAsync(
+                    anonymousRequest,
+                    timeout.Token).ConfigureAwait(false);
+                Assert.That(anonymousResponse.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
 
                 using HttpRequestMessage rootRequest = CreateInitializeRequest(
                     $"http://127.0.0.1:{port}/");
@@ -553,6 +562,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 RedirectStandardInput = true,
                 UseShellExecute = false
             };
+            startInfo.Environment["OPCUA_MCP_HTTP_TOKEN"] = kHttpToken;
             if (enableDiagnostics)
             {
                 startInfo.Environment["OPCUA_PCAP_ENABLE_DIAGNOSTICS"] = "true";
@@ -567,7 +577,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 ?? throw new InvalidOperationException("Unable to start the MCP server process.");
         }
 
-        private static HttpRequestMessage CreateInitializeRequest(string requestUri)
+        private static HttpRequestMessage CreateInitializeRequest(string requestUri, bool authorize = true)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
             {
@@ -580,6 +590,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
             };
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            if (authorize)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", kHttpToken);
+            }
             return request;
         }
 

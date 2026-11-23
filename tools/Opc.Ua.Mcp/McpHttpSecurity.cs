@@ -296,12 +296,29 @@ namespace Opc.Ua.Mcp
                 .AddScheme<AuthenticationSchemeOptions, McpBearerTokenHandler>(
                     McpBearerTokenHandler.SchemeName, null);
             services.AddAuthorization();
+            if (security.AllowedOrigins.Count > 0)
+            {
+                // Browsers preflight the Authorization header; answer only for configured origins.
+                services.AddCors(cors => cors.AddPolicy(CorsPolicyName, policy => policy
+                    .WithOrigins([.. security.AllowedOrigins])
+                    .WithMethods("GET", "POST", "DELETE")
+                    .WithHeaders(
+                        "Authorization", "Content-Type", "Accept", "Last-Event-ID",
+                        "Mcp-Session-Id", "Mcp-Protocol-Version")
+                    .WithExposedHeaders("Mcp-Session-Id", "WWW-Authenticate")));
+            }
             return services;
         }
 
         /// <summary>
-        /// Adds Host/Origin validation, then authentication and authorization. Endpoints still
-        /// need <c>RequireAuthorization()</c> to refuse unauthenticated requests.
+        /// The CORS policy registered when browser origins are allowed.
+        /// </summary>
+        public const string CorsPolicyName = "OpcUaMcpAllowedOrigins";
+
+        /// <summary>
+        /// Adds Host/Origin validation, CORS for the allowed origins (so their unauthenticated
+        /// preflight succeeds), then authentication and authorization. Endpoints still need
+        /// <c>RequireAuthorization()</c> to refuse unauthenticated requests.
         /// </summary>
         public static IApplicationBuilder UseMcpHttpSecurity(
             this IApplicationBuilder app,
@@ -310,6 +327,10 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(app);
             ArgumentNullException.ThrowIfNull(security);
             app.UseMcpHostAndOriginValidation(security);
+            if (security.AllowedOrigins.Count > 0)
+            {
+                app.UseCors(CorsPolicyName);
+            }
             app.UseAuthentication();
             app.UseAuthorization();
             return app;

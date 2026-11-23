@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,10 +53,26 @@ namespace Opc.Ua.Tools.Tests.Mcp
     /// </summary>
     [TestFixture]
     [Category("Mcp")]
-    [Parallelizable(ParallelScope.Self)]
+    [NonParallelizable]
     public sealed class McpHttpSecurityTests
     {
         private const string kToken = "0123456789abcdef0123456789abcdef-test";
+        private const string kTokenVariable = "OPCUA_MCP_HTTP_TOKEN";
+        private string? m_originalTokenVariable;
+
+        [SetUp]
+        public void SetUp()
+        {
+            // Read also consults the process environment; isolate tests from a developer's token.
+            m_originalTokenVariable = Environment.GetEnvironmentVariable(kTokenVariable);
+            Environment.SetEnvironmentVariable(kTokenVariable, null);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            Environment.SetEnvironmentVariable(kTokenVariable, m_originalTokenVariable);
+        }
         private static readonly string[] s_loopback = ["localhost", "127.0.0.1", "[::1]"];
         private static readonly string[] s_configuredHosts = ["mcp.example", "localhost"];
         private static readonly string[] s_inspectorOrigin = ["http://localhost:6274"];
@@ -193,6 +210,55 @@ namespace Opc.Ua.Tools.Tests.Mcp
             }
         }
 
+        [TestCase("http://localhost:6274", HttpStatusCode.NoContent)]
+        [TestCase("http://attacker.example", HttpStatusCode.Forbidden)]
+        public async Task PreflightSucceedsOnlyForAllowedOriginWithoutTokenAsync(
+            string origin, HttpStatusCode expected)
+        {
+            McpHttpSecurityOptions security = McpHttpSecurityOptions.Read(Configuration(
+                ("McpServer:Http:Token", kToken), ("McpServer:Http:AllowedOrigins:0", "http://localhost:6274")));
+            await using WebApplication app = await StartAsync(security).ConfigureAwait(false);
+            using var client = new HttpClient { BaseAddress = new Uri(Address(app)) };
+            using var request = new HttpRequestMessage(HttpMethod.Options, "/mcp");
+            request.Headers.Add("Origin", origin);
+            request.Headers.Add("Access-Control-Request-Method", "POST");
+            request.Headers.Add("Access-Control-Request-Headers", "authorization,content-type,mcp-session-id");
+
+            using HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false);
+
+            Assert.That(response.StatusCode, Is.EqualTo(expected));
+            if (expected == HttpStatusCode.NoContent)
+            {
+                Assert.That(response.Headers.GetValues("Access-Control-Allow-Origin").Single(), Is.EqualTo(origin));
+                string allowedHeaders = string.Join(",", response.Headers.GetValues("Access-Control-Allow-Headers"));
+                Assert.That(allowedHeaders, Does.Contain("authorization").IgnoreCase);
+                Assert.That(allowedHeaders, Does.Contain("mcp-session-id").IgnoreCase);
+            }
+        }
+
+        [Test]
+        public async Task AuthenticatedCrossOriginResponseCarriesCorsHeadersAsync()
+        {
+            McpHttpSecurityOptions security = McpHttpSecurityOptions.Read(Configuration(
+                ("McpServer:Http:Token", kToken), ("McpServer:Http:AllowedOrigins:0", "http://localhost:6274")));
+            await using WebApplication app = await StartAsync(security).ConfigureAwait(false);
+            using var client = new HttpClient { BaseAddress = new Uri(Address(app)) };
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp")
+            {
+                Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json")
+            };
+            request.Headers.Add("Origin", "http://localhost:6274");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", kToken);
+
+            using HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false);
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(response.Headers.GetValues("Access-Control-Allow-Origin").Single(),
+                Is.EqualTo("http://localhost:6274"));
+            Assert.That(string.Join(",", response.Headers.GetValues("Access-Control-Expose-Headers")),
+                Does.Contain("Mcp-Session-Id"));
+        }
+
         [Test]
         public async Task AuthenticatedPrincipalMapsToMcpCallerIdentityAsync()
         {
@@ -246,3 +312,4 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
     }
 }
+#endif
