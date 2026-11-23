@@ -31,7 +31,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Directory.CreateDirectory(m_folder);
             m_output = new StringWriter(CultureInfo.InvariantCulture);
             m_error = new StringWriter(CultureInfo.InvariantCulture);
-            m_command = new ExportCommand(m_output, m_error);
+            m_command = new ExportCommand(m_output, m_error, getEnvironmentVariable: _ => null);
         }
 
         /// <summary>
@@ -136,7 +136,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
                 return;
             }
             Assert.That(code, Is.Zero, m_error.ToString());
-            const string expectedHref = "https://azureiotoperations.com/thingmodelgroups/opcua/thingmodels/" +
+            const string expectedHref = "https://opcfoundation.org/thingmodelgroups/opcua/thingmodels/" +
                 "aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26/versions/42";
             string[] childPaths = Directory.GetFiles(Path.Combine(m_folder, "out", childName));
             Assert.That(childPaths, Has.Length.EqualTo(2));
@@ -175,10 +175,12 @@ namespace Opc.Ua.Wot.Exporter.Tests
         }
 
         /// <summary>
-        /// Applies registry options to sibling models and encodes each variable path component.
+        /// Applies environment configuration and CLI overrides to sibling models and encodes path components.
         /// </summary>
-        [Test]
-        public async Task RegistryOptionsApplyToLocalModelLinksAsync()
+        [TestCase("https://example.test/registry/", false)]
+        [TestCase("https://ignored.test", true)]
+        [TestCase("not a URL", true)]
+        public async Task RegistryOptionsApplyToLocalModelLinksAsync(string environmentUrl, bool useCli)
         {
             string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
             using (var input = new MemoryStream(Encoding.UTF8.GetBytes(k_nodeSet)))
@@ -190,9 +192,12 @@ namespace Opc.Ua.Wot.Exporter.Tests
                 await File.WriteAllBytesAsync(source, buffer.ToArray()).ConfigureAwait(false);
             }
 
-            int code = await m_command.RunAsync([
-                "--registry-base-url", "https://example.test/registry/", source,
-                "--group-id", "OPC UA/models"]).ConfigureAwait(false);
+            var command = new ExportCommand(m_output, m_error, getEnvironmentVariable:
+                name => name == "OPCUA_WOT_REGISTRY_BASE_URL" ? environmentUrl : null);
+            string[] args = useCli
+                ? ["--registry-base-url", "https://example.test/registry/", source, "--group-id", "OPC UA/models"]
+                : [source, "--group-id", "OPC UA/models"];
+            int code = await command.RunAsync(args).ConfigureAwait(false);
 
             Assert.That(code, Is.Zero, m_error.ToString());
             string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json-valvetype");
@@ -202,6 +207,20 @@ namespace Opc.Ua.Wot.Exporter.Tests
                 Does.StartWith("https://example.test/registry/thingmodelgroups/OPC%20UA%2Fmodels/thingmodels/")
                     .And.EndsWith("/versions/1.0"));
             Assert.That(link.GetProperty("rel").GetString(), Is.EqualTo("tm:extends"));
+        }
+
+        /// <summary>
+        /// Rejects an invalid environment URL when no CLI override is supplied.
+        /// </summary>
+        [Test]
+        public async Task InvalidRegistryEnvironmentReturnsUsageErrorAsync()
+        {
+            var command = new ExportCommand(m_output, m_error, getEnvironmentVariable: _ => "not a URL");
+
+            int code = await command.RunAsync([m_folder]).ConfigureAwait(false);
+
+            Assert.That(code, Is.EqualTo(2));
+            Assert.That(Directory.EnumerateFileSystemEntries(m_folder), Is.Empty);
         }
 
         /// <summary>

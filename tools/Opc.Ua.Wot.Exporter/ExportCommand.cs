@@ -19,7 +19,8 @@ namespace Opc.Ua.Wot.Exporter
         TextWriter output,
         TextWriter error,
         IWotUnitMappingProvider? unitMappingProvider = null,
-        IWotQuantityKindMappingProvider? quantityKindMappingProvider = null)
+        IWotQuantityKindMappingProvider? quantityKindMappingProvider = null,
+        Func<string, string?>? getEnvironmentVariable = null)
     {
         /// <summary>
         /// Runs the command. Returns 0 on success, 1 on an export error,
@@ -36,11 +37,14 @@ namespace Opc.Ua.Wot.Exporter
                     "Read *NodeSet2.xml in the source folder and its subfolders.\n" +
                     "Default output: <source-path>\\out. A source file is also accepted.\n" +
                     "An explicit output path is relative to the current folder.\n" +
-                    "Default registry: https://azureiotoperations.com. Default group: opcua.")
+                    "Default registry: https://opcfoundation.org. Default group: opcua.\n" +
+                    "OPCUA_WOT_REGISTRY_BASE_URL overrides the default registry; --registry-base-url takes precedence.")
                     .ConfigureAwait(false);
                 return 0;
             }
-            if (!TryReadArguments(args, out string[] paths, out string registryBaseUrl, out string groupId))
+            if (!TryReadArguments(
+                args, m_getEnvironmentVariable("OPCUA_WOT_REGISTRY_BASE_URL"),
+                out string[] paths, out string registryBaseUrl, out string groupId))
             {
                 await m_error.WriteLineAsync(
                     "ERROR: Supply a source path and, if needed, an output path. Use --help for help.")
@@ -185,11 +189,16 @@ namespace Opc.Ua.Wot.Exporter
         /// Reads positional paths and registry options without accepting ambiguous URL components.
         /// </summary>
         private static bool TryReadArguments(
-            string[] args, out string[] paths, out string registryBaseUrl, out string groupId)
+            string[] args,
+            string? environmentRegistryBaseUrl,
+            out string[] paths,
+            out string registryBaseUrl,
+            out string groupId)
         {
             var positional = new List<string>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            registryBaseUrl = "https://azureiotoperations.com";
+            registryBaseUrl = string.IsNullOrEmpty(environmentRegistryBaseUrl)
+                ? "https://opcfoundation.org" : environmentRegistryBaseUrl;
             groupId = "opcua";
             for (int i = 0; i < args.Length; i++)
             {
@@ -496,5 +505,9 @@ namespace Opc.Ua.Wot.Exporter
 
         /// <summary>Receives warnings and errors.</summary>
         private readonly TextWriter m_error = error ?? throw new ArgumentNullException(nameof(error));
+
+        /// <summary>Reads environment configuration without requiring process-wide state in tests.</summary>
+        private readonly Func<string, string?> m_getEnvironmentVariable =
+            getEnvironmentVariable ?? Environment.GetEnvironmentVariable;
     }
 }

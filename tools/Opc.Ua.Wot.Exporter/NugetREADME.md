@@ -48,8 +48,11 @@ not the referring namespace or its `RequiredModel` version.
 Thing Models also carry that version in `version.model`.
 A missing or invalid version fails the affected source before files are written.
 
-The default registry URL is `https://azureiotoperations.com` and the default
-group ID is `opcua`. Use `--registry-base-url` and `--group-id` to change them.
+The default registry URL is `https://opcfoundation.org` and the default
+group ID is `opcua`. Set `OPCUA_WOT_REGISTRY_BASE_URL` to override the registry
+URL through the environment. The `--registry-base-url` option takes precedence
+over the environment variable. An unset or empty environment variable uses the
+default. Use `--group-id` to change the group.
 JSON Pointer fragments are preserved. Links to support files remain local.
 The tool does not rewrite native preservation payloads, form URLs, or literal
 schema values. Include required NodeSets in the input to resolve their model

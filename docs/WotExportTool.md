@@ -28,7 +28,10 @@ The default output is `out` in the input folder. For a file input, it is
 relative to the current folder.
 
 `--registry-base-url` sets the registry URL. Its default is
-`https://azureiotoperations.com`. The URL can include a path, but it must
+`https://opcfoundation.org`. Set the `OPCUA_WOT_REGISTRY_BASE_URL`
+environment variable to override this default. The `--registry-base-url`
+option takes precedence over the environment variable. An unset or empty
+environment variable uses the default. The URL can include a path, but it must
 use HTTP or HTTPS and must not include credentials, a query, or a fragment.
 `--group-id` sets the Thing Model group ID. Its default is `opcua`.
 Options can precede or follow the paths.
@@ -112,7 +115,7 @@ If its namespace version is `42`, a model that extends it has this link:
   "links": [
     {
       "rel": "tm:extends",
-      "href": "https://azureiotoperations.com/thingmodelgroups/opcua/thingmodels/aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26/versions/42",
+      "href": "https://opcfoundation.org/thingmodelgroups/opcua/thingmodels/aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26/versions/42",
       "type": "application/tm+json"
     }
   ]
