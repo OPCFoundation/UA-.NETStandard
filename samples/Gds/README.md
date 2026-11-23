@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC 10000-21 Onboarding Demo
 
 This sample provides OPC 10000-21 registrar administration and separate opt-in
@@ -633,6 +638,11 @@ the journal in the `Prepared` state before it calls `StartSigningRequest`.
 It adds the registrar and the returned request ID in the `Started` state
 before the first `FinishRequest`. A certificate issued for an earlier
 request cannot match a key used only for the current request.
+
+On Windows, the client retries local journal publication when the
+filesystem reports that the old file could not be removed and both files
+retain their original names. It retries the same staged record, not the
+registrar request. Other replacement failures stop the workflow.
 
 When the `FinishRequest` retries end in `Bad_InvalidArgument`, the
 workflow reads `GetCertificates` and the complete TrustList for the

@@ -730,6 +730,68 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return csr;
         }
 
+        [TestCase(1175, 1, 2, true)]
+        [TestCase(1175, 3, 3, false)]
+        [TestCase(1176, 1, 1, false)]
+        public async Task SigningJournalRetriesOnlyReplacementThatLeavesBothFilesInPlaceAsync(
+            int win32Error,
+            int failedReplacements,
+            int expectedAttempts,
+            bool succeeds)
+        {
+            LocalFileSystem local = LocalFileSystem.Instance;
+            var fileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
+            fileSystem.Setup(fs => fs.Exists(It.IsAny<string>(), It.IsAny<bool>())).Returns(local.Exists);
+            fileSystem.Setup(fs => fs.Delete(It.IsAny<string>(), It.IsAny<bool>())).Callback(local.Delete);
+            fileSystem.Setup(fs => fs.OpenRead(It.IsAny<string>())).Returns(local.OpenRead);
+            fileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(local.OpenWrite);
+            var failure = new IOException("Injected journal replacement failure.", unchecked((int)0x80070000) |
+                win32Error);
+            bool recordStarted = false;
+            int attempts = 0;
+            string? stagedPath = null;
+            fileSystem.Setup(fs => fs.Replace(It.IsAny<string>(), m_journalPath))
+                .Callback((string source, string destination) =>
+                {
+                    if (recordStarted)
+                    {
+                        stagedPath ??= source;
+                        Assert.That(source, Is.EqualTo(stagedPath));
+                        if (++attempts <= failedReplacements)
+                        {
+                            throw failure;
+                        }
+                    }
+                    local.Replace(source, destination);
+                });
+            var credentials = new OnboardingDeviceCredentials(m_configuration, m_telemetry);
+            credentials.UseSigningJournal(m_journalPath, m_keyStore, m_namespaces, fileSystem.Object);
+            ByteString csr = await credentials.CreateSigningRequestAsync(m_binding.ApplicationId, m_binding.Profile)
+                .ConfigureAwait(false);
+            recordStarted = true;
+
+            if (succeeds)
+            {
+                await RecordStartedAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                IOException? error = await Assert.ThrowsAsync<IOException>(RecordStartedAsync).ConfigureAwait(false);
+                Assert.That(error, Is.SameAs(failure));
+            }
+            Assert.That(attempts, Is.EqualTo(expectedAttempts));
+            Assert.That(await CreateJournaled(m_namespaces).GetSigningRequestStateAsync().ConfigureAwait(false),
+                Is.EqualTo(succeeds ? OnboardingSigningRequestState.Started : OnboardingSigningRequestState.Prepared));
+            Assert.That(Directory.EnumerateFiles(m_root, "*.pending"), Is.Empty);
+
+            Task RecordStartedAsync()
+            {
+                return credentials.OnSigningRequestStartedAsync(
+                    m_binding.Registrar, m_binding.ApplicationId, m_binding.RequestId, m_binding.Profile, csr)
+                    .AsTask();
+            }
+        }
+
         /// <summary>
         /// Signs the CSR's public key with the registrar CA, as a certificate manager would.
         /// </summary>

@@ -1551,8 +1551,20 @@ namespace OnboardingClientSample
                         await buffer.CopyToAsync(output, 81920, cancellationToken).ConfigureAwait(false);
                         await output.FlushAsync(cancellationToken).ConfigureAwait(false);
                     }
-                    cancellationToken.ThrowIfCancellationRequested();
-                    m_fileSystem.Replace(staging, m_path);
+                    for (int attempt = 1; ; attempt++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        try
+                        {
+                            m_fileSystem.Replace(staging, m_path);
+                            break;
+                        }
+                        catch (IOException error) when (
+                            error.HResult == kUnableToRemoveReplacedHResult && attempt < kMaximumReplaceAttempts)
+                        {
+                            await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
+                        }
+                    }
                 }
                 catch (Exception error)
                 {
@@ -1682,6 +1694,10 @@ namespace OnboardingClientSample
 
             /// <summary>The largest accepted journal.</summary>
             private const int kMaximumJournalBytes = 1024 * 1024;
+
+            // ReplaceFile documents that ERROR_UNABLE_TO_REMOVE_REPLACED leaves both files under their original names.
+            private const int kUnableToRemoveReplacedHResult = unchecked((int)0x80070497);
+            private const int kMaximumReplaceAttempts = 3;
 
             /// <summary>The journal file path, owned by exactly one process.</summary>
             private readonly string m_path;
