@@ -77,17 +77,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerGenerationReference generation = monitored.Generation
                     ?? throw new AssertionException("The monitored node has no generation.");
                 Assert.That(generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
-                Assert.That(bound!.NodeManager, Is.SameAs(manager));
-                if (forwarded)
-                {
-                    Assert.That(bound, Is.Not.SameAs(published));
-                    Assert.That(bound.Gate, Is.Not.SameAs(published.Gate));
-                }
-                else
-                {
-                    Assert.That(bound, Is.SameAs(published));
-                    Assert.That(bound.Gate, Is.SameAs(published.Gate));
-                }
+                Assert.That(bound, Is.SameAs(published));
+                Assert.That(bound!.NodeManager, Is.SameAs(registered));
 
                 var occurrence = new BaseEventState(null);
                 occurrence.Initialize(manager.SystemContext, root, EventSeverity.Medium,
