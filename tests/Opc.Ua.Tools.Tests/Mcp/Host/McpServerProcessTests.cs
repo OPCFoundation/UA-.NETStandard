@@ -562,6 +562,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 RedirectStandardInput = true,
                 UseShellExecute = false
             };
+            // Override both token sources so an ambient developer token cannot win.
+            startInfo.Environment["McpServer__Http__Token"] = kHttpToken;
             startInfo.Environment["OPCUA_MCP_HTTP_TOKEN"] = kHttpToken;
             if (enableDiagnostics)
             {
