@@ -190,6 +190,52 @@ namespace Opc.Ua.PubSub.Security
         }
 
         /// <summary>
+        /// Gives the current or a future key another
+        /// <see cref="PubSubSecurityKey.IssuedAt"/>, for an SKS that has
+        /// re-timed its keys (for example after a forced rotation). Past
+        /// keys are left alone.
+        /// </summary>
+        /// <param name="tokenId">Token id of the key to re-time.</param>
+        /// <param name="issuedAt">The new issuance timestamp.</param>
+        /// <returns>
+        /// <see langword="true"/> when a current or future key with
+        /// <paramref name="tokenId"/> was found.
+        /// </returns>
+        internal bool Reschedule(uint tokenId, DateTimeUtc issuedAt)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+                if (m_current?.TokenId == tokenId)
+                {
+                    if (m_current.IssuedAt != issuedAt)
+                    {
+                        m_current = m_current.WithIssuedAt(issuedAt);
+                        m_byToken[tokenId] = m_current;
+                    }
+                    return true;
+                }
+                bool found = false;
+                int count = m_future.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    PubSubSecurityKey key = m_future.Dequeue();
+                    if (key.TokenId == tokenId)
+                    {
+                        found = true;
+                        if (key.IssuedAt != issuedAt)
+                        {
+                            key = key.WithIssuedAt(issuedAt);
+                            m_byToken[tokenId] = key;
+                        }
+                    }
+                    m_future.Enqueue(key);
+                }
+                return found;
+            }
+        }
+
+        /// <summary>
         /// Looks up a previously-observed token by id.
         /// </summary>
         /// <param name="tokenId">Token id.</param>

@@ -494,7 +494,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                 PubSubSecurityKey key = keys[i];
                 if (previousHighest is uint h && key.TokenId <= h)
                 {
-                    // Already in the ring: zero this copy of the material.
+                    // Already in the ring: take the SKS's schedule for it,
+                    // which changes when the SKS forces a rotation, then zero
+                    // this copy of the material.
+                    Ring.Reschedule(key.TokenId, key.IssuedAt);
                     key.Dispose();
                     continue;
                 }
@@ -512,6 +515,21 @@ namespace Opc.Ua.PubSub.Security.Sks
                     {
                         m_highestKnownTokenId = key.TokenId;
                     }
+                }
+            }
+
+            // The first key of a StartingTokenId 0 response is the SKS's
+            // current key: move up to it when the SKS rotated ahead of the
+            // ring (a forced rotation). Never move back.
+            uint sksCurrentTokenId = keys[0].TokenId;
+            lock (m_rotationLock)
+            {
+                PubSubSecurityKey? current = Ring.Current;
+                while (current is not null &&
+                    current.TokenId < sksCurrentTokenId &&
+                    Ring.RotateToNextFuture())
+                {
+                    current = Ring.Current;
                 }
             }
 

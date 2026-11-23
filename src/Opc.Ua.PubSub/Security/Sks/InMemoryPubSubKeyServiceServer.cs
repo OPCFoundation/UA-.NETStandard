@@ -337,10 +337,8 @@ namespace Opc.Ua.PubSub.Security.Sks
                         "Caller is not authorized to retrieve keys for the requested SecurityGroup.");
                 }
 
+                EnsureLiveCurrentKeyLocked(state);
                 EnsureFutureKeysLocked(state, request.RequestedKeyCount);
-                // When every key had expired (an idle SKS) the key generated
-                // just now is the current one.
-                RotateExpiredCurrentLocked(state);
 
                 uint currentTokenId = state.Keys.Count == 0
                     ? 0u
@@ -495,6 +493,9 @@ namespace Opc.Ua.PubSub.Security.Sks
                         $"SecurityGroup '{securityGroupId}' is not registered.");
                 }
 
+                // Skip keys that expired while the SKS was idle first, so the
+                // forced successor is never an expired key made valid again.
+                EnsureLiveCurrentKeyLocked(state);
                 EnsureFutureKeysLocked(state, 2);
                 if (state.CurrentIndex + 1 >= state.Keys.Count)
                 {
@@ -622,6 +623,33 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 state.CurrentIndex++;
             }
+        }
+
+        /// <summary>
+        /// Makes the current key of <paramref name="state"/> one that has not
+        /// expired: advances past expired keys and, when every key has
+        /// expired (an idle SKS), generates a new current key issued now.
+        /// Without that, an expired last key would count as the current key
+        /// and be handed out again on every request.
+        /// </summary>
+        private void EnsureLiveCurrentKeyLocked(SecurityGroupState state)
+        {
+            RotateExpiredCurrentLocked(state);
+            if (state.Keys.Count > 0 &&
+                !state.Keys[state.CurrentIndex].IsExpired(m_timeProvider))
+            {
+                return;
+            }
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            PubSubSecurityKey current = SksKeyGenerator.Generate(
+                state.Policy,
+                state.NextTokenId,
+                now,
+                state.Group.KeyLifetime);
+            state.Keys.Add(current);
+            state.NextTokenId = unchecked(state.NextTokenId + 1u);
+            state.CurrentIndex = state.Keys.Count - 1;
+            PrunePastKeysLocked(state);
         }
 
         private static int FutureKeyCountLocked(SecurityGroupState state)

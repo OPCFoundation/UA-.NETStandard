@@ -501,6 +501,42 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(current.IsExpired(clock), Is.False);
         }
 
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ProviderAdoptsTheScheduleOfAForcedRotationAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            // Token 2 becomes current at minute 10 and now expires at minute 70,
+            // not at minute 120 as first scheduled.
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(10)).ConfigureAwait(false);
+            await sks.ForceRotationAsync().ConfigureAwait(false);
+
+            // The lead-time refresh (minute 55) picks up the new schedule.
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(46)).ConfigureAwait(false);
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(2u), "the provider did not follow the forced rotation");
+            Assert.That(
+                current.IssuedAt + current.Lifetime,
+                Is.EqualTo(DateTimeUtc.From(new DateTime(2026, 1, 1, 1, 10, 0, DateTimeKind.Utc))),
+                "the provider kept the old expiry of token 2");
+
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(19)).ConfigureAwait(false);
+            current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
         private static async Task AdvanceAsync(FakeTimeProvider clock, TimeSpan duration)
         {
             // Small steps with a real yield let the background loop run its
@@ -551,6 +587,11 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                     2,
                     Array.Empty<PubSubSecurityKey>(),
                     [Caller]));
+            }
+
+            public ValueTask ForceRotationAsync()
+            {
+                return m_server.ForceKeyRotationAsync(GroupId);
             }
 
             public async Task<uint> CurrentTokenIdAsync()
