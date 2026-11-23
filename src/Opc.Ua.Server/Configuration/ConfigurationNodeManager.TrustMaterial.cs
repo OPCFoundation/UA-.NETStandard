@@ -305,47 +305,6 @@ namespace Opc.Ua.Server
             HashSet<TrustListIdentifier> scopes,
             CancellationToken cancellationToken)
         {
-            if (m_applicationPushTarget == null)
-            {
-                await EnforceTrustMaterialScopesCoreAsync(scopes).ConfigureAwait(false);
-                return;
-            }
-
-            TaskCompletionSource<bool> active;
-            while (true)
-            {
-                Task<bool> admission;
-                lock (m_trustHandoffLock)
-                {
-                    if (m_trustHandoff is null)
-                    {
-                        if (m_trustHandoffClosed)
-                        {
-                            return;
-                        }
-                        active = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                        m_activeTrustEffect = active.Task;
-                        break;
-                    }
-                    admission = m_trustHandoff.Released.Task;
-                }
-                if (!await admission.WaitAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    return;
-                }
-            }
-            try
-            {
-                await EnforceTrustMaterialScopesCoreAsync(scopes).ConfigureAwait(false);
-            }
-            finally
-            {
-                active.TrySetResult(true);
-            }
-        }
-
-        private async ValueTask EnforceTrustMaterialScopesCoreAsync(HashSet<TrustListIdentifier> scopes)
-        {
             CancellationToken shutdownToken;
             try
             {
@@ -356,10 +315,11 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (shutdownToken.IsCancellationRequested)
+            if (shutdownToken.IsCancellationRequested ||
+                (m_applicationPushTarget != null &&
+                    !Array.Exists(Volatile.Read(ref m_applicationAttachments), static attachment =>
+                        attachment.IsServing)))
             {
-                // Server shutting down: never run effects against listeners
-                // and managers that are being torn down.
                 return;
             }
 
@@ -379,43 +339,31 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Drains trust notifications admitted before handoff and holds later notifications for the serving attachment.
+        /// </summary>
         internal TrustHandoff PauseTrustEffects()
         {
-            lock (m_trustHandoffLock)
-            {
-                if (m_trustHandoff is not null || m_trustHandoffClosed)
-                {
-                    throw new ServiceResultException(StatusCodes.BadWouldBlock);
-                }
-                return m_trustHandoff = new TrustHandoff(this, m_activeTrustEffect);
-            }
+            return new TrustHandoff(m_trustMaterialPump?.PauseAfterPending());
         }
 
-        internal sealed class TrustHandoff(ConfigurationNodeManager owner, Task drained)
+        /// <summary>
+        /// Owns the trust notification cutoff until the worker chooses a serving attachment.
+        /// </summary>
+        internal sealed class TrustHandoff(CertificateChangePump<HashSet<TrustListIdentifier>>.DrainPause? pause)
         {
-            internal Task Drained { get; } = drained;
+            /// <summary>
+            /// Gets the completion of pre-cutoff trust effects.
+            /// </summary>
+            internal Task Drained => pause?.Drained ?? Task.CompletedTask;
 
-            internal TaskCompletionSource<bool> Released { get; } =
-                new(TaskCreationOptions.RunContinuationsAsynchronously);
-
+            /// <summary>
+            /// Releases deferred notifications only if an attachment can still serve.
+            /// </summary>
             internal void Finish(bool serving)
             {
-                lock (owner.m_trustHandoffLock)
-                {
-                    if (!ReferenceEquals(owner.m_trustHandoff, this))
-                    {
-                        return;
-                    }
-                    owner.m_trustHandoffClosed = !serving;
-                    owner.m_trustHandoff = null;
-                    Released.TrySetResult(serving);
-                }
+                pause?.Finish(serving);
             }
         }
-
-        private readonly Lock m_trustHandoffLock = new();
-        private Task m_activeTrustEffect = Task.CompletedTask;
-        private TrustHandoff? m_trustHandoff;
-        private bool m_trustHandoffClosed;
     }
 }

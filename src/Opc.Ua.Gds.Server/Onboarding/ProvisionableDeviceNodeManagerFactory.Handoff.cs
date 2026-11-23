@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Gds.Server.Onboarding
 {
@@ -31,9 +32,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ArgumentNullException(nameof(predecessor));
             }
-            return lifecycle is NodeManagerLifecycle worker
-                ? worker.QueueHandoff(predecessor, this, cancellationToken)
-                : StatusCodes.BadNotSupported;
+            return lifecycle switch
+            {
+                NodeManagerLifecycle worker => worker.QueueHandoff(predecessor, this, cancellationToken),
+                HostedNodeManagerLifecycle hosted => hosted.QueueHandoff(predecessor, this, cancellationToken),
+                _ => StatusCodes.BadNotSupported
+            };
         }
 
         /// <inheritdoc/>

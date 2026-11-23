@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA Profiles and Facets Support
 
 This document describes which [OPC UA Profiles and Facets](https://profiles.opcfoundation.org/) are implemented in the OPC UA .NET Standard Stack, and where in the codebase / documentation each one lives.
@@ -673,7 +678,9 @@ OPC UA Part 12 areas:
   TLS and application identities. The sample can be configured for
   one managed Server or ClientAndServer application after DCA proof. The
   provisionable-device factory publishes its standard nodes through lifecycle-aware
-  routing alongside the Part 22 `Resources` manager. Registrar push uses
+  routing alongside the Part 22 `Resources` manager. A host can
+  [replace the device node manager](ProvisionableDeviceReplacement.md)
+  without replacing its runtime or managed targets. Registrar push uses
   the configured certificate type by default and permits a host-selected type
   for each managed application; the selected type must be advertised by its
   certificate group. Per-entry remote `ConfigurationFile`
@@ -940,7 +947,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
 | [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens require `IFileSystemReadWriteProvider`; conflicting write opens can return `Bad_InvalidState` instead of `Bad_NotWritable` |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | DCA and managed-application pull support signing and new-key-pair requests. Durable push acceptance reconciles interrupted work before retry; pull installation and post-DCA continuation use host-owned journals and certificate stores. Lifecycle routing composes provisionable-device nodes with Part 22 `Resources`. `ConfigurationFile` reads existing content and rewinds before writing, but rejects shorter replacements without truncation support. Durability requires persistent providers with exclusive ownership; distributed coordination, software installation and FDO protocols remain external. New recovery and composition cases require exact-head execution evidence. [Details](GDS.md#opc-10000-21-onboardingclient) |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | DCA and managed-application pull support signing and new-key-pair requests. [New-key-pair recovery](PullDcaKeyPairRecovery.md) requires a host-supplied protected store; push recovery and pull continuation also depend on persistent providers with exclusive ownership. Lifecycle routing composes provisionable-device nodes with Part 22 `Resources`. `ConfigurationFile` reads existing content and rewinds before writing, but rejects shorter replacements without truncation support. Distributed coordination, software installation, and FDO protocols remain external. [Details](GDS.md#opc-10000-21-onboardingclient) |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | - |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |

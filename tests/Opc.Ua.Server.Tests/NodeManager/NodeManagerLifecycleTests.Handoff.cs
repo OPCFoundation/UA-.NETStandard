@@ -5,14 +5,16 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
     public partial class NodeManagerLifecycleTests
     {
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task HandoffWorkerOwnsDrainAndPublishesOnlyAfterSuccessfulDrainAsync(bool cancel)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task HandoffWorkerOwnsDrainAndPublishesOnlyAfterSuccessfulDrainAsync(bool cancel, bool hosted)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var request = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
@@ -31,7 +33,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(factory.Predecessor, Is.Null);
             Assert.That(pause.Entered.Task.IsCompleted, Is.False);
 
-            Assert.That(lifecycle.QueueHandoff(original, factory, request.Token), Is.EqualTo(StatusCodes.Good));
+            var forwarder = new HostedNodeManagerLifecycle(new NodeManagerCleanupAuthority(
+                m_fixtureCleanupAuthorization, m_fixtureCleanupVerifier, m_fixtureCleanupAudit));
+            if (hosted)
+            {
+                Assert.That(forwarder.QueueHandoff(original, factory, request.Token),
+                    Is.EqualTo(StatusCodes.BadShutdown));
+                forwarder.Attach(lifecycle);
+            }
+            StatusCode accepted = hosted
+                ? forwarder.QueueHandoff(original, factory, request.Token)
+                : lifecycle.QueueHandoff(original, factory, request.Token);
+            Assert.That(accepted, Is.EqualTo(StatusCodes.Good));
             try
             {
                 await pause.Entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -55,6 +68,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 request.Cancel();
                 pause.AllowDrain.TrySetResult(true);
+                if (hosted)
+                {
+                    forwarder.Detach(lifecycle);
+                }
             }
         }
 

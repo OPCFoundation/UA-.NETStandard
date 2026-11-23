@@ -302,15 +302,15 @@ namespace Opc.Ua.Server
             bool enterServing,
             CancellationToken cancellationToken)
         {
-            if (!TryEnterCall())
+            if (enterServing)
             {
-                throw new ServiceResultException(StatusCodes.BadShutdown);
+                m_enter?.Invoke();
             }
             try
             {
-                if (enterServing)
+                if (!TryEnterCall())
                 {
-                    m_enter?.Invoke();
+                    throw new ServiceResultException(StatusCodes.BadShutdown);
                 }
                 try
                 {
@@ -320,15 +320,15 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    if (enterServing)
-                    {
-                        m_exit?.Invoke();
-                    }
+                    ExitCall();
                 }
             }
             finally
             {
-                ExitCall();
+                if (enterServing)
+                {
+                    m_exit?.Invoke();
+                }
             }
         }
 
