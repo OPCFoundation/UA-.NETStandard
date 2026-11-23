@@ -10,12 +10,12 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Registry;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -67,13 +67,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_store.SupportsPreparedCommits, Is.True);
             m_registry = new WotRegistryService(m_store);
             await m_registry.InitializeAsync().ConfigureAwait(false);
-            m_fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
+            m_fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry))
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
                 AutoAccept = true
             };
-            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
+            await WotTestPki.SeedAsync<StandardServer>(m_pkiRoot, telemetry => new StandardServer(telemetry), 0)
+                .ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
@@ -85,7 +86,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             };
             m_coordinator.Event += (_, change) => m_events.Add(change);
             m_client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
-            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             await m_client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             Assert.That(m_client.SessionFactory, Is.TypeOf<DefaultSessionFactory>());
             m_session = await m_client.ConnectAsync(
@@ -379,6 +379,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return resource;
         }
 
+        /// <summary>
+        /// Starts a second server of the same type as the fixture server, which
+        /// stands for the fixture server after a restart.
+        /// </summary>
+        private static Task<PreparedWotTestRuntime> StartRestartedServerAsync()
+        {
+            return PreparedWotTestRuntime.StartAsync(telemetry => new StandardServer(telemetry));
+        }
         private NodeId Root(WotResource resource)
         {
             return new NodeId(5000u, (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(ModelUri(resource)));
@@ -406,8 +414,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private FileWotRegistryStore m_store = null!;
         private PreparedWotTestStorage m_storage = null!;
         private WotRegistryService m_registry = null!;
-        private ServerFixture<ReferenceServer> m_fixture = null!;
-        private ReferenceServer m_server = null!;
+        private ServerFixture<StandardServer> m_fixture = null!;
+        private StandardServer m_server = null!;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
         private ClientFixture m_client = null!;
