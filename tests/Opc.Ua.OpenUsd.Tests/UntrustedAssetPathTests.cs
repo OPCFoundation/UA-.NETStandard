@@ -193,6 +193,63 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
+        public void AdmittedClosureIsPublishedFromStagingAtTheSameRelativePaths()
+        {
+            string cache = Path.Combine(m_directory, "cache");
+            File.WriteAllText(Path.Combine(m_directory, "unrelated.usda"), "#usda 1.0\n");
+            List<OpenUsdConnector.FetchedAsset> fetched =
+            [
+                Fetched("cell.usda", "#usda 1.0\n( subLayers = [@./parts/arm.usda@] )\n", OpenUsdAssetKind.RootLayer),
+                Fetched("parts/arm.usda", "#usda 1.0\ndef Cube \"Arm\" {}\n", OpenUsdAssetKind.SubLayer)
+            ];
+
+            Assert.That(
+                OpenUsdConnectorRunner.TryPublishFetchedClosure(
+                    m_directory, cache, fetched, out ISet<string> closure, out string? refusal),
+                Is.True,
+                refusal);
+
+            string arm = Path.GetFullPath(Path.Combine(cache, "parts", "arm.usda"));
+            Assert.That(File.Exists(arm), Is.True);
+            Assert.That(fetched[1].LocalPath, Is.EqualTo(arm));
+            Assert.That(closure, Does.Contain(arm));
+            Assert.That(File.Exists(Path.Combine(cache, "unrelated.usda")), Is.False,
+                "Only the admitted closure is published, not whatever else staging holds.");
+            Assert.That(
+                OpenUsdConnectorRunner.TryWriteStageUsda(cache, fetched, closure, out refusal),
+                Is.True,
+                refusal);
+        }
+
+        [TestCase("stage.usda")]
+        [TestCase("live.usda")]
+        [TestCase("LIVE.usda")]
+        public void ServedAssetsNamedLikeGeneratedLayersAreNotPublished(string identifier)
+        {
+            string cache = Path.Combine(m_directory, "cache");
+            Directory.CreateDirectory(cache);
+            File.WriteAllText(Path.Combine(cache, "stage.usda"), "#usda 1.0\n# current\n");
+            List<OpenUsdConnector.FetchedAsset> fetched =
+            [
+                Fetched(identifier, "#usda 1.0\n", OpenUsdAssetKind.RootLayer)
+            ];
+
+            bool ordinalOnly = !System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+                System.Runtime.InteropServices.OSPlatform.Windows);
+            bool published = OpenUsdConnectorRunner.TryPublishFetchedClosure(
+                m_directory, cache, fetched, out _, out string? refusal);
+
+            if (ordinalOnly && identifier == "LIVE.usda")
+            {
+                Assert.That(published, Is.True, "A different file on a case-sensitive file system.");
+                return;
+            }
+            Assert.That(published, Is.False);
+            Assert.That(refusal, Does.Contain(identifier));
+            Assert.That(File.ReadAllText(Path.Combine(cache, "stage.usda")), Does.Contain("# current"));
+        }
+
+        [Test]
         public void FetchedAliasesOfOneCacheFileAreRefused()
         {
             OpenUsdConnector.FetchedAsset first = Fetched("cell.usda", "#usda 1.0\n", OpenUsdAssetKind.RootLayer);

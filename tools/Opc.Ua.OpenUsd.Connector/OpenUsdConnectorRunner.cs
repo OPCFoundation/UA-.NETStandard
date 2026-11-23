@@ -273,8 +273,11 @@ namespace Opc.Ua.OpenUsd.Connector
             ISession session;
             try
             {
+                // A secured session also requires the certificate to name the host in
+                // --server, so --trust-server never pins a certificate issued to another
+                // host.
                 session = await sessionFactory.CreateAsync(
-                    config, endpoint, updateBeforeConnect: false,
+                    config, endpoint, updateBeforeConnect: false, checkDomain: !insecure,
                     sessionName: "Opc.Ua.OpenUsd.Connector", sessionTimeout: 60000,
                     identity: new UserIdentity(new AnonymousIdentityToken()),
                     preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
@@ -286,7 +289,7 @@ namespace Opc.Ua.OpenUsd.Connector
                     $"Trust it by moving it from {Path.Combine(pkiRoot, "rejected", "certs")} to " +
                     $"{Path.Combine(pkiRoot, "trusted", "certs")}, or rerun with --trust-server to trust " +
                     "this server's certificate on first use.");
-                (config.CertificateManager as IDisposable)?.Dispose();
+                await DisposeCertificateManagerAsync(config).ConfigureAwait(false);
                 return 6;
             }
 
@@ -330,11 +333,18 @@ namespace Opc.Ua.OpenUsd.Connector
             // connector keeps the live sink entirely out of that path.
             if (!string.IsNullOrEmpty(cacheDir))
             {
+                // Nothing a server sends touches the cache until the whole closure has
+                // arrived and been inspected: downloads go to a fresh staging directory,
+                // and the previous stage.usda is withdrawn first, so a failed or refused
+                // run leaves no stage that composes uninspected bytes.
+                DiscardGeneratedStage(cacheDir!);
+                string stagingDir = Path.Combine(cacheDir!, ".incoming-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(stagingDir);
                 var fetcher = new OpenUsdConnector(session, new MockUsdSink(), enableCommands: false);
                 try
                 {
                     List<OpenUsdConnector.FetchedAsset> fetched =
-                        await fetcher.FetchServedAssetsAsync(cacheDir!, CancellationToken.None).ConfigureAwait(false);
+                        await fetcher.FetchServedAssetsAsync(stagingDir, CancellationToken.None).ConfigureAwait(false);
 
                     // A federated stage is only half fetched at this point. Composition
                     // has authored reference arcs onto prims owned by other servers, but
@@ -345,7 +355,7 @@ namespace Opc.Ua.OpenUsd.Connector
                     if (connectorOptions?.RemoteSessionFactory != null)
                     {
                         fetched.AddRange(await FetchFederatedAssetsAsync(
-                            fetcher, config, sessionFactory, telemetry, cacheDir!, insecure)
+                            fetcher, config, sessionFactory, telemetry, stagingDir, insecure)
                             .ConfigureAwait(false));
                     }
 
@@ -355,7 +365,9 @@ namespace Opc.Ua.OpenUsd.Connector
                         // or whoever opens stage.usda later), which resolves every asset
                         // path they author. Refuse the stage unless each path stays inside
                         // the closure just fetched and every layer is inspectable text.
-                        if (!TryValidateFetchedClosure(fetched, out ISet<string> closure, out string? refusal) ||
+                        ISet<string> closure = new HashSet<string>();
+                        if (!TryValidateFetchedClosure(fetched, out _, out string? refusal) ||
+                            !TryPublishFetchedClosure(stagingDir, cacheDir!, fetched, out closure, out refusal) ||
                             !TryWriteStageUsda(cacheDir!, fetched, closure, out refusal))
                         {
                             DiscardGeneratedStage(cacheDir!);
@@ -391,6 +403,7 @@ namespace Opc.Ua.OpenUsd.Connector
                 finally
                 {
                     await fetcher.DisposeAsync().ConfigureAwait(false);
+                    DeleteStagingDirectory(stagingDir);
                 }
             }
 
@@ -577,6 +590,89 @@ namespace Opc.Ua.OpenUsd.Connector
                 File.Delete(stagePath);
             }
         }
+
+        /// <summary>
+        /// Moves a fetched closure that <see cref="TryValidateFetchedClosure"/> admitted
+        /// from its private staging directory into the cache, at the same relative
+        /// paths, and points each asset at its published file.
+        /// </summary>
+        /// <remarks>
+        /// Downloads land in staging so nothing a server sends reaches the cache, or
+        /// overwrites a layer of the current stage, until the whole closure has
+        /// arrived and been inspected. A served path that would land on the
+        /// connector's generated stage.usda or live.usda is refused before anything
+        /// moves.
+        /// </remarks>
+        /// <param name="stagingDir">Directory the closure was fetched into.</param>
+        /// <param name="cacheDir">The asset cache the stage is published in.</param>
+        /// <param name="fetched">The admitted assets; their local paths are updated.</param>
+        /// <param name="closure">The full paths of the published files.</param>
+        /// <param name="refusal">Why the closure was not published.</param>
+        /// <returns><c>true</c> when every asset was published.</returns>
+        internal static bool TryPublishFetchedClosure(
+            string stagingDir,
+            string cacheDir,
+            IReadOnlyList<OpenUsdConnector.FetchedAsset> fetched,
+            out ISet<string> closure,
+            out string? refusal)
+        {
+            string stagingRoot = Path.GetFullPath(stagingDir);
+            string cacheRoot = Path.GetFullPath(cacheDir);
+            var targets = new List<string>(fetched.Count);
+            var published = new HashSet<string>(PathComparer);
+            closure = published;
+            foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+            {
+                string? relative = GetCacheRelativePath(stagingRoot, Path.GetFullPath(asset.LocalPath));
+                if (relative == null ||
+                    PathComparer.Equals(relative, "stage.usda") ||
+                    PathComparer.Equals(relative, "live.usda"))
+                {
+                    refusal = $"The served asset '{asset.Identifier}' would overwrite the connector's " +
+                        "generated stage.usda or live.usda, or lies outside the download directory.";
+                    return false;
+                }
+                targets.Add(Path.Combine(cacheRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
+            }
+            for (int i = 0; i < fetched.Count; i++)
+            {
+                string target = targets[i];
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                if (File.Exists(target))
+                {
+                    File.Delete(target);
+                }
+                File.Move(fetched[i].LocalPath, target);
+                fetched[i].LocalPath = target;
+                published.Add(target);
+            }
+            refusal = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Deletes a staging directory, ignoring a file a viewer or scanner still holds.
+        /// </summary>
+        internal static void DeleteStagingDirectory(string stagingDir)
+        {
+            try
+            {
+                if (Directory.Exists(stagingDir))
+                {
+                    Directory.Delete(stagingDir, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        private static StringComparer PathComparer => RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
 
         private static string? GetCacheRelativePath(string cacheRoot, string fullPath)
         {
@@ -1039,7 +1135,25 @@ namespace Opc.Ua.OpenUsd.Connector
         {
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await session.DisposeAsync().ConfigureAwait(false);
-            (config.CertificateManager as IDisposable)?.Dispose();
+            await DisposeCertificateManagerAsync(config).ConfigureAwait(false);
+        }
+
+        // Excluded because it drains and disposes the live certificate manager.
+        [ExcludeFromCodeCoverage]
+        private static async Task DisposeCertificateManagerAsync(ApplicationConfiguration config)
+        {
+            // The rejected store is written by a background queue; drain it while the
+            // manager is still usable, or the certificate the operator is told to move
+            // can be lost when disposal marks the manager unusable.
+            await config.CertificateManager.FlushRejectedAsync(CancellationToken.None).ConfigureAwait(false);
+            if (config.CertificateManager is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                (config.CertificateManager as IDisposable)?.Dispose();
+            }
         }
 
         /// <summary>
@@ -1079,6 +1193,7 @@ namespace Opc.Ua.OpenUsd.Connector
                 config,
                 endpoint,
                 updateBeforeConnect: false,
+                checkDomain: !insecure,
                 sessionName: "Opc.Ua.OpenUsd.Connector (federated)",
                 sessionTimeout: 60000,
                 identity: new UserIdentity(new AnonymousIdentityToken()),
