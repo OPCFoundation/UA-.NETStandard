@@ -242,6 +242,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 options.ProductUri = "urn:localhost:di-mcp-tests:product";
                 options.PkiRoot = Path.Combine(root, "pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(endpoint);
