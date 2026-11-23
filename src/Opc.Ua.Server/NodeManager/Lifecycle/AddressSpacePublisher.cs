@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
             var snapshots = new Dictionary<
                 NodeManagerRoutingTable.RoutingSnapshot,
                 Dictionary<NodeState, ArrayOf<IReference>>>();
-            var nextImages = new Dictionary<NodeState, ArrayOf<IReference>>();
+            var nextImages = new Dictionary<NodeState, ArrayOf<IReference>>(RefEqualityComparer.Default);
             int updateIndex = 0;
             foreach (KeyValuePair<NodeState.ReferenceUpdate, NodeManagerGeneration> entry in referenceOwners)
             {
@@ -128,7 +128,8 @@ namespace Opc.Ua.Server
             NodeManagerRoutingTable.RoutingSnapshot,
             Dictionary<NodeState, ArrayOf<IReference>>>[] m_referenceImages;
         private readonly Dictionary<NodeState, ArrayOf<IReference>> m_nextReferenceImages;
-        private readonly Dictionary<NodeState, ArrayOf<IReference>> m_emptyReferenceImages = [];
+        private readonly Dictionary<NodeState, ArrayOf<IReference>> m_emptyReferenceImages =
+            new(RefEqualityComparer.Default);
         private readonly Action<bool> m_viewPublished;
 
         /// <summary>The transaction recording whether core publication has started.</summary>

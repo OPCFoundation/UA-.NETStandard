@@ -2720,7 +2720,7 @@ namespace Opc.Ua.Server
 
             IAsyncNodeManager candidate = asyncNodeManager ?? nodeManager!.ToAsyncNodeManager();
             ChangePreparer.StagingServer? staging =
-                ChangePreparer.GetServer(GetPreparingNodeManager(candidate) ?? candidate);
+                ChangePreparer.GetServer(GetPreparingNodeManager(candidate, nodeManager) ?? candidate);
             if (staging is { IsStaging: true })
             {
                 return staging.UnstageNamespaceRegistration(namespaceUri);
@@ -2893,13 +2893,34 @@ namespace Opc.Ua.Server
         }
 
         private IAsyncNodeManager? GetPreparingNodeManager(
-            IAsyncNodeManager nodeManager)
+            IAsyncNodeManager nodeManager,
+            INodeManager? legacyNodeManager = null)
         {
             lock (m_preparingNodeManagersLock)
             {
                 IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetGenerationIdentity(nodeManager);
-                return m_preparingNodeManagers.FirstOrDefault(candidate =>
+                IAsyncNodeManager? exact = m_preparingNodeManagers.FirstOrDefault(candidate =>
                     ReferenceEquals(NodeManagerGenerationRegistry.GetGenerationIdentity(candidate), identity));
+                if (exact is not null || legacyNodeManager is null)
+                {
+                    return exact;
+                }
+
+                // Only an explicit legacy call may match a candidate through its synchronous view.
+                IAsyncNodeManager? legacyMatch = null;
+                foreach (IAsyncNodeManager candidate in m_preparingNodeManagers)
+                {
+                    if (!ReferenceEquals(candidate.SyncNodeManager, legacyNodeManager))
+                    {
+                        continue;
+                    }
+                    if (legacyMatch is not null)
+                    {
+                        return null;
+                    }
+                    legacyMatch = candidate;
+                }
+                return legacyMatch;
             }
         }
 

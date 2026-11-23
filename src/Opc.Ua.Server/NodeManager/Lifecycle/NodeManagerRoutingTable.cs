@@ -1587,7 +1587,8 @@ namespace Opc.Ua.Server
             /// </summary>
             internal Dictionary<NodeState, ArrayOf<IReference>> CopyReferenceImages()
             {
-                return new Dictionary<NodeState, ArrayOf<IReference>>(Volatile.Read(ref m_referenceImages));
+                return new Dictionary<NodeState, ArrayOf<IReference>>(
+                    Volatile.Read(ref m_referenceImages), RefEqualityComparer.Default);
             }
 
             /// <summary>
@@ -1677,7 +1678,8 @@ namespace Opc.Ua.Server
             private readonly NodeManagerGeneration[] m_pendingReadiness;
 
             /// <summary>The frozen reference images for this routing view.</summary>
-            private Dictionary<NodeState, ArrayOf<IReference>> m_referenceImages = [];
+            private Dictionary<NodeState, ArrayOf<IReference>> m_referenceImages =
+                new(RefEqualityComparer.Default);
         }
 
         /// <summary>
