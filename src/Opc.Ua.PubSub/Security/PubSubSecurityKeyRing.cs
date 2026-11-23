@@ -190,41 +190,33 @@ namespace Opc.Ua.PubSub.Security
         }
 
         /// <summary>
-        /// Reconciles the <see cref="PubSubSecurityKey.IssuedAt"/> of the
-        /// current or a future key with a new SKS response. The response
-        /// bounds the real issuance time to
-        /// [<paramref name="earliest"/>, <paramref name="latest"/>] (the SKS
-        /// built it somewhere between sending the request and receiving the
-        /// response), and the cached time is always a lower bound:
-        /// <list type="bullet">
-        /// <item>When <paramref name="latest"/> is before the cached time,
-        /// the SKS re-timed the key (a forced rotation): take
-        /// <paramref name="earliest"/>.</item>
-        /// <item>When <paramref name="earliest"/> is after the cached time, a
-        /// timelier response tightens the estimate: take it.</item>
-        /// <item>Otherwise keep the cached time.</item>
-        /// </list>
-        /// The result never exceeds the real issuance time, so a delayed
-        /// response can neither extend a key's validity nor keep an
-        /// underestimate from an earlier delayed response. Past keys are left
-        /// alone.
+        /// Replaces the <see cref="PubSubSecurityKey.IssuedAt"/> of the
+        /// current or a future key with the one derived from the newest SKS
+        /// response. That time is measured from when the request was sent,
+        /// so it is never later than the real issuance time under the SKS's
+        /// current schedule: a delayed response can only retire a key early
+        /// (by at most its round trip), never extend it, and a forced
+        /// rotation is always followed. The next timely response restores
+        /// an estimate a delayed one shortened. Past keys are left alone.
         /// </summary>
         /// <param name="tokenId">Token id of the key to re-time.</param>
-        /// <param name="earliest">Issuance time measured from the request.</param>
-        /// <param name="latest">Issuance time measured from the response.</param>
+        /// <param name="issuedAt">Issuance time measured from the request.</param>
         /// <returns>
         /// <see langword="true"/> when a current or future key with
         /// <paramref name="tokenId"/> was found.
         /// </returns>
-        internal bool Reschedule(uint tokenId, DateTimeUtc earliest, DateTimeUtc latest)
+        internal bool Reschedule(uint tokenId, DateTimeUtc issuedAt)
         {
             lock (m_lock)
             {
                 ThrowIfDisposed();
                 if (m_current?.TokenId == tokenId)
                 {
-                    m_current = Reconcile(m_current, earliest, latest);
-                    m_byToken[tokenId] = m_current;
+                    if (m_current.IssuedAt != issuedAt)
+                    {
+                        m_current = m_current.WithIssuedAt(issuedAt);
+                        m_byToken[tokenId] = m_current;
+                    }
                     return true;
                 }
                 bool found = false;
@@ -235,22 +227,15 @@ namespace Opc.Ua.PubSub.Security
                     if (key.TokenId == tokenId)
                     {
                         found = true;
-                        key = Reconcile(key, earliest, latest);
-                        m_byToken[tokenId] = key;
+                        if (key.IssuedAt != issuedAt)
+                        {
+                            key = key.WithIssuedAt(issuedAt);
+                            m_byToken[tokenId] = key;
+                        }
                     }
                     m_future.Enqueue(key);
                 }
                 return found;
-            }
-
-            static PubSubSecurityKey Reconcile(
-                PubSubSecurityKey key,
-                DateTimeUtc earliest,
-                DateTimeUtc latest)
-            {
-                return latest < key.IssuedAt || earliest > key.IssuedAt
-                    ? key.WithIssuedAt(earliest)
-                    : key;
             }
         }
 

@@ -630,7 +630,46 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
         [Test]
         [Category("SecurityRegression")]
-        public async Task DelayBeforeTheSksAnswersDoesNotShortenAKnownKeyAsync()
+        public async Task ForcedRotationIsFollowedEvenWhenTheReplyIsDelayedAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            // Token 2 is forced current at minute 50 (expiry 110 instead of
+            // 120). The lead-time refresh is built at minute 55 but received
+            // at minute 66, so the reply window overlaps the old schedule.
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(50)).ConfigureAwait(false);
+            await sks.ForceRotationAsync().ConfigureAwait(false);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(4)).ConfigureAwait(false);
+            sks.DelayNextResponse = TimeSpan.FromMinutes(11);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(sks.DelayNextResponse, Is.EqualTo(TimeSpan.Zero), "the delayed refresh did not run");
+            Assert.That(current.TokenId, Is.EqualTo(2u));
+            Assert.That(
+                current.IssuedAt + current.Lifetime,
+                Is.EqualTo(DateTimeUtc.From(new DateTime(2026, 1, 1, 1, 50, 0, DateTimeKind.Utc))),
+                "the provider kept the pre-rotation expiry of token 2");
+
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(43)).ConfigureAwait(false);
+            current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task TimelyRefreshRestoresAKeyShortenedByADelayedReplyAsync()
         {
             var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
             var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
@@ -646,13 +685,15 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             await AdvanceAsync(clock, TimeSpan.FromMinutes(54)).ConfigureAwait(false);
 
             // The lead-time refresh is sent at minute 55 but the SKS builds
-            // its response at minute 66 (TimeToNextKey = 54 min for token 2).
-            // Token 2 must keep its exact expiry of minute 120, not 109.
+            // its response at minute 66 (TimeToNextKey = 54 min for token 2),
+            // so token 2 is conservatively taken to expire at minute 109. The
+            // timely refresh before then restores its real expiry of 120.
             sks.DelayBeforeNextResponse = TimeSpan.FromMinutes(11);
             await AdvanceAsync(clock, TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+            Assert.That(sks.DelayBeforeNextResponse, Is.EqualTo(TimeSpan.Zero), "the delayed refresh did not run");
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(40)).ConfigureAwait(false);
 
             PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
-            Assert.That(sks.DelayBeforeNextResponse, Is.EqualTo(TimeSpan.Zero), "the delayed refresh did not run");
             Assert.That(current.TokenId, Is.EqualTo(2u));
             Assert.That(
                 current.IssuedAt + current.Lifetime,
