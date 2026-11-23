@@ -42,16 +42,29 @@ namespace Opc.Ua.Redundancy.Server
                     "and PeerStatusLifetime must exceed it.");
             }
 
-            m_stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            m_poll = PollAsync(server, m_stop.Token);
+            lock (m_lifetimeLock)
+            {
+                m_stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                m_poll = PollAsync(server, m_stop.Token);
+            }
             return default;
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            using CancellationTokenSource? stop = Interlocked.Exchange(ref m_stop, null);
-            stop?.Cancel();
+            lock (m_lifetimeLock)
+            {
+                try
+                {
+                    m_stop?.Cancel();
+                }
+                finally
+                {
+                    m_stop?.Dispose();
+                    m_stop = null;
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -223,6 +236,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private const byte RecordVersion = 1;
         private const int RecordSize = 14;
+        private readonly Lock m_lifetimeLock = new();
         private CancellationTokenSource? m_stop;
         private Task m_poll = Task.CompletedTask;
 
