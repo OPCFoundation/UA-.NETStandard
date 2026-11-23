@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Migration Guide
 
 Use this guide to migrate an application between versions of the OPC UA
@@ -23,6 +28,7 @@ covers cross-cutting changes.
 - [Migrating code that used ApplicationConfiguration.PropertiesLock](#migrating-code-that-used-applicationconfigurationpropertieslock)
 - [Migrating node types that override FindChild or CreateChild](#migrating-node-types-that-override-findchild-or-createchild)
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
+- [Migrating to live redundancy peer status](#migrating-to-live-redundancy-peer-status)
 - [Session user identifiers and custom operation contexts](#session-user-identifiers-and-custom-operation-contexts)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
@@ -523,6 +529,25 @@ plan an offline namespace/identifier migration and client cutover.
 Unbound legacy shared state is not automatically adopted or renumbered. The
 identity module refuses unknown or conflicting stored contracts; see its
 new-store provisioning and migration limits before attaching an existing store.
+
+## Migrating to live redundancy peer status
+
+Remove uses of `ServerRedundancyOptions.PeerServiceLevel`. The setting is
+obsolete and no longer affects `Server.ServerRedundancy.RedundantServerArray`.
+Configure servers in the set with the same shared key-value store and
+compatible record protection. In Transparent mode, assign each replica a
+distinct `CurrentServerId` and list the peer IDs in `PeerServerUris`, even
+when the replicas share an ApplicationUri. Non-transparent modes continue
+to identify peers by ApplicationUri.
+Each server publishes its effective `ServerStatus.State` and `ServiceLevel`.
+The default refresh interval is two seconds and the default record lifetime
+is ten seconds. These are configurable through `PeerStatusUpdateInterval`
+and `PeerStatusLifetime`; keep replica clocks synchronized.
+
+An unreported, invalid, unreadable, or expired peer stays in the array with
+state `Unknown` and service level `0`. This also applies when the store or
+record protector is not registered, or before an older peer is upgraded to
+publish status records.
 
 ## Session user identifiers and custom operation contexts
 

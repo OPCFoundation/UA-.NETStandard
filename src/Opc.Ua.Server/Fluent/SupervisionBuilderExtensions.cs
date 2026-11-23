@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Fluent
                 context,
                 active ? EventSeverity.High : EventSeverity.Low);
 
-            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+            alarm.ResetEventId();
             alarm.Time!.Value = now;
             alarm.ReceiveTime!.Value = now;
             alarm.Message!.Value = new LocalizedText(

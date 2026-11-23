@@ -110,6 +110,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(occurrence));
             }
+            (occurrence as BaseEventState)?.PrepareEventForReport(context);
             AdmitEventCore(context, occurrence);
         }
 

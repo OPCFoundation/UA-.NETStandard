@@ -58,14 +58,9 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public byte GetServiceLevel()
         {
-            int manualServiceLevel = Volatile.Read(ref m_manualServiceLevel);
-            if (manualServiceLevel >= 0)
-            {
-                return (byte)manualServiceLevel;
-            }
-
             byte level = m_election.IsLeader ? m_leaderLevel : GetStandbyServiceLevel();
-            if (m_getHealthServiceLevel != null)
+            level = Math.Min(level, (byte)Volatile.Read(ref m_manualServiceLevel));
+            if (level != ServiceLevels.Maintenance && m_getHealthServiceLevel != null)
             {
                 level = Math.Min(level, m_getHealthServiceLevel());
             }
@@ -73,11 +68,13 @@ namespace Opc.Ua.Redundancy.Server
             return ApplyHealthyLoadBalancing(level);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Sets a persistent administrative cap. Maximum removes the cap.
+        /// </summary>
         public void SetServiceLevel(byte serviceLevel)
         {
             Volatile.Write(ref m_manualServiceLevel, serviceLevel);
-            ServiceLevelChanged?.Invoke(serviceLevel);
+            ServiceLevelChanged?.Invoke(GetServiceLevel());
         }
 
         /// <summary>
@@ -90,7 +87,6 @@ namespace Opc.Ua.Redundancy.Server
 
         private void OnLeadershipChanged(bool isLeader)
         {
-            Volatile.Write(ref m_manualServiceLevel, kNoManualServiceLevel);
             ServiceLevelChanged?.Invoke(GetServiceLevel());
         }
 
@@ -129,8 +125,6 @@ namespace Opc.Ua.Redundancy.Server
         private readonly Func<byte>? m_getHealthServiceLevel;
         private readonly byte m_leaderLevel = ServiceLevels.Maximum;
         private readonly byte? m_standbyLevel;
-        private int m_manualServiceLevel = kNoManualServiceLevel;
-
-        private const int kNoManualServiceLevel = -1;
+        private int m_manualServiceLevel = ServiceLevels.Maximum;
     }
 }

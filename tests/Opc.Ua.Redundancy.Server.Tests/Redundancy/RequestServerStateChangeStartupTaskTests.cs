@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
 
@@ -377,12 +378,20 @@ namespace Opc.Ua.Server.Tests.Redundancy
             controller.Verify(c => c.SetServiceLevel(It.IsAny<byte>()), Times.Never);
         }
 
-        [Test]
-        public async Task RequestRunningSetsEstimatedReturnTimeToNullAsync()
+        [TestCase(RedundancySupport.Cold, ServiceLevels.NoData)]
+        [TestCase(RedundancySupport.Warm, ServiceLevels.DegradedMaximum)]
+        public async Task RequestRunningClearsEstimatedReturnTimeAndRestoresStandbyLevelAsync(
+            RedundancySupport mode,
+            byte standbyLevel)
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
-            using RequestServerStateChangeStartupTask task = CreateTask();
+            await using var election = new StaticLeaderElection(false);
+            using var provider = new LeaderServiceLevelProvider(election, mode);
+            var clock = new FakeTimeProvider();
+            using var publisher = new ServiceLevelStartupTask(provider, clock);
+            using RequestServerStateChangeStartupTask task = CreateTask(publisher);
 
+            await publisher.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             RequestServerStateChangeMethodState method = FindMethod(loaded);
             PropertyState<DateTimeUtc> estimatedReturnTimeNode =
@@ -400,6 +409,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 restart: false);
             Assert.That(suspend, Is.EqualTo(ServiceResult.Good));
             Assert.That(estimatedReturnTimeNode.Value, Is.EqualTo(new DateTimeUtc(638000000000000000)));
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(loaded.Server.Object.ServerObject.ServiceLevel!.Value,
+                Is.EqualTo(ServiceLevels.Maintenance));
 
             ServiceResult resume = method.OnCall!(
                 loaded.Server.Object.DefaultSystemContext,
@@ -414,6 +426,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(resume, Is.EqualTo(ServiceResult.Good));
             Assert.That(estimatedReturnTimeNode.Value, Is.EqualTo(DateTimeUtc.MinValue));
             Assert.That(ReadState(loaded), Is.EqualTo(ServerState.Running));
+            Assert.That(loaded.Server.Object.ServerObject.ServiceLevel!.Value, Is.EqualTo(standbyLevel));
             Assert.That(loaded.Status.Value.ShutdownReason.IsNullOrEmpty, Is.True);
         }
 

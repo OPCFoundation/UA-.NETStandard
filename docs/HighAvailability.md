@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # High Availability and OPC UA Redundancy
 
 This guide explains how the OPC UA .NET Standard high-availability APIs
@@ -112,17 +117,24 @@ Beyond-spec distributed building blocks (`Use*`):
 | `UseKubernetesRaftConsensus(...)` | (`Opc.Ua.Redundancy.Kubernetes`) Builds the Raft cluster from the StatefulSet ordinal and headless-Service DNS. |
 | `UseKubernetesPeerDiscovery(...)` | (`Opc.Ua.Redundancy.Kubernetes`) Discovers peer ServerUris from EndpointSlices, bridged into the generic peer-discovery seam. |
 
-`AddServerRedundancy(...)` only publishes the redundancy metadata. It does not calculate or drive `Server.ServiceLevel`; register a ServiceLevel provider with `AddServerServiceLevel(...)`, or register an `IServiceLevelProvider` plus `ServiceLevelStartupTask`, when clients and Kubernetes readiness need live health or leader-state values.
+`AddServerRedundancy(...)` uses the configured shared store and record protector to populate `RedundantServerArray` from live peer status. A peer with no fresh status record is reported as `Unknown` with level `0`. In Transparent mode, configure a distinct `CurrentServerId` per replica and list those IDs in `PeerServerUris`; replicas can share the same application URI. Non-transparent configurations continue to use peer application URIs.
+
+`AddServerRedundancy(...)` does not calculate the local `Server.ServiceLevel`. Register a provider with `AddServerServiceLevel(...)` when clients and Kubernetes readiness need live health or leader-state values. The publisher reacts to provider notifications and samples the provider once per second so changes to health and load are reflected even without a role change.
 
 On the standard server, `ServiceLevelStartupTask` claims explicit ownership via
-`IServerServiceLevelControl`. Only one provider can claim the node for that
-server's lifetime; a second claim fails instead of creating competing writers.
+`IServerServiceLevelControl`. Only one publisher can claim the node at a time;
+a second claim fails instead of creating competing writers.
 Provider publications and session-headroom updates share the server's internal
 coordination, and session churn cannot overwrite any provider-owned value,
 including Healthy-band standby/load levels such as 210 or a fixed 255.
 Without an explicit owner, the session-headroom heuristic is unchanged.
 Custom `IServerContext` implementations can implement this optional capability;
 contexts without it retain their existing direct provider-publication behavior.
+When `AddRequestServerStateChange(...)` is also registered, its administrative
+level caps the provider's level until another state is requested. The default
+Running request removes the cap, clears `EstimatedReturnTime`, and restores the
+level determined by role, health and load, including the standby level in Cold
+and Warm sets.
 
 ```csharp
 services.AddOpcUa()
@@ -144,7 +156,6 @@ services.AddOpcUa()
         options.AddRedundantPeer(
             "urn:example:ha-server-2",
             new ArrayOf<string>(["opc.tcp://ha-server-2:4840"]));
-        options.PeerServiceLevel = ServiceLevels.DegradedMaximum;
     })
     .AddServerServiceLevel(new LeaderServiceLevelProvider(leaderElection, RedundancySupport.Warm))
     .AddRequestServerStateChange(options =>
@@ -166,7 +177,7 @@ OPC 10000-4 Table 105 defines `ServiceLevel` as a byte split into mandatory sub-
 | `2..199` | Degraded | Server is partially operational; clients should prefer any Healthy peer and may choose a higher degraded peer when no Healthy peer exists. |
 | `200..255` | Healthy | Server is fully operational; clients connect to the highest value for selection/load balancing and should not fail over while the current server remains Healthy. |
 
-`ConstantServiceLevelProvider` reports a fixed value, defaulting to `255`, preserving single-instance behavior. `LeaderServiceLevelProvider` follows an `ILeaderElection`: the leader reports `255`, Cold standbys report `1`, Warm standbys report `199`, and Hot/HotAndMirrored standbys report `255` unless explicit levels are supplied. Optional health and connected-client delegates cap or decrement Healthy values so Hot servers can load-balance within the 200-255 range. `IServiceLevelController` lets `RequestServerStateChange` override the published value for manual maintenance.
+`ConstantServiceLevelProvider` reports a fixed value, defaulting to `255`, preserving single-instance behavior. `LeaderServiceLevelProvider` follows an `ILeaderElection`: the leader reports `255`, Cold standbys report `1`, Warm standbys report `199`, and Hot/HotAndMirrored standbys report `255` unless explicit levels are supplied. Optional health and connected-client delegates cap or decrement Healthy values so Hot servers can load-balance within the 200-255 range. `RequestServerStateChange` can lower the published value for manual maintenance without changing the leader election.
 
 `SharedStoreLeaseElection` bounds local authority by the last successfully
 confirmed lease. Its injected `TimeProvider` drives both renewal and an
@@ -189,13 +200,11 @@ safety mechanism does not replace backend fencing or provide consensus.
 
 Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `RedundancySupport`, `ServiceLevel`, `EstimatedReturnTime`, `RedundantServerArray`, `ServerUriArray`, and `CurrentServerId` as applicable. `ServerRedundancyInfo.ServiceLevelSubrange` is calculated with `ServiceLevels.GetSubrange`.
 
-`ManagedSession` stores the default handler's basic snapshot as soon as that
-read succeeds, within the existing two-second metadata-read bound. Peer discovery
-runs separately in the background, in parallel with a two-second bound per peer;
-connection establishment does not wait for every backup. A peer timeout leaves
-its `Endpoint` unresolved without discarding the mode, peer URIs or other resolved
-endpoints. Caller cancellation is propagated, and session disposal cancels and
-drains the background refresh.
+`ManagedSession.RedundancyInfo` exposes the latest snapshot. With the default
+handler, the active server's metadata read is bounded to two seconds by default.
+Peer endpoint discovery runs separately with bounded concurrency and a
+two-second default timeout per peer. Initial server selection can wait for discovery
+and status probes; routine metadata refreshes do not wait for those probes.
 
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
@@ -210,8 +219,7 @@ Console.WriteLine($"Mode={info.Mode}, ServiceLevel={info.ServiceLevel} ({info.Se
 ServerFailoverDecision decision = handler.ShouldFailover(info, session.ConfiguredEndpoint);
 if (decision.IsFailoverWarranted)
 {
-    ConfiguredEndpoint? target = handler.SelectFailoverTarget(info, session.ConfiguredEndpoint);
-    Console.WriteLine($"Fail over to {target?.EndpointUrl}: {decision.Reason}");
+    Console.WriteLine(decision.Reason);
 }
 ```
 
@@ -233,7 +241,15 @@ When the members reach the Client only over Reverse Connect, set
 and failed over to over the connections they open, see
 [Reverse Connect](ReverseConnect.md).
 
-Failover is reactive. There is no public method to trigger it: when reconnecting to the current server fails and the reconnect policy or retry budget is exhausted, the session's connection state moves to `ConnectionState.Failover`. `ManagedSession` then refreshes the redundancy snapshot, asks the handler's `SelectFailoverTarget` for a peer (the default handler picks the Running peer with the highest `ServiceLevel` that is not the current server) and recreates the session in place against that endpoint. The inner `Session` object, the V2 subscription engine and the application's subscriptions survive the switch. Subscriptions are recreated on the new server, or transferred when `WithTransferSubscriptionsOnRecreate()` is enabled and the server supports it. For `Transparent` sets the default handler returns no target, because the server infrastructure moves the session. When no peer can be selected, the session moves to `ConnectionState.Disconnected` and the outcome is logged at Information level, not as an error. A session without server redundancy has nothing to fail over to: it skips the `Failover` state and moves from `Reconnecting` straight to `Disconnected`.
+For clients that opt in, `ManagedSession` uses the following defaults:
+
+- **Initial selection:** Connect to the configured endpoint, then resolve peers and use short-lived sessions to read each compatible peer's own `Server.ServiceLevel` and `Server.ServerStatus.State`. Switch to the Running, operational peer with the highest level if it exceeds the initial server's level. Probes reuse the active identity without lowering the security mode or policy.
+- **While connected:** Read the active server's `ServiceLevel` every five seconds. A Healthy server is not left, even if a peer has a higher level. In Degraded, switch only to a Healthy peer. In Maintenance or NoData, switch to the highest-level operational peer. A peer with unknown status or a failed probe is not a candidate for an automatic switch while connected. If no suitable peer is found in Maintenance, close the server session and defer recovery until `EstimatedReturnTime` (five minutes if the estimate is missing or has passed). In Degraded or NoData, continue monitoring if no suitable peer is available.
+- **After reconnect exhaustion:** Refresh the snapshot and probe again. The default handler prefers the highest known operational `ServiceLevel` among Running peers. When no verified peer is available, recovery can attempt an unverified endpoint, but not a peer known to be non-Running, in Maintenance, or in NoData. With no candidate, the session becomes `Disconnected`.
+
+Use `ManagedSession.FailoverAsync(ct: ct)` to request an immediate switch to a handler-selected peer, or pass an explicit `ConfiguredEndpoint`. This is independent of the automatic ServiceLevel decision. To retain reconnect-exhaustion and application-requested failover but disable automatic monitoring and member probes, configure `WithServerRedundancyOptions(new ServerRedundancyOptions { ServiceLevelMonitoringInterval = null, ProbeMemberServiceLevel = false })`. The options do not enable redundancy on their own.
+
+The inner `Session`, the V2 subscription engine, and the application's subscriptions survive a switch. Subscriptions are recreated on the new server, or transferred if `WithTransferSubscriptionsOnRecreate()` is enabled and the server supports it. Transparent redundancy uses the same logical endpoint and does not use this client-side peer selection.
 
 `ManagedSession` does not keep sessions or subscriptions open on backup servers. The Table 107 client patterns map onto it as follows:
 
@@ -243,8 +259,6 @@ Failover is reactive. There is no public method to trigger it: when reconnecting
 | Warm | Connect to more than one server and create subscriptions/monitored items on backups; sampling and publishing become active at failover. | Handled like Cold. Pre-creating subscriptions on backups is not implemented; failover takes as long as a Cold failover. |
 | Hot (a) / Hot (b) | Connect to more than one server and create subscriptions everywhere; publish from one server (a) or from all servers with client-side de-duplication (b). | Handled like Cold. Parallel sessions and duplicate streams are not implemented. |
 | HotAndMirrored | Client normally connects to one server; optional status sessions only; on failover open a SecureChannel and call `ActivateSession` against the mirrored session. | With `WithTokenReuseFailover()`, failover re-activates the mirrored session on the selected peer by reusing the current `AuthenticationToken`, so the server-side session and subscriptions continue. If the peer rejects the token, the client falls back to creating a new session. |
-
-The default handler also implements the Part 4 selection rules in `ShouldFailover`: it does not recommend failing over away from a server that is still in the Healthy sub-range, defers retries for Maintenance using `EstimatedReturnTime` (or `DefaultServerRedundancyHandler.DefaultMaintenanceBackoff`), and only selects a Running peer with an operational `ServiceLevel`. `ManagedSession` does not poll `ServiceLevel` to fail over proactively; call `FetchRedundancyInfoAsync` and `ShouldFailover` yourself, as in the example above, if you want to act on ServiceLevel changes.
 
 ```csharp
 // Cold, Warm and Hot sets: fail over by recreating the session on a peer.
@@ -258,7 +272,7 @@ session.ConnectionStateChanged += (sender, args) =>
 {
     if (args.NewState == ConnectionState.Failover)
     {
-        // The current server is unreachable; a peer is being selected.
+        // The client is switching servers or looking for a recovery target.
     }
 };
 ```
@@ -334,7 +348,7 @@ You enable mirroring by registering the seams below on the server builder; each 
   `IHistorianProviderIdentity` and portable resume tokens. Persistence is
   awaited before the continuation point is returned, and restore atomically
   claims the record so only one replica can resume it.
-- `IEventIdProvider` is an optional event-publishing seam. `DeterministicEventIdProvider` derives EventIds from a shared replica-set seed and stable event fields so Transparent/HotAndMirrored replicas can publish the same logical EventId and clients do not double-process events; the default remains the existing random GUID EventId behavior.
+- `AddServerRedundancy(...)` enables `DeterministicEventIdProvider` for Transparent and HotAndMirrored sets. It assigns IDs to locally generated events, including condition transitions, before they are reported or snapshotted. An explicit EventId from the application or another server is preserved.
 - `RegisterNodes` returns the input NodeIds in this stack, so registered-node handles are already replica-consistent when the AddressSpace NodeIds are identical.
 - `UseDistributedAddressSpace(...)` mirrors node topology and values through `INodeStateStore`, helping each server present the same NodeIds and browse paths. Each node manager is restricted to its declared non-standard `NamespaceUris`; namespace-zero infrastructure remains replica-local, and a replicated root may not contain foreign descendants. Custom and shared-namespace partitions implement `ILocalAddressSpaceOwnership` with a stable `PartitionId` and an `OwnsNode(NodeId)` predicate. Hydration updates existing node graphs in place, preserving concrete node types, callbacks, and handles. Tracked subtree membership is independent of mutable child links, so deleting or replacing a graph also detaches its old replication callbacks.
 
@@ -380,7 +394,7 @@ Notes:
   provider identity matches on the promoted replica and its resume token is
   explicitly portable; otherwise HistoryRead fails closed with
   `BadContinuationPointInvalid`.
-- Deterministic EventIds (`DeterministicEventIdProvider`) are opt-in rather than on by default: they change the EventId values a server emits — a single-server deployment keeps the standard random GUID EventIds — and they require a shared replica-set seed. Enable them for a HotAndMirrored/Transparent set so every replica emits the same logical EventId and clients do not double-process events. They are only as stable as the event fields used, so Alarms & Conditions clients should still call `ConditionRefresh` after failover as required by OPC UA.
+- For mirrored EventIds, every replica must process the same logical occurrence with the same source timestamp and stable source, type, condition and branch identities. Use the same `UseReplicaNodeIdentity(...)` replica-set ID or configure the same `DeterministicEventIdSeed` on every member. Set the occurrence timestamp before reporting, or supply an EventId from the shared event producer if the event fields do not uniquely identify the occurrence. The ID provider does not mirror application condition branches or acknowledgement state; those must also be available on the replacement server for Acknowledge and Confirm. Alarms & Conditions clients should still call `ConditionRefresh` after failover.
 
 ### Active/passive address-space consistency
 

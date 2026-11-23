@@ -44,7 +44,8 @@ namespace Opc.Ua.Client.Tests
             set.Backup.SetServiceLevel(250);
 
             await using UaManagedSession session = await set.ConnectAsync(
-                new ServerRedundancyOptions(), timeout.Token).ConfigureAwait(false);
+                new ServerRedundancyOptions { ProbeMemberServiceLevel = false }, timeout.Token)
+                .ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
             ServerRedundancyInfo info = await WaitForResolvedMemberAsync(session, set.Backup, timeout.Token)
@@ -61,19 +62,19 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// With probing, the initial connect switches to the member with the
+        /// With default options, the initial connect switches to the member with the
         /// higher ServiceLevel.
         /// </summary>
         [Test]
-        public async Task ConnectWithProbingSelectsMemberWithHigherServiceLevelAsync()
+        public async Task ConnectWithDefaultRedundancySelectsMemberWithHigherServiceLevelAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
             set.Primary.SetServiceLevel(210);
             set.Backup.SetServiceLevel(250);
 
-            await using UaManagedSession session = await set.ConnectAsync(
-                new ServerRedundancyOptions { ProbeMemberServiceLevel = true }, timeout.Token).ConfigureAwait(false);
+            await using UaManagedSession session = await set.ConnectAsync(null, timeout.Token)
+                .ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
             ServerRedundancyInfo? info = session.RedundancyInfo;
@@ -277,12 +278,7 @@ namespace Opc.Ua.Client.Tests
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
             set.Primary.SetServiceLevel(ServiceLevels.Maximum);
             set.Backup.SetServiceLevel(230);
-            var options = new ServerRedundancyOptions
-            {
-                ProbeMemberServiceLevel = true,
-                ServiceLevelMonitoringInterval = TimeSpan.FromMilliseconds(250)
-            };
-            await using UaManagedSession session = await set.ConnectAsync(options, timeout.Token)
+            await using UaManagedSession session = await set.ConnectAsync(null, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
             var stateChanges = new ConcurrentQueue<ConnectionStateChangedEventArgs>();
@@ -345,6 +341,47 @@ namespace Opc.Ua.Client.Tests
                 await EventuallyAsync(() => set.Primary.SessionCount == 0).ConfigureAwait(false),
                 Is.True,
                 "The session on the Server left must be closed there.");
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MaintenanceMonitoringDisconnectsAndDefersReconnectAsync(bool refuseProbe)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            set.Backup.SetServiceLevel(refuseProbe ? (byte)230 : ServiceLevels.Maintenance);
+            if (refuseProbe)
+            {
+                set.Backup.RefuseRead(VariableIds.Server_ServiceLevel);
+            }
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.FromMilliseconds(100) },
+                timeout.Token).ConfigureAwait(false);
+            ISession original = session.InnerSession;
+            int priorProbes = set.Backup.CreatedSessionCount;
+            DateTime retryAfter = DateTime.UtcNow.AddSeconds(5);
+            set.Primary.SetEstimatedReturnTime(retryAfter);
+
+            set.Primary.SetServiceLevel(ServiceLevels.Maintenance);
+            await WaitUntilAsync(() => session.StateMachine.State == ConnectionState.Disconnected, timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(set.Primary.SessionCount, Is.Zero);
+                Assert.That(set.Backup.SessionCount, Is.Zero);
+                Assert.That(set.Backup.CreatedSessionCount, Is.GreaterThan(priorProbes));
+                Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
+            });
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            session.StateMachine.TriggerReconnect();
+            Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
+
+            await WaitUntilAsync(() => session.StateMachine.State == ConnectionState.Connected, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(DateTime.UtcNow, Is.GreaterThanOrEqualTo(retryAfter));
+            Assert.That(session.InnerSession, Is.SameAs(original));
         }
 
         /// <summary>
@@ -418,7 +455,7 @@ namespace Opc.Ua.Client.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
             await using UaManagedSession session = await set.ConnectAsync(
-                new ServerRedundancyOptions(), timeout.Token, withRedundancyHandler: false).ConfigureAwait(false);
+                null, timeout.Token, withRedundancyHandler: false).ConfigureAwait(false);
 
             await Assert.ThatAsync(
                 () => session.FailoverAsync(set.Backup.Endpoint, timeout.Token),
@@ -428,6 +465,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.That(session.RedundancyInfo, Is.Null);
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
+            Assert.That(set.Backup.CreatedSessionCount, Is.Zero);
         }
 
         private static string? ServerUriOf(UaManagedSession session)
@@ -544,7 +582,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             public Task<UaManagedSession> ConnectAsync(
-                ServerRedundancyOptions options,
+                ServerRedundancyOptions? options,
                 CancellationToken ct,
                 bool withRedundancyHandler = true,
                 ConfiguredEndpoint? backupEndpoint = null,
@@ -649,6 +687,15 @@ namespace Opc.Ua.Client.Tests
             public void SetServiceLevel(byte level)
             {
                 m_setServiceLevel(level);
+            }
+
+            public void SetEstimatedReturnTime(DateTime estimate)
+            {
+                IServerInternal server = m_server.CurrentInstance;
+                var serverObject = server.ServerObject;
+                serverObject.AddEstimatedReturnTime(server.DefaultSystemContext);
+                serverObject.EstimatedReturnTime!.Value = estimate;
+                serverObject.EstimatedReturnTime.ClearChangeMasks(server.DefaultSystemContext, false);
             }
 
             /// <summary>

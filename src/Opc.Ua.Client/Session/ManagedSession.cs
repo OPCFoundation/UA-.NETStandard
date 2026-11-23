@@ -78,7 +78,7 @@ namespace Opc.Ua.Client
             redundancyOptions.Validate();
             m_redundancyRefreshTimeout = redundancyOptions.RefreshTimeout;
             m_peerProbeTimeout = redundancyOptions.PeerDiscoveryTimeout;
-            m_probeMemberServiceLevel = redundancyOptions.ProbeMemberServiceLevel;
+            m_probeMemberServiceLevel = redundancyHandler != null && redundancyOptions.ProbeMemberServiceLevel;
             m_memberConnections = redundancyOptions.MemberConnections;
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
@@ -2069,9 +2069,17 @@ namespace Opc.Ua.Client
 
                     try
                     {
-                        ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
-                            session.ConfiguredEndpoint, budget, ct).ConfigureAwait(false);
-                        await session.ReconnectWithConnectionAsync(budget, connection, ct).ConfigureAwait(false);
+                        if (!session.Connected)
+                        {
+                            // Maintenance closes the server session but retains its local state.
+                            await RecreateInPlaceAndRebindAsync(session, null, budget, ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
+                                session.ConfiguredEndpoint, budget, ct).ConfigureAwait(false);
+                            await session.ReconnectWithConnectionAsync(budget, connection, ct).ConfigureAwait(false);
+                        }
                     }
                     catch (ServiceResultException sre) when (
                         sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
@@ -2670,6 +2678,7 @@ namespace Opc.Ua.Client
                     return switched;
                 }
 
+                await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
                 m_logger.ManagedSessionFailoverComplete();
 
                 return ServiceResult.Good;
@@ -2687,7 +2696,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        private async Task RefreshRedundancyInfoBestEffortAsync(
+        private async Task<bool> RefreshRedundancyInfoBestEffortAsync(
             CancellationToken ct,
             bool resolveCachedEndpoints = false)
         {
@@ -2695,7 +2704,7 @@ namespace Opc.Ua.Client
             IServerRedundancyHandler? handler = m_redundancyHandler;
             if (handler == null)
             {
-                return;
+                return false;
             }
             if (resolveCachedEndpoints)
             {
@@ -2712,7 +2721,7 @@ namespace Opc.Ua.Client
                         }
                         Interlocked.CompareExchange(ref m_redundancyInfo, updated, snapshot);
                     }
-                    return;
+                    return snapshot != null;
                 }
                 if (m_redundancyEndpointRefreshTask is { IsCompleted: false } pending)
                 {
@@ -2728,13 +2737,13 @@ namespace Opc.Ua.Client
                 snapshot = Volatile.Read(ref m_redundancyInfo) ?? snapshot;
                 await StartRedundancyEndpointRefresh(cache, snapshot, m_probeMemberServiceLevel, ct)
                     .WaitAsync(ct).ConfigureAwait(false);
-                return;
+                return true;
             }
 
             Task<ServerRedundancyInfo>? previous = m_redundancyRefreshTask;
             if (previous != null && !previous.IsCompleted)
             {
-                return;
+                return false;
             }
             Func<CancellationToken, ValueTask<ServerRedundancyInfo>> operation =
                 handler is IServerRedundancyEndpointCache reader
@@ -2755,6 +2764,7 @@ namespace Opc.Ua.Client
                 {
                     _ = StartRedundancyEndpointRefresh(cache, m_redundancyInfo, probeMembers: false, ct);
                 }
+                return true;
             }
             catch (Exception exception) when (exception is OperationCanceledException or TimeoutException)
             {
@@ -2769,6 +2779,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
             }
+            return false;
         }
 
         /// <summary>

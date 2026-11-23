@@ -94,7 +94,7 @@ namespace Opc.Ua.Extrusion.Server
                 alarm.Message!.Value = new LocalizedText(good
                     ? "Extrusion production quality recovered."
                     : "Extrusion production quality is not acceptable.");
-                alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                alarm.ResetEventId();
                 alarm.Time!.Value = timestamp;
                 alarm.ReceiveTime!.Value = DateTimeUtc.Now;
                 alarm.ClearChangeMasks(context, true);

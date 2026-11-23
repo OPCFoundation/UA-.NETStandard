@@ -3388,6 +3388,11 @@ namespace Opc.Ua.Server
         public EventIdentityAdmissionOptions EventIdentityAdmissionOptions { get; set; } = new();
 
         /// <summary>
+        /// Gets or sets the occurrence ID provider to install before starting the server.
+        /// </summary>
+        public IEventOccurrenceIdProvider? EventOccurrenceIdProvider { get; set; }
+
+        /// <summary>
         /// An optional factory used to build the server's session manager. When
         /// <c>null</c> (the default), the built-in <see cref="SessionManager"/>
         /// is used. Set this before the server starts (the hosting layer wires

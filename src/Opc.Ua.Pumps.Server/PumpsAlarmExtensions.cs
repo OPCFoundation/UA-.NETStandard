@@ -326,7 +326,7 @@ namespace Opc.Ua.Pumps.Server
                 alarm.SetConfirmedState(runtime.SystemContext, true);
             }
             alarm.EventType!.Value = alarm.TypeDefinitionId;
-            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+            alarm.ResetEventId();
             alarm.Quality!.Value = StatusCodes.Good;
             AddGeneratesEvent(source, alarm.TypeDefinitionId);
             AddGeneratesEvent(input, alarm.TypeDefinitionId);
@@ -625,7 +625,7 @@ namespace Opc.Ua.Pumps.Server
                     InstanceStateSnapshot? snapshot = null;
                     if (Alarm.EnabledState!.Id!.Value)
                     {
-                        Alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                        Alarm.ResetEventId();
                         Alarm.ReceiveTime!.Value = DateTimeUtc.Now;
                         Alarm.Time!.Value = Input.Timestamp == DateTimeUtc.MinValue
                             ? Alarm.ReceiveTime.Value

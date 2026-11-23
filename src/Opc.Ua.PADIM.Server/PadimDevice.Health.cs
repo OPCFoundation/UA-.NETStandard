@@ -108,7 +108,7 @@ namespace Opc.Ua.PADIM.Server
                 }
                 if (alarm.EnabledState!.Id!.Value)
                 {
-                    alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                    alarm.ResetEventId();
                     alarm.Time!.Value = sample.SourceTimestamp;
                     alarm.ReceiveTime!.Value = TimeProvider.GetUtcNow().UtcDateTime;
                 }

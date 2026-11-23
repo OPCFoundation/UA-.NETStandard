@@ -162,23 +162,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task LeaderProviderManualOverrideClearsOnTransitionAsync()
+        public async Task LeaderProviderManualOverridePersistsUntilRemovedAsync()
         {
             await using var election = new MutableLeaderElection();
             using var provider = new LeaderServiceLevelProvider(election, leaderLevel: 255, standbyLevel: 200);
-            provider.SetServiceLevel(ServiceLevels.DegradedMaximum);
-            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.DegradedMaximum));
+            provider.SetServiceLevel(ServiceLevels.Maintenance);
 
             election.Set(true);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maintenance));
+            election.Set(false);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maintenance));
 
-            Assert.That(provider.GetServiceLevel(), Is.EqualTo(255));
+            provider.SetServiceLevel(ServiceLevels.Maximum);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(200));
         }
 
         [Test]
         public async Task LeaderProviderConcurrentManualOverrideAndClearDoesNotProduceTornZero()
         {
             await using var election = new MutableLeaderElection();
-            election.Set(true);
+            provider.SetServiceLevel(ServiceLevels.Maximum);
             using var provider = new LeaderServiceLevelProvider(election, leaderLevel: 255, standbyLevel: 200);
             using var cts = new CancellationTokenSource();
             int invalidLevel = -1;
@@ -212,7 +215,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(
                 Volatile.Read(ref invalidLevel),
                 Is.EqualTo(-1),
-                "Concurrent SetServiceLevel/leadership clear must not expose torn ServiceLevel values.");
+                "Concurrent setting and clearing must not expose torn ServiceLevel values.");
         }
 
         [Test]

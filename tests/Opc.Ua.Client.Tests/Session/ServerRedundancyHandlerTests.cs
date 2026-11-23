@@ -922,8 +922,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public void ServiceLevelMonitoringIntervalMustBePositive()
         {
             var defaults = new ServerRedundancyOptions();
-            Assert.That(defaults.ServiceLevelMonitoringInterval, Is.Null);
-            Assert.That(defaults.ProbeMemberServiceLevel, Is.False);
+            Assert.That(defaults.ServiceLevelMonitoringInterval,
+                Is.EqualTo(ServerRedundancyOptions.DefaultServiceLevelMonitoringInterval));
+            Assert.That(defaults.ProbeMemberServiceLevel, Is.True);
+            Assert.That(
+                () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = null }.Validate(),
+                Throws.Nothing);
             Assert.That(
                 () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.Zero }.Validate(),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
@@ -933,6 +937,33 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(
                 () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.FromSeconds(1) }.Validate(),
                 Throws.Nothing);
+        }
+
+        [Test]
+        public void RecoveryPrefersVerifiedPeerToHigherReportedLevelAfterFailedProbe()
+        {
+            var info = new ServerRedundancyInfo
+            {
+                Mode = RedundancySupport.Warm,
+                ServiceLevelAccessible = true,
+                ServiceLevel = ServiceLevels.DegradedMaximum,
+                RedundantServers =
+                [
+                    new RedundantServer
+                    {
+                        ServerUri = "urn:failed-probe",
+                        ServiceLevel = ServiceLevels.Maximum,
+                        ServerState = ServerState.Running,
+                        Endpoint = CreateCurrentEndpoint("urn:failed-probe"),
+                        ResolutionError = new ServiceResult(StatusCodes.BadTimeout)
+                    },
+                    CreateServerInfo("urn:verified", ServiceLevels.DegradedMaximum, ServerState.Running)
+                ]
+            };
+            ConfiguredEndpoint current = CreateCurrentEndpoint("urn:current");
+
+            Assert.That(m_handler.ShouldFailover(info, current).IsFailoverWarranted, Is.False);
+            Assert.That(m_handler.SelectFailoverTarget(info, current), Is.SameAs(info.RedundantServers[1].Endpoint));
         }
 
         /// <summary>

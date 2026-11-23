@@ -150,7 +150,7 @@ namespace Opc.Ua.MachineTool.Server
             StateSchema schema = GetSchema(source.TypeDefinitionId);
             int transition = Array.IndexOf(s_transitions, $"{from}To{to}");
             // Keep the generated property nodes: BaseEventState.Initialize replaces them with transient fields.
-            e.EventId!.Value = Uuid.NewUuid().ToByteString();
+            e.ResetEventId();
             e.Severity!.Value = (ushort)EventSeverity.Low;
             e.Message!.Value = new LocalizedText($"{from} to {to}");
             e.TypeDefinitionId = ConcreteType(baseType);
@@ -194,7 +194,7 @@ namespace Opc.Ua.MachineTool.Server
                     created.EventType!.Value = created.TypeDefinitionId;
                     created.SourceNode!.Value = current.State.NodeId;
                     created.SourceName!.Value = current.Observation.Identifier;
-                    created.EventId!.Value = Uuid.NewUuid().ToByteString();
+                    created.ResetEventId();
                     binding = new ConditionNodes(created, observation);
                     created.RetainStateProvider = _ => binding.Observation.IsActive;
                     created.SetEnableState(m_context.Context, true);

@@ -287,7 +287,7 @@ namespace Opc.Ua.MachineTool.Server
                 NotificationEventState value = m_context.Context.CreateInstanceOfNotificationEventType();
                 value.TypeDefinitionId = m_messageType!.NodeId;
                 value.EventType!.Value = m_messageType.NodeId;
-                value.EventId!.Value = Uuid.NewUuid().ToByteString();
+                value.ResetEventId();
                 value.Identifier!.Value = message.Identifier;
                 value.SourceNode!.Value = State.NodeId;
                 value.SourceName!.Value = m_machine.BrowseName.Name ?? string.Empty;
@@ -340,7 +340,7 @@ namespace Opc.Ua.MachineTool.Server
             state.Quality.SourceTimestamp!.Value = value.Sample.SourceTimestamp;
             state.Quality.Timestamp = value.Sample.SourceTimestamp;
             state.Quality.StatusCode = value.Sample.StatusCode;
-            state.EventId!.Value = Uuid.NewUuid().ToByteString();
+            state.ResetEventId();
             state.EventType!.Value = state.TypeDefinitionId;
             state.Time!.Value = value.Sample.SourceTimestamp;
             state.ReceiveTime!.Value = m_timeProvider.GetUtcNow().UtcDateTime;

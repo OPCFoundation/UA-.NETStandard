@@ -105,7 +105,7 @@ namespace Opc.Ua.AMB.Server.Assets
             {
                 return;
             }
-            condition.EventId!.Value = Uuid.NewUuid().ToByteString();
+            condition.ResetEventId();
             condition.Time!.Value = DateTimeUtc.Now;
             condition.ReceiveTime!.Value = condition.Time.Value;
             condition.ClearChangeMasks(context, true);
@@ -127,7 +127,7 @@ namespace Opc.Ua.AMB.Server.Assets
             {
                 return;
             }
-            condition.EventId!.Value = Uuid.NewUuid().ToByteString();
+            condition.ResetEventId();
             condition.Time!.Value = DateTimeUtc.Now;
             condition.ReceiveTime!.Value = condition.Time.Value;
             await condition.ClearChangeMasksAsync(context, true, CancellationToken.None).ConfigureAwait(false);

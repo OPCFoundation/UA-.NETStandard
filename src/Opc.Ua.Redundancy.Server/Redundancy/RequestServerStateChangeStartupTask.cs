@@ -150,10 +150,6 @@ namespace Opc.Ua.Redundancy.Server
                     reason = LocalizedText.Null;
                 }
 
-                byte serviceLevel = SelectServiceLevel(state);
-                ApplyServiceLevel(serverObject, server.DefaultSystemContext, serviceLevel);
-                ApplyEstimatedReturnTime(serverObject, server.DefaultSystemContext, estimatedReturnTime);
-
                 lock (m_countdownLock)
                 {
                     if (m_disposed)
@@ -162,7 +158,18 @@ namespace Opc.Ua.Redundancy.Server
                     }
 
                     StopCountdown();
+                    byte serviceLevel = SelectServiceLevel(state);
+                    ISystemContext systemContext = server.DefaultSystemContext;
+                    if (state != ServerState.Running)
+                    {
+                        ApplyServiceLevel(serverObject, systemContext, serviceLevel);
+                    }
+                    ApplyEstimatedReturnTime(serverObject, systemContext, estimatedReturnTime);
                     ApplyServerStatus(server, serverObject, state, secondsTillShutdown, reason);
+                    if (state == ServerState.Running)
+                    {
+                        ApplyServiceLevel(serverObject, systemContext, serviceLevel);
+                    }
                     if (secondsTillShutdown > 0)
                     {
                         StartCountdown(server, serverObject, secondsTillShutdown, reason);

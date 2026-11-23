@@ -25,7 +25,8 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Gets or sets an optional mapping from requested server state to
-        /// <c>ServiceLevel</c>.
+        /// <c>ServiceLevel</c>. With a registered service-level publisher,
+        /// the result caps the provider's level; 255 clears the cap.
         /// </summary>
         public Func<ServerState, byte>? ServiceLevelSelector { get; set; }
 

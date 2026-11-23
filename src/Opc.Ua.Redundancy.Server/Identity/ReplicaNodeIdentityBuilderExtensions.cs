@@ -39,6 +39,7 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(builder));
             }
             var settings = new ReplicaNodeIdFactory(replicaSetId, namespaceUris, mode);
+            builder.Services.Replace(ServiceDescriptor.Singleton(new ReplicaSetEventIdentitySeed(replicaSetId)));
             builder.Services.Replace(ServiceDescriptor.Singleton(services =>
             {
                 bool activeActive = services.GetService<ReplicatedAddressSpaceOptions>() != null;
@@ -73,4 +74,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
     }
+
+    /// <summary>
+    /// Shared identity from the replica node identity registration, independent of node factory initialization.
+    /// </summary>
+    internal sealed record ReplicaSetEventIdentitySeed(string Value);
 }

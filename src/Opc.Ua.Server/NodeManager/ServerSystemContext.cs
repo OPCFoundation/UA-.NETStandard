@@ -8,7 +8,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic implementation for ISystemContext interface.
     /// </summary>
-    public class ServerSystemContext : SessionSystemContext
+    public class ServerSystemContext : SessionSystemContext, IEventOccurrenceIdContext
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
@@ -70,6 +70,15 @@ namespace Opc.Ua.Server
         /// components such as the historian dispatcher.
         /// </summary>
         public IServerInternal Server { get; }
+
+        /// <inheritdoc/>
+        public IEventOccurrenceIdProvider? EventOccurrenceIdProvider =>
+            Server.DefaultSystemContext?.LocalEventOccurrenceIdProvider;
+
+        /// <summary>
+        /// Gets or sets the provider on the server's default context before startup.
+        /// </summary>
+        internal IEventOccurrenceIdProvider? LocalEventOccurrenceIdProvider { get; set; }
 
         /// <summary>
         /// The node manager context this per-request copy was made from, set by
@@ -169,6 +178,7 @@ namespace Opc.Ua.Server
             if (context != null)
             {
                 copy.SetValuesFrom(context);
+                copy.LocalEventOccurrenceIdProvider = context.EventOccurrenceIdProvider;
             }
 
             return copy;

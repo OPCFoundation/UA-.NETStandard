@@ -85,6 +85,9 @@ namespace Opc.Ua.Server
                         CertificateValidator = m_server.CertificateManager
                     };
 
+                    m_server.m_serverInternal.DefaultSystemContext.LocalEventOccurrenceIdProvider =
+                        m_server.EventOccurrenceIdProvider;
+
                     foreach (IUserTokenAuthenticator authenticator in m_server.m_preStartAuthenticators)
                     {
                         m_server.m_serverInternal.IdentityRegistry.Register(authenticator);

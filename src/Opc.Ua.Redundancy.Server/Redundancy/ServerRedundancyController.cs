@@ -131,6 +131,29 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         internal ServerRedundancyOptions Options => m_options;
 
+        /// <summary>
+        /// Updates the array on the current subtype, serialized with runtime mode changes.
+        /// </summary>
+        internal async ValueTask UpdatePeerStatusAsync(
+            RedundancySupport mode,
+            Dictionary<string, (ServerState State, byte ServiceLevel)> peers,
+            CancellationToken cancellationToken)
+        {
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_server != null && mode == Mode && mode != RedundancySupport.None &&
+                    m_server.ServerObject?.ServerRedundancy is { } redundancy)
+                {
+                    ApplyPeerStatus(m_server.DefaultSystemContext, redundancy, m_options.GetPeerIds(mode), peers);
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -214,25 +237,8 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
 
-            ArrayOf<string> peerUris = options.GetPeerApplicationUris();
-
-            if (redundancy.RedundantServerArray != null)
-            {
-                var servers = new List<RedundantServerDataType>(peerUris.Count);
-                foreach (string peerUri in peerUris)
-                {
-                    servers.Add(new RedundantServerDataType
-                    {
-                        ServerId = peerUri,
-                        ServiceLevel = options.PeerServiceLevel,
-                        ServerState = ServerState.Running
-                    });
-                }
-
-                redundancy.RedundantServerArray.Value =
-                    new ArrayOf<RedundantServerDataType>(servers.ToArray());
-                redundancy.RedundantServerArray.ClearChangeMasks(context, false);
-            }
+            ArrayOf<string> peerIds = options.GetPeerIds(options.Mode);
+            ApplyPeerStatus(context, redundancy, peerIds);
 
             if (redundancy is TransparentRedundancyState transparent &&
                 transparent.CurrentServerId != null)
@@ -243,8 +249,47 @@ namespace Opc.Ua.Redundancy.Server
             else if (redundancy is NonTransparentRedundancyState nonTransparent &&
                 nonTransparent.ServerUriArray != null)
             {
-                nonTransparent.ServerUriArray.Value = peerUris;
+                nonTransparent.ServerUriArray.Value = peerIds;
                 nonTransparent.ServerUriArray.ClearChangeMasks(context, false);
+            }
+        }
+
+        private static void ApplyPeerStatus(
+            ISystemContext context,
+            ServerRedundancyState redundancy,
+            ArrayOf<string> peerIds,
+            Dictionary<string, (ServerState State, byte ServiceLevel)>? peers = null)
+        {
+            if (redundancy.RedundantServerArray is not { } array)
+            {
+                return;
+            }
+
+            var servers = new RedundantServerDataType[peerIds.Count];
+            ArrayOf<RedundantServerDataType> previous = array.Value;
+            bool changed = previous.IsNull || previous.Count != servers.Length;
+            for (int i = 0; i < servers.Length; i++)
+            {
+                string peerId = peerIds[i];
+                (ServerState state, byte level) = peers != null && peers.TryGetValue(peerId, out var peer)
+                    ? peer
+                    : (ServerState.Unknown, (byte)0);
+                servers[i] = new RedundantServerDataType
+                {
+                    ServerId = peerId,
+                    ServiceLevel = level,
+                    ServerState = state
+                };
+                changed |= i >= previous.Count ||
+                    previous[i]?.ServerId != peerId ||
+                    previous[i].ServiceLevel != level ||
+                    previous[i].ServerState != state;
+            }
+
+            if (changed)
+            {
+                array.Value = new ArrayOf<RedundantServerDataType>(servers);
+                array.ClearChangeMasks(context, false);
             }
         }
 

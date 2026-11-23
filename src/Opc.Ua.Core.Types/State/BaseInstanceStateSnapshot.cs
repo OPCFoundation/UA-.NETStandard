@@ -38,6 +38,7 @@ namespace Opc.Ua
         /// </remarks>
         public void Initialize(ISystemContext context, BaseInstanceState state)
         {
+            state.PrepareEventForReport(context);
             m_typeDefinitionId = state.TypeDefinitionId;
             m_snapshot = CreateChildNode(context, state);
             Handle = state;

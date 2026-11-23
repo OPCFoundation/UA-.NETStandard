@@ -25,6 +25,11 @@ namespace Opc.Ua.Client
         public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
 
         /// <summary>
+        /// Default interval for reading the active server's ServiceLevel.
+        /// </summary>
+        public static readonly TimeSpan DefaultServiceLevelMonitoringInterval = TimeSpan.FromSeconds(5);
+
+        /// <summary>
         /// Bounds reading the active server's redundancy metadata at connect,
         /// reconnect, and failover. A refresh that exceeds it retains the
         /// previous snapshot rather than discarding it.
@@ -78,9 +83,10 @@ namespace Opc.Ua.Client
         /// the member with the highest <c>ServiceLevel</c> when it is higher than the <c>ServiceLevel</c> of
         /// the Server it connected to. A member that cannot be probed keeps the values reported for it and
         /// carries the failure in <see cref="RedundantServer.ResolutionError"/>. Each probe is bounded by
-        /// <see cref="PeerDiscoveryTimeout"/>. Default <see langword="false"/>.
+        /// <see cref="PeerDiscoveryTimeout"/>. Default <see langword="true"/> when server redundancy is
+        /// enabled. Set to <see langword="false"/> to rely on reported metadata instead.
         /// </summary>
-        public bool ProbeMemberServiceLevel { get; init; }
+        public bool ProbeMemberServiceLevel { get; init; } = true;
 
         /// <summary>
         /// When set, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> of the Server in use at
@@ -88,10 +94,10 @@ namespace Opc.Ua.Client
         /// <c>ServiceLevel</c> leaves the Healthy subrange (OPC 10000-4 §6.6.2.4.2) the redundancy snapshot is
         /// refreshed, including the member probe when <see cref="ProbeMemberServiceLevel"/> is set, and a
         /// failover decision that warrants it starts <see cref="ManagedSession.FailoverAsync"/> to the target
-        /// the redundancy handler selects. Default <see langword="null"/>: the session fails over only when
-        /// the reconnect policy gives up or the application calls <see cref="ManagedSession.FailoverAsync"/>.
+        /// the redundancy handler selects. Default <see cref="DefaultServiceLevelMonitoringInterval"/>
+        /// when server redundancy is enabled. Set to <see langword="null"/> to disable monitoring.
         /// </summary>
-        public TimeSpan? ServiceLevelMonitoringInterval { get; init; }
+        public TimeSpan? ServiceLevelMonitoringInterval { get; init; } = DefaultServiceLevelMonitoringInterval;
 
         /// <summary>
         /// When set, the other members of a non-transparent redundant Server set are reached over the

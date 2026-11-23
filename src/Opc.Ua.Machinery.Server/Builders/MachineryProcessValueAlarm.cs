@@ -168,7 +168,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             {
                 return;
             }
-            m_alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+            m_alarm.ResetEventId();
             m_alarm.Time!.Value = DateTimeUtc.Now;
             m_alarm.ReceiveTime!.Value = m_alarm.Time.Value;
             m_alarm.ClearChangeMasks(context, true);

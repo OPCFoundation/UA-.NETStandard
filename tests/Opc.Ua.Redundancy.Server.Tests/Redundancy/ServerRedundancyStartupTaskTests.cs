@@ -7,11 +7,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
 
@@ -47,7 +50,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(options.Mode, Is.EqualTo(RedundancySupport.None));
             Assert.That(options.PeerServerUris, Is.Empty);
             Assert.That(options.CurrentServerId, Is.Not.Empty);
-            Assert.That(options.PeerServiceLevel, Is.EqualTo(ServiceLevels.Maximum));
+            Assert.That(options.PeerStatusLifetime, Is.GreaterThan(options.PeerStatusUpdateInterval));
         }
 
         [Test]
@@ -158,8 +161,68 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(VariableIds.Server_ServerRedundancy_ServerUriArray));
             Assert.That(nonTransparent.RedundantServerArray!.Value[0].ServerId, Is.EqualTo("urn:peer-a"));
             Assert.That(nonTransparent.RedundantServerArray.Value[1].ServerId, Is.EqualTo("urn:peer-b"));
+            AssertPeerStatus(loaded, 0, "urn:peer-a", ServerState.Unknown, 0);
+            AssertPeerStatus(loaded, 1, "urn:peer-b", ServerState.Unknown, 0);
             Assert.That(HasChild(loaded, redundancy, BrowseNames.ServerUriArray), Is.True);
             Assert.That(HasChild(loaded, redundancy, BrowseNames.CurrentServerId), Is.False);
+        }
+
+        [TestCase(RedundancySupport.Hot)]
+        [TestCase(RedundancySupport.Transparent)]
+        public async Task PeerArrayReflectsLiveServerStatusAndExpiresSilentPeersAsync(RedundancySupport mode)
+        {
+            const string serverA = "urn:server:a";
+            const string serverB = "urn:server:b";
+            bool transparent = mode == RedundancySupport.Transparent;
+            string peer = transparent ? "replica-b" : serverB;
+            string keyPrefix = transparent
+                ? PeerStatusStartupTask.TransparentKeyPrefix
+                : PeerStatusStartupTask.KeyPrefix;
+            using LoadedDiagnosticsServer loadedA = await CreateLoadedServerAsync(transparent ? serverB : serverA);
+            using LoadedDiagnosticsServer loadedB = await CreateLoadedServerAsync(serverB);
+            using var store = new InMemorySharedKeyValueStore();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            var time = new FakeTimeProvider();
+            var optionsA = new ServerRedundancyOptions { Mode = mode, CurrentServerId = "replica-a" };
+            optionsA.PeerServerUris.Add(peer);
+            optionsA.PeerServerUris.Add("urn:missing");
+            var optionsB = new ServerRedundancyOptions { Mode = mode, CurrentServerId = "replica-b" };
+            using var controllerA = new ServerRedundancyController(optionsA);
+            using var controllerB = new ServerRedundancyController(optionsB);
+            await controllerA.AttachAsync(loadedA.Server.Object);
+            await controllerB.AttachAsync(loadedB.Server.Object);
+            await using var taskA = new PeerStatusStartupTask(controllerA, store, protector, time);
+            await using var taskB = new PeerStatusStartupTask(controllerB, store, protector, time);
+
+            loadedB.Server.SetupGet(s => s.CurrentState).Returns(ServerState.Running);
+            loadedB.Server.Object.ServerObject.ServiceLevel!.Value = 175;
+            await taskB.RefreshAsync(loadedB.Server.Object, NullLogger.Instance, default);
+            await taskA.OnServerStartedAsync(loadedA.Server.Object);
+            AssertPeerStatus(loadedA, 0, peer, ServerState.Running, 175);
+            AssertPeerStatus(loadedA, 1, "urn:missing", ServerState.Unknown, 0);
+
+            // A valid record for one peer identifier cannot be reused under another peer's key.
+            (bool found, ByteString value) = await store.TryGetAsync(keyPrefix + peer);
+            Assert.That(found, Is.True);
+            await store.SetAsync(keyPrefix + "urn:missing", value);
+
+            loadedB.Server.SetupGet(s => s.CurrentState).Returns(ServerState.Suspended);
+            loadedB.Server.Object.ServerObject.ServiceLevel!.Value = 0;
+            await taskB.RefreshAsync(loadedB.Server.Object, NullLogger.Instance, default);
+            time.Advance(optionsA.PeerStatusUpdateInterval);
+            await WaitForPeerStateAsync(loadedA, ServerState.Suspended);
+            AssertPeerStatus(loadedA, 0, peer, ServerState.Suspended, 0);
+            AssertPeerStatus(loadedA, 1, "urn:missing", ServerState.Unknown, 0);
+
+            await taskA.DisposeAsync();
+            time.Advance(optionsA.PeerStatusLifetime);
+            await using var refreshA = new PeerStatusStartupTask(controllerA, store, protector, time);
+            await refreshA.RefreshAsync(loadedA.Server.Object, NullLogger.Instance, default);
+            AssertPeerStatus(loadedA, 0, peer, ServerState.Unknown, 0);
+            AssertPeerStatus(loadedA, 1, "urn:missing", ServerState.Unknown, 0);
         }
 
         [Test]
@@ -211,12 +274,36 @@ namespace Opc.Ua.Server.Tests.Redundancy
             return children.Exists(child => child.BrowseName.Name == browseName);
         }
 
-        private static async Task<LoadedDiagnosticsServer> CreateLoadedServerAsync()
+        private static void AssertPeerStatus(
+            LoadedDiagnosticsServer loaded, int index, string uri, ServerState state, byte level)
+        {
+            RedundantServerDataType peer = loaded.Server.Object.ServerObject
+                .ServerRedundancy!.RedundantServerArray!.Value[index];
+            Assert.That(peer.ServerId, Is.EqualTo(uri));
+            Assert.That(peer.ServerState, Is.EqualTo(state));
+            Assert.That(peer.ServiceLevel, Is.EqualTo(level));
+        }
+
+        private static async Task WaitForPeerStateAsync(LoadedDiagnosticsServer loaded, ServerState state)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (loaded.Server.Object.ServerObject.ServerRedundancy!.RedundantServerArray!.Value[0].ServerState !=
+                state)
+            {
+                await Task.Delay(10, timeout.Token);
+            }
+        }
+
+        private static async Task<LoadedDiagnosticsServer> CreateLoadedServerAsync(string? uri = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var namespaceUris = new NamespaceTable();
             namespaceUris.Append("http://opcfoundation.org/UA/");
             var serverUris = new StringTable();
+            if (uri != null)
+            {
+                serverUris.Append(uri);
+            }
             var typeTree = new TypeTable(namespaceUris);
             var messageContext = new ServiceMessageContext(telemetry, EncodeableFactory.Create())
             {

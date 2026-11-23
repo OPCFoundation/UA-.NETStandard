@@ -23,7 +23,7 @@ namespace Opc.Ua
             // read once per select clause and monitored item it is delivered to.
             DateTimeUtc time = DateTimeUtc.Now;
 
-            m_eventId = WithTimestamp(PropertyState<ByteString>.With<VariantBuilder>(this, Uuid.NewUuid().ToByteString()), time);
+            m_eventId = WithTimestamp(PropertyState<ByteString>.With<VariantBuilder>(this, NewGeneratedEventId()), time);
             m_eventType = WithTimestamp(PropertyState<NodeId>.With<VariantBuilder>(this, GetDefaultTypeDefinitionId(context.NamespaceUris)), time);
 
             TypeDefinitionId = m_eventType.Value;
@@ -56,6 +56,55 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Starts a new locally generated occurrence on a reused event or condition state.
+        /// </summary>
+        /// <remarks>
+        /// Set the occurrence fields, including the source timestamp, before reporting or taking a snapshot.
+        /// When an occurrence ID provider is configured, it replaces the provisional ID at that point.
+        /// To preserve an externally supplied ID instead, assign it to <see cref="EventId"/> directly.
+        /// </remarks>
+        public void ResetEventId()
+        {
+            ByteString id = NewGeneratedEventId();
+            if (EventId is { } field)
+            {
+                field.Value = id;
+            }
+            else
+            {
+                EventId = PropertyState<ByteString>.With<VariantBuilder>(this, id);
+            }
+        }
+
+        /// <inheritdoc/>
+        internal override void PrepareEventForReport(ISystemContext context)
+        {
+            if (context is IEventOccurrenceIdContext { EventOccurrenceIdProvider: { } provider } &&
+                (EventId == null || EventId.Value.IsNull || EventId.Value == m_generatedEventId))
+            {
+                ByteString id = provider.CreateEventId(context, this);
+                if (!id.IsNull)
+                {
+                    if (EventId is { } field)
+                    {
+                        field.Value = id;
+                    }
+                    else
+                    {
+                        EventId = PropertyState<ByteString>.With<VariantBuilder>(this, id);
+                    }
+                }
+            }
+            m_generatedEventId = default;
+        }
+
+        private ByteString NewGeneratedEventId()
+        {
+            m_generatedEventId = Uuid.NewUuid().ToByteString();
+            return m_generatedEventId;
+        }
+
+        /// <summary>
         /// Sets the source timestamp of an event field.
         /// </summary>
         /// <typeparam name="T">The type of the field.</typeparam>
@@ -67,6 +116,8 @@ namespace Opc.Ua
             field.Timestamp = timestamp;
             return field;
         }
+
+        private ByteString m_generatedEventId;
     }
 
     /// <summary>

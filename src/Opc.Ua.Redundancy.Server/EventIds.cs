@@ -81,5 +81,15 @@ namespace Opc.Ua
         /// Event identifier offset for shared history continuation store messages.
         /// </summary>
         public const int SharedHistoryContinuationStore = 130;
+
+        /// <summary>
+        /// Event identifier offset for service-level publication messages.
+        /// </summary>
+        public const int ServiceLevelStartupTask = 140;
+
+        /// <summary>
+        /// Event identifier offset for peer status exchange messages.
+        /// </summary>
+        public const int PeerStatusStartupTask = 150;
     }
 }

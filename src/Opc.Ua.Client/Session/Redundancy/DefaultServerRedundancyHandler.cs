@@ -141,12 +141,10 @@ namespace Opc.Ua.Client
                 mode = ToRedundancySupport(values[0].GetValue(0));
             }
 
-            byte serviceLevel = 0;
-            bool serviceLevelAccessible = StatusCode.IsGood(errors[1].StatusCode);
-            if (StatusCode.IsGood(errors[1].StatusCode))
-            {
-                serviceLevel = values[1].GetValue<byte>(0);
-            }
+            byte serviceLevel = ServiceLevels.Maintenance;
+            bool serviceLevelAccessible =
+                StatusCode.IsGood(readStatuses[VariableIds.Server_ServiceLevel]) &&
+                values[1].WrappedValue.TryGetValue(out serviceLevel);
 
             DateTime estimatedReturnTime = DateTime.MinValue;
             if (StatusCode.IsGood(errors[4].StatusCode))
@@ -216,7 +214,7 @@ namespace Opc.Ua.Client
                 return NoFailover("Current server remains in the Healthy service level subrange.");
             }
 
-            RedundantServer? best = SelectBestPeer(redundancyInfo, currentEndpoint);
+            RedundantServer? best = SelectBestPeer(redundancyInfo, currentEndpoint, requireKnownStatus: true);
 
             if (redundancyInfo.ServiceLevelAccessible &&
                 ServiceLevels.IsMaintenance(redundancyInfo.ServiceLevel))
@@ -243,7 +241,6 @@ namespace Opc.Ua.Client
 
             if (redundancyInfo.ServiceLevelAccessible &&
                 ServiceLevels.IsDegraded(redundancyInfo.ServiceLevel) &&
-                best.ServiceLevelKnown &&
                 !ServiceLevels.IsHealthy(best.ServiceLevel))
             {
                 return NoFailover("Current server is Degraded and no Healthy peer is available.");
@@ -280,7 +277,7 @@ namespace Opc.Ua.Client
             // exhaustion, when the cached current ServiceLevel may still be
             // Healthy even though the endpoint is unreachable. At that point
             // target selection must use the viable peer set directly.
-            return SelectBestPeer(redundancyInfo, currentEndpoint)?.Endpoint;
+            return SelectBestPeer(redundancyInfo, currentEndpoint, requireKnownStatus: false)?.Endpoint;
         }
 
         /// <inheritdoc/>
@@ -746,22 +743,37 @@ namespace Opc.Ua.Client
             }
         }
 
-        private RedundantServer? SelectBestPeer(
+        private static RedundantServer? SelectBestPeer(
             ServerRedundancyInfo redundancyInfo,
-            ConfiguredEndpoint currentEndpoint)
+            ConfiguredEndpoint currentEndpoint,
+            bool requireKnownStatus)
         {
             string? currentUri = currentEndpoint.Description?.Server?.ApplicationUri;
             RedundantServer? best = null;
+            int bestRank = -1;
             for (int ii = 0; ii < redundancyInfo.RedundantServers.Count; ii++)
             {
                 RedundantServer server = redundancyInfo.RedundantServers[ii];
-                if (server.ServerState == ServerState.Running &&
-                    server.Endpoint != null &&
-                    (!server.ServiceLevelKnown || ServiceLevels.IsOperational(server.ServiceLevel)) &&
-                    !string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal) &&
-                    (best == null || server.ServiceLevel > best.ServiceLevel))
+                if (server.ServerState != ServerState.Running ||
+                    server.Endpoint == null ||
+                    (server.ServiceLevelKnown && !ServiceLevels.IsOperational(server.ServiceLevel)) ||
+                    string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                // Recovery may try an unverified endpoint when no verified peer is viable.
+                // A failed probe must not outrank a successfully read ServiceLevel.
+                bool knownStatus = server.ServiceLevelKnown && server.ResolutionError == null;
+                if (requireKnownStatus && !knownStatus)
+                {
+                    continue;
+                }
+                int rank = knownStatus ? server.ServiceLevel : 0;
+                if (rank > bestRank)
                 {
                     best = server;
+                    bestRank = rank;
                 }
             }
 

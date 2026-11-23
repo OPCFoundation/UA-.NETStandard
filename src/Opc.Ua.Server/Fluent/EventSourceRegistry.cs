@@ -1041,11 +1041,17 @@ namespace Opc.Ua.Server.Fluent
                     e,
                     new LocalizedText(string.Empty));
 
-            if (e.EventId == null || e.EventId.Value.IsNull)
+            if ((e.EventId == null || e.EventId.Value.IsNull) && eventIdProvider != null)
             {
                 e.EventId = PropertyState<ByteString>.With<VariantBuilder>(
                     e,
-                    eventIdProvider?.CreateEventId(notifier, context, e) ?? Uuid.NewUuid().ToByteString());
+                    eventIdProvider.CreateEventId(notifier, context, e));
+            }
+
+            e.PrepareEventForReport(context);
+            if (e.EventId == null || e.EventId.Value.IsNull)
+            {
+                e.ResetEventId();
             }
         }
 

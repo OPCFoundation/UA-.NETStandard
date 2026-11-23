@@ -267,6 +267,8 @@ namespace Opc.Ua.Server.Hosting
                 m_server.EventIdentityAdmissionOptions = eventIdentityOptions;
             }
             m_server.RedundantServerSetProvider = m_services.GetService<IRedundantServerSetProvider>();
+            m_server.EventOccurrenceIdProvider =
+                m_services.GetService<IEventOccurrenceIdProvider>() ?? m_server.EventOccurrenceIdProvider;
             m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
             m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
             m_server.HistoryContinuationPointStore =

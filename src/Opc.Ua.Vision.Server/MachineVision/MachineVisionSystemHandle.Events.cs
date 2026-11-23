@@ -435,7 +435,7 @@ namespace Opc.Ua.Vision.Server
 
         private async ValueTask ReportConditionAsync(VisionConditionState condition)
         {
-            condition.EventId!.Value = ByteString.From(Guid.NewGuid().ToByteArray());
+            condition.ResetEventId();
             condition.Time!.Value = Now;
             condition.ReceiveTime!.Value = Now;
             await condition.ClearChangeMasksAsync(m_context.Context, true).ConfigureAwait(false);

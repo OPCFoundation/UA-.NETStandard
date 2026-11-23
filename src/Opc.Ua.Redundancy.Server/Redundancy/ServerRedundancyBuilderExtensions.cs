@@ -19,7 +19,9 @@ namespace Opc.Ua.Redundancy.Server
     {
         /// <summary>
         /// Populates the live <c>Server.ServerRedundancy</c> model from the
-        /// supplied configuration after the hosted server starts. Non-transparent redundancy depends on
+        /// supplied configuration after the hosted server starts. When a shared key-value store and record
+        /// protector are registered, it also refreshes peer status from protected status records.
+        /// Non-transparent redundancy depends on
         /// <c>Server.ServiceLevel</c> changes for client Failover decisions; pair this with
         /// <c>AddServerServiceLevel(new LeaderServiceLevelProvider(...))</c> or another
         /// <see cref="IServiceLevelProvider"/> registered in dependency injection.
@@ -38,6 +40,13 @@ namespace Opc.Ua.Redundancy.Server
 
             var options = new ServerRedundancyOptions();
             configure?.Invoke(options);
+            builder.Services.TryAddSingleton<IEventOccurrenceIdProvider>(sp =>
+                new RedundancyEventIdProvider(
+                    options,
+                    new DeterministicEventIdProvider(
+                        options.DeterministicEventIdSeed ??
+                        sp.GetService<ReplicaSetEventIdentitySeed>()?.Value ??
+                        "opcua-redundant-server-set")));
             AddDiscoveryCapabilityConfiguration(builder, options);
             builder.Services.AddSingleton(options);
             builder.Services.AddSingleton<ServerRedundancyController>();
@@ -49,6 +58,12 @@ namespace Opc.Ua.Redundancy.Server
                 new ServerRedundancyStartupTask(
                     sp.GetRequiredService<ServerRedundancyController>(),
                     !sp.GetServices<IServiceLevelProvider>().Any()));
+            builder.Services.AddSingleton<IServerStartupTask>(sp =>
+                new PeerStatusStartupTask(
+                    sp.GetRequiredService<ServerRedundancyController>(),
+                    sp.GetService<ISharedKeyValueStore>(),
+                    sp.GetService<IRecordProtector>(),
+                    sp.GetService<TimeProvider>() ?? TimeProvider.System));
             return builder;
         }
 
@@ -73,7 +88,8 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.AddSingleton<IServerStartupTask>(sp =>
                 new RequestServerStateChangeStartupTask(
                     options,
-                    sp.GetService<IServiceLevelProvider>() as IServiceLevelController));
+                    (IServiceLevelController?)sp.GetService<ServiceLevelStartupTask>() ??
+                        sp.GetService<IServiceLevelProvider>() as IServiceLevelController));
             return builder;
         }
 
@@ -92,6 +108,18 @@ namespace Opc.Ua.Redundancy.Server
             Action<RequestServerStateChangeOptions>? configure = null)
         {
             return AddRequestServerStateChange(builder, configure);
+        }
+
+        private sealed class RedundancyEventIdProvider(
+            ServerRedundancyOptions options,
+            DeterministicEventIdProvider provider) : IEventOccurrenceIdProvider
+        {
+            public ByteString CreateEventId(ISystemContext context, BaseEventState eventState)
+            {
+                return options.Mode is RedundancySupport.Transparent or RedundancySupport.HotAndMirrored
+                    ? provider.CreateEventId(context, eventState)
+                    : default;
+            }
         }
 
         private static void AddDiscoveryCapabilityConfiguration(

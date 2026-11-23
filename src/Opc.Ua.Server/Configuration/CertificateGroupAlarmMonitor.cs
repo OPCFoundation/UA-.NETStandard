@@ -367,7 +367,7 @@ namespace Opc.Ua.Server
 
         private void ReportEvent(ISystemContext context, SystemOffNormalAlarmState alarm)
         {
-            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+            alarm.ResetEventId();
             alarm.Time!.Value = (DateTimeUtc)m_timeProvider.GetUtcNow().UtcDateTime;
             alarm.ReceiveTime!.Value = alarm.Time.Value;
 
@@ -392,7 +392,7 @@ namespace Opc.Ua.Server
             alarm.ConditionName!.Value = conditionName;
             alarm.BranchId!.Value = NodeId.Null;
             alarm.ClientUserId?.Value = string.Empty;
-            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+            alarm.ResetEventId();
             alarm.Time!.Value = (DateTimeUtc)now;
             alarm.ReceiveTime!.Value = alarm.Time.Value;
 

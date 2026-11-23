@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Server;
@@ -39,8 +40,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             builder.Services.AddSingleton(serviceLevelProvider);
-            builder.Services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IServerStartupTask, ServiceLevelStartupTask>());
+            AddServiceLevelPublication(builder.Services);
             return builder;
         }
 
@@ -109,8 +109,7 @@ namespace Opc.Ua.Redundancy.Server
 
             // The service-level startup task updates Server.ServiceLevel from
             // the provider.
-            builder.Services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IServerStartupTask, ServiceLevelStartupTask>());
+            AddServiceLevelPublication(builder.Services);
 
             // The address-space startup task builds the node-state store with
             // the server message context (only available at startup), starts
@@ -143,6 +142,23 @@ namespace Opc.Ua.Redundancy.Server
                     sp.GetService<TimeProvider>()));
 
             return builder;
+        }
+
+        /// <summary>
+        /// Registers one service-level owner shared by startup and administrative state changes.
+        /// </summary>
+        private static void AddServiceLevelPublication(IServiceCollection services)
+        {
+            if (services.Any(descriptor => descriptor.ServiceType == typeof(ServiceLevelStartupTask)))
+            {
+                return;
+            }
+
+            services.AddSingleton(sp =>
+                new ServiceLevelStartupTask(
+                    sp.GetRequiredService<IServiceLevelProvider>(),
+                    sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            services.AddSingleton<IServerStartupTask>(sp => sp.GetRequiredService<ServiceLevelStartupTask>());
         }
 
         /// <summary>

@@ -262,7 +262,7 @@ namespace Opc.Ua.GranulateDrying.Server
         /// </summary>
         private async ValueTask ReportConditionAsync(ConditionState alarm, DateTimeUtc timestamp)
         {
-            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+            alarm.ResetEventId();
             alarm.Time!.Value = timestamp;
             alarm.ReceiveTime!.Value = DateTimeUtc.Now;
             alarm.ClearChangeMasks(Context, true);

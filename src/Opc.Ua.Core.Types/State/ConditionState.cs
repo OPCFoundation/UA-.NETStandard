@@ -582,6 +582,17 @@ namespace Opc.Ua
         /// <param name="ignoreDisabledState">if set to <c>true</c> the event is reported event if the condition is in the disabled state.</param>
         protected void ReportStateChange(ISystemContext context, bool ignoreDisabledState)
         {
+            ReportStateChange(context, ignoreDisabledState, DateTimeUtc.Now);
+        }
+
+        /// <summary>
+        /// Reports a condition transition with its source timestamp.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="ignoreDisabledState">Whether to report while disabled.</param>
+        /// <param name="sourceTime">The occurrence timestamp, shared by replicas of the same transition.</param>
+        protected void ReportStateChange(ISystemContext context, bool ignoreDisabledState, DateTimeUtc sourceTime)
+        {
             // check the disabled state.
             if (!ignoreDisabledState && !EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
@@ -591,14 +602,14 @@ namespace Opc.Ua
             if (AutoReportStateChanges)
             {
                 // create a new event instance.
-                PropertyState<ByteString> eventId = EventId!; // ConditionState.Initialize creates EventId
-                PropertyState<DateTimeUtc> time = Time!; // ConditionState.Initialize creates Time
-
                 // the superseded EventId keeps identifying the state it was reported for.
                 ConditionState root = GetRootCondition();
-                root.RecordEventId(this, eventId.Value);
-                eventId.Value = Uuid.NewUuid().ToByteString();
-                root.RecordEventId(this, eventId.Value);
+                root.RecordEventId(this, EventId!.Value);
+                Time!.Value = sourceTime;
+                ReceiveTime!.Value = DateTimeUtc.Now;
+                ResetEventId();
+                PrepareEventForReport(context);
+                root.RecordEventId(this, EventId!.Value);
 
                 // the branch table is keyed by EventId: keep the entry of a branch in step
                 // with its new EventId (e.g. after a comment on the branch).
@@ -606,9 +617,6 @@ namespace Opc.Ua
                 {
                     root.RekeyBranchIfPresent(this);
                 }
-
-                time.Value = DateTimeUtc.Now;
-                ReceiveTime!.Value = time.Value; // ConditionState.Initialize creates ReceiveTime
 
                 ClearChangeMasks(context, includeChildren: true);
 
@@ -991,6 +999,10 @@ namespace Opc.Ua
         /// </remarks>
         public override void ReportEvent(ISystemContext context, IFilterTarget e)
         {
+            if (ReferenceEquals(e, this))
+            {
+                PrepareEventForReport(context);
+            }
             RecordReportedEvent(e);
             base.ReportEvent(context, e);
         }
@@ -1009,6 +1021,10 @@ namespace Opc.Ua
             IFilterTarget e,
             CancellationToken cancellationToken = default)
         {
+            if (ReferenceEquals(e, this))
+            {
+                PrepareEventForReport(context);
+            }
             RecordReportedEvent(e);
             return base.ReportEventAsync(context, e, cancellationToken);
         }

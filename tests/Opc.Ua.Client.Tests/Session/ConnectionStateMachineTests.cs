@@ -1659,6 +1659,42 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task MaintenanceRecoveryRearmsTimerUntilEstimatedReturnAsync()
+        {
+            var time = new FakeTimeProvider();
+            var policy = new ReconnectPolicy
+            {
+                InitialDelay = TimeSpan.Zero,
+                MaxRetries = 1,
+                JitterFactor = 0
+            };
+            await using var machine = new ConnectionStateMachine(policy, m_logger, timeProvider: time);
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            machine.ReconnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            StateTransitionRecorder recorder = AttachRecorder(machine);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            machine.Start();
+            machine.RequestConnect();
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(machine.RequestFailover(
+                (_, _) => Task.FromResult(new ServiceResult(StatusCodes.BadNothingToDo)),
+                retryAfter: time.GetUtcNow().UtcDateTime.AddDays(2).AddHours(1)), Is.True);
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected).ConfigureAwait(false);
+
+            time.Advance(TimeSpan.FromDays(1));
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
+            time.Advance(TimeSpan.FromDays(1));
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
+            time.Advance(TimeSpan.FromHours(1) - TimeSpan.FromSeconds(1));
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
+            time.Advance(TimeSpan.FromSeconds(1));
+
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(recorder.HasVisited(ConnectionState.Reconnecting), Is.True);
+        }
+
+        [Test]
         public async Task TriggerReconnectWhenDisconnectedIsNoOp()
         {
             await using ConnectionStateMachine sm = CreateMachine();

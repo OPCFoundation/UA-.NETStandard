@@ -90,6 +90,8 @@ namespace Opc.Ua.Client
         private ConnectionStateBudgetOperation? m_requestedReconnect;
         private ConnectionStateBudgetOperation? m_requestedFailover;
         private TaskCompletionSource<ServiceResult>? m_requestedFailoverOutcome;
+        private DateTime m_requestedFailoverRetryAfter;
+        private DateTime m_recoveryNotBefore;
         private readonly Queue<ConnectionStateChangedEventArgs> m_stateChanges = new();
         private bool m_dispatchingStateChanges;
 
@@ -335,11 +337,18 @@ namespace Opc.Ua.Client
                         (m_state is ConnectionState.Reconnecting or ConnectionState.Failover);
                 }
 
-                m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 if (m_state == ConnectionState.Disconnected)
                 {
+                    if (m_recoveryNotBefore > m_timeProvider.GetUtcNow().UtcDateTime)
+                    {
+                        // The timer is one-shot. Rearm if this was only the first chunk of a long backoff.
+                        ScheduleRecoveryLocked();
+                        return false;
+                    }
+                    m_recoveryNotBefore = DateTime.MinValue;
                     m_reconnectPolicy.Reset();
                 }
+                m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 m_requestedReconnect = operation;
                 m_lastError = null;
                 ClearReconnectBudget();
@@ -369,10 +378,14 @@ namespace Opc.Ua.Client
         /// recovery that follows <paramref name="operation"/>, or cancelled when
         /// the failover does not run to completion.
         /// </param>
+        /// <param name="retryAfter">
+        /// When set, a failed operation leaves the session disconnected until this UTC time.
+        /// </param>
         /// <returns><see langword="false"/> when the session is not connected.</returns>
         internal bool RequestFailover(
             ConnectionStateBudgetOperation operation,
-            TaskCompletionSource<ServiceResult>? outcome = null)
+            TaskCompletionSource<ServiceResult>? outcome = null,
+            DateTime retryAfter = default)
         {
             lock (m_lock)
             {
@@ -385,6 +398,7 @@ namespace Opc.Ua.Client
 
                 m_requestedFailover = operation;
                 m_requestedFailoverOutcome = outcome;
+                m_requestedFailoverRetryAfter = retryAfter;
                 m_lastError = null;
                 ClearReconnectBudget();
                 m_settled.Reset();
@@ -443,7 +457,8 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                if (m_state != ConnectionState.Disconnected)
+                if (m_state != ConnectionState.Disconnected ||
+                    m_recoveryNotBefore > m_timeProvider.GetUtcNow().UtcDateTime)
                 {
                     return;
                 }
@@ -961,12 +976,15 @@ namespace Opc.Ua.Client
 
             ConnectionStateBudgetOperation? requested;
             TaskCompletionSource<ServiceResult>? outcome;
+            DateTime retryAfter;
             lock (m_lock)
             {
                 requested = m_requestedFailover;
                 outcome = m_requestedFailoverOutcome;
+                retryAfter = m_requestedFailoverRetryAfter;
                 m_requestedFailover = null;
                 m_requestedFailoverOutcome = null;
+                m_requestedFailoverRetryAfter = DateTime.MinValue;
             }
 
             ServiceResult result;
@@ -1010,6 +1028,12 @@ namespace Opc.Ua.Client
                         error: null,
                         reconnectAttempt: 0);
                     m_settled.Set();
+                }
+                else if (retryAfter != DateTime.MinValue)
+                {
+                    m_lastError = result;
+                    m_recoveryNotBefore = retryAfter;
+                    TransitionToDisconnectedLocked(result);
                 }
                 else if (requested != null)
                 {
@@ -1055,17 +1079,28 @@ namespace Opc.Ua.Client
 
             if (m_hasConnected)
             {
-                TimeSpan delay = m_reconnectPolicy is ReconnectPolicy policy
-                    ? policy.MaxDelay
-                    : ReconnectPolicy.DefaultMaxDelay;
-                if (delay < ReconnectPolicy.DefaultInitialDelay)
-                {
-                    delay = ReconnectPolicy.DefaultInitialDelay;
-                }
-                m_recoveryTimer.Change(delay, Timeout.InfiniteTimeSpan);
+                ScheduleRecoveryLocked();
             }
 
             m_settled.Set();
+        }
+
+        private void ScheduleRecoveryLocked()
+        {
+            TimeSpan delay = m_reconnectPolicy is ReconnectPolicy policy
+                ? policy.MaxDelay
+                : ReconnectPolicy.DefaultMaxDelay;
+            if (delay < ReconnectPolicy.DefaultInitialDelay)
+            {
+                delay = ReconnectPolicy.DefaultInitialDelay;
+            }
+            TimeSpan remaining = m_recoveryNotBefore - m_timeProvider.GetUtcNow().UtcDateTime;
+            if (remaining > TimeSpan.Zero)
+            {
+                // Long estimates can exceed the platform timer limit.
+                delay = remaining > TimeSpan.FromDays(1) ? TimeSpan.FromDays(1) : remaining;
+            }
+            m_recoveryTimer.Change(delay, Timeout.InfiniteTimeSpan);
         }
 
         /// <summary>

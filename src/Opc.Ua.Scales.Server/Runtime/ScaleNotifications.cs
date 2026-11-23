@@ -339,7 +339,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 alarm.Message!.Value = message;
                 alarm.Time!.Value = DateTimeUtc.Now;
                 alarm.ReceiveTime!.Value = alarm.Time.Value;
-                alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                alarm.ResetEventId();
                 alarm.ClearChangeMasks(m_context, true);
 
                 if (alarm.EnabledState?.Id?.Value == true)

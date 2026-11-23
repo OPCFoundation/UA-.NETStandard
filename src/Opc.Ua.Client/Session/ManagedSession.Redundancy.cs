@@ -191,32 +191,64 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            // A Healthy Server is never left (OPC 10000-4 §6.6.2.4.3), so only its
-            // ServiceLevel is read; the redundant set is refreshed, resolved and
-            // probed once the Server in use is no longer Healthy.
-            if (await IsServiceLevelHealthyAsync(ct).ConfigureAwait(false))
+            // A Healthy Server is never left (OPC 10000-4 §6.6.2.4.3). Only
+            // refresh and probe the set when a read confirms it is not Healthy.
+            ConfiguredEndpoint current = ConfiguredEndpoint;
+            byte? level = await ReadMonitoredServiceLevelAsync(ct).ConfigureAwait(false);
+            if (level is not byte observedLevel || ServiceLevels.IsHealthy(observedLevel))
             {
                 return;
             }
 
-            await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+            bool metadataRefreshed = await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
             info = m_redundancyInfo;
             if (info == null ||
                 info.Mode is RedundancySupport.None or RedundancySupport.Transparent ||
-                (info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel)))
+                (metadataRefreshed && info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel)))
             {
                 return;
             }
+            if (!metadataRefreshed || !info.ServiceLevelAccessible)
+            {
+                // A server can reject the aggregate metadata read while still
+                // exposing its own ServiceLevel in a single-node Read.
+                info = new ServerRedundancyInfo
+                {
+                    Mode = info.Mode,
+                    ServiceLevel = observedLevel,
+                    ServiceLevelAccessible = true,
+                    ServiceLevelSubrange = ServiceLevels.GetSubrange(observedLevel),
+                    CurrentServerId = info.CurrentServerId,
+                    RedundantServers = info.RedundantServers,
+                    EstimatedReturnTime = info.EstimatedReturnTime,
+                    ReadStatuses = info.ReadStatuses
+                };
+            }
 
             await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true).ConfigureAwait(false);
-            info = m_redundancyInfo!;
-            ConfiguredEndpoint current = ConfiguredEndpoint;
+            info = m_redundancyInfo;
+            if (info == null || !ReferenceEquals(current, ConfiguredEndpoint) ||
+                StateMachine.State != ConnectionState.Connected)
+            {
+                return;
+            }
             ServerFailoverDecision decision = handler.ShouldFailover(info, current);
             ConfiguredEndpoint? target = decision.IsFailoverWarranted
                 ? handler.SelectFailoverTarget(info, current)
                 : null;
-            if (target == null || StateMachine.State != ConnectionState.Connected)
+            if (target == null || (handler is not DefaultServerRedundancyHandler &&
+                !IsEligibleProactiveTarget(info, current, target)))
             {
+                if (ServiceLevels.IsMaintenance(info.ServiceLevel))
+                {
+                    DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                    DateTime retryAfter = info.EstimatedReturnTime > now
+                        ? info.EstimatedReturnTime
+                        : now.Add(DefaultServerRedundancyHandler.DefaultMaintenanceBackoff);
+                    StateMachine.RequestFailover(
+                        (_, token) => LeaveServerInMaintenanceAsync(current, token),
+                        retryAfter: retryAfter);
+                }
                 return;
             }
 
@@ -225,25 +257,75 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Closes the server session but retains the inner Session and its local subscriptions for recovery.
+        /// </summary>
+        private async Task<ServiceResult> LeaveServerInMaintenanceAsync(
+            ConfiguredEndpoint current,
+            CancellationToken ct)
+        {
+            using (await RecoveryWriterLockAsync(ct).ConfigureAwait(false))
+            {
+                if (m_session is not Session session || !ReferenceEquals(current, session.ConfiguredEndpoint))
+                {
+                    return ServiceResult.Good;
+                }
+                int timeout = m_redundancyRefreshTimeout == Timeout.InfiniteTimeSpan
+                    ? m_closeTimeout
+                    : (int)Math.Min(m_redundancyRefreshTimeout.TotalMilliseconds, int.MaxValue);
+                await session.CloseAsync(timeout, false, ct).ConfigureAwait(false);
+            }
+            return new ServiceResult(StatusCodes.BadNothingToDo, "Server is in Maintenance.");
+        }
+
+        /// <summary>
+        /// Requires a custom handler's automatic target to have an eligible status.
+        /// </summary>
+        private static bool IsEligibleProactiveTarget(
+            ServerRedundancyInfo info,
+            ConfiguredEndpoint current,
+            ConfiguredEndpoint target)
+        {
+            foreach (RedundantServer server in info.RedundantServers)
+            {
+                if (ReferenceEquals(server.Endpoint, target) &&
+                    !string.Equals(
+                        server.ServerUri, current.Description.Server?.ApplicationUri, StringComparison.Ordinal) &&
+                    server.ServiceLevelKnown &&
+                    server.ResolutionError == null &&
+                    server.ServerState == ServerState.Running &&
+                    ServiceLevels.IsOperational(server.ServiceLevel) &&
+                    (!ServiceLevels.IsDegraded(info.ServiceLevel) || ServiceLevels.IsHealthy(server.ServiceLevel)))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Reads the <c>ServiceLevel</c> of the Server in use.
         /// </summary>
-        /// <returns>
-        /// <see langword="true"/> when the read succeeds and the value is in the
-        /// Healthy subrange.
-        /// </returns>
-        private async Task<bool> IsServiceLevelHealthyAsync(CancellationToken ct)
+        private async Task<byte?> ReadMonitoredServiceLevelAsync(CancellationToken ct)
         {
             try
             {
                 DataValue value = await this.ReadValueAsync(VariableIds.Server_ServiceLevel, ct)
                     .ConfigureAwait(false);
-                return StatusCode.IsGood(value.StatusCode) &&
-                    value.WrappedValue.TryGetValue(out byte level) &&
-                    ServiceLevels.IsHealthy(level);
+                if (value.StatusCode == StatusCodes.BadServerHalted)
+                {
+                    StateMachine.TriggerReconnect();
+                }
+                return StatusCode.IsGood(value.StatusCode) && value.WrappedValue.TryGetValue(out byte level)
+                    ? level
+                    : null;
             }
-            catch (ServiceResultException)
+            catch (ServiceResultException exception)
             {
-                return false;
+                if (exception.StatusCode == StatusCodes.BadServerHalted)
+                {
+                    StateMachine.TriggerReconnect();
+                }
+                return null;
             }
         }
 
@@ -357,6 +439,7 @@ namespace Opc.Ua.Client
                     server.ServiceLevelKnown &&
                     server.ResolutionError == null &&
                     server.ServerState == ServerState.Running &&
+                    ServiceLevels.IsOperational(server.ServiceLevel) &&
                     server.ServiceLevel > currentLevel &&
                     !string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal) &&
                     (best == null || server.ServiceLevel > best.ServiceLevel))
@@ -441,21 +524,30 @@ namespace Opc.Ua.Client
                 (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) = await probe.ReadValuesAsync(
                     [VariableIds.Server_ServiceLevel, VariableIds.Server_ServerStatus_State],
                     linked.Token).ConfigureAwait(false);
+                if (values.Count != 2 || errors.Count != 2)
+                {
+                    return WithProbeError(server, new ServiceResult(StatusCodes.BadUnexpectedError));
+                }
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    if (StatusCode.IsBad(errors[ii].StatusCode) || StatusCode.IsBad(values[ii].StatusCode))
+                    if (!StatusCode.IsGood(errors[ii].StatusCode) || !StatusCode.IsGood(values[ii].StatusCode))
                     {
-                        return WithProbeError(server, StatusCode.IsBad(errors[ii].StatusCode)
+                        return WithProbeError(server, !StatusCode.IsGood(errors[ii].StatusCode)
                             ? errors[ii]
                             : new ServiceResult(values[ii].StatusCode));
                     }
                 }
+                if (!values[0].WrappedValue.TryGetValue(out byte level) ||
+                    !values[1].WrappedValue.TryGetValue(out int state))
+                {
+                    return WithProbeError(server, new ServiceResult(StatusCodes.BadTypeMismatch));
+                }
                 return new RedundantServer
                 {
                     ServerUri = server.ServerUri,
-                    ServiceLevel = values[0].GetValue<byte>(0),
+                    ServiceLevel = level,
                     ServiceLevelKnown = true,
-                    ServerState = (ServerState)values[1].GetValue((int)server.ServerState),
+                    ServerState = (ServerState)state,
                     Endpoint = endpoint
                 };
             }

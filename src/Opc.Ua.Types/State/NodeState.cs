@@ -2906,10 +2906,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Prepares this node when it is itself the reported event.
+        /// </summary>
+        internal virtual void PrepareEventForReport(ISystemContext context)
+        {
+        }
+
+        /// <summary>
         /// Reports one visited node to its sinks and inverse notifiers within the current event propagation.
         /// </summary>
         protected void ReportEventCore(ISystemContext context, IFilterTarget e)
         {
+            (e as NodeState)?.PrepareEventForReport(context);
             OnReportEvent?.Invoke(context, this, e);
 
             // Drive an asynchronous report sink too, so a node whose only report sink is
@@ -3006,6 +3014,7 @@ namespace Opc.Ua
             IFilterTarget e,
             CancellationToken cancellationToken)
         {
+            (e as NodeState)?.PrepareEventForReport(context);
             OnReportEvent?.Invoke(context, this, e);
 
             NodeStateReportEventAsyncHandler? onReportEventAsync = OnReportEventAsync;

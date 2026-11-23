@@ -365,7 +365,7 @@ namespace Opc.Ua.LADS.Server
                 condition.SetSeverity(context, (EventSeverity)InactiveSeverity, clearChangeMasks: false);
                 condition.Retain?.Value = condition.AckedState?.Id?.Value != true;
             }
-            condition.EventId?.Value = Uuid.NewUuid().ToByteString();
+            condition.ResetEventId();
             condition.Time?.Value = DateTimeUtc.Now;
             condition.ReceiveTime?.Value = DateTimeUtc.Now;
         }

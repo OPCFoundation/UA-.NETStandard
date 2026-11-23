@@ -17,12 +17,27 @@ namespace Opc.Ua.Redundancy.Server
         /// Gets or sets the OPC UA redundancy mode reported by
         /// <c>Server.ServerRedundancy.RedundancySupport</c>.
         /// </summary>
-        public RedundancySupport Mode { get; set; } = RedundancySupport.None;
+        public RedundancySupport Mode
+        {
+            get => m_mode;
+            set => m_mode = value;
+        }
 
         /// <summary>
-        /// Gets URI-only fallback peer ServerUris for legacy configuration that cannot provide discovery URLs.
-        /// Prefer <see cref="RedundantPeers"/> or <see cref="AddRedundantPeer"/> as the canonical redundancy
-        /// peer input; those entries drive both <c>FindServers</c> and the flat redundancy URI variables.
+        /// Gets or sets an optional shared, non-secret seed for deterministic EventIds in Transparent
+        /// or HotAndMirrored mode. By default, the replica node identity is used when configured;
+        /// otherwise a fixed domain seed is used.
+        /// </summary>
+        /// <remarks>
+        /// Use the same seed, logical identities and source occurrence timestamps on every replica.
+        /// This does not replicate the transitions, condition branches or acknowledgement state.
+        /// </remarks>
+        public string? DeterministicEventIdSeed { get; set; }
+
+        /// <summary>
+        /// Gets the peer ServerIds in Transparent mode. Use each peer's <see cref="CurrentServerId"/>,
+        /// not its ApplicationUri. In non-transparent modes this is the URI-only fallback for legacy
+        /// configuration that cannot provide discovery URLs; prefer <see cref="RedundantPeers"/>.
         /// </summary>
         public IList<string> PeerServerUris { get; } = [];
 
@@ -38,10 +53,21 @@ namespace Opc.Ua.Redundancy.Server
         public string CurrentServerId { get; set; } = Environment.MachineName;
 
         /// <summary>
-        /// Gets or sets the <c>ServiceLevel</c> published for each configured peer Server in
-        /// <c>Server.ServerRedundancy.RedundantServerArray</c>.
+        /// Retained for compatibility. Peer service levels are now read from live status records.
         /// </summary>
+        [Obsolete("Peer service levels are read from live status records; this setting has no effect.")]
         public byte PeerServiceLevel { get; set; } = ServiceLevels.Maximum;
+
+        /// <summary>
+        /// Gets or sets how often a server publishes its status and refreshes the peer array.
+        /// </summary>
+        public TimeSpan PeerStatusUpdateInterval { get; set; } = TimeSpan.FromSeconds(2);
+
+        /// <summary>
+        /// Gets or sets how long a peer status record is valid. Must exceed the update interval.
+        /// After expiry, the peer is reported as <see cref="ServerState.Unknown"/> with service level 0.
+        /// </summary>
+        public TimeSpan PeerStatusLifetime { get; set; } = TimeSpan.FromSeconds(10);
 
         /// <summary>
         /// Gets or sets a value indicating whether non-transparent modes add
@@ -85,5 +111,20 @@ namespace Opc.Ua.Redundancy.Server
                 .Distinct(StringComparer.Ordinal)
                 .ToArray());
         }
+
+        /// <summary>
+        /// Gets the configured array identifiers for the specified mode.
+        /// </summary>
+        internal ArrayOf<string> GetPeerIds(RedundancySupport mode)
+        {
+            return mode == RedundancySupport.Transparent
+                ? new ArrayOf<string>(PeerServerUris
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray())
+                : GetPeerApplicationUris();
+        }
+
+        private volatile RedundancySupport m_mode;
     }
 }

@@ -5,9 +5,13 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -30,7 +34,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void OnServerStartedThrowsOnNullServer()
         {
-            var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
+            using var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
 
             Assert.That(async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
@@ -38,7 +42,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task OnServerStartedNoOpsWhenServerObjectMissingAsync()
         {
-            var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
+            using var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.ServerObject).Returns((ServerObjectState)null!);
 
@@ -52,7 +56,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using DiagnosticsServerHarness harness = await DiagnosticsServerHarness.CreateAsync().ConfigureAwait(false);
             var provider = new MutableServiceLevelProvider(150);
-            var task = new ServiceLevelStartupTask(provider);
+            using var task = new ServiceLevelStartupTask(provider);
 
             await task.OnServerStartedAsync(harness.Server.Object).ConfigureAwait(false);
 
@@ -65,6 +69,37 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 harness.ServerObject.ServiceLevel!.Value,
                 Is.EqualTo((byte)42),
                 "a provider change is mirrored onto the live node");
+        }
+
+        [Test]
+        public async Task TickPublishesHealthAndLoadWithoutProviderNotificationAsync()
+        {
+            using DiagnosticsServerHarness harness = await DiagnosticsServerHarness.CreateAsync().ConfigureAwait(false);
+            await using var election = new StaticLeaderElection(true);
+            byte health = ServiceLevels.Maximum;
+            uint load = 0;
+            using var provider = new LeaderServiceLevelProvider(
+                election,
+                RedundancySupport.Hot,
+                () => load,
+                () => health);
+            var time = new FakeTimeProvider();
+            using var task = new ServiceLevelStartupTask(provider, time);
+            using var stopping = new CancellationTokenSource();
+            await task.OnServerStartedAsync(harness.Server.Object, stopping.Token).ConfigureAwait(false);
+
+            load = 3;
+            time.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(harness.ServerObject.ServiceLevel!.Value, Is.EqualTo(ServiceLevels.Maximum - 3));
+
+            health = ServiceLevels.DegradedMaximum;
+            time.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(harness.ServerObject.ServiceLevel!.Value, Is.EqualTo(ServiceLevels.DegradedMaximum));
+
+            stopping.Cancel();
+            health = ServiceLevels.Maximum;
+            time.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(harness.ServerObject.ServiceLevel!.Value, Is.EqualTo(ServiceLevels.DegradedMaximum));
         }
 
         private sealed class MutableServiceLevelProvider : IServiceLevelProvider
