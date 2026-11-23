@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -34,8 +35,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(() => reservations.Reserve(independent, second, [free]), Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that cleaning up an aborted candidate leaves the serving claims intact.
+        /// </summary>
         [Test]
-        public void AbortingReplacementDoesNotReleaseServingClaims()
+        public async Task AbortingReplacementDoesNotReleaseServingClaimsAsync()
         {
             var reservations = new NodeIdReservations();
             var namespaces = new NamespaceTable();
@@ -54,18 +58,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ServiceResultException>());
 
             candidate.Gate.Abort();
-            NodeManagerGenerationRegistry.CompleteCleanup(candidate);
+            await CompletePhysicalCleanupAsync(candidate).ConfigureAwait(false);
             Assert.That(() => reservations.Reserve(foreign, namespaces, [id]),
                 Throws.TypeOf<ServiceResultException>());
             serving.Gate.Retire();
             Assert.That(() => reservations.Reserve(foreign, namespaces, [id]),
                 Throws.TypeOf<ServiceResultException>());
-            NodeManagerGenerationRegistry.CompleteCleanup(serving);
+            await CompletePhysicalCleanupAsync(serving).ConfigureAwait(false);
             Assert.That(() => reservations.Reserve(foreign, namespaces, [id]), Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that cleaning up a retired generation leaves the successor's claim intact.
+        /// </summary>
         [Test]
-        public void CleaningReplacedGenerationPreservesSuccessorClaim()
+        public async Task CleaningReplacedGenerationPreservesSuccessorClaimAsync()
         {
             var reservations = new NodeIdReservations();
             var namespaces = new NamespaceTable();
@@ -81,7 +88,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             successor.Gate.Activate();
             slot.Publish(successor);
             original.Gate.Retire();
-            NodeManagerGenerationRegistry.CompleteCleanup(original);
+            await CompletePhysicalCleanupAsync(original).ConfigureAwait(false);
 
             Assert.That(() => reservations.Reserve(foreign, namespaces, [id]),
                 Throws.TypeOf<ServiceResultException>()
@@ -89,7 +96,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .EqualTo((StatusCode)StatusCodes.BadNodeIdExists));
 
             successor.Gate.Retire();
-            NodeManagerGenerationRegistry.CompleteCleanup(successor);
+            await CompletePhysicalCleanupAsync(successor).ConfigureAwait(false);
             Assert.That(() => reservations.Reserve(foreign, namespaces, [id]), Throws.Nothing);
         }
 
@@ -133,6 +140,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(() => reservations.Index(owner.NodeManager, namespaces, index, impostor, default),
                 Throws.TypeOf<ServiceResultException>());
             Assert.That(index[id], Is.SameAs(node));
+        }
+
+        private static async Task CompletePhysicalCleanupAsync(NodeManagerGeneration owner)
+        {
+            using NodeManagerGenerationRegistry.ResourceLifetime.CleanupLease cleanup =
+                await owner.ResourceOwnership.EnterCleanupAsync(owner).ConfigureAwait(false);
+            await cleanup.WaitForQuiescenceAsync().ConfigureAwait(false);
+            owner.CleanupRecoveryGate.DisposeGeneration();
+            NodeManagerGenerationRegistry.CompleteCleanup(owner);
         }
 
         private static NodeManagerGeneration CreateGeneration(

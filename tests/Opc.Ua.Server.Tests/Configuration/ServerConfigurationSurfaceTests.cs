@@ -2014,9 +2014,10 @@ namespace Opc.Ua.Server.Tests
             using (harness.Manager)
             {
                 SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(8103, 1));
-                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await OpenAsync(harness.Node.ConfigurationFile!, ctx, mode).ConfigureAwait(false));
-                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                OpenMethodStateResult open = await OpenAsync(harness.Node.ConfigurationFile!, ctx, mode)
+                    .ConfigureAwait(false);
+                Assert.That(open.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(open.FileHandle, Is.Zero);
                 Assert.That(harness.Node.ConfigurationFile!.OpenCount!.Value, Is.Zero);
                 Assert.That(provider.ApplyCount, Is.Zero);
             }

@@ -227,6 +227,8 @@ namespace Opc.Ua.Server.Tests
             harness.UseTrustedStore(failing.Object);
             DateTimeUtc lastUpdate = harness.Node.LastUpdateTime!.Value;
             uint handle = await harness.OpenAsync(write: true).ConfigureAwait(false);
+            // Count snapshot reads during CloseAndUpdate, not the reads performed by Open.
+            failing.Invocations.Clear();
             ByteString payload = harness.Encode(new TrustListDataType
             {
                 SpecifiedLists = (uint)(TrustListMasks.TrustedCertificates | TrustListMasks.IssuerCertificates),
