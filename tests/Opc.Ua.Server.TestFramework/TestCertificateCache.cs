@@ -72,9 +72,7 @@ namespace Opc.Ua.Server.TestFramework
 
             if (s_templates.TryGetValue(identity.Key, out CachedFile[]? template))
             {
-                identity.Seed(template);
-                return await application
-                    .CheckApplicationInstanceCertificatesAsync(true, lifeTimeInMonths, ct)
+                return await SeedAndCheckAsync(application, identity, template, lifeTimeInMonths, ct)
                     .ConfigureAwait(false);
             }
 
@@ -85,14 +83,15 @@ namespace Opc.Ua.Server.TestFramework
             {
                 if (s_templates.TryGetValue(identity.Key, out template))
                 {
-                    identity.Seed(template);
+                    return await SeedAndCheckAsync(application, identity, template, lifeTimeInMonths, ct)
+                        .ConfigureAwait(false);
                 }
 
                 bool result = await application
                     .CheckApplicationInstanceCertificatesAsync(true, lifeTimeInMonths, ct)
                     .ConfigureAwait(false);
 
-                if (result && template == null && identity.TryCapture() is { } captured)
+                if (result && identity.TryCapture() is { } captured)
                 {
                     s_templates.TryAdd(identity.Key, captured);
                 }
@@ -102,6 +101,35 @@ namespace Opc.Ua.Server.TestFramework
             {
                 gate.Release();
             }
+        }
+
+        /// <summary>
+        /// Seeds the own store and runs the certificate check. When files were
+        /// seeded the certificate manager is refreshed afterwards, as the check
+        /// does after it creates a certificate: configuration validation loaded
+        /// the still empty store into the manager, and a check that finds the
+        /// certificates instead of creating them leaves the manager as it is.
+        /// </summary>
+        private static async Task<bool> SeedAndCheckAsync(
+            IApplicationInstance application,
+            Identity identity,
+            CachedFile[] template,
+            ushort? lifeTimeInMonths,
+            CancellationToken ct)
+        {
+            bool seeded = identity.Seed(template);
+            bool result = await application
+                .CheckApplicationInstanceCertificatesAsync(true, lifeTimeInMonths, ct)
+                .ConfigureAwait(false);
+            if (result &&
+                seeded &&
+                application.ApplicationConfiguration is { CertificateManager: { } manager } configuration)
+            {
+                await manager
+                    .UpdateAsync(configuration.SecurityConfiguration, configuration.ApplicationUri, ct)
+                    .ConfigureAwait(false);
+            }
+            return result;
         }
 
         /// <summary>
@@ -202,13 +230,13 @@ namespace Opc.Ua.Server.TestFramework
 
             /// <summary>
             /// Copies the cached files into the own store unless it already
-            /// holds a certificate of this subject.
+            /// holds a certificate of this subject; returns whether it copied.
             /// </summary>
-            public void Seed(CachedFile[] template)
+            public bool Seed(CachedFile[] template)
             {
                 if (FindFiles(kCertsFolder, "*").Length != 0)
                 {
-                    return;
+                    return false;
                 }
 
                 foreach (CachedFile file in template)
@@ -217,6 +245,7 @@ namespace Opc.Ua.Server.TestFramework
                     Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                     File.WriteAllBytes(target, file.Content);
                 }
+                return true;
             }
 
             /// <summary>

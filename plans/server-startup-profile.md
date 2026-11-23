@@ -115,7 +115,11 @@ CPU and allocation work, no waits:
    certificate its type, subject and minimum key size; only single directory
    stores found by subject, no password provider). The first fixture per
    identity creates the certificates under a per-identity gate so parallel
-   fixtures do not generate them twice. Consequence: fixtures of one identity
+   fixtures do not generate them twice. After a seeded check the fixture calls
+   `CertificateManager.UpdateAsync`, as the check itself does after creating a
+   certificate: configuration validation already loaded the then empty store
+   into the manager (without this the client's WSS reverse-connect listener
+   found no TLS certificate). Consequence: fixtures of one identity
    share one key pair per certificate type within a test process; trust lists
    stay per PKI folder. Opt out per fixture with
    `ServerFixture.ReuseCachedCertificates` / `ClientFixture.ReuseCachedCertificates`
