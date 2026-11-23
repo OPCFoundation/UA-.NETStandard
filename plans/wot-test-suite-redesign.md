@@ -159,10 +159,24 @@ flight throughout). A .NET Framework server is more CPU-bound per test than on
 (`WotRegistryIdentityLiveTests`, 114 cases: 6 min 0 s vs 5 min 56 s), so the
 net48 profile keeps two shards.
 
-CI after the change: see the pull request's CI run; the table there replaces
-the estimate below.
+CI after the change, PR run 45149363008 (head `43e265e`, same coverage
+settings as the master run: coverage on net11.0, off on net48; the PR profile
+has no macOS entries):
 
-Expected CI shape: 6 instead of 16 WotCon jobs per CI run
+| Profile | Entries | Test wall (before → after) | Sum of test durations | Job minutes (before → after) |
+|---|---:|---:|---:|---:|
+| Linux net11.0 | 2 → 1 | 30.3 → **16.8 min** | 64.4 min | 48.6 → **27.2** |
+| Windows net11.0 | 2 → 1 | 43.2 → **14.3 min** | 54.3 min | 68.8 → **21.7** |
+| Windows net48 | 4 → 2 | 67.9 → 48.6 min (longest entry 24.9 → 25.9) | 193.0 min | 103.1 → **70.4** |
+
+Windows and Linux net11.0 take a third to half of the runner minutes they
+took before. net48 gains less: its four parallel tests take almost three times
+as long each as they do serially, so its entries are no shorter. The two-entry
+layout still saves a third of its runner minutes, mostly by building twice
+instead of four times. Lowering net48's parallelism or giving it more entries
+is a separate trade-off between wall time and runner minutes.
+
+CI shape: 6 instead of 16 WotCon jobs per CI run
 (Windows net11.0 1, Linux net11.0 1, Windows net48 2, macOS net11.0 2),
 which also drops ten build-and-setup overheads of 8-14 minutes each.
 
