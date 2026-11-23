@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task LeaderProviderConcurrentManualOverrideAndClearDoesNotProduceTornZero()
         {
             await using var election = new MutableLeaderElection();
-            provider.SetServiceLevel(ServiceLevels.Maximum);
+            election.Set(true);
             using var provider = new LeaderServiceLevelProvider(election, leaderLevel: 255, standbyLevel: 200);
             using var cts = new CancellationTokenSource();
             int invalidLevel = -1;
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 while (!cts.IsCancellationRequested)
                 {
                     provider.SetServiceLevel(ServiceLevels.DegradedMaximum);
-                    election.Set(true);
+                    provider.SetServiceLevel(ServiceLevels.Maximum);
                 }
             });
             var reader = Task.Run(() =>
