@@ -573,6 +573,16 @@ namespace Opc.Ua
             // replace all "[!" with "[^", except "\[!"
             expression = ReplaceBrackets.Replace(expression, "[^");
 
+            // the time to convert the pattern counts as well and is taken off before
+            // the engine gets its share.
+            long converted = Stopwatch.GetTimestamp();
+            m_likeTimeLeft -= ToTimeSpan(converted - start);
+
+            if (m_likeTimeLeft <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
             // the engine gets what is left of the time, but not less than its clock
             // can measure.
             double engineTimeMs = Math.Max(
@@ -587,12 +597,7 @@ namespace Opc.Ua
                     RegexOptions.None,
                     TimeSpan.FromMilliseconds(engineTimeMs));
 
-                // the time to convert the pattern counts as well. It is converted in
-                // ticks: TimeSpan.FromSeconds rounds to milliseconds on .NET Framework,
-                // which would not count a match that takes less than half of one.
-                long elapsed = Stopwatch.GetTimestamp() - start;
-                m_likeTimeLeft -= TimeSpan.FromTicks(
-                    (long)((double)elapsed * TimeSpan.TicksPerSecond / Stopwatch.Frequency));
+                m_likeTimeLeft -= ToTimeSpan(Stopwatch.GetTimestamp() - converted);
                 return isMatch;
             }
             catch (RegexMatchTimeoutException)
@@ -606,6 +611,19 @@ namespace Opc.Ua
                     target.Length);
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Converts a number of Stopwatch ticks to a time span.
+        /// </summary>
+        /// <remarks>
+        /// It is converted in ticks: TimeSpan.FromSeconds rounds to milliseconds on
+        /// .NET Framework, which would not count a match that takes less than half of one.
+        /// </remarks>
+        private static TimeSpan ToTimeSpan(long stopwatchTicks)
+        {
+            return TimeSpan.FromTicks(
+                (long)((double)stopwatchTicks * TimeSpan.TicksPerSecond / Stopwatch.Frequency));
         }
 
         /// <summary>
