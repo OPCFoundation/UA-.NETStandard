@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -10,12 +11,12 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Registry;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -67,13 +68,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_store.SupportsPreparedCommits, Is.True);
             m_registry = new WotRegistryService(m_store);
             await m_registry.InitializeAsync().ConfigureAwait(false);
-            m_fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
+            m_fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry))
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
                 AutoAccept = true
             };
-            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
+            await WotTestPki.SeedAsync<StandardServer>(m_pkiRoot, telemetry => new StandardServer(telemetry), 0)
+                .ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
@@ -84,9 +86,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
             };
             m_coordinator.Event += (_, change) => m_events.Add(change);
-            m_client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
-            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
-            await m_client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            m_client = await GetSharedClientAsync().ConfigureAwait(false);
             Assert.That(m_client.SessionFactory, Is.TypeOf<DefaultSessionFactory>());
             m_session = await m_client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -100,6 +100,36 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task TearDownAsync()
         {
             await DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Disposes the client configuration shared by every case of the fixture.
+        /// </summary>
+        [OneTimeTearDown]
+        public static async Task DisposeSharedClientAsync()
+        {
+            ClientFixture? client;
+            string? root;
+            await s_clientLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                client = s_client;
+                root = s_clientRoot;
+                s_client = null;
+                s_clientRoot = null;
+            }
+            finally
+            {
+                s_clientLock.Release();
+            }
+            if (client is not null)
+            {
+                await client.DisposeAsync().ConfigureAwait(false);
+            }
+            if (root is not null && Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
         }
 
         /// <summary>
@@ -345,10 +375,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 finally
                 {
                     m_server?.Dispose();
-                    if (m_client is not null)
-                    {
-                        await m_client.DisposeAsync().ConfigureAwait(false);
-                    }
                     m_coordinator?.Dispose();
                     m_registry?.Dispose();
                     m_store?.Dispose();
@@ -379,6 +405,58 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return resource;
         }
 
+        /// <summary>
+        /// Returns the client configuration shared by every case of the fixture.
+        /// </summary>
+        /// <remarks>
+        /// Loading a client configuration and checking its certificates took
+        /// about 400 ms of every case. The configuration is the same for every
+        /// case and the client fixture only creates independent sessions from
+        /// it, so the cases share one. Every case still opens its own session.
+        /// </remarks>
+        private static async Task<ClientFixture> GetSharedClientAsync()
+        {
+            await s_clientLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (s_client is null)
+                {
+                    string root = Path.Combine(
+                        Path.GetTempPath(),
+                        "apn",
+                        "client",
+                        Guid.NewGuid().ToString("N").Substring(0, 12));
+                    await WotTestPki.SeedAsync<StandardServer>(root, telemetry => new StandardServer(telemetry), 0)
+                        .ConfigureAwait(false);
+                    var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+                    try
+                    {
+                        await client.LoadClientConfigurationAsync(root).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        await client.DisposeAsync().ConfigureAwait(false);
+                        throw;
+                    }
+                    s_clientRoot = root;
+                    s_client = client;
+                }
+                return s_client;
+            }
+            finally
+            {
+                s_clientLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Starts a second server of the same type as the fixture server, which
+        /// stands for the fixture server after a restart.
+        /// </summary>
+        private static Task<PreparedWotTestRuntime> StartRestartedServerAsync()
+        {
+            return PreparedWotTestRuntime.StartAsync(telemetry => new StandardServer(telemetry));
+        }
         private NodeId Root(WotResource resource)
         {
             return new NodeId(5000u, (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(ModelUri(resource)));
@@ -399,6 +477,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return $"urn:wot:{resource.GroupId}/{resource.ResourceId}";
         }
 
+        private static readonly SemaphoreSlim s_clientLock = new(1, 1);
+        private static ClientFixture? s_client;
+        private static string? s_clientRoot;
+
         private readonly List<WotMaterializationEventArgs> m_events = [];
 
         private string m_pkiRoot = null!;
@@ -406,10 +488,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private FileWotRegistryStore m_store = null!;
         private PreparedWotTestStorage m_storage = null!;
         private WotRegistryService m_registry = null!;
-        private ServerFixture<ReferenceServer> m_fixture = null!;
-        private ReferenceServer m_server = null!;
+        private ServerFixture<StandardServer> m_fixture = null!;
+        private StandardServer m_server = null!;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
+        [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
+            Justification = "The client is shared by every case and disposed in DisposeSharedClientAsync.")]
         private ClientFixture m_client = null!;
         private Opc.Ua.Client.ISession m_session = null!;
         private bool m_failDecision;
