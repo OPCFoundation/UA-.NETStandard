@@ -72,11 +72,12 @@ jobs:
         # Expression comparisons and startsWith() ignore case, but the
         # nuget-signing deployment branch rules do not: compare case
         # sensitively here, so "Release/x" or "MASTER" builds unsigned
-        # instead of being refused by the environment.
+        # instead of being refused by the environment. The rule "release/*"
+        # does not match a further '/', so "release/a/b" builds unsigned too.
         run: |
           $ref = $env:GITHUB_REF
           $signed = $ref -ceq 'refs/heads/master' -or
-              $ref.StartsWith('refs/heads/release/', [System.StringComparison]::Ordinal)
+              $ref -cmatch '^refs/heads/release/[^/]+$'
           "signed=$($signed.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Packages for '$($env:GITHUB_REF)' are $(if ($signed) { 'signed' } else { 'built unsigned' })."
 
