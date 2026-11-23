@@ -59,7 +59,7 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     throw new InvalidOperationException("ServiceLevel publication has already started.");
                 }
-                ISystemContext context = server.DefaultSystemContext;
+                ServerSystemContext context = server.DefaultSystemContext;
                 m_logger = context.Telemetry.CreateLogger<ServiceLevelStartupTask>();
                 m_publishLevel = server is IServerServiceLevelControl control
                     ? control.ClaimServiceLevelControl()
