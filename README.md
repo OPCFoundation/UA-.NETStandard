@@ -208,7 +208,7 @@ vulnerabilities via the process documented in
 
 - [Documentation index](docs/README.md) — every per-feature doc with a
   one-line description.
-- [ISA-95 Job Control](docs/ISA95JobControl.md) — reuse orders, responses,
+- [ISA-95 Job Control](docs/ISA95.md#server-independent-job-control) — reuse orders, responses,
   conversions, and lifecycle rules without hosting an OPC UA server.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
