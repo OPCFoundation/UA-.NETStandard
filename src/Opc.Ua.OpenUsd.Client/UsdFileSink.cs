@@ -489,7 +489,7 @@ namespace Opc.Ua.OpenUsd.Client
             Func<string, bool>? filter = AssetPathFilter;
             if (filter != null)
             {
-                string path = normalized.Substring(1, normalized.IndexOf('@', 1) - 1);
+                string path = normalized.Substring(1, UsdAssetPaths.IndexOfOrdinal(normalized, '@', 1) - 1);
                 if (!filter(UsdAssetPaths.Resolve(m_path, path)))
                 {
                     return null;

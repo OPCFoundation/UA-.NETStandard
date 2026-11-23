@@ -74,7 +74,7 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 return false;
             }
-            int close = text.IndexOf('@', 1);
+            int close = IndexOfOrdinal(text, '@', 1);
             if (close < 0)
             {
                 return false;
@@ -250,8 +250,24 @@ namespace Opc.Ua.OpenUsd.Client
 
         private static int SkipLine(string text, int start)
         {
-            int end = text.IndexOf('\n', start);
+            int end = IndexOfOrdinal(text, '\n', start);
             return end < 0 ? text.Length : end + 1;
+        }
+
+        /// <summary>
+        /// Ordinal character search from <paramref name="start"/>; the char overload
+        /// with a comparison does not exist on every target framework.
+        /// </summary>
+        internal static int IndexOfOrdinal(string text, char value, int start)
+        {
+            for (int i = start; i < text.Length; i++)
+            {
+                if (text[i] == value)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         private static void CheckWord(StringBuilder word)
@@ -306,7 +322,7 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 throw new InvalidDataException("Triple-delimited asset paths are not admitted.");
             }
-            int close = text.IndexOf('@', start + 1);
+            int close = IndexOfOrdinal(text, '@', start + 1);
             if (close < 0)
             {
                 throw new InvalidDataException("A USDA asset path is not terminated.");
@@ -325,7 +341,7 @@ namespace Opc.Ua.OpenUsd.Client
 
         private static int SkipPath(string text, int start)
         {
-            int close = text.IndexOf('>', start + 1);
+            int close = IndexOfOrdinal(text, '>', start + 1);
             if (close < 0 || close - start > MaximumPathLength)
             {
                 throw new InvalidDataException("A USDA path is not terminated or is unbounded.");
