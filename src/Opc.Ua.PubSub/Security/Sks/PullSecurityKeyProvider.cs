@@ -351,7 +351,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                     // Refreshes are not stopped: a provider that stopped
                     // would keep its last key past the key lifetime and never
                     // receive keys again once the SKS is back.
-                    m_logger.BackgroundSksRefreshPaused(failures);
+                    m_logger.SksUnavailable(failures);
                 }
 
                 try
@@ -447,6 +447,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             // and an SKS that has no key after the known ones yet still
             // answers instead of failing the refresh. Known keys are skipped.
             var request = new SksKeyRequest(SecurityGroupId, 0u, requestedKeyCount);
+            var requestedAt = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             SksKeyResponse response;
             try
             {
@@ -478,16 +479,16 @@ namespace Opc.Ua.PubSub.Security.Sks
                     ex);
             }
 
-            ApplyResponse(response);
+            ApplyResponse(response, requestedAt);
             lock (m_stateLock)
             {
                 m_consecutiveFailures = 0;
             }
         }
 
-        private void ApplyResponse(SksKeyResponse response)
+        private void ApplyResponse(SksKeyResponse response, DateTimeUtc requestedAt)
         {
-            ArrayOf<PubSubSecurityKey> keys = response.UnpackScheduled(m_timeProvider);
+            ArrayOf<PubSubSecurityKey> keys = response.UnpackScheduled(requestedAt);
             if (keys.Count == 0)
             {
                 m_logger.SksResponseContainedNoUsableKeys(SecurityGroupId);
@@ -585,8 +586,8 @@ namespace Opc.Ua.PubSub.Security.Sks
         public static partial void FailedToComputeNextSksRefreshDelay(this ILogger logger, Exception exception);
 
         [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 3, Level = LogLevel.Warning,
-            Message = "Background SKS refresh paused after {Failures} consecutive failures.")]
-        public static partial void BackgroundSksRefreshPaused(this ILogger logger, int failures);
+            Message = "SKS unavailable after {Failures} consecutive failures; background refresh retries will continue.")]
+        public static partial void SksUnavailable(this ILogger logger, int failures);
 
         [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 4, Level = LogLevel.Warning,
             Message = "Background SKS refresh failed for SecurityGroupId {GroupId}.")]

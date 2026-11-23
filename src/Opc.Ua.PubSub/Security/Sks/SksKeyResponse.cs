@@ -138,16 +138,15 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// current for <see cref="KeyLifetime"/> after its predecessor
         /// (Part 14 §8.3.2).
         /// </summary>
-        /// <param name="timeProvider">Clock that supplies the current time.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="timeProvider"/> is null.</exception>
-        internal ArrayOf<PubSubSecurityKey> UnpackScheduled(TimeProvider timeProvider)
+        /// <param name="requestedAt">
+        /// When the request was sent. The SKS computed
+        /// <see cref="TimeToNextKey"/> at or after that time, so measuring
+        /// it from there never extends a key past its real expiry, however
+        /// late the response is processed.
+        /// </param>
+        internal ArrayOf<PubSubSecurityKey> UnpackScheduled(DateTimeUtc requestedAt)
         {
-            if (timeProvider is null)
-            {
-                throw new ArgumentNullException(nameof(timeProvider));
-            }
-
-            var now = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime);
+            DateTimeUtc now = requestedAt;
             TimeSpan lifetime = KeyLifetime;
             if (lifetime <= TimeSpan.Zero ||
                 Keys.Count > MaxScheduledHorizon.Ticks / lifetime.Ticks)

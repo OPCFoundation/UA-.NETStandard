@@ -601,6 +601,33 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(current.IsExpired(clock), Is.False);
         }
 
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task DelayedFirstPullDoesNotExtendAnUncachedKeyAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMinutes(55));
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+
+            // The first pull reads TimeToNextKey = 5 min at minute 55 and is
+            // processed at minute 66: token 1 expired at minute 60, so it must
+            // not become current with an expiry of minute 71.
+            sks.DelayNextResponse = TimeSpan.FromMinutes(11);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
         private static async Task AdvanceAsync(FakeTimeProvider clock, TimeSpan duration)
         {
             // Small steps with a real yield let the background loop run its
