@@ -250,6 +250,41 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
+        public void PublishingThroughALinkedCacheDirectoryIsRefused()
+        {
+            string cache = Path.Combine(m_directory, "cache");
+            string outside = Path.Combine(m_directory, "outside");
+            Directory.CreateDirectory(cache);
+            Directory.CreateDirectory(outside);
+            File.WriteAllText(Path.Combine(outside, "arm.usda"), "#usda 1.0\n# precious\n");
+            string link = Path.Combine(cache, "parts");
+            if (!TryCreateDirectoryLink(link, outside))
+            {
+                Assert.Ignore("This host cannot create a directory link.");
+            }
+            try
+            {
+                List<OpenUsdConnector.FetchedAsset> fetched =
+                [
+                    Fetched("parts/arm.usda", "#usda 1.0\n", OpenUsdAssetKind.RootLayer)
+                ];
+
+                Assert.That(
+                    OpenUsdConnectorRunner.TryPublishFetchedClosure(
+                        m_directory, cache, fetched, out _, out string? refusal),
+                    Is.False);
+                Assert.That(refusal, Does.Contain("linked"));
+                Assert.That(File.ReadAllText(Path.Combine(outside, "arm.usda")), Does.Contain("precious"));
+                Assert.That(OpenUsdConnectorRunner.TraversesLink(cache, Path.Combine(cache, "live.usda")), Is.False);
+            }
+            finally
+            {
+                // Remove the link itself before teardown's recursive delete reaches it.
+                Directory.Delete(link);
+            }
+        }
+
+        [Test]
         public void FetchedAliasesOfOneCacheFileAreRefused()
         {
             OpenUsdConnector.FetchedAsset first = Fetched("cell.usda", "#usda 1.0\n", OpenUsdAssetKind.RootLayer);
@@ -284,6 +319,36 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             ];
 
             Assert.That(OpenUsdConnectorRunner.TryValidateFetchedClosure(fetched, out _, out _), Is.False);
+        }
+
+        // A symbolic link needs developer mode or elevation on Windows; a junction is a
+        // reparse point too and needs neither.
+        private static bool TryCreateDirectoryLink(string link, string target)
+        {
+            try
+            {
+                Directory.CreateSymbolicLink(link, target);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+            if (!OperatingSystem.IsWindows())
+            {
+                return false;
+            }
+            using var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                ArgumentList = { "/c", "mklink", "/J", link, target },
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            });
+            mklink?.WaitForExit();
+            return Directory.Exists(link) &&
+                (new DirectoryInfo(link).Attributes & FileAttributes.ReparsePoint) != 0;
         }
 
         private OpenUsdConnector.FetchedAsset Fetched(string identifier, string content, OpenUsdAssetKind kind)

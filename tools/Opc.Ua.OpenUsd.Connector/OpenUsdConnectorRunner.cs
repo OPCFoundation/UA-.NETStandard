@@ -337,6 +337,13 @@ namespace Opc.Ua.OpenUsd.Connector
                 // arrived and been inspected: downloads go to a fresh staging directory,
                 // and the previous stage.usda is withdrawn first, so a failed or refused
                 // run leaves no stage that composes uninspected bytes.
+                if (TraversesLink(cacheDir!, Path.Combine(cacheDir!, ".incoming")))
+                {
+                    Console.Error.WriteLine(
+                        $"ERROR: the asset cache {cacheDir} is a linked directory; served assets are not fetched.");
+                    await CloseAsync(session, config).ConfigureAwait(false);
+                    return 5;
+                }
                 DiscardGeneratedStage(cacheDir!);
                 string stagingDir = Path.Combine(cacheDir!, ".incoming-" + Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(stagingDir);
@@ -525,6 +532,11 @@ namespace Opc.Ua.OpenUsd.Connector
                 refusal = "A served asset would overwrite the connector's generated stage.usda or live.usda.";
                 return false;
             }
+            if (TraversesLink(cacheRoot, stagePath) || TraversesLink(cacheRoot, livePath))
+            {
+                refusal = "The asset cache's stage.usda or live.usda is a link, or the cache is a linked directory.";
+                return false;
+            }
 
             var rootPaths = new List<string>();
             foreach (OpenUsdConnector.FetchedAsset asset in fetched)
@@ -632,7 +644,14 @@ namespace Opc.Ua.OpenUsd.Connector
                         "generated stage.usda or live.usda, or lies outside the download directory.";
                     return false;
                 }
-                targets.Add(Path.Combine(cacheRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
+                string target = Path.Combine(cacheRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+                if (TraversesLink(cacheRoot, target))
+                {
+                    refusal = $"The served asset '{asset.Identifier}' would be published through a linked " +
+                        "directory or file in the asset cache.";
+                    return false;
+                }
+                targets.Add(target);
             }
             for (int i = 0; i < fetched.Count; i++)
             {
@@ -668,6 +687,33 @@ namespace Opc.Ua.OpenUsd.Connector
             catch (UnauthorizedAccessException)
             {
             }
+        }
+
+        /// <summary>
+        /// Whether writing <paramref name="path"/> would pass through a symbolic link
+        /// or junction at or below <paramref name="cacheRoot"/>: the containment checks
+        /// are lexical, so a link planted in the cache would redirect the write (and the
+        /// delete before it) outside the cache. Directories above the cache root are
+        /// the operator's choice and are not inspected.
+        /// </summary>
+        internal static bool TraversesLink(string cacheRoot, string path)
+        {
+            string root = Path.GetFullPath(cacheRoot).TrimEnd(Path.DirectorySeparatorChar);
+            var file = new FileInfo(Path.GetFullPath(path));
+            if (file.Exists && (file.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return true;
+            }
+            for (DirectoryInfo? directory = file.Directory;
+                directory != null && directory.FullName.Length >= root.Length;
+                directory = directory.Parent)
+            {
+                if (directory.Exists && (directory.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static StringComparer PathComparer => RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
