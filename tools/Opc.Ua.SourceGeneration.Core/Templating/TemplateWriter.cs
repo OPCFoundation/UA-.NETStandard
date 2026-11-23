@@ -234,6 +234,26 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
 
+            // The markers below must not be mistaken for literal text: if the
+            // format or another argument already contains a marker character,
+            // do not use markers and write each such argument on one line.
+            object?[] plainArgs = new object?[args.Length];
+            for (int ii = 0; ii < args.Length; ii++)
+            {
+                plainArgs[ii] = values[ii] != null ? string.Empty : args[ii];
+            }
+            string plain = string.Format(CultureInfo.InvariantCulture, format, plainArgs);
+            if (plain.IndexOf(kArgumentStart.ToString(), StringComparison.Ordinal) >= 0 ||
+                plain.IndexOf(kArgumentEnd.ToString(), StringComparison.Ordinal) >= 0)
+            {
+                for (int ii = 0; ii < args.Length; ii++)
+                {
+                    plainArgs[ii] = values[ii] != null ? values[ii].AsSingleLineCommentText() : args[ii];
+                }
+                Emit(string.Format(CultureInfo.InvariantCulture, format, plainArgs), isValue: false);
+                return;
+            }
+
             // Substitute a marker for each such argument so the text around it
             // is still written as generator text and the argument as a value.
             object?[] markedArgs = new object?[args.Length];
@@ -270,8 +290,8 @@ namespace Opc.Ua.SourceGeneration
                 }
                 else
                 {
-                    // Not one of the markers (an argument happened to contain
-                    // the private-use marker characters): write it as text.
+                    // Not one of the markers (cannot happen: literal marker
+                    // characters were excluded above): write it as text.
                     Emit(formatted.Substring(start, end - start + 1), isValue: false);
                 }
                 position = end + 1;

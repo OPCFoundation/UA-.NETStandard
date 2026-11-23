@@ -3715,6 +3715,22 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
+        /// Literal text that looks like an internal argument marker is not
+        /// replaced by an argument, and the argument still cannot end the
+        /// comment.
+        /// </summary>
+        [Test]
+        public void FormattedLiteralMarkerTextIsWrittenUnchanged()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.Write("// x0 {0}", "a\nb");
+            }
+
+            Assert.That(stringWriter.ToString(), Is.EqualTo("// x0 a b"));
+        }
+        /// <summary>
         /// A formatted argument is a value too: a line break in it cannot end
         /// a comment that the format text opened.
         /// </summary>
