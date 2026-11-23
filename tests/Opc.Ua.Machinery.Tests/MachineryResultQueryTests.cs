@@ -913,6 +913,46 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public void TheLikeElementsOfOneEvaluationShareOneBudgetPerResult()
+        {
+            var target = new MachineryResultFilterTarget(Result("B-2", jobId: "J").Data);
+
+            // One such match is decided FALSE within the budget, at between
+            // 0.4 and 0.8 million steps; three of them are not.
+            Variant text = Variant.From(new string('a', 1300));
+            Variant pattern = Variant.From("%" + new string('a', 500) + "b");
+            Variant[] cheap = [Variant.From("aaab"), Variant.From("%b")];
+
+            // Or(expensive, cheap): the cheap match is still decided. Every
+            // evaluation starts with a full budget, so it is decided again
+            // for each further result.
+            var within = new ContentFilter();
+            ContentFilterElement element = within.Push(FilterOperator.Like, cheap);
+            within.Push(
+                FilterOperator.Or,
+                Variant.FromStructure(within.Push(FilterOperator.Like, text, pattern)),
+                Variant.FromStructure(element));
+            for (int ii = 0; ii < 3; ii++)
+            {
+                Assert.That(Evaluate(within, target), Is.True);
+            }
+
+            // Or(expensive, Or(expensive, Or(expensive, cheap))): the three
+            // expensive elements use the budget up between them, so the cheap
+            // one is NULL and nothing is selected.
+            var exceeding = new ContentFilter();
+            element = exceeding.Push(FilterOperator.Like, cheap);
+            for (int ii = 0; ii < 3; ii++)
+            {
+                element = exceeding.Push(
+                    FilterOperator.Or,
+                    Variant.FromStructure(exceeding.Push(FilterOperator.Like, text, pattern)),
+                    Variant.FromStructure(element));
+            }
+            Assert.That(Evaluate(exceeding, target), Is.False);
+        }
+
+        [Test]
         public void ALikeElementThatExceedsTheMatchBudgetIsNull()
         {
             var target = new MachineryResultFilterTarget(Result("B-1", jobId: "J").Data);
