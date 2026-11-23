@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,18 +27,41 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server
+using System;
+
+namespace Opc.Ua.Perf.ServerLoadHarness
 {
     /// <summary>
-    /// Common recovery contract for legacy single-operation committed exceptions.
-    /// New change-set callers receive the same result directly instead of an exception after publication.
+    /// Formats delivery counts and their percentage for subscription workloads.
     /// </summary>
-    public interface INodeManagerCommittedFailure
+    internal static class DeliveryReport
     {
         /// <summary>
-        /// Gets the authoritative committed result, or null only for a manually constructed legacy exception
-        /// that supplied no result. A missing result must not be interpreted as an aborted publication.
+        /// Calculates the expected deliveries from produced values, sessions, and subscriptions.
         /// </summary>
-        LifecycleResult? CommittedResult { get; }
+        internal static string Format(long received, long produced, int sessions, int subscriptions)
+        {
+            if (received < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(received));
+            }
+            if (produced < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(produced));
+            }
+            if (sessions < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sessions));
+            }
+            if (subscriptions < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(subscriptions));
+            }
+
+            long expected = checked(produced * ((long)sessions * subscriptions));
+            double ratio = expected == 0 ? 0 : (double)received / expected;
+            return FormattableString.Invariant(
+                $"received/expected={ratio:P1} received={received} expected={expected}");
+        }
     }
 }

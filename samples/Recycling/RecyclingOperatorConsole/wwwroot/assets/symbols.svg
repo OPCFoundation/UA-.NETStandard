@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-<!-- ========================================================================
-Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
-OPC Foundation MIT License 1.00. The complete license agreement can be found here:
-http://opcfoundation.org/License/MIT/1.00/
-======================================================================== -->
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
 
     <symbol id="symbol-line-mark" viewBox="0 0 220 140">
         <path d="M18 34h48l18 28h52l18 34h48" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>

@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -40,6 +15,107 @@ namespace Opc.Ua.Types.Tests.Utils
     [Parallelizable]
     public sealed class StringTablePrivateViewTests
     {
+        /// <summary>
+        /// An unrelated alias materializes reserved indices permanently, even when publication is abandoned.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UnrelatedAliasPreservesReservedIndicesAfterPublicationDisposal(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Append("urn:reserved");
+            long version = serving.Version;
+            using (StringTable.Publication publication = serving.BeginPublication(staged, version))
+            {
+                Assert.That(publication.GetIndexOrAppend("urn:base"), Is.EqualTo(1));
+                Assert.That(serving.GetIndex("urn:reserved"), Is.EqualTo(-1));
+                Assert.That(publication.GetIndexOrAppend("urn:unrelated"), Is.EqualTo(3));
+                long publishedVersion = serving.Version;
+                Assert.That(publication.GetIndexOrAppend("urn:unrelated"), Is.EqualTo(3));
+                Assert.That(serving.Version, Is.EqualTo(publishedVersion));
+                Assert.That(serving.ToArray(),
+                    Is.EqualTo([Namespaces.OpcUa, "urn:base", "urn:reserved", "urn:unrelated"]));
+            }
+
+            Assert.That(serving.GetString(2), Is.EqualTo("urn:reserved"));
+            Assert.That(serving.GetString(3), Is.EqualTo("urn:unrelated"));
+            Assert.That(serving.Append("urn:later"), Is.EqualTo(4));
+            Assert.That(staged.GetIndex("urn:unrelated"), Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Invalid unrelated aliases cannot publish any private namespace prefix.
+        /// </summary>
+        [TestCase(false, null)]
+        [TestCase(false, "")]
+        [TestCase(true, null)]
+        [TestCase(true, "")]
+        public void InvalidAliasLeavesReservedPrefixPrivate(bool namespaces, string? value)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Append("urn:reserved");
+            long version = serving.Version;
+            using StringTable.Publication publication = serving.BeginPublication(staged, version);
+
+            Assert.That(() => publication.GetIndexOrAppend(value!), Throws.ArgumentNullException);
+            Assert.That(serving.GetIndex("urn:reserved"), Is.EqualTo(-1));
+            Assert.That(serving.Count, Is.EqualTo(2));
+            Assert.That(serving.Version, Is.EqualTo(version));
+        }
+
+        /// <summary>
+        /// A consumed reservation cannot append aliases after publication disposal.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DisposedPublicationRejectsAliasWithoutChangingServingTable(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Append("urn:reserved");
+            using StringTable.Publication publication = serving.BeginPublication(staged, serving.Version);
+            publication.Dispose();
+            long version = serving.Version;
+
+            Assert.That(() => publication.GetIndexOrAppend("urn:late"), Throws.InvalidOperationException);
+            Assert.That(serving.GetIndex("urn:late"), Is.EqualTo(-1));
+            Assert.That(serving.GetIndex("urn:reserved"), Is.EqualTo(-1));
+            Assert.That(serving.Version, Is.EqualTo(version));
+            Assert.That(serving.Append("urn:next"), Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// An alias cannot overflow the namespace index while a full prefix is reserved.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FullReservedPrefixRejectsAliasWithoutChangingServingTable(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            string[] full = new string[ushort.MaxValue];
+            full[0] = Namespaces.OpcUa;
+            full[1] = "urn:base";
+            for (int index = 2; index < full.Length; index++)
+            {
+                full[index] = "urn:full:" + index.ToString(CultureInfo.InvariantCulture);
+            }
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Update(full);
+            long version = serving.Version;
+            using StringTable.Publication publication = serving.BeginPublication(staged, version);
+
+            Assert.That(
+                () => publication.GetIndexOrAppend("urn:overflow"),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(serving.Count, Is.EqualTo(2));
+            Assert.That(serving.GetIndex("urn:overflow"), Is.EqualTo(-1));
+            Assert.That(serving.Version, Is.EqualTo(version));
+        }
+
         /// <summary>
         /// Verifies that publication rebinds cached tables and preserves future additions.
         /// </summary>

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -169,7 +143,7 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
+            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetGenerationIdentity(manager);
             if (isRegistered(manager) ||
                 !ReferenceEquals(s_candidates.GetValue(identity, _ => server), server))
             {
@@ -178,19 +152,19 @@ namespace Opc.Ua.Server
             }
             try
             {
-                ValidateHistorianReadiness(manager);
+                NodeManagerGenerationRegistry.ReserveCandidate(manager);
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
+                s_candidates.Remove(identity);
                 try
                 {
-                    await DisposeCreatedManagerAsync(manager).ConfigureAwait(false);
                     await server.DisposeAsync().ConfigureAwait(false);
                 }
                 catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                 {
                     throw new AggregateException(
-                        "Candidate historian validation and cleanup both failed.",
+                        "Candidate identity admission and staging cleanup both failed.",
                         failure,
                         cleanupFailure);
                 }
@@ -224,24 +198,12 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static async ValueTask DisposeCreatedManagerAsync(IAsyncNodeManager manager)
-        {
-            if (manager is IAsyncDisposable asyncDisposable)
-            {
-                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
-            }
-            else if (manager is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-        }
-
         /// <summary>
         /// Gets the candidate's explicit staging server, if it has one.
         /// </summary>
         internal static StagingServer? GetServer(IAsyncNodeManager manager)
         {
-            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
+            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetGenerationIdentity(manager);
             if (s_candidates.TryGetValue(identity, out StagingServer? server))
             {
                 return server;
@@ -249,7 +211,9 @@ namespace Opc.Ua.Server
             return identity is AsyncCustomNodeManager asynchronous
                 ? asynchronous.Server as StagingServer
 #pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners stage through their server.
-                : (identity.SyncNodeManager as CustomNodeManager2)?.Server as StagingServer;
+                : identity is AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 synchronous }
+                    ? synchronous.Server as StagingServer
+                    : null;
 #pragma warning restore CS0618, UA0031
         }
 
@@ -298,6 +262,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Releases the exact candidate association after verified cleanup, never a shared resource's association.
+        /// </summary>
+        internal static void Release(IAsyncNodeManager manager)
+        {
+            s_candidates.Remove(NodeManagerGenerationRegistry.GetGenerationIdentity(manager));
+        }
+
+        /// <summary>
         /// Revokes a manager's service-level writer as soon as its generation leaves routing.
         /// </summary>
         /// <param name="manager">The retiring NodeManager.</param>
@@ -306,7 +278,7 @@ namespace Opc.Ua.Server
             GetServer(manager)?.RevokeServiceLevelControl();
         }
 
-        /// <summary>Retains candidate-owned handles without extending manager lifetimes.</summary>
+        /// <summary>Associates managers with staging servers through weak keys.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, StagingServer> s_candidates = new();
 
         /// <summary>
@@ -570,7 +542,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets whether preparation recorded candidate-owned historian bindings that require readiness.
             /// </summary>
-            internal bool HasPendingHistorianState => m_historianRegistry?.HasRegistrations == true;
+            internal bool HasPendingHistorianState => m_historianRegistry?.RequiresReadiness == true;
 
             /// <summary>
             /// Gets whether the serving historian registry supports owner-scoped publication.
@@ -954,7 +926,8 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void Attach(IAsyncNodeManager manager)
             {
-                if (!ReferenceEquals(s_candidates.GetValue(manager, _ => this), this))
+                IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetGenerationIdentity(manager);
+                if (!ReferenceEquals(s_candidates.GetValue(identity, _ => this), this))
                 {
                     throw new NodeManagerAlreadyRegisteredException();
                 }

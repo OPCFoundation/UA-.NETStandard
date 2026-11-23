@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -522,6 +496,67 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Assert.That(invocation.Target.DataSetWriterId, Is.EqualTo((ushort)5));
                 Assert.That(invocation.Target.ActionTargetId, Is.EqualTo((ushort)3));
                 Assert.That(invocation.RequestId, Is.EqualTo((ushort)11));
+                Assert.That(transport.SentPayloads, Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public Task ReceiveLoopSurvivesActionResponseThatCannotBeSentAsync()
+        {
+            return ReceiveLoopSurvivesFailedActionResponseAsync(
+                new InvalidOperationException("The response cannot be encoded."));
+        }
+
+        [Test]
+        public Task ReceiveLoopSurvivesActionResponseSendCanceledByTheEncoderAsync()
+        {
+            // An encoder or transport that gives up on its own operation reports
+            // it as a cancellation although the connection was not canceled.
+            return ReceiveLoopSurvivesFailedActionResponseAsync(
+                new OperationCanceledException("The send timed out."));
+        }
+
+        private static async Task ReceiveLoopSurvivesFailedActionResponseAsync(Exception failure)
+        {
+            var transport = new DatagramHarnessTransport(UadpProfile);
+            var encoder = new ThrowOnceEncoder(UadpProfile, failure);
+            var decoder = new QueueDecoder(UadpProfile);
+            await using PubSubConnection connection = CreateConnection(
+                Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
+                EncMap(UadpProfile, encoder), DecMap(UadpProfile, decoder),
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
+
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((_, _) =>
+                    new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good })),
+                allowUnsecured: true);
+
+            await connection.EnableAsync().ConfigureAwait(false);
+            // The response to the first request cannot be encoded. That must cost
+            // only that response: the receive loop has to serve the second request.
+            Deliver(transport, decoder, new UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 1,
+                ResponseAddress = string.Empty
+            });
+            Deliver(transport, decoder, new UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 2,
+                ResponseAddress = string.Empty
+            });
+
+            await AwaitBoundedAsync(transport.WaitUntilSentAsync(1), "second action response")
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoder.Attempts, Is.EqualTo(2));
                 Assert.That(transport.SentPayloads, Has.Count.EqualTo(1));
             });
         }
@@ -1437,6 +1472,40 @@ namespace Opc.Ua.PubSub.Tests.Connections
             public override ValueTask CloseAsync(CancellationToken cancellationToken = default)
             {
                 throw new InvalidOperationException("transport close failed");
+            }
+        }
+
+        /// <summary>
+        /// Encoder whose first call fails, as an Action response fails that the
+        /// encoder or transport cannot handle.
+        /// </summary>
+        private sealed class ThrowOnceEncoder : INetworkMessageEncoder
+        {
+            private readonly Exception m_failure;
+            private int m_attempts;
+
+            public ThrowOnceEncoder(string profile, Exception failure)
+            {
+                TransportProfileUri = profile;
+                m_failure = failure;
+            }
+
+            public string TransportProfileUri { get; }
+
+            public int EstimatedHeaderOverhead => 0;
+
+            public int Attempts => Volatile.Read(ref m_attempts);
+
+            public ValueTask<ReadOnlyMemory<byte>> EncodeAsync(
+                PubSubNetworkMessage networkMessage,
+                PubSubNetworkMessageContext context,
+                CancellationToken cancellationToken = default)
+            {
+                if (Interlocked.Increment(ref m_attempts) == 1)
+                {
+                    throw m_failure;
+                }
+                return new ValueTask<ReadOnlyMemory<byte>>(new ReadOnlyMemory<byte>([1]));
             }
         }
 

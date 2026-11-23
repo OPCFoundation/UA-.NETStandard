@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -592,12 +565,16 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToList()
                 .Single(candidate => ReferenceEquals(candidate.NodeManager, m_eventManager));
-            IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle
-                .PrepareAsync([NodeManagerBatchChange.Remove(registration)]).ConfigureAwait(false);
+            ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+            await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                current => ReferenceEquals(current, registration)), Is.True);
+            IPreparedChanges removal = await writer
+                .PrepareAsync([LifecycleChange.Remove(registration.Slot)]).ConfigureAwait(false);
             await using var removalLifetime = removal.ConfigureAwait(false);
-            NodeManagerBatchResult result = await removal.CommitAsync(static _ => default).ConfigureAwait(false);
+            LifecycleResult result = await removal.CommitAsync(static _ => default).ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
-            await result.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await result.Retired.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             NodeId registryId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
             Assert.That(m_eventManager.Find(registryId), Is.Null);

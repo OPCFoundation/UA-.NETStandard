@@ -63,3 +63,36 @@ options.GroupsAttributeName = "groups";
 options.ResourcesAttributeName = "resources";
 options.ResourceDocumentAttributeName = "schema";
 ```
+
+### Composing a refresh engine
+
+When a companion model projects documents as NodeSets, its
+`IXRegistryRefreshStrategy` supplies the dependency closures and prepares their
+documents. Its `IXRegistryProjectionHost` publishes those documents and owns
+the resulting registrations. `AddXRegistryServer` does not choose either
+implementation for the application.
+
+Without a service container, create the engine with the application's strategy
+and host:
+
+```csharp
+using var engine = new XRegistryRefreshEngine(strategy, projectionHost);
+XRegistryRefreshResult result = await engine.RefreshAsync(request, cancellationToken);
+```
+
+In a hosted application, register both providers and construct one engine in
+each registry's service scope:
+
+```csharp
+services.AddXRegistryServer();
+services.AddScoped<IXRegistryRefreshStrategy, RegistryRefreshStrategy>();
+services.AddScoped<IXRegistryProjectionHost, RegistryProjectionHost>();
+services.AddScoped(static provider => new XRegistryRefreshEngine(
+    provider.GetRequiredService<IXRegistryRefreshStrategy>(),
+    provider.GetRequiredService<IXRegistryProjectionHost>()));
+```
+
+`RegistryRefreshStrategy` and `RegistryProjectionHost` are application types.
+Keep the engine alive between refreshes for that registry. Await
+`RemoveAllAsync` before disposing the engine or its scope when shutting down
+a registry with live projections; disposal alone does not remove them.

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -443,28 +417,88 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            // create monitored item.
-            monitoredItem = m_samplingGroupManager.RestoreMonitoredItem(
+            NodeManagerGeneration sourceGeneration = MasterNodeManager.GetSourceGeneration(
+                server, m_nodeManager, context.OperationContext);
+            ISampledDataChangeMonitoredItem restoredItem = m_samplingGroupManager.RestoreMonitoredItem(
                 handle,
                 storedMonitoredItem,
                 savedOwnerIdentity);
-
-            var binding = (IMonitoredItemGenerationBinding)monitoredItem;
-            if (!binding.TryBindSource(binding.SourceRevision, m_nodeManager, handle, out _))
+            bool monitoringStopped = false;
+            bool changesApplied = false;
+            bool disposed = false;
+            try
             {
-                m_samplingGroupManager.StopMonitoring(monitoredItem);
-                monitoredItem.Dispose();
-                throw new InvalidOperationException("The restored source changed before native registration.");
+                var binding = (IMonitoredItemGenerationBinding)restoredItem;
+                bool bound = restoredItem is MonitoredItem concreteItem
+                    ? concreteItem.TryBindSource(
+                        binding.SourceRevision, m_nodeManager, handle, sourceGeneration, out _)
+                    : binding.TryBindSource(binding.SourceRevision, m_nodeManager, handle, out _);
+                if (!bound)
+                {
+                    throw new InvalidOperationException("The restored source changed before native registration.");
+                }
+
+                if (MonitoredItems.TryAdd(restoredItem.Id, restoredItem))
+                {
+                    monitoredItem = restoredItem;
+                    return true;
+                }
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                CleanupOrRetain(failure);
+                throw;
             }
 
-            // save monitored item.
-            if (!MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem))
+            CleanupOrRetain(null);
+            monitoredItem = null!;
+            return false;
+
+            void CleanupOrRetain(Exception? failure)
             {
-                m_samplingGroupManager.StopMonitoring(monitoredItem);
-                return false;
+                try
+                {
+                    CompleteCleanup();
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    long sourceRevision = restoredItem is IMonitoredItemGenerationBinding itemBinding
+                        ? itemBinding.SourceRevision
+                        : 0;
+                    sourceGeneration.RetainSourceRelease(restoredItem, sourceRevision, _ =>
+                    {
+                        CompleteCleanup();
+                        return default;
+                    });
+                    if (failure is not null)
+                    {
+                        throw new AggregateException(
+                            "Restoring the monitored item and cleaning up its sampling both failed.",
+                            failure,
+                            cleanupFailure);
+                    }
+                    throw;
+                }
             }
 
-            return true;
+            void CompleteCleanup()
+            {
+                if (!monitoringStopped)
+                {
+                    m_samplingGroupManager.StopMonitoring(restoredItem);
+                    monitoringStopped = true;
+                }
+                if (!changesApplied)
+                {
+                    m_samplingGroupManager.ApplyChanges();
+                    changesApplied = true;
+                }
+                if (!disposed)
+                {
+                    restoredItem.Dispose();
+                    disposed = true;
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -696,15 +730,11 @@ namespace Opc.Ua.Server
             long boundRevision = 0;
             try
             {
-                if (!binding.TryBindSource(expectedRevision, m_nodeManager, handle, out boundRevision))
+                if (!binding.TryBindSource(expectedRevision, m_nodeManager, handle, out boundRevision, adoption))
                 {
                     return (StatusCodes.BadInvalidState, false);
                 }
                 sourceBound = true;
-                if (adoption is not null)
-                {
-                    adoption.SourceRevision = boundRevision;
-                }
                 if (isEvent)
                 {
                     if (!MonitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))
@@ -773,9 +803,13 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                if (!attached && !rollbackAttempted)
+                if (!attached)
                 {
-                    RollbackRegistration();
+                    adoption?.Generation = null;
+                    if (!rollbackAttempted)
+                    {
+                        RollbackRegistration();
+                    }
                 }
             }
 

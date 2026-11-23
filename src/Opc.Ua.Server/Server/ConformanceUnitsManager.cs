@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,9 +28,9 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The published set is derived from the contributions of every registered
-    /// node manager (or other feature) implementing
-    /// <see cref="IConformanceContributor"/> rather than a fixed hard-coded list,
+    /// The published set is derived from visible routed node managers and other
+    /// explicitly registered features implementing <see cref="IConformanceContributor"/>,
+    /// rather than a fixed hard-coded list,
     /// so areas that are only enabled at runtime (for example Historical Access
     /// when history archiving is turned on) are advertised only when actually
     /// present. Registrations are aggregated and de-duplicated, then written to
@@ -63,10 +38,10 @@ namespace Opc.Ua.Server
     /// mirroring how <see cref="ModellingRulesManager"/> delegates to it.
     /// </para>
     /// <para>
-    /// The manager keeps the registered contributors and reads them again on
-    /// every <see cref="PublishAsync"/>, because the capabilities describe the
-    /// current configuration of the server (OPC 10000-5 §6.3.2): a unit or
-    /// profile a contributor no longer reports disappears with the next
+    /// The manager reads the current visible managers and explicitly registered
+    /// contributors again on every <see cref="PublishAsync"/>, because the capabilities
+    /// describe the current configuration of the server (OPC 10000-5 §6.3.2):
+    /// a unit or profile a contributor no longer reports disappears with the next
     /// publish. The profiles the server declares in its configuration stay.
     /// </para>
     /// </remarks>
@@ -132,12 +107,19 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Registering a contributor again has no effect and does not read it
         /// again; every contributor is read again on each
-        /// <see cref="PublishAsync"/>.
+        /// <see cref="PublishAsync"/>. An explicit registration is owned by
+        /// the caller, even when the contributor is also a node manager: it
+        /// is independent of the contribution the node manager lifecycle publishes for a committed manager.
+        /// Retiring a published manager withdraws an overlapping explicit registration; an unpublished
+        /// candidate's explicit registration remains owned by the caller until <see cref="Unregister"/>.
         /// </remarks>
         /// <param name="contributor">
         /// The contributor whose supported units and profiles are added.
         /// </param>
         /// <exception cref="ArgumentNullException"><paramref name="contributor"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// The contributor's NodeManager has already entered cleanup.
+        /// </exception>
         public void Register(IConformanceContributor contributor)
         {
             if (contributor == null)
@@ -147,11 +129,20 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_contributors.Contains(contributor))
+                ContributorRegistration registration = m_contributorStates.GetValue(
+                    contributor,
+                    static current => new ContributorRegistration(current));
+                if (registration.IsRegistered)
                 {
                     return;
                 }
-                m_contributors.Add(contributor);
+                if (registration.CleanupRequested)
+                {
+                    throw new InvalidOperationException(
+                        "A contributor whose NodeManager is being cleaned up cannot be registered again.");
+                }
+                registration.IsRegistered = true;
+                m_contributors.Add(registration);
                 m_registrationVersion++;
             }
             Aggregate();
@@ -175,10 +166,16 @@ namespace Opc.Ua.Server
             bool removed;
             lock (m_lock)
             {
-                removed = m_contributors.Remove(contributor);
+                removed = m_contributorStates.TryGetValue(
+                    contributor, out ContributorRegistration? registration) &&
+                    registration is { IsRegistered: true };
                 if (removed)
                 {
+                    registration!.IsRegistered = false;
+                    m_contributors.Remove(registration);
                     m_registrationVersion++;
+                    registration.CompleteAdmissionClosedIfReady();
+                    registration.CompleteDrainIfReady();
                 }
             }
             if (removed)
@@ -186,6 +183,83 @@ namespace Opc.Ua.Server
                 Aggregate();
             }
             return removed;
+        }
+
+        /// <summary>
+        /// Closes new registrations and captures the existing explicit reads of a NodeManager's contributors.
+        /// </summary>
+        /// <param name="nodeManager">The exact manager whose lifetime is ending.</param>
+        /// <param name="withdraw">
+        /// Whether to withdraw an overlapping explicit registration; private candidates leave it host-owned.
+        /// </param>
+        /// <returns>A task completed after registrations have ended and admitted reads have drained.</returns>
+        internal Task BeginNodeManagerCleanup(IAsyncNodeManager nodeManager, bool withdraw)
+        {
+            var contributors = new List<IConformanceContributor>();
+            if (nodeManager is IConformanceContributor asyncContributor)
+            {
+                contributors.Add(asyncContributor);
+            }
+            if (nodeManager.SyncNodeManager is IConformanceContributor syncContributor &&
+                !contributors.Exists(current => ReferenceEquals(current, syncContributor)))
+            {
+                contributors.Add(syncContributor);
+            }
+
+            var drains = new List<Task>(contributors.Count);
+            lock (m_lock)
+            {
+                foreach (IConformanceContributor contributor in contributors)
+                {
+                    ContributorRegistration registration = m_contributorStates.GetValue(
+                        contributor,
+                        static current => new ContributorRegistration(current));
+                    registration.CleanupRequested = true;
+                    if (withdraw && registration.IsRegistered)
+                    {
+                        registration.IsRegistered = false;
+                        m_contributors.Remove(registration);
+                        m_registrationVersion++;
+                    }
+                    registration.CompleteAdmissionClosedIfReady();
+                    registration.CompleteDrainIfReady();
+                    drains.Add(registration.Drain);
+                }
+            }
+            return drains.Count switch
+            {
+                0 => Task.CompletedTask,
+                1 => drains[0],
+                _ => Task.WhenAll(drains)
+            };
+        }
+
+        /// <summary>
+        /// Captures the admission and drain state of a contributor whose cleanup has been requested.
+        /// </summary>
+        /// <param name="contributor">The exact contributor instance.</param>
+        /// <param name="state">The current cleanup state, when one exists.</param>
+        /// <returns>Whether cleanup has been requested for the contributor.</returns>
+        internal bool TryGetCleanupDrainState(
+            IConformanceContributor contributor,
+            out ConformanceCleanupDrainState state)
+        {
+            lock (m_lock)
+            {
+                if (!m_contributorStates.TryGetValue(
+                    contributor, out ContributorRegistration? registration) ||
+                    registration is not { CleanupRequested: true })
+                {
+                    state = default;
+                    return false;
+                }
+                state = new ConformanceCleanupDrainState(
+                    registration.IsRegistered,
+                    registration.ActiveReads,
+                    registration.AdmissionClosed,
+                    registration.Drain);
+                return true;
+            }
         }
 
         /// <summary>
@@ -201,7 +275,7 @@ namespace Opc.Ua.Server
             await m_publishLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = Aggregate();
+                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = Aggregate(refreshNodeManagers: true);
                 await m_server.DiagnosticsNodeManager
                     .PublishConformanceUnitsAsync(units, profiles, cancellationToken)
                     .ConfigureAwait(false);
@@ -222,58 +296,297 @@ namespace Opc.Ua.Server
         /// the current contributors rather than replacing the set that
         /// registration already committed.
         /// </remarks>
-        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) Aggregate()
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) Aggregate(bool refreshNodeManagers = false)
+        {
+            if (refreshNodeManagers)
+            {
+                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = ReadNodeManagerContributions();
+                lock (m_lock)
+                {
+                    m_nodeManagerUnits = units;
+                    m_nodeManagerProfiles = profiles;
+                    m_registrationVersion++;
+                }
+            }
+            return AggregateExplicitContributors();
+        }
+
+        /// <summary>
+        /// Reads committed managers while their exact generations remain admitted.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">A contributor retired before admission.</exception>
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) ReadNodeManagerContributions()
+        {
+            var owners = new List<(IAsyncNodeManager Manager, NodeManagerGeneration Generation)>();
+            if (m_server.NodeManager is IDynamicNodeManagerBatchHost host)
+            {
+                NodeManagerRoutingTable.RoutingSnapshot snapshot = host.RoutingRevision;
+                int visibleIndex = 0;
+                for (int ii = 0; ii < snapshot.NodeManagers.Length; ii++)
+                {
+                    if (visibleIndex < snapshot.VisibleNodeManagers.Length &&
+                        ReferenceEquals(snapshot.NodeManagers[ii], snapshot.VisibleNodeManagers[visibleIndex]))
+                    {
+                        owners.Add((snapshot.NodeManagers[ii], snapshot.Generations[ii]));
+                        visibleIndex++;
+                    }
+                }
+            }
+            else if (m_server.NodeManager is { } nodeManager)
+            {
+                foreach (IAsyncNodeManager manager in nodeManager.AsyncNodeManagers)
+                {
+                    owners.Add((manager, NodeManagerGenerationRegistry.GetOrCreate(manager)));
+                }
+            }
+
+            var admissions = new List<(NodeManagerGeneration Generation, int Stripe)>();
+            try
+            {
+                foreach ((IAsyncNodeManager _, NodeManagerGeneration generation) in owners)
+                {
+                    if (!generation.Gate.TryEnter(out int stripe))
+                    {
+                        throw new InvalidOperationException(
+                            "A conformance contributor retired before its generation could be admitted.");
+                    }
+                    admissions.Add((generation, stripe));
+                }
+
+                var units = new List<QualifiedName>();
+                var profiles = new List<string>();
+                var contributors = new List<IConformanceContributor>();
+                foreach ((IAsyncNodeManager manager, NodeManagerGeneration _) in owners)
+                {
+                    if (GetNodeManagerContributor(manager) is { } contributor &&
+                        !contributors.Exists(current => ReferenceEquals(current, contributor)))
+                    {
+                        contributors.Add(contributor);
+                        foreach (QualifiedName unit in contributor.ConformanceUnits)
+                        {
+                            units.Add(unit);
+                        }
+                        foreach (string profile in contributor.ServerProfiles)
+                        {
+                            profiles.Add(profile);
+                        }
+                    }
+                }
+                return (units.ToArrayOf(), profiles.ToArrayOf());
+            }
+            finally
+            {
+                foreach ((NodeManagerGeneration generation, int stripe) in admissions)
+                {
+                    generation.Gate.Exit(stripe);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finds the routed manager's contribution, including a resource behind a synchronous adapter.
+        /// </summary>
+        private static IConformanceContributor? GetNodeManagerContributor(IAsyncNodeManager manager)
+        {
+            if (manager is IConformanceContributor contributor)
+            {
+                return contributor;
+            }
+            // TODO: Drop the synchronous contribution lookup when legacy managers are removed.
+#pragma warning disable CS0618, UA0031 // Keep contributions from wrapped synchronous managers.
+            INodeManager? synchronous = manager.SyncNodeManager;
+#pragma warning restore CS0618, UA0031
+            if (synchronous is SyncNodeManagerAdapter adapter)
+            {
+                return adapter as IConformanceContributor ??
+                    adapter.AsyncNodeManager as IConformanceContributor;
+            }
+            return synchronous as IConformanceContributor;
+        }
+
+        /// <summary>
+        /// Combines explicit contributions with the last admitted manager snapshot.
+        /// </summary>
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) AggregateExplicitContributors()
         {
             while (true)
             {
-                IConformanceContributor[] contributors;
+                ContributorRegistration[] contributors;
+                ArrayOf<QualifiedName> nodeManagerUnits;
+                ArrayOf<string> nodeManagerProfiles;
                 long registrationVersion;
                 lock (m_lock)
                 {
                     contributors = [.. m_contributors];
+                    foreach (ContributorRegistration registration in contributors)
+                    {
+                        registration.ActiveReads++;
+                    }
+                    nodeManagerUnits = m_nodeManagerUnits;
+                    nodeManagerProfiles = m_nodeManagerProfiles;
                     registrationVersion = m_registrationVersion;
                 }
 
-                var units = new HashSet<QualifiedName>();
-                var profiles = new HashSet<string>(StringComparer.Ordinal);
-                var orderedProfiles = new List<string>();
-                foreach (IConformanceContributor contributor in contributors)
+                try
                 {
-                    foreach (QualifiedName unit in contributor.ConformanceUnits)
+                    var units = new HashSet<QualifiedName>();
+                    var profiles = new HashSet<string>(StringComparer.Ordinal);
+                    var orderedProfiles = new List<string>();
+                    foreach (QualifiedName unit in nodeManagerUnits)
                     {
                         if (!unit.IsNull)
                         {
                             units.Add(unit);
                         }
                     }
-                    foreach (string profile in contributor.ServerProfiles)
+                    foreach (string profile in nodeManagerProfiles)
                     {
                         if (!string.IsNullOrEmpty(profile) && profiles.Add(profile))
                         {
                             orderedProfiles.Add(profile);
                         }
                     }
-                }
-
-                lock (m_lock)
-                {
-                    if (registrationVersion != m_registrationVersion)
+                    foreach (ContributorRegistration registration in contributors)
                     {
-                        continue;
+                        foreach (QualifiedName unit in registration.Contributor.ConformanceUnits)
+                        {
+                            if (!unit.IsNull)
+                            {
+                                units.Add(unit);
+                            }
+                        }
+                        foreach (string profile in registration.Contributor.ServerProfiles)
+                        {
+                            if (!string.IsNullOrEmpty(profile) && profiles.Add(profile))
+                            {
+                                orderedProfiles.Add(profile);
+                            }
+                        }
                     }
-                    m_conformanceUnits = units;
-                }
 
-                var orderedUnits = new List<QualifiedName>(units);
-                orderedUnits.Sort((left, right) => string.CompareOrdinal(left.Name, right.Name));
-                return (orderedUnits.ToArrayOf(), orderedProfiles.ToArrayOf());
+                    lock (m_lock)
+                    {
+                        if (registrationVersion != m_registrationVersion)
+                        {
+                            continue;
+                        }
+                        m_conformanceUnits = units;
+                    }
+
+                    var orderedUnits = new List<QualifiedName>(units);
+                    orderedUnits.Sort((left, right) => string.CompareOrdinal(left.Name, right.Name));
+                    return (orderedUnits.ToArrayOf(), orderedProfiles.ToArrayOf());
+                }
+                finally
+                {
+                    lock (m_lock)
+                    {
+                        foreach (ContributorRegistration registration in contributors)
+                        {
+                            registration.ActiveReads--;
+                            registration.CompleteDrainIfReady();
+                        }
+                    }
+                }
             }
         }
+
+        /// <summary>
+        /// Tracks one exact contributor's explicit registration and admitted reads.
+        /// </summary>
+        private sealed class ContributorRegistration
+        {
+            /// <summary>
+            /// Creates a registration state for one contributor instance.
+            /// </summary>
+            internal ContributorRegistration(IConformanceContributor contributor)
+            {
+                Contributor = contributor;
+            }
+
+            /// <summary>
+            /// Gets the exact contributor.
+            /// </summary>
+            internal IConformanceContributor Contributor { get; }
+
+            /// <summary>
+            /// Gets or sets whether the host's explicit registration remains present.
+            /// </summary>
+            internal bool IsRegistered { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether NodeManager cleanup has reserved this contributor.
+            /// </summary>
+            internal bool CleanupRequested { get; set; }
+
+            /// <summary>
+            /// Gets or sets the number of admitted explicit contributor reads.
+            /// </summary>
+            internal int ActiveReads { get; set; }
+
+            /// <summary>
+            /// Gets the task signaled when new explicit reads can no longer be admitted.
+            /// </summary>
+            internal Task AdmissionClosed => (m_admissionClosed ??= NewCompletion()).Task;
+
+            /// <summary>
+            /// Gets the task signaled when all admitted reads have completed.
+            /// </summary>
+            internal Task Drain => (m_drained ??= NewCompletion()).Task;
+
+            /// <summary>
+            /// Signals that cleanup has closed explicit read admission.
+            /// </summary>
+            internal void CompleteAdmissionClosedIfReady()
+            {
+                if (CleanupRequested && !IsRegistered)
+                {
+                    (m_admissionClosed ??= NewCompletion()).TrySetResult(true);
+                }
+            }
+
+            /// <summary>
+            /// Signals completion after registration and all previously admitted reads have ended.
+            /// </summary>
+            internal void CompleteDrainIfReady()
+            {
+                if (CleanupRequested && !IsRegistered && ActiveReads == 0)
+                {
+                    (m_drained ??= NewCompletion()).TrySetResult(true);
+                }
+            }
+
+            /// <summary>
+            /// Creates an asynchronous state-transition signal.
+            /// </summary>
+            private static TaskCompletionSource<bool> NewCompletion()
+            {
+                return new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+
+            private TaskCompletionSource<bool>? m_admissionClosed;
+            private TaskCompletionSource<bool>? m_drained;
+        }
+
+        /// <summary>
+        /// Describes a contributor's cleanup admission and pending read drain.
+        /// </summary>
+        internal readonly record struct ConformanceCleanupDrainState(
+            bool IsRegistered,
+            int ActiveReads,
+            Task AdmissionClosed,
+            Task Drain);
 
         private readonly Lock m_lock = new();
         private readonly SemaphoreSlim m_publishLock = new(1, 1);
         private readonly IServerInternal m_server;
-        private readonly List<IConformanceContributor> m_contributors = [];
+        private readonly List<ContributorRegistration> m_contributors = [];
+
+        private readonly ConditionalWeakTable<IConformanceContributor, ContributorRegistration> m_contributorStates =
+            new();
+
+        private ArrayOf<QualifiedName> m_nodeManagerUnits;
+        private ArrayOf<string> m_nodeManagerProfiles;
         private HashSet<QualifiedName> m_conformanceUnits;
         private long m_registrationVersion;
         private bool m_disposed;

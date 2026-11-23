@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -106,7 +80,8 @@ namespace Opc.Ua.Server.Tests
         private ServerSession CreateSession(
             EndpointDescription endpoint,
             string channelId = "channel-1",
-            Certificate? clientCertificate = null)
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null)
         {
             OperationContext context = CreateContext(endpoint, channelId);
             return new ServerSession(
@@ -120,7 +95,7 @@ namespace Opc.Ua.Server.Tests
                 new ApplicationDescription { ApplicationUri = "urn:coverage:client" },
                 endpoint.EndpointUrl!,
                 clientCertificate!,
-                [],
+                clientCertificateChain ?? [],
                 60_000,
                 10,
                 10);
@@ -604,6 +579,38 @@ namespace Opc.Ua.Server.Tests
                 session.ContinuationPoints.RestoreHistory(new ByteString(first.ToByteArray())),
                 Is.Null,
                 "The oldest history continuation point should have been evicted.");
+        }
+
+        /// <summary>
+        /// Session disposal attempts independent certificate cleanup after a continuation failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DisposeAttemptsCertificatesAfterHistoryCleanupFailure(bool certificateFails)
+        {
+            var historyFailure = new InvalidOperationException("History cleanup failed.");
+            var certificateFailure = new InvalidOperationException("Certificate cleanup failed.");
+            var client = new TrackingCertificate(
+                m_serverCertificate.RawData, certificateFails ? certificateFailure : null);
+            var chain = new TrackingCertificateCollection();
+            ServerSession session = CreateSession(
+                CreateEndpoint(), clientCertificate: client, clientCertificateChain: chain);
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(Guid.NewGuid());
+            point.Setup(value => value.Dispose()).Throws(historyFailure);
+            session.ContinuationPoints.SaveHistory(point.Object);
+
+            AggregateException reported = Assert.Throws<AggregateException>(session.Dispose)!;
+
+            Assert.That(reported.Flatten().InnerExceptions, Has.Exactly(1).SameAs(historyFailure));
+            Assert.That(reported.Flatten().InnerExceptions, Has.Count.EqualTo(certificateFails ? 2 : 1));
+            if (certificateFails)
+            {
+                Assert.That(reported.Flatten().InnerExceptions, Has.Exactly(1).SameAs(certificateFailure));
+            }
+            Assert.That(client.DisposeCount, Is.EqualTo(1));
+            Assert.That(chain.DisposeCount, Is.EqualTo(1));
+            point.Verify(value => value.Dispose(), Times.Once);
         }
 
         [Test]
@@ -1324,6 +1331,52 @@ namespace Opc.Ua.Server.Tests
             Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Never);
             session.Verify(s => s.GetNewEphemeralKey(), Times.Never);
+        }
+
+        /// <summary>
+        /// Observes one certificate disposal and optionally reports a failure after releasing it.
+        /// </summary>
+        private sealed class TrackingCertificate(byte[] rawData, Exception? failure) : Certificate(rawData)
+        {
+            /// <summary>
+            /// Gets the number of disposal callbacks.
+            /// </summary>
+            public int DisposeCount { get; private set; }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing)
+                {
+                    DisposeCount++;
+                    if (failure is not null)
+                    {
+                        throw failure;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Observes disposal of an independently owned client certificate chain.
+        /// </summary>
+        private sealed class TrackingCertificateCollection : CertificateCollection
+        {
+            /// <summary>
+            /// Gets the number of disposal callbacks.
+            /// </summary>
+            public int DisposeCount { get; private set; }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing)
+                {
+                    DisposeCount++;
+                }
+            }
         }
     }
 }

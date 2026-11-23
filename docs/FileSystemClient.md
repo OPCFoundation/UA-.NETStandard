@@ -460,12 +460,30 @@ continuation's lookahead reference. It does not snapshot the directory or
 apply the materialized binder's `MaxEntries` limit. Named-child lookup scans
 without retaining unrelated entries and stops when it finds a match.
 
-The cursor is disposed exactly once on exhaustion, cancellation, or
-continuation release. Cancellation affects only the active page; cancelling
-an already completed page does not cancel later pages. Synchronous
-continuation release starts and observes asynchronous cursor cleanup without
-blocking its caller. The system surfaces provider failures instead of
-returning an empty directory.
+Each opened cursor receives one disposal attempt on exhaustion, cancellation,
+or continuation release. Cancellation affects only the active page; cancelling
+an already completed page does not cancel later pages. Synchronous continuation
+release starts asynchronous cursor cleanup and does not wait for incomplete
+cleanup to finish. Provider failures during enumeration are reported rather
+than returned as an empty directory.
+
+The host registers each cursor before opening it. Address-space deletion closes
+new cursor admission and waits for registered cursors and their cleanup before
+closing the node manager's file handles. Direct node-manager disposal can
+request file-handle shutdown while cursor cleanup is still pending. If cursor
+disposal fails, the host retains the exact
+cursor and error and does not retry disposal. Deletion reports the failure and
+leaves the nodes in place until an authorized host verifies cleanup through
+[NodeManager cleanup recovery](NodeManagers.md#recovering-retained-cleanup).
+Active browsers must receive distinct enumerator instances, including across
+mounts. A second browser is rejected if the provider returns an enumerator
+that is still active or retained after failed cleanup; it does not dispose
+the first browser's enumerator.
+
+Synchronous continuation release cannot report an asynchronous cleanup
+failure; it is logged and remains available to the host's recovery service.
+If the node manager's bounded disposal wait expires, `NodeManagerCleanupDeferredException`
+provides a completion task for the still-owned cleanup.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
 validates the decoded provider path. Separator-only root aliases resolve to

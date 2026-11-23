@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -53,6 +27,7 @@ namespace Opc.Ua.WotCon.Server
     public sealed class WotRegistryNodeManager :
         AsyncCustomNodeManager,
         INodeManagerReadinessNotification,
+        INodeManagerReadinessInitializer,
         IWotRegistryReadImageProjection,
         ILocalAddressSpaceOwnership
     {
@@ -295,7 +270,21 @@ namespace Opc.Ua.WotCon.Server
         /// </summary>
         /// <inheritdoc/>
         /// <param name="cancellationToken">The caller's startup or registration cancellation token.</param>
-        public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            return InitializeAsync(null, cancellationToken);
+        }
+
+        ValueTask INodeManagerReadinessInitializer.OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return InitializeAsync(readiness, cancellationToken);
+        }
+
+        private async ValueTask InitializeAsync(
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
         {
             await m_refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -305,9 +294,10 @@ namespace Opc.Ua.WotCon.Server
                     await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
                     return;
                 }
-                bool recovered = await Coordinator.RecoverAsync(cancellationToken).ConfigureAwait(false);
+                bool recovered = await Coordinator.RecoverAsync(readiness, cancellationToken).ConfigureAwait(false);
                 WotRefreshResult? result = recovered ? null : await Coordinator.RefreshAsync(
-                    new WotRefreshRequest { RequestId = "startup" }, cancellationToken).ConfigureAwait(false);
+                    new WotRefreshRequest { RequestId = "startup" }, readiness, cancellationToken)
+                    .ConfigureAwait(false);
                 await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
                 await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
                 if (result?.Summary.Failed > 0)

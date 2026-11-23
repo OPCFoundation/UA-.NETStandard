@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -733,20 +707,17 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="replacement">The byte string.</param>
             /// <param name="factory">The async node manager factory.</param>
-            /// <exception cref="NodeManagerRemovalCommittedException">
-            /// Removal committed, but reconciliation failed before the replacement was created.
-            /// </exception>
             public async Task RestartManagerAsync(
                 ByteString replacement = default, IAsyncNodeManagerFactory? factory = null)
             {
-                await using IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(m_registration)]).ConfigureAwait(false);
-                LifecycleResult result = (await removal.CommitAsync(static _ => default)
-                    .ConfigureAwait(false)).CommittedResult;
-                if (result.CleanupFailure is { } failure)
-                {
-                    throw new NodeManagerRemovalCommittedException(m_registration, result, failure);
-                }
+                ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                    current => ReferenceEquals(current, m_registration)), Is.True);
+                await using IPreparedChanges removal = await writer.PrepareAsync(
+                    [LifecycleChange.Remove(m_registration.Slot)]).ConfigureAwait(false);
+                LifecycleResult result = await removal.CommitAsync(static _ => default).ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
                 await result.Retired.ConfigureAwait(false);
                 if (!replacement.IsNull)
                 {
@@ -763,9 +734,13 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 Recorder = new RecordingConverter(this);
                 Options.DocumentConverter = Recorder;
-                m_registration = factory is null
-                    ? await m_server.NodeManagerLifecycle.AddAsync(new WotConnectivityNodeManagerFactory(Options), null)
-                    : await m_server.NodeManagerLifecycle.AddAsync(factory, null);
+                LifecycleResult added = await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(factory ?? new WotConnectivityNodeManagerFactory(Options))])
+                    .ConfigureAwait(false);
+                Assert.That(added.CleanupFailure, Is.Null);
+                Assert.That(added.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                m_registration = registration!;
             }
 
             public async ValueTask DisposeAsync()
@@ -840,13 +815,14 @@ namespace Opc.Ua.WotCon.Tests
                     SecurityNone = false
                 };
                 m_server = await m_serverFixture.StartAsync(m_directory);
-                await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(new RuntimeNodeSetOptions
+                await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
                 {
                     Sources = [RuntimeNodeSetSource.FromStream("R42Model",
                         _ => new ValueTask<Stream>(new MemoryStream(
                             Encoding.UTF8.GetBytes(modelXml ?? s_model), false)),
                         modelNamespaces.IsNull ? [ModelUri] : modelNamespaces)]
-                }, null);
+                }))]);
                 Recorder = new RecordingConverter(this);
                 Options = new WotConnectivityServerOptions
                 {
@@ -880,7 +856,12 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     factory = new WotConnectivityNodeManagerFactory(Options);
                 }
-                m_registration = await m_server.NodeManagerLifecycle.AddAsync(factory, null);
+                LifecycleResult publication = await m_server.NodeManagerLifecycle
+                    .ApplyAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false);
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                m_registration = registration!;
                 m_clientFixture = new ClientFixture(false, false, telemetry);
                 await m_clientFixture.LoadClientConfigurationAsync(m_directory);
                 Session = await m_clientFixture.ConnectAsync(

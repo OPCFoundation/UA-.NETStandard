@@ -38,9 +38,11 @@ does not implement device behavior.
 
 ## Provenance
 
-The twelve NodeSets and upstream identifier tables remain byte-for-byte copies
-of their individually MIT-licensed publications at UA-Nodeset revision
-`96a08945425d0295edb3607d2a38f6841ef44046`. Each source folder includes its
+The twelve upstream identifier tables remain byte-for-byte copies of their
+individually MIT-licensed publications at UA-Nodeset revision
+`96a08945425d0295edb3607d2a38f6841ef44046`. The twelve NodeSets differ from
+those publications only in the license banner, which is replaced by the SPDX
+header. Each source folder includes its
 model-specific provenance and loading instructions. The package contains
 `licenses/CompanionModels.NOTICE.txt`; hashes, identifier discrepancies and
 dependency headers are recorded in

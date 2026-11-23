@@ -123,12 +123,11 @@ engine, registry persistence mechanism or server-restoration phase.
 
 ## Compatibility and deployment
 
-The client capability adds no mandatory members to existing session or transport
-interfaces. The server lookup previously named `Opc.Ua.ISessionBindingProvider`
-is renamed to `Opc.Ua.IServerSessionBindingProvider` to distinguish the two
-capabilities. This is a source and binary breaking change for consumers of that
-preview server lookup: update implementations, casts and DI registrations, and
-rebuild against the renamed interface. Its committed-session semantics are unchanged.
+The client uses `Opc.Ua.ISessionBindingProvider` to capture a binding without
+adding mandatory members to session or transport interfaces. The server uses
+`Opc.Ua.IServerSessionBindingProvider` to look up committed sessions. The
+`ServerBase.SessionBindingProvider` property and the
+`DefaultServerResourceIsolationProvider` constructor use the server interface.
 
 Capture uses existing session factories and client DI configuration; it requires
 no separate registration. The implementation introduces no dynamic code generation

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,15 +10,14 @@ namespace Opc.Ua.Server
     /// Prepares and publishes transactions over stable NodeManager slots.
     /// </summary>
     /// <remarks>
-    /// Prepare an addition, replacement, removal, or batch with <see cref="PrepareAsync"/>, then commit
+    /// Prepare an addition, replacement, removal, or batch with
+    /// <see cref="PrepareAsync"/>, then commit
     /// the returned owner. Commit waits through reconciliation and readiness, but not generation drain.
     /// Its result describes the authoritative published revision, registrations, slots, post-commit
     /// failures, and asynchronous retirement. Dispose an uncommitted owner to release its candidates.
-    /// Request callbacks use the same context-free transaction API as external callers.
-    /// Slot-based consumers use <see cref="LifecycleChangeExtensions.ApplyAsync"/> or
-    /// <see cref="LifecycleChangeExtensions.BeginAsync"/>. These are additive extensions, not required interface
-    /// members. Providers adopting these calls resolve <see cref="NodeManagerBatchChange.TargetSlot"/> during
-    /// preparation; the existing <see cref="PrepareAsync"/> member also preserves exact-generation changes.
+    /// Callback re-entry uses <see cref="INodeManagerCallbackLifecycle"/> when admission must be passed explicitly.
+    /// Capture revisions before acquiring application inputs with <see cref="CaptureChanges"/>.
+    /// A writer advances its evidence only through its own commits; stale work never retries factories or decisions.
     /// </remarks>
     public interface INodeManagerLifecycle
     {
@@ -62,6 +35,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets a snapshot of live application registrations, including managers composed before startup.
         /// Built-in diagnostics, configuration, and core NodeManagers are excluded.
+        /// These inspection handles are strong; prepared and committed results expose weak snapshots.
         /// </summary>
         ArrayOf<NodeManagerRegistration> Registrations { get; }
 
@@ -72,20 +46,10 @@ namespace Opc.Ua.Server
         bool IsShuttingDown { get; }
 
         /// <summary>
-        /// Gets whether this lifecycle supports preparing an unpublished transaction.
-        /// </summary>
-        bool SupportsPreparedPublication { get; }
-
-        /// <summary>
-        /// Gets whether publication admission can be captured across multiple prepared units.
-        /// </summary>
-        bool SupportsPublicationIsolation { get; }
-
-        /// <summary>
         /// Captures the current routing, type, and factory revisions without reserving publication.
         /// </summary>
         /// <returns>The capture holding the observed revisions.</returns>
-        INodeManagerPublicationCapture CapturePublication();
+        ILifecycleCapture CaptureChanges();
 
         /// <summary>
         /// Prepares additions, replacements, and retirements without publishing them.
@@ -94,8 +58,45 @@ namespace Opc.Ua.Server
         /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>
         /// <returns>The unpublished prepared unit.</returns>
-        ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
-            ArrayOf<NodeManagerBatchChange> changes,
+        ValueTask<IPreparedChanges> PrepareAsync(
+            ArrayOf<LifecycleChange> changes,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Captures and prepares lifecycle changes from callbacks with explicitly supplied admission.
+    /// </summary>
+    public interface INodeManagerCallbackLifecycle : INodeManagerLifecycle
+    {
+        /// <summary>
+        /// Captures changes using the readiness initializer's explicit admission.
+        /// </summary>
+        /// <param name="readiness">The context supplied to the initializer.</param>
+        /// <returns>The optimistic publication capture.</returns>
+        ILifecycleCapture CaptureFromReadiness(NodeManagerReadinessContext readiness);
+
+        /// <summary>
+        /// Prepares changes requested by a durable decision, rejecting re-entry into that decision's lifecycle.
+        /// </summary>
+        /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
+        /// <param name="decisionContext">The context supplied to the durable decision.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared changes.</returns>
+        ValueTask<IPreparedChanges> PrepareFromDecisionAsync(
+            ArrayOf<LifecycleChange> changes,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Prepares changes that may borrow admission from an active node-management callback.
+        /// </summary>
+        /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
+        /// <param name="context">The operation context supplied to the callback.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared changes.</returns>
+        ValueTask<IPreparedChanges> PrepareFromCallbackAsync(
+            ArrayOf<LifecycleChange> changes,
+            OperationContext context,
             CancellationToken cancellationToken = default);
     }
 }

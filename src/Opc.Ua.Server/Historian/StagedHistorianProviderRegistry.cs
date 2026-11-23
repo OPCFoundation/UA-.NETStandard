@@ -1,29 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to
- * deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- * sell copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
- * The complete license agreement can be found at
- * http://opcfoundation.org/License/MIT/1.00/.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -61,6 +37,27 @@ namespace Opc.Ua.Server.Historian
         /// Gets whether this candidate has any local registration.
         /// </summary>
         internal bool HasRegistrations => m_candidateRegistry.CaptureRegistrations().Length != 0;
+
+        /// <summary>
+        /// Gets whether preparation declared new bindings rather than retaining existing serving bindings.
+        /// </summary>
+        internal bool RequiresReadiness
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    foreach (HistorianProviderRegistration registration in m_candidateRegistry.CaptureRegistrations())
+                    {
+                        if (!IsRetainedRegistration(registration))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets whether the serving registry can atomically publish and remove candidate-owned bindings.
@@ -160,11 +157,11 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_lock)
             {
-                EnsureMutable();
+                EnsureMutable(allowRetired: true);
                 EnsureOwnerSupportForMutation();
                 bool removed = m_candidateRegistry.UnregisterForNode(nodeId);
                 m_retainedNodeIds.Remove(nodeId);
-                UpdateServingRegistrations();
+                RefreshServingRegistrations();
                 return removed;
             }
         }
@@ -174,11 +171,11 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_lock)
             {
-                EnsureMutable();
+                EnsureMutable(allowRetired: true);
                 EnsureOwnerSupportForMutation();
                 bool removed = m_candidateRegistry.UnregisterForNamespace(namespaceUri);
                 m_retainedNamespaceUris.Remove(namespaceUri);
-                UpdateServingRegistrations();
+                RefreshServingRegistrations();
                 return removed;
             }
         }
@@ -188,11 +185,11 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_lock)
             {
-                EnsureMutable();
+                EnsureMutable(allowRetired: true);
                 EnsureOwnerSupportForMutation();
                 m_candidateRegistry.ClearDefault();
                 m_retainedDefault = false;
-                UpdateServingRegistrations();
+                RefreshServingRegistrations();
             }
         }
 
@@ -515,21 +512,27 @@ namespace Opc.Ua.Server.Historian
             var retained = new List<HistorianProviderRegistration>(registrations.Length);
             foreach (HistorianProviderRegistration registration in registrations)
             {
-                bool isRetained = registration.Kind switch
-                {
-                    HistorianProviderRegistrationKind.Node =>
-                        m_retainedNodeIds.Contains(registration.NodeId),
-                    HistorianProviderRegistrationKind.Namespace =>
-                        m_retainedNamespaceUris.Contains(registration.NamespaceUri!),
-                    HistorianProviderRegistrationKind.Default => m_retainedDefault,
-                    _ => false
-                };
-                if (isRetained)
+                if (IsRetainedRegistration(registration))
                 {
                     retained.Add(registration);
                 }
             }
             return [.. retained];
+        }
+
+        /// <summary>
+        /// Determines whether a binding retains an existing serving registration.
+        /// </summary>
+        private bool IsRetainedRegistration(HistorianProviderRegistration registration)
+        {
+            return registration.Kind switch
+            {
+                HistorianProviderRegistrationKind.Node => m_retainedNodeIds.Contains(registration.NodeId),
+                HistorianProviderRegistrationKind.Namespace =>
+                    m_retainedNamespaceUris.Contains(registration.NamespaceUri!),
+                HistorianProviderRegistrationKind.Default => m_retainedDefault,
+                _ => false
+            };
         }
 
         private void PublishOwnedRegistrations(HistorianProviderRegistration[] registrations)
@@ -655,9 +658,13 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
-        private void EnsureMutable()
+        /// <summary>
+        /// Rejects new publication work after retirement while allowing private cleanup until disposal.
+        /// </summary>
+        /// <param name="allowRetired">Whether the operation only removes this candidate's private bindings.</param>
+        private void EnsureMutable(bool allowRetired = false)
         {
-            if (m_disposed || m_retired)
+            if (m_disposed || (m_retired && !allowRetired))
             {
                 throw new ObjectDisposedException(nameof(StagedHistorianProviderRegistry));
             }

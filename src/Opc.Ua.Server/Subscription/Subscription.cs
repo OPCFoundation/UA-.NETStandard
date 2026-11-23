@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -994,20 +968,29 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void PromoteReadyMonitoredItems()
         {
+            // a change an item made to itself outside of a publish may have made a
+            // ready-to-report signal stale. Invalidations are consumed before the intake is
+            // taken, so the candidate of an item that signalled and then invalidated is in
+            // this pass; a newer invalidation is also honoured now but kept for the next pass.
+            bool invalidated = Interlocked.Exchange(ref m_readinessInvalidated, 0) != 0;
+
             TakeReadyIntake();
 
             // an item the subscription does not know to signal: a custom IMonitoredItem.
             if (m_monitoredItems.Count != m_signalingItemCount)
             {
+                // the scan reads every item, but the candidates it leaves keep their flags
+                // for when the subscription stops scanning.
+                m_recheckReadyCandidates |= invalidated;
                 DropPublishListCandidates();
                 ScanAllMonitoredItems();
                 return;
             }
 
-            // a configuration change may have made a ready-to-report signal stale.
-            // so does a change an item made to itself outside of a publish.
-            bool recheck = m_recheckReadyCandidates |
-                Interlocked.Exchange(ref m_readinessInvalidated, 0) != 0;
+            // so may a configuration change.
+            bool recheck = invalidated ||
+                m_recheckReadyCandidates ||
+                Volatile.Read(ref m_readinessInvalidated) != 0;
             m_recheckReadyCandidates = false;
 
             // compacts the candidates in place; triggered items may be appended while the

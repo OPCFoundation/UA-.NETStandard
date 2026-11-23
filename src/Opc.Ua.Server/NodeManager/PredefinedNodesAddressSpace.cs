@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -54,7 +28,7 @@ namespace Opc.Ua.Server
         /// <param name="removeAsync">Removes a node from the address space.</param>
         public PredefinedNodesAddressSpace(
             ISystemContext context,
-            NodeIdDictionary<NodeState> predefinedNodes,
+            PredefinedNodeDictionary predefinedNodes,
             Func<NodeState, CancellationToken, ValueTask> addAsync,
             Func<NodeId, CancellationToken, ValueTask<bool>> removeAsync)
         {
@@ -112,15 +86,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(node));
             }
 
-            int depth = m_drivingOperation.Value;
-            m_drivingOperation.Value = depth + 1;
-            try
+            using (new NodeManagerAmbientScope<bool>(m_drivingOperation, true))
             {
                 await m_addAsync(node, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_drivingOperation.Value = depth;
             }
             if (!m_predefinedNodes.TryGetValue(node.NodeId, out NodeState? activeNode))
             {
@@ -143,15 +111,9 @@ namespace Opc.Ua.Server
             foreach (NodeState node in nodes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                int depth = m_drivingOperation.Value;
-                m_drivingOperation.Value = depth + 1;
-                try
+                using (new NodeManagerAmbientScope<bool>(m_drivingOperation, true))
                 {
                     await m_addAsync(node, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_drivingOperation.Value = depth;
                 }
             }
         }
@@ -159,16 +121,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public async ValueTask<bool> RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
-            int depth = m_drivingOperation.Value;
-            m_drivingOperation.Value = depth + 1;
             bool removed;
-            try
+            using (new NodeManagerAmbientScope<bool>(m_drivingOperation, true))
             {
                 removed = await m_removeAsync(nodeId, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_drivingOperation.Value = depth;
             }
             if (removed)
             {
@@ -180,7 +136,7 @@ namespace Opc.Ua.Server
 
         internal void NotifyAdded(NodeState node)
         {
-            if (m_drivingOperation.Value == 0)
+            if (!NodeManagerAmbientScope<bool>.GetValue(m_drivingOperation))
             {
                 NodeAdded?.Invoke(node);
             }
@@ -188,15 +144,15 @@ namespace Opc.Ua.Server
 
         internal void NotifyRemoved(NodeId nodeId)
         {
-            if (m_drivingOperation.Value == 0)
+            if (!NodeManagerAmbientScope<bool>.GetValue(m_drivingOperation))
             {
                 NodeRemoved?.Invoke(nodeId);
             }
         }
 
-        private readonly NodeIdDictionary<NodeState> m_predefinedNodes;
+        private readonly PredefinedNodeDictionary m_predefinedNodes;
         private readonly Func<NodeState, CancellationToken, ValueTask> m_addAsync;
         private readonly Func<NodeId, CancellationToken, ValueTask<bool>> m_removeAsync;
-        private readonly AsyncLocal<int> m_drivingOperation = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<bool>?> m_drivingOperation = new();
     }
 }

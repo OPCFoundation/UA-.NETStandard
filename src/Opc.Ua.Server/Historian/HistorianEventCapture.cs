@@ -1,30 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use, copy,
- * modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -43,12 +18,21 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Starts event capture using the provider's field capabilities and bounded queue options.
         /// </summary>
+        /// <param name="server">The server owning the capture pipeline.</param>
+        /// <param name="provider">The event historian provider.</param>
+        /// <param name="capabilities">The event fields and capabilities to capture.</param>
+        /// <param name="options">The bounded queue and batching options.</param>
+        /// <param name="timeProvider">The clock used for shutdown deadline scheduling.</param>
+        /// <param name="cleanupStarted">
+        /// Invoked when the provider consumer exceeds the shutdown deadline and remains active.
+        /// </param>
         public HistorianEventCapture(
             IServerInternal server,
             IHistorianProvider provider,
             HistorianNodeCapabilities capabilities,
             HistorianCaptureOptions? options = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            Action<Task>? cleanupStarted = null)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_provider = provider as IHistorianEventProvider ??
@@ -58,28 +42,30 @@ namespace Opc.Ua.Server.Historian
             m_capabilities = capabilities ??
                 throw new ArgumentNullException(nameof(capabilities));
             m_options = options ?? new HistorianCaptureOptions();
-            ValidateOptions(m_options);
+            BoundedChannelOptions channelOptions = HistorianCaptureSink.CreateChannelOptions(m_options);
             m_timeProvider = timeProvider ??
                 (server as ITimeProviderProvider)?.TimeProvider ??
                 TimeProvider.System;
+            m_cleanupStarted = cleanupStarted;
             m_logger = server.Telemetry.CreateLogger<HistorianEventCapture>();
             m_fields = BuildCaptureFields(
                 capabilities.EventFields,
                 capabilities.MandatoryEventFields);
-            var channelOptions = new BoundedChannelOptions(
-                m_options.MaxQueuedSamples)
-            {
-                FullMode = MapFullMode(m_options.FullMode),
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            };
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions,
                 OnEventDropped);
-            CancellationToken shutdownToken = m_shutdownCts.Token;
-            m_consumer = Task.Run(
-                () => ConsumeAsync(shutdownToken));
+            m_shutdownCts = new CancellationTokenSource();
+            try
+            {
+                CancellationToken shutdownToken = m_shutdownCts.Token;
+                m_consumer = Task.Run(
+                    () => ConsumeAsync(shutdownToken));
+            }
+            catch
+            {
+                m_shutdownCts.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -164,48 +150,38 @@ namespace Opc.Ua.Server.Historian
         /// A timeout cancels capture and is surfaced to the caller. Token resources remain alive
         /// until an in-flight provider completes; its eventual failure is still observed.
         /// </remarks>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            TaskCompletionSource<bool> completion;
+            bool ownsDisposal = false;
+            lock (m_disposalLock)
             {
-                return;
-            }
-            m_channel.Writer.TryComplete();
-            try
-            {
-                await m_consumer.WaitAsync(
-                    TimeSpan.FromSeconds(5),
-                    m_timeProvider).ConfigureAwait(false);
-            }
-            catch (TimeoutException)
-            {
-                m_logger.HistorianEventCaptureConsumerDidNotDrain();
-                m_shutdownCts.Cancel();
-                throw;
-            }
-            finally
-            {
-                if (m_consumer.IsCompleted)
+                if (m_disposalFinished is null)
                 {
-                    _ = m_consumer.Exception;
-                    m_shutdownCts.Dispose();
+                    if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                    {
+                        return default;
+                    }
+                    m_disposalFinished = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    ownsDisposal = true;
                 }
-                else
-                {
-                    // A timed-out provider still owns the token. This one-shot cleanup
-                    // only observes completion and disposes its source; it cannot capture this.
-                    _ = m_consumer.ContinueWith(
-                        static (completed, state) =>
-                        {
-                            _ = completed.Exception;
-                            ((CancellationTokenSource)state!).Dispose();
-                        },
-                        m_shutdownCts,
-                        CancellationToken.None,
-                        TaskContinuationOptions.ExecuteSynchronously,
-                        TaskScheduler.Default);
-                }
+                completion = m_disposalFinished;
             }
+            return ownsDisposal
+                ? DisposeCoreAsync(completion)
+                : new ValueTask(completion.Task);
+        }
+
+        /// <summary>
+        /// Closes event capture and joins the common consumer disposal protocol.
+        /// </summary>
+        private ValueTask DisposeCoreAsync(TaskCompletionSource<bool> completion)
+        {
+            return HistorianCaptureSink.CompleteDisposalAsync(
+                m_channel.Writer, m_consumer, m_shutdownCts, m_timeProvider, completion,
+                m_logger.HistorianEventCaptureConsumerDidNotDrain,
+                m_cleanupStarted);
         }
 
         private HistorianEventRecord CreateRecord(
@@ -530,50 +506,6 @@ namespace Opc.Ua.Server.Historian
             events.Events.Add(captured.Record);
         }
 
-        private static void ValidateOptions(
-            HistorianCaptureOptions options)
-        {
-            if (options.MaxQueuedSamples <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "MaxQueuedSamples must be positive.");
-            }
-            if (options.BatchTarget <= 0)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "BatchTarget must be positive.");
-            }
-            if (options.BatchWindow < TimeSpan.Zero)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "BatchWindow must not be negative.");
-            }
-            if (options.FullMode is not CaptureFullMode.DropOldest and
-                not CaptureFullMode.DropNewest)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(options),
-                    "FullMode is not supported.");
-            }
-        }
-
-        private static BoundedChannelFullMode MapFullMode(
-            CaptureFullMode fullMode)
-        {
-            return fullMode switch
-            {
-                CaptureFullMode.DropOldest =>
-                    BoundedChannelFullMode.DropOldest,
-                CaptureFullMode.DropNewest =>
-                    BoundedChannelFullMode.DropNewest,
-                _ => throw new ArgumentOutOfRangeException(
-                    nameof(fullMode))
-            };
-        }
-
         private static ArrayOf<SimpleAttributeOperand> BuildCaptureFields(
             ArrayOf<SimpleAttributeOperand> configured,
             ArrayOf<SimpleAttributeOperand> mandatory)
@@ -714,8 +646,11 @@ namespace Opc.Ua.Server.Historian
         private readonly ILogger m_logger;
         private readonly ArrayOf<SimpleAttributeOperand> m_fields;
         private readonly Channel<CaptureEvent> m_channel;
-        private readonly CancellationTokenSource m_shutdownCts = new();
+        private readonly CancellationTokenSource m_shutdownCts;
         private readonly Task m_consumer;
+        private readonly Action<Task>? m_cleanupStarted;
+        private readonly Lock m_disposalLock = new();
+        private TaskCompletionSource<bool>? m_disposalFinished;
         private long m_droppedEvents;
         private long m_rejectedEvents;
         private int m_disposed;

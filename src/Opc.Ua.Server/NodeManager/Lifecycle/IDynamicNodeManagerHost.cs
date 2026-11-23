@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -57,7 +31,10 @@ namespace Opc.Ua.Server
         /// <param name="generation">The identity assigned before address-space callbacks.</param>
         /// <param name="replacedNodeManager">The exact predecessor, or null for an addition.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        /// <returns>The prepared NodeManager, which is the input to every later stage.</returns>
+        /// <returns>
+        /// The private candidate, including its original preparation failure when preparation started but failed.
+        /// The lifecycle must retain that candidate for abort cleanup before propagating the failure.
+        /// </returns>
         ValueTask<PreparedNodeManager> PrepareAsync(
             IAsyncNodeManager nodeManager,
             NodeManagerGeneration generation,
@@ -147,6 +124,16 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Recovers monitored-item sources on the exact generation just published by the lifecycle,
+        /// including before the server starts accepting requests.
+        /// </summary>
+        /// <param name="generation">The published generation to recover sources on.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        ValueTask ResolvePublishedSourcesAsync(
+            NodeManagerGeneration generation,
+            CancellationToken cancellationToken);
+
+        /// <summary>
         /// Closes generation admission, waits for admitted callbacks to drain, and releases
         /// the generation's remaining exact all-events binding records.
         /// </summary>
@@ -181,8 +168,7 @@ namespace Opc.Ua.Server
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             ExternalReferences = externalReferences ?? throw new ArgumentNullException(nameof(externalReferences));
             Generation = generation ?? throw new ArgumentNullException(nameof(generation));
-            if (!ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(nodeManager),
-                NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager)))
+            if (!NodeManagerGenerationRegistry.HasSameGenerationIdentity(nodeManager, generation.NodeManager))
             {
                 throw new ArgumentException("The generation belongs to another NodeManager.", nameof(generation));
             }
@@ -221,6 +207,12 @@ namespace Opc.Ua.Server
         /// Gets the predecessor retained only until this candidate's publication.
         /// </summary>
         public IAsyncNodeManager? ReplacedNodeManager => m_replacedNodeManager;
+
+        /// <summary>
+        /// Gets or sets the original failure after private preparation started.
+        /// The lifecycle retains this candidate for cleanup before rethrowing the failure.
+        /// </summary>
+        internal Exception? PreparationFailure { get; set; }
 
         /// <summary>
         /// Validates a private candidate before reserving publication.
