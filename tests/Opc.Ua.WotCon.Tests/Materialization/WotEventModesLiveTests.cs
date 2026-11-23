@@ -433,6 +433,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return m_events.Reader.ReadAsync(ct);
             }
 
+            /// <summary>
+            /// Enables or disables publishing. While publishing is disabled the
+            /// server keeps new notifications queued instead of delivering them.
+            /// </summary>
+            /// <param name="enabled">Whether the subscription publishes.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public Task SetPublishingAsync(bool enabled, CancellationToken ct)
+            {
+                return m_subscription.SetPublishingModeAsync(enabled, ct);
+            }
+
             public async ValueTask DisposeAsync()
             {
                 m_events.Writer.TryComplete();

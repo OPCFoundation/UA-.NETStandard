@@ -151,6 +151,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 else
                 {
+                    // A native claim lasts while its notification is queued; once the
+                    // notification is published and drained the claim is released by
+                    // design. Hold it queued until the forwarded occurrence was decided,
+                    // so the outcome does not depend on the 20 ms publishing interval.
+                    await events.SetPublishingAsync(false, ct).ConfigureAwait(false);
                     await destination.ReportAsync(eventId, ct).ConfigureAwait(false);
                     // The queued native notification must pin its identity claim through collection.
                     GC.Collect();
@@ -171,6 +176,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     await source.ReportAsync(eventId, ct).ConfigureAwait(false);
                     rejection = (await publisher.ReadAsync(ct).ConfigureAwait(false)).Status;
+                    await events.SetPublishingAsync(true, ct).ConfigureAwait(false);
                 }
                 ArrayOf<Variant> first = await events.ReadAsync(ct).ConfigureAwait(false);
                 Assert.That(first[0].TryGetValue(out ByteString firstId), Is.True);
