@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+// The fake consumer is a System.Reflection.DispatchProxy, which .NET Framework lacks.
+#if NET
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -298,3 +300,4 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         }
     }
 }
+#endif
