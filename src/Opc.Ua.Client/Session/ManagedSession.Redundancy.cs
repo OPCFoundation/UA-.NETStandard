@@ -274,7 +274,7 @@ namespace Opc.Ua.Client
                     : (int)Math.Min(m_redundancyRefreshTimeout.TotalMilliseconds, int.MaxValue);
                 await session.CloseAsync(timeout, false, ct).ConfigureAwait(false);
             }
-            return new ServiceResult(StatusCodes.BadNothingToDo, "Server is in Maintenance.");
+            return new ServiceResult(StatusCodes.BadNothingToDo, new LocalizedText("Server is in Maintenance."));
         }
 
         /// <summary>

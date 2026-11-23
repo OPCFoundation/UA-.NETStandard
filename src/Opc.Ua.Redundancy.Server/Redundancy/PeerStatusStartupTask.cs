@@ -88,8 +88,10 @@ namespace Opc.Ua.Redundancy.Server
                 ? Task.CompletedTask
                 : PublishAsync(keyPrefix + localId, local, logger, exchange.Token);
             var observations = new Dictionary<string, PeerStatus>(StringComparer.Ordinal);
-            foreach (string id in controller.Options.GetPeerIds(mode))
+            ArrayOf<string> peerIds = controller.Options.GetPeerIds(mode);
+            for (int i = 0; i < peerIds.Count; i++)
             {
+                string id = peerIds[i];
                 PeerStatus? status = id == localId
                     ? local
                     : await ReadAsync(keyPrefix + id, logger, exchange.Token).ConfigureAwait(false);
