@@ -1406,7 +1406,9 @@ Contributors can run the same deterministic static and live-probe grading used i
 ```
 
 The script builds the server, checks out `mcpgrade` at the reviewed commit pinned in the script,
-grades `core`, `full` and each additional Streamable HTTP catalog, and probes the full stdio catalog.
+grades the `core`, `full` and each additional catalog over stdio, and probes the full catalog.
+The catalog does not depend on the transport, and `mcpgrade` cannot send the bearer token that
+the Streamable HTTP transport requires.
 Reports are written under `artifacts/mcpgrade` by default.
 
 `-IncludePrivilegedCatalogues` enables all host catalogue capabilities for the

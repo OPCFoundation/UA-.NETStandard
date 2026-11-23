@@ -77,90 +77,6 @@ function Invoke-CheckedNative
     }
 }
 
-function Get-AvailableTcpPort
-{
-    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
-    $listener.Start()
-    try
-    {
-        return ([Net.IPEndPoint] $listener.LocalEndpoint).Port
-    }
-    finally
-    {
-        $listener.Stop()
-    }
-}
-
-function Start-McpHttpServer
-{
-    param(
-        [Parameter(Mandatory)]
-        [string] $Profile,
-        [Parameter(Mandatory)]
-        [string] $AssemblyPath,
-        [Parameter(Mandatory)]
-        [string] $LogPrefix
-    )
-
-    $port = Get-AvailableTcpPort
-    $stdoutPath = Join-Path $ResultsDirectory "$LogPrefix.stdout.log"
-    $stderrPath = Join-Path $ResultsDirectory "$LogPrefix.stderr.log"
-    $process = Start-Process -FilePath 'dotnet' -ArgumentList @(
-        $AssemblyPath,
-        '--transport',
-        'http',
-        '--profile',
-        $Profile,
-        '--port',
-        $port
-    ) -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
-
-    $deadline = [DateTime]::UtcNow.AddSeconds(30)
-    while ([DateTime]::UtcNow -lt $deadline)
-    {
-        if ($process.HasExited)
-        {
-            throw "MCP $Profile server exited with code $($process.ExitCode). See $stderrPath."
-        }
-
-        $client = [Net.Sockets.TcpClient]::new()
-        try
-        {
-            $client.Connect([Net.IPAddress]::Loopback, $port)
-            return @{
-                Process = $process
-                Url = "http://127.0.0.1:$port/mcp"
-            }
-        }
-        catch [Net.Sockets.SocketException]
-        {
-            Start-Sleep -Milliseconds 100
-        }
-        finally
-        {
-            $client.Dispose()
-        }
-    }
-
-    Stop-Process -Id $process.Id
-    throw "MCP $Profile server did not listen within 30 seconds. See $stderrPath."
-}
-
-function Stop-McpHttpServer
-{
-    param(
-        [Parameter(Mandatory)]
-        [Diagnostics.Process] $Process
-    )
-
-    if (-not $Process.HasExited)
-    {
-        Stop-Process -Id $Process.Id
-        $Process.WaitForExit()
-    }
-    $Process.Dispose()
-}
-
 function Invoke-McpGrade
 {
     param(
@@ -311,16 +227,19 @@ try
         {
             throw "Invalid profile name '$profile'."
         }
-        $server = Start-McpHttpServer -Profile $profile -AssemblyPath $assemblyPath `
-            -LogPrefix "$profile-server"
+        # The catalogue depends only on the profile and enabled capabilities, not on the transport,
+        # so grade over stdio: the HTTP transport requires a bearer token mcpgrade cannot send.
+        Push-Location (Split-Path $assemblyPath)
         try
         {
-            Invoke-McpGrade -Arguments @($server.Url) `
-                -OutputPath (Join-Path $ResultsDirectory "$profile-static.json")
+            Invoke-McpGrade -Arguments @(
+                '--stdio',
+                "dotnet Opc.Ua.Mcp.dll --profile $profile"
+            ) -OutputPath (Join-Path $ResultsDirectory "$profile-static.json")
         }
         finally
         {
-            Stop-McpHttpServer -Process $server.Process
+            Pop-Location
         }
     }
 
