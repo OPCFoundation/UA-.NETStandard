@@ -3675,6 +3675,46 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
+        /// Characters written one at a time (embedded resources) follow the
+        /// same rules, and a "//" written that way opens a comment.
+        /// </summary>
+        [TestCase('\u0085')]
+        [TestCase('\u2028')]
+        [TestCase('\u2029')]
+        public void WriteCharFollowsTheCommentAndTerminatorRules(char terminator)
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.Write('/');
+                templateWriter.Write('/');
+                templateWriter.Write(terminator);
+                templateWriter.WriteValue("a\nb");
+            }
+
+            Assert.That(stringWriter.ToString(), Is.EqualTo("// a b"));
+        }
+
+        /// <summary>
+        /// Schema documents are not C#: the C# line terminator and comment
+        /// rules do not apply, so their text is written unchanged.
+        /// </summary>
+        [Test]
+        public void NonCSharpOutputIsWrittenUnchanged()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter, isCSharp: false))
+            {
+                templateWriter.Write("<!-- http://x -->");
+                templateWriter.WriteValue("a\u2028b\nc");
+                templateWriter.Write('\u2029');
+                templateWriter.Write("{0}", "d\u0085e");
+            }
+
+            Assert.That(stringWriter.ToString(), Is.EqualTo("<!-- http://x -->a\u2028b\nc\u2029d\u0085e"));
+        }
+
+        /// <summary>
         /// A formatted argument is a value too: a line break in it cannot end
         /// a comment that the format text opened.
         /// </summary>

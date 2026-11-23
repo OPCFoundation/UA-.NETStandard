@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 using System.Xml;
 
@@ -254,8 +255,11 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Returns whether <paramref name="name"/> can be emitted as a single
-        /// C# identifier: a letter or underscore followed by letters, digits
-        /// or underscores. Model names (SymbolicName, SymbolicId, ClassName,
+        /// C# identifier without an '@' escape: an identifier start character
+        /// followed by identifier part characters (see
+        /// <see cref="IsIdentifierStartCharacter(char)"/> and
+        /// <see cref="IsIdentifierPartCharacter(char)"/>) that is not a
+        /// reserved keyword. Model names (SymbolicName, SymbolicId, ClassName,
         /// namespace Name) are emitted verbatim in identifier positions, so
         /// anything else would either break the generated code or inject
         /// arbitrary code into it.
@@ -266,19 +270,68 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            if (!char.IsLetter(name![0]) && name[0] != '_')
+            if (!IsIdentifierStartCharacter(name![0]))
             {
                 return false;
             }
             for (int ii = 1; ii < name.Length; ii++)
             {
-                char c = name[ii];
-                if (!char.IsLetterOrDigit(c) && c != '_')
+                if (!IsIdentifierPartCharacter(name[ii]))
                 {
                     return false;
                 }
             }
-            return true;
+            return !s_csharpKeywords.Contains(name);
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="c"/> can start a C# identifier: '_'
+        /// or a letter (Unicode categories Lu, Ll, Lt, Lm, Lo and Nl).
+        /// </summary>
+        public static bool IsIdentifierStartCharacter(char c)
+        {
+            if (c == '_')
+            {
+                return true;
+            }
+            switch (char.GetUnicodeCategory(c))
+            {
+                case UnicodeCategory.UppercaseLetter:
+                case UnicodeCategory.LowercaseLetter:
+                case UnicodeCategory.TitlecaseLetter:
+                case UnicodeCategory.ModifierLetter:
+                case UnicodeCategory.OtherLetter:
+                case UnicodeCategory.LetterNumber:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="c"/> can continue a C# identifier:
+        /// an identifier start character, a decimal digit (Nd), a combining
+        /// mark (Mn, Mc) or connector punctuation (Pc). Formatting characters
+        /// (Cf), which C# also accepts, are not: they include the
+        /// bidirectional overrides that make code read differently than it
+        /// compiles, and no model name needs them.
+        /// </summary>
+        public static bool IsIdentifierPartCharacter(char c)
+        {
+            if (IsIdentifierStartCharacter(c))
+            {
+                return true;
+            }
+            switch (char.GetUnicodeCategory(c))
+            {
+                case UnicodeCategory.DecimalDigitNumber:
+                case UnicodeCategory.NonSpacingMark:
+                case UnicodeCategory.SpacingCombiningMark:
+                case UnicodeCategory.ConnectorPunctuation:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
@@ -307,8 +360,11 @@ namespace Opc.Ua.SourceGeneration
         /// identifier, or a dot separated sequence of identifiers when
         /// <paramref name="dotted"/> is set. A name that already is one is
         /// returned unchanged; otherwise every other character becomes an
-        /// underscore and a segment that starts with a digit gets a leading
-        /// underscore.
+        /// underscore, a segment that cannot start an identifier (e.g. a
+        /// digit) gets a leading underscore and a reserved keyword gets a
+        /// trailing underscore (as the default names derived from a model URI
+        /// do, because the Name and Prefix are also used where an '@' escape
+        /// is not allowed).
         /// </summary>
         public static string ToCodeSafeName(this string? name, bool dotted)
         {
@@ -328,13 +384,14 @@ namespace Opc.Ua.SourceGeneration
                 var builder = new StringBuilder(segment.Length + 1);
                 foreach (char c in segment)
                 {
-                    builder.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
+                    builder.Append(IsIdentifierPartCharacter(c) ? c : '_');
                 }
-                if (!char.IsLetter(builder[0]) && builder[0] != '_')
+                if (!IsIdentifierStartCharacter(builder[0]))
                 {
                     builder.Insert(0, '_');
                 }
-                segments.Add(builder.ToString());
+                string identifier = builder.ToString();
+                segments.Add(s_csharpKeywords.Contains(identifier) ? identifier + "_" : identifier);
             }
             return segments.Count == 0 ? "_" : string.Join(".", segments);
         }

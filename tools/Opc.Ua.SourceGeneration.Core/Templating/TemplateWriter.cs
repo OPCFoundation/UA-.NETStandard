@@ -17,10 +17,17 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Create template
         /// </summary>
-        public TemplateWriter(TextWriter writer, bool leaveOpen = true)
+        /// <param name="writer">The sink.</param>
+        /// <param name="leaveOpen">Whether disposing leaves the sink open.</param>
+        /// <param name="isCSharp">Whether the output is C# source. Only C#
+        /// output gets the comment and line terminator handling of
+        /// <see cref="Emit(string, bool)"/>; other output (XML and binary
+        /// schema documents) is written as is.</param>
+        public TemplateWriter(TextWriter writer, bool leaveOpen = true, bool isCSharp = true)
         {
             m_writer = writer;
             m_leaveOpen = leaveOpen;
+            m_isCSharp = isCSharp;
             m_indentCharCount = new Stack<int>();
             m_indentCharCount.Push(0);
         }
@@ -83,7 +90,9 @@ namespace Opc.Ua.SourceGeneration
         public void Write(char text)
         {
             WriteWhiteSpaceIfNeeded();
-            Emit(text.ToString(), isValue: false);
+            // Allocation free: resource generators write embedded data one
+            // character at a time.
+            m_writer.Write(m_isCSharp ? EmitChar(text, commentBeforeValue: false, string.Empty, 0) : text);
         }
 
         /// <inheritdoc/>
@@ -219,7 +228,7 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            if (!hasLineBreakArgument)
+            if (!hasLineBreakArgument || !m_isCSharp)
             {
                 Emit(string.Format(CultureInfo.InvariantCulture, format, args), isValue: false);
                 return;
@@ -298,45 +307,59 @@ namespace Opc.Ua.SourceGeneration
             {
                 return;
             }
+            if (!m_isCSharp)
+            {
+                m_writer.Write(text);
+                return;
+            }
 
             bool commentBeforeValue = isValue && m_lineIsComment;
             StringBuilder? builder = null;
             for (int ii = 0; ii < text.Length; ii++)
             {
                 char c = text[ii];
-                char output = c;
-                if (c is '\u0085' or '\u2028' or '\u2029')
-                {
-                    output = ' ';
-                }
-                else if (c is '\r' or '\n')
-                {
-                    if (commentBeforeValue && !NextLineIsComment(text, ii))
-                    {
-                        output = ' ';
-                    }
-                    else
-                    {
-                        m_lineIsComment = false;
-                        m_lastChar = '\0';
-                    }
-                }
-
-                if (output == ' ' && c != ' ')
+                char output = EmitChar(c, commentBeforeValue, text, ii);
+                if (output != c)
                 {
                     builder ??= new StringBuilder(text, 0, ii, text.Length);
-                }
-                if (output is not ('\r' or '\n'))
-                {
-                    if (output == '/' && m_lastChar == '/')
-                    {
-                        m_lineIsComment = true;
-                    }
-                    m_lastChar = output;
                 }
                 builder?.Append(output);
             }
             m_writer.Write(builder?.ToString() ?? text);
+        }
+
+        /// <summary>
+        /// Applies the rules of <see cref="Emit(string, bool)"/> to the
+        /// character at <paramref name="index"/> of <paramref name="text"/>,
+        /// updates the comment state and returns the character to write.
+        /// </summary>
+        private char EmitChar(char c, bool commentBeforeValue, string text, int index)
+        {
+            char output = c;
+            if (c is '\u0085' or '\u2028' or '\u2029')
+            {
+                output = ' ';
+            }
+            else if (c is '\r' or '\n')
+            {
+                if (commentBeforeValue && !NextLineIsComment(text, index))
+                {
+                    output = ' ';
+                }
+                else
+                {
+                    m_lineIsComment = false;
+                    m_lastChar = '\0';
+                    return output;
+                }
+            }
+
+            if (output == '/' && m_lastChar == '/')
+            {
+                m_lineIsComment = true;
+            }
+            m_lastChar = output;
+            return output;
         }
 
         /// <summary>
@@ -378,6 +401,7 @@ namespace Opc.Ua.SourceGeneration
         private char m_lastChar;
         private readonly TextWriter m_writer;
         private readonly bool m_leaveOpen;
+        private readonly bool m_isCSharp;
         private readonly Stack<int> m_indentCharCount;
     }
 }

@@ -22,7 +22,12 @@ namespace Opc.Ua.SourceGeneration
         /// <inheritdoc/>
         public void Write(char text)
         {
-            Write(text.ToString());
+            if (m_atLineStart)
+            {
+                m_inner.Write(kIndent);
+                m_atLineStart = false;
+            }
+            m_inner.Write(text);
         }
 
         /// <inheritdoc/>

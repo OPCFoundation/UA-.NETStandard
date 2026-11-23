@@ -25,6 +25,10 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("_Pump2")]
         [TestCase("Server_ServerCapabilities")]
         [TestCase("Ventil\u00F6ffnung")]
+        [TestCase("Cafe\u0301Type")]
+        [TestCase("Pump\u203FType")]
+        [TestCase("value")]
+        [TestCase("Class")]
         public void IsCodeSafeIdentifierAcceptsIdentifiers(string name)
         {
             Assert.That(name.IsCodeSafeIdentifier(), Is.True);
@@ -39,6 +43,10 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("A\nB")]
         [TestCase("A\u2028B")]
         [TestCase("A\"B")]
+        [TestCase("class")]
+        [TestCase("int")]
+        [TestCase("A\u202EB")]
+        [TestCase("\u0301A")]
         public void IsCodeSafeIdentifierRejectsAnythingElse(string name)
         {
             Assert.That(name.IsCodeSafeIdentifier(), Is.False);
@@ -57,6 +65,8 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("Acme..Pumps")]
         [TestCase("Acme.")]
         [TestCase("Opc.Ua/*x*/")]
+        [TestCase("Acme.class")]
+        [TestCase("namespace.Pumps")]
         public void IsCodeSafeNamespaceRejectsAnythingElse(string name)
         {
             Assert.That(name.IsCodeSafeNamespace(), Is.False);
@@ -69,6 +79,9 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("OpcUaDi", false, "OpcUaDi")]
         [TestCase("a\"b", false, "a_b")]
         [TestCase("1x", false, "_1x")]
+        [TestCase("Acme.class.Pumps", true, "Acme.class_.Pumps")]
+        [TestCase("int", false, "int_")]
+        [TestCase("Cafe\u0301.Models", true, "Cafe\u0301.Models")]
         public void ToCodeSafeNameKeepsValidNamesAndRepairsOthers(
             string name,
             bool dotted,
