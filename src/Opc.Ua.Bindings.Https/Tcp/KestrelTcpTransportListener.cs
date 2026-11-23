@@ -211,6 +211,10 @@ namespace Opc.Ua.Bindings
                 m_quotas.HandshakeTimeout,
                 telemetry: Telemetry);
 
+            // The provider's connection capacity is shared with the other
+            // listeners of the server: let them reclaim unused channels here.
+            m_admission.SetSharedCapacityReclaimer(TryReclaimUnusedChannel);
+
             // Kestrel accepts as soon as it is bound, so a deferred listener
             // holds the accepted connections at the gate until it is opened.
             m_acceptGate = CreateAcceptGate(accepting: !settings.DeferAccept);

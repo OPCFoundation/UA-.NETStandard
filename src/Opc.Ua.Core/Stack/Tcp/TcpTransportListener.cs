@@ -515,6 +515,12 @@ namespace Opc.Ua.Bindings
                 m_quotas.HandshakeTimeout,
                 m_timeProvider,
                 m_telemetry);
+            if (!m_reverseConnectListener)
+            {
+                // The provider's connection capacity is shared with the other
+                // listeners of the server: let them reclaim unused channels here.
+                m_admission.SetSharedCapacityReclaimer(TryReclaimUnusedChannel);
+            }
             m_acceptedTransportDecorator = settings.AcceptedTransportDecorator;
             m_onAcceptedChannel = settings.OnAcceptedChannel;
 

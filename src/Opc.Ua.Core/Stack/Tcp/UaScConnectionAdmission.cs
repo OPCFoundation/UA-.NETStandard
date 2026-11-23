@@ -87,9 +87,9 @@ namespace Opc.Ua.Bindings
             {
                 IDisposable? connection = null;
                 IDisposable? handshake = null;
+                bool resourcesAdmitted = true;
                 try
                 {
-                    bool resourcesAdmitted = true;
                     if (m_provider != null)
                     {
                         bool connectionAdmitted = m_provider.TryAcquire(
@@ -111,7 +111,8 @@ namespace Opc.Ua.Bindings
                         }
                         resourcesAdmitted = connectionAdmitted && handshakeAdmitted;
                     }
-                    if (!resourcesAdmitted && (attempt != 0 || tryReclaimCapacity == null))
+                    if (!resourcesAdmitted &&
+                        (attempt != 0 || (tryReclaimCapacity == null && !CanReclaimSharedCapacity())))
                     {
                         return false;
                     }
@@ -173,12 +174,66 @@ namespace Opc.Ua.Bindings
                     }
                 }
                 // No partial resource leases or admission locks survive into listener cleanup.
-                if (attempt != 0 || tryReclaimCapacity == null || !tryReclaimCapacity())
+                if (attempt != 0 || !TryReclaimCapacity(resourcesAdmitted, tryReclaimCapacity))
                 {
                     return false;
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Registers the callback that closes one reclaimable connection of
+        /// this scope for the other scopes sharing the resource isolation
+        /// provider. Registered while the scope is started.
+        /// </summary>
+        /// <remarks>
+        /// The callback must not acquire admission itself, and it is invoked
+        /// without any admission lock held.
+        /// </remarks>
+        public void SetSharedCapacityReclaimer(Func<bool> reclaim)
+        {
+            if (reclaim == null)
+            {
+                throw new ArgumentNullException(nameof(reclaim));
+            }
+            lock (m_lock)
+            {
+                m_sharedCapacityReclaimer = reclaim;
+                if (m_stopped || m_provider == null)
+                {
+                    return;
+                }
+            }
+            SharedConnectionCapacity.Register(m_provider, this, reclaim);
+        }
+
+        /// <summary>
+        /// Whether another scope of the same provider could free capacity.
+        /// </summary>
+        private bool CanReclaimSharedCapacity()
+        {
+            return m_provider != null && SharedConnectionCapacity.HasOtherScopes(m_provider, this);
+        }
+
+        /// <summary>
+        /// Reclaims a connection of this scope first and, when the shared
+        /// provider capacity is what is exhausted, one of another scope.
+        /// </summary>
+        /// <param name="resourcesAdmitted">
+        /// False when the provider refused for capacity; true when only this
+        /// scope's own ceiling is reached, which another scope cannot free.
+        /// </param>
+        /// <param name="tryReclaimCapacity">The scope's own reclaim callback.</param>
+        private bool TryReclaimCapacity(bool resourcesAdmitted, Func<bool>? tryReclaimCapacity)
+        {
+            if (tryReclaimCapacity?.Invoke() == true)
+            {
+                return true;
+            }
+            return !resourcesAdmitted &&
+                m_provider != null &&
+                SharedConnectionCapacity.TryReclaimFromOtherScopes(m_provider, this);
         }
 
         /// <summary>
@@ -191,6 +246,10 @@ namespace Opc.Ua.Bindings
             {
                 m_stopped = true;
                 leases = [.. m_leases];
+            }
+            if (m_provider != null)
+            {
+                SharedConnectionCapacity.Unregister(m_provider, this);
             }
 
             List<Exception>? errors = null;
@@ -216,9 +275,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Start()
         {
+            Func<bool>? reclaim;
             lock (m_lock)
             {
                 m_stopped = false;
+                reclaim = m_sharedCapacityReclaimer;
+            }
+            if (reclaim != null && m_provider != null)
+            {
+                SharedConnectionCapacity.Register(m_provider, this, reclaim);
             }
         }
 
@@ -680,6 +745,12 @@ namespace Opc.Ua.Bindings
         /// Rejects new leases until the scope is explicitly restarted.
         /// </summary>
         private bool m_stopped;
+
+        /// <summary>
+        /// Closes one reclaimable connection of this scope for another scope
+        /// of the same provider; registered while the scope is started.
+        /// </summary>
+        private Func<bool>? m_sharedCapacityReclaimer;
     }
 
     /// <summary>

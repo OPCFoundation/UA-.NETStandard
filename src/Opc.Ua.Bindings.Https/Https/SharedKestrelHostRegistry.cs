@@ -526,6 +526,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal string HostSettings { get; }
 
+        /// <summary>
+        /// The physical HTTP connections of the host, which are counted in the
+        /// host's admission scope rather than in one routed listener.
+        /// </summary>
+        internal HttpConnectionActivityRegistry HttpConnections { get; } = new();
+
         internal int ListenerCount
         {
             get

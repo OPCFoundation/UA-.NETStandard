@@ -619,6 +619,224 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// An HTTP keep-alive connection holds its admission lease between
+        /// requests. At capacity, the connection idle longest is closed for a
+        /// new one instead of the new one being refused.
+        /// </summary>
+        [Test]
+        public async Task IdleKeepAliveConnectionIsReclaimedForANewConnectionAsync()
+        {
+            var provider = new CountingIsolationProvider(connectionLimit: 2);
+            var admission = new UaScConnectionAdmission(0, null, provider);
+            var clock = new FakeTimeProvider();
+            var connections = new HttpConnectionActivityRegistry(clock);
+            await using var older = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 1) };
+            await using var newer = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 2) };
+            await using var incoming = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 3) };
+
+            Task olderRun = RunKeepAliveConnectionAsync(older, admission, connections, out Task olderServed);
+            await olderServed.ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Task newerRun = RunKeepAliveConnectionAsync(newer, admission, connections, out Task newerServed);
+            await newerServed.ConfigureAwait(false);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(2));
+            Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+
+            bool admitted = false;
+            await HttpsTransportListener.RunHttpsConnectionAsync(incoming, _ =>
+            {
+                admitted = true;
+                return Task.CompletedTask;
+            }, admission, connections.TryReclaimIdle, null, connections).ConfigureAwait(false);
+
+            Assert.That(admitted, Is.True);
+            await AssertAbortedAsync(older).ConfigureAwait(false);
+            Assert.That(newer.ConnectionClosed.IsCancellationRequested, Is.False);
+            await olderRun.ConfigureAwait(false);
+            newer.Abort();
+            await newerRun.ConfigureAwait(false);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            Assert.That(connections.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// A connection with a request in flight (an HTTP request, or the
+        /// upgrade request of a WebSocket for the socket's lifetime) is never
+        /// reclaimed as an idle HTTP connection.
+        /// </summary>
+        [Test]
+        public async Task ConnectionWithRequestInFlightIsNotReclaimedAsync()
+        {
+            var provider = new CountingIsolationProvider(connectionLimit: 1);
+            var admission = new UaScConnectionAdmission(0, null, provider);
+            var connections = new HttpConnectionActivityRegistry();
+            await using var busy = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 1) };
+            await using var incoming = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 2) };
+            var inFlight = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Task busyRun = HttpsTransportListener.RunHttpsConnectionAsync(busy, physical =>
+                HttpsTransportListener.RunHttpRequestAsync(new DefaultHttpContext(physical.Features), () =>
+                {
+                    inFlight.TrySetResult(true);
+                    return release.Task;
+                }), admission, connections.TryReclaimIdle, null, connections);
+            await inFlight.Task.ConfigureAwait(false);
+
+            bool admitted = false;
+            await HttpsTransportListener.RunHttpsConnectionAsync(incoming, _ =>
+            {
+                admitted = true;
+                return Task.CompletedTask;
+            }, admission, connections.TryReclaimIdle, null, connections).ConfigureAwait(false);
+
+            Assert.That(admitted, Is.False);
+            await AssertAbortedAsync(incoming).ConfigureAwait(false);
+            Assert.That(busy.ConnectionClosed.IsCancellationRequested, Is.False);
+            release.TrySetResult(true);
+            await busyRun.ConfigureAwait(false);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+        }
+
+        /// <summary>
+        /// A request whose headers arrive after its idle connection was
+        /// reclaimed is not processed.
+        /// </summary>
+        [Test]
+        public async Task RequestOnReclaimedConnectionIsNotProcessedAsync()
+        {
+            var admission = new UaScConnectionAdmission(0, null, new CountingIsolationProvider());
+            var connections = new HttpConnectionActivityRegistry();
+            await using var connection = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 1) };
+            bool processed = false;
+            await HttpsTransportListener.RunHttpsConnectionAsync(connection, physical =>
+            {
+                Assert.That(connections.TryReclaimIdle(), Is.True);
+                return HttpsTransportListener.RunHttpRequestAsync(new DefaultHttpContext(physical.Features), () =>
+                {
+                    processed = true;
+                    return Task.CompletedTask;
+                });
+            }, admission, connections.TryReclaimIdle, null, connections).ConfigureAwait(false);
+
+            Assert.That(processed, Is.False);
+            await AssertAbortedAsync(connection).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The provider's connection capacity is shared by all listeners of a
+        /// server. When it is exhausted by connections of one listener that are
+        /// reclaimable, another listener reclaims one of them instead of
+        /// refusing its own new connection.
+        /// </summary>
+        [Test]
+        public async Task SharedCapacityIsReclaimedFromAnotherListenerAsync()
+        {
+            var provider = new CountingIsolationProvider(connectionLimit: 1);
+            var https = new UaScConnectionAdmission(0, null, provider);
+            var tcp = new UaScConnectionAdmission(0, null, provider);
+            var connections = new HttpConnectionActivityRegistry();
+            https.SetSharedCapacityReclaimer(connections.TryReclaimIdle);
+            try
+            {
+                await using var idle = new TestConnectionContext { RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 1) };
+                Task idleRun = RunKeepAliveConnectionAsync(idle, https, connections, out Task served);
+                await served.ConfigureAwait(false);
+
+                Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 2), out UaScConnectionAdmission.Lease? lease), Is.True);
+                using (lease)
+                {
+                    await AssertAbortedAsync(idle).ConfigureAwait(false);
+                    await idleRun.ConfigureAwait(false);
+                    Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                https.Stop();
+                tcp.Stop();
+            }
+        }
+
+        /// <summary>
+        /// A scope's own channel ceiling cannot be relieved by another listener,
+        /// so no other listener's connection is closed for it; neither is one
+        /// of a stopped listener.
+        /// </summary>
+        [Test]
+        public async Task OwnCeilingOrStoppedScopeDoesNotReclaimFromOtherListenersAsync()
+        {
+            var provider = new CountingIsolationProvider(connectionLimit: 2);
+            var https = new UaScConnectionAdmission(0, null, provider);
+            var tcp = new UaScConnectionAdmission(1, null, provider);
+            int reclaims = 0;
+            https.SetSharedCapacityReclaimer(() =>
+            {
+                reclaims++;
+                return false;
+            });
+            try
+            {
+                Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 1), out UaScConnectionAdmission.Lease? first), Is.True);
+                using (first)
+                {
+                    // Only the scope's own ceiling is reached, which another scope cannot relieve.
+                    Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 2), out _), Is.False);
+                    Assert.That(reclaims, Is.Zero);
+
+                    Assert.That(https.TryAcquire(new IPEndPoint(IPAddress.Loopback, 3), out UaScConnectionAdmission.Lease? second), Is.True);
+                    using (second)
+                    {
+                        // Provider capacity exhausted: the other scope is asked.
+                        Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 4), out _), Is.False);
+                        Assert.That(reclaims, Is.EqualTo(1));
+                    }
+                }
+                https.Stop();
+                var other = new UaScConnectionAdmission(0, null, provider);
+                Assert.That(other.TryAcquire(new IPEndPoint(IPAddress.Loopback, 5), out UaScConnectionAdmission.Lease? a), Is.True);
+                Assert.That(other.TryAcquire(new IPEndPoint(IPAddress.Loopback, 6), out UaScConnectionAdmission.Lease? b), Is.True);
+                using (a)
+                using (b)
+                {
+                    Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 7), out _), Is.False);
+                    Assert.That(reclaims, Is.EqualTo(1), "a stopped scope is no longer asked");
+                }
+            }
+            finally
+            {
+                https.Stop();
+                tcp.Stop();
+            }
+        }
+
+        /// <summary>
+        /// Admits a connection, serves one request on it and keeps it open
+        /// like an HTTP keep-alive connection until it is aborted.
+        /// </summary>
+        private static Task RunKeepAliveConnectionAsync(
+            TestConnectionContext connection,
+            UaScConnectionAdmission admission,
+            HttpConnectionActivityRegistry connections,
+            out Task served)
+        {
+            var requestServed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            served = requestServed.Task;
+            return HttpsTransportListener.RunHttpsConnectionAsync(connection, async physical =>
+            {
+                await HttpsTransportListener.RunHttpRequestAsync(
+                    new DefaultHttpContext(physical.Features),
+                    () => Task.CompletedTask).ConfigureAwait(false);
+                requestServed.TrySetResult(true);
+                var closed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using (physical.ConnectionClosed.Register(() => closed.TrySetResult(true)))
+                {
+                    await closed.Task.ConfigureAwait(false);
+                }
+            }, admission, connections.TryReclaimIdle, null, connections);
+        }
+
         private static async Task AssertAbortedAsync(ConnectionContext connection)
         {
             var closed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
