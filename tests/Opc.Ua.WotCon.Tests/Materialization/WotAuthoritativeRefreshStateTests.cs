@@ -16,6 +16,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     [TestFixture]
     [Platform("Win")]
+    [Category("Integration")]
     public sealed class WotAuthoritativeRefreshStateTests
     {
         /// <summary>

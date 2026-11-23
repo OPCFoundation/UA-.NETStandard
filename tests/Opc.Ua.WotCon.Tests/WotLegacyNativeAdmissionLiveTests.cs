@@ -495,7 +495,7 @@ namespace Opc.Ua.WotCon.Tests
             return result.ToArrayOf();
         }
 
-        private static ByteString Document(
+        internal static ByteString Document(
             string binding = "\"@type\":[\"Thing\",\"uav:object\",\"model:PumpType\"],",
             string properties = "{\"Speed\":{\"type\":\"number\",\"forms\":[{\"href\":\"sim://opcua.test/wot/speed\"}]}}",
             string extra = "")
@@ -965,7 +965,7 @@ namespace Opc.Ua.WotCon.Tests
             private readonly SimulatedWotAssetProviderFactory m_inner = new();
         }
 
-        private sealed class Discovery : IWotAssetDiscoveryProvider
+        internal sealed class Discovery : IWotAssetDiscoveryProvider
         {
             /// <summary>
             /// Initializes a new <c>Discovery</c> instance.

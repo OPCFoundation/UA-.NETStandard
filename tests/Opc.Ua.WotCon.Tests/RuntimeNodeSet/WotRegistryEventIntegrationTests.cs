@@ -38,6 +38,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
+    [Category("Integration")]
     public sealed partial class WotRegistryEventIntegrationTests
     {
         private string m_pkiRoot = null!;

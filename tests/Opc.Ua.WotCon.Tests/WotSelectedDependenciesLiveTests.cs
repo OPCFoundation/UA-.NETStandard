@@ -37,42 +37,6 @@ namespace Opc.Ua.WotCon.Tests
     public sealed class WotSelectedDependenciesLiveTests
     {
         /// <summary>
-        /// Verifies that dependency snapshot capability is the registered owner.
-        /// </summary>
-        [Test]
-        public void DependencySnapshotCapabilityIsTheRegisteredOwner()
-        {
-            var services = new ServiceCollection();
-            services.AddOpcUa().AddWotRegistryServer();
-            using ServiceProvider provider = services.BuildServiceProvider();
-            IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
-            IWotRegistryDependencySnapshotProvider capability =
-                provider.GetRequiredService<IWotRegistryDependencySnapshotProvider>();
-
-            Assert.That(capability, Is.SameAs(registry));
-            Assert.That(capability.SupportsDependencySnapshots, Is.True);
-        }
-
-        /// <summary>
-        /// Verifies that older providers do not receive a fabricated snapshot capability.
-        /// </summary>
-        [Test]
-        public void OlderProvidersDoNotReceiveAFabricatedSnapshotCapability()
-        {
-            IWotRegistryService older = new Mock<IWotRegistryService>().Object;
-            var services = new ServiceCollection();
-            services.AddSingleton(older);
-            services.AddOpcUa().AddWotRegistryServer();
-            using ServiceProvider provider = services.BuildServiceProvider();
-
-            Assert.That(provider.GetRequiredService<IWotRegistryService>(), Is.SameAs(older));
-            Assert.That(older, Is.Not.InstanceOf<IWotRegistryDependencySnapshotProvider>());
-            Assert.That(() => provider.GetRequiredService<IWotRegistryDependencySnapshotProvider>(),
-                Throws.TypeOf<InvalidOperationException>()
-                    .With.Message.EqualTo("The registered registry does not support dependency snapshots."));
-        }
-
-        /// <summary>
         /// Verifies that native unconfigured origin reports unsupported without inventing pins.
         /// </summary>
         [Test]
@@ -86,30 +50,6 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(value.WrappedValue.IsNull, Is.True);
-        }
-
-        /// <summary>
-        /// Verifies that wire edges identify exact versions without changing the captured resource graph.
-        /// </summary>
-        [Test]
-        public void WireEdgesIdentifyExactVersionsWithoutChangingTheCapturedResourceGraph()
-        {
-            ByteString digest = WotContentDigest.Compute("original"u8);
-            var snapshot = new WotDependencySnapshot(
-                "v1", 1, "wire", DateTime.UtcNow, true, digest,
-                [new WotDependency("/source", "model:Pump", "/model", "tm:extends", true)],
-                [new WotDependencyTargetPin(
-                    0, new WotRegistryOrigin("urn:b2:registry"), "/model/versions/v1",
-                    "https://example.test/models/Pump", ExpandedNodeId.Null, digest)]);
-
-            WoTDependencySnapshotDataType wire = snapshot.ToDataType();
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(wire.Edges[0].TargetXid, Is.EqualTo("/model/versions/v1"));
-                Assert.That(wire.Edges[0].TargetUri, Is.EqualTo("model:Pump"));
-                Assert.That(snapshot.Edges[0].TargetXid, Is.EqualTo("/model"));
-            });
         }
 
         /// <summary>
@@ -1049,5 +989,74 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         private const string XRegistryNamespace = "http://opcfoundation.org/UA/xRegistry/";
+    }
+
+    /// <summary>
+    /// The <see cref="WotSelectedDependenciesLiveTests"/> tests that start no server, kept out of
+    /// that fixture's Integration category.
+    /// </summary>
+    [TestFixture]
+    [Category("WotCon")]
+    public sealed class WotSelectedDependenciesServerFreeTests
+    {
+        /// <summary>
+        /// Verifies that dependency snapshot capability is the registered owner.
+        /// </summary>
+        [Test]
+        public void DependencySnapshotCapabilityIsTheRegisteredOwner()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddWotRegistryServer();
+            using ServiceProvider provider = services.BuildServiceProvider();
+            IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
+            IWotRegistryDependencySnapshotProvider capability =
+                provider.GetRequiredService<IWotRegistryDependencySnapshotProvider>();
+
+            Assert.That(capability, Is.SameAs(registry));
+            Assert.That(capability.SupportsDependencySnapshots, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that older providers do not receive a fabricated snapshot capability.
+        /// </summary>
+        [Test]
+        public void OlderProvidersDoNotReceiveAFabricatedSnapshotCapability()
+        {
+            IWotRegistryService older = new Mock<IWotRegistryService>().Object;
+            var services = new ServiceCollection();
+            services.AddSingleton(older);
+            services.AddOpcUa().AddWotRegistryServer();
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetRequiredService<IWotRegistryService>(), Is.SameAs(older));
+            Assert.That(older, Is.Not.InstanceOf<IWotRegistryDependencySnapshotProvider>());
+            Assert.That(() => provider.GetRequiredService<IWotRegistryDependencySnapshotProvider>(),
+                Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.EqualTo("The registered registry does not support dependency snapshots."));
+        }
+
+        /// <summary>
+        /// Verifies that wire edges identify exact versions without changing the captured resource graph.
+        /// </summary>
+        [Test]
+        public void WireEdgesIdentifyExactVersionsWithoutChangingTheCapturedResourceGraph()
+        {
+            ByteString digest = WotContentDigest.Compute("original"u8);
+            var snapshot = new WotDependencySnapshot(
+                "v1", 1, "wire", DateTime.UtcNow, true, digest,
+                [new WotDependency("/source", "model:Pump", "/model", "tm:extends", true)],
+                [new WotDependencyTargetPin(
+                    0, new WotRegistryOrigin("urn:b2:registry"), "/model/versions/v1",
+                    "https://example.test/models/Pump", ExpandedNodeId.Null, digest)]);
+
+            WoTDependencySnapshotDataType wire = snapshot.ToDataType();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(wire.Edges[0].TargetXid, Is.EqualTo("/model/versions/v1"));
+                Assert.That(wire.Edges[0].TargetUri, Is.EqualTo("model:Pump"));
+                Assert.That(snapshot.Edges[0].TargetXid, Is.EqualTo("/model"));
+            });
+        }
     }
 }

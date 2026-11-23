@@ -23,6 +23,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     [TestFixture]
     [Platform("Win")]
+    [Category("Integration")]
     public sealed class WotSelectedDependencyTests
     {
         /// <summary>
@@ -489,22 +490,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// Verifies that namespace registration without installed types is unavailable.
-        /// </summary>
-        [Test]
-        public async Task NamespaceRegistrationWithoutInstalledTypesIsUnavailable()
-        {
-            var namespaces = new NamespaceTable();
-            namespaces.Append("urn:table-only");
-            var server = new Mock<IServerInternal>();
-            server.SetupGet(instance => instance.NamespaceUris).Returns(namespaces);
-            server.SetupGet(instance => instance.TypeTree).Returns(new TypeTable(namespaces));
-            var resolver = new AddressSpaceWotNodeResolver(server.Object);
-
-            Assert.That(await resolver.HoldsNamespaceAsync("urn:table-only"), Is.False);
-        }
-
-        /// <summary>
         /// Verifies that namespace table does not satisfy required model.
         /// </summary>
         [Test]
@@ -763,5 +748,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private static readonly string[] s_aDocument = ["urn:a"];
         private static readonly string[] s_aResource = ["a"];
         private static readonly string[] s_shadow = ["shadow"];
+    }
+
+    /// <summary>
+    /// The <see cref="WotSelectedDependencyTests"/> tests that start no server, kept out of
+    /// that fixture's Integration category.
+    /// </summary>
+    [TestFixture]
+    [Platform("Win")]
+    public sealed class WotSelectedDependencyServerFreeTests
+    {
+        /// <summary>
+        /// Verifies that namespace registration without installed types is unavailable.
+        /// </summary>
+        [Test]
+        public async Task NamespaceRegistrationWithoutInstalledTypesIsUnavailable()
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:table-only");
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(instance => instance.NamespaceUris).Returns(namespaces);
+            server.SetupGet(instance => instance.TypeTree).Returns(new TypeTable(namespaces));
+            var resolver = new AddressSpaceWotNodeResolver(server.Object);
+
+            Assert.That(await resolver.HoldsNamespaceAsync("urn:table-only"), Is.False);
+        }
     }
 }

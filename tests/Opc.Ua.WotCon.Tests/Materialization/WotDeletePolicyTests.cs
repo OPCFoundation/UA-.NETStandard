@@ -20,6 +20,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// in the registry and, through the coordinator, in the AddressSpace.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed class WotDeletePolicyTests
     {
         private const string ModelXid = "/groups/thingmodels/resources/tm-a";
