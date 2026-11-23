@@ -155,64 +155,6 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(value, Is.EqualTo(42.5));
         }
 
-        /// <summary>
-        /// Verifies that discovery serialization retains native identity metadata.
-        /// </summary>
-        /// <param name="mode">The WoT node set preservation mode.</param>
-        [TestCase(WotNodeSetPreservationMode.Always)]
-        [TestCase(WotNodeSetPreservationMode.Never)]
-        public async Task DiscoverySerializationRetainsNativeIdentityMetadata(WotNodeSetPreservationMode mode)
-        {
-            ByteString content = NativeDocumentWithPropertyIdentity("ns=1;s=Assets/mapped/File", mode);
-            ThingDescription discovered = await new Discovery(content).CreateThingDescriptionAsync(
-                "mapped", "sim://opcua.test/wot/mapped", CancellationToken.None);
-            ByteString serialized = ByteString.From(JsonSerializer.SerializeToUtf8Bytes(
-                discovered, ThingDescriptionJsonContext.Default.ThingDescription));
-            using WotDocument original = WotDocument.Parse(content.Memory);
-            using WotDocument retained = WotDocument.Parse(serialized.Memory);
-            string member = mode == WotNodeSetPreservationMode.Always ? "nodeSet" : "nodes";
-            Assert.That(original.TryGetUav(member, out JsonElement before), Is.True);
-            Assert.That(retained.TryGetUav(member, out JsonElement after), Is.True);
-            Assert.That(JsonElement.DeepEquals(before, after), Is.True);
-        }
-
-        /// <summary>
-        /// Verifies that discovery serialization retains nested mapping metadata.
-        /// </summary>
-        [TestCase("properties/reading", "uav:id")]
-        [TestCase("properties/reading/items", "uav:dataTypeId")]
-        [TestCase("actions/reset", "uav:id")]
-        [TestCase("actions/reset/input", "uav:allowSubTypes")]
-        [TestCase("actions/reset/input/properties/value", "uav:dataTypeId")]
-        [TestCase("events/alarm", "@type")]
-        public async Task DiscoverySerializationRetainsNestedMappingMetadata(string path, string member)
-        {
-            ByteString content = Document(properties: """
-                {"reading":{"type":"array","uav:id":"nsu=urn:test:discovery;s=reading",
-                    "items":{"type":"number","uav:dataTypeId":"i=11"}}}
-                """, extra: """
-                "actions":{"reset":{"uav:id":"nsu=urn:test:discovery;s=reset",
-                    "input":{"type":"object","uav:allowSubTypes":false,
-                        "properties":{"value":{"type":"number","uav:dataTypeId":"i=11"}}}}},
-                "events":{"alarm":{"@type":["uav:eventType","ua:AlarmConditionType"]}},
-                """);
-            ThingDescription discovered = await new Discovery(content).CreateThingDescriptionAsync(
-                "mapped", "sim://opcua.test/wot/mapped", CancellationToken.None);
-            ByteString serialized = ByteString.From(JsonSerializer.SerializeToUtf8Bytes(
-                discovered, ThingDescriptionJsonContext.Default.ThingDescription));
-            using WotDocument original = WotDocument.Parse(content.Memory);
-            using WotDocument retained = WotDocument.Parse(serialized.Memory);
-            JsonElement before = original.RootElement;
-            JsonElement after = retained.RootElement;
-            foreach (string segment in path.Split('/'))
-            {
-                before = before.GetProperty(segment);
-                after = after.GetProperty(segment);
-            }
-            Assert.That(after.TryGetProperty(member, out JsonElement metadata), Is.True, path);
-            Assert.That(JsonElement.DeepEquals(before.GetProperty(member), metadata), Is.True, path);
-        }
-
         private static async Task<ArrayOf<NodeId>> PublishedFixedChildIdsAsync(Fixture fixture)
         {
             WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
@@ -259,7 +201,7 @@ namespace Opc.Ua.WotCon.Tests
             return fixedIds.OrderBy(id => id.ToString(), StringComparer.Ordinal).ToArrayOf();
         }
 
-        private static ByteString NativeDocumentWithPropertyIdentity(
+        internal static ByteString NativeDocumentWithPropertyIdentity(
             string nodeId, WotNodeSetPreservationMode mode = WotNodeSetPreservationMode.Always)
         {
             return NativeDocument(mode, "mapped", modify: model =>
@@ -298,6 +240,74 @@ namespace Opc.Ua.WotCon.Tests
                 assets.Add(asset);
             }
             Assert.That(assets, Is.Empty);
+        }
+    }
+
+    /// <summary>
+    /// The <see cref="WotLegacyNativeAdmissionLiveTests"/> tests that start no server, kept out of
+    /// that fixture's Integration category.
+    /// </summary>
+    [TestFixture]
+    [Category("WotCon")]
+    public sealed class WotLegacyNativeAdmissionServerFreeTests
+    {
+        /// <summary>
+        /// Verifies that discovery serialization retains native identity metadata.
+        /// </summary>
+        /// <param name="mode">The WoT node set preservation mode.</param>
+        [TestCase(WotNodeSetPreservationMode.Always)]
+        [TestCase(WotNodeSetPreservationMode.Never)]
+        public async Task DiscoverySerializationRetainsNativeIdentityMetadata(WotNodeSetPreservationMode mode)
+        {
+            ByteString content = WotLegacyNativeAdmissionLiveTests.NativeDocumentWithPropertyIdentity(
+                "ns=1;s=Assets/mapped/File", mode);
+            ThingDescription discovered = await new WotLegacyNativeAdmissionLiveTests.Discovery(content)
+                .CreateThingDescriptionAsync("mapped", "sim://opcua.test/wot/mapped", CancellationToken.None);
+            ByteString serialized = ByteString.From(JsonSerializer.SerializeToUtf8Bytes(
+                discovered, ThingDescriptionJsonContext.Default.ThingDescription));
+            using WotDocument original = WotDocument.Parse(content.Memory);
+            using WotDocument retained = WotDocument.Parse(serialized.Memory);
+            string member = mode == WotNodeSetPreservationMode.Always ? "nodeSet" : "nodes";
+            Assert.That(original.TryGetUav(member, out JsonElement before), Is.True);
+            Assert.That(retained.TryGetUav(member, out JsonElement after), Is.True);
+            Assert.That(JsonElement.DeepEquals(before, after), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that discovery serialization retains nested mapping metadata.
+        /// </summary>
+        [TestCase("properties/reading", "uav:id")]
+        [TestCase("properties/reading/items", "uav:dataTypeId")]
+        [TestCase("actions/reset", "uav:id")]
+        [TestCase("actions/reset/input", "uav:allowSubTypes")]
+        [TestCase("actions/reset/input/properties/value", "uav:dataTypeId")]
+        [TestCase("events/alarm", "@type")]
+        public async Task DiscoverySerializationRetainsNestedMappingMetadata(string path, string member)
+        {
+            ByteString content = WotLegacyNativeAdmissionLiveTests.Document(properties: """
+                {"reading":{"type":"array","uav:id":"nsu=urn:test:discovery;s=reading",
+                    "items":{"type":"number","uav:dataTypeId":"i=11"}}}
+                """, extra: """
+                "actions":{"reset":{"uav:id":"nsu=urn:test:discovery;s=reset",
+                    "input":{"type":"object","uav:allowSubTypes":false,
+                        "properties":{"value":{"type":"number","uav:dataTypeId":"i=11"}}}}},
+                "events":{"alarm":{"@type":["uav:eventType","ua:AlarmConditionType"]}},
+                """);
+            ThingDescription discovered = await new WotLegacyNativeAdmissionLiveTests.Discovery(content)
+                .CreateThingDescriptionAsync("mapped", "sim://opcua.test/wot/mapped", CancellationToken.None);
+            ByteString serialized = ByteString.From(JsonSerializer.SerializeToUtf8Bytes(
+                discovered, ThingDescriptionJsonContext.Default.ThingDescription));
+            using WotDocument original = WotDocument.Parse(content.Memory);
+            using WotDocument retained = WotDocument.Parse(serialized.Memory);
+            JsonElement before = original.RootElement;
+            JsonElement after = retained.RootElement;
+            foreach (string segment in path.Split('/'))
+            {
+                before = before.GetProperty(segment);
+                after = after.GetProperty(segment);
+            }
+            Assert.That(after.TryGetProperty(member, out JsonElement metadata), Is.True, path);
+            Assert.That(JsonElement.DeepEquals(before.GetProperty(member), metadata), Is.True, path);
         }
     }
 }

@@ -497,38 +497,6 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// Verifies that selected snapshot checks cancellation before reading.
-        /// </summary>
-        [Test]
-        public async Task SelectedSnapshotChecksCancellationBeforeReading()
-        {
-            using var registry = new WotRegistryService();
-            using var coordinator = new WotMaterializationCoordinator(registry,
-                new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
-            using var cancellation = new CancellationTokenSource();
-            cancellation.Cancel();
-            await Assert.ThatAsync(() => coordinator.GetSelectedBindingCapabilitiesAsync(cancellation.Token).AsTask(),
-                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            ArrayOf<WoTBindingCapabilityDataType> selected = await coordinator.GetSelectedBindingCapabilitiesAsync()
-                .ConfigureAwait(false);
-            Assert.That(selected.Count, Is.Zero);
-        }
-
-        /// <summary>
-        /// Verifies that selected snapshot rejects reads after disposal.
-        /// </summary>
-        [Test]
-        public async Task SelectedSnapshotRejectsReadsAfterDisposal()
-        {
-            using var registry = new WotRegistryService();
-            using var coordinator = new WotMaterializationCoordinator(registry,
-                new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
-            coordinator.Dispose();
-            await Assert.ThatAsync(() => coordinator.GetSelectedBindingCapabilitiesAsync().AsTask(),
-                Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Verifies that binding identity and unused selection are readable over encrypted transport.
         /// </summary>
         [Test]
@@ -921,5 +889,46 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         private static readonly string[] s_memoryContentTypes = ["application/json", "text/plain"];
+    }
+
+    /// <summary>
+    /// The <see cref="WotBindingDescriptorTests"/> tests that start no server, kept out of
+    /// that fixture's Integration category.
+    /// </summary>
+    [TestFixture]
+    [Category("WotCon")]
+    public sealed class WotBindingDescriptorServerFreeTests
+    {
+        /// <summary>
+        /// Verifies that selected snapshot checks cancellation before reading.
+        /// </summary>
+        [Test]
+        public async Task SelectedSnapshotChecksCancellationBeforeReading()
+        {
+            using var registry = new WotRegistryService();
+            using var coordinator = new WotMaterializationCoordinator(registry,
+                new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(() => coordinator.GetSelectedBindingCapabilitiesAsync(cancellation.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            ArrayOf<WoTBindingCapabilityDataType> selected = await coordinator.GetSelectedBindingCapabilitiesAsync()
+                .ConfigureAwait(false);
+            Assert.That(selected.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that selected snapshot rejects reads after disposal.
+        /// </summary>
+        [Test]
+        public async Task SelectedSnapshotRejectsReadsAfterDisposal()
+        {
+            using var registry = new WotRegistryService();
+            using var coordinator = new WotMaterializationCoordinator(registry,
+                new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
+            coordinator.Dispose();
+            await Assert.ThatAsync(() => coordinator.GetSelectedBindingCapabilitiesAsync().AsTask(),
+                Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
+        }
     }
 }

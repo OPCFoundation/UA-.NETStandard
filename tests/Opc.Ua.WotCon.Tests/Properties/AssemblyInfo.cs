@@ -14,3 +14,8 @@ using NUnit.Framework;
 [assembly: Parallelizable(ParallelScope.All)]
 [assembly: FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [assembly: LevelOfParallelism(4)]
+
+// [Category("Integration")] marks exactly the tests that start a server; the
+// guard fails a test that breaks this. "--filter TestCategory!=Integration"
+// is the fast, server-free local loop (see README.md).
+[assembly: Opc.Ua.WotCon.Tests.IntegrationCategoryGuard]

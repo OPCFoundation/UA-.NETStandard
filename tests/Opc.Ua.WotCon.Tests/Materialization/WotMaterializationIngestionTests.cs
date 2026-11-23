@@ -85,6 +85,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// outage.
         /// </summary>
         [Test]
+        [Category("Integration")]
         public async Task AMalformedDocumentDoesNotStopTheRefreshOfAnotherAsync()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);

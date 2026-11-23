@@ -225,6 +225,49 @@ Local, net10.0 Debug, `FullyQualifiedName~WotAtomicPublicationNativeTests`
 The paired runs used copies of both builds run back to back, so they saw the
 same load: the fixture takes about half the time it did.
 
+## Integration category (follow-up change)
+
+`[Category("Integration")]` now means exactly "this test starts a real
+server" (and with it, any client session the test opens).
+
+* **Measured, not grepped.** Every server start goes through
+  `ServerBase.StartAsync`, which creates the request queue's
+  `opcua.server.request_queue.rejections` instrument. A `MeterListener` is
+  told about a new instrument synchronously on the starting thread, so the
+  NUnit execution context there names the test that started the server, also
+  under parallel execution. One recorded run of the whole project found
+  1,106 of 3,334 cases starting a server, in 45 classes; 263 of them had no
+  `Integration` category and 14 categorized cases started none.
+* **Placement.** Classes whose every case starts a server carry the category
+  at class level (16 added). In mixed classes it sits on the methods
+  (22 methods in 9 classes). No parameterized method mixes server and
+  server-free cases. The 14 server-free cases of four class-level
+  `Integration` fixtures moved into sibling `...ServerFreeTests` classes in
+  the same files; a nested class would not do, because the NUnit adapter
+  files it under the outer fixture and so it inherits the category.
+* **Guard.** `Support/IntegrationCategoryGuard.cs`, an assembly-level
+  `ITestAction` with the same listener, fails a test that starts a server
+  without the category and a passing test that carries it but starts none.
+  It reads categories through `IPropertyBag.TryGet`: the indexer adds a
+  missing key to the shared fixture's property bag, which corrupted it under
+  parallel tests in the first recorded run.
+* **Local fast loop.** Documented in `tests/Opc.Ua.WotCon.Tests/README.md`
+  and `Properties/AssemblyInfo.cs`. CI filters do not use the category.
+
+Local, net10.0 Release, same shared machine as above:
+
+| Run | Result | Wall |
+|---|---|---:|
+| `--filter TestCategory!=Integration` | 2,228 passed | 1 min 10 s |
+| Whole project | 3,334 passed | 15 min 45 s |
+
+The server-free subset spends 197 s of test time in 63 s of test-run wall
+time; its critical path is one sample regeneration test
+(`ManifestDocumentsMatchCompleteAsyncRegeneration`, 46 s). The whole-project
+run was slower than the 10 to 12 minutes above because other sessions were
+building and testing on the machine at the same time; the guard itself adds
+a dictionary lookup per test.
+
 ## Follow-ups (not in this change)
 
 * **Lighter server for the other fixtures.** A seeded `StandardServer`
@@ -236,8 +279,7 @@ same load: the fixture takes about half the time it did.
   same server type.
 * **Faster `ServerFixture` start.** About 0.9 s of every live WoT case is the
   server start itself; it was not profiled further.
-* **Consistent categories.** Mark every server-starting class
-  `[Category("Integration")]` so a server-free subset can be run locally
-  (`TestCategory!=Integration`) in well under a minute.
-* **Sample data.** Cache the parsed sample sets per process in the
+* **net48 parallelism.** net48 tests take almost three times as long each
+  under four-way parallelism, so its CI entries did not get shorter. Fewer
+  workers or more entries for net48 trade wall time against runner minutes.* **Sample data.** Cache the parsed sample sets per process in the
   `Samples/` tests.

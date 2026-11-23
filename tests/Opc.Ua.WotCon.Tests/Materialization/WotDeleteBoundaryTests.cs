@@ -29,6 +29,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </remarks>
     [TestFixture]
     [Category("WoT")]
+    [Category("Integration")]
     public sealed class WotDeleteBoundaryTests
     {
         private WotRegistryService m_registry = null!;

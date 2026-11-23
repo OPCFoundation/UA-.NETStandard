@@ -33,6 +33,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT observed property runtime.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed partial class WotObservedPropertyRuntimeTests
     {
         /// <summary>

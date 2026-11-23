@@ -165,6 +165,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// <param name="invalidPeer">The invalid-peer flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
+        [Category("Integration")]
         public async Task InjectedPreparedRuntimePublishesOrRollsBackTheRealNativeRegistryUnit(bool invalidPeer)
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync(
