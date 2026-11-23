@@ -25,6 +25,12 @@ removals must be atomic and durable, and reads must never report an uncertain
 or corrupt entry as absent. Neither the in-memory store nor the public signing
 checkpoint store meets this contract.
 
+The SDK provides the request binding and recovery workflow; the implementer
+supplies the production backend. The live registrar integration test uses a
+test-only in-memory backend to verify that a new session and recovery adapter
+reuse a received key pair. It does not test process-restart durability or
+production storage protection. Do not use the test backend in production.
+
 - **Dispatching:** Start may have happened, but there is no durable request ID.
   The workflow stops. Reconcile the attempt with the registrar, stop the
   workflow, and use `ResetReconciledDispatchAsync` with the exact retained

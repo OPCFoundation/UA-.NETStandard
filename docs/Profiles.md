@@ -39,8 +39,8 @@ The SDK provides full or partial support for these core areas:
   with retained device credentials, security reset, managed Client provisioning,
   provider-backed Server/ClientAndServer push, durable accepted-work recovery,
   signing and key-pair pull, and lifecycle-aware Part 22 `Resources` composition.
-  FDO protocols and credential installation remain external; the GDS guide
-  describes provider ownership, recovery boundaries and `ConfigurationFile` limits.
+  Applications supply the deployment providers. The GDS guide describes
+  provider ownership, recovery boundaries, and optional `ConfigurationFile` limits.
 - Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
   an in-memory simulator, including defined optional capabilities when supplied
   by the provider; applications supply production network providers.
@@ -685,18 +685,25 @@ OPC UA Part 12 areas:
   for each managed application; the selected type must be advertised by its
   certificate group. Per-entry remote `ConfigurationFile`
   update/confirm and restart recovery use optional application-scoped Part 12
-  providers; shorter configuration replacements are rejected before writing
-  because FileType supplies no interoperable truncation operation.
+  providers. The client reads the existing content and rewinds before writing.
+  It rejects shorter replacements because FileType supplies no interoperable
+  truncation operation.
   Pull supports signing and new-key-pair requests for the DCA and managed
-  applications. Signing recovery retains the request and its private key;
-  a consumed key-pair response requires a new request rather than certificate-only recovery.
-  The originally selected certificate type is retained during recovery.
+  applications. Signing recovery retains the request and its private key.
+  [New-key-pair recovery](PullDcaKeyPairRecovery.md) resumes from a protected
+  checkpoint. If the registrar consumed the request and the response was lost,
+  the workflow starts a fresh request rather than attempting certificate-only
+  recovery. Recovery retains the originally selected certificate type.
   The optional external-authentication handoff uses an injectable provider for
   dedicated CA trust and configured product/DCA approval; typed external pull
-  and registrar push reuse the existing lifecycle. FDO protocols and credential
-  installation remain external.
-  Connected recovery fixtures are present; their execution status is tracked
-  separately. See
+  and registrar push reuse the existing lifecycle. The external service runs
+  FDO and installs the bootstrap credential when that authentication option
+  is used.
+  **Deployment requirements:** Implementers supply protected key-pair storage,
+  exclusive ownership for durable records, and any distributed coordination or
+  software installation their deployment needs. The connected recovery test
+  uses an in-memory checkpoint to verify the SDK workflow across a new session;
+  it does not verify persistence across a process restart. See
   [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
@@ -947,7 +954,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
 | [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens require `IFileSystemReadWriteProvider`; conflicting write opens can return `Bad_InvalidState` instead of `Bad_NotWritable` |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | DCA and managed-application pull support signing and new-key-pair requests. [New-key-pair recovery](PullDcaKeyPairRecovery.md) requires a host-supplied protected store; push recovery and pull continuation also depend on persistent providers with exclusive ownership. Lifecycle routing composes provisionable-device nodes with Part 22 `Resources`. `ConfigurationFile` reads existing content and rewinds before writing, but rejects shorter replacements without truncation support. Distributed coordination, software installation, and FDO protocols remain external. [Details](GDS.md#opc-10000-21-onboardingclient) |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Full | - |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | - |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
