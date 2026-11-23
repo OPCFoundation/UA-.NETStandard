@@ -666,11 +666,19 @@ namespace Opc.Ua.OpenUsd.Connector
                 ? StringComparer.OrdinalIgnoreCase
                 : StringComparer.Ordinal;
             var files = new HashSet<string>(comparer);
+            closure = files;
             foreach (OpenUsdConnector.FetchedAsset asset in fetched)
             {
-                files.Add(Path.GetFullPath(asset.LocalPath));
+                // Distinct identifiers (cell.usda, ./cell.usda) can land on one cache
+                // file; scanning it once per alias would multiply the work past the
+                // download budget, and the later write has replaced the earlier bytes.
+                if (!files.Add(Path.GetFullPath(asset.LocalPath)))
+                {
+                    refusal = $"The served asset '{asset.Identifier}' resolves to a file another served " +
+                        "asset already occupies.";
+                    return false;
+                }
             }
-            closure = files;
             refusal = null;
             var strictUtf8 = new UTF8Encoding(false, true);
             foreach (OpenUsdConnector.FetchedAsset asset in fetched)

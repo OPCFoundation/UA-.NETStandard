@@ -193,6 +193,25 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
+        public void FetchedAliasesOfOneCacheFileAreRefused()
+        {
+            OpenUsdConnector.FetchedAsset first = Fetched("cell.usda", "#usda 1.0\n", OpenUsdAssetKind.RootLayer);
+            List<OpenUsdConnector.FetchedAsset> fetched =
+            [
+                first,
+                new OpenUsdConnector.FetchedAsset
+                {
+                    Identifier = "./cell.usda",
+                    Kind = OpenUsdAssetKind.SubLayer,
+                    LocalPath = Path.Combine(m_directory, ".", "cell.usda")
+                }
+            ];
+
+            Assert.That(OpenUsdConnectorRunner.TryValidateFetchedClosure(fetched, out _, out string? refusal), Is.False);
+            Assert.That(refusal, Does.Contain("./cell.usda"));
+        }
+
+        [Test]
         public void FetchedLayerWithInvalidUtf8IsRefused()
         {
             string path = Path.Combine(m_directory, "cell.usda");
