@@ -1658,7 +1658,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_directory = Path.Combine(
                     Path.GetTempPath(), "UaWotC2", Guid.NewGuid().ToString("N"));
                 m_storage = new PreparedWotTestStorage(Path.Combine(m_directory, "registry"));
-                m_fixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
+                m_fixture = new ServerFixture<StandardServer>(context => new StandardServer(context))
                 {
                     UriScheme = Utils.UriSchemeOpcTcp,
                     AutoAccept = true,
@@ -2171,7 +2171,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 TestContext.Out.WriteLine(
                     $"C2_RUNTIME framework={RuntimeInformation.FrameworkDescription};clr={Environment.Version};" +
                     $"serverGC={GCSettings.IsServerGC};architecture={RuntimeInformation.ProcessArchitecture}");
-                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
+                await WotTestPki.SeedAsync<StandardServer>(m_directory, telemetry => new StandardServer(telemetry), 0).ConfigureAwait(false);
                 m_server = await m_fixture.StartAsync(m_directory).ConfigureAwait(false);
                 if (rebaseNamespaces)
                 {
@@ -2237,9 +2237,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             private readonly string m_directory;
-            private readonly ServerFixture<ReferenceServer> m_fixture;
+            private readonly ServerFixture<StandardServer> m_fixture;
             private readonly PreparedWotTestStorage m_storage;
-            private ReferenceServer? m_server;
+            private StandardServer? m_server;
             private ClientFixture? m_client;
             private WotRegistryService? m_registry;
             private FileWotRegistryStore? m_store;

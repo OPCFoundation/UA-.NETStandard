@@ -807,13 +807,13 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 m_directory = Path.Combine(Path.GetTempPath(), "r42-admission", Guid.NewGuid().ToString("N"));
-                m_serverFixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
+                m_serverFixture = new ServerFixture<StandardServer>(context => new StandardServer(context))
                 {
                     UriScheme = Utils.UriSchemeOpcTcp,
                     AutoAccept = true,
                     SecurityNone = false
                 };
-                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
+                await WotTestPki.SeedAsync<StandardServer>(m_directory, telemetry => new StandardServer(telemetry), 0).ConfigureAwait(false);
                 m_server = await m_serverFixture.StartAsync(m_directory);
                 await m_server.NodeManagerLifecycle.ApplyAsync(
                     [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
@@ -874,8 +874,8 @@ namespace Opc.Ua.WotCon.Tests
             }
 
             private string m_directory = string.Empty;
-            private ServerFixture<ReferenceServer>? m_serverFixture;
-            private ReferenceServer m_server = null!;
+            private ServerFixture<StandardServer>? m_serverFixture;
+            private StandardServer m_server = null!;
             private ClientFixture? m_clientFixture;
             private NodeManagerRegistration m_registration = null!;
             private ServiceProvider? m_services;

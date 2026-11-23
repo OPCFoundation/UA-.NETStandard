@@ -21,7 +21,6 @@ using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Server.Materialization;
-using Quickstarts.ReferenceServer;
 using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 using ISession = Opc.Ua.Client.ISession;
 using MonitoredItem = Opc.Ua.Client.MonitoredItem;
@@ -228,7 +227,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <summary>
             /// Gets or sets the server for <c>NativeEndpoint</c>.
             /// </summary>
-            public ReferenceServer Server { get; private set; } = null!;
+            public StandardServer Server { get; private set; } = null!;
 
             /// <summary>
             /// Gets or sets the session for <c>NativeEndpoint</c>.
@@ -247,7 +246,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 bool managed, CancellationToken ct, string securityPolicy = SecurityPolicies.Basic256Sha256)
             {
                 m_fixture.SecurityNone = securityPolicy == SecurityPolicies.None;
-                await WotTestPki.SeedAsync(m_root, m_identity, "EventModesClient").ConfigureAwait(false);
+                await WotTestPki.SeedAsync<StandardServer>(
+                    m_root, t => new StandardServer(t), m_identity, "EventModesClient").ConfigureAwait(false);
                 Server = await m_fixture.StartAsync(m_root).ConfigureAwait(false);
                 await m_client.LoadClientConfigurationAsync(m_root, "EventModesClient").ConfigureAwait(false);
                 m_session = await m_client.ConnectAsync(new Uri(EndpointUrl), securityPolicy)
@@ -338,7 +338,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
-            private readonly ServerFixture<ReferenceServer> m_fixture = new(t => new ReferenceServer(t))
+            private readonly ServerFixture<StandardServer> m_fixture = new(t => new StandardServer(t))
             {
                 AutoAccept = true
             };

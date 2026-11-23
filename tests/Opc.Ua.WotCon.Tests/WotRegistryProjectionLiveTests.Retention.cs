@@ -18,7 +18,7 @@ namespace Opc.Ua.WotCon.Tests
     /// <c>WotRegistryProjection</c> and the corresponding <c>WotRegistryNodeManager</c>
     /// paths (event building, refresh gate, address-space lifecycle) as well as the
     /// production <c>LifecycleWotProjectionHost</c>.
-    /// A real <see cref="ReferenceServer"/> is started per test, and a real OPC UA session
+    /// A real <see cref="StandardServer"/> is started per test, and a real OPC UA session
     /// connects over loopback opc.tcp so that method calls travel the full server-side
     /// call chain.
     /// </summary>

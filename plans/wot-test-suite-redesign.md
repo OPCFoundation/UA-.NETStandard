@@ -334,15 +334,38 @@ before, 4.1-4.7 s after. The remaining cost is the converter work these
 cases exist to prove, not repeated parsing. Running the Pumps conversion
 faster would need converter changes, not test changes.
 
+## `StandardServer` for more live fixtures
+
+Same switch as for `WotAtomicPublicationNativeTests`, applied to the next
+heaviest fixtures. Paired runs of copies of both builds, back to back,
+net10.0 Release, all cases passed in every run:
+
+| Fixtures | Cases | Before | After |
+|---|---:|---:|---:|
+| `WotEventModesLiveTests` | 74 | 49 s / 1 min 7 s | 42 s / 58 s |
+| `WotRegistryProjectionLiveTests`, `WotProjectionViewCanonicalLiveTests`, `WotLegacyNativeAdmissionLiveTests` | 239 | 1 min 27 s / 1 min 44 s | 1 min 15 s / 1 min 17 s |
+
+The gain is 14-26 %. These cases spend more of their time on event delivery,
+browsing and calls than on the server start. Not switched:
+
+* `WotRegistryIdentityLiveTests`. `FederationRebasesCurrentNativeNamespaceAndServerTables`
+  restarts on a `ReferenceServer` and compares server URIs, and the fixture
+  was no faster (1 min 18 s → 1 min 15 s, 1 min 11 s → 1 min 50 s).
+* The federation peer servers, which derive from `ReferenceServer`.
+
+Measured and rejected: **server GC.** A serial `StandardServer` lifecycle
+takes about 430 ms (start 170 ms, client configuration 85 ms, stop 125 ms);
+under four workers the start alone measured about 900 ms. Server GC
+(`DOTNET_gcServer=1`, verified with `GCSettings.IsServerGC`) did not change
+the 377-case live subset (1 min 25 s vs 1 min 26 s, 1 min 23 s vs 1 min 23 s).
+`<ServerGarbageCollection>` in the test project is not honored by the test
+host anyway.
 ## Follow-ups (not in this change)
 
-* **Lighter server for the other fixtures.** A seeded `StandardServer`
-  starts in about half the time of a `ReferenceServer`. The reference server
-  also brings user management, role mapping and its own namespace, which some
-  WoT tests depend on, so the switch has to be made per fixture with its
-  assertions reviewed. `WotAtomicPublicationNativeTests` is done (see above).
-  A fixture that restarts into `PreparedWotTestRuntime` must restart on the
-  same server type.
+* **Lighter server for the remaining fixtures.** Five of the six heaviest
+  live fixtures now use `StandardServer` (see above). The smaller ones could
+  follow; each needs its assertions reviewed. A fixture that restarts into
+  `PreparedWotTestRuntime` must restart on the same server type.
 * **Faster `ServerFixture` start.** About 0.9 s of every live WoT case is the
   server start itself; it was not profiled further.
 * **net48 parallelism.** net48 tests take almost three times as long each
