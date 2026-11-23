@@ -166,19 +166,62 @@ Expected CI shape: 6 instead of 16 WotCon jobs per CI run
 (Windows net11.0 1, Linux net11.0 1, Windows net48 2, macOS net11.0 2),
 which also drops ten build-and-setup overheads of 8-14 minutes each.
 
+## `WotAtomicPublicationNativeTests` on a plain server
+
+Follow-up change on top of the redesign. All 303 cases and their names are
+kept, and no assertion was changed or removed.
+
+1. **`StandardServer` instead of `ReferenceServer`.** None of the 23 partial
+   files uses the reference server's node managers, users, roles or
+   namespace. Namespace indices are looked up by URI, and the `ns=1` in the
+   inline NodeSets is local to each NodeSet. The only dependency was
+   indirect: the recovery cases restart into a `PreparedWotTestRuntime`, and
+   the server type names the application, so a `ReferenceServer` restart saw
+   a different server URI than the one in the committed canonical view graph
+   (6 failures). `PreparedWotTestRuntime.StartAsync<T>(factory)` now starts a
+   runtime of the fixture's own type, and the native fixture restarts with
+   `StandardServer`. No case still needs `ReferenceServer`.
+2. **One client configuration per fixture.** Every case loaded a client
+   configuration and checked its certificates (about 400 ms). The fixture now
+   loads it once and disposes it in a static `[OneTimeTearDown]`. Every case
+   still opens and closes its own session.
+3. **No conversion to lifecycle fakes.** 140 of the 149 test methods read,
+   browse, call or subscribe through the session to prove the native outcome,
+   so a fake would replace the thing they assert. The other 9 assert
+   `NodeManagerLifecycle.Registrations`, the server namespace table or
+   `ApplyAsync` results of the real lifecycle. Converting them would save
+   about 1 % of the fixture and weaken what they check.
+
+Per-case setup after step 1, measured with a temporary stopwatch (4 workers,
+mean over 299 cases): server start 919 ms, client configuration 400 ms,
+connect 48 ms, teardown 186 ms, registry store 8 ms. The server start is now
+the largest cost; it lives in `ServerFixture`, outside this test project.
+
+Local, net10.0 Debug, `FullyQualifiedName~WotAtomicPublicationNativeTests`
+(303 cases, all passed in every run):
+
+| Run | Wall | Sum of test durations |
+|---|---:|---:|
+| Quiet machine, before | 3 min 43 s | 893 s |
+| Quiet machine, `StandardServer` only | 2 min 9 s | 515 s |
+| Quiet machine, `StandardServer` + shared client | 1 min 52 s | 450 s |
+| Paired, 2 other test hosts running, before | 4 min 6 s | 984 s |
+| Paired, 2 other test hosts running, after | 1 min 58 s | 472 s |
+
+The paired runs used copies of both builds run back to back, so they saw the
+same load: the fixture takes about half the time it did.
+
 ## Follow-ups (not in this change)
 
-* **Lighter server for tests that do not need the reference address space.**
-  A seeded `StandardServer` starts in about half the time of a
-  `ReferenceServer`. The reference server also brings user management, role
-  mapping and its own namespace, which some WoT tests depend on, so the switch
-  has to be made per fixture with its assertions reviewed
-  (`WotAtomicPublicationNativeTests`, 303 cases, is the first candidate).
-* **Server-free unit coverage for the atomic publication decisions.** Most
-  `WotAtomicPublicationNativeTests` cases assert registry and coordinator
-  state and read one `NodeClass` through a session. The decision logic could
-  be covered against `INodeManagerLifecycle` fakes, leaving a small set of
-  real-server outcome tests.
+* **Lighter server for the other fixtures.** A seeded `StandardServer`
+  starts in about half the time of a `ReferenceServer`. The reference server
+  also brings user management, role mapping and its own namespace, which some
+  WoT tests depend on, so the switch has to be made per fixture with its
+  assertions reviewed. `WotAtomicPublicationNativeTests` is done (see above).
+  A fixture that restarts into `PreparedWotTestRuntime` must restart on the
+  same server type.
+* **Faster `ServerFixture` start.** About 0.9 s of every live WoT case is the
+  server start itself; it was not profiled further.
 * **Consistent categories.** Mark every server-starting class
   `[Category("Integration")]` so a server-free subset can be run locally
   (`TestCategory!=Integration`) in well under a minute.
