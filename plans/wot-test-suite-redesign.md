@@ -70,8 +70,9 @@ Windows net11.0 43.2 / 68.8, Linux net11.0 30.3 / 48.6, macOS net11.0
   a condition every 25 ms, so it only costs time when a test fails.
 * Private reflection is limited to 14 call sites in nine files and does
   not affect run time.
-* The `Samples/` tests (133 cases, about 1.6 minutes) parse the checked-in
-  sample sets per test; the 20-second
+* The `Samples/` tests (133 cases, about 1.6 minutes) re-read the checked-in
+  sample sets per test (see "Sample input cache" below: the cost is the
+  conversions, not the reads); the 20-second
   `ManifestDocumentsMatchCompleteAsyncRegeneration` is the slowest single case
   of the suite and stays as is.
 
@@ -268,6 +269,71 @@ run was slower than the 10 to 12 minutes above because other sessions were
 building and testing on the machine at the same time; the guard itself adds
 a dictionary lookup per test.
 
+## Sample input cache (`Samples/`)
+
+### Where the time went
+
+A probe that timed the shared helpers twice in one process (net10.0
+Release, serial) showed that reading and parsing the checked-in inputs is
+not the cost:
+
+| Helper | Time |
+|---|---:|
+| `ReadNodeSet` (sample pump / DI / Machinery / Pumps NodeSet) | 0-100 ms |
+| `ReadManifestDocuments` (manifest and all 200+ documents) | 17-22 ms |
+| `CreateCompanionNodeResolver` (converts DI, Machinery, Pumps) | 5.1-5.4 s |
+| `GenerateVerifiedDocumentSetAsync` for Pumps | 10.8-12.9 s |
+| `GenerateAggregationDocumentsAsync` (complete regeneration) | 17.4-17.5 s |
+
+Three cases carry two thirds of the namespace's serial time:
+`ManifestDocumentsMatchCompleteAsyncRegeneration` (14-19 s),
+`PumpsModelRetainsEverySourceFactAsync` (11-20 s) and
+`NativePumpsPartitionsRestoreTheSourceNodeSetWithoutChangeAsync` (7-9 s). The
+first two are the Pumps model conversion itself; the third and the
+regeneration each built the 5-second companion resolver.
+
+### Change
+
+`Samples/SampleInputCache.cs` holds, per process and per path, the companion
+node resolver, the manifest documents and the unbound pump declaration
+documents behind `Lazy<T>` (execution and publication). What it hands out is
+immutable to callers: `ArrayOf<T>` and `ByteString` expose read-only views,
+and `WotDocumentNodeResolver` only reads its indexes after construction.
+`UANodeSet` is mutable and cheap to read, so it is not cached. A failed load
+is evicted and retried. Every writer (`WriteBytesAsync`,
+`WriteDocumentsAsync` and the three `File.WriteAllBytes` writers) clears the
+cache, and the writers are `[NonParallelizable]`, so no reader runs while a
+file is replaced. `SampleInputCacheTests` (two new cases) prove the
+invalidation and the retry. All six explicit writers were run after the
+change and rewrote the checked-in samples byte for byte.
+
+`ManifestDocumentsMatchCompleteAsyncRegeneration` still regenerates every
+document from its source NodeSet; only the resolver, which is read-only
+context derived from the companion NodeSets no writer touches, is shared.
+
+### Measurements
+
+Local, net10.0 Release, `Samples` namespace (124 cases, the 9 explicit
+writers and probes excluded), baseline and change built side by side and run
+alternately on the shared development machine:
+
+| Run | Baseline wall / summed | Cache wall / summed |
+|---|---:|---:|
+| Parallel (4 workers), pair 1 | 55.8 s / 182.1 s | 50.0 s / 163.6 s |
+| Parallel, pair 2 | 48.7 s / 164.8 s | 43.3 s / 152.9 s |
+| Parallel, pair 3 | 40.5 s / 144.8 s | 39.2 s / 135.1 s |
+| Serial (1 worker), pair 1 | 67.6 s / 66.7 s | 59.4 s / 58.6 s |
+| Serial, pair 2 | 57.4 s / 56.6 s | 70.6 s / 69.7 s |
+
+The parallel runs are 3-11 % shorter in every pair. The serial pairs are
+within the machine's noise (in serial pair 2 the untouched
+`PumpsModelRetainsEverySourceFactAsync` alone went from 11.3 s to 22.8 s).
+The stable per-case effect is
+`NativePumpsPartitionsRestoreTheSourceNodeSetWithoutChangeAsync`: 7.0-9.4 s
+before, 4.1-4.7 s after. The remaining cost is the converter work these
+cases exist to prove, not repeated parsing. Running the Pumps conversion
+faster would need converter changes, not test changes.
+
 ## Follow-ups (not in this change)
 
 * **Lighter server for the other fixtures.** A seeded `StandardServer`
@@ -281,5 +347,4 @@ a dictionary lookup per test.
   server start itself; it was not profiled further.
 * **net48 parallelism.** net48 tests take almost three times as long each
   under four-way parallelism, so its CI entries did not get shorter. Fewer
-  workers or more entries for net48 trade wall time against runner minutes.* **Sample data.** Cache the parsed sample sets per process in the
-  `Samples/` tests.
+  workers or more entries for net48 trade wall time against runner minutes.
