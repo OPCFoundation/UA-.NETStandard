@@ -5320,9 +5320,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Releases a deleted item's binding on a retired generation through its binding record. The record is
-        /// removed even when the release fails, because the deleted item can no longer be retried; the failure is
-        /// reported to the client instead.
+        /// Releases a deleted item's binding on a retired generation. Failed releases are reported to the
+        /// client and keep the item alive until retirement retries the binding.
         /// </summary>
         private async ValueTask<ServiceResult> ReleaseRetiringEventBindingAsync(
             OperationContext context,
@@ -5340,8 +5339,7 @@ namespace Opc.Ua.Server
                     monitoredItem,
                     (remove, ct) => owner.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
                     unsubscribe: true,
-                    cancellationToken,
-                    retainFailedRelease: false).ConfigureAwait(false) ??
+                    cancellationToken).ConfigureAwait(false) ??
                     ServiceResult.Good;
                 if (result.StatusCode == StatusCodes.BadNotSupported)
                 {

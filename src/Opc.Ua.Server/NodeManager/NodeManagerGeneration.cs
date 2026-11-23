@@ -682,12 +682,15 @@ namespace Opc.Ua.Server
         {
             lock (m_eventBindingsLock)
             {
-                if (EventBindingsSealed)
+                if (unsubscribe)
                 {
-                    return unsubscribe &&
-                        EventBindings.TryGetValue(monitoredItem, out GenerationEventBindingRecord? record)
+                    return EventBindings.TryGetValue(monitoredItem, out GenerationEventBindingRecord? record)
                         ? record
                         : null;
+                }
+                if (EventBindingsSealed)
+                {
+                    return null;
                 }
                 return EventBindings.GetOrAdd(monitoredItem, static item => new GenerationEventBindingRecord(item));
             }

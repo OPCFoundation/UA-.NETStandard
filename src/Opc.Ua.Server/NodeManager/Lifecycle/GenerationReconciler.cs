@@ -481,10 +481,6 @@ namespace Opc.Ua.Server
         /// <param name="dispatchAsync">The callback that changes the binding.</param>
         /// <param name="unsubscribe">Whether to remove the binding.</param>
         /// <param name="cancellationToken">The operation cancellation token.</param>
-        /// <param name="retainFailedRelease">
-        /// Whether a rejected release keeps the record for a later retry. A release for an item being deleted
-        /// reports the failure to the client instead, because the item no longer exists to retry for.
-        /// </param>
         /// <param name="refreshExisting">
         /// Whether an existing binding receives another callback for modification. Reconciliation only ensures
         /// that a binding exists and never replays its initial callback.
@@ -496,7 +492,6 @@ namespace Opc.Ua.Server
             Func<bool, CancellationToken, ValueTask<ServiceResult>> dispatchAsync,
             bool unsubscribe,
             CancellationToken cancellationToken,
-            bool retainFailedRelease = true,
             bool refreshExisting = true)
         {
             GenerationEventBindingRecord? record = generation.GetEventBinding(monitoredItem, unsubscribe);
@@ -507,7 +502,7 @@ namespace Opc.Ua.Server
             if (unsubscribe)
             {
                 return UnsubscribeAllEventsAsync(
-                    generation, monitoredItem, record, dispatchAsync, retainFailedRelease, cancellationToken);
+                    generation, monitoredItem, record, dispatchAsync, cancellationToken);
             }
 
             return SubscribeAllEventsAsync(
@@ -646,7 +641,6 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             GenerationEventBindingRecord record,
             Func<bool, CancellationToken, ValueTask<ServiceResult>> dispatchAsync,
-            bool retainFailedRelease,
             CancellationToken cancellationToken)
         {
             Task<bool>? pending = null;
@@ -684,7 +678,7 @@ namespace Opc.Ua.Server
                 bool stillBound = await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
                 return stillBound
                     ? await UnsubscribeAllEventsAsync(
-                        generation, monitoredItem, record, dispatchAsync, retainFailedRelease, cancellationToken)
+                        generation, monitoredItem, record, dispatchAsync, cancellationToken)
                         .ConfigureAwait(false)
                     : ServiceResult.Good;
             }
@@ -693,8 +687,7 @@ namespace Opc.Ua.Server
             {
                 ServiceResult result = await dispatchAsync(true, cancellationToken).ConfigureAwait(false)
                     ?? ServiceResult.Good;
-                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported &&
-                    retainFailedRelease)
+                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
                 {
                     lock (record.Sync)
                     {
@@ -713,12 +706,6 @@ namespace Opc.Ua.Server
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                if (!retainFailedRelease)
-                {
-                    MarkRemoved(generation, monitoredItem, record);
-                    owner!.TrySetResult(false);
-                    throw;
-                }
                 lock (record.Sync)
                 {
                     record.State = GenerationEventBindingState.Bound;
