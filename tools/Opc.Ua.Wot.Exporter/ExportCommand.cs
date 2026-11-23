@@ -32,13 +32,15 @@ namespace Opc.Ua.Wot.Exporter
             if (args is ["--help"] or ["-h"])
             {
                 await m_output.WriteLineAsync(
-                    "Usage: opcua-wot-export <source-path> [output-path] " +
-                    "[--registry-base-url <url>] [--group-id <id>]\n" +
-                    "Read *NodeSet2.xml in the source folder and its subfolders.\n" +
-                    "Default output: <source-path>\\out. A source file is also accepted.\n" +
-                    "An explicit output path is relative to the current folder.\n" +
-                    "Default registry: https://opcfoundation.org. Default group: opcua.\n" +
-                    "OPCUA_WOT_REGISTRY_BASE_URL overrides the default registry; --registry-base-url takes precedence.")
+                    ("Usage: opcua-wot-export <source-path> [output-path] " +
+                        "[--registry-base-url <url>] [--group-id <id>]\n" +
+                        "Read *NodeSet2.xml in the source folder and its subfolders.\n" +
+                        "Default output: <source-path>\\out. A source file is also accepted.\n" +
+                        "An explicit output path is relative to the current folder.\n" +
+                        "Default registry: https://opcfoundation.org. Default group: opcua.\n" +
+                        "OPCUA_WOT_REGISTRY_BASE_URL overrides the default registry; " +
+                        "--registry-base-url takes precedence.")
+                    .AsMemory(), CancellationToken.None)
                     .ConfigureAwait(false);
                 return 0;
             }
@@ -47,7 +49,8 @@ namespace Opc.Ua.Wot.Exporter
                 out string[] paths, out string registryBaseUrl, out string groupId))
             {
                 await m_error.WriteLineAsync(
-                    "ERROR: Supply a source path and, if needed, an output path. Use --help for help.")
+                    "ERROR: Supply a source path and, if needed, an output path. Use --help for help.".AsMemory(),
+                    CancellationToken.None)
                     .ConfigureAwait(false);
                 return 2;
             }
@@ -58,12 +61,15 @@ namespace Opc.Ua.Wot.Exporter
                 bool singleFile = File.Exists(source);
                 if (!singleFile && !Directory.Exists(source))
                 {
-                    await m_error.WriteLineAsync($"ERROR: Source path does not exist: {source}").ConfigureAwait(false);
+                    await m_error.WriteLineAsync(
+                        $"ERROR: Source path does not exist: {source}".AsMemory(), cancellationToken)
+                        .ConfigureAwait(false);
                     return 2;
                 }
                 if (singleFile && !IsNodeSet(source))
                 {
-                    await m_error.WriteLineAsync("ERROR: The source file name must end with NodeSet2.xml.")
+                    await m_error.WriteLineAsync(
+                        "ERROR: The source file name must end with NodeSet2.xml.".AsMemory(), cancellationToken)
                         .ConfigureAwait(false);
                     return 2;
                 }
@@ -71,7 +77,8 @@ namespace Opc.Ua.Wot.Exporter
                 string destination = Path.GetFullPath(paths.Length == 2 ? paths[1] : Path.Combine(sourceFolder, "out"));
                 if (IsWithin(sourceFolder, destination))
                 {
-                    await m_error.WriteLineAsync("ERROR: The output folder must not contain the source folder.")
+                    await m_error.WriteLineAsync(
+                        "ERROR: The output folder must not contain the source folder.".AsMemory(), cancellationToken)
                         .ConfigureAwait(false);
                     return 2;
                 }
@@ -81,7 +88,9 @@ namespace Opc.Ua.Wot.Exporter
                 cancellationToken.ThrowIfCancellationRequested();
                 if (files.Length == 0)
                 {
-                    await m_error.WriteLineAsync("ERROR: No *NodeSet2.xml files were found.").ConfigureAwait(false);
+                    await m_error.WriteLineAsync(
+                        "ERROR: No *NodeSet2.xml files were found.".AsMemory(), cancellationToken)
+                        .ConfigureAwait(false);
                     return 2;
                 }
                 int failed = 0;
@@ -91,21 +100,26 @@ namespace Opc.Ua.Wot.Exporter
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     string relative = Path.GetRelativePath(sourceFolder, files[i]);
-                    await m_output.WriteLineAsync($"[{i + 1}/{files.Length}] Read {relative}").ConfigureAwait(false);
+                    await m_output.WriteLineAsync(
+                        $"[{i + 1}/{files.Length}] Read {relative}".AsMemory(), cancellationToken)
+                        .ConfigureAwait(false);
                     try
                     {
-                        loaded.Add((files[i], await ReadNodeSetAsync(files[i], cancellationToken).ConfigureAwait(false)));
+                        loaded.Add((files[i],
+                            await ReadNodeSetAsync(files[i], cancellationToken).ConfigureAwait(false)));
                     }
                     catch (Exception ex) when (IsInputError(ex))
                     {
                         failed++;
-                        await m_error.WriteLineAsync($"ERROR: {relative}: {ex.Message}").ConfigureAwait(false);
+                        await m_error.WriteLineAsync(
+                            $"ERROR: {relative}: {ex.Message}".AsMemory(), cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
                     {
                         failed++;
                         await m_error.WriteLineAsync(
-                            $"ERROR: {relative}: Unexpected {ex.GetType().Name}: {ex.Message}").ConfigureAwait(false);
+                            $"ERROR: {relative}: Unexpected {ex.GetType().Name}: {ex.Message}".AsMemory(),
+                            cancellationToken).ConfigureAwait(false);
                     }
                 }
                 var nodeResolver = WotDocumentNodeResolver.FromNodeSets(
@@ -119,7 +133,8 @@ namespace Opc.Ua.Wot.Exporter
                     try
                     {
                         Dictionary<ExpandedNodeId, string> modelIds = CreateModelIds(nodeSet, cancellationToken);
-                        using WotDocumentSet documents = await ConvertFileAsync(nodeSet, nodeResolver, cancellationToken)
+                        using WotDocumentSet documents = await ConvertFileAsync(
+                            nodeSet, nodeResolver, cancellationToken)
                             .ConfigureAwait(false);
                         references.Add(nodeSet, documents, modelIds);
                         converted.Add((path, nodeSet));
@@ -129,7 +144,8 @@ namespace Opc.Ua.Wot.Exporter
                         failed++;
                         string detail = IsInputError(ex)
                             ? ex.Message : $"Unexpected {ex.GetType().Name}: {ex.Message}";
-                        await m_error.WriteLineAsync($"ERROR: {relative}: {detail}").ConfigureAwait(false);
+                        await m_error.WriteLineAsync(
+                            $"ERROR: {relative}: {detail}".AsMemory(), cancellationToken).ConfigureAwait(false);
                     }
                 }
                 foreach ((string path, UANodeSet nodeSet) in converted)
@@ -149,24 +165,28 @@ namespace Opc.Ua.Wot.Exporter
                         failed++;
                         string detail = IsInputError(ex)
                             ? ex.Message : $"Unexpected {ex.GetType().Name}: {ex.Message}";
-                        await m_error.WriteLineAsync($"ERROR: {relative}: {detail}").ConfigureAwait(false);
+                        await m_error.WriteLineAsync(
+                            $"ERROR: {relative}: {detail}".AsMemory(), cancellationToken).ConfigureAwait(false);
                     }
                 }
                 await m_output.WriteLineAsync(
-                    $"Done. Files: {files.Length}. Failed: {failed}. " +
-                    $"Documents written: {written}. Output: {destination}")
+                    ($"Done. Files: {files.Length}. Failed: {failed}. " +
+                        $"Documents written: {written}. Output: {destination}").AsMemory(), cancellationToken)
                     .ConfigureAwait(false);
                 return failed == 0 ? 0 : 1;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                await m_error.WriteLineAsync("ERROR: Export stopped. The output can be incomplete.")
+                // Final diagnostics must still be written after export cancellation.
+                await m_error.WriteLineAsync(
+                    "ERROR: Export stopped. The output can be incomplete.".AsMemory(), CancellationToken.None)
                     .ConfigureAwait(false);
                 return 130;
             }
             catch (Exception ex) when (IsInputError(ex))
             {
-                await m_error.WriteLineAsync($"ERROR: {ex.Message}").ConfigureAwait(false);
+                await m_error.WriteLineAsync($"ERROR: {ex.Message}".AsMemory(), CancellationToken.None)
+                    .ConfigureAwait(false);
                 return 1;
             }
         }
@@ -189,14 +209,14 @@ namespace Opc.Ua.Wot.Exporter
             for (int i = 0; i < args.Length; i++)
             {
                 string argument = args[i];
-                if (!argument.StartsWith('-'))
+                if (argument is not ['-', ..])
                 {
                     positional.Add(argument);
                 }
                 else if (argument is not ("--registry-base-url" or "--group-id") ||
                     !seen.Add(argument) ||
                     ++i == args.Length ||
-                    args[i].StartsWith('-'))
+                    args[i] is ['-', ..])
                 {
                     paths = [];
                     return false;
@@ -272,7 +292,9 @@ namespace Opc.Ua.Wot.Exporter
             };
             if (reportDiagnostics)
             {
-                await m_output.WriteLineAsync("  Convert the NodeSet. Check source preservation.").ConfigureAwait(false);
+                await m_output.WriteLineAsync(
+                    "  Convert the NodeSet. Check source preservation.".AsMemory(), cancellationToken)
+                    .ConfigureAwait(false);
             }
             WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter.FromNodeSetDocumentsAsync(
                 nodeSet, "model.TM.json", options: options, nodeResolver: nodeResolver,
@@ -285,13 +307,16 @@ namespace Opc.Ua.Wot.Exporter
                     foreach (WotDiagnostic diagnostic in result.Diagnostics)
                     {
                         TextWriter writer = diagnostic.Severity == WotDiagnosticSeverity.Info ? m_output : m_error;
-                        await writer.WriteLineAsync($"  {diagnostic.Severity.ToString().ToUpperInvariant()}: {diagnostic}")
+                        await writer.WriteLineAsync(
+                            $"  {diagnostic.Severity.ToString().ToUpperInvariant()}: {diagnostic}".AsMemory(),
+                            cancellationToken)
                             .ConfigureAwait(false);
                     }
                 }
                 if (!result.Success || documents is null)
                 {
-                    throw new FormatException("The converter could not preserve this NodeSet. No documents were written.");
+                    throw new FormatException(
+                        "The converter could not preserve this NodeSet. No documents were written.");
                 }
                 return documents;
             }
@@ -348,17 +373,20 @@ namespace Opc.Ua.Wot.Exporter
             if (models != documents.Entries.Count)
             {
                 await m_error.WriteLineAsync(
-                    $"  WARNING: Keep all {documents.Entries.Count - models} support documents. " +
-                    "They are not Thing Models. Their file names are link targets, not type claims.")
+                    ($"  WARNING: Keep all {documents.Entries.Count - models} support documents. " +
+                        "They are not Thing Models. Their file names are link targets, not type claims.").AsMemory(),
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
             if (models == 0)
             {
-                await m_error.WriteLineAsync("  WARNING: This NodeSet has no Thing Model in the converter output.")
+                await m_error.WriteLineAsync(
+                    "  WARNING: This NodeSet has no Thing Model in the converter output.".AsMemory(), cancellationToken)
                     .ConfigureAwait(false);
             }
             await m_output.WriteLineAsync(
-                $"  Wrote {models} Thing Models and {documents.Entries.Count - models} support files.")
+                $"  Wrote {models} Thing Models and {documents.Entries.Count - models} support files.".AsMemory(),
+                cancellationToken)
                 .ConfigureAwait(false);
             return documents.Entries.Count;
         }

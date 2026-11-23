@@ -255,7 +255,7 @@ namespace Opc.Ua.Wot.Exporter
             int separator = reference.Length;
             while (model is null && separator > 0)
             {
-                separator = reference.LastIndexOf('#', separator - 1);
+                separator = reference.AsSpan(0, separator).LastIndexOf('#');
                 if (separator >= 0)
                 {
                     model = FindTarget(reference[..separator], aliases);
@@ -312,7 +312,8 @@ namespace Opc.Ua.Wot.Exporter
         {
             if (string.IsNullOrWhiteSpace(model.Version) || model.Version is "." or "..")
             {
-                throw new FormatException($"No valid Model Version for namespace '{model.NativeIdentity.NamespaceUri}' " +
+                throw new FormatException(
+                    $"No valid Model Version for namespace '{model.NativeIdentity.NamespaceUri}' " +
                     $"(Thing Model '{model.Id}').");
             }
         }

@@ -177,6 +177,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
         /// <summary>
         /// Applies environment configuration and CLI overrides to sibling models and encodes path components.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase("https://example.test/registry/", false)]
         [TestCase("https://ignored.test", true)]
         [TestCase("not a URL", true)]
@@ -185,7 +186,8 @@ namespace Opc.Ua.Wot.Exporter.Tests
             string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
             using (var input = new MemoryStream(Encoding.UTF8.GetBytes(k_nodeSet)))
             {
-                var nodeSet = UANodeSet.Read(input);
+                UANodeSet nodeSet = UANodeSet.Read(input) ??
+                    throw new InvalidOperationException("The test NodeSet could not be read.");
                 nodeSet.Items![1].References![0].Value = "ns=1;i=1";
                 using var buffer = new MemoryStream();
                 nodeSet.Write(buffer);
@@ -370,6 +372,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
         /// <summary>
         /// Resolves shared argument properties through forward references without importing dependency nodes.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase("A", "Z", "valid")]
         [TestCase("Z", "A", "valid")]
         [TestCase("A", "Z", "missing")]
@@ -511,7 +514,9 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(errors.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=19"));
 
             using var dependencyXml = new MemoryStream(Encoding.UTF8.GetBytes(dependency));
-            var resolver = WotDocumentNodeResolver.FromNodeSets([UANodeSet.Read(dependencyXml)]);
+            UANodeSet dependencyNodeSet = UANodeSet.Read(dependencyXml) ??
+                throw new InvalidOperationException("The dependency NodeSet could not be read.");
+            var resolver = WotDocumentNodeResolver.FromNodeSets([dependencyNodeSet]);
             foreach (string argumentName in (string[])["VerificationMode", "VerificationErrors"])
             {
                 string changed = document.RootElement.GetRawText().Replace(

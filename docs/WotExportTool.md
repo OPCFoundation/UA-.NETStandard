@@ -188,6 +188,10 @@ Press Ctrl+C to stop.
 
 From the repository root:
 
+The exporter and its tests use .NET 10 by default. Set
+`CustomTestTarget=net11.0` to build and test with .NET 11, as the PR CI
+profile does. The .NET Framework profile excludes these projects.
+
 ```powershell
 dotnet build tools\Opc.Ua.Wot.Exporter\Opc.Ua.Wot.Exporter.csproj -c Release -p:CustomTestTarget=net10.0
 dotnet test tests\Opc.Ua.Wot.Exporter.Tests\Opc.Ua.Wot.Exporter.Tests.csproj -c Release -p:CustomTestTarget=net10.0
