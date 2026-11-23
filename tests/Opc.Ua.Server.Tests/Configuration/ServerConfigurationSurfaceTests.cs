@@ -230,6 +230,16 @@ namespace Opc.Ua.Server.Tests
             Assert.That(metadata?.DefaultUserRolePermissions, Is.Not.Null);
             ArrayOf<RolePermissionType> originalRoles = metadata!.DefaultRolePermissions!.Value;
             ArrayOf<RolePermissionType> originalUserRoles = metadata.DefaultUserRolePermissions!.Value;
+
+            // The optional GetCertificates method is allocated in the diagnostics namespace.
+            const string diagnosticsUri = Ua.Namespaces.OpcUa + "Diagnostics";
+            NamespaceMetadataState diagnostics = await serverInternal.ConfigurationNodeManager
+                .CreateNamespaceMetadataStateAsync(diagnosticsUri).ConfigureAwait(false)
+                ?? throw new AssertionException("The diagnostics namespace metadata was not created.");
+            Assert.That(diagnostics.DefaultRolePermissions, Is.Not.Null);
+            Assert.That(diagnostics.DefaultUserRolePermissions, Is.Not.Null);
+            ArrayOf<RolePermissionType> originalDiagnosticsRoles = diagnostics.DefaultRolePermissions!.Value;
+            ArrayOf<RolePermissionType> originalDiagnosticsUserRoles = diagnostics.DefaultUserRolePermissions!.Value;
             try
             {
                 metadata.DefaultRolePermissions.Value =
@@ -241,7 +251,11 @@ namespace Opc.Ua.Server.Tests
                     }
                 ];
                 metadata.DefaultUserRolePermissions.Value = ArrayOf<RolePermissionType>.Empty;
+                diagnostics.DefaultRolePermissions.Value = metadata.DefaultRolePermissions.Value;
+                diagnostics.DefaultUserRolePermissions.Value = ArrayOf<RolePermissionType>.Empty;
                 await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+                await diagnostics.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
                     .ConfigureAwait(false);
                 Harness harness = await CreateHarnessAsync(
                     new ServerConfigurationOptions(),
@@ -250,8 +264,11 @@ namespace Opc.Ua.Server.Tests
                     {
                         root.RolePermissions = ArrayOf<RolePermissionType>.Empty;
                         root.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
-                        root.GetCertificates!.RolePermissions = ArrayOf<RolePermissionType>.Empty;
-                        root.GetCertificates.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        GetCertificatesMethodState method = root.GetCertificates!;
+                        Assert.That(method.NodeId.NamespaceIndex,
+                            Is.EqualTo(serverInternal.NamespaceUris.GetIndex(diagnosticsUri)));
+                        method.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        method.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
                     }).ConfigureAwait(false);
                 using (harness.Manager)
                 {
@@ -267,7 +284,10 @@ namespace Opc.Ua.Server.Tests
                             Permissions = (uint)PermissionType.Browse
                         }
                     ];
+                    diagnostics.DefaultRolePermissions.Value = metadata.DefaultRolePermissions.Value;
                     await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                        .ConfigureAwait(false);
+                    await diagnostics.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
                         .ConfigureAwait(false);
                     await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
                         PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
@@ -335,7 +355,11 @@ namespace Opc.Ua.Server.Tests
             {
                 metadata.DefaultRolePermissions.Value = originalRoles;
                 metadata.DefaultUserRolePermissions.Value = originalUserRoles;
+                diagnostics.DefaultRolePermissions.Value = originalDiagnosticsRoles;
+                diagnostics.DefaultUserRolePermissions.Value = originalDiagnosticsUserRoles;
                 await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+                await diagnostics.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
                     .ConfigureAwait(false);
             }
         }
