@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard Stack
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
@@ -203,6 +208,8 @@ vulnerabilities via the process documented in
 
 - [Documentation index](docs/README.md) — every per-feature doc with a
   one-line description.
+- [ISA-95 Job Control](docs/ISA95JobControl.md) — reuse orders, responses,
+  conversions, and lifecycle rules without hosting an OPC UA server.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /

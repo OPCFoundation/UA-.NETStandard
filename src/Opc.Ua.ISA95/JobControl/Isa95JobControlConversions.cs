@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+using System;
 using System.Collections.Generic;
 using V1 = Opc.Ua.ISA95.JobControl.V1;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// Conversions between the version-specific generated Job Control V1/V2 types
@@ -18,7 +19,7 @@ namespace Opc.Ua.ISA95.Server.Providers
     /// the two models genuinely diverge (for example the V1 single-string
     /// descriptions and the V1-only <c>Loaded</c>/<c>Error</c> response states).
     /// </summary>
-    internal static class Isa95JobControlConversions
+    public static class Isa95JobControlConversions
     {
         /// <summary>
         /// Maps a canonical state to the Job Control V1 state enumeration.
@@ -27,9 +28,15 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             return state switch
             {
-                Isa95JobCanonicalState.NotAllowedToStart => V1.ISA95JobOrderStateEnum.Waiting,
-                Isa95JobCanonicalState.AllowedToStart => V1.ISA95JobOrderStateEnum.Ready,
-                Isa95JobCanonicalState.Loaded => V1.ISA95JobOrderStateEnum.Loaded,
+                Isa95JobCanonicalState.NotAllowedToStart or
+                Isa95JobCanonicalState.NotAllowedToStartWaiting or
+                Isa95JobCanonicalState.NotAllowedToStartReady => V1.ISA95JobOrderStateEnum.Waiting,
+                Isa95JobCanonicalState.AllowedToStart or
+                Isa95JobCanonicalState.AllowedToStartWaiting or
+                Isa95JobCanonicalState.AllowedToStartReady => V1.ISA95JobOrderStateEnum.Ready,
+                Isa95JobCanonicalState.Loaded or
+                Isa95JobCanonicalState.NotAllowedToStartLoaded or
+                Isa95JobCanonicalState.AllowedToStartLoaded => V1.ISA95JobOrderStateEnum.Loaded,
                 Isa95JobCanonicalState.Running => V1.ISA95JobOrderStateEnum.Running,
                 Isa95JobCanonicalState.Held => V1.ISA95JobOrderStateEnum.Held,
                 Isa95JobCanonicalState.Suspended => V1.ISA95JobOrderStateEnum.Suspended,
@@ -67,7 +74,14 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// <summary>
         /// Builds the Job Control V2 state array for a canonical state.
         /// </summary>
-        public static ArrayOf<V2.ISA95StateDataType> ToV2StateArray(Isa95JobCanonicalState state)
+        public static ArrayOf<V2.ISA95StateDataType> ToV2StateArray(
+            Isa95JobCanonicalState state,
+            ushort v2NamespaceIndex)
+        {
+            return Isa95V2StateMachine.ToStateArray(state, v2NamespaceIndex);
+        }
+
+        internal static ArrayOf<V2.ISA95StateDataType> ToV2StateArray(Isa95JobCanonicalState state)
         {
             return Isa95V2StateMachine.ToStateArray(state);
         }
@@ -77,7 +91,12 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// </summary>
         public static Isa95JobCanonicalState FromV2StateArray(ArrayOf<V2.ISA95StateDataType> state)
         {
-            return Isa95V2StateMachine.FromStateArray(state);
+            return Isa95V2StateMachine.FromStateArray(state) switch
+            {
+                Isa95JobCanonicalState.NotAllowedToStart => Isa95JobCanonicalState.NotAllowedToStartWaiting,
+                Isa95JobCanonicalState.AllowedToStart => Isa95JobCanonicalState.AllowedToStartWaiting,
+                var canonical => canonical
+            };
         }
 
         /// <summary>
@@ -118,32 +137,14 @@ namespace Opc.Ua.ISA95.Server.Providers
         }
 
         /// <summary>
-        /// Maps a Job Control V2 operation to a neutral operation.
-        /// </summary>
-        public static Isa95JobOperation MapV2Operation(Isa95JobOrderOperationV2 operation)
-        {
-            return operation switch
-            {
-                Isa95JobOrderOperationV2.Store => Isa95JobOperation.Store,
-                Isa95JobOrderOperationV2.StoreAndStart => Isa95JobOperation.StoreAndStart,
-                Isa95JobOrderOperationV2.Start => Isa95JobOperation.Start,
-                Isa95JobOrderOperationV2.Update => Isa95JobOperation.Update,
-                Isa95JobOrderOperationV2.Stop => Isa95JobOperation.Stop,
-                Isa95JobOrderOperationV2.Cancel => Isa95JobOperation.Cancel,
-                Isa95JobOrderOperationV2.Clear => Isa95JobOperation.Clear,
-                Isa95JobOrderOperationV2.Pause => Isa95JobOperation.Pause,
-                Isa95JobOrderOperationV2.Resume => Isa95JobOperation.Resume,
-                Isa95JobOrderOperationV2.Abort => Isa95JobOperation.Abort,
-                Isa95JobOrderOperationV2.RevokeStart => Isa95JobOperation.RevokeStart,
-                _ => Isa95JobOperation.Store
-            };
-        }
-
-        /// <summary>
         /// Projects a Job Control V1 job order onto a neutral job order.
         /// </summary>
         public static Isa95JobOrder FromV1Order(V1.ISA95JobOrderDataType order)
         {
+            if (order == null)
+            {
+                throw new ArgumentNullException(nameof(order));
+            }
             return new Isa95JobOrder
             {
                 Id = order.ID ?? string.Empty,
@@ -165,9 +166,14 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// </summary>
         public static Isa95JobOrder FromV2Order(V2.ISA95JobOrderDataType order)
         {
+            if (order == null)
+            {
+                throw new ArgumentNullException(nameof(order));
+            }
             return new Isa95JobOrder
             {
                 Id = order.JobOrderID ?? string.Empty,
+                V2EncodingMask = order.EncodingMask,
                 Description = order.Description,
                 WorkMasters = FromV2WorkMasters(order.WorkMasterID),
                 Priority = order.Priority,
@@ -188,6 +194,10 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// </summary>
         public static Isa95JobResponse FromV1Response(V1.ISA95JobResponseDataType response)
         {
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
             return new Isa95JobResponse
             {
                 Id = response.ID ?? string.Empty,
@@ -209,16 +219,25 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// <see cref="Isa95JobResponse.ReceivedAt"/> field is left at its default
         /// and set by the engine.
         /// </summary>
-        public static Isa95JobResponse FromV2Response(V2.ISA95JobResponseDataType response)
+        public static Isa95JobResponse FromV2Response(
+            V2.ISA95JobResponseDataType response,
+            ushort v2NamespaceIndex)
         {
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
+            Isa95JobCanonicalState state = FromV2StateArray(response.JobState);
             return new Isa95JobResponse
             {
                 Id = response.JobResponseID ?? string.Empty,
+                V2EncodingMask = response.EncodingMask,
+                V2StateSnapshot = new Isa95V2StateSnapshot(response.JobState, state, v2NamespaceIndex),
                 JobOrderId = response.JobOrderID ?? string.Empty,
                 Description = FromLocalizedTextDescription(response.Description),
                 StartTime = response.StartTime,
                 EndTime = response.EndTime,
-                State = FromV2StateArray(response.JobState),
+                State = state,
                 ResponseData = FromV2Parameters(response.JobResponseData),
                 PersonnelActuals = FromV2Personnel(response.PersonnelActuals),
                 EquipmentActuals = FromV2Equipment(response.EquipmentActuals),
@@ -232,6 +251,10 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// </summary>
         public static V1.ISA95JobResponseDataType ToV1Response(Isa95JobResponse response)
         {
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
             return new V1.ISA95JobResponseDataType
             {
                 ID = response.Id,
@@ -251,8 +274,14 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// <summary>
         /// Materializes a neutral job response as a Job Control V2 job response.
         /// </summary>
-        public static V2.ISA95JobResponseDataType ToV2Response(Isa95JobResponse response)
+        public static V2.ISA95JobResponseDataType ToV2Response(
+            Isa95JobResponse response,
+            ushort v2NamespaceIndex)
         {
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
             var result = new V2.ISA95JobResponseDataType
             {
                 JobResponseID = response.Id,
@@ -260,14 +289,16 @@ namespace Opc.Ua.ISA95.Server.Providers
                 Description = FirstLocalizedText(response.Description),
                 StartTime = response.StartTime,
                 EndTime = response.EndTime,
-                JobState = ToV2StateArray(response.State),
+                JobState = response.V2StateSnapshot is { } snapshot && snapshot.State == response.State
+                    ? snapshot.ToArray(v2NamespaceIndex)
+                    : ToV2StateArray(response.State, v2NamespaceIndex),
                 JobResponseData = ToV2Parameters(response.ResponseData),
                 PersonnelActuals = ToV2Personnel(response.PersonnelActuals),
                 EquipmentActuals = ToV2Equipment(response.EquipmentActuals),
                 PhysicalAssetActuals = ToV2PhysicalAssets(response.PhysicalAssetActuals),
                 MaterialActuals = ToV2Materials(response.MaterialActuals)
             };
-            uint mask = 0;
+            uint mask = response.V2EncodingMask;
             if (response.Description.Count > 0)
             {
                 mask |= (uint)V2.ISA95JobResponseDataTypeFields.Description;
@@ -309,6 +340,10 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// </summary>
         public static V2.ISA95JobOrderDataType ToV2Order(Isa95JobOrder order)
         {
+            if (order == null)
+            {
+                throw new ArgumentNullException(nameof(order));
+            }
             var result = new V2.ISA95JobOrderDataType
             {
                 JobOrderID = order.Id,
@@ -323,7 +358,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                 PhysicalAssetRequirements = ToV2PhysicalAssets(order.PhysicalAssetRequirements),
                 MaterialRequirements = ToV2Materials(order.MaterialRequirements)
             };
-            uint mask = 0;
+            uint mask = order.V2EncodingMask;
             if (order.Description.Count > 0)
             {
                 mask |= (uint)V2.ISA95JobOrderDataTypeFields.Description;
@@ -373,6 +408,10 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// </summary>
         public static V1.ISA95JobOrderDataType ToV1Order(Isa95JobOrder order)
         {
+            if (order == null)
+            {
+                throw new ArgumentNullException(nameof(order));
+            }
             return new V1.ISA95JobOrderDataType
             {
                 ID = order.Id,
@@ -387,6 +426,16 @@ namespace Opc.Ua.ISA95.Server.Providers
                 PhysicalAssetRequirements = ToV1PhysicalAssets(order.PhysicalAssetRequirements),
                 MaterialRequirements = ToV1Materials(order.MaterialRequirements)
             };
+        }
+
+        internal static Isa95JobResponse FromV2Response(V2.ISA95JobResponseDataType response)
+        {
+            return FromV2Response(response, Isa95V2StateMachine.GetModelNamespaceIndex(response.JobState));
+        }
+
+        internal static V2.ISA95JobResponseDataType ToV2Response(Isa95JobResponse response)
+        {
+            return ToV2Response(response, response.V2StateSnapshot?.NamespaceIndex ?? 0);
         }
 
         private static ArrayOf<Isa95Parameter> FromV1Parameters(ArrayOf<V1.ISA95ParameterDataType> parameters)
@@ -414,7 +463,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (parameters.Count == 0)
             {
-                return [];
+                return parameters.IsNull ? default : [];
             }
             var result = new List<Isa95Parameter>(parameters.Count);
             foreach (V2.ISA95ParameterDataType parameter in parameters)
@@ -424,6 +473,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                     Id = parameter.ID,
                     Value = parameter.Value,
                     Description = parameter.Description,
+                    V2EncodingMask = parameter.EncodingMask,
                     EngineeringUnits = FromV2Unit(parameter.EngineeringUnits),
                     Subparameters = FromV2Parameters(parameter.Subparameters)
                 });
@@ -456,12 +506,12 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (parameters.Count == 0)
             {
-                return [];
+                return parameters.IsNull ? default : [];
             }
             var result = new List<V2.ISA95ParameterDataType>(parameters.Count);
             foreach (Isa95Parameter parameter in parameters)
             {
-                uint mask = 0;
+                uint mask = parameter.V2EncodingMask;
                 if (parameter.Description.Count > 0)
                 {
                     mask |= (uint)V2.ISA95ParameterDataTypeFields.Description;
@@ -512,7 +562,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (properties.Count == 0)
             {
-                return [];
+                return properties.IsNull ? default : [];
             }
             var result = new List<Isa95Property>(properties.Count);
             foreach (V2.ISA95PropertyDataType property in properties)
@@ -522,6 +572,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                     Id = property.ID,
                     Value = property.Value,
                     Description = property.Description,
+                    V2EncodingMask = property.EncodingMask,
                     EngineeringUnits = FromV2Unit(property.EngineeringUnits),
                     Subproperties = FromV2Properties(property.Subproperties)
                 });
@@ -554,12 +605,12 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (properties.Count == 0)
             {
-                return [];
+                return properties.IsNull ? default : [];
             }
             var result = new List<V2.ISA95PropertyDataType>(properties.Count);
             foreach (Isa95Property property in properties)
             {
-                uint mask = 0;
+                uint mask = property.V2EncodingMask;
                 if (property.Description.Count > 0)
                 {
                     mask |= (uint)V2.ISA95PropertyDataTypeFields.Description;
@@ -608,7 +659,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (workMasters.Count == 0)
             {
-                return [];
+                return workMasters.IsNull ? default : [];
             }
             var result = new List<Isa95WorkMaster>(workMasters.Count);
             foreach (V2.ISA95WorkMasterDataType workMaster in workMasters)
@@ -617,6 +668,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                 {
                     Id = workMaster.ID,
                     Description = FromLocalizedTextDescription(workMaster.Description),
+                    V2EncodingMask = workMaster.EncodingMask,
                     Parameters = FromV2Parameters(workMaster.Parameters)
                 });
             }
@@ -646,12 +698,12 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (workMasters.Count == 0)
             {
-                return [];
+                return workMasters.IsNull ? default : [];
             }
             var result = new List<V2.ISA95WorkMasterDataType>(workMasters.Count);
             foreach (Isa95WorkMaster workMaster in workMasters)
             {
-                uint mask = 0;
+                uint mask = workMaster.V2EncodingMask;
                 if (workMaster.Description.Count > 0)
                 {
                     mask |= (uint)V2.ISA95WorkMasterDataTypeFields.Description;
@@ -697,7 +749,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (resources.Count == 0)
             {
-                return [];
+                return resources.IsNull ? default : [];
             }
             var result = new List<Isa95ResourceRequirement>(resources.Count);
             foreach (V2.ISA95PersonnelDataType resource in resources)
@@ -708,6 +760,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                     Description = resource.Description,
                     Use = resource.PersonnelUse,
                     Quantity = resource.Quantity,
+                    V2EncodingMask = resource.EncodingMask,
                     EngineeringUnits = FromV2Unit(resource.EngineeringUnits),
                     Properties = FromV2Properties(resource.Properties)
                 });
@@ -741,12 +794,12 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (resources.Count == 0)
             {
-                return [];
+                return resources.IsNull ? default : [];
             }
             var result = new List<V2.ISA95PersonnelDataType>(resources.Count);
             foreach (Isa95ResourceRequirement resource in resources)
             {
-                uint mask = 0;
+                uint mask = resource.V2EncodingMask;
                 if (resource.Description.Count > 0)
                 {
                     mask |= (uint)V2.ISA95PersonnelDataTypeFields.Description;
@@ -807,7 +860,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (resources.Count == 0)
             {
-                return [];
+                return resources.IsNull ? default : [];
             }
             var result = new List<Isa95ResourceRequirement>(resources.Count);
             foreach (V2.ISA95EquipmentDataType resource in resources)
@@ -818,6 +871,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                     Description = resource.Description,
                     Use = resource.EquipmentUse,
                     Quantity = resource.Quantity,
+                    V2EncodingMask = resource.EncodingMask,
                     EngineeringUnits = FromV2Unit(resource.EngineeringUnits),
                     Properties = FromV2Properties(resource.Properties)
                 });
@@ -851,12 +905,12 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (resources.Count == 0)
             {
-                return [];
+                return resources.IsNull ? default : [];
             }
             var result = new List<V2.ISA95EquipmentDataType>(resources.Count);
             foreach (Isa95ResourceRequirement resource in resources)
             {
-                uint mask = 0;
+                uint mask = resource.V2EncodingMask;
                 if (resource.Description.Count > 0)
                 {
                     mask |= (uint)V2.ISA95EquipmentDataTypeFields.Description;
@@ -919,7 +973,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (resources.Count == 0)
             {
-                return [];
+                return resources.IsNull ? default : [];
             }
             var result = new List<Isa95ResourceRequirement>(resources.Count);
             foreach (V2.ISA95PhysicalAssetDataType resource in resources)
@@ -930,6 +984,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                     Description = resource.Description,
                     Use = resource.PhysicalAssetUse,
                     Quantity = resource.Quantity,
+                    V2EncodingMask = resource.EncodingMask,
                     EngineeringUnits = FromV2Unit(resource.EngineeringUnits),
                     Properties = FromV2Properties(resource.Properties)
                 });
@@ -965,12 +1020,12 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (resources.Count == 0)
             {
-                return [];
+                return resources.IsNull ? default : [];
             }
             var result = new List<V2.ISA95PhysicalAssetDataType>(resources.Count);
             foreach (Isa95ResourceRequirement resource in resources)
             {
-                uint mask = 0;
+                uint mask = resource.V2EncodingMask;
                 if (resource.Description.Count > 0)
                 {
                     mask |= (uint)V2.ISA95PhysicalAssetDataTypeFields.Description;
@@ -1034,7 +1089,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (materials.Count == 0)
             {
-                return [];
+                return materials.IsNull ? default : [];
             }
             var result = new List<Isa95Material>(materials.Count);
             foreach (V2.ISA95MaterialDataType material in materials)
@@ -1048,6 +1103,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                     Description = material.Description,
                     Use = material.MaterialUse,
                     Quantity = material.Quantity,
+                    V2EncodingMask = material.EncodingMask,
                     EngineeringUnits = FromV2Unit(material.EngineeringUnits),
                     Properties = FromV2Properties(material.Properties)
                 });
@@ -1084,12 +1140,12 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             if (materials.Count == 0)
             {
-                return [];
+                return materials.IsNull ? default : [];
             }
             var result = new List<V2.ISA95MaterialDataType>(materials.Count);
             foreach (Isa95Material material in materials)
             {
-                uint mask = 0;
+                uint mask = material.V2EncodingMask;
                 if (!string.IsNullOrEmpty(material.MaterialClassId))
                 {
                     mask |= (uint)V2.ISA95MaterialDataTypeFields.MaterialClassID;

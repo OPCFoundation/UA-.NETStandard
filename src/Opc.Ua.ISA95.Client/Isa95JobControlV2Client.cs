@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
+using Opc.Ua.ISA95.JobControl;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
 
@@ -240,6 +241,83 @@ namespace Opc.Ua.ISA95.Client
             CancellationToken ct = default)
         {
             return JobResponseReceiver.ReceiveJobResponseAsync(response, ct);
+        }
+
+        /// <summary>
+        /// Invokes Store, StoreAndStart, or Update with a neutral order.
+        /// </summary>
+        public ValueTask<ulong> ReceiveNeutralJobOrderAsync(
+            Isa95JobOperation operation,
+            Isa95JobOrder order,
+            ArrayOf<LocalizedText> comment = default,
+            CancellationToken ct = default)
+        {
+            V2.ISA95JobOrderDataType projected = Isa95JobControlConversions.ToV2Order(order);
+            ArrayOf<LocalizedText> effectiveComment = comment.IsNull ? order.Comment : comment;
+            return operation switch
+            {
+                Isa95JobOperation.Store => StoreAsync(projected, effectiveComment, ct),
+                Isa95JobOperation.StoreAndStart => StoreAndStartAsync(projected, effectiveComment, ct),
+                Isa95JobOperation.Update => UpdateAsync(projected, effectiveComment, ct),
+                _ => throw new ArgumentOutOfRangeException(nameof(operation))
+            };
+        }
+
+        /// <summary>
+        /// Sends a version-neutral response through the V2 interface.
+        /// </summary>
+        public ValueTask<ulong> ReceiveNeutralJobResponseAsync(
+            Isa95JobResponse response,
+            CancellationToken ct = default)
+        {
+            return ReceiveJobResponseAsync(
+                Isa95JobControlConversions.ToV2Response(response, GetV2NamespaceIndex()), ct);
+        }
+
+        /// <summary>
+        /// Requests a V2 response by identifier. The neutral response is absent on business failure.
+        /// </summary>
+        public async ValueTask<(Isa95JobResponse? Response, ulong ReturnStatus)> RequestNeutralJobResponseByIdAsync(
+            string jobOrderId,
+            CancellationToken ct = default)
+        {
+            (V2.ISA95JobResponseDataType response, ulong status) =
+                await RequestJobResponseByJobOrderIdAsync(jobOrderId, ct).ConfigureAwait(false);
+            return ((status & Isa95JobReturnStatusBits.Success) != 0 && response != null
+                ? Isa95JobControlConversions.FromV2Response(response, GetV2NamespaceIndex())
+                : null, status);
+        }
+
+        /// <summary>
+        /// Requests V2 responses matching a canonical state and converts the results.
+        /// </summary>
+        public async ValueTask<(ArrayOf<Isa95JobResponse> Responses, ulong ReturnStatus)>
+            RequestNeutralJobResponsesByStateAsync(
+                Isa95JobCanonicalState state,
+                CancellationToken ct = default)
+        {
+            ushort index = GetV2NamespaceIndex();
+            (ArrayOf<V2.ISA95JobResponseDataType> responses, ulong status) =
+                await RequestJobResponseByJobOrderStateAsync(
+                    Isa95JobControlConversions.ToV2StateArray(state, index), ct).ConfigureAwait(false);
+            if (responses.IsNull)
+            {
+                return (default, status);
+            }
+            var result = new Isa95JobResponse[responses.Count];
+            for (int i = 0; i < result.Length; i++)
+            {
+                result[i] = Isa95JobControlConversions.FromV2Response(responses[i], index);
+            }
+            return (result.ToArrayOf(), status);
+        }
+
+        private ushort GetV2NamespaceIndex()
+        {
+            int index = Session.NamespaceUris.GetIndex(V2.Namespaces.ISA95JobControlV2);
+            return index is > 0 and <= ushort.MaxValue
+                ? (ushort)index
+                : throw new InvalidOperationException("The session does not contain the ISA95 Job Control V2 namespace.");
         }
 
         /// <summary>

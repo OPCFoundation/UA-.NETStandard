@@ -7,13 +7,9 @@ using System.Threading;
 namespace Opc.Ua.ISA95.Server.Providers
 {
     /// <summary>
-    /// Publishes committed job order catalog changes that project onto the server's
-    /// <c>JobOrderList</c> but are not life-cycle state changes, so that a projection
-    /// layer (for example a node manager) can keep the list current. Life-cycle
-    /// state changes and job order additions are published by
-    /// <see cref="IIsa95JobStatusSourceV2"/>. A V2 Update is both a standard
-    /// self-transition and a catalog content change, so it is intentionally
-    /// visible on both streams.
+    /// Publishes committed additions, updates, state changes, and removals so
+    /// the server's <c>JobOrderList</c> stays current, even for transitions
+    /// without an effect on <see cref="IIsa95JobStatusSourceV2"/>.
     /// <para>
     /// Each subscriber receives exactly one change per committed catalog mutation
     /// that occurs after it subscribes; subscribers are independent and cancellation

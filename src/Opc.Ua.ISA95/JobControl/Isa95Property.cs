@@ -1,15 +1,17 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// A version-neutral property captured by the in-memory engine. Properties
     /// appear on the personnel, equipment, physical-asset and material
     /// requirement and actual structures of both Job Control V1 and V2.
     /// </summary>
-    internal sealed record Isa95Property
+    public sealed record Isa95Property
     {
+        internal uint V2EncodingMask { get; init; }
+
         /// <summary>
         /// The identifier of the property.
         /// </summary>

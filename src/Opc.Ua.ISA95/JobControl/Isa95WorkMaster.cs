@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// A version-neutral work master reference captured by the in-memory engine.
@@ -9,8 +9,10 @@ namespace Opc.Ua.ISA95.Server.Providers
     /// V1 carries a single string description; V2 carries a single localized text,
     /// both unified onto <see cref="Description"/>.
     /// </summary>
-    internal sealed record Isa95WorkMaster
+    public sealed record Isa95WorkMaster
     {
+        internal uint V2EncodingMask { get; init; }
+
         /// <summary>
         /// The identifier of the work master.
         /// </summary>

@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard stack documentation
 
 These guides lead from a first working application to advanced and experimental
@@ -193,7 +198,7 @@ models that each model depends on.
   software package storage, installation, and confirmation. Read Device
   Integration first.
 - [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4) — the common
-  model and job control.
+  model and job control. Use [the neutral Job Control rules](ISA95JobControl.md) without a server or in a durable provider.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
 - [Industrial Automation](IndustrialAutomation.md) (OPC 10000-200) —

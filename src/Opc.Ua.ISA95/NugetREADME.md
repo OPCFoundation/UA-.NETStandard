@@ -1,8 +1,14 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard — ISA-95 information models
 
 `OPCFoundation.NetStandard.Opc.Ua.ISA95` contains source-generated types and proxies for the OPC UA ISA-95 Common Model (OPC-10030) and ISA-95 Job Control V1/V2 (OPC-10031-4), all three in their own namespace (`Opc.Ua.ISA95`, `Opc.Ua.ISA95.JobControl.V1`, `Opc.Ua.ISA95.JobControl.V2`).
 
 The package is the shared model contract used by `Opc.Ua.ISA95.Client` and `Opc.Ua.ISA95.Server`.
+It also provides [version-neutral Job Control records, conversions, and rules](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ISA95JobControl.md) in `Opc.Ua.ISA95.JobControl`, without a dependency on either hosting package.
 
 ## Overview
 

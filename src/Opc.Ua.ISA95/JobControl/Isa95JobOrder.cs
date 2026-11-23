@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// A version-neutral job order tracked by the in-memory engine. Every standard
@@ -10,8 +10,10 @@ namespace Opc.Ua.ISA95.Server.Providers
     /// requirement collections, so that no generated version-specific payload is
     /// stored by the engine and orders round-trip losslessly within a version.
     /// </summary>
-    internal sealed record Isa95JobOrder
+    public sealed record Isa95JobOrder
     {
+        internal uint V2EncodingMask { get; init; }
+
         /// <summary>
         /// The identifier of the job order.
         /// </summary>

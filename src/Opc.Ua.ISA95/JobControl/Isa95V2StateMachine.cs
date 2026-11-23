@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// Encodes and decodes the Job Control V2 receiver state machine as the array
@@ -87,10 +87,16 @@ namespace Opc.Ua.ISA95.Server.Providers
         {
             return state switch
             {
-                Isa95JobCanonicalState.NotAllowedToStart => (NotAllowedToStartNumber, "NotAllowedToStart"),
-                Isa95JobCanonicalState.AllowedToStart => (AllowedToStartNumber, "AllowedToStart"),
+                Isa95JobCanonicalState.NotAllowedToStart or
+                Isa95JobCanonicalState.NotAllowedToStartWaiting or
+                Isa95JobCanonicalState.NotAllowedToStartReady or
+                Isa95JobCanonicalState.NotAllowedToStartLoaded or
+                Isa95JobCanonicalState.Loaded => (NotAllowedToStartNumber, "NotAllowedToStart"),
+                Isa95JobCanonicalState.AllowedToStart or
+                Isa95JobCanonicalState.AllowedToStartWaiting or
+                Isa95JobCanonicalState.AllowedToStartReady or
+                Isa95JobCanonicalState.AllowedToStartLoaded => (AllowedToStartNumber, "AllowedToStart"),
                 Isa95JobCanonicalState.Running => (RunningNumber, "Running"),
-                Isa95JobCanonicalState.Loaded => (RunningNumber, "Running"),
                 Isa95JobCanonicalState.Held => (InterruptedNumber, "Interrupted"),
                 Isa95JobCanonicalState.Suspended => (InterruptedNumber, "Interrupted"),
                 Isa95JobCanonicalState.Completed => (EndedNumber, "Ended"),
@@ -104,23 +110,34 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// <summary>
         /// Builds the Job Control V2 state array for a canonical state.
         /// </summary>
-        public static ArrayOf<V2.ISA95StateDataType> ToStateArray(Isa95JobCanonicalState state)
+        public static ArrayOf<V2.ISA95StateDataType> ToStateArray(
+            Isa95JobCanonicalState state,
+            ushort namespaceIndex = 0)
         {
             (uint number, string text) = TopLevel(state);
             var states = new List<V2.ISA95StateDataType> { TopLevelEntry(number, text) };
+            uint preparation = PreparationNumber(state);
+            if (preparation != 0)
+            {
+                string path = number == NotAllowedToStartNumber
+                    ? V2.BrowseNames.NotAllowedToStartSubstates
+                    : V2.BrowseNames.AllowedToStartSubstates;
+                string name = preparation switch { 1 => "Waiting", 2 => "Ready", _ => "Loaded" };
+                states.Add(SubstateEntry(path, preparation, name, namespaceIndex));
+            }
             switch (state)
             {
                 case Isa95JobCanonicalState.Held:
-                    states.Add(SubstateEntry(InterruptedSubstates, FirstSubstateNumber, "Held"));
+                    states.Add(SubstateEntry(InterruptedSubstates, FirstSubstateNumber, "Held", namespaceIndex));
                     break;
                 case Isa95JobCanonicalState.Suspended:
-                    states.Add(SubstateEntry(InterruptedSubstates, SecondSubstateNumber, "Suspended"));
+                    states.Add(SubstateEntry(InterruptedSubstates, SecondSubstateNumber, "Suspended", namespaceIndex));
                     break;
                 case Isa95JobCanonicalState.Completed:
-                    states.Add(SubstateEntry(EndedSubstates, FirstSubstateNumber, "Completed"));
+                    states.Add(SubstateEntry(EndedSubstates, FirstSubstateNumber, "Completed", namespaceIndex));
                     break;
                 case Isa95JobCanonicalState.Closed:
-                    states.Add(SubstateEntry(EndedSubstates, SecondSubstateNumber, "Closed"));
+                    states.Add(SubstateEntry(EndedSubstates, SecondSubstateNumber, "Closed", namespaceIndex));
                     break;
             }
             return states.ToArrayOf();
@@ -151,7 +168,17 @@ namespace Opc.Ua.ISA95.Server.Providers
                         ? Isa95JobCanonicalState.Closed
                         : Isa95JobCanonicalState.Completed;
                 }
-                else
+                else if (substateMachine == V2.BrowseNames.NotAllowedToStartSubstates &&
+                    entry.StateNumber is >= 1 and <= 3)
+                {
+                    substate = Prepared(false, entry.StateNumber);
+                }
+                else if (substateMachine == V2.BrowseNames.AllowedToStartSubstates &&
+                    entry.StateNumber is >= 1 and <= 3)
+                {
+                    substate = Prepared(true, entry.StateNumber);
+                }
+                else if (substateMachine == null)
                 {
                     topLevel = FromTopLevelNumber(entry.StateNumber);
                 }
@@ -186,7 +213,20 @@ namespace Opc.Ua.ISA95.Server.Providers
                         ? Isa95JobCanonicalState.Closed
                         : Isa95JobCanonicalState.Completed;
                 }
-                else if (entry.StateNumber is >= NotAllowedToStartNumber and <= AbortedNumber)
+                else if (substateMachine == V2.BrowseNames.NotAllowedToStartSubstates &&
+                    entry.StateNumber is >= 1 and <= 3)
+                {
+                    hasSubstate = true;
+                    substate = Prepared(false, entry.StateNumber);
+                }
+                else if (substateMachine == V2.BrowseNames.AllowedToStartSubstates &&
+                    entry.StateNumber is >= 1 and <= 3)
+                {
+                    hasSubstate = true;
+                    substate = Prepared(true, entry.StateNumber);
+                }
+                else if (substateMachine == null &&
+                    entry.StateNumber is >= NotAllowedToStartNumber and <= AbortedNumber)
                 {
                     topLevelNumber = entry.StateNumber;
                 }
@@ -194,7 +234,10 @@ namespace Opc.Ua.ISA95.Server.Providers
 
             if (hasSubstate)
             {
-                return candidate == substate;
+                return (topLevelNumber == 0 || TopLevel(substate).Number == topLevelNumber) &&
+                    (candidate == substate ||
+                        (candidate == Isa95JobCanonicalState.Loaded &&
+                            substate == Isa95JobCanonicalState.NotAllowedToStartLoaded));
             }
             if (topLevelNumber == 0)
             {
@@ -218,6 +261,34 @@ namespace Opc.Ua.ISA95.Server.Providers
                 }
             }
             return 0;
+        }
+
+        internal static uint PreparationNumber(Isa95JobCanonicalState state)
+        {
+            return state switch
+            {
+                Isa95JobCanonicalState.NotAllowedToStartWaiting or Isa95JobCanonicalState.AllowedToStartWaiting => 1,
+                Isa95JobCanonicalState.NotAllowedToStartReady or Isa95JobCanonicalState.AllowedToStartReady => 2,
+                Isa95JobCanonicalState.NotAllowedToStartLoaded or Isa95JobCanonicalState.AllowedToStartLoaded or
+                    Isa95JobCanonicalState.Loaded => 3,
+                _ => 0
+            };
+        }
+
+        internal static Isa95JobCanonicalState Prepared(bool allowed, uint preparation)
+        {
+            return (allowed, preparation) switch
+            {
+                (false, 0) => Isa95JobCanonicalState.NotAllowedToStart,
+                (false, 1) => Isa95JobCanonicalState.NotAllowedToStartWaiting,
+                (false, 2) => Isa95JobCanonicalState.NotAllowedToStartReady,
+                (false, 3) => Isa95JobCanonicalState.NotAllowedToStartLoaded,
+                (true, 0) => Isa95JobCanonicalState.AllowedToStart,
+                (true, 1) => Isa95JobCanonicalState.AllowedToStartWaiting,
+                (true, 2) => Isa95JobCanonicalState.AllowedToStartReady,
+                (true, 3) => Isa95JobCanonicalState.AllowedToStartLoaded,
+                _ => throw new System.ArgumentOutOfRangeException(nameof(preparation))
+            };
         }
 
         private static Isa95JobCanonicalState FromTopLevelNumber(uint number)
@@ -244,14 +315,18 @@ namespace Opc.Ua.ISA95.Server.Providers
             };
         }
 
-        private static V2.ISA95StateDataType SubstateEntry(string substateMachine, uint number, string text)
+        private static V2.ISA95StateDataType SubstateEntry(
+            string substateMachine,
+            uint number,
+            string text,
+            ushort namespaceIndex)
         {
 #pragma warning disable IDE0002 // Qualification selects the core UA identifier class, not ISA-95 generated identifiers.
             return new V2.ISA95StateDataType
             {
                 BrowsePath = new RelativePath(
                     Opc.Ua.ReferenceTypeIds.HasSubStateMachine,
-                    new QualifiedName(substateMachine)),
+                    new QualifiedName(substateMachine, namespaceIndex)),
                 StateText = new LocalizedText(text),
                 StateNumber = number
             };
@@ -265,6 +340,26 @@ namespace Opc.Ua.ISA95.Server.Providers
                 return null;
             }
             return browsePath.Elements[0]?.TargetName.Name;
+        }
+
+        internal static bool IsSubstateMachine(string? name)
+        {
+            return name is V2.BrowseNames.NotAllowedToStartSubstates or V2.BrowseNames.AllowedToStartSubstates
+                or InterruptedSubstates or EndedSubstates;
+        }
+
+        internal static ushort GetModelNamespaceIndex(ArrayOf<V2.ISA95StateDataType> state)
+        {
+            foreach (V2.ISA95StateDataType entry in state)
+            {
+                RelativePath path = entry.BrowsePath;
+                if (path != null && path.Elements.Count != 0 &&
+                    path.Elements[0] is { } element && IsSubstateMachine(element.TargetName.Name))
+                {
+                    return element.TargetName.NamespaceIndex;
+                }
+            }
+            return 0;
         }
     }
 }
