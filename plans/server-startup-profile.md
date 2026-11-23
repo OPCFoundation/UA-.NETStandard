@@ -186,3 +186,20 @@ run (12 with 4 workers), so 50 (60) cycles per cell. Medians in ms, both
    keys at rest.
 5. WotCon's own template seeding (PR #5148) can switch to
    `TestCertificateCache` once both are merged.
+
+## Verification (local, net10.0 Release)
+
+- `Opc.Ua.Client.Tests`: 3946 passed, 0 failed.
+- `Opc.Ua.Sessions.Tests`: 874 passed, 0 failed, 379 skipped. The first run
+  found the missing manager refresh after seeding (WSS reverse connect).
+- `Opc.Ua.Server.Tests`: 12043 passed, 8 failed; the 8 are
+  `PhysicalFileSystemProviderConfinementTests` symbolic-link cases that fail
+  identically on master on this machine (no symlink privilege).
+- `Opc.Ua.WotCon.Tests` spot run (event modes, live projection, atomic
+  publication, configured options, runtime and storage slices): 511 tests
+  green after `WotEventModesLiveTests.NativeEndpoint` and its replacement
+  client opted out of the cache. Those tests check that two upstream
+  endpoints are different authorities, so they need key pairs of their own;
+  this is the one place the shared key pair matters so far. Other suites
+  with such tests opt out the same way.
+- net48: `Opc.Ua.Client.Tests` and `Opc.Ua.Sessions.Tests` build.

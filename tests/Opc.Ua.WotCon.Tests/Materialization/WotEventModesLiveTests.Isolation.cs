@@ -321,7 +321,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string root = Path.Combine(
                 Environment.GetEnvironmentVariable("WOT_EVENT_TEST_ROOT") ?? Path.GetTempPath(),
                 "d3-replacement-" + Guid.NewGuid().ToString("N"));
-            var replacementClient = new ClientFixture(NUnitTelemetryContext.Create());
+            var replacementClient = new ClientFixture(NUnitTelemetryContext.Create())
+            {
+                ReuseCachedCertificates = false
+            };
             ISession? replacementSession = null;
             Task<CallMethodResult>? inFlightAction = null;
             try
