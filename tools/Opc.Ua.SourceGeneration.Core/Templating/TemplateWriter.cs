@@ -118,6 +118,13 @@ namespace Opc.Ua.SourceGeneration
         public void Write(string format, object arg1)
         {
             WriteWhiteSpaceIfNeeded();
+            // Fast path without argument arrays: resource generators write
+            // embedded data one formatted byte at a time.
+            if (!m_isCSharp || IsPlainArgument(arg1))
+            {
+                Emit(string.Format(CultureInfo.InvariantCulture, format ?? string.Empty, arg1), isValue: false);
+                return;
+            }
             EmitFormatted(format, [arg1]);
         }
 
@@ -125,6 +132,11 @@ namespace Opc.Ua.SourceGeneration
         public void Write(string format, object arg1, object arg2)
         {
             WriteWhiteSpaceIfNeeded();
+            if (!m_isCSharp || (IsPlainArgument(arg1) && IsPlainArgument(arg2)))
+            {
+                Emit(string.Format(CultureInfo.InvariantCulture, format ?? string.Empty, arg1, arg2), isValue: false);
+                return;
+            }
             EmitFormatted(format, [arg1, arg2]);
         }
 
@@ -132,6 +144,13 @@ namespace Opc.Ua.SourceGeneration
         public void Write(string format, object arg1, object arg2, object arg3)
         {
             WriteWhiteSpaceIfNeeded();
+            if (!m_isCSharp ||
+                (IsPlainArgument(arg1) && IsPlainArgument(arg2) && IsPlainArgument(arg3)))
+            {
+                Emit(string.Format(
+                    CultureInfo.InvariantCulture, format ?? string.Empty, arg1, arg2, arg3), isValue: false);
+                return;
+            }
             EmitFormatted(format, [arg1, arg2, arg3]);
         }
 
@@ -399,6 +418,24 @@ namespace Opc.Ua.SourceGeneration
                 ii++;
             }
             return ii + 1 < text.Length && text[ii] == '/' && text[ii + 1] == '/';
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="arg"/> is written as plain text by
+        /// <see cref="EmitFormatted(string?, object?[])"/>: null, a formattable
+        /// value (numbers, which never contain a line break) or text without
+        /// a line terminator. Other arguments (e.g. an XmlQualifiedName) take
+        /// the slow path, which checks their text.
+        /// </summary>
+        private static bool IsPlainArgument(object? arg)
+        {
+            return arg switch
+            {
+                null => true,
+                string text => !ContainsLineTerminator(text),
+                IFormattable => true,
+                _ => false
+            };
         }
 
         private static bool ContainsLineTerminator(string text)
