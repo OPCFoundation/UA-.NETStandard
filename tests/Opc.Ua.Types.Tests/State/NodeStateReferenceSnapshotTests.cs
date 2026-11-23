@@ -31,6 +31,10 @@ namespace Opc.Ua.Types.Tests.State
             using NodeState.ReferenceUpdate update = node.PrepareReferences(
                 [new NodeStateReference(ReferenceTypeIds.Organizes, false, nextTarget)],
                 [new NodeStateReference(ReferenceTypeIds.Organizes, false, oldTarget)]);
+            Assert.That(update.Before.Count, Is.EqualTo(1));
+            Assert.That(update.Before[0].TargetId, Is.EqualTo((ExpandedNodeId)oldTarget));
+            Assert.That(update.After.Count, Is.EqualTo(1));
+            Assert.That(update.After[0].TargetId, Is.EqualTo((ExpandedNodeId)nextTarget));
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, oldTarget), Is.True);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, nextTarget), Is.False);
             update.Reserve();
@@ -41,6 +45,8 @@ namespace Opc.Ua.Types.Tests.State
             published = true;
             update.Complete();
             update.Dispose();
+            Assert.That(update.Before[0].TargetId, Is.EqualTo((ExpandedNodeId)oldTarget));
+            Assert.That(update.After[0].TargetId, Is.EqualTo((ExpandedNodeId)nextTarget));
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, nextTarget), Is.True);
             update.Notify(failure => Assert.Fail(failure.ToString()));
             update.Notify(failure => Assert.Fail(failure.ToString()));

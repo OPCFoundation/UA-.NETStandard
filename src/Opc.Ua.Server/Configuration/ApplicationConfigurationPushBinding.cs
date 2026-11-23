@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -33,6 +34,25 @@ namespace Opc.Ua.Server
             IPendingCertificateKeyStore? pendingKeyStore = null,
             IPushCertificateKeyGenerator? keyGenerator = null,
             IApplicationConfigurationFileProvider? configurationFileProvider = null)
+            : this(server, managementConfiguration, context, node, target, authorization, pendingKeyStore,
+                keyGenerator, configurationFileProvider, null, null, null, null)
+        {
+        }
+
+        internal ApplicationConfigurationPushBinding(
+            IServerInternal server,
+            ApplicationConfiguration managementConfiguration,
+            ServerSystemContext context,
+            ApplicationConfigurationState node,
+            IApplicationConfigurationPushTarget target,
+            IPushConfigurationAuthorization authorization,
+            IPendingCertificateKeyStore? pendingKeyStore,
+            IPushCertificateKeyGenerator? keyGenerator,
+            IApplicationConfigurationFileProvider? configurationFileProvider,
+            AsyncCustomNodeManager? permissionOwner,
+            Func<bool>? isServing,
+            Action? enter,
+            Action? exit)
         {
             if (server == null)
             {
@@ -50,13 +70,19 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(node));
             }
-            m_target = target ?? throw new ArgumentNullException(nameof(target));
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
             if (authorization == null)
             {
                 throw new ArgumentNullException(nameof(authorization));
             }
             m_operations = authorization as IApplicationConfigurationPushOperations;
-            m_hasConfigurationFile = configurationFileProvider != null;
+            PermissionOwner = permissionOwner;
+            m_isServing = isServing;
+            m_enter = enter;
+            m_exit = exit;
             ApplicationConfiguration configuration = target.Configuration ??
                 throw new ArgumentException("The target has no configuration.", nameof(target));
             if (string.IsNullOrEmpty(configuration.ApplicationUri) ||
@@ -76,9 +102,13 @@ namespace Opc.Ua.Server
                     "The target requires configured application certificate slots.", nameof(target));
             }
             IPendingCertificateKeyStore pendingKeys = pendingKeyStore ?? new DirectoryPendingCertificateKeyStore();
-            m_registry = s_registries.GetValue(server, static _ => new BindingRegistry());
-            m_registry.Reserve(configuration, managementConfiguration, pendingKeys, configurationFileProvider,
-                server.ConfigurationNodeManager as ConfigurationNodeManager);
+            IServerInternal servingServer = server is ChangePreparer.StagingServer staging
+                ? staging.ServingServer
+                : server;
+            BindingRegistry registry = s_registries.GetValue(servingServer, static _ => new BindingRegistry());
+            TargetReservation reservation = registry.Reserve(
+                configuration, managementConfiguration, pendingKeys, configurationFileProvider,
+                servingServer.ConfigurationNodeManager as ConfigurationNodeManager);
             try
             {
                 m_manager = new ConfigurationNodeManager(
@@ -94,7 +124,8 @@ namespace Opc.Ua.Server
                         PushAuthorization = authorization,
                         ConfigurationFileProvider = configurationFileProvider
                     });
-                m_manager.BindApplicationConfiguration(context, node, target, this);
+                m_shared = new SharedReservation(reservation);
+                m_attachment = m_manager.BindApplicationConfiguration(context, node, target, this);
             }
             catch (Exception error)
             {
@@ -108,9 +139,74 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    ReleaseRegistration();
+                    reservation.Dispose();
                 }
                 throw;
+            }
+        }
+
+        internal ApplicationConfigurationPushBinding(
+            ApplicationConfigurationPushBinding previous,
+            ServerSystemContext context,
+            ApplicationConfigurationState node,
+            AsyncCustomNodeManager permissionOwner,
+            Func<bool> isServing,
+            Action enter,
+            Action exit)
+        {
+            m_operations = previous.m_operations;
+            PermissionOwner = permissionOwner;
+            m_isServing = isServing;
+            m_enter = enter;
+            m_exit = exit;
+            m_manager = previous.m_manager;
+            m_shared = previous.m_shared;
+            lock (previous.m_lifetime)
+            {
+                if (previous.m_stopping)
+                {
+                    throw new ServiceResultException(StatusCodes.BadShutdown);
+                }
+                m_shared.Retain();
+            }
+            try
+            {
+                m_attachment = m_manager.AttachApplicationPushNodes(context, node, this, previous.m_attachment);
+            }
+            catch
+            {
+                m_shared.Release();
+                throw;
+            }
+        }
+
+        internal AsyncCustomNodeManager? PermissionOwner { get; }
+
+        internal bool IsServing => m_isServing?.Invoke() != false;
+
+        internal ConfigurationNodeManager.TrustHandoff PauseTrustEffects()
+        {
+            return m_manager.PauseTrustEffects();
+        }
+
+        internal void PrepareIdleSuccessor(ApplicationConfigurationPushBinding successor)
+        {
+            lock (m_lifetime)
+            {
+                if (m_stopping || m_activeCalls != 0 || m_attachment.HasOutstandingWork)
+                {
+                    throw new ServiceResultException(StatusCodes.BadWouldBlock);
+                }
+                m_frozenForHandoff = true;
+            }
+            successor.m_attachment.RefreshFrom(m_attachment);
+        }
+
+        internal void ReopenAfterAbortedHandoff()
+        {
+            lock (m_lifetime)
+            {
+                m_frozenForHandoff = false;
             }
         }
 
@@ -127,39 +223,39 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask RecoverConfigurationFileUpdateAsync(CancellationToken cancellationToken = default)
         {
-            if (!m_hasConfigurationFile)
+            if (m_attachment.File is not { } file)
             {
                 return;
             }
-            await RunAsync(async () =>
+            await RunCoreAsync(async () =>
             {
-                await m_manager.RecoverConfigurationFileUpdateAsync(cancellationToken).ConfigureAwait(false);
+                await file.RecoverPendingUpdateAsync(m_attachment.Context, cancellationToken).ConfigureAwait(false);
                 return true;
-            }, cancellationToken).ConfigureAwait(false);
+            }, enterServing: false, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Cancels the closing session's transaction and abandons its open trust-list handles.
         /// </summary>
-        public async ValueTask SessionClosingAsync(
+        public ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            if (!TryEnterCall())
+            if (!TryEnterCall(requireServing: true))
             {
-                return;
+                return default;
             }
             try
             {
-                await m_manager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                    .ConfigureAwait(false);
+                m_attachment.SessionClosing(sessionId);
             }
             finally
             {
                 ExitCall();
             }
+            return default;
         }
 
         /// <summary>
@@ -194,34 +290,56 @@ namespace Opc.Ua.Server
         /// Keeps the push engine alive for the entire asynchronous method call.
         /// </summary>
         /// <typeparam name="T">The method result type.</typeparam>
-        internal async ValueTask<T> RunAsync<T>(
+        internal ValueTask<T> RunAsync<T>(
             Func<ValueTask<T>> action,
             CancellationToken cancellationToken = default)
         {
-            if (!TryEnterCall())
+            return RunCoreAsync(action, enterServing: true, cancellationToken);
+        }
+
+        private async ValueTask<T> RunCoreAsync<T>(
+            Func<ValueTask<T>> action,
+            bool enterServing,
+            CancellationToken cancellationToken)
+        {
+            if (enterServing)
             {
-                throw new ServiceResultException(StatusCodes.BadShutdown);
+                m_enter?.Invoke();
             }
             try
             {
-                return m_operations == null
-                    ? await action().ConfigureAwait(false)
-                    : await m_operations.ExecuteAsync(action, cancellationToken).ConfigureAwait(false);
+                if (!TryEnterCall())
+                {
+                    throw new ServiceResultException(StatusCodes.BadShutdown);
+                }
+                try
+                {
+                    return m_operations == null
+                        ? await action().ConfigureAwait(false)
+                        : await m_operations.ExecuteAsync(action, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    ExitCall();
+                }
             }
             finally
             {
-                ExitCall();
+                if (enterServing)
+                {
+                    m_exit?.Invoke();
+                }
             }
         }
 
         /// <summary>
         /// Admits dispatch or session cleanup while the engine is still available.
         /// </summary>
-        private bool TryEnterCall()
+        private bool TryEnterCall(bool requireServing = false)
         {
             lock (m_lifetime)
             {
-                if (m_stopping)
+                if (m_stopping || (requireServing && (m_frozenForHandoff || !IsServing)))
                 {
                     return false;
                 }
@@ -267,26 +385,50 @@ namespace Opc.Ua.Server
         private async Task DisposeCoreAsync()
         {
             await m_drained.Task.ConfigureAwait(false);
+            bool last = false;
             var errors = new List<Exception>();
             try
             {
-                await CompleteAsync(() => new ValueTask(m_manager.DrainPendingApplyChangesAsync()))
-                    .ConfigureAwait(false);
-                await CompleteAsync(((INodeManagerShutdown)m_manager).PrepareForShutdownAsync).ConfigureAwait(false);
-                await CompleteAsync(() => new ValueTask(m_manager.StopAndDrainTrustMaterialChangesAsync()))
-                    .ConfigureAwait(false);
+                if (IsServing || m_shared.IsLast)
+                {
+                    await CompleteAsync(() => new ValueTask(m_manager.DrainPendingApplyChangesAsync()))
+                        .ConfigureAwait(false);
+                }
+                if (m_attachment.File is { } file)
+                {
+                    await CompleteAsync(file.StopAsync).ConfigureAwait(false);
+                }
                 try
                 {
-                    await m_manager.DisposeAsync().ConfigureAwait(false);
+                    m_attachment.Dispose();
                 }
                 catch (Exception error)
                 {
                     errors.Add(error);
                 }
+                last = m_shared.Release();
+                if (last)
+                {
+                    await CompleteAsync(((INodeManagerShutdown)m_manager).PrepareForShutdownAsync)
+                        .ConfigureAwait(false);
+                    await CompleteAsync(() => new ValueTask(m_manager.StopAndDrainTrustMaterialChangesAsync()))
+                        .ConfigureAwait(false);
+                    try
+                    {
+                        await m_manager.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception error)
+                    {
+                        errors.Add(error);
+                    }
+                }
             }
             finally
             {
-                ReleaseRegistration();
+                if (last)
+                {
+                    m_shared.Reservation.Dispose();
+                }
             }
             if (errors.Count == 1)
             {
@@ -308,14 +450,6 @@ namespace Opc.Ua.Server
                     errors.Add(error);
                 }
             }
-        }
-
-        /// <summary>
-        /// Releases the target's isolation reservation after its engine can no longer write.
-        /// </summary>
-        private void ReleaseRegistration()
-        {
-            m_registry.Release(m_target.Configuration);
         }
 
         /// <summary>
@@ -387,7 +521,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Reserves an application's security after excluding the host and all other active applications.
             /// </summary>
-            public void Reserve(
+            public TargetReservation Reserve(
                 ApplicationConfiguration configuration,
                 ApplicationConfiguration managementConfiguration,
                 IPendingCertificateKeyStore pendingKeyStore,
@@ -405,39 +539,42 @@ namespace Opc.Ua.Server
                     }
                     if (configurationFileProvider != null &&
                         (host?.UsesConfigurationFileProvider(configurationFileProvider) == true ||
-                            m_configurationFiles.ContainsValue(configurationFileProvider)))
+                            m_applications.Values.Any(owner =>
+                                EqualityComparer<IApplicationConfigurationFileProvider>.Default.Equals(
+                                    owner.ConfigurationFileProvider, configurationFileProvider))))
                     {
                         throw new ArgumentException(
                             "The target cannot reuse another application's configuration-file provider.",
                             nameof(configurationFileProvider));
                     }
-                    foreach (KeyValuePair<ApplicationConfiguration, IPendingCertificateKeyStore> existing
-                        in m_applications)
+                    foreach (TargetReservation existing in m_applications.Values)
                     {
-                        ValidateIsolation(configuration, existing.Key);
-                        if (ReferenceEquals(pendingKeyStore, existing.Value))
+                        ValidateIsolation(configuration, existing.Configuration);
+                        if (ReferenceEquals(pendingKeyStore, existing.PendingKeyStore))
                         {
                             throw new ArgumentException("The target cannot reuse another application's pending keys.",
                                 nameof(pendingKeyStore));
                         }
                     }
-                    m_applications.Add(configuration, pendingKeyStore);
-                    if (configurationFileProvider != null)
-                    {
-                        m_configurationFiles.Add(configuration, configurationFileProvider);
-                    }
+                    var reservation = new TargetReservation(this, configuration, pendingKeyStore,
+                        configurationFileProvider);
+                    m_applications.Add(configuration, reservation);
+                    return reservation;
                 }
             }
 
             /// <summary>
             /// Releases an application's security reservation after its binding has drained.
             /// </summary>
-            public void Release(ApplicationConfiguration configuration)
+            public void Release(TargetReservation reservation)
             {
                 lock (m_sync)
                 {
-                    m_applications.Remove(configuration);
-                    m_configurationFiles.Remove(configuration);
+                    if (m_applications.TryGetValue(reservation.Configuration, out TargetReservation? owner) &&
+                        ReferenceEquals(owner, reservation))
+                    {
+                        m_applications.Remove(reservation.Configuration);
+                    }
                 }
             }
 
@@ -445,27 +582,59 @@ namespace Opc.Ua.Server
             private readonly Lock m_sync = new();
 
             /// <summary>The configurations and pending keys reserved until their bindings have drained.</summary>
-            private readonly Dictionary<ApplicationConfiguration, IPendingCertificateKeyStore> m_applications = [];
-
-            /// <summary>The externally owned configuration providers reserved by live bindings.</summary>
-            private readonly Dictionary<ApplicationConfiguration, IApplicationConfigurationFileProvider>
-                m_configurationFiles = [];
+            private readonly Dictionary<ApplicationConfiguration, TargetReservation> m_applications = [];
         }
 
-        /// <summary>The externally owned application runtime.</summary>
-        private readonly IApplicationConfigurationPushTarget m_target;
+        /// <summary>
+        /// Binds an isolation claim to its original host, target configuration and provider instances.
+        /// </summary>
+        /// <param name="Registry">The canonical host registry that owns this claim.</param>
+        /// <param name="Configuration">The target configuration captured at admission.</param>
+        /// <param name="PendingKeyStore">The effective pending key store.</param>
+        /// <param name="ConfigurationFileProvider">The optional target file provider.</param>
+        private sealed record TargetReservation(
+            BindingRegistry Registry,
+            ApplicationConfiguration Configuration,
+            IPendingCertificateKeyStore PendingKeyStore,
+            IApplicationConfigurationFileProvider? ConfigurationFileProvider) : IDisposable
+        {
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Registry.Release(this);
+            }
+        }
 
         /// <summary>The deployment admission shared by calls and deferred effects.</summary>
         private readonly IApplicationConfigurationPushOperations? m_operations;
 
-        /// <summary>Whether this binding exposes an independently configured application file.</summary>
-        private readonly bool m_hasConfigurationFile;
-
-        /// <summary>The binding-owned push engine.</summary>
+        /// <summary>The engine retained by all attachments to this target.</summary>
         private readonly ConfigurationNodeManager m_manager;
 
-        /// <summary>The management server's active security reservations.</summary>
-        private readonly BindingRegistry m_registry;
+        private readonly SharedReservation m_shared;
+        private readonly ConfigurationNodeManager.ApplicationPushAttachment m_attachment;
+        private readonly Func<bool>? m_isServing;
+        private readonly Action? m_enter;
+        private readonly Action? m_exit;
+
+        private sealed class SharedReservation(TargetReservation reservation)
+        {
+            public TargetReservation Reservation { get; } = reservation;
+
+            public bool IsLast => Volatile.Read(ref m_count) == 1;
+
+            public void Retain()
+            {
+                Interlocked.Increment(ref m_count);
+            }
+
+            public bool Release()
+            {
+                return Interlocked.Decrement(ref m_count) == 0;
+            }
+
+            private int m_count = 1;
+        }
 
         /// <summary>Serializes dispatch admission and shutdown state.</summary>
         private readonly Lock m_lifetime = new();
@@ -479,6 +648,8 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether shutdown has stopped new dispatch.</summary>
         private bool m_stopping;
+
+        private bool m_frozenForHandoff;
 
         /// <summary>The shared asynchronous disposal completion.</summary>
         private Task? m_disposal;

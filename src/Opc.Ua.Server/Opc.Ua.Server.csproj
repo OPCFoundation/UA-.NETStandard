@@ -23,6 +23,7 @@ SPDX-License-Identifier: MIT
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Server.TestFramework" />
     <InternalsVisibleTo Include="Opc.Ua.WotCon.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Gds.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Tests" />

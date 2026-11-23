@@ -603,6 +603,7 @@ namespace Opc.Ua.Server
                                     .Select(uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri)),
                                 originalTypes, originalFactory, readImages);
                         }
+                        OverrideBrowsePublicationValidator.Validate(m_nodeManagers.Revision, routes.Next);
                         routes.Reserve();
                         using TypeTable.Publication types =
                             Server.TypeTree.BeginPublication(originalTypes, typeRevision);
@@ -628,7 +629,7 @@ namespace Opc.Ua.Server
                             typeTree,
                             factory,
                             candidates,
-                            referenceUpdates,
+                            referenceOwners,
                             historianRegistrationsChanged =>
                             {
                                 commit.Publish(historianRegistrationsChanged);
@@ -646,7 +647,8 @@ namespace Opc.Ua.Server
                                     candidate.Publish();
                                     SetPreparing(candidate.NodeManager, preparing: false);
                                 }
-                            });
+                            },
+                            context.Progress);
                         cancellationToken.ThrowIfCancellationRequested();
                         if (!commit.Publishes)
                         {

@@ -305,10 +305,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Disposes the trusted and issuer store instances this TrustList
-        /// holds open across its operations. The owner of the TrustList
-        /// (the node manager hosting the handler) calls this at shutdown;
-        /// a later operation would simply re-open the stores.
+        /// Reports whether this attachment owns any TrustList handles.
+        /// </summary>
+        internal bool HasOpenHandles
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_handles.Count != 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Disposes the trusted and issuer store instances and open handles.
         /// </summary>
         public void Dispose()
         {
@@ -1500,6 +1511,7 @@ namespace Opc.Ua.Server
             // Transactional: snapshot the pre-transaction store contents
             // for rollback, then stage the decoded payload instead of
             // applying it now.
+            ReleaseHandle(fileHandle, strm!);
             CertificateCollection? originalIssuerCertificates = null;
             CertificateCollection? originalTrustedCertificates = null;
             X509CRLCollection? originalIssuerCrls = null;

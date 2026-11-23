@@ -33,8 +33,15 @@ namespace Opc.Ua.Server
         ILocalAddressSpaceSource,
         IPredefinedNodeSubtypeReplacer,
         INodeManagerMonitoredItemSource,
-        INodeValuePublication
+        INodeValuePublication,
+        INodeManagerOverrideBrowseCapability
     {
+        /// <inheritdoc/>
+        bool INodeManagerOverrideBrowseCapability.SupportsOverrideBrowse(ArrayOf<NodeId> targets)
+        {
+            return OverrideNodeBrowser.Supports(targets);
+        }
+
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -211,6 +218,7 @@ namespace Opc.Ua.Server
                 Interlocked.MemoryBarrier();
                 CompleteOperationsDrainLocked();
             }
+            RevokeSecurityAdminCallPermissions();
             m_valuePublicationShutdown.Cancel();
             // Cleanup starts inline until its first incomplete await, then publishes the shared
             // success or failure that DisposeAsync awaits; no separate Task.Run is queued here.
@@ -4978,11 +4986,18 @@ namespace Opc.Ua.Server
 
             var nodeMetadataValues = new Variant[s_nodeMetaDataAttributes.Length];
 
+            NamespaceDefaultPermissions? permissionDefaults = RequiresDynamicPermissionReads(target)
+                ? await NamespaceDefaultPermissionReader.ReadAsync(
+                    Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false)
+                : null;
+
             // read the attributes. Each attribute read guards itself on the node.
-            target.ReadAttributes(
+            ReadPermissionAwareAttributes(
+                target,
                 systemContext,
                 ref nodeMetadataValues,
-                s_nodeMetaDataAttributes);
+                s_nodeMetaDataAttributes,
+                permissionDefaults);
 
             // construct the meta-data object.
             var metadata = new NodeMetadata(target, target.NodeId)
@@ -5042,7 +5057,8 @@ namespace Opc.Ua.Server
                 metadata.UserRolePermissions = [.. userRolePermissions];
             }
 
-            await SetDefaultPermissionsAsync(systemContext, target, metadata, cancellationToken).ConfigureAwait(false);
+            await SetDefaultPermissionsAsync(
+                systemContext, target, metadata, permissionDefaults, cancellationToken).ConfigureAwait(false);
 
             // get instance references.
             if (target is BaseInstanceState instance)
@@ -5088,33 +5104,50 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
-        /// <returns>
-        /// The cached values. A node without AccessRestrictions, RolePermissions and
-        /// UserRolePermissions, the common case, shares one array of null values: the cached
-        /// arrays are only read.
-        /// </returns>
+        /// <param name="defaults">The resolved namespace permission defaults, if available.</param>
+        /// <returns>The attribute values used for permission validation.</returns>
         private static Variant[] ReadAndCacheValidationAttributes(
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes,
             ServerSystemContext systemContext,
             NodeState target,
-            NodeId key)
+            NodeId key,
+            NamespaceDefaultPermissions? defaults = null)
         {
+            if (RequiresDynamicPermissionReads(target))
+            {
+                var values = new Variant[3];
+                ReadValidationAttributes(systemContext, target, ref values, defaults);
+                uniqueNodesServiceAttributes.Remove(key);
+                return values;
+            }
+
             Variant[] scratch = t_validationValues ?? new Variant[3];
             t_validationValues = null;
-            Variant[] values = scratch;
-            ReadValidationAttributes(systemContext, target, ref values);
-            if (values.Length == 3 && values[0].IsNull && values[1].IsNull && values[2].IsNull)
+            Variant[] cachedValues = scratch;
+            ReadValidationAttributes(systemContext, target, ref cachedValues, defaults);
+            bool cacheable = !RequiresDynamicPermissionReads(target);
+            if (cacheable &&
+                cachedValues.Length == 3 &&
+                cachedValues[0].IsNull &&
+                cachedValues[1].IsNull &&
+                cachedValues[2].IsNull)
             {
-                values = s_noValidationAttributes;
+                cachedValues = s_noValidationAttributes;
             }
-            if (!ReferenceEquals(values, scratch))
+            if (!ReferenceEquals(cachedValues, scratch))
             {
-                // the cache does not keep the scratch array: give it back to the thread.
                 Array.Clear(scratch, 0, scratch.Length);
                 t_validationValues = scratch;
             }
-            uniqueNodesServiceAttributes[key] = values;
-            return values;
+            if (cacheable)
+            {
+                uniqueNodesServiceAttributes[key] = cachedValues;
+            }
+            else
+            {
+                uniqueNodesServiceAttributes.Remove(key);
+            }
+            return cachedValues;
         }
 
         /// <summary>
@@ -5128,19 +5161,23 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="values">The array to store the values of the attributes</param>
+        /// <param name="defaults">The namespace permissions captured for this operation.</param>
         private static void ReadValidationAttributes(
             ServerSystemContext systemContext,
             NodeState target,
-            ref Variant[] values)
+            ref Variant[] values,
+            NamespaceDefaultPermissions? defaults = null)
         {
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
             uint[] attributeIds = RentValidationAttributeIds();
-            target.ReadAttributes(
+            ReadPermissionAwareAttributes(
+                target,
                 systemContext,
                 ref values,
-                attributeIds);
+                attributeIds,
+                defaults);
             t_validationAttributeIds = attributeIds;
         }
 
@@ -5216,11 +5253,16 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadNodeNotInView);
             }
 
+            if (context.RoutingSnapshot is { } referenceSnapshot)
+            {
+                continuationPoint.ValidateOverrideReferences(referenceSnapshot, source, systemContext);
+            }
+
             // fetch list of references.
             if (continuationPoint.Data is not BrowserContext browserContext)
             {
                 // create a new browser. The node guards the browser build itself.
-                INodeBrowser browser = source.CreateBrowser(
+                INodeBrowser browser = OverrideNodeBrowser.Wrap(source.CreateBrowser(
                     systemContext,
                     continuationPoint.View,
                     continuationPoint.ReferenceTypeId,
@@ -5228,7 +5270,7 @@ namespace Opc.Ua.Server
                     continuationPoint.BrowseDirection,
                     default,
                     null,
-                    false);
+                    false), context.RoutingSnapshot);
 
                 continuationPoint.Data = browserContext = new BrowserContext(browser);
             }
@@ -5247,6 +5289,10 @@ namespace Opc.Ua.Server
                     reference != null;
                     reference = await browser.NextAsync(cancellationToken).ConfigureAwait(false))
                 {
+                    if (context.RoutingSnapshot is { } snapshot && continuationPoint.OverrideOwners is not null)
+                    {
+                        continuationPoint.ValidateOverrideTarget(snapshot, reference.TargetId);
+                    }
                     ReferenceDescription description;
                     try
                     {
@@ -5409,6 +5455,13 @@ namespace Opc.Ua.Server
                 return description;
             }
 
+            if (context.OperationContext?.RoutingSnapshot?.NodeOverrides
+                .ContainsKey((NodeId)reference.TargetId) == true)
+            {
+                description.Unfiltered = true;
+                return description;
+            }
+
             NodeState? target = null;
 
             // check for local reference.
@@ -5508,15 +5561,15 @@ namespace Opc.Ua.Server
             using IDisposable? activity = BeginBrowseActivity(systemContext, source);
 
             // get list of references that relative path. The node guards the browser build itself.
-            INodeBrowser browser = source.CreateBrowser(
+            INodeBrowser browser = OverrideNodeBrowser.Wrap(source.CreateBrowser(
                 systemContext,
                 null,
                 relativePath.ReferenceTypeId,
                 relativePath.IncludeSubtypes,
                 relativePath.IsInverse ? BrowseDirection.Inverse : BrowseDirection.Forward,
-                relativePath.TargetName,
+                context.RoutingSnapshot?.NodeOverrides.Count > 0 ? default : relativePath.TargetName,
                 null,
-                false);
+                false), context.RoutingSnapshot);
 
             // check the browse names.
             try
@@ -5528,6 +5581,12 @@ namespace Opc.Ua.Server
                     // ignore unknown external references.
                     if (reference.TargetId.IsAbsolute)
                     {
+                        continue;
+                    }
+
+                    if (context.RoutingSnapshot?.NodeOverrides.ContainsKey((NodeId)reference.TargetId) == true)
+                    {
+                        unresolvedTargetIds.Add((NodeId)reference.TargetId);
                         continue;
                     }
 
@@ -5686,7 +5745,9 @@ namespace Opc.Ua.Server
                 DateTimeUtc readTime = DateTimeUtc.Now;
 
                 // read the attribute value.
-                (errors[ii], value) = await node.ReadAttributeAsync(
+                (errors[ii], value) = await ReadConfigurationPermissionAttributeAsync(
+                    Server,
+                    node,
                     systemContext,
                     nodeToRead.AttributeId,
                     nodeToRead.ParsedIndexRange,
@@ -6066,7 +6127,9 @@ namespace Opc.Ua.Server
                 // hook is set, so behaviour is preserved bit-for-bit. When a
                 // BaseVariableState async hook is set the lock is dropped on
                 // the await, allowing true async I/O.
-                (errors[handle.Index], value) = await source.ReadAttributeAsync(
+                (errors[handle.Index], value) = await ReadConfigurationPermissionAttributeAsync(
+                    Server,
+                    source,
                     context,
                     nodeToRead.AttributeId,
                     nodeToRead.ParsedIndexRange,
@@ -11502,6 +11565,11 @@ namespace Opc.Ua.Server
                 return null!;
             }
 
+            NamespaceDefaultPermissions? permissionDefaults = RequiresDynamicPermissionReads(target)
+                ? await NamespaceDefaultPermissionReader.ReadAsync(
+                    Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false)
+                : null;
+
             // construct the meta-data object.
             var metadata = new NodeMetadata(target, target.NodeId)
             {
@@ -11513,25 +11581,27 @@ namespace Opc.Ua.Server
             {
                 NodeId key = handle.NodeId;
                 if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out Variant[]? values) ||
-                    values.Length != 3)
+                    values.Length != 3 || RequiresDynamicPermissionReads(target))
                 {
                     values = ReadAndCacheValidationAttributes(
                         uniqueNodesServiceAttributesCache,
                         systemContext,
                         target,
-                        key);
+                        key,
+                        permissionDefaults);
                 }
 
                 SetAccessAndRolePermissions(values, metadata);
             } // All other calls that do not use the cache
-            else if (permissionsOnly)
+            else if (permissionsOnly || RequiresDynamicPermissionReads(target))
             {
                 var values = new Variant[3];
-                ReadValidationAttributes(systemContext, target, ref values);
+                ReadValidationAttributes(systemContext, target, ref values, permissionDefaults);
                 SetAccessAndRolePermissions(values, metadata);
             }
 
-            await SetDefaultPermissionsAsync(systemContext, target, metadata, cancellationToken).ConfigureAwait(false);
+            await SetDefaultPermissionsAsync(
+                systemContext, target, metadata, permissionDefaults, cancellationToken).ConfigureAwait(false);
 
             return metadata;
         }
@@ -11543,16 +11613,553 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext,
             NodeState target,
             NodeMetadata metadata,
+            NamespaceDefaultPermissions? permissionDefaults = null,
             CancellationToken cancellationToken = default)
         {
-            (AccessRestrictionType defaultAccessRestrictions,
-                ArrayOf<RolePermissionType> defaultRolePermissions,
-                ArrayOf<RolePermissionType> defaultUserRolePermissions) =
-                await GetDefaultPermissionsAsync(systemContext, target, cancellationToken).ConfigureAwait(false);
+            NamespaceDefaultPermissions defaults = permissionDefaults ??
+                await NamespaceDefaultPermissionReader.ReadAsync(
+                    Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+            if (!StatusCode.IsGood(defaults.Status))
+            {
+                throw new ServiceResultException(defaults.Status);
+            }
             metadata.DefaultAccessRestrictions = target.AccessRestrictions.HasValue
-                ? AccessRestrictionType.None : defaultAccessRestrictions;
-            metadata.DefaultRolePermissions = defaultRolePermissions;
-            metadata.DefaultUserRolePermissions = defaultUserRolePermissions;
+                ? AccessRestrictionType.None : defaults.DefaultAccessRestrictions;
+            metadata.DefaultRolePermissions = defaults.DefaultRolePermissions;
+            metadata.DefaultUserRolePermissions = defaults.DefaultUserRolePermissions;
+        }
+
+        /// <summary>
+        /// Registers a request-time grant without modifying the node's explicit permissions.
+        /// </summary>
+        internal static void RegisterSecurityAdminCallPermissions(AsyncCustomNodeManager owner, NodeState node)
+        {
+            lock (s_securityAdminGrantLock)
+            {
+                if (owner.m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(AsyncCustomNodeManager));
+                }
+                if (s_securityAdminCallPermissions.TryGetValue(node, out SecurityAdminCallPermissionGrant? existing))
+                {
+                    if (existing.Owner.TryGetTarget(out AsyncCustomNodeManager? currentOwner) &&
+                        ReferenceEquals(currentOwner, owner) &&
+                        node.OnReadRolePermissions == existing.ReadRolePermissions)
+                    {
+                        return;
+                    }
+                    existing.Retire(node);
+                    s_securityAdminCallPermissions.Remove(node);
+                }
+
+                var grant = new SecurityAdminCallPermissionGrant(owner, node.OnReadRolePermissions);
+                s_securityAdminCallPermissions.Add(node, grant);
+                node.OnReadRolePermissions = grant.ReadRolePermissions;
+                owner.m_securityAdminGrantedNodes.Add(new WeakReference<NodeState>(node));
+            }
+        }
+
+        /// <summary>
+        /// Removes this manager's grants without removing a newer binding's permissions.
+        /// </summary>
+        internal void RevokeSecurityAdminCallPermissions()
+        {
+            lock (s_securityAdminGrantLock)
+            {
+                foreach (WeakReference<NodeState> reference in m_securityAdminGrantedNodes)
+                {
+                    if (reference.TryGetTarget(out NodeState? node) &&
+                        s_securityAdminCallPermissions.TryGetValue(node, out SecurityAdminCallPermissionGrant? grant) &&
+                        grant.Owner.TryGetTarget(out AsyncCustomNodeManager? owner) && ReferenceEquals(owner, this))
+                    {
+                        grant.Retire(node);
+                    }
+                }
+                m_securityAdminGrantedNodes.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Returns whether a node needs fresh permission reads, including after a configuration grant is retired.
+        /// </summary>
+        internal static bool RequiresDynamicPermissionReads(NodeState node)
+        {
+            return s_securityAdminCallPermissions.TryGetValue(node, out _);
+        }
+
+        /// <summary>
+        /// Uses the same resolved namespace defaults for advertised attributes and legacy authorization metadata.
+        /// </summary>
+        internal static ArrayOf<Variant> ReadPermissionAwareAttributes(
+            NodeState target,
+            ServerSystemContext context,
+            NamespaceDefaultPermissions? defaults,
+            params uint[] attributeIds)
+        {
+            if (!RequiresDynamicPermissionReads(target))
+            {
+                return target.ReadAttributes(context, attributeIds);
+            }
+
+            var values = new Variant[attributeIds.Length];
+            ReadPermissionAwareAttributes(target, context, ref values, attributeIds, defaults);
+            return ArrayOf.Wrapped(values);
+        }
+
+        /// <summary>
+        /// Resolves inherited permissions before an asynchronous attribute read without blocking its callback.
+        /// </summary>
+        internal static async ValueTask<(ServiceResult Result, DataValue Value)>
+            ReadConfigurationPermissionAttributeAsync(
+            IServerInternal server,
+            NodeState node,
+            ServerSystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            DataValue value,
+            CancellationToken cancellationToken)
+        {
+            if (attributeId != Attributes.RolePermissions || !RequiresDynamicPermissionReads(node))
+            {
+                return await node.ReadAttributeAsync(
+                    context, attributeId, indexRange, dataEncoding, value, cancellationToken).ConfigureAwait(false);
+            }
+            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                server, context, node.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+
+            PermissionReadSnapshot? previous = s_permissionReadSnapshot.Value;
+            var snapshot = new PermissionReadSnapshot(context, defaults);
+            s_securityAdminCallPermissions.TryGetValue(node, out SecurityAdminCallPermissionGrant? grant);
+            bool activeGrant = grant?.IsCurrent(node) == true;
+            s_permissionReadSnapshot.Value = snapshot;
+            try
+            {
+                (ServiceResult result, DataValue readValue) = await node.ReadAttributeAsync(
+                    context, attributeId, indexRange, dataEncoding, value, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsGood(result) && snapshot.UsedDefaults &&
+                    defaults.Generation != NamespaceDefaultPermissionReader.Generation)
+                {
+                    NamespaceDefaultPermissions current = await NamespaceDefaultPermissionReader.ReadAsync(
+                        server, context, defaults.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+                    StatusCode status = GetPermissionSnapshotStatus(snapshot.Defaults, current);
+                    if (!StatusCode.IsGood(status))
+                    {
+                        return (new ServiceResult(status),
+                            readValue.WithWrappedValue(Variant.Null).WithStatus(status));
+                    }
+                }
+                if (ServiceResult.IsGood(result) && activeGrant && !grant!.IsCurrent(node))
+                {
+                    return (new ServiceResult(StatusCodes.BadInvalidState),
+                        readValue.WithWrappedValue(Variant.Null).WithStatus(StatusCodes.BadInvalidState));
+                }
+                return (result, readValue);
+            }
+            finally
+            {
+                snapshot.Dispose();
+                s_permissionReadSnapshot.Value = previous;
+            }
+        }
+
+        /// <summary>
+        /// Reads registered nodes' permission attributes without discarding callback failures.
+        /// </summary>
+        private static void ReadPermissionAwareAttributes(
+            NodeState target,
+            ServerSystemContext context,
+            ref Variant[] values,
+            uint[] attributeIds,
+            NamespaceDefaultPermissions? defaults = null)
+        {
+            if (!RequiresDynamicPermissionReads(target))
+            {
+                target.ReadAttributes(context, ref values, attributeIds);
+                return;
+            }
+
+            PermissionReadSnapshot? previous = s_permissionReadSnapshot.Value;
+            PermissionReadSnapshot? snapshot = defaults.HasValue
+                ? new PermissionReadSnapshot(context, defaults.Value) : null;
+            s_securityAdminCallPermissions.TryGetValue(target, out SecurityAdminCallPermissionGrant? grant);
+            bool activeGrant = grant?.IsCurrent(target) == true;
+            s_permissionReadSnapshot.Value = snapshot;
+            try
+            {
+                ReadRegisteredPermissionAttributes(target, context, ref values, attributeIds);
+                if (defaults.HasValue &&
+                    defaults.Value.Generation != NamespaceDefaultPermissionReader.Generation)
+                {
+                    NamespaceDefaultPermissions current = NamespaceDefaultPermissionReader.Read(
+                        context.Server, context, defaults.Value.NamespaceIndex);
+                    StatusCode status = GetPermissionSnapshotStatus(snapshot!.Defaults, current);
+                    if (!StatusCode.IsGood(status))
+                    {
+                        throw new ServiceResultException(status);
+                    }
+                }
+                if (activeGrant && !grant!.IsCurrent(target))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+            }
+            finally
+            {
+                snapshot?.Dispose();
+                s_permissionReadSnapshot.Value = previous;
+            }
+        }
+
+        /// <summary>
+        /// Revalidates only this namespace's policy after request-cache invalidation.
+        /// </summary>
+        private static StatusCode GetPermissionSnapshotStatus(
+            NamespaceDefaultPermissions snapshot,
+            NamespaceDefaultPermissions current)
+        {
+            if (!StatusCode.IsGood(current.Status))
+            {
+                return current.Status;
+            }
+            return snapshot.NamespaceIndex == current.NamespaceIndex &&
+                snapshot.DefaultAccessRestrictions == current.DefaultAccessRestrictions &&
+                PermissionListsEqual(snapshot.DefaultRolePermissions, current.DefaultRolePermissions) &&
+                PermissionListsEqual(snapshot.DefaultUserRolePermissions, current.DefaultUserRolePermissions)
+                ? StatusCodes.Good : StatusCodes.BadInvalidState;
+        }
+
+        /// <summary>
+        /// Compares decoded policy entries; null and empty lists both inherit under existing authorization semantics.
+        /// </summary>
+        private static bool PermissionListsEqual(
+            ArrayOf<RolePermissionType> left,
+            ArrayOf<RolePermissionType> right)
+        {
+            if (left.Count != right.Count)
+            {
+                return false;
+            }
+            for (int index = 0; index < left.Count; index++)
+            {
+                if (left[index].RoleId != right[index].RoleId ||
+                    left[index].Permissions != right[index].Permissions)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Reads registered attributes and distinguishes unsupported attributes from failed permission callbacks.
+        /// </summary>
+        private static void ReadRegisteredPermissionAttributes(
+            NodeState target,
+            ServerSystemContext context,
+            ref Variant[] values,
+            uint[] attributeIds)
+        {
+            DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
+            for (int index = 0; index < attributeIds.Length; index++)
+            {
+                uint attributeId = attributeIds[index];
+                values[index] = Variant.Null;
+                ServiceResult result;
+                try
+                {
+                    result = target.ReadAttribute(context, attributeId, ref values[index], ref sourceTimestamp);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (ServiceResultException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInternalError, exception);
+                }
+                bool absentAttribute = attributeId switch
+                {
+                    Attributes.RolePermissions => target.RolePermissions.IsNull && target.OnReadRolePermissions == null,
+                    Attributes.UserRolePermissions =>
+                        target.UserRolePermissions.IsNull && target.OnReadUserRolePermissions == null,
+                    Attributes.AccessRestrictions =>
+                        !target.AccessRestrictions.HasValue && target.OnReadAccessRestrictions == null,
+                    _ => false
+                };
+                if ((attributeId is Attributes.RolePermissions or Attributes.UserRolePermissions or
+                    Attributes.AccessRestrictions) && !ServiceResult.IsGood(result) &&
+                    (result.StatusCode != StatusCodes.BadAttributeIdInvalid || !absentAttribute))
+                {
+                    throw new ServiceResultException(result);
+                }
+                if (ServiceResult.IsGood(result) && !values[index].IsNull)
+                {
+                    if ((attributeId is Attributes.RolePermissions or Attributes.UserRolePermissions) &&
+                        !values[index].TryGetStructure(out ArrayOf<RolePermissionType> _))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+                    }
+                    if (attributeId == Attributes.AccessRestrictions)
+                    {
+                        StatusCode status = NamespaceDefaultPermissionReader.DecodeAccessRestrictions(
+                            values[index], out AccessRestrictionType restrictions);
+                        if (!StatusCode.IsGood(status))
+                        {
+                            throw new ServiceResultException(status);
+                        }
+                        values[index] = (ushort)restrictions;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds SecurityAdmin Browse and Call only when the effective permission list restricts access.
+        /// </summary>
+        private static ArrayOf<RolePermissionType> AddSecurityAdminCallPermissions(
+            ArrayOf<RolePermissionType> permissions)
+        {
+            if (permissions.IsEmpty)
+            {
+                return permissions;
+            }
+
+            const uint addedPermissions = (uint)(PermissionType.Browse | PermissionType.Call);
+            NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
+            bool foundSecurityAdmin = false;
+            for (int index = 0; index < permissions.Count; index++)
+            {
+                if (permissions[index].RoleId == roleId)
+                {
+                    foundSecurityAdmin = true;
+                    break;
+                }
+            }
+
+            var updated = new RolePermissionType[permissions.Count + (foundSecurityAdmin ? 0 : 1)];
+            for (int index = 0; index < permissions.Count; index++)
+            {
+                RolePermissionType permission = permissions[index];
+                updated[index] = new RolePermissionType
+                {
+                    RoleId = permission.RoleId,
+                    Permissions = permission.Permissions | (permission.RoleId == roleId ? addedPermissions : 0)
+                };
+            }
+            if (!foundSecurityAdmin)
+            {
+                updated[permissions.Count] = new RolePermissionType
+                {
+                    RoleId = roleId,
+                    Permissions = addedPermissions
+                };
+            }
+            return ArrayOf.Wrapped(updated);
+        }
+
+        /// <summary>
+        /// Marks a node whose configuration operations require SecurityAdmin access.
+        /// </summary>
+        private sealed class SecurityAdminCallPermissionGrant
+        {
+            /// <summary>
+            /// Captures the binding owner and the callback that the grant must preserve.
+            /// </summary>
+            public SecurityAdminCallPermissionGrant(
+                AsyncCustomNodeManager owner,
+                NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? original)
+            {
+                Owner = new WeakReference<AsyncCustomNodeManager>(owner);
+                m_original = original;
+                ReadRolePermissions = Read;
+            }
+
+            /// <summary>
+            /// Gets the manager whose lifetime controls this grant.
+            /// </summary>
+            public WeakReference<AsyncCustomNodeManager> Owner { get; }
+
+            /// <summary>
+            /// Gets the installed callback used for both advertised and enforced permissions.
+            /// </summary>
+            public NodeAttributeEventHandler<ArrayOf<RolePermissionType>> ReadRolePermissions { get; }
+
+            /// <summary>
+            /// Returns whether this grant is still installed and owned by a live binding.
+            /// </summary>
+            public bool IsCurrent(NodeState node)
+            {
+                return Volatile.Read(ref m_active) != 0 &&
+                    Owner.TryGetTarget(out AsyncCustomNodeManager? owner) && !owner.m_disposed &&
+                    s_securityAdminCallPermissions.TryGetValue(node, out SecurityAdminCallPermissionGrant? current) &&
+                    ReferenceEquals(current, this) && node.OnReadRolePermissions == ReadRolePermissions;
+            }
+
+            /// <summary>
+            /// Restores the original callback unless another component replaced it.
+            /// </summary>
+            public void Retire(NodeState node)
+            {
+                Interlocked.Exchange(ref m_active, 0);
+                if (node.OnReadRolePermissions == ReadRolePermissions)
+                {
+                    node.OnReadRolePermissions = m_original;
+                }
+            }
+
+            /// <summary>
+            /// Reports the effective live permissions, including the binding's SecurityAdmin grant.
+            /// </summary>
+            private ServiceResult Read(
+                ISystemContext context,
+                NodeState node,
+                ref ArrayOf<RolePermissionType> value)
+            {
+                bool wasActive = Volatile.Read(ref m_active) != 0;
+                ServiceResult result = m_original?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (!ServiceResult.IsGood(result))
+                {
+                    return result;
+                }
+                if (!wasActive)
+                {
+                    return result;
+                }
+                if (Volatile.Read(ref m_active) == 0 ||
+                    !Owner.TryGetTarget(out AsyncCustomNodeManager? owner) || owner.m_disposed ||
+                    !s_securityAdminCallPermissions.TryGetValue(node, out SecurityAdminCallPermissionGrant? current) ||
+                    !ReferenceEquals(current, this) || node.OnReadRolePermissions != ReadRolePermissions)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+                if (value.IsEmpty)
+                {
+                    if (context is not ServerSystemContext serverContext)
+                    {
+                        return StatusCodes.BadInternalError;
+                    }
+                    PermissionReadSnapshot? snapshot = s_permissionReadSnapshot.Value;
+                    bool useSnapshot = snapshot?.IsActive == true &&
+                        ReferenceEquals(snapshot.Context, context) &&
+                        snapshot.Defaults.NamespaceIndex == node.NodeId.NamespaceIndex;
+                    if (useSnapshot)
+                    {
+                        snapshot!.UsedDefaults = true;
+                    }
+                    NamespaceDefaultPermissions defaults = useSnapshot
+                        ? snapshot!.Defaults
+                        : NamespaceDefaultPermissionReader.Read(
+                            owner.Server, serverContext, node.NodeId.NamespaceIndex);
+                    if (!StatusCode.IsGood(defaults.Status))
+                    {
+                        return defaults.Status;
+                    }
+                    value = defaults.DefaultRolePermissions.IsEmpty
+                        ? ArrayOf<RolePermissionType>.Empty : defaults.DefaultRolePermissions;
+                }
+                value = AddSecurityAdminCallPermissions(value);
+                if (Volatile.Read(ref m_active) == 0 || owner.m_disposed ||
+                    !s_securityAdminCallPermissions.TryGetValue(node, out current) ||
+                    !ReferenceEquals(current, this) || node.OnReadRolePermissions != ReadRolePermissions)
+                {
+                    value = default;
+                    return StatusCodes.BadInvalidState;
+                }
+                return result;
+            }
+
+            /// <summary>
+            /// The callback supplied before this binding installed its grant.
+            /// </summary>
+            private readonly NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? m_original;
+
+            /// <summary>
+            /// Whether this binding still admits permission reads.
+            /// </summary>
+            private int m_active = 1;
+        }
+
+        /// <summary>
+        /// Shares one resolved default snapshot with synchronous callbacks during an attribute read.
+        /// </summary>
+        private sealed class PermissionReadSnapshot : IDisposable
+        {
+            /// <summary>
+            /// Retains resolved defaults for the current caller's attribute read.
+            /// </summary>
+            public PermissionReadSnapshot(ServerSystemContext context, NamespaceDefaultPermissions defaults)
+            {
+                Context = context;
+                Defaults = new NamespaceDefaultPermissions(
+                    defaults.NamespaceIndex,
+                    defaults.DefaultAccessRestrictions,
+                    CopyPermissionList(defaults.DefaultRolePermissions),
+                    CopyPermissionList(defaults.DefaultUserRolePermissions),
+                    defaults.Generation,
+                    defaults.Status,
+                    defaults.HasDefaultAccessRestrictions,
+                    defaults.HasDefaultRolePermissions,
+                    defaults.HasDefaultUserRolePermissions);
+            }
+
+            /// <summary>
+            /// Gets the caller for which the defaults were resolved.
+            /// </summary>
+            public ServerSystemContext Context { get; }
+
+            /// <summary>
+            /// Gets the resolved namespace defaults.
+            /// </summary>
+            public NamespaceDefaultPermissions Defaults { get; }
+
+            /// <summary>
+            /// Gets or sets whether the RolePermissions callback inherited this snapshot's defaults.
+            /// </summary>
+            public bool UsedDefaults { get; set; }
+
+            /// <summary>
+            /// Gets whether the owning read has not completed.
+            /// </summary>
+            public bool IsActive => Volatile.Read(ref m_active) != 0;
+
+            /// <summary>
+            /// Prevents a callback's captured execution context from reusing this snapshot after the read.
+            /// </summary>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_active, 0);
+            }
+
+            /// <summary>
+            /// Detaches mutable role entries so an in-place policy change cannot modify the comparison snapshot.
+            /// </summary>
+            private static ArrayOf<RolePermissionType> CopyPermissionList(ArrayOf<RolePermissionType> permissions)
+            {
+                if (permissions.IsEmpty)
+                {
+                    return permissions;
+                }
+                var copy = new RolePermissionType[permissions.Count];
+                for (int index = 0; index < copy.Length; index++)
+                {
+                    copy[index] = new RolePermissionType
+                    {
+                        RoleId = permissions[index].RoleId,
+                        Permissions = permissions[index].Permissions
+                    };
+                }
+                return ArrayOf.Wrapped(copy);
+            }
+
+            /// <summary>
+            /// Whether the owning attribute read is active.
+            /// </summary>
+            private int m_active = 1;
         }
 
         /// <summary>
@@ -11667,27 +12274,38 @@ namespace Opc.Ua.Server
             bool validateRolePermissions,
             CancellationToken cancellationToken)
         {
+            NamespaceDefaultPermissions? permissionDefaults = RequiresDynamicPermissionReads(target)
+                ? await NamespaceDefaultPermissionReader.ReadAsync(
+                    Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false)
+                : null;
+            if (permissionDefaults.HasValue && !StatusCode.IsGood(permissionDefaults.Value.Status))
+            {
+                return new ServiceResult(permissionDefaults.Value.Status);
+            }
+
             Variant[]? values = null;
             if (uniqueNodesServiceAttributesCache != null)
             {
                 if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out values) ||
-                    values.Length != 3)
+                    values.Length != 3 || RequiresDynamicPermissionReads(target))
                 {
                     values = ReadAndCacheValidationAttributes(
                         uniqueNodesServiceAttributesCache,
                         systemContext,
                         target,
-                        key);
+                        key,
+                        permissionDefaults);
                 }
             }
             Variant[]? scratch = null;
-            if (uniqueNodesServiceAttributesCache == null && permissionsOnly)
+            if (uniqueNodesServiceAttributesCache == null &&
+                (permissionsOnly || RequiresDynamicPermissionReads(target)))
             {
                 // nothing keeps the values beyond this method: read them into the array of
                 // the thread.
                 values = scratch = t_validationValues ?? new Variant[3];
                 t_validationValues = null;
-                ReadValidationAttributes(systemContext, target, ref values);
+                ReadValidationAttributes(systemContext, target, ref values, permissionDefaults);
             }
 
             // the same conversions as SetAccessAndRolePermissions; the arrays are only read
@@ -11717,8 +12335,9 @@ namespace Opc.Ua.Server
                 t_validationValues = scratch;
             }
 
-            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
-                Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+            NamespaceDefaultPermissions defaults = permissionDefaults ??
+                await NamespaceDefaultPermissionReader.ReadAsync(
+                    Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
             if (!StatusCode.IsGood(defaults.Status))
             {
                 return new ServiceResult(defaults.Status);
@@ -11741,30 +12360,6 @@ namespace Opc.Ua.Server
             return validateAccessRestrictions && ServiceResult.IsGood(result)
                 ? MasterNodeManager.ValidateAccessRestrictions(context, permissions, requestedPermission)
                 : result;
-        }
-
-        /// <summary>
-        /// Reads the namespace default values for DefaultAccessRestrictions, DefaultRolePermissions
-        /// and DefaultUserRolePermissions of the node's namespace.
-        /// </summary>
-        private async ValueTask<(
-            AccessRestrictionType DefaultAccessRestrictions,
-            ArrayOf<RolePermissionType> DefaultRolePermissions,
-            ArrayOf<RolePermissionType> DefaultUserRolePermissions)> GetDefaultPermissionsAsync(
-            ServerSystemContext systemContext,
-            NodeState target,
-            CancellationToken cancellationToken = default)
-        {
-            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
-                Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
-            if (!StatusCode.IsGood(defaults.Status))
-            {
-                throw new ServiceResultException(defaults.Status);
-            }
-            return (
-                defaults.DefaultAccessRestrictions,
-                defaults.DefaultRolePermissions,
-                defaults.DefaultUserRolePermissions);
         }
 
         /// <summary>
@@ -12006,6 +12601,28 @@ namespace Opc.Ua.Server
         private IReadOnlyList<string>? m_namespaceUris;
         private ushort[] m_namespaceIndexes;
         private NodeIdDictionary<CacheEntry>? m_componentCache;
+
+        /// <summary>
+        /// Retains grants by node identity without keeping removed nodes alive.
+        /// </summary>
+        private static readonly ConditionalWeakTable<NodeState, SecurityAdminCallPermissionGrant>
+            s_securityAdminCallPermissions = new();
+
+        /// <summary>
+        /// Serializes binding replacement and callback restoration.
+        /// </summary>
+        private static readonly Lock s_securityAdminGrantLock = new();
+
+        /// <summary>
+        /// Supplies the resolved namespace defaults only during the current synchronous attribute read.
+        /// </summary>
+        private static readonly AsyncLocal<PermissionReadSnapshot?> s_permissionReadSnapshot = new();
+
+        /// <summary>
+        /// Tracks this manager's grants without retaining nodes owned by another manager.
+        /// </summary>
+        private readonly List<WeakReference<NodeState>> m_securityAdminGrantedNodes = [];
+
         private readonly SemaphoreSlim m_componentCacheSemaphore = new(1, 1);
 
         /// <summary>

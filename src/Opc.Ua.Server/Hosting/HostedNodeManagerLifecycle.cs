@@ -92,6 +92,22 @@ namespace Opc.Ua.Server.Hosting
             return CallbackLifecycle.PrepareFromCallbackAsync(changes, context, cancellationToken);
         }
 
+        /// <summary>
+        /// Queues a first-party replacement on the attached server's worker without exposing completion.
+        /// </summary>
+        internal StatusCode QueueHandoff(
+            NodeManagerRegistration predecessor,
+            INodeManagerHandoffFactory factory,
+            CancellationToken cancellationToken)
+        {
+            return Volatile.Read(ref m_current) switch
+            {
+                NodeManagerLifecycle lifecycle => lifecycle.QueueHandoff(predecessor, factory, cancellationToken),
+                null => StatusCodes.BadShutdown,
+                _ => StatusCodes.BadNotSupported
+            };
+        }
+
         private INodeManagerCallbackLifecycle CallbackLifecycle => Current as INodeManagerCallbackLifecycle ??
             throw new NotSupportedException("The attached lifecycle does not support callback admission.");
 

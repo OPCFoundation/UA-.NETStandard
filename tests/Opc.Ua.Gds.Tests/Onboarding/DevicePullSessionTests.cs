@@ -44,7 +44,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var requestId = new NodeId("request", 1);
             var profile = new PullDcaCertificateProfile(new NodeId("group", 1),
                 global::Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
-            var trust = new TrustListDataType();
+            var trust = new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All };
             var localIdentity = new Mock<IPullDcaIdentityProvider>(MockBehavior.Strict);
             localIdentity.Setup(value => value.ActivateAsync(identity, It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
             var installation = security.Setup(value => value.InstallFromPullAsync(context.ManagedSession, "urn:registrar",
                     It.Is<ProvisionableDeviceCredentials>(credentials =>
-                        credentials.Certificate == certificate && credentials.TrustList == trust),
+                        credentials.Certificate == certificate && credentials.TrustList.IsEqual(trust)),
                     It.IsAny<CancellationToken>()));
             var expectedFailure = new InvalidOperationException("Device installation failed.");
             if (failInstallation)
@@ -366,6 +366,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             /// <inheritdoc/>
+            public ValueTask<ArrayOf<ManagerDescription>> GetManagersOnInstalledChannelAsync(
+                PullDcaSigningBinding? binding,
+                ByteString installedCertificate,
+                CancellationToken ct)
+            {
+                Assert.That(binding, Is.Null);
+                Assert.That(installedCertificate, Is.EqualTo(m_certificate));
+                return GetManagersAsync(ct);
+            }
+
+            /// <inheritdoc/>
             public ValueTask<NodeId> RegisterAsync(PullDcaManagedApplication application, CancellationToken ct)
             {
                 throw new AssertionException("Managed application registration was not requested.");
@@ -381,6 +392,22 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(csr, Is.EqualTo(m_csr));
                 Starts++;
                 return new ValueTask<NodeId>(m_requestId);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<NodeId> StartNewKeyPairAsync(
+                NodeId applicationId, PullDcaCertificateProfile profile, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                throw new AssertionException("A new key pair was not requested by this signing fixture.");
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<(ByteString Certificate, ByteString PrivateKeyPfx, ArrayOf<ByteString> Issuers)>
+                FinishNewKeyPairAsync(NodeId applicationId, NodeId requestId, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                throw new AssertionException("A new key pair was not requested by this signing fixture.");
             }
 
             /// <inheritdoc/>
