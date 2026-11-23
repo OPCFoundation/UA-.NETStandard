@@ -868,6 +868,74 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        [CancelAfter(30_000)]
+        public void AnElementReferencedByManyOperandsIsEvaluatedOnce()
+        {
+            var target = new MachineryResultFilterTarget(Result("S-1", jobId: "J").Data);
+
+            // Every element refers to the one below it twice. The filter is
+            // valid, and evaluating an element once per reference would take
+            // 2^200 evaluations.
+            var filter = new ContentFilter();
+            ContentFilterElement element = filter.Push(FilterOperator.Equals, Leaf(true));
+            for (int ii = 0; ii < 200; ii++)
+            {
+                element = filter.Push(
+                    FilterOperator.And,
+                    Variant.FromStructure(element),
+                    Variant.FromStructure(element));
+            }
+
+            Assert.That(
+                ServiceResult.IsGood(filter.Validate(CreateFilterContext()).Status),
+                Is.True);
+            Assert.That(Evaluate(filter, target), Is.True);
+
+            var rejecting = new ContentFilter();
+            element = rejecting.Push(FilterOperator.Equals, Leaf(null));
+            for (int ii = 0; ii < 200; ii++)
+            {
+                element = rejecting.Push(
+                    FilterOperator.Or,
+                    Variant.FromStructure(element),
+                    Variant.FromStructure(element));
+            }
+            Assert.That(Evaluate(rejecting, target), Is.False);
+        }
+
+        [Test]
+        [CancelAfter(30_000)]
+        public void ALikeElementThatExceedsTheMatchBudgetIsNull()
+        {
+            var target = new MachineryResultFilterTarget(Result("B-1", jobId: "J").Data);
+
+            // Every position of the text restarts the match of a long run that
+            // only fails on its last character: the product of both lengths,
+            // far beyond ContentFilter.MaxLikeMatchSteps.
+            Variant text = Variant.From(new string('a', 8000));
+            Variant pattern = Variant.From("%" + new string('a', 4000) + "b");
+
+            var like = new ContentFilter();
+            like.Push(FilterOperator.Like, text, pattern);
+            Assert.That(Evaluate(like, target), Is.False);
+
+            // NULL, not FALSE: its negation selects nothing either.
+            var negated = new ContentFilter();
+            ContentFilterElement element = negated.Push(FilterOperator.Like, text, pattern);
+            negated.Push(FilterOperator.Not, Variant.FromStructure(element));
+            Assert.That(Evaluate(negated, target), Is.False);
+
+            // A match within the budget is still decided.
+            var cheap = new ContentFilter();
+            element = cheap.Push(FilterOperator.Like, Variant.From("aaab"), Variant.From("%b"));
+            cheap.Push(FilterOperator.Not, Variant.FromStructure(element));
+            Assert.That(Evaluate(cheap, target), Is.False);
+            Assert.That(
+                Evaluate(Single(FilterOperator.Like, Variant.From("aaab"), Variant.From("%b")), target),
+                Is.True);
+        }
+
+        [Test]
         public async Task GenerateFileForWriteIsRefusedAsNotWritableAsync()
         {
             ResultManagementState management = await BuildWithResultsAsync("Write-Refused");
