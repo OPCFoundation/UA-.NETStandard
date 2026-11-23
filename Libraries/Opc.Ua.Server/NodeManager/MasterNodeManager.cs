@@ -841,6 +841,7 @@ namespace Opc.Ua.Server
             bool diagnosticsExist = false;
             var results = new BrowsePathResultCollection(browsePaths.Count);
             var diagnosticInfos = new DiagnosticInfoCollection(browsePaths.Count);
+            var budget = new TranslateBrowsePathBudget(kMaxTranslateBrowsePathsRequestWork);
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
@@ -860,7 +861,7 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = await TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
+                    error = await TranslateBrowsePathAsync(context, browsePath, result, budget, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (Exception e)
@@ -869,6 +870,12 @@ namespace Opc.Ua.Server
                         e,
                         StatusCodes.BadUnexpectedError,
                         "Unexpected error translating browse path.");
+                }
+
+                // a path that was stopped by the timeout or a cancellation ends the request.
+                if (StatusCode.IsBad(context.OperationStatus))
+                {
+                    throw new ServiceResultException(context.OperationStatus);
                 }
 
                 if (ServiceResult.IsGood(error))
@@ -953,14 +960,37 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates a browse path.
         /// </summary>
-        protected async ValueTask<ServiceResult> TranslateBrowsePathAsync(
+        protected ValueTask<ServiceResult> TranslateBrowsePathAsync(
             OperationContext context,
             BrowsePath browsePath,
             BrowsePathResult result,
             CancellationToken cancellationToken)
         {
+            return TranslateBrowsePathAsync(
+                context,
+                browsePath,
+                result,
+                new TranslateBrowsePathBudget(kMaxTranslateBrowsePathWork),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Translates a browse path and charges the work to the budget of its request.
+        /// </summary>
+        private async ValueTask<ServiceResult> TranslateBrowsePathAsync(
+            OperationContext context,
+            BrowsePath browsePath,
+            BrowsePathResult result,
+            TranslateBrowsePathBudget budget,
+            CancellationToken cancellationToken)
+        {
             Debug.Assert(browsePath != null);
             Debug.Assert(result != null);
+
+            if (budget.Remaining <= 0)
+            {
+                return StatusCodes.BadQueryTooComplex;
+            }
 
             // check for valid start node.
             (object sourceHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(
@@ -1010,31 +1040,50 @@ namespace Opc.Ua.Server
             if (ServiceResult.IsGood(serviceResult))
             {
                 // translate path only if validation is passing
-                await TranslateBrowsePathAsync(
+                StatusCode walkResult = await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
                     result.Targets,
-                    0,
+                    budget,
                     cancellationToken)
                 .ConfigureAwait(false);
+
+                if (StatusCode.IsBad(walkResult))
+                {
+                    result.Targets.Clear();
+                    return walkResult;
+                }
             }
 
             return serviceResult;
         }
 
         /// <summary>
-        /// Recursively processes the elements in the RelativePath starting at the specified index.
+        /// Processes the elements in the RelativePath depth first, without growing the
+        /// execution stack.
         /// </summary>
+        /// <remarks>
+        /// A node is followed at most once for each path element and each target is
+        /// returned once. The work is then bounded by the nodes reached times the path
+        /// elements, not by the product of the fan-outs along the path. While every step
+        /// yields at most one target no node can be reached twice for the same element,
+        /// so the visited set is only created once a step branches. The work is charged
+        /// to <paramref name="budget"/> and limited per path.
+        /// </remarks>
+        /// <returns>
+        /// Good, BadQueryTooComplex if the path costs more than its work limit, or the
+        /// bad status of the operation if the request timed out or was cancelled.
+        /// </returns>
         /// <exception cref="ServiceResultException"></exception>
-        private async ValueTask TranslateBrowsePathAsync(
+        private async ValueTask<StatusCode> TranslateBrowsePathAsync(
             OperationContext context,
             IAsyncNodeManager nodeManager,
             object sourceHandle,
             RelativePath relativePath,
             BrowsePathTargetCollection targets,
-            int index,
+            TranslateBrowsePathBudget budget,
             CancellationToken cancellationToken)
         {
             Debug.Assert(nodeManager != null);
@@ -1042,166 +1091,255 @@ namespace Opc.Ua.Server
             Debug.Assert(relativePath != null);
             Debug.Assert(targets != null);
 
-            // check for end of list.
-            if (index < 0 || index >= relativePath.Elements.Count)
+            int lastIndex = relativePath.Elements.Count - 1;
+            int pathWork = 0;
+            HashSet<(ExpandedNodeId Target, int Index)> visited = null;
+
+            // an entry without a handle is a target of the previous element.
+            var pending = new Stack<(IAsyncNodeManager Manager, object Handle, ExpandedNodeId Target, int Index)>();
+            pending.Push((nodeManager, sourceHandle, null, 0));
+
+            while (pending.Count != 0)
             {
-                return;
-            }
-
-            // follow the next hop.
-            RelativePathElement element = relativePath.Elements[index];
-
-            // check for valid reference type.
-            if (!element.IncludeSubtypes && NodeId.IsNull(element.ReferenceTypeId))
-            {
-                return;
-            }
-
-            // check for valid target name.
-            if (QualifiedName.IsNull(element.TargetName))
-            {
-                throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
-            }
-
-            var targetIds = new List<ExpandedNodeId>();
-            var externalTargetIds = new List<NodeId>();
-
-            try
-            {
-                await nodeManager.TranslateBrowsePathAsync(
-                    context,
-                    sourceHandle,
-                    element,
-                    targetIds,
-                    externalTargetIds,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                m_logger.LogError(e, "Unexpected error translating browse path.");
-                return;
-            }
-
-            // must check the browse name on all external targets.
-            for (int ii = 0; ii < externalTargetIds.Count; ii++)
-            {
-                // get the browse name from another node manager.
-                var description = new ReferenceDescription();
-
-                await UpdateReferenceDescriptionAsync(
-                        context,
-                        externalTargetIds[ii],
-                        NodeClass.Unspecified,
-                        BrowseResultMask.BrowseName,
-                        description,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                // add to list if target name matches.
-                if (description.BrowseName == element.TargetName)
+                // check if request has timed out or been cancelled.
+                StatusCode operationStatus = context.OperationStatus;
+                if (StatusCode.IsBad(operationStatus))
                 {
-                    bool found = false;
+                    return operationStatus;
+                }
 
-                    for (int jj = 0; jj < targetIds.Count; jj++)
+                (IAsyncNodeManager manager, object handle, ExpandedNodeId source, int index) = pending.Pop();
+
+                if (handle == null)
+                {
+                    // check for external reference.
+                    if (source.IsAbsolute)
                     {
-                        if (targetIds[jj] == externalTargetIds[ii])
+                        var target = new BrowsePathTarget
                         {
-                            found = true;
-                            break;
-                        }
+                            TargetId = source,
+                            RemainingPathIndex = (uint)index
+                        };
+
+                        targets.Add(target);
+                        continue;
                     }
 
-                    if (!found)
+                    // check for valid start node.
+                    (handle, manager) = await GetManagerHandleAsync((NodeId)source, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (handle == null)
                     {
-                        targetIds.Add(externalTargetIds[ii]);
+                        continue;
                     }
                 }
-            }
 
-            // check if done after a final hop.
-            if (index == relativePath.Elements.Count - 1)
-            {
-                for (int ii = 0; ii < targetIds.Count; ii++)
+                // follow the next hop.
+                RelativePathElement element = relativePath.Elements[index];
+
+                // check for valid reference type.
+                if (!element.IncludeSubtypes && NodeId.IsNull(element.ReferenceTypeId))
                 {
-                    // Check the role permissions for target nodes
-                    (object targetHandle, IAsyncNodeManager targetNodeManager) =
-                        await GetManagerHandleAsync(
-                            ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris),
+                    continue;
+                }
+
+                // check for valid target name.
+                if (QualifiedName.IsNull(element.TargetName))
+                {
+                    throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
+                }
+
+                var targetIds = new List<ExpandedNodeId>();
+                var externalTargetIds = new List<NodeId>();
+
+                try
+                {
+                    await manager.TranslateBrowsePathAsync(
+                        context,
+                        handle,
+                        element,
+                        targetIds,
+                        externalTargetIds,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogError(e, "Unexpected error translating browse path.");
+                    continue;
+                }
+
+                // charge the hop and every target it produced, before the external
+                // targets are looked up.
+                int work = 1 + targetIds.Count + externalTargetIds.Count;
+                pathWork += work;
+                budget.Remaining -= work;
+
+                if (pathWork > kMaxTranslateBrowsePathWork || budget.Remaining < 0)
+                {
+                    return StatusCodes.BadQueryTooComplex;
+                }
+
+                // the ids of the targets found so far, created with the first match.
+                HashSet<NodeId> targetNodeIds = null;
+
+                // must check the browse name on all external targets.
+                for (int ii = 0; ii < externalTargetIds.Count; ii++)
+                {
+                    // check if request has timed out or been cancelled.
+                    operationStatus = context.OperationStatus;
+                    if (StatusCode.IsBad(operationStatus))
+                    {
+                        return operationStatus;
+                    }
+
+                    // get the browse name from another node manager.
+                    var description = new ReferenceDescription();
+
+                    await UpdateReferenceDescriptionAsync(
+                            context,
+                            externalTargetIds[ii],
+                            NodeClass.Unspecified,
+                            BrowseResultMask.BrowseName,
+                            description,
                             cancellationToken)
                         .ConfigureAwait(false);
 
-                    if (targetHandle != null && targetNodeManager != null)
+                    // add to list if target name matches.
+                    if (description.BrowseName == element.TargetName)
                     {
-                        NodeMetadata nodeMetadata = await targetNodeManager.GetNodeMetadataAsync(
-                            context,
-                            targetHandle,
-                            BrowseResultMask.All,
-                            cancellationToken)
-                            .ConfigureAwait(false);
-
-                        ServiceResult serviceResult = ValidateRolePermissions(
-                            context,
-                            nodeMetadata,
-                            PermissionType.Browse);
-
-                        if (ServiceResult.IsBad(serviceResult))
+                        // a target equals an external target if their node ids are equal.
+                        if (targetNodeIds == null)
                         {
-                            // Remove target node without role permissions.
-                            continue;
+                            targetNodeIds = [];
+
+                            for (int jj = 0; jj < targetIds.Count; jj++)
+                            {
+                                NodeId targetNodeId = targetIds[jj]?.InnerNodeId;
+
+                                if (targetNodeId != null)
+                                {
+                                    targetNodeIds.Add(targetNodeId);
+                                }
+                            }
+                        }
+
+                        if (externalTargetIds[ii] is not null && targetNodeIds.Add(externalTargetIds[ii]))
+                        {
+                            targetIds.Add(externalTargetIds[ii]);
+
+                            // charge the target that was added.
+                            pathWork++;
+                            budget.Remaining--;
+
+                            if (pathWork > kMaxTranslateBrowsePathWork || budget.Remaining < 0)
+                            {
+                                return StatusCodes.BadQueryTooComplex;
+                            }
                         }
                     }
-
-                    var target = new BrowsePathTarget
-                    {
-                        TargetId = targetIds[ii],
-                        RemainingPathIndex = uint.MaxValue
-                    };
-
-                    targets.Add(target);
                 }
 
-                return;
+                if (visited == null && targetIds.Count > 1)
+                {
+                    visited = [];
+                }
+
+                // check if done after a final hop.
+                if (index == lastIndex)
+                {
+                    for (int ii = 0; ii < targetIds.Count; ii++)
+                    {
+                        // check if request has timed out or been cancelled.
+                        operationStatus = context.OperationStatus;
+                        if (StatusCode.IsBad(operationStatus))
+                        {
+                            return operationStatus;
+                        }
+
+                        // a target that another branch reached as well is returned once.
+                        if (visited != null && !visited.Add((targetIds[ii], index + 1)))
+                        {
+                            continue;
+                        }
+
+                        // Check the role permissions for target nodes
+                        (object targetHandle, IAsyncNodeManager targetNodeManager) =
+                            await GetManagerHandleAsync(
+                                ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris),
+                                cancellationToken)
+                            .ConfigureAwait(false);
+
+                        if (targetHandle != null && targetNodeManager != null)
+                        {
+                            NodeMetadata nodeMetadata = await targetNodeManager.GetNodeMetadataAsync(
+                                context,
+                                targetHandle,
+                                BrowseResultMask.All,
+                                cancellationToken)
+                                .ConfigureAwait(false);
+
+                            ServiceResult serviceResult = ValidateRolePermissions(
+                                context,
+                                nodeMetadata,
+                                PermissionType.Browse);
+
+                            if (ServiceResult.IsBad(serviceResult))
+                            {
+                                // Remove target node without role permissions.
+                                continue;
+                            }
+                        }
+
+                        var target = new BrowsePathTarget
+                        {
+                            TargetId = targetIds[ii],
+                            RemainingPathIndex = uint.MaxValue
+                        };
+
+                        targets.Add(target);
+                    }
+
+                    continue;
+                }
+
+                // process next hops. Pushing them in reverse keeps the order of the
+                // targets. A node that another branch reached as well for the same
+                // element is followed once.
+                for (int ii = targetIds.Count - 1; ii >= 0; ii--)
+                {
+                    if (visited == null || visited.Add((targetIds[ii], index + 1)))
+                    {
+                        pending.Push((null, null, targetIds[ii], index + 1));
+                    }
+                }
             }
 
-            // process next hops.
-            for (int ii = 0; ii < targetIds.Count; ii++)
+            return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// The work one browse path may cost: the hops followed plus the targets they yield.
+        /// </summary>
+        private const int kMaxTranslateBrowsePathWork = 100_000;
+
+        /// <summary>
+        /// The work one TranslateBrowsePathsToNodeIds request may cost over all of its paths.
+        /// </summary>
+        private const int kMaxTranslateBrowsePathsRequestWork = 1_000_000;
+
+        /// <summary>
+        /// The work that is left for one TranslateBrowsePathsToNodeIds request.
+        /// </summary>
+        private sealed class TranslateBrowsePathBudget
+        {
+            public TranslateBrowsePathBudget(int remaining)
             {
-                ExpandedNodeId targetId = targetIds[ii];
-
-                // check for external reference.
-                if (targetId.IsAbsolute)
-                {
-                    var target = new BrowsePathTarget
-                    {
-                        TargetId = targetId,
-                        RemainingPathIndex = (uint)(index + 1)
-                    };
-
-                    targets.Add(target);
-                    continue;
-                }
-
-                // check for valid start node.
-                (sourceHandle, nodeManager) = await GetManagerHandleAsync((NodeId)targetId, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (sourceHandle == null)
-                {
-                    continue;
-                }
-
-                // recursively follow hops.
-                await TranslateBrowsePathAsync(
-                    context,
-                    nodeManager,
-                    sourceHandle,
-                    relativePath,
-                    targets,
-                    index + 1,
-                    cancellationToken)
-                .ConfigureAwait(false);
+                Remaining = remaining;
             }
+
+            public int Remaining { get; set; }
         }
 
         /// <inheritdoc/>
