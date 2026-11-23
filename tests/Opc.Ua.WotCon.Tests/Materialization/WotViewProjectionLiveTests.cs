@@ -38,7 +38,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Category("Integration")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [NonParallelizable]
     public sealed class WotViewProjectionLiveTests
     {
         [SetUp]

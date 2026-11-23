@@ -36,7 +36,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("Enable", true)]
         [TestCase("Disable", true)]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task DefaultConditionMethodsForwardWithoutOverwritingApplicationHandlers(
             string action, bool applicationHandler)
         {

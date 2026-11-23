@@ -15,7 +15,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Public refresh-state contracts through prepared owners with deterministic document conversion.
     /// </summary>
     [TestFixture]
-    [NonParallelizable]
     [Platform("Win")]
     public sealed class WotAuthoritativeRefreshStateTests
     {

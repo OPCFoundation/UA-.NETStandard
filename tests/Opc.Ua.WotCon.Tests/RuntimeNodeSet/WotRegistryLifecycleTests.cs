@@ -41,7 +41,6 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [NonParallelizable]
     public sealed partial class WotRegistryLifecycleTests
     {
         private const double kMaxAge = 10000;

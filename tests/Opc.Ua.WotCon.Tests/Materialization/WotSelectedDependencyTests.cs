@@ -22,7 +22,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT selected dependency.
     /// </summary>
     [TestFixture]
-    [NonParallelizable]
     [Platform("Win")]
     public sealed class WotSelectedDependencyTests
     {

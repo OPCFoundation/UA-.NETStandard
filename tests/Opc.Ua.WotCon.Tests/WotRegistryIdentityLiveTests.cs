@@ -31,7 +31,6 @@ namespace Opc.Ua.WotCon.Tests
     /// </summary>
     [TestFixture(false)]
     [TestFixture(true)]
-    [NonParallelizable]
     [Category("WotCon")]
     [Category("Integration")]
     public sealed partial class WotRegistryIdentityLiveTests

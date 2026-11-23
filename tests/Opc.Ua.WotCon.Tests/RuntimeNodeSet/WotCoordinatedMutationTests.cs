@@ -30,7 +30,6 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [Category("WotCon")]
     [Category("Integration")]
     [Category("NativeTcp")]
-    [NonParallelizable]
     public sealed class WotCoordinatedMutationTests : IAsyncDisposable
     {
         /// <summary>

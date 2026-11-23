@@ -34,7 +34,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task ContextualCallDetailsReachTheClientWithReceivingStringTableAndPermissions(bool diagnostics)
         {
             await VerifyCallDetailsAsync(diagnostics, native: false).ConfigureAwait(false);
@@ -48,7 +47,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task NativeCallDetailsReachTheClientWithReceivingStringTableAndPermissions(bool diagnostics)
         {
             await VerifyCallDetailsAsync(diagnostics, native: true).ConfigureAwait(false);
@@ -64,7 +62,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(false, 0)]
         [TestCase(false, 4)]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task CompleteOperationDetailsSurviveFinalCallAssembly(bool successful, int innerDepth)
         {
             var inner = new ServiceResult(StatusCodes.BadTypeMismatch);
@@ -90,7 +87,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task GoodInnerInformationBitsReachTheClientWithoutStrings()
         {
             var inner = new ServiceResult(StatusCodes.Good.SetSemanticsChanged(true));
@@ -104,7 +100,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task CallStatusInformationBitsReachTheClientWithoutDiagnostics()
         {
             await VerifyCallDetailsAsync(

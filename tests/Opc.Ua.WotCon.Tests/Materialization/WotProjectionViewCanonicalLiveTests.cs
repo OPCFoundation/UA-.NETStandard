@@ -35,7 +35,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Category("WoT")]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotProjectionViewCanonicalLiveTests
     {
         /// <summary>

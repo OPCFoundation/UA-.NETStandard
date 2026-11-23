@@ -25,21 +25,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     [Category("Integration")]
     [Category("NativeTcp")]
-    [NonParallelizable]
     public sealed partial class WotAtomicPublicationNativeTests : IAsyncDisposable
     {
-        /// <summary>
-        /// Removes the certificate store shared by this non-parallel fixture.
-        /// </summary>
-        [OneTimeTearDown]
-        public void DeleteCertificateStore()
-        {
-            if (Directory.Exists(m_pkiRoot))
-            {
-                Directory.Delete(m_pkiRoot, recursive: true);
-            }
-        }
-
         /// <summary>
         /// Initializes native publication storage, failure injection, and server fixtures for the test.
         /// </summary>
@@ -56,6 +43,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "apn",
                 Guid.NewGuid().ToString("N").Substring(0, 12));
             Directory.CreateDirectory(m_root);
+            m_pkiRoot = Path.Combine(m_root, "pki");
             m_storage = new PreparedWotTestStorage(Path.Combine(m_root, "registry"));
             m_store = m_storage.OpenStore(
                 directorySyncFailureInjector: null,
@@ -85,7 +73,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 SecurityNone = true,
                 AutoAccept = true
             };
-            // Only certificate files are reused; servers, sessions and registry state remain per-test.
             await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_converter = new FakeWotDocumentConverter();
@@ -414,9 +401,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private readonly List<WotMaterializationEventArgs> m_events = [];
 
-        private readonly string m_pkiRoot = Path.Combine(
-            Path.GetTempPath(), "apn-pki", Guid.NewGuid().ToString("N")[..12]);
-
+        private string m_pkiRoot = null!;
         private string m_root = null!;
         private FileWotRegistryStore m_store = null!;
         private PreparedWotTestStorage m_storage = null!;

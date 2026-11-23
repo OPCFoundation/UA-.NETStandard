@@ -35,7 +35,6 @@ namespace Opc.Ua.WotCon.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Platform("Win")]
-    [NonParallelizable]
     public sealed class WotRegistryLeaseRecoveryLiveTests
     {
         /// <summary>

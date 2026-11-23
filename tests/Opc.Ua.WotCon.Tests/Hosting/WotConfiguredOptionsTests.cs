@@ -35,7 +35,6 @@ namespace Opc.Ua.WotCon.Tests.Hosting
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotConfiguredOptionsTests
     {
         /// <summary>

@@ -34,7 +34,6 @@ namespace Opc.Ua.WotCon.Tests
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotSelectedDependenciesLiveTests
     {
         /// <summary>

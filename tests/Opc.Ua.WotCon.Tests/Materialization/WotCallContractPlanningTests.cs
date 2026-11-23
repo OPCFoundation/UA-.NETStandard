@@ -242,7 +242,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(true, true)]
 #endif
         [Category("Integration")]
-        [NonParallelizable]
         public async Task ConvertedCallContractsReachDirectAndDiProjectedInvocations(
             bool dependencyInjection, bool native)
         {

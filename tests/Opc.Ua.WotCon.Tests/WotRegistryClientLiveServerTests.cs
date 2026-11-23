@@ -41,7 +41,6 @@ namespace Opc.Ua.WotCon.Tests
     [Category("Integration")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [NonParallelizable]
     public sealed class WotRegistryClientLiveServerTests
     {
         /// <summary>

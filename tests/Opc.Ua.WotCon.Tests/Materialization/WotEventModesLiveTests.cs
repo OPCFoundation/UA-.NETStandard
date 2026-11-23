@@ -35,7 +35,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT event modes live.
     /// </summary>
     [TestFixture]
-    [NonParallelizable]
     [Category("Integration")]
     public sealed partial class WotEventModesLiveTests
     {

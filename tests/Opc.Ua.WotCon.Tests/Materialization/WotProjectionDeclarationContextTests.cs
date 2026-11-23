@@ -21,7 +21,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT projection declaration context.
     /// </summary>
     [TestFixture]
-    [NonParallelizable]
     public sealed class WotProjectionDeclarationContextTests
     {
         /// <summary>

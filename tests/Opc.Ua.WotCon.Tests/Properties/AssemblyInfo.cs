@@ -2,5 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using NUnit.Framework;
 
 [assembly: CLSCompliant(false)]
+
+// Every test owns its servers, clients, certificate stores and temporary
+// folders, so tests run in parallel, each on its own fixture instance.
+// Fixtures that change process-wide state opt out with [NonParallelizable].
+// Each live test hosts one or two in-process servers; four workers keep the
+// 3- and 4-core CI runners busy without starving the servers' own threads.
+[assembly: Parallelizable(ParallelScope.All)]
+[assembly: FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[assembly: LevelOfParallelism(4)]
