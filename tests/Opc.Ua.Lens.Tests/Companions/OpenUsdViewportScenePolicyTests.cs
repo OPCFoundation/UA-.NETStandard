@@ -155,6 +155,42 @@ namespace UaLens.Tests.Companions
                 [Layer("cell.usdc", "PXR-USDC")]), Throws.TypeOf<NotSupportedException>());
         }
 
+        [TestCase("/* \" */ ( subLayers = [@//untrusted.invalid/share/x.usdc@] ) /* \" */\n")]
+        [TestCase("// \"\n( subLayers = [@//untrusted.invalid/share/x.usdc@] )\n// \"\n")]
+        [TestCase("/* \" */ def Xform \"Hidden\" (references = @C:/outside/x.usda@) {} /* \" */\n")]
+        public void CommentsCannotHideCompositionFromThePolicy(string hidden)
+        {
+            // Native Sdf skips C and C++ comments. A lexer that does not reads the quote
+            // inside the comment as a string and never sees the arc between them.
+            Assert.That(() => OpenUsdViewportScenePolicy.Validate("cell.usda",
+                [Layer("cell.usda", "#usda 1.0\n" + hidden + "def Xform \"World\" { }\n")]),
+                Throws.InstanceOf<Exception>());
+        }
+
+        [Test]
+        public void CommentsWithoutCompositionArePreviewed()
+        {
+            Assert.That(() => OpenUsdViewportScenePolicy.Validate("cell.usda",
+                [Layer("cell.usda", "#usda 1.0\n/* licence \" header @x.usda@ */\n// \" note\n" +
+                    "def Xform \"World\" { rel material:binding = </World/Looks> }\n")]),
+                Throws.Nothing);
+        }
+
+        [TestCase("#usda 1.0\n#\r( subLayers = [@x.usda@] )\r#\ndef Xform \"World\" { }\n")]
+        [TestCase("#usda 1.0\ndef Xform \"World\" { double a = 1 / 2 }\n")]
+        [TestCase("#usda 1.0\n/* never closed\n")]
+        [TestCase("#usda 1.0\ndef Xform \"World\" (references = @@@x.usda@@@) { }\n")]
+        [TestCase("#usda 1.0\ndef Xform \"World\" (references = @a\\@x.usda@) { }\n")]
+        [TestCase("#usda 1.0\ndef Xform \"World\n\" { }\n")]
+        [TestCase("#usda 1.0\ndef Xform \"World\u0001\" { }\n")]
+        public void TextNativeSdfCouldReadDifferentlyIsRefused(string text)
+        {
+            Assert.That(() => OpenUsdViewportScenePolicy.Validate("cell.usda", [Layer("cell.usda", text)]),
+                Throws.TypeOf<NotSupportedException>()
+                    .Or.TypeOf<InvalidDataException>()
+                    .Or.TypeOf<ServiceResultException>());
+        }
+
         internal static OpenUsdVerifiedAsset Layer(string identifier, string content)
         {
             return new OpenUsdVerifiedAsset(identifier, ByteString.From(Encoding.UTF8.GetBytes(content)));

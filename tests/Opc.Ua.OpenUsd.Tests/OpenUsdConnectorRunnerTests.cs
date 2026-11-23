@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.OpenUsd.Connector;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.OpenUsd.Client.Tests
 {
@@ -84,6 +85,51 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             Assert.That(options.CommandPrimPath, Is.EqualTo("/World/IntentCommand"));
             Assert.That(options.PickMode, Is.EqualTo(UsdViewPickMode.CommandPrim));
             Assert.That(options.Seconds, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void ParseSecurityOptions()
+        {
+            bool parsed = OpenUsdConnectorRunner.ConnectorRunOptions.TryParse(
+                ["--trust-server", "--pki", @"D:\pki"],
+                @"C:\connector",
+                out OpenUsdConnectorRunner.ConnectorRunOptions options);
+
+            Assert.That(parsed, Is.True);
+            Assert.That(options.TrustServer, Is.True);
+            Assert.That(options.Insecure, Is.False);
+            Assert.That(options.PkiPath, Is.EqualTo(@"D:\pki"));
+        }
+
+        [Test]
+        public void PkiRootIsStableAcrossRunsAndHonoursTheOption()
+        {
+            Assert.That(
+                OpenUsdConnectorRunner.ResolvePkiRoot(null),
+                Is.EqualTo(OpenUsdConnectorRunner.ResolvePkiRoot(null)));
+            Assert.That(
+                OpenUsdConnectorRunner.ResolvePkiRoot(null),
+                Is.EqualTo(Path.Combine(OpenUsdConnectorRunner.GetPrivateStateRoot(), "pki")));
+            Assert.That(
+                OpenUsdConnectorRunner.ResolvePkiRoot("relative-pki"),
+                Is.EqualTo(Path.GetFullPath("relative-pki")));
+        }
+
+        [Test]
+        public void TrustOnFirstUseAcceptsOnlyTheFirstUntrustedCertificate()
+        {
+            using Certificate first = CertificateBuilder.Create("CN=First").SetRSAKeySize(2048).CreateForRSA();
+            using Certificate second = CertificateBuilder.Create("CN=Second").SetRSAKeySize(2048).CreateForRSA();
+            var trust = new OpenUsdConnectorRunner.TrustOnFirstUse();
+            var untrusted = new ServiceResult(StatusCodes.BadCertificateUntrusted);
+
+            Assert.That(trust.Accept(first, new ServiceResult(StatusCodes.BadCertificateHostNameInvalid)), Is.False);
+            Assert.That(trust.Accept(first, new ServiceResult(StatusCodes.BadCertificateTimeInvalid)), Is.False);
+            Assert.That(trust.AcceptedCertificate, Is.Null);
+            Assert.That(trust.Accept(first, untrusted), Is.True);
+            Assert.That(trust.Accept(first, untrusted), Is.True, "The same certificate is validated more than once.");
+            Assert.That(trust.Accept(second, untrusted), Is.False);
+            Assert.That(trust.AcceptedCertificate, Is.EqualTo(first.RawData));
         }
 
         [Test]

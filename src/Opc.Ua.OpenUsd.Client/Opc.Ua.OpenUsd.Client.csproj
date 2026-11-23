@@ -17,6 +17,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Connector.Viewer" />
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Connector" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />

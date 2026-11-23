@@ -82,6 +82,15 @@ namespace Opc.Ua.OpenUsd.Client
             m_path = path;
         }
 
+        /// <summary>
+        /// Optional further restriction on composition targets, given the full
+        /// local path an accepted reference resolves to. A host that knows the
+        /// exact asset closure it fetched (and inspected) narrows references to
+        /// that closure; without it every relative layer path beneath the
+        /// layer's directory is admitted.
+        /// </summary>
+        internal Func<string, bool>? AssetPathFilter { get; set; }
+
         /// <inheritdoc/>
         public void ComposePrim(string primPath, OpenUsdCompositionArc arc,
             string? assetReference, bool active)
@@ -96,7 +105,7 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     m_primOrder.Add(primPath);
                 }
-                m_prims[primPath] = (arc, assetReference, active);
+                m_prims[primPath] = (arc, AdmitAssetReference(arc, assetReference), active);
                 WriteOrDefer();
             }
         }
@@ -379,7 +388,7 @@ namespace Opc.Ua.OpenUsd.Client
                 (OpenUsdCompositionArc arc, string? asset, bool active) = m_prims[prim];
                 Node node = NavigateTo(root, rootOrder, prim);
                 node.Active = active;
-                if (arc != OpenUsdCompositionArc.Child && IsSafeAssetRef(asset))
+                if (arc != OpenUsdCompositionArc.Child && asset != null)
                 {
                     if (arc == OpenUsdCompositionArc.Payload)
                     {
@@ -459,15 +468,34 @@ namespace Opc.Ua.OpenUsd.Client
         }
 
         /// <summary>
-        /// A USD asset reference (for example <c>@pump.usda@</c>) must not contain characters
-        /// that would break the layer syntax; reject newlines and quotes.
+        /// Admits a composition reference (for example <c>@pump.usda@&lt;/Pump&gt;</c>)
+        /// only when it is a relative USD layer path beneath this layer's directory,
+        /// optionally followed by an absolute prim path, and re-emits it from its
+        /// parsed parts. The reference usually comes from the server, and native USD
+        /// resolves whatever is written here: an absolute, UNC or URL path would make
+        /// a viewer open files the server chose, and any text after the closing
+        /// delimiter would author further layer metadata.
         /// </summary>
-        /// <param name="assetRef"></param>
-        /// <returns></returns>
-        private static bool IsSafeAssetRef(string? assetRef)
+        /// <param name="arc">The composition arc.</param>
+        /// <param name="assetReference">The reference as supplied.</param>
+        /// <returns>The normalized reference, or <c>null</c> when it is refused.</returns>
+        private string? AdmitAssetReference(OpenUsdCompositionArc arc, string? assetReference)
         {
-            return !string.IsNullOrEmpty(assetRef) &&
-                assetRef!.IndexOfAny(['\n', '\r', '"']) < 0;
+            if (arc == OpenUsdCompositionArc.Child ||
+                !UsdAssetPaths.TryNormalizeReference(assetReference, out string normalized))
+            {
+                return null;
+            }
+            Func<string, bool>? filter = AssetPathFilter;
+            if (filter != null)
+            {
+                string path = normalized.Substring(1, normalized.IndexOf('@', 1) - 1);
+                if (!filter(UsdAssetPaths.Resolve(m_path, path)))
+                {
+                    return null;
+                }
+            }
+            return normalized;
         }
 
         private static string F(double x)

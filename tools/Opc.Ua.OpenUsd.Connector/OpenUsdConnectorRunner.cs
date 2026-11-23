@@ -40,6 +40,7 @@ using Opc.Ua.Client;
 using Opc.Ua.OpenUsd.Client;
 using Opc.Ua.OpenUsd.Scene.Conversion;
 using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.OpenUsd.Connector
 {
@@ -85,6 +86,10 @@ namespace Opc.Ua.OpenUsd.Connector
 
             public bool Insecure { get; private set; }
 
+            public bool TrustServer { get; private set; }
+
+            public string? PkiPath { get; private set; }
+
             public bool EnableCommands { get; private set; }
 
             public string? CommandValue { get; private set; }
@@ -109,6 +114,8 @@ namespace Opc.Ua.OpenUsd.Connector
                     CommandPrimPath = GetOptionalOption(args, "--pick-command"),
                     FetchAssetsPath = GetOption(args, "--fetch-assets"),
                     Insecure = HasFlag(args, "--insecure"),
+                    TrustServer = HasFlag(args, "--trust-server"),
+                    PkiPath = GetOption(args, "--pki"),
                     EnableCommands = HasFlag(args, "--enable-commands"),
                     CommandValue = GetOption(args, "--command-value")
                 };
@@ -197,7 +204,10 @@ namespace Opc.Ua.OpenUsd.Connector
 
             ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.SetMinimumLevel(LogLevel.Warning));
 
-            string pkiRoot = Path.Combine(GetPrivateStateRoot(), Path.GetRandomFileName());
+            // One stable per-user PKI root (or the operator's --pki), so a server
+            // certificate trusted once stays trusted and the connector keeps a single
+            // application certificate instead of minting a new key pair every run.
+            string pkiRoot = ResolvePkiRoot(options.PkiPath);
             var config = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "Opc.Ua.OpenUsd.Connector",
@@ -234,16 +244,32 @@ namespace Opc.Ua.OpenUsd.Connector
             };
             await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
 
+            // The application instance hands its certificate manager to the
+            // configuration, and the session validates with it. Disposing the instance
+            // here released that manager, so every secured connect failed with
+            // ObjectDisposedException and only --insecure (which never touches it)
+            // worked. CloseAsync disposes the manager once the session is gone.
+#pragma warning disable CA2000 // Ownership of the certificate manager moves to the configuration.
             var appInstance = new Opc.Ua.Configuration.ApplicationInstance(config, telemetry);
+#pragma warning restore CA2000
             await appInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
-            await appInstance.DisposeAsync().ConfigureAwait(false);
             config.CertificateManager ??= CertificateManagerFactory.Create(config.SecurityConfiguration, telemetry);
+            var trustOnFirstUse = new TrustOnFirstUse();
             if (insecure)
             {
                 // Demo-only: accept any server certificate.
                 config.CertificateManager.AcceptError = static (cert, err) => true;
                 Console.WriteLine(
                     "WARNING: --insecure: using an unsecured endpoint and accepting any server certificate.");
+            }
+            else if (options.TrustServer)
+            {
+                // Explicit trust on first use: the endpoint stays signed and encrypted,
+                // only an untrusted (otherwise valid) certificate of the server named on
+                // the command line is accepted, and it is persisted so later runs
+                // validate against it. The hook is removed again once the primary
+                // session exists, so federated servers never inherit it.
+                config.CertificateManager.AcceptError = trustOnFirstUse.Accept;
             }
 
             Console.WriteLine($"Connecting to {server} ...");
@@ -269,11 +295,31 @@ namespace Opc.Ua.OpenUsd.Connector
 
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, EndpointConfiguration.Create(config));
             var sessionFactory = new DefaultSessionFactory(telemetry);
-            ISession session = await sessionFactory.CreateAsync(
-                config, endpoint, updateBeforeConnect: false,
-                sessionName: "Opc.Ua.OpenUsd.Connector", sessionTimeout: 60000,
-                identity: new UserIdentity(new AnonymousIdentityToken()),
-                preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
+            ISession session;
+            try
+            {
+                session = await sessionFactory.CreateAsync(
+                    config, endpoint, updateBeforeConnect: false,
+                    sessionName: "Opc.Ua.OpenUsd.Connector", sessionTimeout: 60000,
+                    identity: new UserIdentity(new AnonymousIdentityToken()),
+                    preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex) when (!insecure && IsCertificateTrustError(ex.StatusCode))
+            {
+                Console.Error.WriteLine(
+                    $"ERROR: the server certificate was rejected ({ex.StatusCode}). " +
+                    $"Trust it by moving it from {Path.Combine(pkiRoot, "rejected", "certs")} to " +
+                    $"{Path.Combine(pkiRoot, "trusted", "certs")}, or rerun with --trust-server to trust " +
+                    "this server's certificate on first use.");
+                (config.CertificateManager as IDisposable)?.Dispose();
+                return 6;
+            }
+
+            if (options.TrustServer && !insecure)
+            {
+                config.CertificateManager.AcceptError = null;
+                await PersistTrustedServerCertificateAsync(config, trustOnFirstUse, pkiRoot).ConfigureAwait(false);
+            }
 
             // Cross-server composition (spec 5.14) is opt-in. A component binding can
             // name another server's endpoint, and honouring that means the connector
@@ -330,6 +376,20 @@ namespace Opc.Ua.OpenUsd.Connector
 
                     if (fetched.Count > 0)
                     {
+                        // Everything below hands these layers to native USD (the viewer,
+                        // or whoever opens stage.usda later), which resolves every asset
+                        // path they author. Refuse the stage unless each path stays inside
+                        // the closure just fetched and every layer is inspectable text.
+                        if (!TryValidateFetchedClosure(fetched, out ISet<string> closure, out string? refusal))
+                        {
+                            Console.Error.WriteLine(
+                                $"ERROR: {refusal} The server-delivered stage is not composed.");
+                            await CloseAsync(session, config).ConfigureAwait(false);
+                            return 5;
+                        }
+                        fileSink.AssetPathFilter = path =>
+                            closure.Contains(path) &&
+                            path.EndsWith(".usda", StringComparison.OrdinalIgnoreCase);
                         WriteStageUsda(cacheDir!, fetched);
                         if (string.IsNullOrEmpty(stagePath))
                         {
@@ -546,6 +606,180 @@ namespace Opc.Ua.OpenUsd.Connector
         internal static string GetPrivateStateRoot()
         {
             return GetPrivateStateRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        }
+
+        /// <summary>
+        /// The PKI root: the operator's <c>--pki</c> directory, or a stable
+        /// <c>pki</c> directory under the private state root.
+        /// </summary>
+        /// <param name="pkiOption">The <c>--pki</c> value, if any.</param>
+        /// <returns>The absolute PKI root.</returns>
+        internal static string ResolvePkiRoot(string? pkiOption)
+        {
+            return string.IsNullOrWhiteSpace(pkiOption)
+                ? Path.Combine(GetPrivateStateRoot(), "pki")
+                : Path.GetFullPath(pkiOption!);
+        }
+
+        /// <summary>
+        /// Checks that a fetched asset closure can be handed to native USD: every
+        /// layer is USDA text, and every asset path any layer authors is a relative
+        /// path that resolves to a file fetched in this run, either another USDA
+        /// layer (inspected the same way) or a plain image texture.
+        /// </summary>
+        /// <param name="fetched">The assets fetched from the server(s).</param>
+        /// <param name="closure">The full local paths of the fetched files.</param>
+        /// <param name="refusal">Why the closure was refused.</param>
+        /// <returns><c>true</c> when the closure is admitted.</returns>
+        internal static bool TryValidateFetchedClosure(
+            IReadOnlyList<OpenUsdConnector.FetchedAsset> fetched,
+            out ISet<string> closure,
+            out string? refusal)
+        {
+            StringComparer comparer = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal;
+            var files = new HashSet<string>(comparer);
+            foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+            {
+                files.Add(Path.GetFullPath(asset.LocalPath));
+            }
+            closure = files;
+            refusal = null;
+            var strictUtf8 = new UTF8Encoding(false, true);
+            foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+            {
+                string full = Path.GetFullPath(asset.LocalPath);
+                if (!full.EndsWith(".usda", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (asset.Kind != OpenUsdAssetKind.Texture || !IsImageTexture(full))
+                    {
+                        refusal = $"The served asset '{asset.Identifier}' is not an inspectable USDA text " +
+                            "layer or a plain image texture, so it cannot be composed safely.";
+                        return false;
+                    }
+                    continue;
+                }
+                IReadOnlyList<string> assetPaths;
+                try
+                {
+                    assetPaths = UsdAssetPaths.ScanUsdaAssetPaths(strictUtf8.GetString(File.ReadAllBytes(full)));
+                }
+                catch (Exception ex) when (ex is InvalidDataException or IOException or DecoderFallbackException)
+                {
+                    refusal = $"The served layer '{asset.Identifier}' was refused: {ex.Message}";
+                    return false;
+                }
+                foreach (string assetPath in assetPaths)
+                {
+                    string? target = UsdAssetPaths.IsSafeRelativePath(assetPath)
+                        ? UsdAssetPaths.Resolve(full, assetPath)
+                        : null;
+                    if (target == null || !files.Contains(target) ||
+                        (!target.EndsWith(".usda", StringComparison.OrdinalIgnoreCase) && !IsImageTexture(target)))
+                    {
+                        refusal = $"The served layer '{asset.Identifier}' references '{assetPath}', which is " +
+                            "not a USDA layer or image texture inside the fetched closure.";
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        private static bool IsImageTexture(string path)
+        {
+            string extension = Path.GetExtension(path);
+            return extension.Equals(".png", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsCertificateTrustError(StatusCode code)
+        {
+            return code == StatusCodes.BadCertificateUntrusted ||
+                code == StatusCodes.BadCertificateChainIncomplete ||
+                code == StatusCodes.BadSecurityChecksFailed;
+        }
+
+        // Excluded because it writes to the operator's trusted certificate store after a live connect.
+        [ExcludeFromCodeCoverage]
+        private static async Task PersistTrustedServerCertificateAsync(
+            ApplicationConfiguration config, TrustOnFirstUse trust, string pkiRoot)
+        {
+            byte[]? accepted = trust.AcceptedCertificate;
+            if (accepted == null)
+            {
+                return;
+            }
+            using var certificate = new Certificate(accepted);
+            if (config.CertificateManager is not ICertificateTrustListManager manager)
+            {
+                Console.Error.WriteLine(
+                    $"WARNING: trusted {certificate.Subject} for this run only; it was not persisted.");
+                return;
+            }
+            ITrustListTransaction transaction = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers, CancellationToken.None)
+                .ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                await transaction.AddTrustedCertificateAsync(certificate, CancellationToken.None)
+                    .ConfigureAwait(false);
+                await transaction.CommitAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            Console.WriteLine(
+                $"Trusted the server certificate {certificate.Subject} " +
+                $"(thumbprint {certificate.Thumbprint}) on first use; stored in " +
+                $"{Path.Combine(pkiRoot, "trusted")}.");
+        }
+
+        /// <summary>
+        /// Accepts exactly one server certificate whose only fault is that it is not
+        /// yet trusted; any other validation error still fails the connection.
+        /// </summary>
+        internal sealed class TrustOnFirstUse
+        {
+            private readonly object m_gate = new();
+            private byte[]? m_accepted;
+
+            /// <summary>
+            /// Gets the DER encoding of the certificate accepted, if any.
+            /// </summary>
+            public byte[]? AcceptedCertificate
+            {
+                get
+                {
+                    lock (m_gate)
+                    {
+                        return m_accepted;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// The <see cref="CertificateManager.AcceptError"/> hook.
+            /// </summary>
+            /// <param name="certificate">The certificate being validated.</param>
+            /// <param name="error">The validation error.</param>
+            /// <returns><c>true</c> to accept the error.</returns>
+            public bool Accept(Certificate certificate, ServiceResult error)
+            {
+                if (certificate == null || error == null || error.StatusCode != StatusCodes.BadCertificateUntrusted)
+                {
+                    return false;
+                }
+                byte[] raw = certificate.RawData;
+                lock (m_gate)
+                {
+                    if (m_accepted == null)
+                    {
+                        m_accepted = raw;
+                        return true;
+                    }
+                    return m_accepted.AsSpan().SequenceEqual(raw);
+                }
+            }
         }
 
         internal static string GetPrivateStateRoot(string? baseDirectory)
