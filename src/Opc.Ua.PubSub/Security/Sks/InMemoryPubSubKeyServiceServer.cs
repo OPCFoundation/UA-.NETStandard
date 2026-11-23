@@ -338,6 +338,9 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
 
                 EnsureFutureKeysLocked(state, request.RequestedKeyCount);
+                // When every key had expired (an idle SKS) the key generated
+                // just now is the current one.
+                RotateExpiredCurrentLocked(state);
 
                 uint currentTokenId = state.Keys.Count == 0
                     ? 0u
@@ -372,7 +375,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                             PubSubSecurityKey newKey = SksKeyGenerator.Generate(
                                 state.Policy,
                                 state.NextTokenId,
-                                nowGen,
+                                NextIssuedAtLocked(state, nowGen),
                                 state.Group.KeyLifetime);
                             state.Keys.Add(newKey);
                             state.NextTokenId = unchecked(state.NextTokenId + 1u);
@@ -500,6 +503,14 @@ namespace Opc.Ua.PubSub.Security.Sks
                         $"No future keys are available for SecurityGroup '{securityGroupId}'.");
                 }
                 state.CurrentIndex++;
+                // The next key becomes current now, so it and every key after
+                // it start one lifetime earlier than scheduled.
+                var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+                for (int i = state.CurrentIndex; i < state.Keys.Count; i++)
+                {
+                    state.Keys[i] = state.Keys[i].WithIssuedAt(
+                        now + TimeSpan.FromTicks(state.Group.KeyLifetime.Ticks * (i - state.CurrentIndex)));
+                }
                 PrunePastKeysLocked(state);
                 EnsureFutureKeysLocked(state, (uint)(state.Group.MaxFutureKeyCount + 1));
                 snapshot = SnapshotLocked(state);
@@ -516,7 +527,12 @@ namespace Opc.Ua.PubSub.Security.Sks
             var keys = new List<PubSubSecurityKey>(maxFutureKeyCount + 1);
             for (int i = 0; i <= maxFutureKeyCount; i++)
             {
-                keys.Add(SksKeyGenerator.Generate(policy, (uint)(i + 1), now, lifetime));
+                // Each key is issued when its predecessor expires.
+                keys.Add(SksKeyGenerator.Generate(
+                    policy,
+                    (uint)(i + 1),
+                    now + TimeSpan.FromTicks(lifetime.Ticks * i),
+                    lifetime));
             }
             return keys;
         }
@@ -560,11 +576,30 @@ namespace Opc.Ua.PubSub.Security.Sks
                 PubSubSecurityKey newKey = SksKeyGenerator.Generate(
                     state.Policy,
                     state.NextTokenId,
-                    now,
+                    NextIssuedAtLocked(state, now),
                     state.Group.KeyLifetime);
                 state.Keys.Add(newKey);
                 state.NextTokenId = unchecked(state.NextTokenId + 1u);
             }
+        }
+
+        /// <summary>
+        /// Issuance time of a key appended to <paramref name="state"/>: the
+        /// expiry of the last key, so that keys become current one after the
+        /// other (Part 14 §8.3), or <paramref name="now"/> when the last key
+        /// has already expired. Stamping future keys with the time they were
+        /// generated made them all expire together, and the current key then
+        /// jumped over every future key at once.
+        /// </summary>
+        private static DateTimeUtc NextIssuedAtLocked(SecurityGroupState state, DateTimeUtc now)
+        {
+            if (state.Keys.Count == 0)
+            {
+                return now;
+            }
+            PubSubSecurityKey last = state.Keys[^1];
+            DateTimeUtc next = last.IssuedAt + last.Lifetime;
+            return next < now ? now : next;
         }
 
         private TimeSpan ComputeTimeToNextKeyLocked(SecurityGroupState state)

@@ -439,6 +439,141 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(sks.Disposed, Is.False);
         }
 
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ProviderFollowsTheSksKeyRotationOverManyLifetimesAsync()
+        {
+            // The provider used to stop refreshing after the SKS answered the
+            // lead-time refreshes with BadNotFound ("no newer key yet") and then
+            // kept the first key forever.
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            for (int hour = 1; hour <= 5; hour++)
+            {
+                // Five minutes into every new key lifetime.
+                await AdvanceAsync(clock, TimeSpan.FromMinutes(hour == 1 ? 65 : 60)).ConfigureAwait(false);
+                PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+                uint sksCurrent = await sks.CurrentTokenIdAsync().ConfigureAwait(false);
+                Assert.That(current.TokenId, Is.EqualTo(sksCurrent), $"token after {hour} lifetime(s)");
+                Assert.That(current.IsExpired(clock), Is.False, $"expired after {hour} lifetime(s)");
+            }
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ProviderKeepsRefreshingAfterMaxConsecutiveFailuresAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            PullSecurityKeyProviderOptions options = new()
+            {
+                RequestedFutureKeyCount = 1,
+                ReconnectDelay = TimeSpan.FromSeconds(30),
+                MaxConsecutiveFailures = 3
+            };
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                options,
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            // The SKS is unreachable for ten refreshes, well past MaxConsecutiveFailures.
+            sks.FailNextCalls = 10;
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(70)).ConfigureAwait(false);
+
+            Assert.That(sks.FailNextCalls, Is.Zero, "the provider stopped retrying");
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
+        private static async Task AdvanceAsync(FakeTimeProvider clock, TimeSpan duration)
+        {
+            // Small steps with a real yield let the background loop run its
+            // timers as the fake clock moves.
+            TimeSpan step = TimeSpan.FromSeconds(15);
+            for (TimeSpan elapsed = TimeSpan.Zero; elapsed < duration; elapsed += step)
+            {
+                clock.Advance(step);
+                await Task.Delay(2).ConfigureAwait(false);
+            }
+            await Task.Delay(50).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The in-box SKS behind an <see cref="ISecurityKeyService"/>, with
+        /// injectable failures.
+        /// </summary>
+        private sealed class InMemorySks : ISecurityKeyService
+        {
+            private const string Caller = "subscriber";
+            private readonly InMemoryPubSubKeyServiceServer m_server;
+            private readonly TimeSpan m_keyLifetime;
+            private int m_failNextCalls;
+
+            public InMemorySks(TimeProvider clock, TimeSpan keyLifetime)
+            {
+                m_server = new InMemoryPubSubKeyServiceServer(clock);
+                m_keyLifetime = keyLifetime;
+            }
+
+#pragma warning disable CS0067 // Required by ISecurityKeyService; this test double never raises it.
+            public event EventHandler<SksAvailabilityChangedEventArgs>? AvailabilityChanged;
+#pragma warning restore CS0067
+
+            public int FailNextCalls
+            {
+                get => Volatile.Read(ref m_failNextCalls);
+                set => Volatile.Write(ref m_failNextCalls, value);
+            }
+
+            public ValueTask AddGroupAsync()
+            {
+                return m_server.AddSecurityGroupAsync(new SksSecurityGroup(
+                    GroupId,
+                    PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                    m_keyLifetime,
+                    4,
+                    2,
+                    Array.Empty<PubSubSecurityKey>(),
+                    [Caller]));
+            }
+
+            public async Task<uint> CurrentTokenIdAsync()
+            {
+                SksKeyResponse response = await m_server.GetSecurityKeysAsync(
+                    Caller, new SksKeyRequest(GroupId, 0, 1)).ConfigureAwait(false);
+                return response.FirstTokenId;
+            }
+
+            public ValueTask<SksKeyResponse> GetSecurityKeysAsync(
+                SksKeyRequest request,
+                CancellationToken cancellationToken = default)
+            {
+                int remaining = Volatile.Read(ref m_failNextCalls);
+                if (remaining > 0)
+                {
+                    Interlocked.Decrement(ref m_failNextCalls);
+                    throw new OpcUaSksException(StatusCodes.BadCommunicationError, "SKS unreachable.");
+                }
+                return m_server.GetSecurityKeysAsync(Caller, request, default, cancellationToken);
+            }
+        }
+
         private sealed class DisposableTrackingSks : ISecurityKeyService, IAsyncDisposable
         {
             public bool Disposed { get; private set; }
