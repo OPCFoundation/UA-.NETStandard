@@ -211,6 +211,17 @@ namespace Opc.Ua.Bindings
                 m_quotas.HandshakeTimeout,
                 telemetry: Telemetry);
 
+            // The provider's connection capacity is shared with the other
+            // listeners of the server: let them reclaim unused channels here.
+            // Pending reverse connections are never reclaimed for another listener.
+            if (!m_reverseConnectListener)
+            {
+                m_admission.SetSharedCapacityReclaimer(TryReclaimChannelForSharedCapacity);
+            }
+            // The channel table is enforced after admission: no other listener's
+            // connection is reclaimed for a connection the full table refuses.
+            m_admission.SetListenerCapacityCheck(HasChannelCapacity);
+
             // Kestrel accepts as soon as it is bound, so a deferred listener
             // holds the accepted connections at the gate until it is opened.
             m_acceptGate = CreateAcceptGate(accepting: !settings.DeferAccept);
@@ -664,10 +675,32 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Reclaims an unused channel for another listener whose new connection
+        /// found the shared connection capacity exhausted; a channel whose
+        /// connection holds only protected capacity cannot relieve it.
+        /// </summary>
+        private bool TryReclaimChannelForSharedCapacity()
+        {
+            return TryReclaimUnusedChannel([], sharedCapacityOnly: true);
+        }
+
+        /// <summary>
+        /// Whether the channel table admits another accepted connection.
+        /// </summary>
+        private bool HasChannelCapacity()
+        {
+            lock (m_lock)
+            {
+                return m_channels != null &&
+                    (m_maxChannelCount <= 0 || m_channels.Count + m_pendingAccepts < m_maxChannelCount);
+            }
+        }
+
+        /// <summary>
         /// Closes the least recently active open channel that serves no
         /// session, mirroring <see cref="TcpTransportListener"/>.
         /// </summary>
-        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted)
+        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted, bool sharedCapacityOnly = false)
         {
             ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? channels;
             TcpListenerChannel[] candidates;
@@ -684,7 +717,8 @@ namespace Opc.Ua.Bindings
                 .OrderBy(channel => channel.HoldsPartialMessage)
                 .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
             {
-                if (attempted.Contains(candidate) || candidate.UsedBySession)
+                if (attempted.Contains(candidate) || candidate.UsedBySession ||
+                    (sharedCapacityOnly && !UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(candidate.Transport)))
                 {
                     continue;
                 }
