@@ -688,6 +688,192 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
         }
 
+        [Test]
+        [CancelAfter(120_000)]
+        public async Task KeyPairRecoveryInstallsRetainedCredentialsOnARecreatedSession(CancellationToken ct)
+        {
+            string ticket = await WriteTicketAsync(m_signer, m_product, m_identity).ConfigureAwait(false);
+            await m_otherSession.CloseAsync(ct).ConfigureAwait(false);
+            m_otherSession.Dispose();
+            m_otherSession = await ConnectAsync(
+                m_other, new UserIdentity("software-admin", Encoding.UTF8.GetBytes(m_password)))
+                .ConfigureAwait(false);
+            var software = new Mock<IPullDcaSoftwareUpdateProvider>(MockBehavior.Strict);
+            software.Setup(provider => provider.CompleteAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<PullDcaIdentitySelection>(),
+                    It.IsAny<ManagerDescription>(), It.IsAny<CancellationToken>()))
+                .Returns((
+                    PullDcaRegistrar _, PullDcaIdentitySelection _, ManagerDescription _, CancellationToken token) =>
+                    Registrar(m_otherSession).UpdateSoftwareStatusAsync(
+                        m_product, true, "approved-keypair-recovery", token));
+
+            var registrar = new PullDcaRegistrar(
+                m_endpoint,
+                ExpandedNodeId.ToNodeId(OnboardingObjectIds.DeviceRegistrar, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, m_session.NamespaceUris));
+            var profile = new PullDcaCertificateProfile(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                    m_session.NamespaceUris),
+                CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
+            var request = new PullDcaRequest(new PullDcaIdentityOffer([m_identity], [], [ticket]), profile, [])
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+            const string slot = "connected-keypair-recovery";
+            using var store = new TestRecoverySecret();
+            var backend = new Mock<IProtectedPullDcaRecoveryStore>(MockBehavior.Strict);
+            backend.SetupGet(value => value.StoreType).Returns("Test");
+            backend.Setup(value => value.GetAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ISecret?>(store.IsEmpty ? null : new TestRecoverySecret(store.Bytes)));
+            backend.Setup(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Callback((SecretIdentifier _, ReadOnlyMemory<byte> data, CancellationToken _) =>
+                    store.Replace(data.Span))
+                .Returns(default(ValueTask));
+            backend.Setup(value => value.RemoveAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    bool found = !store.IsEmpty;
+                    store.Dispose();
+                    return new ValueTask<bool>(found);
+                });
+
+            var interrupted = new Mock<IPullDcaNewKeyPairCredentialProvider>(MockBehavior.Strict);
+            var interruption = new InvalidOperationException("Installation interrupted before storing credentials.");
+            interrupted.Setup(provider => provider.InstallNewKeyPairAsync(
+                    It.IsAny<NodeId>(), It.IsAny<PullDcaCertificateProfile>(), It.IsAny<PullDcaCredentials>(),
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Throws(interruption);
+            var progress = new Mock<IProgress<PullDcaProgress>>();
+            var stages = new List<PullDcaStage>();
+            NodeId applicationId = NodeId.Null;
+            NodeId requestId = NodeId.Null;
+            progress.Setup(value => value.Report(It.IsAny<PullDcaProgress>()))
+                .Callback((PullDcaProgress report) =>
+                {
+                    stages.Add(report.Stage);
+                    if (report.Stage == PullDcaStage.FinishingCertificate)
+                    {
+                        applicationId = report.ApplicationId;
+                        requestId = report.RequestId;
+                    }
+                });
+
+            PullDcaNewKeyPairRecoveryScope scope;
+            ByteString retainedCertificate;
+            NodeId priorSessionId;
+            await using (var channels = new ClientChannelManager(m_device.Config, m_telemetry))
+            await using (ManagedSession first = await ConnectRecoverySessionAsync(channels).ConfigureAwait(false))
+            using (var recovery = new SecretStorePullDcaNewKeyPairRecoveryProvider(
+                backend.Object, slot, m_telemetry))
+            {
+                PullDcaWorkflow workflow = CreateWorkflow(first, interrupted.Object, recovery);
+                Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await workflow.RunAsync(registrar, request, progress.Object, ct).ConfigureAwait(false)),
+                    Is.SameAs(interruption));
+                Assert.That(applicationId.IsNull, Is.False);
+                Assert.That(requestId.IsNull, Is.False);
+                Assert.That(stages.Count(stage => stage == PullDcaStage.RequestingCertificate), Is.EqualTo(1));
+                Assert.That(stages[^1], Is.EqualTo(PullDcaStage.InstallingCredentials));
+
+                var connection = new PullDcaConnection(first, registrar, m_telemetry, 1024 * 1024);
+                scope = await connection.CaptureNewKeyPairRecoveryScopeAsync(applicationId, profile, ct)
+                    .ConfigureAwait(false);
+                PullDcaNewKeyPairRecoveryAttempt pending = await recovery.GetPendingAsync(scope, ct)
+                    .ConfigureAwait(false) ?? throw new AssertionException("The received checkpoint was not saved.");
+                try
+                {
+                    Assert.That(pending.Binding.RequestId, Is.EqualTo(requestId));
+                    Assert.That(pending.State, Is.EqualTo(PullDcaNewKeyPairRecoveryState.Received));
+                    Assert.That(pending.PrivateKeyPfx.IsEmpty, Is.False);
+                    retainedCertificate = pending.Certificate;
+                    Assert.That(retainedCertificate.IsEmpty, Is.False);
+                    Assert.That(GetIdentity(m_device), Is.EqualTo(m_identity));
+                }
+                finally
+                {
+                    ClearReturnedPrivateKey(pending.PrivateKeyPfx);
+                }
+                priorSessionId = first.SessionId;
+            }
+
+            stages.Clear();
+            await using var resumedChannels = new ClientChannelManager(m_device.Config, m_telemetry);
+            await using ManagedSession resumed = await ConnectRecoverySessionAsync(resumedChannels)
+                .ConfigureAwait(false);
+            Assert.That(resumed.SessionId, Is.Not.EqualTo(priorSessionId));
+            Assert.That(resumed.TransportChannel.ClientChannelCertificate.AsSpan().SequenceEqual(m_identity.Span),
+                Is.True);
+            using var resumedRecovery = new SecretStorePullDcaNewKeyPairRecoveryProvider(
+                backend.Object, slot, m_telemetry);
+            var installer = new OnboardingDeviceCredentials(m_device.Config, m_telemetry);
+            PullDcaResult result = await CreateWorkflow(resumed, installer, resumedRecovery)
+                .RunAsync(registrar, request, progress.Object, ct).ConfigureAwait(false);
+            Assert.That(stages, Does.Not.Contain(PullDcaStage.RequestingCertificate));
+            Assert.That(stages, Does.Not.Contain(PullDcaStage.FinishingCertificate));
+            Assert.That(stages[^1], Is.EqualTo(PullDcaStage.Completed));
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(retainedCertificate));
+            Assert.That(result.DcaCredentials.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
+            Assert.That(resumed.TransportChannel.ClientChannelCertificate.AsSpan()
+                .SequenceEqual(retainedCertificate.Span), Is.True);
+            DeviceRegistrarDevice? installed = await m_lifecycle.FindDeviceAsync(m_product, ct).ConfigureAwait(false);
+            Assert.That(installed?.DcaCertificate, Is.EqualTo(retainedCertificate));
+            Assert.That(await resumedRecovery.GetPendingAsync(scope, ct).ConfigureAwait(false), Is.Null);
+            backend.Verify(value => value.RemoveAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            async Task<ManagedSession> ConnectRecoverySessionAsync(ClientChannelManager channels)
+            {
+                ManagedSession session = await new ManagedSessionBuilder(m_device.Config, m_telemetry)
+                    .UseEndpoint(m_endpoint.AbsoluteUri)
+                    .WithChannelManager(channels)
+                    .ConnectAsync(ct).ConfigureAwait(false);
+                session.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
+                session.MessageContext.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
+                return session;
+            }
+
+            PullDcaWorkflow CreateWorkflow(
+                ManagedSession session,
+                IPullDcaNewKeyPairCredentialProvider keyPairInstaller,
+                IPullDcaNewKeyPairRecoveryProvider recovery)
+            {
+                var credentials = new OnboardingDeviceCredentials(m_device.Config, m_telemetry);
+                return new PullDcaWorkflow(
+                    new PullDcaOptions(), (_, _) => new ValueTask<ManagedSession>(session), credentials, credentials,
+                    m_telemetry, software.Object, discovery: null,
+                    receipts: Mock.Of<IPullDcaCertificateReceiptStore>(MockBehavior.Strict),
+                    signingRecovery: null, signingJournal: null, newKeyPairCredentialProvider: keyPairInstaller,
+                    newKeyPairRecoveryProvider: recovery);
+            }
+        }
+
+        private sealed class TestRecoverySecret : ISecret
+        {
+            public TestRecoverySecret(ReadOnlySpan<byte> bytes = default)
+            {
+                m_bytes = bytes.ToArray();
+            }
+
+            public bool IsEmpty => m_bytes.Length == 0;
+
+            public ReadOnlySpan<byte> Bytes => m_bytes;
+
+            public void Replace(ReadOnlySpan<byte> bytes)
+            {
+                Dispose();
+                m_bytes = bytes.ToArray();
+            }
+
+            public void Dispose()
+            {
+                Array.Clear(m_bytes, 0, m_bytes.Length);
+                m_bytes = [];
+            }
+
+            private byte[] m_bytes;
+        }
+
         private static void ClearReturnedPrivateKey(ByteString privateKey)
         {
             if (MemoryMarshal.TryGetArray(privateKey.Memory, out ArraySegment<byte> bytes) && bytes.Array != null)
