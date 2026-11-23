@@ -494,6 +494,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                 m_logger.SksResponseContainedNoUsableKeys(SecurityGroupId);
                 return;
             }
+            // The SKS built the response somewhere in the round trip, so the
+            // real issuance times lie up to this much after the scheduled ones.
+            var receivedAt = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            TimeSpan roundTrip = receivedAt > requestedAt ? receivedAt - requestedAt : TimeSpan.Zero;
 
             uint? previousHighest;
             lock (m_stateLock)
@@ -506,10 +510,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                 PubSubSecurityKey key = keys[i];
                 if (previousHighest is uint h && key.TokenId <= h)
                 {
-                    // Already in the ring: take an earlier expiry from the
-                    // SKS (it forced a rotation), never a later one, then
-                    // zero this copy of the material.
-                    Ring.Reschedule(key.TokenId, key.IssuedAt);
+                    // Already in the ring: reconcile its schedule (a forced
+                    // rotation, or a timelier estimate), then zero this copy
+                    // of the material.
+                    Ring.Reschedule(key.TokenId, key.IssuedAt, key.IssuedAt + roundTrip);
                     key.Dispose();
                     continue;
                 }
