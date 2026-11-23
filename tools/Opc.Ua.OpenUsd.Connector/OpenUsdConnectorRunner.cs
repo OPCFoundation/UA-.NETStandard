@@ -264,8 +264,9 @@ namespace Opc.Ua.OpenUsd.Connector
             }
             else if (options.TrustServer)
             {
-                // Explicit trust on first use: the endpoint stays signed and encrypted,
-                // only an untrusted (otherwise valid) certificate of the server named on
+                // Explicit trust on first use: endpoint selection is unchanged (the most
+                // secure endpoint offered, at least signed), and only an untrusted
+                // (otherwise valid) certificate of the server named on
                 // the command line is accepted, and it is persisted so later runs
                 // validate against it. The hook is removed again once the primary
                 // session exists, so federated servers never inherit it.
@@ -380,8 +381,10 @@ namespace Opc.Ua.OpenUsd.Connector
                         // or whoever opens stage.usda later), which resolves every asset
                         // path they author. Refuse the stage unless each path stays inside
                         // the closure just fetched and every layer is inspectable text.
-                        if (!TryValidateFetchedClosure(fetched, out ISet<string> closure, out string? refusal))
+                        if (!TryValidateFetchedClosure(fetched, out ISet<string> closure, out string? refusal) ||
+                            !TryWriteStageUsda(cacheDir!, fetched, closure, out refusal))
                         {
+                            DiscardGeneratedStage(cacheDir!);
                             Console.Error.WriteLine(
                                 $"ERROR: {refusal} The server-delivered stage is not composed.");
                             await CloseAsync(session, config).ConfigureAwait(false);
@@ -390,7 +393,6 @@ namespace Opc.Ua.OpenUsd.Connector
                         fileSink.AssetPathFilter = path =>
                             closure.Contains(path) &&
                             path.EndsWith(".usda", StringComparison.OrdinalIgnoreCase);
-                        WriteStageUsda(cacheDir!, fetched);
                         if (string.IsNullOrEmpty(stagePath))
                         {
                             stagePath = Path.Combine(cacheDir!, "stage.usda");
@@ -519,25 +521,50 @@ namespace Opc.Ua.OpenUsd.Connector
 
         // Writes a self-contained stage.usda that composes the connector's live override
         // over every server-delivered root layer, all now local in the cache directory.
-        internal static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
+        // Every sublayer it authors is the cache-relative path of a root layer that
+        // TryValidateFetchedClosure inspected, and live.usda is recreated empty, so the
+        // stage cannot pull in anything that was not checked in this run.
+        internal static bool TryWriteStageUsda(
+            string cacheDir,
+            IReadOnlyList<OpenUsdConnector.FetchedAsset> fetched,
+            ISet<string> closure,
+            out string? refusal)
         {
-            var rootNames = new List<string>();
+            string cacheRoot = Path.GetFullPath(cacheDir);
+            string stagePath = Path.Combine(cacheRoot, "stage.usda");
+            string livePath = Path.Combine(cacheRoot, "live.usda");
+            if (closure.Contains(stagePath) || closure.Contains(livePath))
+            {
+                refusal = "A served asset would overwrite the connector's generated stage.usda or live.usda.";
+                return false;
+            }
+
+            var rootPaths = new List<string>();
             foreach (OpenUsdConnector.FetchedAsset asset in fetched)
             {
                 if (asset.Kind != OpenUsdAssetKind.RootLayer)
                 {
                     continue;
                 }
-                string rootName = Path.GetFileName(asset.LocalPath);
-                if (!rootNames.Exists(
-                    name => string.Equals(name, rootName, StringComparison.Ordinal)))
+                string full = Path.GetFullPath(asset.LocalPath);
+                string? relative = GetCacheRelativePath(cacheRoot, full);
+                if (relative == null || !closure.Contains(full) ||
+                    !full.EndsWith(".usda", StringComparison.OrdinalIgnoreCase) ||
+                    !UsdAssetPaths.IsSafeRelativePath(relative))
                 {
-                    rootNames.Add(rootName);
+                    refusal = $"The served root layer '{asset.Identifier}' is not an inspected USDA layer " +
+                        "at a plain path inside the asset cache.";
+                    return false;
+                }
+                if (!rootPaths.Exists(path => string.Equals(path, relative, StringComparison.Ordinal)))
+                {
+                    rootPaths.Add(relative);
                 }
             }
-            if (rootNames.Count == 0)
+            if (rootPaths.Count == 0)
             {
-                rootNames.Add("base.usda");
+                refusal = "The server delivered assets but no root layer to compose them from.";
+                return false;
             }
 
             var sb = new StringBuilder();
@@ -545,24 +572,49 @@ namespace Opc.Ua.OpenUsd.Connector
             sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers " +
                 "+ the live OPC UA override.\"\n");
             sb.Append("    subLayers = [\n        @./live.usda@");
-            foreach (string rootName in rootNames)
+            foreach (string rootPath in rootPaths)
             {
-                sb.Append(",\n        @./").Append(rootName).Append('@');
+                sb.Append(",\n        @./").Append(rootPath).Append('@');
             }
             sb.Append("\n    ]\n");
             sb.Append(")\n");
-            File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
 
-            // The override layer is only written once the first values arrive, so seed an
-            // empty one now. Without it a viewer that opens the stage first reports the
-            // sublayer as missing before the connector has had anything to say.
-            string livePath = Path.Combine(cacheDir, "live.usda");
-            if (!File.Exists(livePath))
+            // Recreated rather than kept: a live.usda left by an earlier run was written
+            // under that run's asset filter, and may name files this run did not admit.
+            // The empty layer also keeps a viewer that opens the stage before the first
+            // values arrive from reporting a missing sublayer.
+            File.WriteAllText(
+                livePath,
+                "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
+            File.WriteAllText(stagePath, sb.ToString());
+            refusal = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Removes a stage.usda left by an earlier run, so a refused closure cannot
+        /// still be composed through it.
+        /// </summary>
+        internal static void DiscardGeneratedStage(string cacheDir)
+        {
+            string stagePath = Path.Combine(cacheDir, "stage.usda");
+            if (File.Exists(stagePath))
             {
-                File.WriteAllText(
-                    livePath,
-                    "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
+                File.Delete(stagePath);
             }
+        }
+
+        private static string? GetCacheRelativePath(string cacheRoot, string fullPath)
+        {
+            string prefix = cacheRoot.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                ? cacheRoot
+                : cacheRoot + Path.DirectorySeparatorChar;
+            StringComparison comparison = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return fullPath.StartsWith(prefix, comparison)
+                ? fullPath.Substring(prefix.Length).Replace(Path.DirectorySeparatorChar, '/')
+                : null;
         }
 
         [ExcludeFromCodeCoverage]
@@ -695,9 +747,12 @@ namespace Opc.Ua.OpenUsd.Connector
                 extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static bool IsCertificateTrustError(StatusCode code)
+        internal static bool IsCertificateTrustError(StatusCode code)
         {
+            // A rejected validation error reaches the session wrapped as
+            // BadCertificateInvalid (CertificateValidationCore), so it counts too.
             return code == StatusCodes.BadCertificateUntrusted ||
+                code == StatusCodes.BadCertificateInvalid ||
                 code == StatusCodes.BadCertificateChainIncomplete ||
                 code == StatusCodes.BadSecurityChecksFailed;
         }

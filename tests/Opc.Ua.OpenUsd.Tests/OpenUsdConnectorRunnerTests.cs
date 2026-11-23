@@ -220,23 +220,104 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                     },
                     new()
                     {
-                        Identifier = "plant.usda",
+                        Identifier = "parts/plant.usda",
                         Kind = OpenUsdAssetKind.RootLayer,
-                        LocalPath = Path.Combine(cacheDir, "plant.usda")
+                        LocalPath = Path.Combine(cacheDir, "parts", "plant.usda")
                     }
                 };
+                File.WriteAllText(Path.Combine(cacheDir, "live.usda"), "#usda 1.0\n( subLayers = [@stale.usdc@] )\n");
 
-                OpenUsdConnectorRunner.WriteStageUsda(cacheDir, fetched);
+                Assert.That(
+                    OpenUsdConnectorRunner.TryWriteStageUsda(cacheDir, fetched, ClosureOf(fetched), out string? refusal),
+                    Is.True,
+                    refusal);
 
                 string stage = File.ReadAllText(Path.Combine(cacheDir, "stage.usda"));
                 int liveIndex = stage.IndexOf("@./live.usda@", StringComparison.Ordinal);
                 int robotIndex = stage.IndexOf("@./robot.usda@", StringComparison.Ordinal);
-                int plantIndex = stage.IndexOf("@./plant.usda@", StringComparison.Ordinal);
+                int plantIndex = stage.IndexOf("@./parts/plant.usda@", StringComparison.Ordinal);
 
                 Assert.That(liveIndex, Is.GreaterThanOrEqualTo(0));
                 Assert.That(robotIndex, Is.GreaterThan(liveIndex));
                 Assert.That(plantIndex, Is.GreaterThan(robotIndex));
-                Assert.That(File.Exists(Path.Combine(cacheDir, "live.usda")), Is.True);
+                Assert.That(
+                    File.ReadAllText(Path.Combine(cacheDir, "live.usda")),
+                    Does.Not.Contain("stale"),
+                    "A live layer left by an earlier run is recreated, not composed.");
+            }
+            finally
+            {
+                Directory.Delete(cacheDir, recursive: true);
+            }
+        }
+
+        [TestCase("a@, @uninspected.usdc@, @b.usda", OpenUsdAssetKind.RootLayer)]
+        [TestCase("live.usda", OpenUsdAssetKind.SubLayer)]
+        [TestCase("stage.usda", OpenUsdAssetKind.SubLayer)]
+        [TestCase("cell.usdc", OpenUsdAssetKind.RootLayer)]
+        [TestCase("parts/arm.usda", OpenUsdAssetKind.SubLayer)]
+        public void WriteStageUsdaRefusesRootsItCannotAuthorSafely(string identifier, OpenUsdAssetKind kind)
+        {
+            string cacheDir = Path.Combine(
+                Environment.CurrentDirectory,
+                "TestResults",
+                "OpenUsdConnectorRunnerTests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(cacheDir);
+            try
+            {
+                // The last case has no root layer at all: there is no fallback to an
+                // uninspected base.usda.
+                var fetched = new List<OpenUsdConnector.FetchedAsset>
+                {
+                    new()
+                    {
+                        Identifier = identifier,
+                        Kind = kind,
+                        LocalPath = Path.Combine(cacheDir, identifier.Replace('/', Path.DirectorySeparatorChar))
+                    }
+                };
+
+                Assert.That(
+                    OpenUsdConnectorRunner.TryWriteStageUsda(cacheDir, fetched, ClosureOf(fetched), out string? refusal),
+                    Is.False);
+                Assert.That(refusal, Is.Not.Null);
+                Assert.That(File.Exists(Path.Combine(cacheDir, "stage.usda")), Is.False);
+            }
+            finally
+            {
+                Directory.Delete(cacheDir, recursive: true);
+            }
+        }
+
+        [Test]
+        public void WriteStageUsdaRefusesARootOutsideTheInspectedClosure()
+        {
+            string cacheDir = Path.Combine(
+                Environment.CurrentDirectory,
+                "TestResults",
+                "OpenUsdConnectorRunnerTests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(cacheDir);
+            try
+            {
+                var fetched = new List<OpenUsdConnector.FetchedAsset>
+                {
+                    new()
+                    {
+                        Identifier = "cell.usda",
+                        Kind = OpenUsdAssetKind.RootLayer,
+                        LocalPath = Path.Combine(cacheDir, "cell.usda")
+                    }
+                };
+                File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), "#usda 1.0\n");
+
+                Assert.That(
+                    OpenUsdConnectorRunner.TryWriteStageUsda(
+                        cacheDir, fetched, new HashSet<string>(StringComparer.Ordinal), out _),
+                    Is.False);
+                OpenUsdConnectorRunner.DiscardGeneratedStage(cacheDir);
+                Assert.That(File.Exists(Path.Combine(cacheDir, "stage.usda")), Is.False);
             }
             finally
             {
@@ -350,6 +431,24 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             await canceled.CancelAsync();
 
             await wait;
+        }
+
+        [Test]
+        public void RejectedCertificatesWrappedAsInvalidGetTrustGuidance()
+        {
+            Assert.That(OpenUsdConnectorRunner.IsCertificateTrustError(StatusCodes.BadCertificateInvalid), Is.True);
+            Assert.That(OpenUsdConnectorRunner.IsCertificateTrustError(StatusCodes.BadCertificateUntrusted), Is.True);
+            Assert.That(OpenUsdConnectorRunner.IsCertificateTrustError(StatusCodes.BadTimeout), Is.False);
+        }
+
+        private static HashSet<string> ClosureOf(List<OpenUsdConnector.FetchedAsset> fetched)
+        {
+            var closure = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+            {
+                closure.Add(Path.GetFullPath(asset.LocalPath));
+            }
+            return closure;
         }
 
         private static string FindRepositoryRoot()

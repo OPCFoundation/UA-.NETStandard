@@ -94,13 +94,14 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -- \
 
 Options: `--server <opc.tcp url>` (default `opc.tcp://localhost:62542/PumpDeviceIntegrationServer`),
 `--out <live.usda>`, `--seconds N` (run for a fixed time instead of until Ctrl+C), and
-`--insecure`. The connector is **secure by default** (encrypted, signed channel with server-certificate
-trust required, per spec §9). `--insecure` opts into an unsecured endpoint and blanket certificate
+`--insecure`. The connector is **secure by default** (the most secure endpoint the server offers, at
+least signed, with server-certificate trust required, per spec §9). `--insecure` opts into an unsecured endpoint and blanket certificate
 acceptance — appropriate only for this localhost demo, whose server uses a self-signed certificate.
 For a secured run, omit `--insecure`: the connector keeps one per-user PKI (`--pki <dir>` overrides it)
 and reports where a rejected server certificate was stored, so it can be moved to the trusted store.
 `--trust-server` instead trusts the certificate of the server named by `--server` on first use and
-stores it, while keeping the signed and encrypted channel; any other certificate error still fails.
+stores it; endpoint security is chosen exactly as without the flag, and any other certificate error
+still fails.
 
 Server-delivered layers are composed only when every asset path they author is a relative path into
 the fetched closure (USDA layers and PNG/JPEG textures); composition references from the server are
