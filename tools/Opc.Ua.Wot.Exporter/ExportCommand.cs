@@ -110,60 +110,46 @@ namespace Opc.Ua.Wot.Exporter
                 }
                 var nodeResolver = WotDocumentNodeResolver.FromNodeSets(
                     loaded.Select(file => file.NodeSet).ToArrayOf(), cancellationToken);
-                var converted = new List<(string Path, WotDocumentSet Documents)>();
+                var converted = new List<(string Path, UANodeSet NodeSet)>();
                 var references = new RegistryModelReferences(registryBaseUrl, groupId);
-                try
+                foreach ((string path, UANodeSet nodeSet) in loaded)
                 {
-                    foreach ((string path, UANodeSet nodeSet) in loaded)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    string relative = Path.GetRelativePath(sourceFolder, path);
+                    try
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        string relative = Path.GetRelativePath(sourceFolder, path);
-                        WotDocumentSet? documents = null;
-                        try
-                        {
-                            Dictionary<ExpandedNodeId, string> modelIds = CreateModelIds(nodeSet, cancellationToken);
-                            documents = await ConvertFileAsync(nodeSet, nodeResolver, cancellationToken)
-                                .ConfigureAwait(false);
-                            references.Add(nodeSet, documents, modelIds);
-                            converted.Add((path, documents));
-                            documents = null;
-                        }
-                        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
-                        {
-                            failed++;
-                            string detail = IsInputError(ex)
-                                ? ex.Message : $"Unexpected {ex.GetType().Name}: {ex.Message}";
-                            await m_error.WriteLineAsync($"ERROR: {relative}: {detail}").ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            documents?.Dispose();
-                        }
+                        Dictionary<ExpandedNodeId, string> modelIds = CreateModelIds(nodeSet, cancellationToken);
+                        using WotDocumentSet documents = await ConvertFileAsync(nodeSet, nodeResolver, cancellationToken)
+                            .ConfigureAwait(false);
+                        references.Add(nodeSet, documents, modelIds);
+                        converted.Add((path, nodeSet));
                     }
-                    foreach ((string path, WotDocumentSet documents) in converted)
+                    catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        string relative = Path.GetRelativePath(sourceFolder, path);
-                        try
-                        {
-                            written += await ExportFileAsync(
-                                documents, Path.Combine(destination, relative), references, cancellationToken)
-                                .ConfigureAwait(false);
-                        }
-                        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
-                        {
-                            failed++;
-                            string detail = IsInputError(ex)
-                                ? ex.Message : $"Unexpected {ex.GetType().Name}: {ex.Message}";
-                            await m_error.WriteLineAsync($"ERROR: {relative}: {detail}").ConfigureAwait(false);
-                        }
+                        failed++;
+                        string detail = IsInputError(ex)
+                            ? ex.Message : $"Unexpected {ex.GetType().Name}: {ex.Message}";
+                        await m_error.WriteLineAsync($"ERROR: {relative}: {detail}").ConfigureAwait(false);
                     }
                 }
-                finally
+                foreach ((string path, UANodeSet nodeSet) in converted)
                 {
-                    foreach ((_, WotDocumentSet documents) in converted)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    string relative = Path.GetRelativePath(sourceFolder, path);
+                    try
                     {
-                        documents.Dispose();
+                        using WotDocumentSet documents = await ConvertFileAsync(
+                            nodeSet, nodeResolver, cancellationToken, reportDiagnostics: false).ConfigureAwait(false);
+                        written += await ExportFileAsync(
+                            documents, Path.Combine(destination, relative), references, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                    {
+                        failed++;
+                        string detail = IsInputError(ex)
+                            ? ex.Message : $"Unexpected {ex.GetType().Name}: {ex.Message}";
+                        await m_error.WriteLineAsync($"ERROR: {relative}: {detail}").ConfigureAwait(false);
                     }
                 }
                 await m_output.WriteLineAsync(
@@ -270,7 +256,8 @@ namespace Opc.Ua.Wot.Exporter
         private async Task<WotDocumentSet> ConvertFileAsync(
             UANodeSet nodeSet,
             IWotNodeResolver nodeResolver,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool reportDiagnostics = true)
         {
             var options = new WotNodeSetConverterOptions
             {
@@ -283,18 +270,24 @@ namespace Opc.Ua.Wot.Exporter
                 MaxResolverDepth = 128,
                 MaxResolverTotalBytes = 512L * 1024 * 1024
             };
-            await m_output.WriteLineAsync("  Convert the NodeSet. Check source preservation.").ConfigureAwait(false);
+            if (reportDiagnostics)
+            {
+                await m_output.WriteLineAsync("  Convert the NodeSet. Check source preservation.").ConfigureAwait(false);
+            }
             WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter.FromNodeSetDocumentsAsync(
                 nodeSet, "model.TM.json", options: options, nodeResolver: nodeResolver,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             WotDocumentSet? documents = result.Value;
             try
             {
-                foreach (WotDiagnostic diagnostic in result.Diagnostics)
+                if (reportDiagnostics || !result.Success)
                 {
-                    TextWriter writer = diagnostic.Severity == WotDiagnosticSeverity.Info ? m_output : m_error;
-                    await writer.WriteLineAsync($"  {diagnostic.Severity.ToString().ToUpperInvariant()}: {diagnostic}")
-                        .ConfigureAwait(false);
+                    foreach (WotDiagnostic diagnostic in result.Diagnostics)
+                    {
+                        TextWriter writer = diagnostic.Severity == WotDiagnosticSeverity.Info ? m_output : m_error;
+                        await writer.WriteLineAsync($"  {diagnostic.Severity.ToString().ToUpperInvariant()}: {diagnostic}")
+                            .ConfigureAwait(false);
+                    }
                 }
                 if (!result.Success || documents is null)
                 {

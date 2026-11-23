@@ -130,6 +130,14 @@ use registry URLs when they identify an exported Thing Model. JSON Pointer
 fragments are preserved. Resolved `ua:HasSupertype` links use `tm:extends`;
 other link relations are preserved.
 
+The first conversion pass retains only model identity and version metadata.
+It disposes each source's generated documents before it converts the next
+source. A second pass converts and writes one source at a time.
+Generated JSON payloads do not accumulate across the input tree; the local
+type resolver still retains the loaded NodeSets.
+Conflicting model identities fail affected source exports before files are
+written, including distinct native types that claim the same registry resource.
+
 Links to local support documents keep their local file names.
 Unresolved native references and unrelated external URLs remain unchanged.
 Native node identities, preservation payloads, form URLs, and literal schema

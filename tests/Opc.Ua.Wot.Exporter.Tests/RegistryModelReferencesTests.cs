@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -20,13 +21,18 @@ namespace Opc.Ua.Wot.Exporter.Tests
         /// <summary>
         /// Uses final authored IDs, preserves fragments and limits rewriting to document-reference positions.
         /// </summary>
-        [Test]
-        public void ReferencesPreserveAuthoredIdsFragmentsAndLiteralValues()
+        [TestCase("dataResponse")]
+        [TestCase("if")]
+        [TestCase("then")]
+        [TestCase("else")]
+        [TestCase("contains")]
+        [TestCase("propertyNames")]
+        public void ReferencesPreserveAuthoredIdsFragmentsAndLiteralValues(string schemaChild)
         {
             using var documents = new WotDocumentSet("source.TM.json", [
                 new WotDocumentSetEntry("source.TM.json", Parse(
                     /*lang=json,strict*/
-                    """
+                    $$$$"""
                     {
                       "@context": ["https://www.w3.org/2022/wot/td/v1.1"],
                       "@type": ["tm:ThingModel", "uav:objectType"],
@@ -40,6 +46,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
                       "properties": {
                         "reading": {
                           "tm:ref": "target.TM.json#/properties/reading",
+                          "{{{{schemaChild}}}}": {"$ref": "target.TM.json#/schemaDefinitions/reading"},
                           "forms": [{"href": "target.TM.json"}],
                           "const": {"tm:ref": "target.TM.json", "links": [{"href": "target.TM.json"}]}
                         }
@@ -104,6 +111,8 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(links[2].GetProperty("href").GetString(), Is.EqualTo("https://external.test/unrelated"));
             JsonElement property = root.GetProperty("properties").GetProperty("reading");
             Assert.That(property.GetProperty("tm:ref").GetString(), Is.EqualTo(href + "#/properties/reading"));
+            Assert.That(property.GetProperty(schemaChild).GetProperty("$ref").GetString(),
+                Is.EqualTo(href + "#/schemaDefinitions/reading"));
             Assert.That(property.GetProperty("forms")[0].GetProperty("href").GetString(), Is.EqualTo("target.TM.json"));
             Assert.That(property.GetProperty("const").GetProperty("tm:ref").GetString(), Is.EqualTo("target.TM.json"));
             Assert.That(property.GetProperty("const").GetProperty("links")[0].GetProperty("href").GetString(),
@@ -169,6 +178,130 @@ namespace Opc.Ua.Wot.Exporter.Tests
 
             Assert.That(() => references.Write(documents, CancellationToken.None),
                 Throws.TypeOf<FormatException>().With.Message.Contains("ambiguous"));
+        }
+
+        /// <summary>
+        /// Metadata registration does not keep disposed conversion payloads alive.
+        /// </summary>
+        [Test]
+        public void RegisteredDocumentsAreNotRetained()
+        {
+            var references = new RegistryModelReferences("https://registry.test", "opcua");
+            WeakReference document = RegisterTemporaryModel(references, 1);
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            Assert.That(document.IsAlive, Is.False);
+            GC.KeepAlive(references);
+        }
+
+        /// <summary>
+        /// Lightweight metadata can be applied to a fresh conversion after the first payload was disposed.
+        /// </summary>
+        [Test]
+        public void ReconvertedDocumentsUseRegisteredMetadata()
+        {
+            var references = new RegistryModelReferences("https://registry.test", "opcua");
+            _ = RegisterTemporaryModel(references, 1);
+            using WotDocumentSet documents = CreateModelDocuments(1);
+
+            ArrayOf<ReadOnlyMemory<byte>> output = references.Write(documents, CancellationToken.None);
+
+            using var result = JsonDocument.Parse(output[0]);
+            Assert.That(result.RootElement.GetProperty("id").GetString(), Is.EqualTo("urn:model:1"));
+            Assert.That(result.RootElement.GetProperty("version").GetProperty("model").GetString(), Is.EqualTo("42"));
+        }
+
+        /// <summary>
+        /// Different native types cannot publish to one resource and version, even without outgoing references.
+        /// </summary>
+        [Test]
+        public void DistinctNativeTypesCannotClaimTheSameResource()
+        {
+            var references = new RegistryModelReferences("https://registry.test", "opcua");
+            using WotDocumentSet first = CreateModelDocuments(1, "urn:shared");
+            using WotDocumentSet second = CreateModelDocuments(2, "urn:shared");
+            Register(references, first);
+            Register(references, second);
+
+            Assert.That(() => references.Write(first, CancellationToken.None),
+                Throws.TypeOf<FormatException>().With.Message.Contains("ambiguous"));
+            Assert.That(() => references.Write(second, CancellationToken.None),
+                Throws.TypeOf<FormatException>().With.Message.Contains("ambiguous"));
+        }
+
+        /// <summary>
+        /// Writing a source without model references does not copy the full input catalogue.
+        /// </summary>
+        [Test]
+        public void SourceWriteAllocationsDoNotGrowWithUnrelatedModels()
+        {
+            var small = new RegistryModelReferences("https://registry.test", "opcua");
+            var large = new RegistryModelReferences("https://registry.test", "opcua");
+            _ = RegisterTemporaryModel(small, 1);
+            for (uint i = 1; i <= 256; i++)
+            {
+                _ = RegisterTemporaryModel(large, i);
+            }
+            using var source = new WotDocumentSet("support.json", [
+                new WotDocumentSetEntry("support.json", Parse(/*lang=json,strict*/ """{"title":"No model references"}"""))
+            ]);
+            _ = small.Write(source, CancellationToken.None);
+            _ = large.Write(source, CancellationToken.None);
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            _ = small.Write(source, CancellationToken.None);
+            long smallAllocation = GC.GetAllocatedBytesForCurrentThread() - before;
+            before = GC.GetAllocatedBytesForCurrentThread();
+            _ = large.Write(source, CancellationToken.None);
+            long largeAllocation = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(largeAllocation, Is.LessThanOrEqualTo(smallAllocation + 4096));
+        }
+
+        /// <summary>
+        /// Registers one disposable payload outside the lifetime of the collection assertion.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WeakReference RegisterTemporaryModel(RegistryModelReferences references, uint nodeId)
+        {
+            using WotDocumentSet documents = CreateModelDocuments(nodeId);
+            Register(references, documents);
+            return new WeakReference(documents.Entries[0].Document);
+        }
+
+        /// <summary>
+        /// Registers the source namespace and fallback identifier for one model.
+        /// </summary>
+        private static void Register(RegistryModelReferences references, WotDocumentSet documents)
+        {
+            var identity = ExpandedNodeId.Parse(
+                documents.Entries[0].Document.RootElement.GetProperty("uav:id").GetString()!);
+            references.Add(new UANodeSet
+            {
+                Models = [new ModelTableEntry { ModelUri = "urn:export:registry", Version = "42" }]
+            }, documents, new Dictionary<ExpandedNodeId, string> { [identity] = "urn:fallback" });
+        }
+
+        /// <summary>
+        /// Creates one independently owned model conversion.
+        /// </summary>
+        private static WotDocumentSet CreateModelDocuments(uint nodeId, string? authoredId = null)
+        {
+            string ordinal = nodeId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return new WotDocumentSet("model.TM.json", [
+                new WotDocumentSetEntry("model.TM.json", Parse(
+                    /*lang=json,strict*/
+                    $$"""
+                    {
+                      "@type": ["tm:ThingModel"],
+                      "id": "{{authoredId ?? ("urn:model:" + ordinal)}}",
+                      "uav:id": "nsu=urn:export:registry;i={{ordinal}}"
+                    }
+                    """))
+            ]);
         }
 
         /// <summary>

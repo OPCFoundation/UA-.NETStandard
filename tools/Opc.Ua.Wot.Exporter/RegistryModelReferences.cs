@@ -44,8 +44,8 @@ namespace Opc.Ua.Wot.Exporter
                         break;
                     }
                 }
-                var target = new Model(id, identity.NamespaceUri!, version);
-                m_documents.Add(document, target);
+                var target = new Model(id, identity, version);
+                m_models.TryAdd(identity, target);
                 AddAlias(id, target);
                 AddAlias(identity.ToString(), target);
                 if (identity.NamespaceUri == Types.Namespaces.OpcUa)
@@ -61,11 +61,13 @@ namespace Opc.Ua.Wot.Exporter
         /// <exception cref="FormatException"></exception>
         public ArrayOf<ReadOnlyMemory<byte>> Write(WotDocumentSet documents, CancellationToken cancellationToken)
         {
-            var aliases = new Dictionary<string, Model>(m_aliases, StringComparer.Ordinal);
+            var aliases = new Dictionary<string, Model>(StringComparer.Ordinal);
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
-                if (m_documents.TryGetValue(entry.Document, out Model? model))
+                cancellationToken.ThrowIfCancellationRequested();
+                if (GetModel(entry.Document) is { } model)
                 {
+                    ValidateModel(model);
                     aliases[entry.Href] = model;
                 }
             }
@@ -73,15 +75,7 @@ namespace Opc.Ua.Wot.Exporter
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                m_documents.TryGetValue(entry.Document, out Model? model);
-                if (model is null && entry.Document.Kind == WotDocumentKind.ThingModel)
-                {
-                    throw new FormatException($"No native model identity for Thing Model '{entry.Href}'.");
-                }
-                if (model is not null)
-                {
-                    ValidateVersion(model);
-                }
+                Model? model = GetModel(entry.Document);
                 using var output = new MemoryStream();
                 using (var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = true }))
                 {
@@ -90,6 +84,24 @@ namespace Opc.Ua.Wot.Exporter
                 result.Add(output.ToArray());
             }
             return result.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Finds lightweight metadata for a freshly converted model without retaining its document.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        private Model? GetModel(WotDocument document)
+        {
+            if (document.Kind != WotDocumentKind.ThingModel)
+            {
+                return null;
+            }
+            if (TryGetIdentity(document.RootElement, out ExpandedNodeId identity) &&
+                m_models.TryGetValue(identity, out Model? model))
+            {
+                return model;
+            }
+            throw new FormatException("No native model identity for a Thing Model.");
         }
 
         /// <summary>
@@ -172,8 +184,9 @@ namespace Opc.Ua.Wot.Exporter
                     }
                     writer.WriteEndObject();
                 }
-                else if (property.Name is "input" or "output" or "data" or "items" or
-                    "additionalProperties" or "not" or "subscription" or "cancellation" &&
+                else if (property.Name is "input" or "output" or "data" or "items" or "dataResponse" or
+                    "additionalProperties" or "not" or "subscription" or "cancellation" or
+                    "if" or "then" or "else" or "contains" or "propertyNames" &&
                     property.Value.ValueKind == JsonValueKind.Object)
                 {
                     WriteNode(writer, property.Value, aliases);
@@ -237,27 +250,54 @@ namespace Opc.Ua.Wot.Exporter
         /// <exception cref="FormatException"></exception>
         private bool TryResolve(string reference, Dictionary<string, Model> aliases, out string href)
         {
-            string key = reference;
             string fragment = string.Empty;
+            Model? model = FindTarget(reference, aliases);
             int separator = reference.IndexOf('#', StringComparison.Ordinal);
-            if (!aliases.ContainsKey(key) && separator >= 0)
+            if (model is null && separator >= 0)
             {
-                key = reference[..separator];
+                model = FindTarget(reference[..separator], aliases);
                 fragment = reference[separator..];
             }
-            if (m_ambiguous.Contains(key))
-            {
-                throw new FormatException($"The model reference is ambiguous: {reference}");
-            }
-            if (!aliases.TryGetValue(key, out Model? model))
+            if (model is null)
             {
                 href = reference;
                 return false;
             }
-            ValidateVersion(model);
+            ValidateModel(model);
             string resourceId = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(model.Id)));
             href = m_prefix + resourceId + "/versions/" + Uri.EscapeDataString(model.Version!) + fragment;
             return true;
+        }
+
+        /// <summary>
+        /// Gives source-local file names precedence over the shared catalogue without copying it.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        private Model? FindTarget(string reference, Dictionary<string, Model> aliases)
+        {
+            if (aliases.TryGetValue(reference, out Model? local))
+            {
+                return local;
+            }
+            if (m_ambiguous.Contains(reference))
+            {
+                throw new FormatException($"The model reference is ambiguous: {reference}");
+            }
+            m_aliases.TryGetValue(reference, out Model? model);
+            return model;
+        }
+
+        /// <summary>
+        /// Rejects conflicting registry claims before publishing a model or a reference to it.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        private void ValidateModel(Model model)
+        {
+            if (m_ambiguous.Contains(model.Id) || m_ambiguous.Contains(model.NativeIdentity.ToString()))
+            {
+                throw new FormatException($"The model identity is ambiguous: {model.Id} ({model.NativeIdentity}).");
+            }
+            ValidateVersion(model);
         }
 
         /// <summary>
@@ -268,7 +308,7 @@ namespace Opc.Ua.Wot.Exporter
         {
             if (string.IsNullOrWhiteSpace(model.Version) || model.Version is "." or "..")
             {
-                throw new FormatException($"No valid Model Version for namespace '{model.NamespaceUri}' " +
+                throw new FormatException($"No valid Model Version for namespace '{model.NativeIdentity.NamespaceUri}' " +
                     $"(Thing Model '{model.Id}').");
             }
         }
@@ -293,7 +333,7 @@ namespace Opc.Ua.Wot.Exporter
         /// <summary>
         /// Holds the unchanged WoT identity and its owning namespace's version.
         /// </summary>
-        private sealed record Model(string Id, string NamespaceUri, string? Version);
+        private sealed record Model(string Id, ExpandedNodeId NativeIdentity, string? Version);
 
         /// <summary>Stores the configured registry resource collection.</summary>
         private readonly string m_prefix = registryBaseUrl.TrimEnd('/') +
@@ -301,13 +341,13 @@ namespace Opc.Ua.Wot.Exporter
             Uri.EscapeDataString(groupId) +
             "/thingmodels/";
 
-        /// <summary>Indexes converted documents by their final model metadata.</summary>
-        private readonly Dictionary<WotDocument, Model> m_documents = [];
+        /// <summary>Indexes native identities without keeping conversion payloads alive.</summary>
+        private readonly Dictionary<ExpandedNodeId, Model> m_models = [];
 
         /// <summary>Indexes global model and native identities.</summary>
         private readonly Dictionary<string, Model> m_aliases = new(StringComparer.Ordinal);
 
-        /// <summary>Tracks identities shared by incompatible model versions.</summary>
+        /// <summary>Tracks aliases shared by distinct native types or incompatible model versions.</summary>
         private readonly HashSet<string> m_ambiguous = new(StringComparer.Ordinal);
     }
 }

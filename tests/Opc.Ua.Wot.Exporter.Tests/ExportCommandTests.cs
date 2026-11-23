@@ -224,6 +224,24 @@ namespace Opc.Ua.Wot.Exporter.Tests
         }
 
         /// <summary>
+        /// Rejects different types from separate sources that claim the same registry resources.
+        /// </summary>
+        [Test]
+        public async Task DuplicateResourceClaimsAcrossSourcesWriteNoFilesAsync()
+        {
+            string second = k_nodeSet.Replace("NodeId=\"ns=1;i=1\"", "NodeId=\"ns=1;i=3\"", StringComparison.Ordinal)
+                .Replace("NodeId=\"ns=1;i=2\"", "NodeId=\"ns=1;i=4\"", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "First.NodeSet2.xml"), k_nodeSet).ConfigureAwait(false);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "Second.NodeSet2.xml"), second).ConfigureAwait(false);
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+
+            Assert.That(code, Is.EqualTo(1));
+            Assert.That(m_error.ToString(), Does.Contain("ambiguous"));
+            Assert.That(Directory.Exists(Path.Combine(m_folder, "out")), Is.False);
+        }
+
+        /// <summary>
         /// Rejects a missing path and a folder with no input files.
         /// </summary>
         [Test]
