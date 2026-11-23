@@ -195,15 +195,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void ExplicitImportedIdSurvivesSnapshotAndReport()
         {
             ServerSystemContext context = CreateContext(new DeterministicEventIdProvider("replica-set"));
-            BaseObjectState source = CreateNotifier();
-            var e = new BaseEventState(null);
-            e.Initialize(context, source, EventSeverity.Medium, LocalizedText.From("imported"));
+            TestAlarm e = CreateAlarm(context);
+            e.ResetEventId();
             ByteString explicitId = ByteString.From(5, 6, 7);
             e.EventId!.Value = explicitId;
 
             var snapshot = new InstanceStateSnapshot();
             snapshot.Initialize(context, e);
-            source.ReportEvent(context, snapshot);
+            e.ReportEvent(context, snapshot);
 
             Assert.That(ReadSnapshotId(snapshot), Is.EqualTo(explicitId));
             Assert.That(e.EventId.Value, Is.EqualTo(explicitId));
@@ -249,11 +248,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             second.ReportTransition(context, time);
             ByteString trunk = first.EventId!.Value;
 
-            first.BranchId!.Value = new NodeId(10);
-            first.ReportTransition(context, time);
+            var branch = (TestAlarm)first.CreateBranch(context, new NodeId(10))!;
+            branch.ReportTransition(context, time);
 
             Assert.That(trunk, Is.Not.EqualTo(second.EventId!.Value));
-            Assert.That(trunk, Is.Not.EqualTo(first.EventId.Value));
+            Assert.That(trunk, Is.Not.EqualTo(branch.EventId!.Value));
         }
 
         private static ByteString ReadSnapshotId(InstanceStateSnapshot snapshot)
@@ -338,8 +337,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             method.Invoke(null, [notifier, context, e, provider]);
         }
 
-        private sealed class TestAlarm() : AlarmConditionState(null)
+        private sealed class TestAlarm(NodeState? parent = null) : AlarmConditionState(parent)
         {
+            protected override ConditionState CreateBranchInstance()
+            {
+                return new TestAlarm(this);
+            }
+
             public void ReportTransition(ISystemContext context, DateTimeUtc sourceTime)
             {
                 ReportStateChange(context, false, sourceTime);
