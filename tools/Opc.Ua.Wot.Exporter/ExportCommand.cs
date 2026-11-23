@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -32,13 +31,16 @@ namespace Opc.Ua.Wot.Exporter
             if (args is ["--help"] or ["-h"])
             {
                 await m_output.WriteLineAsync(
-                    "Usage: opcua-wot-export <source-path> [output-path]\n" +
+                    "Usage: opcua-wot-export <source-path> [output-path] " +
+                    "[--registry-base-url <url>] [--group-id <id>]\n" +
                     "Read *NodeSet2.xml in the source folder and its subfolders.\n" +
                     "Default output: <source-path>\\out. A source file is also accepted.\n" +
-                    "An explicit output path is relative to the current folder.").ConfigureAwait(false);
+                    "An explicit output path is relative to the current folder.\n" +
+                    "Default registry: https://azureiotoperations.com. Default group: opcua.")
+                    .ConfigureAwait(false);
                 return 0;
             }
-            if (args.Length is < 1 or > 2 || args.Any(a => a.StartsWith('-')))
+            if (!TryReadArguments(args, out string[] paths, out string registryBaseUrl, out string groupId))
             {
                 await m_error.WriteLineAsync(
                     "ERROR: Supply a source path and, if needed, an output path. Use --help for help.")
@@ -48,7 +50,7 @@ namespace Opc.Ua.Wot.Exporter
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string source = Path.GetFullPath(args[0]);
+                string source = Path.GetFullPath(paths[0]);
                 bool singleFile = File.Exists(source);
                 if (!singleFile && !Directory.Exists(source))
                 {
@@ -62,7 +64,7 @@ namespace Opc.Ua.Wot.Exporter
                     return 2;
                 }
                 string sourceFolder = singleFile ? Path.GetDirectoryName(source)! : source;
-                string destination = Path.GetFullPath(args.Length == 2 ? args[1] : Path.Combine(sourceFolder, "out"));
+                string destination = Path.GetFullPath(paths.Length == 2 ? paths[1] : Path.Combine(sourceFolder, "out"));
                 if (IsWithin(sourceFolder, destination))
                 {
                     await m_error.WriteLineAsync("ERROR: The output folder must not contain the source folder.")
@@ -104,26 +106,60 @@ namespace Opc.Ua.Wot.Exporter
                 }
                 var nodeResolver = WotDocumentNodeResolver.FromNodeSets(
                     loaded.Select(file => file.NodeSet).ToArrayOf(), cancellationToken);
-                foreach ((string path, UANodeSet nodeSet) in loaded)
+                var converted = new List<(string Path, WotDocumentSet Documents)>();
+                var references = new RegistryModelReferences(registryBaseUrl, groupId);
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    string relative = Path.GetRelativePath(sourceFolder, path);
-                    try
+                    foreach ((string path, UANodeSet nodeSet) in loaded)
                     {
-                        string folder = Path.Combine(destination, relative);
-                        written += await ExportFileAsync(nodeSet, folder, nodeResolver, cancellationToken)
-                            .ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        string relative = Path.GetRelativePath(sourceFolder, path);
+                        WotDocumentSet? documents = null;
+                        try
+                        {
+                            Dictionary<ExpandedNodeId, string> modelIds = CreateModelIds(nodeSet, cancellationToken);
+                            documents = await ConvertFileAsync(nodeSet, nodeResolver, cancellationToken)
+                                .ConfigureAwait(false);
+                            references.Add(nodeSet, documents, modelIds);
+                            converted.Add((path, documents));
+                            documents = null;
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                        {
+                            failed++;
+                            string detail = IsInputError(ex)
+                                ? ex.Message : $"Unexpected {ex.GetType().Name}: {ex.Message}";
+                            await m_error.WriteLineAsync($"ERROR: {relative}: {detail}").ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            documents?.Dispose();
+                        }
                     }
-                    catch (Exception ex) when (IsInputError(ex))
+                    foreach ((string path, WotDocumentSet documents) in converted)
                     {
-                        failed++;
-                        await m_error.WriteLineAsync($"ERROR: {relative}: {ex.Message}").ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        string relative = Path.GetRelativePath(sourceFolder, path);
+                        try
+                        {
+                            written += await ExportFileAsync(
+                                documents, Path.Combine(destination, relative), references, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                        {
+                            failed++;
+                            string detail = IsInputError(ex)
+                                ? ex.Message : $"Unexpected {ex.GetType().Name}: {ex.Message}";
+                            await m_error.WriteLineAsync($"ERROR: {relative}: {detail}").ConfigureAwait(false);
+                        }
                     }
-                    catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+                }
+                finally
+                {
+                    foreach ((_, WotDocumentSet documents) in converted)
                     {
-                        failed++;
-                        await m_error.WriteLineAsync(
-                            $"ERROR: {relative}: Unexpected {ex.GetType().Name}: {ex.Message}").ConfigureAwait(false);
+                        documents.Dispose();
                     }
                 }
                 await m_output.WriteLineAsync(
@@ -143,6 +179,57 @@ namespace Opc.Ua.Wot.Exporter
                 await m_error.WriteLineAsync($"ERROR: {ex.Message}").ConfigureAwait(false);
                 return 1;
             }
+        }
+
+        /// <summary>
+        /// Reads positional paths and registry options without accepting ambiguous URL components.
+        /// </summary>
+        private static bool TryReadArguments(
+            string[] args, out string[] paths, out string registryBaseUrl, out string groupId)
+        {
+            var positional = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            registryBaseUrl = "https://azureiotoperations.com";
+            groupId = "opcua";
+            for (int i = 0; i < args.Length; i++)
+            {
+                string argument = args[i];
+                if (!argument.StartsWith('-'))
+                {
+                    positional.Add(argument);
+                }
+                else if (argument is not ("--registry-base-url" or "--group-id") ||
+                    !seen.Add(argument) ||
+                    ++i == args.Length ||
+                    args[i].StartsWith('-'))
+                {
+                    paths = [];
+                    return false;
+                }
+                else if (argument == "--registry-base-url")
+                {
+                    registryBaseUrl = args[i];
+                }
+                else
+                {
+                    groupId = args[i];
+                }
+            }
+            paths = [.. positional];
+            if (paths.Length is < 1 or > 2 ||
+                !Uri.TryCreate(registryBaseUrl, UriKind.Absolute, out Uri? uri) ||
+                uri.Scheme is not ("http" or "https") ||
+                uri.Host.Length == 0 ||
+                uri.Query.Length != 0 ||
+                uri.Fragment.Length != 0 ||
+                uri.UserInfo.Length != 0 ||
+                string.IsNullOrWhiteSpace(groupId) ||
+                groupId is "." or "..")
+            {
+                return false;
+            }
+            registryBaseUrl = uri.AbsoluteUri.TrimEnd('/');
+            return true;
         }
 
         /// <summary>
@@ -168,12 +255,11 @@ namespace Opc.Ua.Wot.Exporter
         }
 
         /// <summary>
-        /// Exports one source as a linked document set without changing its hrefs.
+        /// Converts one source and checks preservation before registry addresses are assigned.
         /// </summary>
         /// <exception cref="FormatException"></exception>
-        private async Task<int> ExportFileAsync(
+        private async Task<WotDocumentSet> ConvertFileAsync(
             UANodeSet nodeSet,
-            string destination,
             IWotNodeResolver nodeResolver,
             CancellationToken cancellationToken)
         {
@@ -192,21 +278,42 @@ namespace Opc.Ua.Wot.Exporter
             WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter.FromNodeSetDocumentsAsync(
                 nodeSet, "model.TM.json", options: options, nodeResolver: nodeResolver,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
-            using WotDocumentSet? documents = result.Value;
-            foreach (WotDiagnostic diagnostic in result.Diagnostics)
+            WotDocumentSet? documents = result.Value;
+            try
             {
-                TextWriter writer = diagnostic.Severity == WotDiagnosticSeverity.Info ? m_output : m_error;
-                await writer.WriteLineAsync($"  {diagnostic.Severity.ToString().ToUpperInvariant()}: {diagnostic}")
-                    .ConfigureAwait(false);
+                foreach (WotDiagnostic diagnostic in result.Diagnostics)
+                {
+                    TextWriter writer = diagnostic.Severity == WotDiagnosticSeverity.Info ? m_output : m_error;
+                    await writer.WriteLineAsync($"  {diagnostic.Severity.ToString().ToUpperInvariant()}: {diagnostic}")
+                        .ConfigureAwait(false);
+                }
+                if (!result.Success || documents is null)
+                {
+                    throw new FormatException("The converter could not preserve this NodeSet. No documents were written.");
+                }
+                return documents;
             }
-            if (!result.Success || documents is null)
+            catch
             {
-                throw new FormatException("The converter could not preserve this NodeSet. No documents were written.");
+                documents?.Dispose();
+                throw;
             }
-            Dictionary<ExpandedNodeId, string> modelIds = CreateModelIds(nodeSet, cancellationToken);
+        }
+
+        /// <summary>
+        /// Writes registry-linked models and support documents with their local file names.
+        /// </summary>
+        /// <exception cref="FormatException"></exception>
+        private async Task<int> ExportFileAsync(
+            WotDocumentSet documents,
+            string destination,
+            RegistryModelReferences references,
+            CancellationToken cancellationToken)
+        {
             int models = 0;
             for (int i = 0; i < documents.Entries.Count; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 WotDocumentSetEntry entry = documents.Entries[i];
                 if (entry.Href != Path.GetFileName(entry.Href) || entry.Href.IndexOfAny(['\\', '/', ':']) >= 0)
                 {
@@ -217,6 +324,7 @@ namespace Opc.Ua.Wot.Exporter
                     models++;
                 }
             }
+            ArrayOf<ReadOnlyMemory<byte>> output = references.Write(documents, cancellationToken);
             Directory.CreateDirectory(destination);
             for (int i = 0; i < documents.Entries.Count; i++)
             {
@@ -226,8 +334,7 @@ namespace Opc.Ua.Wot.Exporter
                 string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try
                 {
-                    ReadOnlyMemory<byte> json = AddModelId(entry.Document, modelIds);
-                    await File.WriteAllBytesAsync(temporary, json, cancellationToken)
+                    await File.WriteAllBytesAsync(temporary, output[i], cancellationToken)
                         .ConfigureAwait(false);
                     File.Move(temporary, path, overwrite: true);
                 }
@@ -320,38 +427,6 @@ namespace Opc.Ua.Wot.Exporter
                 }
             }
             return result;
-        }
-
-        /// <summary>
-        /// Adds a missing WoT model identifier without replacing authored identifiers or native identities.
-        /// </summary>
-        private static ReadOnlyMemory<byte> AddModelId(
-            WotDocument document, Dictionary<ExpandedNodeId, string> modelIds)
-        {
-            JsonElement root = document.RootElement;
-            if (document.Kind != WotDocumentKind.ThingModel ||
-                root.TryGetProperty("id", out _) ||
-                !root.TryGetProperty("uav:id", out JsonElement nativeId) ||
-                !ExpandedNodeId.TryParse(nativeId.GetString(), out ExpandedNodeId identity) ||
-                !modelIds.TryGetValue(
-                    new ExpandedNodeId(
-                        identity.InnerNodeId.WithNamespaceIndex(0), identity.NamespaceUri ?? Types.Namespaces.OpcUa),
-                    out string? id))
-            {
-                return document.Utf8Json;
-            }
-            using var output = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = true }))
-            {
-                writer.WriteStartObject();
-                writer.WriteString("id", id);
-                foreach (JsonProperty property in root.EnumerateObject())
-                {
-                    property.WriteTo(writer);
-                }
-                writer.WriteEndObject();
-            }
-            return output.ToArray();
         }
 
         /// <summary>
