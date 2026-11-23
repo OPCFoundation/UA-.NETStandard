@@ -1508,9 +1508,8 @@ namespace Opc.Ua.Server
                 };
             }
 
-            // Transactional: snapshot the pre-transaction store contents
-            // for rollback, then stage the decoded payload instead of
-            // applying it now.
+            // Staging requires the file to be closed. Capture the rollback
+            // baseline only once ApplyChanges owns the transaction.
             ReleaseHandle(fileHandle, strm!);
             CertificateCollection? originalIssuerCertificates = null;
             CertificateCollection? originalTrustedCertificates = null;
@@ -1518,36 +1517,11 @@ namespace Opc.Ua.Server
             X509CRLCollection? originalTrustedCrls = null;
             try
             {
-                if (issuerCertificates != null)
-                {
-                    ICertificateStore store = GetStore(m_issuerStore);
-                    originalIssuerCertificates = await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
-                }
-                if (issuerCrls != null)
-                {
-                    ICertificateStore store = GetStore(m_issuerStore);
-                    originalIssuerCrls = await store.EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
-                }
-                if (trustedCertificates != null)
-                {
-                    ICertificateStore store = GetStore(m_trustedStore);
-                    originalTrustedCertificates = await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
-                }
-                if (trustedCrls != null)
-                {
-                    ICertificateStore store = GetStore(m_trustedStore);
-                    originalTrustedCrls = await store.EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
-                }
-
                 NodeId trustListId = m_node.NodeId;
                 CertificateCollection? stagedIssuerCertificates = issuerCertificates;
                 CertificateCollection? stagedTrustedCertificates = trustedCertificates;
                 X509CRLCollection? stagedIssuerCrls = issuerCrls;
                 X509CRLCollection? stagedTrustedCrls = trustedCrls;
-                CertificateCollection? stagedOriginalIssuerCertificates = originalIssuerCertificates;
-                CertificateCollection? stagedOriginalTrustedCertificates = originalTrustedCertificates;
-                X509CRLCollection? stagedOriginalIssuerCrls = originalIssuerCrls;
-                X509CRLCollection? stagedOriginalTrustedCrls = originalTrustedCrls;
                 DateTimeUtc previousUpdateTime = default;
                 bool updateTimeChanged = false;
 
@@ -1561,24 +1535,26 @@ namespace Opc.Ua.Server
                 async Task RestoreOriginalTrustListAsync(CancellationToken ct)
                 {
                     bool restored = true;
-                    if (stagedOriginalIssuerCertificates != null)
+                    if (originalIssuerCertificates != null)
                     {
-                        restored &= await UpdateStoreCertificatesAsync(m_issuerStore, stagedOriginalIssuerCertificates, ct)
+                        restored &= await UpdateStoreCertificatesAsync(
+                            m_issuerStore, originalIssuerCertificates, ct)
                             .ConfigureAwait(false);
                     }
-                    if (stagedOriginalIssuerCrls != null)
+                    if (originalIssuerCrls != null)
                     {
-                        restored &= await UpdateStoreCrlsAsync(m_issuerStore, stagedOriginalIssuerCrls, ct)
+                        restored &= await UpdateStoreCrlsAsync(m_issuerStore, originalIssuerCrls, ct)
                             .ConfigureAwait(false);
                     }
-                    if (stagedOriginalTrustedCertificates != null)
+                    if (originalTrustedCertificates != null)
                     {
-                        restored &= await UpdateStoreCertificatesAsync(m_trustedStore, stagedOriginalTrustedCertificates, ct)
+                        restored &= await UpdateStoreCertificatesAsync(
+                            m_trustedStore, originalTrustedCertificates, ct)
                             .ConfigureAwait(false);
                     }
-                    if (stagedOriginalTrustedCrls != null)
+                    if (originalTrustedCrls != null)
                     {
-                        restored &= await UpdateStoreCrlsAsync(m_trustedStore, stagedOriginalTrustedCrls, ct)
+                        restored &= await UpdateStoreCrlsAsync(m_trustedStore, originalTrustedCrls, ct)
                             .ConfigureAwait(false);
                     }
                     if (!restored)
@@ -1597,6 +1573,29 @@ namespace Opc.Ua.Server
                     AffectedTrustList = trustListId,
                     CommitAsync = async ct =>
                     {
+                        // Capture every affected store before mutating any of them.
+                        // A snapshot failure must not trigger compensation.
+                        if (stagedIssuerCertificates != null)
+                        {
+                            originalIssuerCertificates = await GetStore(m_issuerStore).EnumerateAsync(ct)
+                                .ConfigureAwait(false);
+                        }
+                        if (stagedIssuerCrls != null)
+                        {
+                            originalIssuerCrls = await GetStore(m_issuerStore).EnumerateCRLsAsync(ct)
+                                .ConfigureAwait(false);
+                        }
+                        if (stagedTrustedCertificates != null)
+                        {
+                            originalTrustedCertificates = await GetStore(m_trustedStore).EnumerateAsync(ct)
+                                .ConfigureAwait(false);
+                        }
+                        if (stagedTrustedCrls != null)
+                        {
+                            originalTrustedCrls = await GetStore(m_trustedStore).EnumerateCRLsAsync(ct)
+                                .ConfigureAwait(false);
+                        }
+
                         bool ok = true;
                         try
                         {
@@ -1659,23 +1658,18 @@ namespace Opc.Ua.Server
                     {
                         stagedIssuerCertificates?.Dispose();
                         stagedTrustedCertificates?.Dispose();
-                        stagedOriginalIssuerCertificates?.Dispose();
-                        stagedOriginalTrustedCertificates?.Dispose();
+                        originalIssuerCertificates?.Dispose();
+                        originalTrustedCertificates?.Dispose();
                     }
                 });
 
                 issuerCertificates = null;
                 trustedCertificates = null;
-                originalIssuerCertificates = null;
-                originalTrustedCertificates = null;
             }
             finally
             {
                 issuerCertificates?.Dispose();
                 trustedCertificates?.Dispose();
-                originalIssuerCertificates?.Dispose();
-                originalTrustedCertificates?.Dispose();
-
                 ReleaseHandle(fileHandle, strm!);
             }
 
