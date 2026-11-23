@@ -78,7 +78,8 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.Fail(
                     $"{test.FullName} carries [Category(\"{Category}\")] but " +
                     "starts no OPC UA server. Remove the category, or move the " +
-                    "test into a nested fixture without it.");
+                    "test into a sibling (not nested) fixture without it; a " +
+                    "nested fixture inherits the outer fixture's category.");
             }
         }
 
