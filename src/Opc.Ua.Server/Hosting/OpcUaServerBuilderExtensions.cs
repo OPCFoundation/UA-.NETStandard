@@ -1850,7 +1850,7 @@ namespace Microsoft.Extensions.DependencyInjection
             BindUInt16(section, nameof(OpcUaServerOptions.MinCertificateKeySize),
                 value => options.MinCertificateKeySize = value);
             string? anonymousAccess = section[nameof(OpcUaServerOptions.AnonymousAccess)];
-            if (!string.IsNullOrEmpty(anonymousAccess))
+            if (anonymousAccess != null)
             {
                 options.AnonymousAccess = ParseEnumOption<AnonymousAccess>(
                     section,
@@ -2013,7 +2013,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             string? clockSkew = section[nameof(DefaultAuthenticatorOptions.ClockSkewTolerance)];
-            if (!string.IsNullOrEmpty(clockSkew))
+            if (clockSkew != null)
             {
                 if (!TimeSpan.TryParse(clockSkew, CultureInfo.InvariantCulture, out TimeSpan parsedClockSkew) ||
                     parsedClockSkew < TimeSpan.Zero)
@@ -2094,7 +2094,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<bool> assign)
         {
             string? value = section[key];
-            if (string.IsNullOrEmpty(value))
+            if (value == null)
             {
                 return;
             }
@@ -2111,7 +2111,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<int> assign)
         {
             string? value = section[key];
-            if (string.IsNullOrEmpty(value))
+            if (value == null)
             {
                 return;
             }
@@ -2132,7 +2132,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<int?> assign)
         {
             string? value = section[key];
-            if (string.IsNullOrEmpty(value))
+            if (value == null)
             {
                 return;
             }
@@ -2153,7 +2153,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<uint> assign)
         {
             string? value = section[key];
-            if (string.IsNullOrEmpty(value))
+            if (value == null)
             {
                 return;
             }
@@ -2174,7 +2174,7 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ushort> assign)
         {
             string? value = section[key];
-            if (string.IsNullOrEmpty(value))
+            if (value == null)
             {
                 return;
             }

@@ -1077,6 +1077,56 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Validates the requested permission against the role permissions the server applies to
+        /// nodes that have none, for the roles granted to the caller.
+        /// </summary>
+        private static ServiceResult ValidateServerDefault(
+            OperationContext context,
+            NodeId nodeId,
+            ArrayOf<RolePermissionType> serverDefault,
+            PermissionType requestedPermission,
+            ILogger? logger)
+        {
+            ArrayOf<NodeId> grantedRoleIds = context?.UserIdentity?.GrantedRoleIds ?? default;
+            if (grantedRoleIds.IsEmpty)
+            {
+                logger?.CurrentUserHasNoGrantedRole();
+                return ServiceResult.Create(
+                    StatusCodes.BadUserAccessDenied,
+                    "Current user has no granted role.");
+            }
+
+            PermissionType actualPermissions = PermissionType.None;
+            for (int ii = 0; ii < serverDefault.Count; ii++)
+            {
+                RolePermissionType rolePermission = serverDefault[ii];
+                for (int jj = 0; jj < grantedRoleIds.Count; jj++)
+                {
+                    if (rolePermission.RoleId == grantedRoleIds[jj])
+                    {
+                        actualPermissions |= (PermissionType)rolePermission.Permissions;
+                        if ((actualPermissions & requestedPermission) == requestedPermission)
+                        {
+                            return StatusCodes.Good;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            logger?.RolePermissionsValidationFailedForNodeNodeId(
+                nodeId,
+                requestedPermission,
+                actualPermissions);
+
+            return ServiceResult.Create(
+                StatusCodes.BadUserAccessDenied,
+                "The requested permission {0} is not granted for node id {1}.",
+                requestedPermission,
+                nodeId);
+        }
+
+        /// <summary>
         /// The role permissions <paramref name="server"/> applies to a node without role
         /// permissions in a namespace without default role permissions; empty when it applies none.
         /// </summary>
@@ -1139,14 +1189,18 @@ namespace Opc.Ua.Server
                 // server applies to such nodes decide. Namespace 0 carries its permissions on the
                 // nodes and never takes them. A node or namespace that grants roles anything,
                 // including through user role permissions only, is evaluated as configured.
-                rolePermissions = nodeMetadata.NodeId.NamespaceIndex != 0
+                ArrayOf<RolePermissionType> serverDefault = nodeMetadata.NodeId.NamespaceIndex != 0
                     ? GetNamespaceDefaultRolePermissions(server)
                     : default;
-                if (rolePermissions.IsEmpty)
+                if (serverDefault.IsEmpty)
                 {
                     // there is no restriction from role permissions
                     return StatusCodes.Good;
                 }
+
+                // this is the check of every node a server without configured permissions
+                // serves: the few entries are compared directly, without the lookups below.
+                return ValidateServerDefault(context, nodeMetadata.NodeId, serverDefault, requestedPermission, logger);
             }
 
             // group all permissions defined in rolePermissions by RoleId

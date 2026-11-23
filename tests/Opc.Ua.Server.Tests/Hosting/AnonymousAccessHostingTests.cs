@@ -288,6 +288,11 @@ namespace Opc.Ua.Server.Tests.Hosting
         [TestCase("OpcUa:Server:MaxMessageSize", "4MB")]
         [TestCase("OpcUa:Server:MaxArrayLength", "-1")]
         [TestCase("OpcUa:Server:AnonymousAccess", "ReadWrite")]
+        [TestCase("OpcUa:Server:Identity:Defaults:EnableAnonymous", "")]
+        [TestCase("OpcUa:Server:IncludeUnsecurePolicyNone", "")]
+        [TestCase("OpcUa:Server:MinCertificateKeySize", "")]
+        [TestCase("OpcUa:Server:AnonymousAccess", "")]
+        [TestCase("OpcUa:Server:UserTokenPolicies:0", "")]
         public void InvalidOptionValueFailsInsteadOfKeepingTheDefault(string key, string value)
         {
             ArgumentException? exception = Assert.Throws<ArgumentException>(
