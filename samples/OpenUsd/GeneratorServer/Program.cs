@@ -53,6 +53,8 @@ builder.Services
         o.ProductUri = "uri:opcfoundation.org:GeneratorServer";
         // Sample convenience only; never auto-accept untrusted certificates in production.
         o.AutoAcceptUntrustedCertificates = true;
+        // Sample convenience only: anonymous sessions may write and call. Remove in production.
+        o.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
         o.PkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
         o.RejectSHA1Certificates = true;
         o.MinCertificateKeySize = 2048;

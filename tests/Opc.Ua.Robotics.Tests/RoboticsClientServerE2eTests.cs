@@ -700,6 +700,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             options.ProductUri = "uri:opcfoundation.org:RoboticsE2eServer";
             options.PkiRoot = Path.Combine(root, "pki");
             options.AutoAcceptUntrustedCertificates = true;
+            // The tests drive the server through anonymous sessions.
+            options.AnonymousAccess = AnonymousAccess.Unrestricted;
             options.IncludeUnsecurePolicyNone = true;
             options.EndpointUrls.Clear();
             options.EndpointUrls.Add(m_serverUrl);

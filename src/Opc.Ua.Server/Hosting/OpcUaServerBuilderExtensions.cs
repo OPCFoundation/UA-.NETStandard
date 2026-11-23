@@ -1849,6 +1849,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 value => options.OperationTimeoutMs = value);
             BindUInt16(section, nameof(OpcUaServerOptions.MinCertificateKeySize),
                 value => options.MinCertificateKeySize = value);
+            string? anonymousAccess = section[nameof(OpcUaServerOptions.AnonymousAccess)];
+            if (!string.IsNullOrEmpty(anonymousAccess))
+            {
+                options.AnonymousAccess = ParseEnumOption<AnonymousAccess>(
+                    section,
+                    nameof(OpcUaServerOptions.AnonymousAccess),
+                    anonymousAccess);
+            }
 
             BindEndpointUrls(options, section.GetSection(nameof(OpcUaServerOptions.EndpointUrls)));
             BindUserTokenPolicies(options, section.GetSection(nameof(OpcUaServerOptions.UserTokenPolicies)));
@@ -1884,14 +1892,17 @@ namespace Microsoft.Extensions.DependencyInjection
             options.UserTokenPolicies.Clear();
             foreach (IConfigurationSection child in section.GetChildren())
             {
-                var policy = new OpcUaUserTokenPolicy();
-                string? tokenType = child[nameof(OpcUaUserTokenPolicy.TokenType)];
-                if (!string.IsNullOrEmpty(tokenType) &&
-                    Enum.TryParse(tokenType, ignoreCase: true, out UserTokenType parsedTokenType))
+                // an entry is either the token type itself ("UserName") or an object with a
+                // TokenType. A missing or unknown token type must not become the Anonymous
+                // default of OpcUaUserTokenPolicy.
+                string? tokenType = child[nameof(OpcUaUserTokenPolicy.TokenType)] ?? child.Value;
+                options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
                 {
-                    policy.TokenType = parsedTokenType;
-                }
-                options.UserTokenPolicies.Add(policy);
+                    TokenType = ParseEnumOption<UserTokenType>(
+                        child,
+                        nameof(OpcUaUserTokenPolicy.TokenType),
+                        tokenType)
+                });
             }
         }
 
@@ -2002,9 +2013,16 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             string? clockSkew = section[nameof(DefaultAuthenticatorOptions.ClockSkewTolerance)];
-            if (!string.IsNullOrEmpty(clockSkew) &&
-                TimeSpan.TryParse(clockSkew, CultureInfo.InvariantCulture, out TimeSpan parsedClockSkew))
+            if (!string.IsNullOrEmpty(clockSkew))
             {
+                if (!TimeSpan.TryParse(clockSkew, CultureInfo.InvariantCulture, out TimeSpan parsedClockSkew) ||
+                    parsedClockSkew < TimeSpan.Zero)
+                {
+                    throw InvalidOptionValue(
+                        section,
+                        nameof(DefaultAuthenticatorOptions.ClockSkewTolerance),
+                        "a non-negative TimeSpan");
+                }
                 options.ClockSkewTolerance = parsedClockSkew;
             }
 
@@ -2016,6 +2034,46 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             return options;
+        }
+
+        /// <summary>
+        /// A configured value that cannot be parsed fails the startup. Ignoring it would keep the
+        /// default, which for a security option can be the less restrictive setting.
+        /// </summary>
+        private static ArgumentException InvalidOptionValue(
+            IConfiguration section,
+            string key,
+            string expected)
+        {
+            string path = section is IConfigurationSection named && !string.IsNullOrEmpty(named.Path)
+                ? named.Path + ":" + key
+                : key;
+            return new ArgumentException(
+                $"The OPC UA server option {path} has an invalid value; expected {expected}.");
+        }
+
+        private static TEnum ParseEnumOption<TEnum>(
+            IConfiguration section,
+            string key,
+            string? value)
+            where TEnum : struct, Enum
+        {
+#if NET8_0_OR_GREATER
+            if (!string.IsNullOrEmpty(value) &&
+                Enum.TryParse(value, ignoreCase: true, out TEnum parsed) &&
+                Enum.IsDefined(parsed))
+#else
+            if (!string.IsNullOrEmpty(value) &&
+                Enum.TryParse(value, ignoreCase: true, out TEnum parsed) &&
+                Enum.IsDefined(typeof(TEnum), parsed))
+#endif
+            {
+                return parsed;
+            }
+            throw InvalidOptionValue(
+                section,
+                key,
+                "one of " + string.Join(", ", Enum.GetNames(typeof(TEnum))));
         }
 
         private static void BindString(
@@ -2036,10 +2094,15 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<bool> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) && bool.TryParse(value, out bool parsed))
+            if (string.IsNullOrEmpty(value))
             {
-                assign(parsed);
+                return;
             }
+            if (!bool.TryParse(value, out bool parsed))
+            {
+                throw InvalidOptionValue(section, key, "true or false");
+            }
+            assign(parsed);
         }
 
         private static void BindInt32(
@@ -2048,15 +2111,19 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<int> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) &&
-                int.TryParse(
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+            if (!int.TryParse(
                     value,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out int parsed))
             {
-                assign(parsed);
+                throw InvalidOptionValue(section, key, "an Int32");
             }
+            assign(parsed);
         }
 
         private static void BindNullableInt32(
@@ -2065,15 +2132,19 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<int?> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) &&
-                int.TryParse(
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+            if (!int.TryParse(
                     value,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out int parsed))
             {
-                assign(parsed);
+                throw InvalidOptionValue(section, key, "an Int32");
             }
+            assign(parsed);
         }
 
         private static void BindUInt32(
@@ -2082,15 +2153,19 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<uint> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) &&
-                uint.TryParse(
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+            if (!uint.TryParse(
                     value,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out uint parsed))
             {
-                assign(parsed);
+                throw InvalidOptionValue(section, key, "a UInt32");
             }
+            assign(parsed);
         }
 
         private static void BindUInt16(
@@ -2099,15 +2174,19 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ushort> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) &&
-                ushort.TryParse(
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+            if (!ushort.TryParse(
                     value,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out ushort parsed))
             {
-                assign(parsed);
+                throw InvalidOptionValue(section, key, "a UInt16");
             }
+            assign(parsed);
         }
 
         private static JwtIssuerOptions BindJwtIssuerOptions(IConfiguration section)

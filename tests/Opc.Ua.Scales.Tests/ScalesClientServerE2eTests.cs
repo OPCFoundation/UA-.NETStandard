@@ -2023,6 +2023,8 @@ namespace Opc.Ua.Scales.Tests
             options.ProductUri = "urn:localhost:" + applicationName + ":product";
             options.PkiRoot = System.IO.Path.Combine(testRoot, "pki");
             options.AutoAcceptUntrustedCertificates = true;
+            // The tests drive the server through anonymous sessions.
+            options.AnonymousAccess = AnonymousAccess.Unrestricted;
             options.IncludeUnsecurePolicyNone = true;
             options.EndpointUrls.Clear();
             s_endpointUrl = "opc.tcp://localhost:" +

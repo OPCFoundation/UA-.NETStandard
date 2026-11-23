@@ -160,6 +160,8 @@ IOpcUaServerBuilder ua = builder.Services
         o.ApplicationUri = applicationUri;
         o.ProductUri = "uri:opcfoundation.org:RedundantServer";
         o.AutoAcceptUntrustedCertificates = true;
+        // Sample convenience only: anonymous sessions may write and call. Remove in production.
+        o.AnonymousAccess = AnonymousAccess.Unrestricted;
         // Offer an unsecured (SecurityMode.None) endpoint alongside the secure
         // policies so the sample's --nosecurity client and the transparent
         // (no certificate exchange) demo can connect. The default
