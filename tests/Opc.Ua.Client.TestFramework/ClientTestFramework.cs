@@ -38,6 +38,16 @@ namespace Opc.Ua.Client.TestFramework
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
         public bool SingleSession { get; set; } = true;
         public bool AllNodeManagers { get; set; }
+
+        /// <summary>
+        /// Whether the server and client fixtures seed their PKI folder with
+        /// certificates created earlier in this process
+        /// (<see cref="TestCertificateCache"/>). On by default: the framework
+        /// owns one server and one client per private PKI folder. A derived
+        /// fixture that needs key pairs of its own sets it to <c>false</c>
+        /// before <c>OneTimeSetUpAsync</c>.
+        /// </summary>
+        public bool ReuseCachedCertificates { get; set; } = true;
         public int MaxChannelCount { get; set; } = 103;
         public int MaxSessionCount { get; set; } = 100;
 
@@ -305,7 +315,10 @@ namespace Opc.Ua.Client.TestFramework
                     .ConfigureAwait(false);
             }
 
-            ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging, Telemetry);
+            ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging, Telemetry)
+            {
+                ReuseCachedCertificates = ReuseCachedCertificates
+            };
 
             // If a derived fixture pinned the engine factory, propagate
             // it. Default = null = use Session default (currently the
@@ -384,7 +397,8 @@ namespace Opc.Ua.Client.TestFramework
                 AllNodeManagers = AllNodeManagers,
                 OperationLimits = true,
                 UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager,
-                TransportBindingRegistry = TransportBindingRegistry
+                TransportBindingRegistry = TransportBindingRegistry,
+                ReuseCachedCertificates = ReuseCachedCertificates
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);

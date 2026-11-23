@@ -335,17 +335,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
-            // Each endpoint is its own authority: the isolation tests need key pairs no
-            // other endpoint in the process shares, so no cached certificates.
             private readonly ServerFixture<ReferenceServer> m_fixture = new(t => new ReferenceServer(t))
             {
-                AutoAccept = true,
-                ReuseCachedCertificates = false
+                AutoAccept = true
             };
-            private readonly ClientFixture m_client = new(NUnitTelemetryContext.Create())
-            {
-                ReuseCachedCertificates = false
-            };
+            private readonly ClientFixture m_client = new(NUnitTelemetryContext.Create());
             private readonly string m_root = Path.Combine(
                 Environment.GetEnvironmentVariable("WOT_EVENT_TEST_ROOT") ?? Path.GetTempPath(),
                 "wem-" + Guid.NewGuid().ToString("N")[..8]);

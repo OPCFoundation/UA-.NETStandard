@@ -119,11 +119,21 @@ CPU and allocation work, no waits:
    `CertificateManager.UpdateAsync`, as the check itself does after creating a
    certificate: configuration validation already loaded the then empty store
    into the manager (without this the client's WSS reverse-connect listener
-   found no TLS certificate). Consequence: fixtures of one identity
-   share one key pair per certificate type within a test process; trust lists
-   stay per PKI folder. Opt out per fixture with
-   `ServerFixture.ReuseCachedCertificates` / `ClientFixture.ReuseCachedCertificates`
-   or for the process with `OPCUA_TEST_FRESH_CERTIFICATES=1`.
+   found no TLS certificate). Seeded fixtures of one identity share one key
+   pair per certificate type within a test process; trust lists stay per PKI
+   folder.
+
+   The cache is **opt-in** (`ServerFixture.ReuseCachedCertificates`,
+   `ClientFixture.ReuseCachedCertificates`, default off). `ClientTestFramework`
+   (49 fixture classes; `ReuseCachedCertificates` property, default on) and the
+   conformance `TestFixture` (156 classes) turn it on: each owns one server and
+   one client on a private PKI folder. A first version had it on for every
+   fixture; CI then failed in fixtures that deliberately build several
+   applications of one identity and assert different keys (GDS onboarding
+   `PullRegistrarIntegrationTests`, the GDS certificate-rotation verifier,
+   WotCon authority isolation, a Sessions mutual-TLS test). The roughly 230
+   files that create fixtures directly keep generating certificates unless they
+   opt in. `OPCUA_TEST_FRESH_CERTIFICATES=1` turns the cache off for a process.
 2. Removed the fixed 100 ms delays after `ServerFixture.StopAsync` (fixture and
    both teardown helpers). `StopAsync` awaits listener close/dispose, server
    dispose and application dispose under the watchdog, so there is nothing left
@@ -137,6 +147,9 @@ Baseline (A, master `e6c29e434`) and this branch (B) were copied to separate
 folders and run alternately, A/B then B/A, for 5 rounds: 10 cycles per test and
 run (12 with 4 workers), so 50 (60) cycles per cell. Medians in ms, both
 `ServerFixture` and `ClientFixture` phases. All 30 runs passed.
+
+The probe opts in like the harnesses, so the fresh-PKI rows show what a
+`ClientTestFramework` or `TestFixture` fixture saves.
 
 | Scenario | Server | A total | B total | Change | Main phase changes (A → B) |
 |---|---|---:|---:|---:|---|
@@ -184,8 +197,10 @@ run (12 with 4 workers), so 50 (60) cycles per cell. Medians in ms, both
    predefined-node indexing allocates an ambient `AsyncLocal` scope per node.
 4. Do not lower the PKCS#12 iteration count to speed up key loads; it protects
    keys at rest.
-5. WotCon's own template seeding (PR #5148) can switch to
-   `TestCertificateCache` once both are merged.
+5. Ad-hoc fixture users with one server and one client per PKI folder (WotCon,
+   GDS, the companion suites) can opt in per fixture; WotCon's own template
+   seeding (PR #5148) could switch to `TestCertificateCache` once both are
+   merged, except for its authority-isolation endpoints.
 
 ## Verification (local, net10.0 Release)
 
@@ -196,10 +211,7 @@ run (12 with 4 workers), so 50 (60) cycles per cell. Medians in ms, both
   `PhysicalFileSystemProviderConfinementTests` symbolic-link cases that fail
   identically on master on this machine (no symlink privilege).
 - `Opc.Ua.WotCon.Tests` spot run (event modes, live projection, atomic
-  publication, configured options, runtime and storage slices): 511 tests
-  green after `WotEventModesLiveTests.NativeEndpoint` and its replacement
-  client opted out of the cache. Those tests check that two upstream
-  endpoints are different authorities, so they need key pairs of their own;
-  this is the one place the shared key pair matters so far. Other suites
-  with such tests opt out the same way.
+  publication, configured options, runtime and storage slices): 511 tests green.
+- After the opt-in change: the CI-failing GDS onboarding classes (74),
+  `SessionlessChannelSecurityTests` (44) and `WotEventModesLiveTests` (74) pass.
 - net48: `Opc.Ua.Client.Tests` and `Opc.Ua.Sessions.Tests` build.

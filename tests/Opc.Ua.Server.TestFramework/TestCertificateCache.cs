@@ -28,10 +28,11 @@ namespace Opc.Ua.Server.TestFramework
     /// identity into the own store first, so the check finds them instead of
     /// creating new ones. Seeded fixtures of the same identity therefore share
     /// one key pair per certificate type within a process; trust lists stay
-    /// per PKI folder. A fixture that needs its own key pairs opts out
-    /// (<c>ReuseCachedCertificates = false</c>); setting the environment variable
-    /// <c>OPCUA_TEST_FRESH_CERTIFICATES=1</c> turns the cache off for the
-    /// whole process.
+    /// per PKI folder. Fixtures opt in with <c>ReuseCachedCertificates</c>;
+    /// ClientTestFramework and TestFixture do, ad-hoc fixtures that build
+    /// several applications of one identity and expect distinct keys do not.
+    /// Setting the environment variable <c>OPCUA_TEST_FRESH_CERTIFICATES=1</c>
+    /// turns the cache off for the whole process.
     /// </remarks>
     public static class TestCertificateCache
     {

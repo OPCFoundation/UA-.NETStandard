@@ -38,10 +38,12 @@ namespace Opc.Ua.Client.TestFramework
         /// <summary>
         /// Whether an empty PKI folder is seeded with the application
         /// certificates an identical client fixture created earlier in this
-        /// process (see <see cref="TestCertificateCache"/>). On by default;
-        /// turn it off for a test that needs key pairs no other fixture has.
+        /// process (see <see cref="TestCertificateCache"/>). Off by default:
+        /// fixtures that build several applications of one identity may rely
+        /// on distinct key pairs. Harnesses that own one server and one client
+        /// per private PKI folder (ClientTestFramework, TestFixture) turn it on.
         /// </summary>
-        public bool ReuseCachedCertificates { get; set; } = true;
+        public bool ReuseCachedCertificates { get; set; }
 
         public int TraceMasks { get; set; } =
             Utils.TraceMasks.Error |

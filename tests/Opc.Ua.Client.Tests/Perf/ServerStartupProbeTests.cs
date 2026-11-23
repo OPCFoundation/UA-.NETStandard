@@ -56,7 +56,11 @@ namespace Opc.Ua.Client.Tests.Perf
         {
             return RunAsync(
                 "StandardServer",
-                () => new ServerFixture<StandardServer>(t => new StandardServer(t)) { AutoAccept = true });
+                () => new ServerFixture<StandardServer>(t => new StandardServer(t))
+                {
+                    AutoAccept = true,
+                    ReuseCachedCertificates = true
+                });
         }
 
         [Test]
@@ -67,7 +71,8 @@ namespace Opc.Ua.Client.Tests.Perf
                 () => new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
                 {
                     AutoAccept = true,
-                    OperationLimits = true
+                    OperationLimits = true,
+                    ReuseCachedCertificates = true
                 });
         }
 
@@ -146,7 +151,8 @@ namespace Opc.Ua.Client.Tests.Perf
             times[1] = Lap(sw);
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var client = new ClientFixture(telemetry);
+            // Mirrors ClientTestFramework and TestFixture, which reuse cached certificates.
+            var client = new ClientFixture(telemetry) { ReuseCachedCertificates = true };
             try
             {
                 await client.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
