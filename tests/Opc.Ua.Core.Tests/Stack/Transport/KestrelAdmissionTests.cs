@@ -836,6 +836,83 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// A connection admitted entirely from a protected floor frees no
+        /// shared capacity when it closes, so it is not reclaimed for another
+        /// owner's connection.
+        /// </summary>
+        [Test]
+        public async Task ProtectedConnectionIsNotReclaimedForSharedCapacityAsync()
+        {
+            var provider = new CountingIsolationProvider(connectionLimit: 1, protectedOwnerKey: "127.0.0.2");
+            var https = new UaScConnectionAdmission(0, null, provider);
+            var tcp = new UaScConnectionAdmission(0, null, provider);
+            var connections = new HttpConnectionActivityRegistry();
+            https.SetSharedCapacityReclaimer(connections.TryReclaimIdle);
+            try
+            {
+                await using var idle = new TestConnectionContext
+                {
+                    RemoteEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.2"), 1)
+                };
+                Task idleRun = RunKeepAliveConnectionAsync(idle, https, connections, out Task served);
+                await served.ConfigureAwait(false);
+
+                Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 2), out _), Is.False);
+                Assert.That(connections.TryReclaimIdle(), Is.False);
+                Assert.That(idle.ConnectionClosed.IsCancellationRequested, Is.False);
+
+                idle.Abort();
+                await idleRun.ConfigureAwait(false);
+            }
+            finally
+            {
+                https.Stop();
+                tcp.Stop();
+            }
+        }
+
+        /// <summary>
+        /// A listener that enforces a limit after admission, such as its channel
+        /// table, does not reclaim another listener's connection while that
+        /// limit would refuse the new connection anyway.
+        /// </summary>
+        [Test]
+        public void ListenerCapacityCheckPrecedesCrossListenerReclaim()
+        {
+            var provider = new CountingIsolationProvider(connectionLimit: 1);
+            var https = new UaScConnectionAdmission(0, null, provider);
+            var tcp = new UaScConnectionAdmission(0, null, provider);
+            UaScConnectionAdmission.Lease? held = null;
+            int reclaims = 0;
+            https.SetSharedCapacityReclaimer(() =>
+            {
+                reclaims++;
+                held?.Dispose();
+                return held != null;
+            });
+            bool tableHasRoom = false;
+            tcp.SetListenerCapacityCheck(() => tableHasRoom);
+            try
+            {
+                Assert.That(https.TryAcquire(new IPEndPoint(IPAddress.Loopback, 1), out held), Is.True);
+                held!.CompleteHandshake();
+
+                Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 2), out _), Is.False);
+                Assert.That(reclaims, Is.Zero);
+
+                tableHasRoom = true;
+                Assert.That(tcp.TryAcquire(new IPEndPoint(IPAddress.Loopback, 3), out UaScConnectionAdmission.Lease? admitted), Is.True);
+                admitted!.Dispose();
+                Assert.That(reclaims, Is.EqualTo(1));
+            }
+            finally
+            {
+                https.Stop();
+                tcp.Stop();
+            }
+        }
+
+        /// <summary>
         /// When only the handshake capacity is exhausted, closing an established
         /// connection frees nothing the new connection needs, so none is closed.
         /// </summary>

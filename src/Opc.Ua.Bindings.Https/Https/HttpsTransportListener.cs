@@ -1952,12 +1952,13 @@ namespace Opc.Ua.Bindings
 #pragma warning restore CA1859
         {
             UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
-            if (!m_reverseConnectListener)
-            {
-                // The host's connections share the server's connection capacity
-                // with the other listeners, which may need to reclaim one of them.
-                physicalAdmission.SetSharedCapacityReclaimer(() => TryReclaimSharedCapacity(accessor));
-            }
+            // The host's connections share the server's connection capacity with
+            // the other listeners, which may need to reclaim one of them. The
+            // reclaimer is registered when the host starts, so that a host whose
+            // construction fails leaves no registration behind.
+            Func<bool>? sharedCapacityReclaimer = m_reverseConnectListener
+                ? null
+                : () => TryReclaimSharedCapacity(accessor);
 
             // The shared host owns its own copy of the TLS certificate: it can
             // outlive this listener (other listeners keep it alive), so it must
@@ -2019,7 +2020,8 @@ namespace Opc.Ua.Bindings
                 .ConfigureServices(services =>
             {
                 services.AddSingleton(accessor);
-                services.AddSingleton<IHostedService>(new AdmissionHostLifetime(physicalAdmission, m_logger));
+                services.AddSingleton<IHostedService>(
+                    new AdmissionHostLifetime(physicalAdmission, m_logger, sharedCapacityReclaimer));
                 ConfigureContributorServices(services);
             });
             webHostBuilder.UseStartup<SharedHostStartup>();
@@ -2230,14 +2232,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal static bool TryReclaimSharedCapacity(SharedHostAccessor accessor)
         {
-            return TryReclaimSharedWebSocket(accessor) ||
+            return TryReclaimSharedWebSocket(accessor, sharedCapacityOnly: true) ||
                 accessor.Instance?.HttpConnections.TryReclaimIdle() == true;
         }
 
         /// <summary>
-        /// Reclaims an idle WebSocket from any listener currently registered on the shared host.
+        /// Reclaims an idle WebSocket from any listener currently registered on the shared host,
+        /// when <paramref name="sharedCapacityOnly"/> only one that holds shared capacity.
         /// </summary>
-        internal static bool TryReclaimSharedWebSocket(SharedHostAccessor accessor)
+        internal static bool TryReclaimSharedWebSocket(SharedHostAccessor accessor, bool sharedCapacityOnly = false)
         {
             SharedKestrelHost? sharedHost = accessor.Instance;
             if (sharedHost == null)
@@ -2246,8 +2249,9 @@ namespace Opc.Ua.Bindings
             }
             foreach (KeyValuePair<string, HttpsTransportListener> entry in sharedHost.GetListeners())
             {
-                Func<bool>? tryReclaim = entry.Value.GetReclaimCallback();
-                if (tryReclaim?.Invoke() == true)
+                if (sharedCapacityOnly
+                    ? entry.Value.TryReclaimWebSocketForSharedCapacity()
+                    : entry.Value.GetReclaimCallback()?.Invoke() == true)
                 {
                     return true;
                 }
@@ -2266,8 +2270,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Reclaims connection capacity of a listener that owns its host: an
-        /// unused WebSocket first, else the HTTP connection idle longest.
+        /// Reclaims connection capacity of a listener that owns its host for
+        /// another listener: an unused WebSocket first, else the HTTP
+        /// connection idle longest, each only when it holds shared capacity.
         /// </summary>
         /// <remarks>
         /// Not used for request body memory: closing an idle connection frees
@@ -2279,7 +2284,7 @@ namespace Opc.Ua.Bindings
             {
                 return false;
             }
-            return GetReclaimCallback()?.Invoke() == true || m_httpConnections.TryReclaimIdle();
+            return TryReclaimWebSocketForSharedCapacity() || m_httpConnections.TryReclaimIdle();
         }
 
         /// <summary>
@@ -2662,10 +2667,33 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool TryReclaimUnusedChannel()
         {
+            return TryReclaimUnusedChannel(sharedCapacityOnly: false);
+        }
+
+        /// <summary>
+        /// Reclaims an unused WebSocket for another listener whose new connection
+        /// found the shared connection capacity exhausted.
+        /// </summary>
+        internal bool TryReclaimWebSocketForSharedCapacity()
+        {
+            return GetReclaimCallback() != null && TryReclaimUnusedChannel(sharedCapacityOnly: true);
+        }
+
+        /// <summary>
+        /// Reclaims an unused binary or JSON WebSocket, when
+        /// <paramref name="sharedCapacityOnly"/> only one whose connection holds
+        /// shared capacity, which a connection of a protected floor does not.
+        /// </summary>
+        private bool TryReclaimUnusedChannel(bool sharedCapacityOnly)
+        {
             foreach (TcpListenerChannel channel in m_wssChannels.Values
                 .OrderBy(channel => channel.HoldsPartialMessage)
                 .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
             {
+                if (sharedCapacityOnly && !UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(channel.Transport))
+                {
+                    continue;
+                }
                 if (channel.TryIdleCleanupForAdmission())
                 {
                     m_logger.WssChannelReclaimed();
@@ -2675,6 +2703,10 @@ namespace Opc.Ua.Bindings
             foreach (WebSocketActivity activity in m_jsonWebSocketActivity.Values.OrderByDescending(
                 activity => activity.Elapsed))
             {
+                if (sharedCapacityOnly && !activity.UsesSharedCapacity)
+                {
+                    continue;
+                }
                 if (activity.TryReclaim())
                 {
                     m_logger.WssChannelReclaimed();
@@ -3702,6 +3734,11 @@ namespace Opc.Ua.Bindings
             }
 
             /// <summary>
+            /// Whether closing the WebSocket frees shared connection capacity.
+            /// </summary>
+            public bool UsesSharedCapacity => m_lease.UsesSharedConnectionCapacity;
+
+            /// <summary>
             /// Closes a connection with no committed session, partial message or pending request.
             /// </summary>
             public bool TryReclaim()
@@ -4185,7 +4222,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="admission">Admission scope owned by the shared host.</param>
         /// <param name="logger">Reports connection cleanup failures during host shutdown.</param>
-        private sealed class AdmissionHostLifetime(UaScConnectionAdmission admission, ILogger logger) : IHostedService
+        /// <param name="sharedCapacityReclaimer">
+        /// Lets the other listeners reclaim the host's connections, registered
+        /// once the host exists; null for a reverse-connect host.
+        /// </param>
+        private sealed class AdmissionHostLifetime(
+            UaScConnectionAdmission admission,
+            ILogger logger,
+            Func<bool>? sharedCapacityReclaimer) : IHostedService
         {
             /// <summary>
             /// Enables physical admission when the shared host starts.
@@ -4193,6 +4237,10 @@ namespace Opc.Ua.Bindings
             public Task StartAsync(CancellationToken cancellationToken)
             {
                 admission.Start();
+                if (sharedCapacityReclaimer != null)
+                {
+                    admission.SetSharedCapacityReclaimer(sharedCapacityReclaimer);
+                }
                 return Task.CompletedTask;
             }
 

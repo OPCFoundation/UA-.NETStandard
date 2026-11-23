@@ -519,8 +519,11 @@ namespace Opc.Ua.Bindings
             {
                 // The provider's connection capacity is shared with the other
                 // listeners of the server: let them reclaim unused channels here.
-                m_admission.SetSharedCapacityReclaimer(TryReclaimUnusedChannel);
+                m_admission.SetSharedCapacityReclaimer(TryReclaimChannelForSharedCapacity);
             }
+            // The channel table is enforced after admission: no other listener's
+            // connection is reclaimed for a connection the full table refuses.
+            m_admission.SetListenerCapacityCheck(HasChannelCapacity);
             m_acceptedTransportDecorator = settings.AcceptedTransportDecorator;
             m_onAcceptedChannel = settings.OnAcceptedChannel;
 
@@ -1622,7 +1625,29 @@ namespace Opc.Ua.Bindings
             return TryReclaimUnusedChannel([]);
         }
 
-        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted)
+        /// <summary>
+        /// Reclaims an unused channel for another listener whose new connection
+        /// found the shared connection capacity exhausted; a channel whose
+        /// connection holds only protected capacity cannot relieve it.
+        /// </summary>
+        private bool TryReclaimChannelForSharedCapacity()
+        {
+            return TryReclaimUnusedChannel([], sharedCapacityOnly: true);
+        }
+
+        /// <summary>
+        /// Whether the channel table admits another accepted connection.
+        /// </summary>
+        private bool HasChannelCapacity()
+        {
+            lock (m_lock)
+            {
+                return m_channels != null &&
+                    (MaxChannelCount <= 0 || m_channels.Count + m_pendingAccepts < MaxChannelCount);
+            }
+        }
+
+        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted, bool sharedCapacityOnly = false)
         {
             ConcurrentDictionary<uint, TcpListenerChannel>? channels;
             TcpListenerChannel[] candidates;
@@ -1639,7 +1664,8 @@ namespace Opc.Ua.Bindings
                 .OrderBy(channel => channel.HoldsPartialMessage)
                 .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
             {
-                if (attempted.Contains(candidate) || candidate.UsedBySession)
+                if (attempted.Contains(candidate) || candidate.UsedBySession ||
+                    (sharedCapacityOnly && !UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(candidate.Transport)))
                 {
                     continue;
                 }

@@ -283,10 +283,38 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool HasOwnCeilingHeadroom()
         {
+            Func<bool>? hasListenerCapacity;
             lock (m_lock)
             {
                 int counted = m_limitPendingHandshakesOnly ? m_pendingHandshakes : m_leases.Count;
-                return !m_stopped && (m_maxChannelCount <= 0 || counted < m_maxChannelCount);
+                if (m_stopped || (m_maxChannelCount > 0 && counted >= m_maxChannelCount))
+                {
+                    return false;
+                }
+                hasListenerCapacity = m_hasListenerCapacity;
+            }
+            // Invoked without the admission lock: the listener takes its own lock.
+            return hasListenerCapacity?.Invoke() != false;
+        }
+
+        /// <summary>
+        /// Sets the check of a limit the listener enforces after admission,
+        /// such as its channel table, so that a connection of another listener
+        /// is not closed for a connection this listener would refuse anyway.
+        /// </summary>
+        /// <remarks>
+        /// The check must not acquire admission; it is invoked without any
+        /// admission lock held.
+        /// </remarks>
+        public void SetListenerCapacityCheck(Func<bool> hasCapacity)
+        {
+            if (hasCapacity == null)
+            {
+                throw new ArgumentNullException(nameof(hasCapacity));
+            }
+            lock (m_lock)
+            {
+                m_hasListenerCapacity = hasCapacity;
             }
         }
 
@@ -370,6 +398,32 @@ namespace Opc.Ua.Bindings
             /// connection can be counted against the same capacity.
             /// </summary>
             internal UaScConnectionAdmission Owner => m_owner;
+
+            /// <summary>
+            /// False when the connection reservation was taken entirely from a
+            /// protected floor: closing the connection then frees no capacity
+            /// another owner can use, so it is not reclaimed for one.
+            /// </summary>
+            internal bool UsesSharedConnectionCapacity
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_connection is not IResourceIsolationLeaseCapacity capacity ||
+                            capacity.UsesSharedCapacity;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Whether closing the connection behind a channel's transport frees
+            /// shared connection capacity; true for a transport without a lease.
+            /// </summary>
+            internal static bool CanRelieveSharedCapacity(IUaSCByteTransport? transport)
+            {
+                return transport is not Lease lease || lease.UsesSharedConnectionCapacity;
+            }
 
             /// <summary>
             /// Gets the attached transport's local endpoint.
@@ -804,6 +858,12 @@ namespace Opc.Ua.Bindings
         /// of the same provider; registered while the scope is started.
         /// </summary>
         private Func<bool>? m_sharedCapacityReclaimer;
+
+        /// <summary>
+        /// Checks a listener limit enforced after admission, or null when the
+        /// scope's own ceiling is the listener's only limit.
+        /// </summary>
+        private Func<bool>? m_hasListenerCapacity;
     }
 
     /// <summary>

@@ -1140,8 +1140,11 @@ namespace Opc.Ua.Server
             ResourceIsolationStage stage,
             ResourceIsolationClass ownerClass,
             long amount,
-            ResourceIsolationReservation reservation) : IDisposable
+            ResourceIsolationReservation reservation) : IDisposable, IResourceIsolationLeaseCapacity
         {
+            /// <inheritdoc/>
+            public bool UsesSharedCapacity => m_reservation.Reserved < m_amount;
+
             /// <summary>
             /// Releases accounting once, even when disposal races.
             /// </summary>

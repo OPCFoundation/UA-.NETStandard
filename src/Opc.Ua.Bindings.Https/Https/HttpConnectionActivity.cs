@@ -60,13 +60,18 @@ namespace Opc.Ua.Bindings
         /// Closes the connection that has been idle longest. Returns false when
         /// every tracked connection has a request in flight.
         /// </summary>
+        /// <remarks>
+        /// A connection admitted entirely from a protected floor is never
+        /// reclaimed: closing it frees no capacity a new connection could use
+        /// unless it belongs to the same protected owner.
+        /// </remarks>
         public bool TryReclaimIdle()
         {
             HttpConnectionActivity[] candidates = [.. m_connections.Keys];
             Array.Sort(candidates, static (left, right) => left.LastActivity.CompareTo(right.LastActivity));
             foreach (HttpConnectionActivity candidate in candidates)
             {
-                if (candidate.TryReclaim())
+                if (candidate.UsesSharedCapacity && candidate.TryReclaim())
                 {
                     m_connections.TryRemove(candidate, out _);
                     return true;
@@ -98,6 +103,11 @@ namespace Opc.Ua.Bindings
         /// The monotonic timestamp of the admission or of the end of the last request.
         /// </summary>
         public long LastActivity => Interlocked.Read(ref m_lastActivity);
+
+        /// <summary>
+        /// Whether closing the connection frees shared connection capacity.
+        /// </summary>
+        public bool UsesSharedCapacity => m_lease.UsesSharedConnectionCapacity;
 
         /// <summary>
         /// Marks a request in flight. Returns false when the connection was
