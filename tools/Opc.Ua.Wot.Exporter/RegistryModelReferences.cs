@@ -252,14 +252,29 @@ namespace Opc.Ua.Wot.Exporter
         {
             string fragment = string.Empty;
             Model? model = FindTarget(reference, aliases);
-            int separator = reference.Length;
-            while (model is null && separator > 0)
+            if (model is null &&
+                ExpandedNodeId.TryParse(reference, out ExpandedNodeId nativeIdentity) &&
+                nativeIdentity.IdType == IdType.String)
             {
-                separator = reference.AsSpan(0, separator).LastIndexOf('#');
+                // A hash can belong to a string NodeId; only an explicit JSON Pointer starts a fragment.
+                int separator = reference.IndexOf("#/", StringComparison.Ordinal);
                 if (separator >= 0)
                 {
                     model = FindTarget(reference[..separator], aliases);
                     fragment = reference[separator..];
+                }
+            }
+            else
+            {
+                int separator = reference.Length;
+                while (model is null && separator > 0)
+                {
+                    separator = reference.AsSpan(0, separator).LastIndexOf('#');
+                    if (separator >= 0)
+                    {
+                        model = FindTarget(reference[..separator], aliases);
+                        fragment = reference[separator..];
+                    }
                 }
             }
             if (model is null)

@@ -148,26 +148,29 @@ namespace Opc.Ua.Wot.Exporter.Tests
         /// <summary>
         /// Preserves hashes inside native string identities and any appended reference fragment.
         /// </summary>
-        [TestCase("")]
-        [TestCase("#/schemaDefinitions/reading")]
-        [TestCase("#/schemaDefinitions/reading#part")]
-        public void NativeStringIdsPreserveEmbeddedHashesAndFragments(string fragment)
+        [TestCase("Type", "")]
+        [TestCase("Type", "#/schemaDefinitions/reading")]
+        [TestCase("Type", "#/schemaDefinitions/reading#part")]
+        [TestCase("Type#2", "")]
+        [TestCase("Type#2", "#/schemaDefinitions/reading")]
+        [TestCase("Type#2", "#/schemaDefinitions/reading#part")]
+        public void NativeStringIdsPreserveEmbeddedHashesAndFragments(string identifier, string fragment)
         {
             using var documents = new WotDocumentSet("source.json", [
                 new WotDocumentSetEntry("source.json", Parse(
                     /*lang=json,strict*/
                     $$$$"""
                     {
-                      "links": [{"rel": "type", "href": "nsu=urn:export:target;s=Type#2{{{{fragment}}}}"}]
+                      "links": [{"rel": "type", "href": "nsu=urn:export:target;s={{{{identifier}}}}{{{{fragment}}}}"}]
                     }
                     """)),
                 new WotDocumentSetEntry("target.TM.json", Parse(
                     /*lang=json,strict*/
-                    """
+                    $$$$"""
                     {
                       "@type": ["tm:ThingModel"],
                       "id": "urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType",
-                      "uav:id": "nsu=urn:export:target;s=Type#2"
+                      "uav:id": "nsu=urn:export:target;s={{{{identifier}}}}"
                     }
                     """))
             ]);
@@ -177,7 +180,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
                 Models = [new ModelTableEntry { ModelUri = "urn:export:target", Version = "42" }]
             }, documents, new Dictionary<ExpandedNodeId, string>
             {
-                [ExpandedNodeId.Parse("nsu=urn:export:target;s=Type#2")] = "urn:fallback"
+                [ExpandedNodeId.Parse("nsu=urn:export:target;s=" + identifier)] = "urn:fallback"
             });
 
             ArrayOf<ReadOnlyMemory<byte>> output = references.Write(documents, CancellationToken.None);
@@ -187,6 +190,61 @@ namespace Opc.Ua.Wot.Exporter.Tests
                 Is.EqualTo("https://registry.test/thingmodelgroups/opcua/thingmodels/" +
                     "aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26/versions/42" +
                     fragment));
+        }
+
+        /// <summary>
+        /// Keeps unresolved string identities intact instead of targeting a registered native prefix.
+        /// </summary>
+        [TestCase("nsu=urn:export:target;s=Type", "#2")]
+        [TestCase("nsu=urn:export:target;s=Type", "#2#/schemaDefinitions/reading")]
+        [TestCase("nsu=urn:export:target;s=Type", "#2#/schemaDefinitions/reading#part")]
+        [TestCase("s=Type", "#2")]
+        [TestCase("s=Type", "#2#/schemaDefinitions/reading")]
+        [TestCase("s=Type", "#2#/schemaDefinitions/reading#part")]
+        public void UnresolvedNativeStringIdsDoNotResolveToRegisteredPrefixes(string nativeId, string suffix)
+        {
+            string reference = nativeId + suffix;
+            using var documents = new WotDocumentSet("source.json", [
+                new WotDocumentSetEntry("source.json", Parse(
+                    /*lang=json,strict*/
+                    $$$$"""
+                    {
+                      "links": [{"rel": "ua:HasSupertype", "href": "{{{{reference}}}}", "type": "application/opcua+json"}],
+                      "properties": {"reading": {"tm:ref": "{{{{reference}}}}", "$ref": "{{{{reference}}}}"}}
+                    }
+                    """)),
+                new WotDocumentSetEntry("target.TM.json", Parse(
+                    /*lang=json,strict*/
+                    $$$$"""
+                    {
+                      "@type": ["tm:ThingModel"],
+                      "id": "urn:registered:prefix",
+                      "uav:id": "{{{{nativeId}}}}"
+                    }
+                    """))
+            ]);
+            var identity = ExpandedNodeId.Parse(nativeId);
+            identity = new ExpandedNodeId(
+                identity.InnerNodeId.WithNamespaceIndex(0), identity.NamespaceUri ?? Types.Namespaces.OpcUa);
+            var references = new RegistryModelReferences("https://registry.test", "opcua");
+            references.Add(new UANodeSet
+            {
+                Models = [new ModelTableEntry { ModelUri = identity.NamespaceUri, Version = "42" }]
+            }, documents, new Dictionary<ExpandedNodeId, string>
+            {
+                [identity] = "urn:fallback"
+            });
+
+            ArrayOf<ReadOnlyMemory<byte>> output = references.Write(documents, CancellationToken.None);
+
+            using var source = JsonDocument.Parse(output[0]);
+            JsonElement link = source.RootElement.GetProperty("links")[0];
+            Assert.That(link.GetProperty("href").GetString(), Is.EqualTo(reference));
+            Assert.That(link.GetProperty("rel").GetString(), Is.EqualTo("ua:HasSupertype"));
+            Assert.That(link.GetProperty("type").GetString(), Is.EqualTo("application/opcua+json"));
+            JsonElement property = source.RootElement.GetProperty("properties").GetProperty("reading");
+            Assert.That(property.GetProperty("tm:ref").GetString(), Is.EqualTo(reference));
+            Assert.That(property.GetProperty("$ref").GetString(), Is.EqualTo(reference));
         }
 
         /// <summary>

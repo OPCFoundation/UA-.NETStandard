@@ -128,6 +128,9 @@ files before it writes links. It uses each target's final WoT `id`, including
 an authored ID. References through `links`, `tm:ref`, and schema `$ref`
 use registry URLs when they identify an exported Thing Model. JSON Pointer
 fragments are preserved, including when a native string NodeId contains `#`.
+For native string NodeIds, only `#/` starts a JSON Pointer fragment.
+If that complete native target is not registered, the reference stays
+unchanged; the command does not resolve a shorter prefix before another `#`.
 References in `patternProperties` schema maps also use registry URLs.
 Resolved `ua:HasSupertype` links use `tm:extends`; other link relations are
 preserved.
