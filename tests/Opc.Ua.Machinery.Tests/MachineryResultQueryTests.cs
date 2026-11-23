@@ -868,14 +868,15 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        [CancelAfter(30_000)]
         public void AnElementReferencedByManyOperandsIsEvaluatedOnce()
         {
-            var target = new MachineryResultFilterTarget(Result("S-1", jobId: "J").Data);
+            var result = new MachineryResultFilterTarget(Result("S-1", jobId: "J").Data);
 
             // Every element refers to the one below it twice. The filter is
             // valid, and evaluating an element once per reference would take
-            // 2^200 evaluations.
+            // 2^200 evaluations. The leaf reads one field of the result, so
+            // the target refuses a second read: an evaluator that evaluates
+            // the leaf again fails at once instead of running for ever.
             var filter = new ContentFilter();
             ContentFilterElement element = filter.Push(FilterOperator.Equals, Leaf(true));
             for (int ii = 0; ii < 200; ii++)
@@ -889,7 +890,11 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(
                 ServiceResult.IsGood(filter.Validate(CreateFilterContext()).Status),
                 Is.True);
-            Assert.That(Evaluate(filter, target), Is.True);
+            var target = new SingleReadFilterTarget(result);
+            Assert.That(
+                MachineryResultFilterEvaluator.Evaluate(filter, CreateFilterContext(), target),
+                Is.True);
+            Assert.That(target.Reads, Is.EqualTo(1));
 
             var rejecting = new ContentFilter();
             element = rejecting.Push(FilterOperator.Equals, Leaf(null));
@@ -900,11 +905,14 @@ namespace Opc.Ua.Machinery.Tests
                     Variant.FromStructure(element),
                     Variant.FromStructure(element));
             }
-            Assert.That(Evaluate(rejecting, target), Is.False);
+            target = new SingleReadFilterTarget(result);
+            Assert.That(
+                MachineryResultFilterEvaluator.Evaluate(rejecting, CreateFilterContext(), target),
+                Is.False);
+            Assert.That(target.Reads, Is.EqualTo(1));
         }
 
         [Test]
-        [CancelAfter(30_000)]
         public void ALikeElementThatExceedsTheMatchBudgetIsNull()
         {
             var target = new MachineryResultFilterTarget(Result("B-1", jobId: "J").Data);
@@ -1403,6 +1411,43 @@ namespace Opc.Ua.Machinery.Tests
         private static string[] Ids(params string[] ids)
         {
             return ids;
+        }
+
+        /// <summary>
+        /// A filter target that answers one attribute read and refuses any
+        /// further one, which bounds a test whose filter reads one field.
+        /// </summary>
+        private sealed class SingleReadFilterTarget : IFilterTarget
+        {
+            public SingleReadFilterTarget(IFilterTarget inner)
+            {
+                m_inner = inner;
+            }
+
+            public int Reads { get; private set; }
+
+            public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
+            {
+                return m_inner.IsTypeOf(context, typeDefinitionId);
+            }
+
+            public Variant GetAttributeValue(
+                IFilterContext context,
+                NodeId typeDefinitionId,
+                ArrayOf<QualifiedName> relativePath,
+                uint attributeId,
+                NumericRange indexRange)
+            {
+                if (++Reads > 1)
+                {
+                    throw new InvalidOperationException(
+                        "The filter element was evaluated more than once.");
+                }
+                return m_inner.GetAttributeValue(
+                    context, typeDefinitionId, relativePath, attributeId, indexRange);
+            }
+
+            private readonly IFilterTarget m_inner;
         }
 
         private const string ResultBrowseNamesResult = Opc.Ua.Machinery.Result.BrowseNames.Result;
