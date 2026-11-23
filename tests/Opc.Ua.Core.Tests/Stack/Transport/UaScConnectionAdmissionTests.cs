@@ -19,7 +19,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         long connectionLimit = 8,
         long ownerLimit = 8,
         ResourceIsolationStage? rejectedStage = null,
-        ResourceIsolationFailureReason rejectedReason = ResourceIsolationFailureReason.Capacity)
+        ResourceIsolationFailureReason rejectedReason = ResourceIsolationFailureReason.Capacity,
+        string? protectedOwnerKey = null)
         : IServerResourceIsolationProvider
     {
         public bool UseFairScheduling => true;
@@ -89,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 m_active[(int)stage] += amount;
                 m_owners[key] = active + amount;
-                lease = new CountedLease(() =>
+                lease = new CountedLease(owner.Key != protectedOwnerKey, () =>
                 {
                     lock (m_lock)
                     {
@@ -133,8 +134,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
-        private sealed class CountedLease(Action release) : IDisposable
+        private sealed class CountedLease(bool usesSharedCapacity, Action release)
+            : IDisposable, IResourceIsolationLeaseCapacity
         {
+            public bool UsesSharedCapacity { get; } = usesSharedCapacity;
+
             public void Dispose()
             {
                 Interlocked.Exchange(ref m_release, null)?.Invoke();

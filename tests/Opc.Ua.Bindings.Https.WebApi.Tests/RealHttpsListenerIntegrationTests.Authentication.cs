@@ -531,7 +531,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             await using AuthListener listener = await OpenAuthListenerAsync(
                 "basic",
                 configureSettings: settings => settings.MaxChannelCount = 2).ConfigureAwait(false);
-            using HttpMessageInvoker first = AuthListener.CreateHttp2Connection();
+            int firstConnects = 0;
+            using HttpMessageInvoker first = AuthListener.CreateHttp2Connection(
+                () => Interlocked.Increment(ref firstConnects));
 
             // Refuse an upgrade on an HTTP/2 connection. The upgrade is admitted
             // on a slot of its own next to its connection, and the readiness
@@ -563,31 +565,39 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
 
             // The HTTP/2 connection outlives the refused stream, so it keeps
-            // its connection slot: a third connection is not admitted ...
-            // Linux can surface the transport abort directly while HttpClient
-            // reads the disconnected socket's RemoteEndPoint.
+            // its connection slot: a third connection is admitted only by
+            // reclaiming the connection idle longest, which is the first ...
+            int connectsBefore = Volatile.Read(ref firstConnects);
             using (HttpMessageInvoker third = AuthListener.CreateHttp2Connection())
+            using (HttpResponseMessage admitted = await listener
+                .PostAsync("/read", CreateReadRequest(1), CreateAuthorizationHeader("basic-valid"), third)
+                .ConfigureAwait(false))
             {
-                Assert.That(
-                    async () =>
-                    {
-                        using HttpResponseMessage rejected = await listener
-                            .PostAsync("/read", CreateReadRequest(1), CreateAuthorizationHeader("basic-valid"), third)
-                            .ConfigureAwait(false);
-                    },
-                    Throws.InstanceOf<HttpRequestException>()
-                        .Or.InstanceOf<SocketException>()
-                            .With.Property(nameof(SocketException.SocketErrorCode)).EqualTo(SocketError.NotConnected));
+                Assert.That(admitted.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             }
 
-            // ... while the first connection keeps serving requests.
-            using (HttpResponseMessage response = await listener
-                .PostAsync("/read", CreateReadRequest(2), CreateAuthorizationHeader("basic-valid"), first)
-                .ConfigureAwait(false))
+            // ... whose client then needs a new connection for its next request.
+            // The client may still send that request on the reclaimed connection
+            // before it sees the reset; it then fails once and is sent again.
+            HttpResponseMessage response;
+            try
+            {
+                response = await listener
+                    .PostAsync("/read", CreateReadRequest(2), CreateAuthorizationHeader("basic-valid"), first)
+                    .ConfigureAwait(false);
+            }
+            catch (HttpRequestException)
+            {
+                response = await listener
+                    .PostAsync("/read", CreateReadRequest(2), CreateAuthorizationHeader("basic-valid"), first)
+                    .ConfigureAwait(false);
+            }
+            using (response)
             {
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
                 Assert.That(response.Version, Is.EqualTo(HttpVersion.Version20));
             }
+            Assert.That(Volatile.Read(ref firstConnects), Is.EqualTo(connectsBefore + 1));
         }
 
         /// <summary>
@@ -1158,16 +1168,35 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             /// <summary>
             /// A client that keeps one HTTP/2 connection to the listener.
             /// </summary>
-            public static HttpMessageInvoker CreateHttp2Connection()
+            public static HttpMessageInvoker CreateHttp2Connection(Action? onConnect = null)
             {
-                return new HttpMessageInvoker(new SocketsHttpHandler
+                var handler = new SocketsHttpHandler
                 {
                     // The listener presents the test's self-signed certificate.
                     SslOptions =
                     {
                         RemoteCertificateValidationCallback = static (_, certificate, _, _) => certificate != null
                     }
-                });
+                };
+                if (onConnect != null)
+                {
+                    handler.ConnectCallback = async (context, ct) =>
+                    {
+                        onConnect();
+                        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                        try
+                        {
+                            await socket.ConnectAsync(context.DnsEndPoint, ct).ConfigureAwait(false);
+                            return new NetworkStream(socket, ownsSocket: true);
+                        }
+                        catch
+                        {
+                            socket.Dispose();
+                            throw;
+                        }
+                    };
+                }
+                return new HttpMessageInvoker(handler);
             }
 
             /// <summary>
