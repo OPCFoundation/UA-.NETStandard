@@ -1505,12 +1505,11 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(file.OpenCount!.Value, Is.Zero);
                 });
 
-                // A second update while the first is still scheduled is rejected.
+                // A scheduled update retains writer exclusion until the apply finishes.
                 OpenMethodStateResult reopen = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
                     .ConfigureAwait(false);
-                ConfigurationFileCloseAndUpdateMethodStateResult second = await CloseAndUpdateAsync(
-                    file, ctx, reopen.FileHandle, versionToUpdate: 1, restartDelayTime: 5000).ConfigureAwait(false);
-                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(reopen.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                Assert.That(reopen.FileHandle, Is.Zero);
 
                 // The deferred apply starts on a background task; wait until it
                 // armed its RestartDelayTime timer.
@@ -2546,24 +2545,26 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(ServiceResult.IsGood(openA.ServiceResult), Is.True);
                 ControllableTimer t1 = ActivityTimers(timeProvider)[^1];
 
-                // Session B opens; last-open-wins evicts A's handle and arms a new
-                // timer for B.
+                // Opening another reader rearms the timer but retains both handles.
                 OpenMethodStateResult openB = await OpenAsync(file, sessionB, OpenFileMode.Read)
                     .ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(openB.ServiceResult), Is.True);
                 Assert.That(t1.IsDisposed, Is.True);
 
-                // Session A's stale timer callback must not close Session B's handle.
+                // A superseded timer callback must not close either reader.
                 t1.Fire();
 
+                ReadMethodStateResult readA = await file.Read!.OnCallAsync!(
+                    sessionA, file.Read, file.NodeId, openA.FileHandle, 4, CancellationToken.None)
+                    .ConfigureAwait(false);
                 ReadMethodStateResult readB = await file.Read!.OnCallAsync!(
                     sessionB, file.Read, file.NodeId, openB.FileHandle, 4, CancellationToken.None)
                     .ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)1),
-                        "Session A's stale callback must not close Session B's handle");
+                    Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)2));
+                    Assert.That(ServiceResult.IsGood(readA.ServiceResult), Is.True);
                     Assert.That(ServiceResult.IsGood(readB.ServiceResult), Is.True,
                         "Session B's handle must stay usable after Session A's stale callback");
                 });
