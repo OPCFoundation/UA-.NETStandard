@@ -41,6 +41,14 @@ namespace Opc.Ua.Server.TestFramework
         /// </summary>
         public bool DetectNodeIdCollisions { get; set; } = true;
 
+        /// <summary>
+        /// Whether an empty PKI folder is seeded with the application
+        /// certificates an identical server fixture created earlier in this
+        /// process (see <see cref="TestCertificateCache"/>). On by default;
+        /// turn it off for a test that needs key pairs no other fixture has.
+        /// </summary>
+        public bool ReuseCachedCertificates { get; set; } = true;
+
         public int TraceMasks { get; set; } =
             Utils.TraceMasks.Error |
             Utils.TraceMasks.StackTrace |
@@ -368,8 +376,11 @@ namespace Opc.Ua.Server.TestFramework
                 = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
 
             // check the application certificate.
-            bool haveAppCertificate = await Application
-                .CheckApplicationInstanceCertificatesAsync(true, CertificateFactory.DefaultLifeTime)
+            bool haveAppCertificate = await TestCertificateCache
+                .CheckApplicationInstanceCertificatesAsync(
+                    Application,
+                    CertificateFactory.DefaultLifeTime,
+                    ReuseCachedCertificates)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
@@ -542,7 +553,6 @@ namespace Opc.Ua.Server.TestFramework
             Config = null!;
             ActivityListener?.Dispose();
             ActivityListener = null!;
-            await Task.Delay(100).ConfigureAwait(false);
         }
 
         private void DisposeCertificateManagers()

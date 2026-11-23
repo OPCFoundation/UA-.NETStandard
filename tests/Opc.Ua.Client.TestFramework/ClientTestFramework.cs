@@ -494,7 +494,6 @@ namespace Opc.Ua.Client.TestFramework
                 {
                     m_logger.LogError(e, "Error stopping server during teardown.");
                 }
-                await Task.Delay(100).ConfigureAwait(false);
             }
             if (ClientFixture != null)
             {
