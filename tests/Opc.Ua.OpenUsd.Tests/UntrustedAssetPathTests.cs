@@ -64,6 +64,24 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         [TestCase("@`\"expr.usda\"`@")]
         [TestCase("pump.usda")]
         [TestCase("")]
+        [TestCase("@")]
+        [TestCase("@a.usda")]
+        [TestCase("@./@")]
+        [TestCase("@a//b.usda@")]
+        [TestCase("@./a/./b.usda@")]
+        [TestCase("@dir./b.usda@")]
+        [TestCase("@a b.usda@")]
+        [TestCase("@café.usda@")]
+        [TestCase("@COM1.usda@")]
+        [TestCase("@lpt9.usda@")]
+        [TestCase("@nul.usda@")]
+        [TestCase("@a.usda@<>")]
+        [TestCase("@a.usda@<A>")]
+        [TestCase("@a.usda@</A")]
+        [TestCase("@a.usda@</1A>")]
+        [TestCase("@a.usda@</A//B>")]
+        [TestCase("@a.usda@</A-B>")]
+        [TestCase("@a.usda@</A>x")]
         public void ReferencesThatCouldLeaveTheLayerDirectoryAreRefused(string reference)
         {
             Assert.That(UsdAssetPaths.TryNormalizeReference(reference, out _), Is.False);
@@ -139,9 +157,51 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         [TestCase("#usda 1.0\ndef Xform \"W\x01\" {}\n")]
         [TestCase("#usda 1.0\ndef Xform \"W\n\" {}\n")]
         [TestCase("PXR-USDC")]
+        [TestCase("#usda 1.0\ndef Xform \"W\" {}\r")]
+        [TestCase("#usda 1.0\ndef Xform \"W\u007f\" {}\n")]
+        [TestCase("#usda 1.0\ndef Xform 'W\n' {}\n")]
+        [TestCase("#usda 1.0\ndef Xform \"W\\\n\" {}\n")]
+        [TestCase("#usda 1.0\ndef Xform \"W {}\n")]
+        [TestCase("#usda 1.0\ndef Xform \"\"\"W {}\n")]
+        [TestCase("#usda 1.0\ndef Xform \"W\" (references = @x.usda) {}\n")]
+        [TestCase("#usda 1.0\ndef Xform \"W\" (references = @x\n.usda@) {}\n")]
+        [TestCase("#usda 1.0\nrel r = </W\n")]
+        [TestCase("#usda 1.0\nrel r = </W@x.usda@>\n")]
+        [TestCase("#usda 1.0\ndef Xform \"W\" (clips = { }) {}\n")]
         public void ScannerRefusesTextNativeUsdCouldReadDifferently(string text)
         {
             Assert.That(() => UsdAssetPaths.ScanUsdaAssetPaths(text), Throws.TypeOf<InvalidDataException>());
+        }
+
+        [Test]
+        public void ScannerSkipsStringsAndPathsButNotAssetPathsBesideThem()
+        {
+            string text = "#usda 1.0\r\n(\r\n    doc = \"\"\"multi\nline @not.usda@ \"quoted\" \"\"\"\r\n)\r\n" +
+                "def Xform \"W\" ( references = @a.usda@</W> ) {\n" +
+                "    string s = \"escaped \\\" @not.usda@\"\n" +
+                "    string t = 'single @not.usda@'\n" +
+                "    asset empty = @@\n" +
+                "    rel r = </W/Looks>\n" +
+                "    asset tex = @./tex/b.png@\n" +
+                "}\n";
+
+            string[] expected = ["a.usda", "./tex/b.png"];
+            Assert.That(UsdAssetPaths.ScanUsdaAssetPaths(text), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ResolveAndLayerExtensionsMatchWhatTheResolverSees()
+        {
+            string layer = Path.Combine(m_directory, "cell.usda");
+            Assert.That(UsdAssetPaths.Resolve(layer, "./parts/arm.usda"),
+                Is.EqualTo(Path.GetFullPath(Path.Combine(m_directory, "parts", "arm.usda"))));
+            Assert.That(UsdAssetPaths.HasLayerExtension("a.USDZ"), Is.True);
+            Assert.That(UsdAssetPaths.HasLayerExtension("a.usd"), Is.True);
+            Assert.That(UsdAssetPaths.HasLayerExtension("a.png"), Is.False);
+            Assert.That(UsdAssetPaths.IsSafeRelativePath(new string('a', UsdAssetPaths.MaximumPathLength + 1)), Is.False);
+            Assert.That(UsdAssetPaths.TryNormalizeReference(
+                "@" + new string('a', 2 * UsdAssetPaths.MaximumPathLength) + ".usda@", out _), Is.False);
+            Assert.That(UsdAssetPaths.TryNormalizeReference(null, out _), Is.False);
         }
 
         [Test]
