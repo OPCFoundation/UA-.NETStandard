@@ -68,6 +68,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             (m_requestHeader, m_secureChannelContext) = await m_server

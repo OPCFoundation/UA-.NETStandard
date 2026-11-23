@@ -50,6 +50,7 @@ namespace Opc.Ua.WotCon.Tests
             _ = await first.Proxy.OpenAsync(1, ct).ConfigureAwait(false);
             _ = await logical.Proxy.OpenAsync(1, ct).ConfigureAwait(false);
             using var peerFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             await peerFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             ISession peer = await peerFixture.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)

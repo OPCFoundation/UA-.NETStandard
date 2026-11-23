@@ -73,6 +73,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     SecurityNone = true,
                     AutoAccept = true
                 };
+                await WotTestPki.SeedAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
                 m_server = await m_fixture.StartAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
                 var converter = new FakeWotDocumentConverter();
                 converter.SetRootNodeId(m_identity.ResourceId, new ExpandedNodeId(5000u, m_modelUri));
@@ -86,6 +87,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(m_coordinator.Generation, Is.EqualTo(1u));
 
                 m_client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+                await WotTestPki.SeedAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
                 await m_client.LoadClientConfigurationAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
                 Assert.That(m_client.SessionFactory, Is.TypeOf<DefaultSessionFactory>());
                 m_session = await m_client.ConnectAsync(

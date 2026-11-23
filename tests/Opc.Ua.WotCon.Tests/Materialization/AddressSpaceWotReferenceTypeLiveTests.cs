@@ -49,6 +49,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_resolver = new AddressSpaceWotNodeResolver(m_server.CurrentInstance);
         }

@@ -539,6 +539,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 await using var fixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await fixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 using ClientSession session = await fixture.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
@@ -620,6 +621,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 await using var fixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await fixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 using ClientSession session = await fixture.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
@@ -851,6 +853,7 @@ namespace Opc.Ua.WotCon.Tests
             WotMaterializationCoordinator? coordinator = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 preparedStorage = new PreparedWotTestStorage(Path.Combine(directory, "registry"));
                 store = preparedStorage.OpenStore();

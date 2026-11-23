@@ -74,6 +74,7 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(trace.Handle, Is.Zero);
             });
             using var retryFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             await retryFixture.LoadClientConfigurationAsync(m_root).ConfigureAwait(false);
             using ISession retrySession = await retryFixture.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)

@@ -230,6 +230,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ReferenceServer? server = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 var host = new LifecycleWotProjectionHost(
                     server.NodeManagerLifecycle, new WotProjectionBindingRuntimeFactory(channels));
@@ -237,6 +238,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 try
                 {
                     using var client = new ClientFixture(NUnitTelemetryContext.Create());
+                    await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                     await client.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                     using ISession session = await client.ConnectAsync(
                         new UriBuilder(Utils.UriSchemeOpcTcp, "localhost", fixture.Port).Uri, SecurityPolicies.None)

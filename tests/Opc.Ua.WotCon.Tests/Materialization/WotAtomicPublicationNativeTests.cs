@@ -86,6 +86,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 AutoAccept = true
             };
             // Only certificate files are reused; servers, sessions and registry state remain per-test.
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
@@ -97,6 +98,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             };
             m_coordinator.Event += (_, change) => m_events.Add(change);
             m_client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             await m_client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             Assert.That(m_client.SessionFactory, Is.TypeOf<DefaultSessionFactory>());
             m_session = await m_client.ConnectAsync(

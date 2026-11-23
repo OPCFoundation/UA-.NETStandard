@@ -62,6 +62,7 @@ namespace Opc.Ua.WotCon.Tests
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             m_server = await m_serverFixture.StartAsync(m_root).ConfigureAwait(false);
             m_store = new NativeStore();
             WotRegistryServerOptions options;
@@ -103,6 +104,7 @@ namespace Opc.Ua.WotCon.Tests
             m_registration = registration!;
             m_manager = (WotRegistryNodeManager)registration!.NodeManager;
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             await m_clientFixture.LoadClientConfigurationAsync(m_root).ConfigureAwait(false);
             m_bootstrapSession = await m_clientFixture.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
@@ -282,6 +284,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(m_registry.Current.FindResource(group.GroupId, allocation.Version.ResourceId)!.SourceId,
                 Is.EqualTo("urn:thing"));
             using var otherFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             await otherFixture.LoadClientConfigurationAsync(m_root).ConfigureAwait(false);
             using ISession other = await otherFixture.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)

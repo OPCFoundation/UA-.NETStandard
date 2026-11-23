@@ -83,6 +83,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(Path.Combine(root, "pki")).ConfigureAwait(false);
             ReferenceServer server = await fixture.StartAsync(Path.Combine(root, "pki")).ConfigureAwait(false);
             return new PreparedWotTestRuntime(root, fixture, server, forceLeasedContent);
         }

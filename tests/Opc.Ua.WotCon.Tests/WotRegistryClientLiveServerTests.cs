@@ -60,6 +60,7 @@ namespace Opc.Ua.WotCon.Tests
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             var options = new WotRegistryServerOptions
@@ -90,6 +91,7 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             string url = $"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}";
             m_session = await m_clientFixture

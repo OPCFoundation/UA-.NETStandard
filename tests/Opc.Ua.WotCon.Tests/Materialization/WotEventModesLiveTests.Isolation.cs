@@ -337,6 +337,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .ConfigureAwait(false);
                 ArrayOf<Variant> oldFields = await retained.ReadAsync(ct).ConfigureAwait(false);
                 Assert.That(oldFields[0].TryGetValue(out ByteString oldEventId), Is.True);
+                await WotTestPki.SeedAsync(root, "D3ReplacementClient").ConfigureAwait(false);
                 await replacementClient.LoadClientConfigurationAsync(root, "D3ReplacementClient").ConfigureAwait(false);
                 replacementSession = await replacementClient.ConnectAsync(
                     new Uri(source.EndpointUrl), SecurityPolicies.Basic256Sha256).ConfigureAwait(false);

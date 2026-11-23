@@ -2172,6 +2172,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 TestContext.Out.WriteLine(
                     $"C2_RUNTIME framework={RuntimeInformation.FrameworkDescription};clr={Environment.Version};" +
                     $"serverGC={GCSettings.IsServerGC};architecture={RuntimeInformation.ProcessArchitecture}");
+                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
                 m_server = await m_fixture.StartAsync(m_directory).ConfigureAwait(false);
                 if (rebaseNamespaces)
                 {
@@ -2225,6 +2226,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 Views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle, retirementPolicy);
                 m_client = new ClientFixture(false, false, NUnitTelemetryContext.Create());
+                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
                 await m_client.LoadClientConfigurationAsync(m_directory).ConfigureAwait(false);
                 Session = await m_client.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"),

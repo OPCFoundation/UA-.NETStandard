@@ -814,6 +814,7 @@ namespace Opc.Ua.WotCon.Tests
                     AutoAccept = true,
                     SecurityNone = false
                 };
+                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
                 m_server = await m_serverFixture.StartAsync(m_directory);
                 await m_server.NodeManagerLifecycle.ApplyAsync(
                     [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
@@ -863,6 +864,7 @@ namespace Opc.Ua.WotCon.Tests
                     Is.True);
                 m_registration = registration!;
                 m_clientFixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
                 await m_clientFixture.LoadClientConfigurationAsync(m_directory);
                 Session = await m_clientFixture.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"),

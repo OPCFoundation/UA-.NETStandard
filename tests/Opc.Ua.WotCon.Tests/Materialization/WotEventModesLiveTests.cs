@@ -3,6 +3,7 @@
 
 #if NET8_0_OR_GREATER
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -221,6 +222,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        private static readonly ConcurrentDictionary<string, int> s_endpointsPerTest = new(StringComparer.Ordinal);
+
         private sealed class NativeEndpoint : IAsyncDisposable
         {
             /// <summary>
@@ -245,6 +248,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 bool managed, CancellationToken ct, string securityPolicy = SecurityPolicies.Basic256Sha256)
             {
                 m_fixture.SecurityNone = securityPolicy == SecurityPolicies.None;
+                await WotTestPki.SeedAsync(m_root, m_identity, "EventModesClient").ConfigureAwait(false);
                 Server = await m_fixture.StartAsync(m_root).ConfigureAwait(false);
                 await m_client.LoadClientConfigurationAsync(m_root, "EventModesClient").ConfigureAwait(false);
                 m_session = await m_client.ConnectAsync(new Uri(EndpointUrl), securityPolicy)
@@ -340,6 +344,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 AutoAccept = true
             };
             private readonly ClientFixture m_client = new(NUnitTelemetryContext.Create());
+
+            // Endpoints of one test authenticate as different authorities, as
+            // they would with freshly generated certificates.
+            private readonly int m_identity = s_endpointsPerTest.AddOrUpdate(
+                TestContext.CurrentContext.Test.ID, 0, (_, count) => count + 1);
             private readonly string m_root = Path.Combine(
                 Environment.GetEnvironmentVariable("WOT_EVENT_TEST_ROOT") ?? Path.GetTempPath(),
                 "wem-" + Guid.NewGuid().ToString("N")[..8]);

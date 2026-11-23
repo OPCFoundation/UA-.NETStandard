@@ -196,6 +196,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 ServerNamespaceUris = runtime.Namespaces
             };
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await WotTestPki.SeedAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
             await client.LoadClientConfigurationAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
             using ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{runtime.Port}"), SecurityPolicies.None)

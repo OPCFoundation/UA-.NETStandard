@@ -902,6 +902,7 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     UriScheme = Utils.UriSchemeOpcTcp, SecurityNone = true, AutoAccept = true
                 };
+                await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
                 ReferenceServer server = await m_serverFixture.StartAsync(m_root);
                 var services = new ServiceCollection();
                 services.AddSingleton(telemetry);
@@ -930,6 +931,7 @@ namespace Opc.Ua.WotCon.Tests
                 await server.NodeManagerLifecycle.ApplyAsync(
                     [LifecycleChange.Add(m_services.GetRequiredService<WotRegistryNodeManagerFactory>())]);
                 m_clientFixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
                 await m_clientFixture.LoadClientConfigurationAsync(m_root);
                 m_session = await m_clientFixture.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None);
