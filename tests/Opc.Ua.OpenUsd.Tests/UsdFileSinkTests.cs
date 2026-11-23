@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.OpenUsd.Client.Tests
@@ -277,6 +278,64 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             batch.Dispose();
             Assert.That(File.Exists(m_path), Is.True, "Closing the batch must flush the layer once.");
             Assert.That(ReadLayer(), Does.Contain("double radius = 1.0000"));
+        }
+
+        /// <summary>
+        /// Prim paths come from the server. One segment is one nesting level
+        /// of the layer, so a path deeper than the limit is not authored.
+        /// </summary>
+        [Test]
+        public void PrimPathDeeperThanTheLimitIsNotAuthored()
+        {
+            var sink = new UsdFileSink(m_path);
+            string tooDeep = PrimPath(UsdFileSink.MaxPrimPathDepth + 1);
+
+            sink.ComposePrim(tooDeep, OpenUsdCompositionArc.Child, null, active: true);
+            sink.SetAttribute(tooDeep, "radius", new Variant(1.0));
+            sink.SetTimeSample(tooDeep, "radius", DateTime.UtcNow, new Variant(1.0));
+            sink.ComposePrim(PrimPath(20000), OpenUsdCompositionArc.Child, null, active: true);
+
+            Assert.That(File.Exists(m_path), Is.False);
+        }
+
+        [Test]
+        public void PrimPathLongerThanTheLimitIsNotAuthored()
+        {
+            var sink = new UsdFileSink(m_path);
+            string tooLong = "/" + new string('a', UsdFileSink.MaxPrimPathLength);
+
+            sink.ComposePrim(tooLong, OpenUsdCompositionArc.Child, null, active: true);
+
+            Assert.That(File.Exists(m_path), Is.False);
+        }
+
+        [Test]
+        public void PrimPathAtTheDepthLimitIsAuthoredWithBalancedBlocks()
+        {
+            var sink = new UsdFileSink(m_path);
+            string deepest = PrimPath(UsdFileSink.MaxPrimPathDepth);
+
+            sink.SetAttribute(deepest, "radius", new Variant(2.5));
+            sink.SetAttribute("/a/Sibling", "radius", new Variant(1.0));
+
+            string layer = ReadLayer();
+            string[] lines = layer.Split('\n');
+            Assert.Multiple(() =>
+            {
+                Assert.That(lines.Count(l => l.TrimStart().StartsWith("over \"", StringComparison.Ordinal)),
+                    Is.EqualTo(UsdFileSink.MaxPrimPathDepth + 1));
+                Assert.That(lines.Count(l => l.Trim() == "{"), Is.EqualTo(UsdFileSink.MaxPrimPathDepth + 1));
+                Assert.That(lines.Count(l => l.Trim() == "}"), Is.EqualTo(UsdFileSink.MaxPrimPathDepth + 1));
+                Assert.That(layer, Does.Contain(
+                    new string(' ', 4 * UsdFileSink.MaxPrimPathDepth) + "double radius = 2.5000\n"));
+                // the sibling is written after the whole subtree of the first child
+                Assert.That(layer, Does.Contain("    }\n    over \"Sibling\"\n    {\n        double radius = 1.0000\n    }\n}\n"));
+            });
+        }
+
+        private static string PrimPath(int depth)
+        {
+            return "/" + string.Join("/", Enumerable.Repeat("a", depth));
         }
     }
 }

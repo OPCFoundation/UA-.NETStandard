@@ -186,14 +186,27 @@ namespace Opc.Ua.OpenUsd.Client
             }
         }
 
+        /// <summary>
+        /// The deepest prim path the sink authors. Prim paths come from the
+        /// binding model of the server and every segment is one nesting level
+        /// of the layer, so the depth of the authored hierarchy must not be
+        /// the choice of the server.
+        /// </summary>
+        internal const int MaxPrimPathDepth = 64;
+
+        /// <summary>
+        /// The longest prim path, in characters, the sink authors.
+        /// </summary>
+        internal const int MaxPrimPathLength = 4096;
+
         private static bool IsValidPrimPath(string primPath)
         {
-            if (string.IsNullOrEmpty(primPath))
+            if (string.IsNullOrEmpty(primPath) || primPath.Length > MaxPrimPathLength)
             {
                 return false;
             }
             string[] segs = primPath.Split(s_pathSeparator, StringSplitOptions.RemoveEmptyEntries);
-            if (segs.Length == 0)
+            if (segs.Length == 0 || segs.Length > MaxPrimPathDepth)
             {
                 return false;
             }
@@ -383,7 +396,40 @@ namespace Opc.Ua.OpenUsd.Client
             File.WriteAllText(m_path, sb.ToString());
         }
 
+        /// <summary>
+        /// Writes a prim and all prims below it. The hierarchy is walked with
+        /// an explicit stack, because its depth follows the prim paths of the
+        /// server.
+        /// </summary>
         private static void Emit(StringBuilder sb, Node node, string name, string indent)
+        {
+            var open = new Stack<(Node Node, string Indent, int NextChild)>();
+            EmitOpen(sb, node, name, indent);
+            open.Push((node, indent, 0));
+            while (open.Count > 0)
+            {
+                (Node current, string currentIndent, int nextChild) = open.Pop();
+                if (nextChild < current.ChildOrder.Count)
+                {
+                    open.Push((current, currentIndent, nextChild + 1));
+                    string childName = current.ChildOrder[nextChild];
+                    Node child = current.Children[childName];
+                    string childIndent = currentIndent + "    ";
+                    EmitOpen(sb, child, childName, childIndent);
+                    open.Push((child, childIndent, 0));
+                }
+                else
+                {
+                    sb.Append(currentIndent).Append("}\n");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes the header, the composition metadata and the properties of
+        /// a prim and leaves its block open for the child prims.
+        /// </summary>
+        private static void EmitOpen(StringBuilder sb, Node node, string name, string indent)
         {
             sb.Append(indent).Append("over \"").Append(name).Append('"');
             // Composition metadata block (references/payload/instanceable/active).
@@ -425,11 +471,6 @@ namespace Opc.Ua.OpenUsd.Client
                 sb.Append(indent).Append("    ").Append(usdType).Append(' ')
                   .Append(prop).Append(".timeSamples = ").Append(block).Append('\n');
             }
-            foreach (string child in node.ChildOrder)
-            {
-                Emit(sb, node.Children[child], child, indent + "    ");
-            }
-            sb.Append(indent).Append("}\n");
         }
 
         /// <summary>
