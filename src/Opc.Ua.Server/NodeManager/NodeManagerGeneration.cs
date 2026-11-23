@@ -193,20 +193,35 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             NodeManagerGenerationState state,
             NodeManagerGenerationRegistry.ResourceLifetime? resourceOwnership = null)
+            : this(slot, number, nodeManager, state, resourceOwnership, null)
+        {
+        }
+
+        private NodeManagerGeneration(
+            NodeManagerSlot slot,
+            long number,
+            IAsyncNodeManager nodeManager,
+            NodeManagerGenerationState state,
+            NodeManagerGenerationRegistry.ResourceLifetime? resourceOwnership,
+            NodeManagerGeneration? facade)
         {
             Slot = slot ?? throw new ArgumentNullException(nameof(slot));
             Number = number;
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             ResourceOwnership = resourceOwnership ?? new NodeManagerGenerationRegistry.ResourceLifetime();
-            Gate = new GenerationGate(state, stateChanged: ResourceOwnership.NotifyStateChanged);
-            CleanupRecoveryGate = new GenerationGate(NodeManagerGenerationState.Live);
+            Gate = facade?.Gate ?? new GenerationGate(state, stateChanged: ResourceOwnership.NotifyStateChanged);
+            CleanupRecoveryGate = facade?.CleanupRecoveryGate ?? new GenerationGate(NodeManagerGenerationState.Live);
+            ForwardingFacade = facade?.Reference;
             Reference = new NodeManagerGenerationReference(this);
             SessionBindings = new ConcurrentDictionary<NodeId, GenerationSessionBindingRecord>();
             MonitoredItems = new ConcurrentDictionary<IMonitoredItem, ISubscription>(
                 MonitoredItemReferenceComparer.Instance);
             EventBindings = new ConcurrentDictionary<IEventMonitoredItem, GenerationEventBindingRecord>(
                 MonitoredItemReferenceComparer.Instance);
-            ResourceOwnership.Add(this);
+            if (facade is null)
+            {
+                ResourceOwnership.Add(this);
+            }
         }
 
         /// <summary>
@@ -233,6 +248,20 @@ namespace Opc.Ua.Server
         /// Gets the physical ownership arbiter shared by otherwise independent logical generations.
         /// </summary>
         internal NodeManagerGenerationRegistry.ResourceLifetime ResourceOwnership { get; }
+
+        /// <summary>
+        /// Gets the exact routing owner for a non-owning forwarded source view.
+        /// </summary>
+        internal NodeManagerGenerationReference? ForwardingFacade { get; }
+
+        /// <summary>
+        /// Creates a raw source view without registering another routing or cleanup owner.
+        /// </summary>
+        internal NodeManagerGeneration CreateForwardedSourceView(IAsyncNodeManager source)
+        {
+            return new NodeManagerGeneration(Slot, Number, source, NodeManagerGenerationState.Prepared,
+                ResourceOwnership, this);
+        }
 
         /// <summary>
         /// Associates this generation with its server's NodeId reservations.
@@ -1980,7 +2009,13 @@ namespace Opc.Ua.Server
             m_slot = new WeakReference<NodeManagerSlot>(generation.Slot);
             Number = generation.Number;
             m_generation = new WeakReference<NodeManagerGeneration>(generation);
+            RoutingOwner = generation.ForwardingFacade ?? this;
         }
+
+        /// <summary>
+        /// Gets the token used by items attached through the serving route.
+        /// </summary>
+        internal NodeManagerGenerationReference RoutingOwner { get; }
 
         /// <summary>
         /// Gets the stable slot identifier.

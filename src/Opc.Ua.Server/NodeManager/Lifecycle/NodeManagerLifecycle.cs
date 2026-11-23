@@ -2094,6 +2094,7 @@ namespace Opc.Ua.Server
                                 ? NodeManagerGenerationRegistry.CreateAddition(entry.Manager)
                                 : NodeManagerGenerationRegistry.CreateReplacement(
                                     current.Registration.Identity, entry.Manager);
+                            stagingServer.BindForwardedSource(generation);
                             entry.Prepared = await host.PrepareAsync(
                                 entry.Manager, generation, current?.Prepared.NodeManager, cancellationToken)
                                 .ConfigureAwait(false);

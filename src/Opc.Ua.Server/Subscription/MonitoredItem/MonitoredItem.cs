@@ -923,7 +923,7 @@ namespace Opc.Ua.Server
                 sourceGeneration = Generation;
                 if (m_isDisposed ||
                     !owner.IsCurrentDeletedSource(itemId, this, binding, generation, isEvent) ||
-                    (Generation is not null && !ReferenceEquals(Generation, generation)))
+                    (Generation is { } current && !ReferenceEquals(current.RoutingOwner, generation.RoutingOwner)))
                 {
                     return false;
                 }

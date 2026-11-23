@@ -50,6 +50,7 @@ a server yet, start with [Getting started](GettingStarted.md).
     - [Recovering retained cleanup](#recovering-retained-cleanup)
     - [Capturing inputs and validating candidates](#capturing-inputs-and-validating-candidates)
     - [Publishing typed metadata](#publishing-typed-metadata)
+    - [Prepared forwarded sources](#prepared-forwarded-sources)
     - [Managed NodeId reservations and conformance](#managed-nodeid-reservations-and-conformance)
     - [Historian registration ownership](#historian-registration-ownership)
   - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
@@ -1617,6 +1618,15 @@ source projections and canonical Views.
 For metadata-only publication, call `writer.PrepareReadImagesAsync(images, ct)`
 and commit the returned unit. Those images are bound during preparation and
 cannot be changed through `SetMetadata`.
+
+#### Prepared forwarded sources
+
+A raw `AsyncCustomNodeManager` created within a prepared candidate can bind
+monitored nodes before its forwarding facade is published. The raw binding
+shares that exact facade generation's admission gate but does not add a route or
+an owner for physical cleanup. Only the serving routing snapshot authorizes new
+emissions. After abort or retirement, the old binding cannot follow a successor,
+even when another facade uses the same physical manager.
 
 #### Managed NodeId reservations and conformance
 

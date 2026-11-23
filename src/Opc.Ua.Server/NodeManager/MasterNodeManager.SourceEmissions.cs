@@ -169,6 +169,10 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
+            if (IsUnboundStagingSource(server, nodeManager, generationReference))
+            {
+                return false;
+            }
             if (server.NodeManager is not MasterNodeManager master)
             {
                 return true;
@@ -202,6 +206,10 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
+            if (IsUnboundStagingSource(server, nodeManager, generationReference))
+            {
+                return false;
+            }
             if (server.NodeManager is not MasterNodeManager master)
             {
                 return true;
@@ -220,6 +228,31 @@ namespace Opc.Ua.Server
             }
 
             return master.TryEnterSourceEmission(nodeManager, generationReference, true, out emission);
+        }
+
+        private static bool IsUnboundStagingSource(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            NodeManagerGenerationReference? reference)
+        {
+            return reference is null &&
+                nodeManager is AsyncCustomNodeManager raw && ReferenceEquals(raw.Server, server) &&
+                server is ChangePreparer.StagingServer staging &&
+                (staging.IsStaging || staging.IsDetached);
+        }
+
+        /// <summary>
+        /// Checks that a forwarded source still belongs to the exact visible facade.
+        /// </summary>
+        internal bool TryGetVisibleForwardingFacade(
+            NodeManagerGeneration source,
+            out NodeManagerGeneration? facade)
+        {
+            facade = null;
+            return source.ForwardingFacade is { } reference &&
+                reference.TryGetGeneration(out facade) &&
+                facade is not null &&
+                m_nodeManagers.Revision.ContainsVisibleGenerationOwner(facade);
         }
 
         /// <summary>
@@ -257,9 +290,19 @@ namespace Opc.Ua.Server
             NodeManagerGeneration? generation;
             if (reference is not null)
             {
-                if (!reference.TryGetGeneration(out generation) ||
-                    generation is null ||
-                    !IsCurrentOrLegacyBoundSource(generation, nodeManager))
+                if (!reference.TryGetGeneration(out generation) || generation is null)
+                {
+                    return false;
+                }
+                if (generation.ForwardingFacade is not null)
+                {
+                    if (!ReferenceEquals(generation.NodeManager, nodeManager) ||
+                        !TryGetVisibleForwardingFacade(generation, out generation))
+                    {
+                        return false;
+                    }
+                }
+                else if (!IsCurrentOrLegacyBoundSource(generation, nodeManager))
                 {
                     return false;
                 }
@@ -537,7 +580,8 @@ namespace Opc.Ua.Server
                         (!IsBoundSource(generation, nodeManager) ||
                             (reference is not null &&
                                 (!reference.TryGetGeneration(out NodeManagerGeneration? bound) ||
-                                    !ReferenceEquals(bound, generation))))) ||
+                                    bound is null ||
+                                    !MatchesBoundGeneration(bound, generation, nodeManager))))) ||
                     !m_lease.TryFork(out int slot))
                 {
                     return false;
@@ -553,6 +597,16 @@ namespace Opc.Ua.Server
                     generation.Gate.Exit(slot);
                     throw;
                 }
+            }
+
+            private static bool MatchesBoundGeneration(
+                NodeManagerGeneration bound,
+                NodeManagerGeneration origin,
+                IAsyncNodeManager source)
+            {
+                return ReferenceEquals(bound, origin) ||
+                    (ReferenceEquals(bound.NodeManager, source) &&
+                        ReferenceEquals(bound.ForwardingFacade, origin.Reference));
             }
 
             /// <summary>

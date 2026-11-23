@@ -604,17 +604,56 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         {
                             after?.Dispose();
                         }
+
+                        bool eventAdmitted = MasterNodeManager.TryCaptureSourceEmission(
+                            candidateServer, owner, out var eventAdmission, source.Generation);
+                        using MasterNodeManager.SourceEmissionOrigin? origin = eventAdmission?.TransferToOrigin();
+                        Assert.That(eventAdmitted, Is.True);
+                        Assert.That(origin, Is.Not.Null);
+                        bool childAdmitted = MasterNodeManager.TryCaptureSourceEmission(
+                            candidateServer, owner, out var child, source.Generation,
+                            context: origin!.CreateContext(owner.SystemContext));
+                        using (child)
+                        {
+                            Assert.That(childAdmitted, Is.True);
+                            Assert.That(child?.Generation, Is.SameAs(candidate));
+                        }
+
+                        // Another facade can identify the same raw manager without owning this route.
+                        Mock<IAsyncNodeManager> otherFacade = CreateLifecycleNodeManager(uri);
+                        otherFacade.SetupGet(value => value.SyncNodeManager).Returns(owner.SyncNodeManager);
+                        var otherGeneration = new NodeManagerGeneration(
+                            new NodeManagerSlot(), 1, otherFacade.Object, NodeManagerGenerationState.Prepared);
+                        NodeManagerGeneration otherSource = otherGeneration.CreateForwardedSourceView(owner);
+                        bool wrongFacadeAdmitted = MasterNodeManager.TryCaptureSourceEmission(
+                            candidateServer, owner, out var wrongFacade, otherSource.Reference,
+                            context: origin!.CreateContext(owner.SystemContext));
+                        wrongFacade?.Dispose();
+                        Assert.That(wrongFacadeAdmitted, Is.False);
+                        GC.KeepAlive(otherSource);
+                        GC.KeepAlive(otherGeneration);
                     }
                 }
 
+                if (registration is not null)
+                {
+                    await RemoveAndRetireAsync(lifecycle, registration, timeout.Token).ConfigureAwait(false);
+                    registration = null;
+                }
+
+                MonitoredNode2 detachedSource = RequireLifecycleValue(monitored);
+                bool admittedAfterCleanup = MasterNodeManager.TryCaptureItemEmission(
+                    RequireLifecycleValue(staged), RequireLifecycleValue(resource),
+                    detachedSource.Generation, out var afterCleanup);
+                afterCleanup?.Dispose();
+                Assert.That(admittedAfterCleanup, Is.False);
                 if (!publish)
                 {
-                    MonitoredNode2 source = RequireLifecycleValue(monitored);
-                    Assert.That(RequireLifecycleValue(source.Generation)
+                    Assert.That(RequireLifecycleValue(detachedSource.Generation)
                         .TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
                     Assert.That(bound!.Gate.TryEnter(out int _), Is.False);
-                    facade.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
                 }
+                facade.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
             }
             finally
             {

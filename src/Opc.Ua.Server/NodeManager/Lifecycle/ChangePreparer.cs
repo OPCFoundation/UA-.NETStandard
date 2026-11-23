@@ -578,6 +578,29 @@ namespace Opc.Ua.Server
             internal bool IsDetached => Volatile.Read(ref m_isDetached);
 
             /// <summary>
+            /// Binds the candidate's own raw source to its exact forwarded generation.
+            /// </summary>
+            internal void BindForwardedSource(NodeManagerGeneration facade)
+            {
+                IAsyncNodeManager resource = NodeManagerGenerationRegistry.GetIdentity(facade.NodeManager);
+                if (resource is AsyncCustomNodeManager raw &&
+                    ReferenceEquals(raw.Server, this) &&
+                    !NodeManagerGenerationRegistry.HasSameGenerationIdentity(facade.NodeManager, raw))
+                {
+                    Volatile.Write(ref m_forwardedSource, facade.CreateForwardedSourceView(raw));
+                }
+            }
+
+            /// <summary>
+            /// Finds the private source view only for this candidate's exact raw manager.
+            /// </summary>
+            internal NodeManagerGeneration? GetForwardedSource(IAsyncNodeManager manager)
+            {
+                NodeManagerGeneration? source = Volatile.Read(ref m_forwardedSource);
+                return ReferenceEquals(source?.NodeManager, manager) ? source : null;
+            }
+
+            /// <summary>
             /// Gets whether preparation recorded candidate-owned historian bindings that require readiness.
             /// </summary>
             internal bool HasPendingHistorianState => m_historianRegistry?.RequiresReadiness == true;
@@ -1398,6 +1421,9 @@ namespace Opc.Ua.Server
 
             /// <summary>The exact facade associated with this candidate.</summary>
             private IAsyncNodeManager? m_registeredFacade;
+
+            // Retain the identity for late callbacks. Its facade token is weak and the view is not a cleanup owner.
+            private NodeManagerGeneration? m_forwardedSource;
 
             /// <summary>Whether the candidate's metadata is still private.</summary>
             private bool m_isStaging = true;
