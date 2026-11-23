@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA Global Discovery Server (GDS) — Developer Guide
 
 This package implements the OPC UA Global Discovery Server (GDS) as
@@ -514,6 +519,25 @@ does not coordinate multiple processes or guarantee power-loss durability of an
 operating-system cache. Distributed hosts need a transactional
 `IDeviceRegistrarPushWorkStore`.
 
+If a durable enqueue throws, the scheduler reads the store while it still
+holds acceptance. It queues the item only if the store contains exactly one
+record with the generated work identifier, the same application description,
+and state `Pending`. The scheduler logs the write error as a warning when the
+read confirms acceptance. If the read does not confirm acceptance, the
+scheduler rethrows the write error. If the read also throws, the scheduler
+reports both errors in an `AggregateException`.
+
+The read does not use the caller's cancellation token because the write may
+already have accepted the item. The scheduler does not retry the write or
+generate a new work identifier during confirmation.
+
+`Dispose` rejects new work without waiting for an enqueue already in progress.
+The scheduler defers queue closure and worker cancellation until the enqueue
+finishes, including inserting an item whose durable write succeeds or is
+confirmed. Stop and wait for the worker before disposing its borrowed store
+and processor. On restart, the scheduler recovers pending work and reconciles
+interrupted work before processing it again.
+
 For an existing GDS application, the runtime records the device relation before
 refreshing shared application metadata. A conflicting relation therefore cannot
 change another device's registration. The GDS database and lifecycle provider
@@ -978,10 +1002,10 @@ policy. The sample's optional managed-application configuration applies only to
 the explicitly selected application on a non-singleton device.
 
 The processor does not update `ConfigurationFile` contents with
-`CloseAndUpdate` and `ConfirmUpdate`; that Part 12 transaction remains outside
-registrar push, and managed application configuration through it stays
-partial. `GetCertificates` is optional in Part 12, but the processor needs it
-as evidence: a device without it fails the push with the device's status.
+`CloseAndUpdate` and `ConfirmUpdate`. That optional Part 12 transaction is
+separate from Part 21 certificate and trust provisioning. `GetCertificates`
+is optional in Part 12, but the processor needs it as evidence: a device
+without it fails the push with the device's status.
 Even with it, the result shows what the application reports; the separate
 secure-channel check is required to prove the certificate actually presented
 by a managed Server.
@@ -1164,7 +1188,7 @@ processes. Its 16 MiB binary checkpoint limit supplements the standard codec
 quotas. Storage must publish complete values before returning; restart durability
 depends on the chosen store. A distributed provider must implement the
 interface's exclusive receive-and-publish operation across writers.
-Neither persistence adapter alone can recover an accepted response lost before
+The receipt adapter alone cannot recover an accepted response lost before
 local publication.
 
 [Part 12 §7.9.5](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/7.9.5)
@@ -1181,22 +1205,34 @@ Select `PullDcaCertificateRequestMode.NewKeyPairRequest` through
 `CertificateRequestMode`. The default remains `SigningRequest`.
 Register an `IPullDcaNewKeyPairCredentialProvider` before selecting key-pair
 requests; unsupported requests are rejected before connection admission.
-The workflow requests PFX output over the confidential certificate-directory
-path and passes it directly to the host's installer, then clears its returned
-private-key buffer. The installer must validate the key/certificate binding and
-retain the private key in the selected certificate or secret store. It must not
-retain that material in the public signing receipt store.
+The workflow requests PFX output over an encrypted SecureChannel and clears
+its private-key buffer after use. The installer validates that the private
+key matches the issued certificate and retains it in the selected certificate
+or secret store. The public signing receipt store does not hold private keys.
+
+For restart recovery, register the host's `IProtectedPullDcaRecoveryStore`
+with `AddPullDcaKeyPairRecovery`. The workflow checkpoints the received PFX
+before downloading trust or installing credentials. It can reuse a retained
+result without repeating `FinishRequest` and removes the checkpoint only after
+the installer verifies installation. See [Recover pull DCA key-pair
+requests](PullDcaKeyPairRecovery.md) for the store contract and operator reset
+procedure.
 
 `MaximumNewKeyPairRestarts` bounds replacement requests after
 `Bad_InvalidArgument`; the default permits one restart. Key-pair recovery never
-uses `GetCertificates` as a replacement for a lost private key. A process restart
-without retained key-pair output starts a new key-pair request; signing recovery
-instead resumes the original journaled request with its retained key.
+uses `GetCertificates` as a replacement for a lost private key. With a saved
+request ID, the workflow calls `FinishRequest` for that ID. If the registrar
+already accepted `FinishRequest` but the Client lost the response before
+retaining the private key, recovery requires a fresh key-pair request. If
+Start may have succeeded but its request ID is unknown, the protected
+checkpoint prevents automatic redispatch until the host reconciles the
+attempt and resets the checkpoint.
 
-The workflow requests certificates for the original application and group,
-requires exactly one assignment for the original certificate type, downloads a
-complete TrustList, and invokes the provider before retaining or installing
-output. The provider must match the retained registrar/request binding, prove
+For signing recovery, the workflow requests certificates for the original
+application and group, requires exactly one assignment for the original
+certificate type, downloads a complete TrustList, and invokes the provider
+before retaining or installing output. The provider must match the
+retained registrar/request binding, prove
 the original private key, and validate the application URI, certificate validity
 and trust. It must also reject stale assignments: an old certificate with a reused
 public key is not proof that the original request completed. Missing evidence
@@ -1637,20 +1673,28 @@ of interoperability with an FDO Owner.
 
 ### Part 21 requirements and implementation boundaries
 
-Part 21 support remains partial. Durable recovery depends on explicitly
-selected storage and installation providers, and distributed ownership and
-software installation remain host responsibilities. The provisionable-device
-factory composes with the shared Part 22 `Resources` manager through lifecycle
-routing. The optional external-authentication handoff uses the provider boundary
-described above; FDO itself remains external.
-Registrar push uses the configured certificate type by default, and
-the host can select a different advertised type for each managed application.
-The following map uses
-[OPC 10000-21 v1.05.04](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/)
-and separates those implementation gaps from optional Part 12
-`ConfigurationFile` behavior and test execution status. A test that has not run
-reports an unknown validation result; it does not identify an implementation
-gap.
+The SDK provides **Full** support for the Part 21 pull and push onboarding
+workflows (see the [published specification support matrix](Profiles.md#published-specification-support-matrix)).
+The in-memory
+key-pair recovery fixture demonstrates reuse of retained credentials after
+recreating the Session and recovery adapter. Implementers supply protected,
+durable production storage and credential installers. The in-memory fixture
+does not demonstrate process-restart durability or production storage
+protection. Distributed ownership and software installation remain host
+responsibilities. The external-authentication provider supplies the handoff;
+FDO itself remains external.
+
+The provisionable-device factory uses the shared Part 22 `Resources` manager.
+For same-runtime replacement without reinitializing the managed applications,
+see [Replace a provisionable device's node manager](ProvisionableDeviceReplacement.md).
+Registrar push uses the configured certificate type by default. The host can
+select a different advertised type for each managed application.
+
+The following map covers
+[OPC 10000-21 v1.05.04](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/).
+It identifies implementation and regression sources, not certification or
+results for a particular build. Optional Part 12 `ConfigurationFile` limits
+are listed separately.
 
 | Requirement | Implementation | Regression sources and remaining boundary |
 |---|---|---|
@@ -1659,14 +1703,14 @@ gap.
 | §§4.3.6, 7.3: security reset and return to onboarding | `ProvisionableDeviceSecurity`, retained configuration owner, concrete installer and existing `IServerConfigurationResetProvider` path | `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers installed-certificate recovery, factory reset and a replacement registrar; the test's presence does not assert a passing run |
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
-| §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | Signing receipts and retained signing keys; bounded replacement of consumed new-key-pair requests; device pull journal, installation recovery and installed-DCA continuation | `PullDcaWorkflowTests`, `DevicePullSigningRecoveryTests`, `DevicePullReceiptRetryTests`, `DevicePullResetGenerationTests` and `ProvisionableDevicePullInstallationRecoveryTests`; exact-head execution and coverage evidence remain required |
+| §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | Public signing receipts, retained signing keys, protected key-pair checkpoints and bounded replacement of consumed key-pair requests | `PullDcaWorkflowTests`, `DevicePullSigningRecoveryTests`, `DevicePullReceiptRetryTests`, `DevicePullResetGenerationTests`, `ProvisionableDevicePullInstallationRecoveryTests` and `PullRegistrarIntegrationTests.KeyPairRecoveryInstallsRetainedCredentialsOnARecreatedSession` |
 | §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor fixtures cover managed Client, Server and ClientAndServer paths; Server paths require host-authoritative endpoint metadata and two fresh-channel certificate proofs. `ConnectedManagedApplicationRecoveryTests.InterruptedManagedRotationReopensFilesAndResumesOnlyRetainedCertificate` covers process-durable recovery through two live servers, and `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers DCA restart/reset. These fixtures are authored; this map does not assert their execution results. |
 | §7.4: alternate authentication/FDO | Dedicated CA validation and configured product/DCA approval through `IDeviceRegistrarExternalAuthenticationProvider`; typed external pull and registrar push reuse shared registrar/Part 12 lifecycle | `ExternalAuthenticationProviderTests`, `ProvideIdentitiesRuntimeTests`, `PullDcaWorkflowTests`, `DeviceRegistrarPushProcessorTests` and enrollment recovery cases cover the handoff. `PullRegistrarIntegrationTests.ExternalHandoffOnLiveChannelRequiresDeviceApprovalBeforePart12Issuance` exercises the provider boundary on real channels with software approval gating. FDO protocols and credential installation remain external; no FDO interoperability result is asserted |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |
 | §§6.4, 9.2.11-9.2.12: accepted ticket retention across restart | `FileSystemTicketStore`, `AddFileSystemOnboardingTicketStore` | `FileSystemTicketStoreTests`; one instance owns the path, and remote execution remains required |
-| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, lifecycle override routing, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceResourcesIntegrationTests` covers connected composition in both registration orders; routing/lifecycle fixtures cover removal, recreation and reference snapshots. `ManagedApplicationPushTests` exercises device configuration-file recovery and authorization. Execution results remain separate from this source map. |
+| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime`, `ProvisionableDeviceNodeManagerFactory`, lifecycle override routing, `AddProvisionableDeviceApplications` and generated node bindings | `ProvisionableDeviceResourcesIntegrationTests` covers connected composition, same-runtime replacement and remove/re-add across pinned retirement. |
 
 [Section 8.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/8.1)
 permits vendor-specific unprotected metadata, including an RFC 3161
@@ -1764,8 +1808,7 @@ Every pluggable interface and its purpose:
 | Interface | Purpose | Default |
 |-----------|---------|---------|
 | `IApplicationsDatabase` | Application registration store | `LinqApplicationsDatabase` / `JsonApplicationsDatabase` |
-| `ICertificateRequest` | Certificate request lifecycle | `LinqApplicationsDatabase` |
-| `IClientCertificateBoundCertificateRequestStore` | Certificate requests bound to the initiating SecureChannel client certificate | `LinqApplicationsDatabase` / `JsonApplicationsDatabase` |
+| `ICertificateRequest` | Certificate request lifecycle. GDS certificate handlers require the [client-certificate binding contract](#certificate-management--pull-model-79). | `LinqApplicationsDatabase` / `JsonApplicationsDatabase` |
 | `ICertificateRequestIssuanceStore` | Material retained before onboarding request acceptance | Explicit provider required for onboarding |
 | `ICertificateGroup` | CA operations (sign, revoke) | `CertificateGroup` |
 | `IGdsUserDatabase` | User store + ApplicationAdmin bindings | Implement over `LinqUserDatabase` |
@@ -1774,19 +1817,6 @@ Every pluggable interface and its purpose:
 | `IAccessTokenProvider` | Token issuance (AuthorizationService) | `null` (Bad_NotSupported) |
 | `IConfigurationDataStore` | ManagedApplications config persistence | `InMemoryConfigurationDataStore` |
 | `IManagedApplicationsNodeManager` | ManagedApplications folder | `StubManagedApplicationsNodeManager` |
-
-GDS certificate handlers require `IClientCertificateBoundCertificateRequestStore`
-in addition to `ICertificateRequest`. The bound-store contract records the SHA-256
-fingerprint of the SecureChannel client certificate with each request and checks
-that fingerprint in `FinishRequest`. The SecureChannel may differ between the
-start and finish calls; the client certificate must match. `JsonApplicationsDatabase`
-persists the fingerprint with the request record. A custom store must persist the
-fingerprint in the same transaction as the request and reject a mismatch with
-`Bad_UserAccessDenied`. `AddCertificateRequest<T>` registers the bound-store
-service when `T` implements the interface, and direct construction uses the
-request store when it supports the contract. A store that implements only
-`ICertificateRequest` remains source-compatible but cannot serve these handlers;
-the GDS rejects certificate request operations rather than bypassing the binding.
 
 ---
 
@@ -2197,9 +2227,9 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 
 | Section | Feature | Status | Source | Tests |
 |---------|---------|--------|--------|-------|
-| §7.9.3 | StartSigningRequest | ✅ | `OnStartSigningRequestAsync` + CSR key / CertificateType check + bound client-certificate fingerprint + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupSigningRequestTests.cs`, `ClientTest.cs` |
-| §7.9.4 | StartNewKeyPairRequest | ✅ | `OnStartNewKeyPairRequest` + bound client-certificate fingerprint + audit | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
-| §7.9.5 | FinishRequest | ✅ | `OnFinishRequestAsync` + initiating client-certificate fingerprint check + issuer chain | `ApplicationsNodeManagerOnboardingTests.FinishRequest*`, `LinqApplicationsDatabaseTests.BoundCertificateRequest*`, `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
+| §7.9.3 | StartSigningRequest | ✅ | `OnStartSigningRequestAsync` + CSR key / CertificateType check + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupSigningRequestTests.cs`, `ClientTest.cs` |
+| §7.9.4 | StartNewKeyPairRequest | ✅ | `OnStartNewKeyPairRequest` + audit | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
+| §7.9.5 | FinishRequest | ✅ | `OnFinishRequestAsync` + client-certificate binding + issuer chain | `ApplicationsNodeManagerOnboardingTests.FinishRequest*`, `LinqApplicationsDatabaseTests.BoundCertificateRequest*`, `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
 | §7.9.6 | RevokeCertificate | ✅ | `OnRevokeCertificateAsync` + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupTests.cs` |
 | §7.9.7 | GetCertificateGroups | ✅ | `OnGetCertificateGroups` | `ClientTest.cs`, `CustomCertificateGroupIntegrationTest.cs` |
 | §7.9.8 | GetCertificates | ✅ | `OnGetCertificates` | `GdsCertificateManagementTests.cs` |
@@ -2207,13 +2237,20 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 | §7.9.10 | GetCertificateStatus | ✅ | `OnGetCertificateStatus` | `ClientTest.cs` |
 | §7.9.11 | CheckRevocationStatus | ✅ | `OnCheckRevocationStatusAsync` + ValidityTime | `GdsCertificateManagementTests.cs` |
 
-`StartSigningRequest` and `StartNewKeyPairRequest` bind each request to the
+`StartSigningRequest` and `StartNewKeyPairRequest` bind the request to the
 SHA-256 fingerprint of the SecureChannel client certificate. `FinishRequest`
-compares the current SecureChannel certificate with that stored fingerprint and
-returns `Bad_UserAccessDenied` when they differ. The binding is independent of
-the SessionId, so a client can finish the request on another Session when it
-presents the same certificate. A durable request store retains the fingerprint
-across restart.
+returns `Bad_UserAccessDenied` if the certificate differs. The Client can
+finish on a different Session or SecureChannel if it presents the same
+certificate.
+
+GDS certificate handlers require `IClientCertificateBoundCertificateRequestStore`.
+A custom store persists the fingerprint with the request in the same
+transaction and rejects a mismatch. `JsonApplicationsDatabase` retains the
+binding across restart. `AddCertificateRequest<T>` registers the bound-store
+service when `T` implements the interface. Direct construction uses the
+supplied request store if it implements the interface. A store that implements
+only `ICertificateRequest` remains source-compatible, but the GDS rejects
+certificate requests rather than bypassing the binding.
 
 `CheckRevocationStatus` uses locally configured issuer chains and verified local
 CRLs. Caller-supplied AIA URLs do not trigger certificate or CRL downloads.
@@ -2401,7 +2438,10 @@ conformance units separately.
 | `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | 🔲 provider-gated | Runtime-backed entries bind independent certificate and trust management plus an optional per-application `ConfigurationFile` provider with update, confirmation and restart recovery. `UpdateApplicationConfigurationFileAsync` selects the same application after reconnecting. Metadata-only `IConfigurationDataStore` entries have no push handlers. The shared ConfigurationFile transfer and open-handle limitations above apply to application files too |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
-| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing and new-key-pair pull, ticket-scoped trust, composite-aware selection and registrar runtime bindings are implemented. Durable push work records survive restart and require reconciliation before interrupted processing resumes. Device security, pull journals and certificate stores coordinate installation, installed-DCA continuation and reset for one host. Distributed coordination and software installation remain external. Exact-head recovery and interoperability execution results are not asserted here. |
+
+For Part 21 onboarding and reset with `ResetToServerDefaults` and
+`InApplicationSetup` (§7.10.13, Annex G), see
+[Part 21 requirements and implementation boundaries](#part-21-requirements-and-implementation-boundaries).
 
 ## LDS / LDS-ME (§4–5)
 
