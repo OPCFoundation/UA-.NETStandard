@@ -76,8 +76,10 @@ namespace Opc.Ua.Server
         /// <c>AuthenticatedUser</c> role and the other well-known user roles
         /// keep every permission. A session that holds none of these roles,
         /// for example an anonymous user of a trusted application, is denied.
+        /// Every access returns new entries, so changing the permissions of one server does not
+        /// change another.
         /// </summary>
-        public static ArrayOf<RolePermissionType> AnonymousReadOnly { get; } =
+        public static ArrayOf<RolePermissionType> AnonymousReadOnly =>
         [
             Create(ObjectIds.WellKnownRole_Anonymous, ReadOnly),
             Create(ObjectIds.WellKnownRole_AuthenticatedUser, All),

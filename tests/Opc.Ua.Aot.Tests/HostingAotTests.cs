@@ -60,6 +60,8 @@ namespace Opc.Ua.Aot.Tests
                     o.ApplicationName = expectedName;
                     o.ApplicationUri = expectedUri;
                     o.AutoAcceptUntrustedCertificates = true;
+                    // The tests drive the server through anonymous sessions.
+                    o.AnonymousAccess = AnonymousAccess.Unrestricted;
                 });
 
             using ServiceProvider sp = services.BuildServiceProvider();
@@ -148,6 +150,8 @@ namespace Opc.Ua.Aot.Tests
                 {
                     o.ApplicationName = serverName;
                     o.AutoAcceptUntrustedCertificates = true;
+                    // The tests drive the server through anonymous sessions.
+                    o.AnonymousAccess = AnonymousAccess.Unrestricted;
                 })
                 .Services.AddOpcUa()
                 .AddClient(o => o.Configuration = clientConfiguration);
@@ -198,6 +202,8 @@ namespace Opc.Ua.Aot.Tests
                 {
                     o.ApplicationName = "AotRuntimeNodeSetServer";
                     o.AutoAcceptUntrustedCertificates = true;
+                    // The tests drive the server through anonymous sessions.
+                    o.AnonymousAccess = AnonymousAccess.Unrestricted;
                 })
                 .AddRuntimeNodeSet(options => options.Sources =
                     [
@@ -662,6 +668,8 @@ namespace Opc.Ua.Aot.Tests
                     options.PkiRoot = m_root;
                     options.IncludeSignAndEncryptPolicies = false;
                     options.IncludeUnsecurePolicyNone = true;
+                    // The tests drive the server through anonymous sessions.
+                    options.AnonymousAccess = AnonymousAccess.Unrestricted;
                     options.AutoAcceptUntrustedCertificates = true;
                     options.EndpointUrls.Add("opc.tcp://localhost:0/AotComposedServer");
                     options.ConfigureBuilder = configuration =>

@@ -38,6 +38,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
@@ -122,6 +123,143 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Assert.That(unrestricted.NamespaceDefaultRolePermissions.IsEmpty, Is.True);
                 // a default the server factory supplied is kept.
                 Assert.That(custom.NamespaceDefaultRolePermissions.Count, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void AnonymousReadOnlyReturnsNewEntriesOnEveryAccess()
+        {
+            ArrayOf<RolePermissionType> first = ServerDefaultRolePermissions.AnonymousReadOnly;
+            first[0].Permissions = (uint)ServerDefaultRolePermissions.All;
+
+            ArrayOf<RolePermissionType> second = ServerDefaultRolePermissions.AnonymousReadOnly;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(second[0], Is.Not.SameAs(first[0]));
+                Assert.That(second[0].RoleId, Is.EqualTo(ObjectIds.WellKnownRole_Anonymous));
+                Assert.That(
+                    (PermissionType)second[0].Permissions,
+                    Is.EqualTo(ServerDefaultRolePermissions.ReadOnly));
+            });
+        }
+
+        /// <summary>
+        /// The server default is applied where the metadata of any node manager is validated, so
+        /// a manager that fills in no namespace defaults is covered as well.
+        /// </summary>
+        [Test]
+        public void MetadataWithoutPermissionsTakesTheServerDefault()
+        {
+            IServerInternal server = CreateServer(ServerDefaultRolePermissions.AnonymousReadOnly);
+            var metadata = new NodeMetadata(null!, new NodeId(42u, 2));
+            using OperationContext anonymous = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+            using OperationContext user = CreateContext(
+                ObjectIds.WellKnownRole_Anonymous,
+                ObjectIds.WellKnownRole_AuthenticatedUser);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Validate(server, anonymous, metadata, PermissionType.Read),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    Validate(server, anonymous, metadata, PermissionType.Browse),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    Validate(server, anonymous, metadata, PermissionType.Write),
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(
+                    Validate(server, anonymous, metadata, PermissionType.Call),
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(
+                    Validate(server, anonymous, metadata, PermissionType.AddNode),
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(
+                    Validate(server, user, metadata, PermissionType.Write),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    Validate(server, user, metadata, PermissionType.Call),
+                    Is.EqualTo(StatusCodes.Good));
+            });
+        }
+
+        [Test]
+        public void ServerDefaultDoesNotApplyToNamespaceZeroOrWithoutAServerDefault()
+        {
+            IServerInternal restricted = CreateServer(ServerDefaultRolePermissions.AnonymousReadOnly);
+            IServerInternal unrestricted = CreateServer(ServerDefaultRolePermissions.Unrestricted);
+            using OperationContext anonymous = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Validate(restricted, anonymous, new NodeMetadata(null!, new NodeId(42u)), PermissionType.Write),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    Validate(unrestricted, anonymous, new NodeMetadata(null!, new NodeId(42u, 2)), PermissionType.Write),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    Validate(null, anonymous, new NodeMetadata(null!, new NodeId(42u, 2)), PermissionType.Write),
+                    Is.EqualTo(StatusCodes.Good));
+            });
+        }
+
+        /// <summary>
+        /// A grant to a custom role, on the node or on its namespace, is not replaced by the
+        /// server default, which only lists the well-known roles.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ExplicitGrantToACustomRoleIsKept(bool onNamespace, bool userRolePermissions)
+        {
+            IServerInternal server = CreateServer(ServerDefaultRolePermissions.AnonymousReadOnly);
+            var customRole = new NodeId(7001u, 2);
+            ArrayOf<RolePermissionType> grant =
+            [
+                new RolePermissionType
+                {
+                    RoleId = customRole,
+                    Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write)
+                }
+            ];
+            var metadata = new NodeMetadata(null!, new NodeId(42u, 2));
+            if (onNamespace && userRolePermissions)
+            {
+                metadata.DefaultUserRolePermissions = grant;
+            }
+            else if (onNamespace)
+            {
+                metadata.DefaultRolePermissions = grant;
+            }
+            else if (userRolePermissions)
+            {
+                metadata.UserRolePermissions = grant;
+            }
+            else
+            {
+                metadata.RolePermissions = grant;
+            }
+            using OperationContext custom = CreateContext(customRole);
+            using OperationContext anonymous = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Validate(server, custom, metadata, PermissionType.Read),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    Validate(server, custom, metadata, PermissionType.Write),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    Validate(server, custom, metadata, PermissionType.Call),
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                // the explicit grant replaces the server default for everyone.
+                Assert.That(
+                    Validate(server, anonymous, metadata, PermissionType.Read),
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
             });
         }
 
@@ -352,6 +490,31 @@ namespace Opc.Ua.Server.Tests.Hosting
                     // best effort cleanup of the temporary certificate stores.
                 }
             }
+        }
+
+        private static IServerInternal CreateServer(ArrayOf<RolePermissionType> defaults)
+        {
+            var server = new Mock<IServerInternal>();
+            server.As<IServerNamespaceDefaultPermissionsProvider>()
+                .Setup(p => p.NamespaceDefaultRolePermissions)
+                .Returns(defaults);
+            return server.Object;
+        }
+
+        private static OperationContext CreateContext(params NodeId[] roles)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(x => x.GrantedRoleIds).Returns(new ArrayOf<NodeId>(roles));
+            return new OperationContext(new RequestHeader(), null, RequestType.Write, null!, identity.Object);
+        }
+
+        private static StatusCode Validate(
+            IServerInternal? server,
+            OperationContext context,
+            NodeMetadata metadata,
+            PermissionType permission)
+        {
+            return MasterNodeManager.ValidateRolePermissions(server, context, metadata, permission).StatusCode;
         }
 
         private static OpcUaServerOptions Bind(IDictionary<string, string?> values)

@@ -278,7 +278,7 @@ namespace Opc.Ua.Server
                 return error.Result;
             }
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(
-                operationContext, metadata, requiredPermission);
+                Server, operationContext, metadata, requiredPermission);
             return ServiceResult.IsBad(result)
                 ? result
                 : MasterNodeManager.ValidateAccessRestrictions(operationContext, metadata, requiredPermission);
@@ -5914,6 +5914,7 @@ namespace Opc.Ua.Server
                 BrowseResultMask.All);
 
             return MasterNodeManager.ValidateRolePermissions(
+                Server,
                 operationContext,
                 nodeMetadata!,
                 requestedPermission);
@@ -5943,7 +5944,7 @@ namespace Opc.Ua.Server
             }
             PermissionType permission = MonitoredReadAuthorization.PermissionFor(attributeId);
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(
-                context.OperationContext!, metadata, permission);
+                Server, context.OperationContext!, metadata, permission);
             return ServiceResult.IsBad(result)
                 ? result
                 : MasterNodeManager.ValidateAccessRestrictions(context.OperationContext!, metadata, permission);

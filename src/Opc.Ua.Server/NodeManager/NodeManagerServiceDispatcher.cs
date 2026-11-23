@@ -2975,6 +2975,7 @@ namespace Opc.Ua.Server
                     }
 
                     errors[ii] = MasterNodeManager.ValidateRolePermissions(
+                        Server,
                         context,
                         nodeMetadata,
                         PermissionType.ReceiveEvents,
@@ -5048,6 +5049,7 @@ namespace Opc.Ua.Server
             PermissionType requestedPermission)
         {
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(
+                Server,
                 context,
                 nodeMetadata,
                 requestedPermission,

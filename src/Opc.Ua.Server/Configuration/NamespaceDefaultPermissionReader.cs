@@ -130,8 +130,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NamespaceDefaultPermissions result = Decode(
-                callerContext, state, namespaceIndex, generation, GetServerDefault(server));
+            NamespaceDefaultPermissions result = Decode(callerContext, state, namespaceIndex, generation);
             operationContext?.SetDefaultPermissions(result);
             return result;
         }
@@ -186,8 +185,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NamespaceDefaultPermissions result = Decode(
-                callerContext, state, namespaceIndex, generation, GetServerDefault(server));
+            NamespaceDefaultPermissions result = Decode(callerContext, state, namespaceIndex, generation);
             operationContext?.SetDefaultPermissions(result);
             return result;
         }
@@ -206,7 +204,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(callerContext));
             }
 
-            return Decode(callerContext, NamespaceMetadataNode.From(state), namespaceIndex, Generation, default);
+            return Decode(callerContext, NamespaceMetadataNode.From(state), namespaceIndex, Generation);
         }
 
         /// <summary>
@@ -216,24 +214,12 @@ namespace Opc.Ua.Server
             ServerSystemContext callerContext,
             NamespaceMetadataNode? state,
             ushort namespaceIndex,
-            long generation,
-            ArrayOf<RolePermissionType> serverDefault)
+            long generation)
         {
             if (state == null)
             {
-                return UseServerDefault(namespaceIndex, serverDefault)
-                    ? new NamespaceDefaultPermissions(
-                        namespaceIndex,
-                        AccessRestrictionType.None,
-                        serverDefault,
-                        default,
-                        generation,
-                        StatusCodes.Good,
-                        false,
-                        true,
-                        false)
-                    : new NamespaceDefaultPermissions(
-                        namespaceIndex, AccessRestrictionType.None, default, default, generation);
+                return new NamespaceDefaultPermissions(
+                    namespaceIndex, AccessRestrictionType.None, default, default, generation);
             }
 
             if (state.IsIncomplete)
@@ -279,14 +265,6 @@ namespace Opc.Ua.Server
                 return Failed(namespaceIndex, status, generation);
             }
 
-            if (roles.IsEmpty && UseServerDefault(namespaceIndex, serverDefault))
-            {
-                // the namespace grants no role anything by default, whether the property is absent
-                // or empty (as on the metadata the server creates): the server default applies.
-                hasRoles = true;
-                roles = serverDefault;
-            }
-
             return new NamespaceDefaultPermissions(
                 namespaceIndex,
                 restrictions,
@@ -297,24 +275,6 @@ namespace Opc.Ua.Server
                 hasRestrictions,
                 hasRoles,
                 hasUserRoles);
-        }
-
-        /// <summary>
-        /// The role permissions the server applies to namespaces without DefaultRolePermissions.
-        /// </summary>
-        private static ArrayOf<RolePermissionType> GetServerDefault(IServerInternal server)
-        {
-            return server is IServerNamespaceDefaultPermissionsProvider provider
-                ? provider.NamespaceDefaultRolePermissions
-                : default;
-        }
-
-        /// <summary>
-        /// Namespace 0 carries its permissions on the nodes and never takes the server default.
-        /// </summary>
-        private static bool UseServerDefault(ushort namespaceIndex, ArrayOf<RolePermissionType> serverDefault)
-        {
-            return namespaceIndex != 0 && !serverDefault.IsEmpty;
         }
 
         /// <summary>
