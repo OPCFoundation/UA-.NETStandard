@@ -220,6 +220,142 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Returns whether <paramref name="c"/> ends a line in C# source: CR,
+        /// LF, NEL (U+0085), LINE SEPARATOR (U+2028) or PARAGRAPH SEPARATOR
+        /// (U+2029).
+        /// </summary>
+        public static bool IsCSharpLineTerminator(char c)
+        {
+            return c is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029';
+        }
+
+        /// <summary>
+        /// Makes model text safe to place on a single comment line of
+        /// generated code: every C# line terminator is replaced with a space,
+        /// so the text cannot end the comment and continue as code.
+        /// </summary>
+        public static string AsSingleLineCommentText(this string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value ?? string.Empty;
+            }
+            StringBuilder? builder = null;
+            for (int ii = 0; ii < value!.Length; ii++)
+            {
+                if (IsCSharpLineTerminator(value[ii]))
+                {
+                    builder ??= new StringBuilder(value);
+                    builder[ii] = ' ';
+                }
+            }
+            return builder?.ToString() ?? value;
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="name"/> can be emitted as a single
+        /// C# identifier: a letter or underscore followed by letters, digits
+        /// or underscores. Model names (SymbolicName, SymbolicId, ClassName,
+        /// namespace Name) are emitted verbatim in identifier positions, so
+        /// anything else would either break the generated code or inject
+        /// arbitrary code into it.
+        /// </summary>
+        public static bool IsCodeSafeIdentifier([NotNullWhen(true)] this string? name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
+            if (!char.IsLetter(name![0]) && name[0] != '_')
+            {
+                return false;
+            }
+            for (int ii = 1; ii < name.Length; ii++)
+            {
+                char c = name[ii];
+                if (!char.IsLetterOrDigit(c) && c != '_')
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="name"/> is a dotted sequence of
+        /// identifiers (see <see cref="IsCodeSafeIdentifier(string?)"/>) that
+        /// can be emitted as a C# namespace name.
+        /// </summary>
+        public static bool IsCodeSafeNamespace([NotNullWhen(true)] this string? name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
+            foreach (string segment in name!.Split('.'))
+            {
+                if (!segment.IsCodeSafeIdentifier())
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Turns a name derived from model data (e.g. a model URI) into an
+        /// identifier, or a dot separated sequence of identifiers when
+        /// <paramref name="dotted"/> is set. A name that already is one is
+        /// returned unchanged; otherwise every other character becomes an
+        /// underscore and a segment that starts with a digit gets a leading
+        /// underscore.
+        /// </summary>
+        public static string ToCodeSafeName(this string? name, bool dotted)
+        {
+            if (string.IsNullOrEmpty(name) ||
+                (dotted ? name.IsCodeSafeNamespace() : name.IsCodeSafeIdentifier()))
+            {
+                return name ?? string.Empty;
+            }
+
+            var segments = new List<string>();
+            foreach (string segment in dotted ? name!.Split('.') : [name!])
+            {
+                if (segment.Length == 0)
+                {
+                    continue;
+                }
+                var builder = new StringBuilder(segment.Length + 1);
+                foreach (char c in segment)
+                {
+                    builder.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
+                }
+                if (!char.IsLetter(builder[0]) && builder[0] != '_')
+                {
+                    builder.Insert(0, '_');
+                }
+                segments.Add(builder.ToString());
+            }
+            return segments.Count == 0 ? "_" : string.Join(".", segments);
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="name"/> is a type name that can be
+        /// emitted verbatim: an optional <c>global::</c> alias followed by a
+        /// dotted sequence of identifiers (the built-in model names its CLR
+        /// types this way, e.g. <c>global::Opc.Ua.IEncodeable</c>).
+        /// </summary>
+        public static bool IsCodeSafeTypeName([NotNullWhen(true)] this string? name)
+        {
+            const string kGlobalAlias = "global::";
+            if (name != null && name.StartsWith(kGlobalAlias, StringComparison.Ordinal))
+            {
+                name = name.Substring(kGlobalAlias.Length);
+            }
+            return name.IsCodeSafeNamespace();
+        }
+
+        /// <summary>
         /// Wrap the string as a string literal for generated code.
         /// </summary>
         /// <param name="value"></param>
