@@ -127,8 +127,14 @@ The command resolves model targets across all successfully converted input
 files before it writes links. It uses each target's final WoT `id`, including
 an authored ID. References through `links`, `tm:ref`, and schema `$ref`
 use registry URLs when they identify an exported Thing Model. JSON Pointer
-fragments are preserved. Resolved `ua:HasSupertype` links use `tm:extends`;
-other link relations are preserved.
+fragments are preserved, including when a native string NodeId contains `#`.
+References in `patternProperties` schema maps also use registry URLs.
+Resolved `ua:HasSupertype` links use `tm:extends`; other link relations are
+preserved.
+
+Fallback Thing Models for view-only or standalone-method NodeSets also
+receive registry identities and namespace versions. Their native view or
+method is preserved.
 
 The first conversion pass retains only model identity and version metadata.
 It disposes each source's generated documents before it converts the next

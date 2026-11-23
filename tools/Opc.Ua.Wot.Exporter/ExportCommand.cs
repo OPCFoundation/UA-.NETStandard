@@ -370,7 +370,7 @@ namespace Opc.Ua.Wot.Exporter
         private static Dictionary<ExpandedNodeId, string> CreateModelIds(
             UANodeSet nodeSet, CancellationToken cancellationToken)
         {
-            var nodes = new List<(UANode Node, ExpandedNodeId Identity, string Id)>();
+            var nodes = new List<(ExpandedNodeId Identity, string Id)>();
             var counts = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (UANode node in nodeSet.Items ?? [])
             {
@@ -401,14 +401,14 @@ namespace Opc.Ua.Wot.Exporter
                         : "urn:" + Uri.EscapeDataString(namespaceUri);
                 }
                 string id = prefix + "." + Uri.EscapeDataString(name);
-                nodes.Add((node, new ExpandedNodeId(nativeId.WithNamespaceIndex(0), namespaceUri), id));
+                nodes.Add((new ExpandedNodeId(nativeId.WithNamespaceIndex(0), namespaceUri), id));
                 counts.TryGetValue(id, out int count);
                 counts[id] = count + 1;
             }
             var used = new HashSet<string>(counts.Keys, StringComparer.Ordinal);
             var ordinals = new Dictionary<string, int>(StringComparer.Ordinal);
             var result = new Dictionary<ExpandedNodeId, string>();
-            foreach ((UANode node, ExpandedNodeId identity, string baseId) in nodes)
+            foreach ((ExpandedNodeId identity, string baseId) in nodes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string id = baseId;
@@ -423,10 +423,7 @@ namespace Opc.Ua.Wot.Exporter
                     while (!used.Add(id));
                     ordinals[baseId] = ordinal;
                 }
-                if (node is UAType)
-                {
-                    result.Add(identity, id);
-                }
+                result.Add(identity, id);
             }
             return result;
         }

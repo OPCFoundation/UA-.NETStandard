@@ -47,8 +47,13 @@ namespace Opc.Ua.Wot.Exporter.Tests
                         "reading": {
                           "tm:ref": "target.TM.json#/properties/reading",
                           "{{{{schemaChild}}}}": {"$ref": "target.TM.json#/schemaDefinitions/reading"},
+                          "patternProperties": {"^sensor": {"$ref": "target.TM.json#/data"}},
                           "forms": [{"href": "target.TM.json"}],
-                          "const": {"tm:ref": "target.TM.json", "links": [{"href": "target.TM.json"}]}
+                          "const": {
+                            "tm:ref": "target.TM.json",
+                            "links": [{"href": "target.TM.json"}],
+                            "patternProperties": {"^sensor": {"$ref": "target.TM.json#/data"}}
+                          }
                         }
                       },
                       "actions": {"read": {"input": {"$ref": "nsu=urn:export:target;i=2#/data"}}},
@@ -113,10 +118,14 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(property.GetProperty("tm:ref").GetString(), Is.EqualTo(href + "#/properties/reading"));
             Assert.That(property.GetProperty(schemaChild).GetProperty("$ref").GetString(),
                 Is.EqualTo(href + "#/schemaDefinitions/reading"));
+            Assert.That(property.GetProperty("patternProperties").GetProperty("^sensor").GetProperty("$ref").GetString(),
+                Is.EqualTo(href + "#/data"));
             Assert.That(property.GetProperty("forms")[0].GetProperty("href").GetString(), Is.EqualTo("target.TM.json"));
             Assert.That(property.GetProperty("const").GetProperty("tm:ref").GetString(), Is.EqualTo("target.TM.json"));
             Assert.That(property.GetProperty("const").GetProperty("links")[0].GetProperty("href").GetString(),
                 Is.EqualTo("target.TM.json"));
+            Assert.That(property.GetProperty("const").GetProperty("patternProperties").GetProperty("^sensor")
+                .GetProperty("$ref").GetString(), Is.EqualTo("target.TM.json#/data"));
             Assert.That(root.GetProperty("actions").GetProperty("read").GetProperty("input")
                 .GetProperty("$ref").GetString(), Is.EqualTo(href + "#/data"));
             Assert.That(root.GetProperty("events").GetProperty("changed").GetProperty("uav:eventSelectClauses")[0]
@@ -134,6 +143,50 @@ namespace Opc.Ua.Wot.Exporter.Tests
             using var instance = JsonDocument.Parse(output[2]);
             Assert.That(instance.RootElement.GetProperty("id").GetString(), Is.EqualTo("urn:instance"));
             Assert.That(instance.RootElement.GetProperty("links")[0].GetProperty("href").GetString(), Is.EqualTo(href));
+        }
+
+        /// <summary>
+        /// Preserves hashes inside native string identities and any appended reference fragment.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("#/schemaDefinitions/reading")]
+        [TestCase("#/schemaDefinitions/reading#part")]
+        public void NativeStringIdsPreserveEmbeddedHashesAndFragments(string fragment)
+        {
+            using var documents = new WotDocumentSet("source.json", [
+                new WotDocumentSetEntry("source.json", Parse(
+                    /*lang=json,strict*/
+                    $$$$"""
+                    {
+                      "links": [{"rel": "type", "href": "nsu=urn:export:target;s=Type#2{{{{fragment}}}}"}]
+                    }
+                    """)),
+                new WotDocumentSetEntry("target.TM.json", Parse(
+                    /*lang=json,strict*/
+                    """
+                    {
+                      "@type": ["tm:ThingModel"],
+                      "id": "urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType",
+                      "uav:id": "nsu=urn:export:target;s=Type#2"
+                    }
+                    """))
+            ]);
+            var references = new RegistryModelReferences("https://registry.test", "opcua");
+            references.Add(new UANodeSet
+            {
+                Models = [new ModelTableEntry { ModelUri = "urn:export:target", Version = "42" }]
+            }, documents, new Dictionary<ExpandedNodeId, string>
+            {
+                [ExpandedNodeId.Parse("nsu=urn:export:target;s=Type#2")] = "urn:fallback"
+            });
+
+            ArrayOf<ReadOnlyMemory<byte>> output = references.Write(documents, CancellationToken.None);
+
+            using var source = JsonDocument.Parse(output[0]);
+            Assert.That(source.RootElement.GetProperty("links")[0].GetProperty("href").GetString(),
+                Is.EqualTo("https://registry.test/thingmodelgroups/opcua/thingmodels/" +
+                    "aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26/versions/42" +
+                    fragment));
         }
 
         /// <summary>

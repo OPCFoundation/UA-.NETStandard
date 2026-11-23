@@ -173,7 +173,7 @@ namespace Opc.Ua.Wot.Exporter
                     writer.WriteStringValue(href);
                 }
                 else if (property.Name is "properties" or "actions" or "events" or "schemaDefinitions" or
-                    "uriVariables" or "$defs" or "definitions" &&
+                    "uriVariables" or "$defs" or "definitions" or "patternProperties" &&
                     property.Value.ValueKind == JsonValueKind.Object)
                 {
                     writer.WriteStartObject();
@@ -252,11 +252,15 @@ namespace Opc.Ua.Wot.Exporter
         {
             string fragment = string.Empty;
             Model? model = FindTarget(reference, aliases);
-            int separator = reference.IndexOf('#', StringComparison.Ordinal);
-            if (model is null && separator >= 0)
+            int separator = reference.Length;
+            while (model is null && separator > 0)
             {
-                model = FindTarget(reference[..separator], aliases);
-                fragment = reference[separator..];
+                separator = reference.LastIndexOf('#', separator - 1);
+                if (separator >= 0)
+                {
+                    model = FindTarget(reference[..separator], aliases);
+                    fragment = reference[separator..];
+                }
             }
             if (model is null)
             {

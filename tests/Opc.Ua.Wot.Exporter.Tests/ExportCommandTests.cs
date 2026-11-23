@@ -587,6 +587,43 @@ namespace Opc.Ua.Wot.Exporter.Tests
         }
 
         /// <summary>
+        /// Registers fallback model roots without discarding the native view or method.
+        /// </summary>
+        [TestCase("UAView")]
+        [TestCase("UAMethod")]
+        public async Task FallbackRootModelsAreExportedAsync(string nodeClass)
+        {
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            string xml = $$"""
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>urn:export:test</Uri></NamespaceUris>
+              <Models><Model ModelUri="urn:export:test" Version="1.0" /></Models>
+              <{{nodeClass}} NodeId="ns=1;i=1" BrowseName="1:Standalone">
+                <DisplayName>Standalone</DisplayName>
+              </{{nodeClass}}>
+            </UANodeSet>
+            """;
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            using var documents = new WotDocumentSet("model.TM.json", [
+                new WotDocumentSetEntry("model.TM.json", WotDocument.Parse(await File.ReadAllBytesAsync(
+                    Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json")).ConfigureAwait(false)))
+            ]);
+            JsonElement root = documents.Entries[0].Document.RootElement;
+            Assert.That(root.GetProperty("id").GetString(), Is.EqualTo("urn:export:test.Standalone"));
+            Assert.That(root.GetProperty("version").GetProperty("model").GetString(), Is.EqualTo("1.0"));
+            Assert.That(root.GetProperty("uav:id").GetString(), Is.EqualTo("nsu=urn:export:test;i=1"));
+            WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetAsync(documents)
+                .ConfigureAwait(false);
+            Assert.That(restored.Success, Is.True,
+                string.Join(Environment.NewLine, restored.Diagnostics.Select(diagnostic => diagnostic.ToString())));
+            Assert.That(restored.Value!.Items, Has.Length.EqualTo(1));
+            Assert.That(restored.Value.Items![0].GetType().Name, Is.EqualTo(nodeClass));
+        }
+
+        /// <summary>
         /// Disambiguates duplicate native names in source order, including instance names.
         /// </summary>
         [Test]
