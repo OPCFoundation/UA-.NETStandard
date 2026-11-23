@@ -80,17 +80,21 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public ICertificateValidatorEx? PeerCertificateValidator { get; set; }
 
         /// <summary>
-        /// Requests DTLS 1.3 mutual authentication. When <see langword="false"/> (the default) the
-        /// transport uses the one-way authentication model in which only the server presents a
-        /// certificate; for Part 14 PubSub the publisher is normally authenticated at the message
-        /// layer through SKS-managed security keys, so client certificates are not required at the
-        /// DTLS layer. When <see langword="true"/> the server includes a CertificateRequest in its
-        /// flight, the client answers with its Certificate and CertificateVerify, and the server
-        /// validates the client chain through the same fail-closed certificate validator used for the
-        /// server certificate. Enabling mutual authentication requires a configured peer certificate
-        /// validator on the server and a local certificate on the client; otherwise the handshake
-        /// fails closed.
+        /// Requires DTLS 1.3 mutual authentication. When <see langword="true"/> (the default) the
+        /// server includes a CertificateRequest in its flight, the client answers with its
+        /// Certificate and CertificateVerify, and the server validates the client chain through the
+        /// same fail-closed certificate validator used for the server certificate. Mutual
+        /// authentication requires a configured peer certificate validator on the server and a local
+        /// certificate on the client; otherwise the handshake fails closed.
         /// </summary>
-        public bool RequireClientCertificate { get; set; }
+        /// <remarks>
+        /// The DTLS server (the subscriber) accepts a single association and pins the peer that
+        /// completes the handshake. Without client authentication any host that can reach the port
+        /// first becomes that peer, locks the real publisher out and, on a connection with writers,
+        /// receives its data. Set this to <see langword="false"/> only when the publisher is
+        /// authenticated by other means (for example SKS-managed message security) and the network
+        /// is trusted.
+        /// </remarks>
+        public bool RequireClientCertificate { get; set; } = true;
     }
 }

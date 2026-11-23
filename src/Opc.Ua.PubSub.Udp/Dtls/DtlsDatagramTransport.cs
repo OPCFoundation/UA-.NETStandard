@@ -8,6 +8,7 @@ using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Transports;
 
@@ -46,6 +47,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+            m_logger = telemetry.CreateLogger<DtlsDatagramTransport>();
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
             PubSubTransportDirection innerDirection = direction == PubSubTransportDirection.Send
                 ? PubSubTransportDirection.SendReceive
@@ -92,18 +94,27 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             remove => m_innerTransport.StateChanged -= value;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Opens the UDP socket. On the DTLS client (publisher) side the handshake runs
+        /// before this method returns. On the DTLS server (subscriber) side the handshake
+        /// is not run here: it runs when <see cref="ReceiveAsync"/> is first enumerated and
+        /// is retried until it succeeds or the receive is cancelled, so a publisher that is
+        /// not running yet, or a host on the network that sends stray datagrams or stalls a
+        /// handshake, cannot fail the start of the connection and its application.
+        /// </summary>
         public async ValueTask OpenAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ClearAuthenticatedPeer();
-            IDtlsContext context = await m_contextFactory.CreateAsync(
-                m_connection,
-                Endpoint,
-                Profile,
-                m_telemetry,
-                m_timeProvider,
-                cancellationToken).ConfigureAwait(false);
+            m_closed = false;
+            if (DefaultDtlsContextFactory.DetermineRole(m_connection) == DtlsEndpointRole.Server)
+            {
+                await m_innerTransport.OpenAsync(cancellationToken).ConfigureAwait(false);
+                m_acceptPending = true;
+                return;
+            }
+
+            IDtlsContext context = await CreateContextAsync(cancellationToken).ConfigureAwait(false);
             m_context = context;
             await m_innerTransport.OpenAsync(cancellationToken).ConfigureAwait(false);
             await context.OpenAsync(this, cancellationToken).ConfigureAwait(false);
@@ -124,22 +135,30 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         }
 
         /// <summary>
-        /// Opens the UDP socket and runs the subscriber-side DTLS 1.3 handshake.
+        /// Opens the UDP socket and runs one subscriber-side DTLS 1.3 handshake. Unlike the
+        /// handshake that <see cref="ReceiveAsync"/> runs, a failed attempt is not retried:
+        /// the exception is thrown to the caller.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public ValueTask AcceptAsync(CancellationToken cancellationToken = default)
+        public async ValueTask AcceptAsync(CancellationToken cancellationToken = default)
         {
             if ((Direction & PubSubTransportDirection.Receive) != PubSubTransportDirection.Receive)
             {
                 throw new InvalidOperationException("DTLS AcceptAsync requires a receive-capable PubSub transport.");
             }
 
-            return OpenAsync(cancellationToken);
+            await OpenAsync(cancellationToken).ConfigureAwait(false);
+            if (m_acceptPending)
+            {
+                await AcceptOnceAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
         public async ValueTask CloseAsync(CancellationToken cancellationToken = default)
         {
+            m_closed = true;
+            m_acceptPending = false;
             IDtlsContext? context = m_context;
             m_context = null;
             ClearAuthenticatedPeer();
@@ -162,7 +181,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            IDtlsContext context = GetContext();
+            IDtlsContext context = m_acceptPending
+                ? await AcceptWithRetryAsync(cancellationToken).ConfigureAwait(false)
+                : GetContext();
             await foreach (PubSubTransportFrame frame in m_innerTransport.ReceiveAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
@@ -198,11 +219,102 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            m_closed = true;
+            m_acceptPending = false;
             IDtlsContext? context = m_context;
             m_context = null;
             ClearAuthenticatedPeer();
             context?.Dispose();
             await m_innerTransport.DisposeAsync().ConfigureAwait(false);
+        }
+
+        private ValueTask<IDtlsContext> CreateContextAsync(CancellationToken cancellationToken)
+        {
+            return m_contextFactory.CreateAsync(
+                m_connection,
+                Endpoint,
+                Profile,
+                m_telemetry,
+                m_timeProvider,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs one server-side handshake with a fresh context and installs the context
+        /// when the handshake completes.
+        /// </summary>
+        private async ValueTask<IDtlsContext> AcceptOnceAsync(CancellationToken cancellationToken)
+        {
+            ClearAuthenticatedPeer();
+            IDtlsContext context = await CreateContextAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await context.OpenAsync(this, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                ClearAuthenticatedPeer();
+                context.Dispose();
+                throw;
+            }
+
+            if (m_closed)
+            {
+                context.Dispose();
+                throw new ObjectDisposedException(nameof(DtlsDatagramTransport));
+            }
+
+            m_context = context;
+            m_acceptPending = false;
+            return context;
+        }
+
+        /// <summary>
+        /// Runs server-side handshakes until one completes. A failed or timed-out
+        /// handshake is logged and the server listens again after a back-off, so
+        /// neither a missing publisher nor a host that disturbs the handshake ends
+        /// the receive path for good.
+        /// </summary>
+        private async ValueTask<IDtlsContext> AcceptWithRetryAsync(CancellationToken cancellationToken)
+        {
+            int failures = 0;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (m_closed)
+                {
+                    throw new ObjectDisposedException(nameof(DtlsDatagramTransport));
+                }
+
+                try
+                {
+                    return await AcceptOnceAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex) when (!m_closed)
+                {
+                    failures++;
+                    m_logger.DtlsAcceptFailed(ex, m_connection.Name, failures, GetAcceptRetryDelay(failures));
+                }
+
+                await m_timeProvider.Delay(GetAcceptRetryDelay(failures), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private static TimeSpan GetAcceptRetryDelay(int failures)
+        {
+            if (failures <= 0)
+            {
+                return TimeSpan.Zero;
+            }
+
+            double milliseconds = s_initialAcceptRetryDelay.TotalMilliseconds *
+                Math.Pow(2, Math.Min(failures - 1, 16));
+            return TimeSpan.FromMilliseconds(Math.Min(milliseconds, s_maxAcceptRetryDelay.TotalMilliseconds));
         }
 
         private IDtlsContext GetContext()
@@ -290,7 +402,26 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
         private readonly Lock m_peerLock = new();
+        private readonly ILogger m_logger;
         private IDtlsContext? m_context;
         private IPEndPoint? m_authenticatedPeer;
+        private volatile bool m_acceptPending;
+        private volatile bool m_closed;
+        private static readonly TimeSpan s_initialAcceptRetryDelay = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan s_maxAcceptRetryDelay = TimeSpan.FromSeconds(30);
+    }
+
+    internal static partial class DtlsDatagramTransportLog
+    {
+        [LoggerMessage(EventId = PubSubUdpEventIds.DtlsDatagramTransport + 0,
+            Level = LogLevel.Warning,
+            Message = "DTLS handshake on connection '{Connection}' did not complete (attempt {Attempt}); " +
+                "listening again in {RetryDelay}.")]
+        public static partial void DtlsAcceptFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection,
+            int attempt,
+            TimeSpan retryDelay);
     }
 }

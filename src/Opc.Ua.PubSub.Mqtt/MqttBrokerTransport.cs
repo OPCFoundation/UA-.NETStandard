@@ -74,7 +74,10 @@ namespace Opc.Ua.PubSub.Mqtt
         private IMqttClientAdapter? m_adapter;
         private Channel<PubSubTransportFrame>? m_channel;
         private bool m_isConnected;
+        private bool m_opened;
         private bool m_disposed;
+        private CancellationTokenSource? m_reconnectCts;
+        private Task? m_reconnectTask;
 
         /// <summary>
         /// Initializes a new <see cref="MqttBrokerTransport"/>.
@@ -268,6 +271,7 @@ namespace Opc.Ua.PubSub.Mqtt
             lock (m_sync)
             {
                 m_isConnected = true;
+                m_opened = true;
             }
             m_logger.MqttTransportOpened(m_connection.Name, Endpoint, Direction, TransportProfileUri);
             RaiseStateChanged(true, StatusCodes.Good, null);
@@ -287,8 +291,10 @@ namespace Opc.Ua.PubSub.Mqtt
                 m_adapter = null;
                 m_channel = null;
                 m_isConnected = false;
+                m_opened = false;
             }
 
+            await StopReconnectAsync().ConfigureAwait(false);
             if (adapter is not null)
             {
                 adapter.IncomingMessage -= OnIncomingMessage;
@@ -487,14 +493,135 @@ namespace Opc.Ua.PubSub.Mqtt
             object? sender,
             MqttConnectionStateChangedEventArgs e)
         {
+            IMqttClientAdapter? adapter;
+            bool startReconnect;
             lock (m_sync)
             {
+                adapter = m_adapter;
+                if (adapter is null || (sender is not null && !ReferenceEquals(sender, adapter)))
+                {
+                    // Event from an adapter that was closed or replaced.
+                    return;
+                }
                 m_isConnected = e.IsConnected;
+                startReconnect = !e.IsConnected &&
+                    m_opened &&
+                    !m_disposed &&
+                    Options.AutoReconnect &&
+                    (m_reconnectTask is null || m_reconnectTask.IsCompleted);
             }
             StatusCode status = e.IsConnected
                 ? StatusCodes.Good
                 : StatusCodes.BadConnectionClosed;
             RaiseStateChanged(e.IsConnected, status, e.Reason);
+            if (startReconnect)
+            {
+                m_logger.MqttConnectionLost(m_connection.Name, e.Reason);
+                StartReconnect(adapter);
+            }
+        }
+
+        private void StartReconnect(IMqttClientAdapter adapter)
+        {
+            lock (m_sync)
+            {
+                if (m_disposed ||
+                    !ReferenceEquals(m_adapter, adapter) ||
+                    (m_reconnectTask is not null && !m_reconnectTask.IsCompleted))
+                {
+                    return;
+                }
+                m_reconnectCts?.Dispose();
+                var cts = new CancellationTokenSource();
+                m_reconnectCts = cts;
+                m_reconnectTask = Task.Run(() => ReconnectLoopAsync(adapter, cts.Token));
+            }
+        }
+
+        /// <summary>
+        /// Reconnects the adapter with exponential back-off and re-installs the
+        /// subscriptions, which a clean session loses with the connection.
+        /// </summary>
+        private async Task ReconnectLoopAsync(IMqttClientAdapter adapter, CancellationToken ct)
+        {
+            TimeSpan delay = Options.ReconnectDelay > TimeSpan.Zero
+                ? Options.ReconnectDelay
+                : TimeSpan.FromMilliseconds(100);
+            TimeSpan maxDelay = Options.MaxReconnectDelay >= delay ? Options.MaxReconnectDelay : delay;
+            int attempt = 0;
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
+                    attempt++;
+                    if (!adapter.IsConnected)
+                    {
+                        await adapter.ConnectAsync(Options, ct).ConfigureAwait(false);
+                    }
+                    if (HasReceiveDirection && Subscriptions.Count > 0)
+                    {
+                        await adapter.SubscribeAsync(new List<MqttTopicFilter>(Subscriptions), ct)
+                            .ConfigureAwait(false);
+                    }
+                    lock (m_sync)
+                    {
+                        if (ReferenceEquals(m_adapter, adapter))
+                        {
+                            m_isConnected = adapter.IsConnected;
+                        }
+                    }
+                    m_logger.MqttReconnected(m_connection.Name, attempt);
+                    return;
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    TimeSpan next = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, maxDelay.Ticks));
+                    m_logger.MqttReconnectFailed(ex, attempt, m_connection.Name, next);
+                    delay = next;
+                }
+            }
+        }
+
+        private async ValueTask StopReconnectAsync()
+        {
+            CancellationTokenSource? cts;
+            Task? task;
+            lock (m_sync)
+            {
+                cts = m_reconnectCts;
+                task = m_reconnectTask;
+                m_reconnectCts = null;
+                m_reconnectTask = null;
+            }
+            if (cts is null)
+            {
+                return;
+            }
+            try
+            {
+                cts.Cancel();
+                if (task is not null)
+                {
+                    await task.ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.MqttDisconnectRaisedException(ex, m_connection.Name);
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
 
         private void RaiseStateChanged(bool isConnected, StatusCode status, string? reason)
@@ -942,5 +1069,23 @@ namespace Opc.Ua.PubSub.Mqtt
         [LoggerMessage(EventId = PubSubMqttEventIds.MqttBrokerTransport + 2, Level = LogLevel.Warning,
             Message = "Dropped inbound MQTT frame for connection '{Connection}': receive queue full.")]
         public static partial void DroppedInboundMqttFrame(this ILogger logger, string? connection);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttBrokerTransport + 3, Level = LogLevel.Warning,
+            Message = "MQTT connection '{Connection}' lost the broker connection ({Reason}); reconnecting.")]
+        public static partial void MqttConnectionLost(this ILogger logger, string? connection, string? reason);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttBrokerTransport + 4, Level = LogLevel.Warning,
+            Message = "MQTT reconnect attempt {Attempt} for connection '{Connection}' failed; " +
+                "next attempt in {RetryDelay}.")]
+        public static partial void MqttReconnectFailed(
+            this ILogger logger,
+            Exception exception,
+            int attempt,
+            string? connection,
+            TimeSpan retryDelay);
+
+        [LoggerMessage(EventId = PubSubMqttEventIds.MqttBrokerTransport + 5, Level = LogLevel.Information,
+            Message = "MQTT connection '{Connection}' reconnected after {Attempt} attempt(s).")]
+        public static partial void MqttReconnected(this ILogger logger, string? connection, int attempt);
     }
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 #if NET8_0_OR_GREATER
 using MQTTnet.Channel;
 #endif
@@ -141,6 +142,38 @@ namespace Opc.Ua.PubSub.Mqtt
         /// the common per-connection budget of public brokers.
         /// </summary>
         public int MaxConcurrentSubscriptions { get; set; } = 64;
+
+        /// <summary>
+        /// Additional broker endpoints (URL or <c>host[:port]</c>) that may
+        /// receive the credentials configured on these options
+        /// (<see cref="UserName"/>, <see cref="PasswordSecretId"/>), in
+        /// addition to <see cref="Endpoint"/>.
+        /// </summary>
+        /// <remarks>
+        /// The broker URL of a connection comes from the PubSub configuration,
+        /// which can be changed remotely, while the credentials come from the
+        /// host. The transport factory therefore refuses to create a connection
+        /// that would send the host credentials to a broker that is neither
+        /// <see cref="Endpoint"/> nor listed here.
+        /// </remarks>
+        public IList<string> CredentialEndpoints { get; } = [];
+
+        /// <summary>
+        /// Reconnects to the broker and re-installs the subscriptions after the
+        /// broker connection is lost. Enabled by default.
+        /// </summary>
+        public bool AutoReconnect { get; set; } = true;
+
+        /// <summary>
+        /// Delay before the first reconnect attempt. The delay doubles after
+        /// every failed attempt up to <see cref="MaxReconnectDelay"/>.
+        /// </summary>
+        public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// Upper bound of the delay between reconnect attempts.
+        /// </summary>
+        public TimeSpan MaxReconnectDelay { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
         /// Maximum size (in bytes) of a single UADP NetworkMessage

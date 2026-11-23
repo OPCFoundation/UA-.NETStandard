@@ -376,39 +376,138 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             return m_consumer;
         }
 
+        /// <summary>
+        /// Consumes records until the adapter is shut down. A failure of the
+        /// consumer itself (for example a fetched batch the client cannot
+        /// decompress, or a lost broker connection) does not end consumption:
+        /// the consumer is rebuilt and re-subscribed after an exponential
+        /// back-off, so one record from any producer on a subscribed topic
+        /// cannot stop the subscriber for good.
+        /// </summary>
         private async Task ConsumeLoopAsync(
             IKafkaConsumer<byte[], byte[]> consumer,
             bool enableAutoCommit,
             CancellationToken ct)
         {
-            try
+            int failures = 0;
+            while (!ct.IsCancellationRequested)
             {
-                await foreach (ConsumeResult<byte[], byte[]> result in consumer.ConsumeAsync(ct).ConfigureAwait(false))
+                try
                 {
-                    if (result.IsPartitionEof)
+                    await foreach (ConsumeResult<byte[], byte[]> result in consumer.ConsumeAsync(ct)
+                        .ConfigureAwait(false))
                     {
-                        continue;
-                    }
-                    try
-                    {
-                        DispatchRecord(result);
-                        if (!enableAutoCommit)
+                        failures = 0;
+                        if (result.IsPartitionEof)
                         {
-                            await consumer.CommitAsync(ct).ConfigureAwait(false);
+                            continue;
+                        }
+                        try
+                        {
+                            DispatchRecord(result);
+                            if (!enableAutoCommit)
+                            {
+                                await consumer.CommitAsync(ct).ConfigureAwait(false);
+                            }
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.FailedToDispatchInboundKafkaRecord(ex);
                         }
                     }
-                    catch (Exception ex)
+                    if (ct.IsCancellationRequested)
                     {
-                        m_logger.FailedToDispatchInboundKafkaRecord(ex);
+                        return;
+                    }
+                    // The enumeration ended without cancellation: treat it like
+                    // a failure so the consumer is rebuilt rather than spun.
+                    throw new InvalidOperationException("Kafka consumer stopped delivering records.");
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    failures++;
+                    TimeSpan delay = GetConsumeRetryDelay(failures);
+                    m_logger.KafkaConsumeLoopRestarting(ex, failures, delay);
+                    try
+                    {
+                        await m_timeProvider.Delay(delay, ct).ConfigureAwait(false);
+                        IKafkaConsumer<byte[], byte[]>? rebuilt = await RebuildConsumerAsync(consumer, ct)
+                            .ConfigureAwait(false);
+                        if (rebuilt is null)
+                        {
+                            return;
+                        }
+                        consumer = rebuilt;
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        return;
+                    }
+                    catch (Exception rebuildEx)
+                    {
+                        // Keep the old consumer and try again after the next back-off.
+                        m_logger.KafkaConsumeLoopTerminatedUnexpectedly(rebuildEx);
                     }
                 }
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        }
+
+        private static TimeSpan GetConsumeRetryDelay(int failures)
+        {
+            double seconds = Math.Pow(2, Math.Min(Math.Max(failures - 1, 0), 5));
+            return TimeSpan.FromSeconds(Math.Min(seconds, 30));
+        }
+
+        /// <summary>
+        /// Replaces a failed consumer with a new one subscribed to the same
+        /// topics. Returns <see langword="null"/> when the adapter was shut down
+        /// or the failed consumer is no longer the current one.
+        /// </summary>
+        private async ValueTask<IKafkaConsumer<byte[], byte[]>?> RebuildConsumerAsync(
+            IKafkaConsumer<byte[], byte[]> failed,
+            CancellationToken ct)
+        {
+            await m_clientGate.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
+                if (m_disposed || !ReferenceEquals(m_consumer, failed) || m_options is null)
+                {
+                    return null;
+                }
+                ConsumerBuilder<byte[], byte[]> builder = Dekaf.Kafka.CreateConsumer<byte[], byte[]>();
+                ApplyConsumerConfig(builder, m_options);
+                IKafkaConsumer<byte[], byte[]> replacement = await builder.BuildAsync(ct).ConfigureAwait(false);
+                if (m_subscribedTopics.Count > 0)
+                {
+                    replacement.Subscribe([.. m_subscribedTopics]);
+                }
+                m_consumer = replacement;
+                try
+                {
+                    await failed.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.KafkaConsumerCloseRaisedException(ex);
+                }
+                await failed.DisposeAsync().ConfigureAwait(false);
+                return replacement;
             }
-            catch (Exception ex)
+            finally
             {
-                m_logger.KafkaConsumeLoopTerminatedUnexpectedly(ex);
+                m_clientGate.Release();
             }
         }
 
