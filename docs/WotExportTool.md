@@ -108,14 +108,15 @@ For example, the model ID
 `urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType`
 has the resource ID
 `aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26`.
-If its namespace version is `42`, a model that extends it has this link:
+If its namespace version is `42` and the registry base URL is
+`https://registry.example.com`, a model that extends it has this link:
 
 ```json
 {
   "links": [
     {
       "rel": "tm:extends",
-      "href": "https://opcfoundation.org/thingmodelgroups/opcua/thingmodels/aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26/versions/42",
+      "href": "https://registry.example.com/thingmodelgroups/opcua/thingmodels/aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26/versions/42",
       "type": "application/tm+json"
     }
   ]
