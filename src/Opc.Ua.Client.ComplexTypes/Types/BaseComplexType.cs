@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
@@ -55,7 +56,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeId = ExpandedNodeId.Null;
             BinaryEncodingId = ExpandedNodeId.Null;
             XmlEncodingId = ExpandedNodeId.Null;
-            InitializePropertyAttributes();
+            InitializeFromTypeLayout();
         }
 
         /// <summary>
@@ -446,8 +447,50 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// Takes the type ids and the property helpers from the layout of the
+        /// concrete type, which is built once per type.
+        /// </summary>
+        /// <remarks>
+        /// The types are built from the definitions of a server, and a value
+        /// can take a few bytes on the wire (a Union without a selected field
+        /// takes four). Creating a value must therefore not reflect over the
+        /// type or allocate per field: the first value of a type runs
+        /// <see cref="InitializePropertyAttributes"/> and every later value
+        /// shares its result.
+        /// </remarks>
+        [MemberNotNull(nameof(m_propertyList), nameof(m_propertyDict))]
+        private void InitializeFromTypeLayout()
+        {
+            Type type = GetType();
+            if (!s_typeLayouts.TryGetValue(type, out TypeLayout? layout))
+            {
+                InitializePropertyAttributes();
+                var created = new TypeLayout(
+                    TypeId,
+                    BinaryEncodingId,
+                    XmlEncodingId,
+                    // fixed size, the list is shared by all values of the type
+                    [.. m_propertyList],
+                    m_propertyDict);
+
+                // Values of one type may be created concurrently: the first
+                // layout published is the one all values use.
+                layout = s_typeLayouts.GetValue(type, _ => created);
+            }
+            TypeId = layout.TypeId;
+            BinaryEncodingId = layout.BinaryEncodingId;
+            XmlEncodingId = layout.XmlEncodingId;
+            m_propertyList = layout.PropertyList;
+            m_propertyDict = layout.PropertyDict;
+        }
+
+        /// <summary>
         /// Initialize the helpers for property enumerator and dictionary.
         /// </summary>
+        /// <remarks>
+        /// Called for the first value of a type only. The result is shared by
+        /// all values of the type and must not depend on the value.
+        /// </remarks>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2075",
             Justification = "Complex types are dynamically built with known properties preserved.")]
         [MemberNotNull(nameof(m_propertyList), nameof(m_propertyDict))]
@@ -520,6 +563,38 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The list of properties as dictionary.
         /// </summary>
         protected Dictionary<string, ComplexTypePropertyInfo> m_propertyDict;
+
+        /// <summary>
+        /// What all values of one type share.
+        /// </summary>
+        private sealed class TypeLayout
+        {
+            public TypeLayout(
+                ExpandedNodeId typeId,
+                ExpandedNodeId binaryEncodingId,
+                ExpandedNodeId xmlEncodingId,
+                ComplexTypePropertyInfo[] propertyList,
+                Dictionary<string, ComplexTypePropertyInfo> propertyDict)
+            {
+                TypeId = typeId;
+                BinaryEncodingId = binaryEncodingId;
+                XmlEncodingId = xmlEncodingId;
+                PropertyList = propertyList;
+                PropertyDict = propertyDict;
+            }
+
+            public ExpandedNodeId TypeId { get; }
+            public ExpandedNodeId BinaryEncodingId { get; }
+            public ExpandedNodeId XmlEncodingId { get; }
+            public ComplexTypePropertyInfo[] PropertyList { get; }
+            public Dictionary<string, ComplexTypePropertyInfo> PropertyDict { get; }
+        }
+
+        /// <summary>
+        /// The layouts by type. The table holds the types weakly, so that the
+        /// collectible assembly of a type system can still be unloaded.
+        /// </summary>
+        private static readonly ConditionalWeakTable<Type, TypeLayout> s_typeLayouts = new();
 
         private XmlQualifiedName? m_xmlName;
     }

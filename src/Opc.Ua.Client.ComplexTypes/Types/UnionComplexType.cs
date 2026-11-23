@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -68,9 +69,22 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
+            Justification = "The type's constructor is preserved because this instance already exists.")]
         public new object MemberwiseClone()
         {
-            var clone = (UnionComplexType)base.MemberwiseClone();
+            // Only the selected field holds a value. The server chooses the
+            // number of fields, so a copy must not cost one property access
+            // per field of the type.
+            var clone = (UnionComplexType)Activator.CreateInstance(GetType())!;
+            clone.TypeId = TypeId;
+            clone.BinaryEncodingId = BinaryEncodingId;
+            clone.XmlEncodingId = XmlEncodingId;
+            if (m_switchField > 0 && m_switchField <= (uint)m_propertyList.Count)
+            {
+                ComplexTypePropertyInfo property = m_propertyList[(int)m_switchField - 1];
+                property.SetValue(clone, property.GetValue(this));
+            }
             clone.m_switchField = m_switchField;
             return clone;
         }

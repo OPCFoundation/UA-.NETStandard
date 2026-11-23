@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -670,18 +671,34 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <exception cref="InvalidOperationException">The property type is not an array type.</exception>
         public ExpandedNodeId GetDataTypeId(NamespaceTable namespaceTable)
         {
+            // The property is shared by all values of its type and the id is
+            // needed for every value that is encoded or decoded, so the
+            // attributes are read once.
+            StrongBox<ExpandedNodeId>? declared = m_declaredDataTypeId;
+            if (declared != null)
+            {
+                return declared.Value;
+            }
+
             // For arrays, GetElementType is non-null because PropertyType.IsArray is true.
             Type type = PropertyInfo.PropertyType.IsArray ?
                 (PropertyInfo.PropertyType.GetElementType()
                     ?? throw new InvalidOperationException("PropertyType is not an array type.")) :
                 PropertyInfo.PropertyType;
+            if (m_dataTypeIdFromNamespaceTable)
+            {
+                return TypeInfo.GetDataTypeId(type, namespaceTable);
+            }
             StructureTypeIdAttribute? typeAttribute = type
                 .GetCustomAttribute<StructureTypeIdAttribute>();
             if (typeAttribute != null)
             {
                 // ComplexTypeId is populated unconditionally when the dynamic type is built;
                 // a null here would produce the same NRE/format error as before.
-                return ExpandedNodeId.Parse(typeAttribute.ComplexTypeId!);
+                declared = new StrongBox<ExpandedNodeId>(
+                    ExpandedNodeId.Parse(typeAttribute.ComplexTypeId!));
+                m_declaredDataTypeId = declared;
+                return declared.Value;
             }
             if (!string.IsNullOrEmpty(FieldAttribute.DataTypeId))
             {
@@ -689,9 +706,19 @@ namespace Opc.Ua.Client.ComplexTypes
                 // (e.g. an OptionSet subtype) does not identify the DataType. The
                 // id is stored with its namespace uri, independent of the namespace
                 // table of the session that built the type.
-                return ExpandedNodeId.Parse(FieldAttribute.DataTypeId!);
+                declared = new StrongBox<ExpandedNodeId>(
+                    ExpandedNodeId.Parse(FieldAttribute.DataTypeId!));
+                m_declaredDataTypeId = declared;
+                return declared.Value;
             }
+
+            // Only this id depends on the namespace table of the caller.
+            m_dataTypeIdFromNamespaceTable = true;
             return TypeInfo.GetDataTypeId(type, namespaceTable);
         }
+
+        // Published as a whole: an ExpandedNodeId is not written atomically.
+        private volatile StrongBox<ExpandedNodeId>? m_declaredDataTypeId;
+        private volatile bool m_dataTypeIdFromNamespaceTable;
     }
 }
