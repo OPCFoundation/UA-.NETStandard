@@ -1274,6 +1274,10 @@ namespace Opc.Ua.Machinery.Tests.Integration
             Assert.That(
                 await jobs.StartAsync(jobOrderId, ct: ct).ConfigureAwait(false),
                 Is.EqualTo(Isa95JobReturnStatus.Success));
+            Isa95JobOrderReceiptV2 ready = await jobProvider
+                .TransitionAsync(jobOrderId, Isa95JobExecutionTransition.MarkReady, ct)
+                .ConfigureAwait(false);
+            Assert.That(ready.ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
             Isa95JobOrderReceiptV2 began = await jobProvider
                 .TransitionAsync(jobOrderId, Isa95JobExecutionTransition.BeginExecution, ct)
                 .ConfigureAwait(false);

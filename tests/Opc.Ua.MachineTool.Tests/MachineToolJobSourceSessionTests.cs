@@ -91,6 +91,8 @@ namespace Opc.Ua.MachineTool.Tests
                 uint subscription = await SubscribeAsync(session, runtime.NodeId).ConfigureAwait(false);
                 try
                 {
+                    Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.MarkReady)
+                        .ConfigureAwait(false));
                     Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
                         .ConfigureAwait(false));
                     Assert.That(await receiver.PauseAsync("Job-1", []).ConfigureAwait(false),
@@ -190,6 +192,8 @@ namespace Opc.Ua.MachineTool.Tests
                 {
                     Assert.That(await receiver.StoreAndStartAsync(Order(), []).ConfigureAwait(false),
                         Is.EqualTo(Isa95JobReturnStatus.Success));
+                    Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.MarkReady)
+                        .ConfigureAwait(false));
                     Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
                         .ConfigureAwait(false));
                     if (path == 1)
