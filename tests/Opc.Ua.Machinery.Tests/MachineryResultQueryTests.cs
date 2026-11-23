@@ -953,6 +953,26 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public void ALikePatternThatIsNotASearchStringMatchesNothing()
+        {
+            var target = new MachineryResultFilterTarget(Result("B-3", jobId: "J").Data);
+
+            // A pattern that ends in its escape character is not a valid
+            // search string. Validate() refuses it as a literal, but a pattern
+            // can also come from a field; it then matches nothing, which is
+            // FALSE and not NULL, so its negation selects.
+            Variant text = Variant.From("abc");
+            Variant pattern = Variant.From("abc\\");
+
+            Assert.That(Evaluate(Single(FilterOperator.Like, text, pattern), target), Is.False);
+
+            var negated = new ContentFilter();
+            ContentFilterElement element = negated.Push(FilterOperator.Like, text, pattern);
+            negated.Push(FilterOperator.Not, Variant.FromStructure(element));
+            Assert.That(Evaluate(negated, target), Is.True);
+        }
+
+        [Test]
         public void ALikeElementThatExceedsTheMatchBudgetIsNull()
         {
             var target = new MachineryResultFilterTarget(Result("B-1", jobId: "J").Data);
