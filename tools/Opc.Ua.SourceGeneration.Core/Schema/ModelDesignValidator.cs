@@ -4527,6 +4527,7 @@ namespace Opc.Ua.Schema.Model
                     s_enumerationQn) ||
                     dataType.IsOptionSet;
                 dataType.BasicDataType = dataType.DetermineBasicDataType();
+                ValidateEnumFieldNamesAreIdentifiers(dataType);
 
                 if (!dataType.IsStructure)
                 {
@@ -4918,6 +4919,35 @@ namespace Opc.Ua.Schema.Model
                 kind,
                 name.AsSingleLineCommentText(),
                 (node.BrowseName ?? node.SymbolicId?.ToString()).AsSingleLineCommentText()));
+        }
+
+        /// <summary>
+        /// The fields of an enumeration become the members of a generated C#
+        /// enum, named verbatim. A legal XML name can still hold '-', '.' or
+        /// ':' or be a C# keyword, which would make the enum declaration
+        /// invalid, so such a name is rejected.
+        /// </summary>
+        private void ValidateEnumFieldNamesAreIdentifiers(DataTypeDesign dataType)
+        {
+            if (!dataType.IsEnumeration || dataType.Fields == null)
+            {
+                return;
+            }
+
+            foreach (Parameter field in dataType.Fields)
+            {
+                if (field == null || field.Name.IsCodeSafeIdentifier())
+                {
+                    continue;
+                }
+
+                throw Exception(
+                    "The field '{0}' of enumeration '{1}' is not a valid C# identifier " +
+                    "and cannot be used as an enum member. Use letters, digits and " +
+                    "underscores, and no C# keyword.",
+                    field.Name.AsSingleLineCommentText(),
+                    dataType.SymbolicId.Name);
+            }
         }
 
         private void ValidateFieldNamesAreUsableAsXmlNames(DataTypeDesign dataType)
