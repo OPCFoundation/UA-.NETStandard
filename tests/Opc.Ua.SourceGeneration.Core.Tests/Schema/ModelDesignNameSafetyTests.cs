@@ -140,6 +140,34 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         [Test]
+        public void EnsureNamesAreCodeSafeAcceptsQualifiedDataTypeClassName()
+        {
+            var type = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Structure", "urn:x"),
+                SymbolicId = new XmlQualifiedName("Structure", "urn:x"),
+                ClassName = "global::Opc.Ua.IEncodeable"
+            };
+
+            Assert.DoesNotThrow(() => ModelDesignValidator.EnsureNamesAreCodeSafe([type]));
+        }
+
+        [TestCase("Acme.Pump")]
+        [TestCase("global::Acme.Pump")]
+        public void EnsureNamesAreCodeSafeRejectsQualifiedObjectTypeClassName(string className)
+        {
+            var type = new ObjectTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("PumpType", "urn:x"),
+                SymbolicId = new XmlQualifiedName("PumpType", "urn:x"),
+                ClassName = className
+            };
+
+            Assert.Throws<InvalidOperationException>(
+                () => ModelDesignValidator.EnsureNamesAreCodeSafe([type]));
+        }
+
+        [Test]
         public void EnsureNamesAreCodeSafeChecksChildren()
         {
             var child = new VariableDesign

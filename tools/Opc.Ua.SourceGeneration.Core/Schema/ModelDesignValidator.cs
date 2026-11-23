@@ -4844,9 +4844,14 @@ namespace Opc.Ua.Schema.Model
 
                 EnsureNameIsCodeSafe(node, node.SymbolicName?.Name, "SymbolicName");
                 EnsureNameIsCodeSafe(node, node.SymbolicId?.Name, "SymbolicId");
-                // A ClassName may name a CLR type (global::Opc.Ua.IEncodeable).
+                // Only a DataType's ClassName may name a CLR type
+                // (global::Opc.Ua.IEncodeable); every other type's ClassName
+                // is part of a generated class name ("{ClassName}State").
                 EnsureNameIsCodeSafe(
-                    node, (node as TypeDesign)?.ClassName, "ClassName", allowTypeName: true);
+                    node,
+                    (node as TypeDesign)?.ClassName,
+                    "ClassName",
+                    allowTypeName: node is DataTypeDesign);
 
                 // HasChildren is only set once a node is validated.
                 if (node.Children?.Items != null)
