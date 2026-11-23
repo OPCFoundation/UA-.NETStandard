@@ -70,6 +70,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void WriteThingModels()
         {
             foreach (ModelDocument document in s_modelDocuments)
@@ -109,6 +110,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void WritePumpThingDescription()
         {
             byte[] regenerated = WotAggregationDocumentGenerator.GeneratePumpThingDescription(
@@ -169,6 +171,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </summary>
         [Test]
         [Explicit("Rewrites only the checked-in projection plans from the retained source documents.")]
+        [NonParallelizable]
         public async Task WriteAssetProjectionDocuments()
         {
             ArrayOf<SampleDocument> projections =
@@ -215,6 +218,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </summary>
         [Test]
         [Explicit("Rewrites the complete sample manifest and its generated documents.")]
+        [NonParallelizable]
         public async Task WriteCompleteAggregationDocumentsAsync()
         {
             ArrayOf<SampleDocument> documents = await WotAggregationDocumentGenerator
@@ -258,6 +262,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void RewriteCheckedInJsonDocuments()
         {
             foreach (string path in SampleJsonDocuments())
