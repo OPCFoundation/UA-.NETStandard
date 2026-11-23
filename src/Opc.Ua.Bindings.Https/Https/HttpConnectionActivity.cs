@@ -100,11 +100,6 @@ namespace Opc.Ua.Bindings
         public long LastActivity => Interlocked.Read(ref m_lastActivity);
 
         /// <summary>
-        /// Whether a request is in flight on the connection.
-        /// </summary>
-        public bool IsBusy => Volatile.Read(ref m_state) > 0;
-
-        /// <summary>
         /// Marks a request in flight. Returns false when the connection was
         /// reclaimed, in which case the request must not be processed.
         /// </summary>
