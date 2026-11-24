@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+# SPDX-License-Identifier: MIT
+
 <#
  .SYNOPSIS
     Expands the GitHub Actions build and test workload for a CI scope.
@@ -521,18 +524,10 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     }
                 )
             }
+            # NodeManagerLifecycleTests run in parallel and copy one certificate
+            # template per test (NodeManager/NodeManagerLifecycleTests.TestPki.cs),
+            # so all of its cases fit one entry; see plans/lifecycle-test-suite-redesign.md.
             $groups = @(
-                @{
-                    id = 'server-node-lifecycle-prepared'
-                    name = 'server-node-lifecycle-prepared'
-                    terms = @("${nativeLifecycle}Prepared")
-                }
-                @{
-                    id = 'server-node-lifecycle-a-n'
-                    name = 'server-node-lifecycle-a-n'
-                    terms = @('ABCDEFGHIJKLMN'.ToCharArray() |
-                        ForEach-Object { "${nativeLifecycle}$_" })
-                }
                 @{
                     id = 'server-node-lifecycle'
                     name = 'server-node-lifecycle'
@@ -585,12 +580,10 @@ function Get-TestProjectShards([string] $project, [string] $framework, [string] 
                     $groups[0]
                     $groups[1]
                     $groups[2]
-                    $groups[3]
-                    $groups[4]
                     @{
                         id = 'server-sessions-configuration-runtime'
                         name = 'server-sessions-configuration-runtime'
-                        terms = @($groups[5].terms + $groups[6].terms + $groups[7].terms)
+                        terms = @($groups[3].terms + $groups[4].terms + $groups[5].terms)
                     }
                     @{
                         id = 'server-other'
