@@ -29,7 +29,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Security.Certificates;
 
 namespace OnboardingRegistrar
 {
@@ -40,14 +42,31 @@ namespace OnboardingRegistrar
     internal sealed class FdoRegistrarEnrollmentPolicy : IDeviceRegistrarExternalAuthenticationPolicy, IDisposable
     {
         /// <summary>
-        /// Leases a dedicated checkpoint directory and applies the sample's product and application approval.
+        /// Leases a checkpoint directory and binds the operator-approved Device to a dedicated signing group.
         /// </summary>
         public FdoRegistrarEnrollmentPolicy(
             string directory,
             string productInstanceUri,
-            string applicationUri)
+            string applicationUri,
+            string subjectName,
+            ByteString deviceGuid,
+            ByteString attestationSha256,
+            ICertificateGroupWithAuthenticatedSigningRequest issuer)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(subjectName);
+            ArgumentNullException.ThrowIfNull(issuer);
+            if (deviceGuid.Length != DeviceGuidSize || attestationSha256.Length != SHA256.HashSizeInBytes)
+            {
+                throw new ArgumentException(
+                    "Approval requires a wire-order Device GUID and an attestation SHA-256 pin.");
+            }
             m_policy = new PullRegistrarPolicy(productInstanceUri, applicationUri);
+            m_productInstanceUri = productInstanceUri;
+            m_applicationUri = applicationUri;
+            m_subjectName = subjectName;
+            m_deviceGuid = ByteString.From(deviceGuid.Span);
+            m_attestationSha256 = ByteString.From(attestationSha256.Span);
+            m_issuer = issuer;
             using var scope = new MemoryStream();
             using (var writer = new BinaryWriter(scope, Encoding.UTF8, leaveOpen: true))
             {
@@ -59,28 +78,53 @@ namespace OnboardingRegistrar
         }
 
         /// <summary>
-        /// Records the issued certificate and exact authenticated request before returning the certificate to the Device.
-        /// The caller must establish Device trust, grant issuance, and verify the CSR before recording it.
+        /// Issues from the dedicated group only for the approved Device, then retains the pending receipt before
+        /// returning the certificate. The FDO role must authenticate the evidence before handing it to this policy.
         /// </summary>
-        public ValueTask RecordIssuanceAsync(
+        public async ValueTask<ByteString> AuthorizeAndIssueAsync(
             Guid runId,
             ByteString deviceGuid,
             ByteString attestationCertificate,
             ByteString certificateSigningRequest,
-            ByteString certificate,
             CancellationToken ct = default)
         {
-            return PublishAsync(
-                CreateReceipt(runId, deviceGuid, attestationCertificate, certificateSigningRequest, certificate),
-                commit: false,
-                ct);
+            ct.ThrowIfCancellationRequested();
+            ValidateEvidence(runId, deviceGuid, attestationCertificate, certificateSigningRequest);
+            deviceGuid = ByteString.From(deviceGuid.Span);
+            attestationCertificate = ByteString.From(attestationCertificate.Span);
+            certificateSigningRequest = ByteString.From(certificateSigningRequest.Span);
+            if (!MatchesDeviceApproval(deviceGuid.Span, SHA256.HashData(attestationCertificate.Span)))
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "The Device is not approved.");
+            }
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (await ReadReceiptAsync(ct).ConfigureAwait(false) != null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "Reconcile the retained enrollment before requesting issuance.");
+                }
+                using Certificate issued = await m_issuer.SigningRequestForAuthenticatedEvidenceAsync(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType, m_subjectName, m_applicationUri,
+                    m_productInstanceUri, [], [], certificateSigningRequest, ct).ConfigureAwait(false);
+                ByteString certificate = ByteString.From(issued.RawData.AsSpan());
+                byte[] receipt =
+                    CreateReceipt(runId, deviceGuid, attestationCertificate, certificateSigningRequest, certificate);
+                await m_files.WriteAsync(m_receiptKey, receipt, ct).ConfigureAwait(false);
+                return certificate;
+            }
+            finally
+            {
+                m_gate.Release();
+            }
         }
 
         /// <summary>
         /// Makes only the previously issued receipt eligible for admission after the role authenticates Done20.
         /// A repeat of the same commit is idempotent and does not attest to DoneAck20 delivery.
         /// </summary>
-        public ValueTask CommitAsync(
+        public async ValueTask CommitAsync(
             Guid runId,
             ByteString deviceGuid,
             ByteString attestationCertificate,
@@ -88,10 +132,29 @@ namespace OnboardingRegistrar
             ByteString certificate,
             CancellationToken ct = default)
         {
-            return PublishAsync(
-                CreateReceipt(runId, deviceGuid, attestationCertificate, certificateSigningRequest, certificate),
-                commit: true,
-                ct);
+            byte[] expected =
+                CreateReceipt(runId, deviceGuid, attestationCertificate, certificateSigningRequest, certificate);
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                byte[]? current = await ReadReceiptAsync(ct).ConfigureAwait(false);
+                if (current == null || !MatchesDeviceApproval(current) ||
+                    !CryptographicOperations.FixedTimeEquals(current.AsSpan(2), expected.AsSpan(2)))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "Enrollment does not match the retained issuance. Reconcile the receipt before another run.");
+                }
+                if (current[1] == Pending)
+                {
+                    expected[1] = Committed;
+                    await m_files.WriteAsync(m_receiptKey, expected, ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
         }
 
         /// <inheritdoc/>
@@ -104,7 +167,7 @@ namespace OnboardingRegistrar
             try
             {
                 byte[]? receipt = await ReadReceiptAsync(cancellationToken).ConfigureAwait(false);
-                if (receipt == null || receipt[1] != Committed ||
+                if (receipt == null || receipt[1] != Committed || !MatchesDeviceApproval(receipt) ||
                     !CryptographicOperations.FixedTimeEquals(
                         receipt.AsSpan(CertificateDigestOffset),
                         SHA256.HashData(certificate.Span)))
@@ -133,36 +196,22 @@ namespace OnboardingRegistrar
         }
 
         /// <summary>
-        /// Publishes an initial issuance or commits the same receipt without replacing another run.
+        /// Checks that a durable receipt belongs to the Device still approved by the operator.
         /// </summary>
-        private async ValueTask PublishAsync(byte[] expected, bool commit, CancellationToken ct)
+        private bool MatchesDeviceApproval(byte[] receipt)
         {
-            await m_gate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                byte[]? current = await ReadReceiptAsync(ct).ConfigureAwait(false);
-                if (current == null && !commit)
-                {
-                    await m_files.WriteAsync(m_receiptKey, expected, ct).ConfigureAwait(false);
-                    return;
-                }
-                if (current == null ||
-                    !CryptographicOperations.FixedTimeEquals(current.AsSpan(2), expected.AsSpan(2)))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadInvalidState,
-                        "Enrollment does not match the retained issuance. Reconcile the receipt before another run.");
-                }
-                if (commit && current[1] == Pending)
-                {
-                    expected[1] = Committed;
-                    await m_files.WriteAsync(m_receiptKey, expected, ct).ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                m_gate.Release();
-            }
+            return MatchesDeviceApproval(
+                receipt.AsSpan(DeviceGuidOffset, DeviceGuidSize),
+                receipt.AsSpan(AttestationDigestOffset, SHA256.HashSizeInBytes));
+        }
+
+        /// <summary>
+        /// Matches both fixed-width values selected by the operator.
+        /// </summary>
+        private bool MatchesDeviceApproval(ReadOnlySpan<byte> deviceGuid, ReadOnlySpan<byte> attestationSha256)
+        {
+            return CryptographicOperations.FixedTimeEquals(deviceGuid, m_deviceGuid.Span) &&
+                CryptographicOperations.FixedTimeEquals(attestationSha256, m_attestationSha256.Span);
         }
 
         /// <summary>
@@ -189,20 +238,40 @@ namespace OnboardingRegistrar
             ByteString certificateSigningRequest,
             ByteString certificate)
         {
-            if (runId == Guid.Empty || deviceGuid.Length != 16 || attestationCertificate.IsEmpty ||
-                certificateSigningRequest.IsEmpty || certificate.IsEmpty)
+            ValidateEvidence(runId, deviceGuid, attestationCertificate, certificateSigningRequest);
+            if (certificate.IsEmpty)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The enrollment evidence is incomplete.");
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The issued certificate is missing.");
             }
             var receipt = new byte[ReceiptSize];
             receipt[0] = Version;
             receipt[1] = Pending;
             runId.ToByteArray().CopyTo(receipt, 2);
-            deviceGuid.Span.CopyTo(receipt.AsSpan(18, 16));
-            SHA256.HashData(attestationCertificate.Span, receipt.AsSpan(34, SHA256.HashSizeInBytes));
-            SHA256.HashData(certificateSigningRequest.Span, receipt.AsSpan(66, SHA256.HashSizeInBytes));
+            deviceGuid.Span.CopyTo(receipt.AsSpan(DeviceGuidOffset, DeviceGuidSize));
+            SHA256.HashData(
+                attestationCertificate.Span, receipt.AsSpan(AttestationDigestOffset, SHA256.HashSizeInBytes));
+            SHA256.HashData(
+                certificateSigningRequest.Span,
+                receipt.AsSpan(AttestationDigestOffset + SHA256.HashSizeInBytes, SHA256.HashSizeInBytes));
             SHA256.HashData(certificate.Span, receipt.AsSpan(CertificateDigestOffset));
             return receipt;
+        }
+
+        /// <summary>
+        /// Checks that the authenticated role supplied the run, Device, attestation leaf and exact CSR.
+        /// </summary>
+        private static void ValidateEvidence(
+            Guid runId,
+            ByteString deviceGuid,
+            ByteString attestationCertificate,
+            ByteString certificateSigningRequest)
+        {
+            if (runId == Guid.Empty || deviceGuid.Length != DeviceGuidSize || attestationCertificate.IsEmpty ||
+                certificateSigningRequest.IsEmpty)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument, "The enrollment evidence is incomplete.");
+            }
         }
 
         /// <summary>The layout version.</summary>
@@ -211,14 +280,32 @@ namespace OnboardingRegistrar
         private const byte Pending = 0;
         /// <summary>The matching authenticated Done20 was committed.</summary>
         private const byte Committed = 1;
+        /// <summary>The size of a wire-order Device GUID.</summary>
+        private const int DeviceGuidSize = 16;
+        /// <summary>The Device GUID follows the layout version, state and run identifier.</summary>
+        private const int DeviceGuidOffset = 2 + 16;
+        /// <summary>The attestation certificate SHA-256 digest follows the Device GUID.</summary>
+        private const int AttestationDigestOffset = DeviceGuidOffset + DeviceGuidSize;
         /// <summary>The certificate SHA-256 digest follows the run, Device GUID and two other digests.</summary>
-        private const int CertificateDigestOffset = 2 + 16 + 16 + (2 * SHA256.HashSizeInBytes);
+        private const int CertificateDigestOffset = AttestationDigestOffset + (2 * SHA256.HashSizeInBytes);
         /// <summary>The exact size of the versioned receipt.</summary>
         private const int ReceiptSize = CertificateDigestOffset + SHA256.HashSizeInBytes;
         /// <summary>The sample's exclusive durable checkpoint storage.</summary>
         private readonly PushRegistrarCheckpointFiles m_files;
         /// <summary>The ordinary product and DCA approval.</summary>
         private readonly PullRegistrarPolicy m_policy;
+        /// <summary>The operator-approved product instance.</summary>
+        private readonly string m_productInstanceUri;
+        /// <summary>The operator-approved DCA application.</summary>
+        private readonly string m_applicationUri;
+        /// <summary>The operator-approved certificate subject.</summary>
+        private readonly string m_subjectName;
+        /// <summary>The approved wire-order FDO Device GUID.</summary>
+        private readonly ByteString m_deviceGuid;
+        /// <summary>The SHA-256 pin for the approved Device attestation leaf.</summary>
+        private readonly ByteString m_attestationSha256;
+        /// <summary>The dedicated, initialized issuance group, borrowed from the host.</summary>
+        private readonly ICertificateGroupWithAuthenticatedSigningRequest m_issuer;
         /// <summary>The receipt key scoped to the approved product and application pair.</summary>
         private readonly string m_receiptKey;
         /// <summary>Serializes receipt reads and changes for this single-instance sample policy.</summary>

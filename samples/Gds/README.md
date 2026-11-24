@@ -572,11 +572,13 @@ for provider registration and recovery behavior.
 
 For hosts integrating FDO, the sample code has two components that are not
 wired into these commands. [`FdoRegistrarEnrollmentPolicy`](OnboardingRegistrar/FdoRegistrarEnrollmentPolicy.cs)
-records issuance before the certificate is returned, then admits only the
-exact certificate from a committed enrollment. The host commits on
-authenticated `Done20`, before sending `DoneAck20`. The sample receipt
-directory permits one writer; the host must reconcile interrupted enrollment
-before processing a different run.
+checks the authenticated Device GUID and attestation certificate against
+operator-configured pins before asking the dedicated GDS group to sign the
+CSR. It records issuance before returning the certificate, then admits only
+the exact certificate from a committed enrollment. The host commits on
+authenticated `Done20`, before sending `DoneAck20`. The receipt directory
+permits one writer; the host must reconcile interrupted enrollment before
+processing a different run.
 
 On the Device, `ValidateExternalCredentialAsync` in
 [`OnboardingDeviceCredentials`](OnboardingClient/OnboardingDeviceCredentials.cs)
