@@ -578,12 +578,14 @@ authenticated `Done20`, before sending `DoneAck20`. The sample receipt
 directory permits one writer; the host must reconcile interrupted enrollment
 before processing a different run.
 
-On the Device, `InstallCompletedExternalCredentialAsync` in
+On the Device, `ValidateExternalCredentialAsync` in
 [`OnboardingDeviceCredentials`](OnboardingClient/OnboardingDeviceCredentials.cs)
-binds the approved certificate to its retained RSA CSR key, verifies the
-stored key pair, and then activates it without replacing OPC UA peer trust.
-The host must validate the certificate before sending `Done20` and call the
-installer only after authenticating `DoneAck20`.
+checks the received application leaf against the retained RSA CSR key and
+locally configured enrollment trust before the host sends `Done20`. Only
+after authenticating `DoneAck20` does the host call
+`InstallCompletedExternalCredentialAsync` with that exact leaf. It verifies
+the stored key pair before activating it. Neither operation replaces OPC UA
+peer trust.
 
 ### Recover a lost FinishRequest response
 

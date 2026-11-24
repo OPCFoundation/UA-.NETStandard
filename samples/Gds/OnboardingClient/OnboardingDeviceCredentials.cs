@@ -268,6 +268,31 @@ namespace OnboardingClientSample
         }
 
         /// <summary>
+        /// Validates the external leaf against locally approved enrollment trust and the retained CSR key.
+        /// Call before confirming enrollment; this does not install a credential or change peer trust.
+        /// </summary>
+        internal async ValueTask ValidateExternalCredentialAsync(
+            ByteString certificate,
+            Certificate retainedKey,
+            CertificateValidationScope enrollmentTrust,
+            CancellationToken ct = default)
+        {
+            if (retainedKey == null)
+            {
+                throw new ArgumentNullException(nameof(retainedKey));
+            }
+            if (enrollmentTrust == null)
+            {
+                throw new ArgumentNullException(nameof(enrollmentTrust));
+            }
+            ct.ThrowIfCancellationRequested();
+            using Certificate issued = LoadExternalLeaf(certificate);
+            ValidateRetainedKeyBinding(issued, retainedKey);
+            using var chain = new CertificateCollection { issued };
+            await ValidateScopedChainAsync(chain, enrollmentTrust, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Installs the exact host-validated external leaf with its retained CSR key without changing peer trust.
         /// The external protocol must authenticate completion before calling this method.
         /// </summary>
@@ -286,13 +311,7 @@ namespace OnboardingClientSample
                 throw new ArgumentNullException(nameof(issuerChain));
             }
             ct.ThrowIfCancellationRequested();
-            byte[] encoded = approvedCertificate.ToArray();
-            using Certificate issued = Certificate.FromRawData(encoded);
-            if (!issued.RawData.AsSpan().SequenceEqual(encoded))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadCertificateInvalid, "Expected exactly one approved DER certificate.");
-            }
+            using Certificate issued = LoadExternalLeaf(approvedCertificate);
             using Certificate combined = BindToRetainedKey(issued, retainedKey);
             CertificateIdentifier identifier = GetIdentifier();
             await PersistApplicationCertificateAsync(identifier, combined, verifyPersistence: true, ct)
@@ -770,24 +789,10 @@ namespace OnboardingClientSample
                     using Certificate issuer = Certificate.FromRawData(credentials.IssuerCertificates[i]);
                     chain.Add(issuer);
                 }
-                Opc.Ua.CertificateValidationResult validation = await m_manager.ValidateAsync(
-                    chain, TrustListIdentifier.Peers, new ValidationOptions
-                    {
-                        TrustScope = new CertificateValidationScope(
-                            received.TrustedCertificates, received.IssuerCertificates,
-                            (received.TrustedCrls.ToArray() ?? []).Concat(received.IssuerCrls.ToArray() ?? [])
-                                .ToArrayOf()),
-                        RejectUnknownRevocationStatus = true,
-                        RejectSHA1SignedCertificates = true,
-                        MinimumCertificateKeySize = 2048,
-                        AutoAcceptUntrustedCertificates = false,
-                        AcceptError = static (_, _) => false,
-                        RecordRejectedCertificates = false
-                    }, cancellationToken).ConfigureAwait(false);
-                if (!validation.IsValid)
-                {
-                    throw new ServiceResultException(validation.StatusCode);
-                }
+                var scope = new CertificateValidationScope(
+                    received.TrustedCertificates, received.IssuerCertificates,
+                    (received.TrustedCrls.ToArray() ?? []).Concat(received.IssuerCrls.ToArray() ?? []).ToArrayOf());
+                await ValidateScopedChainAsync(chain, scope, cancellationToken).ConfigureAwait(false);
                 return chain;
             }
             catch
@@ -798,11 +803,66 @@ namespace OnboardingClientSample
         }
 
         /// <summary>
-        /// Proves that a certificate names this application, is an RSA application certificate and certifies the
-        /// retained request key, and returns it combined with that key. Each fresh key signs exactly one CSR, so a
-        /// certificate from any earlier assignment cannot pass.
+        /// Applies strict application certificate checks using only the supplied trust material.
+        /// </summary>
+        private async ValueTask ValidateScopedChainAsync(
+            CertificateCollection chain,
+            CertificateValidationScope scope,
+            CancellationToken ct)
+        {
+            Opc.Ua.CertificateValidationResult validation = await m_manager.ValidateAsync(
+                chain, TrustListIdentifier.Peers, new ValidationOptions
+                {
+                    TrustScope = scope,
+                    RejectUnknownRevocationStatus = true,
+                    RejectSHA1SignedCertificates = true,
+                    MinimumCertificateKeySize = 2048,
+                    AutoAcceptUntrustedCertificates = false,
+                    AcceptError = static (_, _) => false,
+                    RecordRejectedCertificates = false
+                }, ct).ConfigureAwait(false);
+            if (!validation.IsValid)
+            {
+                throw new ServiceResultException(validation.StatusCode);
+            }
+        }
+
+        /// <summary>
+        /// Reads exactly one DER-encoded application leaf, not a CA or a certificate bundle.
+        /// </summary>
+        private static Certificate LoadExternalLeaf(ByteString certificate)
+        {
+            byte[] encoded = certificate.ToArray();
+            using Certificate issued = Certificate.FromRawData(encoded);
+            if (!issued.RawData.AsSpan().SequenceEqual(encoded) || X509Utils.IsCertificateAuthority(issued))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid, "Expected exactly one DER application leaf certificate.");
+            }
+            return issued.AddRef();
+        }
+
+        /// <summary>
+        /// Binds the leaf to its retained key for installation.
         /// </summary>
         private Certificate BindToRetainedKey(Certificate issued, Certificate retained)
+        {
+            ValidateRetainedKeyBinding(issued, retained);
+            try
+            {
+                return DefaultCertificateFactory.Instance.CreateWithPrivateKey(issued, retained);
+            }
+            catch (NotSupportedException error)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The retained request key is not usable.", error);
+            }
+        }
+
+        /// <summary>
+        /// Checks the application identity, certificate type and retained private key without copying that key.
+        /// </summary>
+        private void ValidateRetainedKeyBinding(Certificate issued, Certificate retained)
         {
             if (!X509Utils.GetApplicationUrisFromCertificate(issued).Contains(m_configuration.ApplicationUri))
             {
@@ -818,14 +878,10 @@ namespace OnboardingClientSample
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed, "The certificate does not certify the retained request key.");
             }
-            try
-            {
-                return DefaultCertificateFactory.Instance.CreateWithPrivateKey(issued, retained);
-            }
-            catch (NotSupportedException error)
+            if (!retained.HasPrivateKey)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed, "The retained request key is not usable.", error);
+                    StatusCodes.BadSecurityChecksFailed, "The retained request key has no private key.");
             }
         }
 

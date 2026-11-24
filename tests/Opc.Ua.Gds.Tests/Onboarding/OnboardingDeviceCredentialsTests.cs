@@ -495,6 +495,89 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// External validation uses the host's enrollment trust without storing or activating the leaf.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExternalValidationRequiresEnrollmentTrustWithoutInstallation(bool trusted)
+        {
+            using Certificate anchor = CertificateBuilder.Create("CN=Sample Enrollment CA")
+                .SetCAConstraint().SetRSAKeySize(2048).CreateForRSA();
+            var scope = new CertificateValidationScope([Encoded(anchor)]);
+            var storeProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            m_credentials = new OnboardingDeviceCredentials(m_configuration, m_telemetry, [storeProvider.Object]);
+            m_manager.Setup(m => m.ValidateAsync(
+                    It.Is<CertificateCollection>(chain => chain.Count == 1 &&
+                        chain[0].Thumbprint == m_identity.Thumbprint && !chain[0].HasPrivateKey),
+                    TrustListIdentifier.Peers,
+                    It.Is<ValidationOptions>(options => options.TrustScope == scope &&
+                        options.RejectUnknownRevocationStatus == true &&
+                        options.AutoAcceptUntrustedCertificates == false && !options.RecordRejectedCertificates),
+                    CancellationToken.None))
+                .ReturnsAsync(trusted
+                    ? CertificateValidationResult.Success
+                    : new CertificateValidationResult(false, StatusCodes.BadCertificateUntrusted, [], false));
+
+            if (trusted)
+            {
+                await m_credentials.ValidateExternalCredentialAsync(Encoded(m_identity), m_identity, scope)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                    m_credentials.ValidateExternalCredentialAsync(Encoded(m_identity), m_identity, scope).AsTask());
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            }
+
+            m_manager.Verify(m => m.ValidateAsync(
+                It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                It.IsAny<ValidationOptions>(), CancellationToken.None), Times.Once);
+            VerifyNoInstallation(verifyNoValidation: false);
+            storeProvider.Verify(value => value.CreateStore(It.IsAny<ITelemetryContext>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A leaf with the expected URI still requires its exact retained private key.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExternalValidationRejectsMissingOrDifferentRequestKey(bool matchesPublicKey)
+        {
+            using Certificate retained = matchesPublicKey
+                ? Certificate.FromRawData(m_identity.RawData)
+                : CreateIdentity(kApplicationUri);
+            var scope = new CertificateValidationScope([Encoded(m_identity)]);
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_credentials.ValidateExternalCredentialAsync(Encoded(m_identity), retained, scope).AsTask());
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
+        /// An enrollment trust anchor is not an application leaf, even when the Device holds its key.
+        /// </summary>
+        [Test]
+        public async Task ExternalValidationRejectsCertificateAuthorityAsLeaf()
+        {
+            using Certificate authority = CertificateBuilder.Create("CN=Sample Enrollment CA")
+                .SetCAConstraint()
+                .AddExtension(new X509SubjectAltNameExtension(kApplicationUri, ["localhost"]))
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            ByteString encoded = Encoded(authority);
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_credentials.ValidateExternalCredentialAsync(
+                    encoded, authority, new CertificateValidationScope([encoded])).AsTask());
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
         /// External credentials activate only after their stored private key is verified, without changing peer trust.
         /// </summary>
         [TestCase(true)]
