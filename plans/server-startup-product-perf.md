@@ -143,8 +143,30 @@ which the change to the store scan above removes.
 
 ### Final version
 
-Pending: the paired A/B of master against the final version is queued behind
-another session's benchmark on the shared machine.
+Same method, master `e6c29e434` + probe (A) against the final branch (B),
+2026-11-24 12:15–12:20, with no test run of this session in parallel (absolute
+numbers are lower than in the first A/B for that reason).
+
+| Mode | Server | A total | B total | Change | Phase changes (A → B) |
+|---|---|---:|---:|---:|---|
+| Warm | StandardServer | 407 | 333 | −18 % | start 157 → 105, client load 74 → 47, server load 32 → 33 |
+| Warm | ReferenceServer | 998 | 805 | −19 % | start 708 → 535, client load 85 → 48, server load 33 → 32 |
+| 4 workers | StandardServer | 690 | 633 | −8 % | start 397 → 351, client load 85 → 60, server load 36 → 40 |
+| 4 workers | ReferenceServer | 1325 | 1252 | −5 % | start 1006 → 914, client load 100 → 75, server load 37 → 35 |
+
+Per-round medians of the total (A/B):
+
+- Warm StandardServer 383/302, 404/318, 442/348, 646/465, 386/309.
+- Warm ReferenceServer 814/731, 842/762, 1030/870, 1395/958, 1301/750.
+- 4 workers StandardServer 697/582, 713/631, 733/653, 671/599, 682/653.
+- 4 workers ReferenceServer 1358/1277, 1350/1280, 1854/1266, 1302/1226,
+  1244/1250.
+
+B is faster in every round except one 4-worker ReferenceServer round
+(1244/1250). Server load is now within noise of master (warm +1.1 ms
+StandardServer, −1.1 ms ReferenceServer; ±3 ms with 4 workers, in both
+directions), so the regression of the first version is gone. Connect, close
+and stop are unchanged within noise.
 
 ## Not implemented
 
