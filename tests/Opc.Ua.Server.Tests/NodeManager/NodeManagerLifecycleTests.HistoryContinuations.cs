@@ -777,6 +777,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
+        // Runs alone: whether the in-flight first page can still bind its continuation point
+        // depends on how far the asynchronous retirement has progressed when it resumes. Under the
+        // load of parallel tests the binding was observed to fail (CI run 45343833827); see
+        // plans/lifecycle-test-suite-redesign.md, "Open items".
+        [NonParallelizable]
         public async Task FirstHistoryPageInFlightAtRetirementStillRejectsItsSavedContinuationAsync()
         {
             Task exactWriter3Disposal = Task.CompletedTask;

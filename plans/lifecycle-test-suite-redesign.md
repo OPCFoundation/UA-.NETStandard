@@ -111,7 +111,9 @@ instead of rewriting tests.
    its server, session, mocks and gates in `[SetUp]` or in its body; the only
    fixture-wide state was the shared certificate store, which item 2 replaces. No
    case changes process-wide state (the `GC.Collect` ownership checks only observe
-   their own weak references), so no `[NonParallelizable]` remains. The worker count
+   their own weak references). Two cases keep a method-level `[NonParallelizable]`
+   because their expected continuation-point outcome depends on retirement timing
+   (see "Open items"); nothing is serialized for process-wide state. The worker count
    is NUnit's default (one per core: 4 on the Windows and Linux runners, 3 on macOS).
 5. **No fixed stop delay.** `ServerFixture.StopAsync` no longer waits 100 ms after
    stopping (the same one-line change as in PR #5166, so the two merge cleanly).
@@ -202,9 +204,37 @@ recorded below.
 
 ### CI, this PR
 
-To be filled in from the PR's CI run.
+First run, 45343833827 (head `612709c00`; macOS is not part of PR CI):
+
+| Profile | Entry | Lifecycle cases | Lifecycle test wall | Mean per case | Job |
+|---|---|---:|---:|---:|---:|
+| Windows net48 | server-node-lifecycle | 721 passed | 7.0 min | 2.3 s | 19 min |
+| Windows net11.0 | all (whole project) | 743 passed, 1 failed | 13.2 min (in parallel with the rest) | 2.0 s | 33 min |
+| Linux net11.0 | all (whole project) | 743 passed, 1 failed | 13.3 min (in parallel with the rest) | 2.3 s | 30 min |
+
+(744 lifecycle results on net11.0 include the two parallel component fixtures
+in the same files.) On net48 the lifecycle tests went from three jobs and 81 job
+minutes to **one job of 19 minutes**, under the 39 minutes they took before #5011;
+the certificate-check-to-start phase of a case fell from 3.3 s to 0.5 s. The whole
+`Opc.Ua.Server.Tests` job went from 49 to 33 minutes on Windows net11.0 and from
+43 to 30 minutes on Linux.
+
+The two net11.0 failures were the continuation-point cases described in "Open
+items"; they now run alone.
 
 ## Open items
+
+* `InFlightBrowsePinsItsViewButNotItsSuccessorContinuationAsync` and
+  `FirstHistoryPageInFlightAtRetirementStillRejectsItsSavedContinuationAsync`
+  release a request that was blocked inside a generation while that generation
+  retires, then assert whether the request could still bind a continuation point
+  (Browse: must not; first HistoryRead page: must, then the saved point must be
+  rejected). The binding (`TryBindHistoryResult` and its Browse counterpart)
+  depends on how far the asynchronous retirement got, and under the load of the
+  whole project running in parallel each case once saw the other outcome (CI run
+  45343833827, Linux and Windows net11.0). They now run alone, as they did before.
+  Whether the product should decide this deterministically (for example at
+  publication) is a question for the lifecycle owners (#4931).
 
 * `PreparedCutoffPreservesAuthorizedSourceSnapshotsAndCoreIdentityAsync`: under
   load the retired source's last queued emission can be published after a

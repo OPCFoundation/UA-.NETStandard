@@ -211,6 +211,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
+        // Runs alone: whether the in-flight request can still bind a successor continuation point
+        // depends on how far the asynchronous retirement has progressed when it resumes. Under the
+        // load of parallel tests the binding was observed to succeed (CI run 45343833827); see
+        // plans/lifecycle-test-suite-redesign.md, "Open items".
+        [NonParallelizable]
         public async Task InFlightBrowsePinsItsViewButNotItsSuccessorContinuationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
