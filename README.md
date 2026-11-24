@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard Stack
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
@@ -196,7 +201,7 @@ Contributors must sign the OPC Foundation
 The CLA "I AGREE" gate is presented automatically on your first PR.
 
 The project is licensed under the
-[MIT License](LICENSE.txt). Report security
+[MIT License](LICENSE). Report security
 vulnerabilities via the process documented in
 [SECURITY.md](SECURITY.md).
 
