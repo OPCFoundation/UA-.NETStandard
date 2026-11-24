@@ -2383,6 +2383,11 @@ metadata or return without doing work.
 
 ### Historical-access reconciliation
 
+Before publishing a routing batch, the server withdraws historian registrations
+owned by the departing generations. If a withdrawal fails, the server restores
+the affected registrations at their original lookup precedence before changing
+any generation gates or publishing the new routes.
+
 Official companion NodeSets often declare `Historizing="true"` or set
 `AccessLevel` bits such as `HistoryRead` on variables whose type is
 capable of history. A concrete server still needs a historian provider

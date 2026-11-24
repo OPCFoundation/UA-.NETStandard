@@ -270,9 +270,10 @@ namespace Opc.Ua.Server
         /// Withdraws candidate historian registrations when its generation leaves routing.
         /// </summary>
         /// <param name="manager">The retired NodeManager.</param>
-        internal static bool RetireHistorianRegistrations(IAsyncNodeManager manager)
+        /// <param name="rollbacks">Undo actions for a withdrawal that is part of a batch.</param>
+        internal static bool RetireHistorianRegistrations(IAsyncNodeManager manager, List<Action>? rollbacks = null)
         {
-            return GetServer(manager)?.RetireHistorianRegistrations() == true;
+            return GetServer(manager)?.RetireHistorianRegistrations(rollbacks) == true;
         }
 
         /// <summary>
@@ -641,9 +642,9 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Withdraws this candidate's bindings from the serving registry.
             /// </summary>
-            internal bool RetireHistorianRegistrations()
+            internal bool RetireHistorianRegistrations(List<Action>? rollbacks = null)
             {
-                return m_historianRegistry?.Retire() == true;
+                return m_historianRegistry?.Retire(rollbacks) == true;
             }
 
             /// <summary>

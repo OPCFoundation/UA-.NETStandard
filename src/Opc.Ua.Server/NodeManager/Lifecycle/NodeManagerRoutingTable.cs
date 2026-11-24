@@ -100,13 +100,11 @@ namespace Opc.Ua.Server
         private bool PublishSnapshot(RoutingSnapshot next)
         {
             RoutingSnapshot previous = m_snapshot;
-            bool historianRegistrationsRetired = false;
+            bool historianRegistrationsRetired = RetireHistorianRegistrations(previous, next);
             foreach (NodeManagerGeneration generation in previous.Generations)
             {
                 if (!next.Generations.Contains(generation))
                 {
-                    historianRegistrationsRetired |=
-                        ChangePreparer.RetireHistorianRegistrations(generation.NodeManager);
                     generation.Gate.Retire();
                     generation.Slot.Unpublish(generation);
                 }
@@ -130,6 +128,50 @@ namespace Opc.Ua.Server
             Volatile.Write(ref m_snapshot, next);
             previous.Epoch.Close();
             return historianRegistrationsRetired;
+        }
+
+        /// <summary>
+        /// Withdraws historian registrations before making any irreversible routing transitions.
+        /// </summary>
+        private static bool RetireHistorianRegistrations(RoutingSnapshot previous, RoutingSnapshot next)
+        {
+            List<Action>? rollbacks = null;
+            bool changed = false;
+            try
+            {
+                foreach (NodeManagerGeneration generation in previous.Generations)
+                {
+                    if (!next.Generations.Contains(generation))
+                    {
+                        changed |= ChangePreparer.RetireHistorianRegistrations(
+                            generation.NodeManager, rollbacks ??= []);
+                    }
+                }
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                List<Exception>? failures = null;
+                if (rollbacks is not null)
+                {
+                    for (int i = rollbacks.Count - 1; i >= 0; i--)
+                    {
+                        try
+                        {
+                            rollbacks[i]();
+                        }
+                        catch (Exception rollbackFailure) when (rollbackFailure is not OutOfMemoryException)
+                        {
+                            (failures ??= [failure]).Add(rollbackFailure);
+                        }
+                    }
+                }
+                if (failures is not null)
+                {
+                    throw new AggregateException("Historian withdrawal and rollback both failed.", failures);
+                }
+                throw;
+            }
+            return changed;
         }
 
         /// <summary>

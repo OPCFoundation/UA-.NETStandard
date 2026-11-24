@@ -217,10 +217,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A failed batch retirement preserves every generation and historian registration in the serving view.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
         public async Task FailedBatchRoutingPublicationPreservesEarlierServingGenerationAsync(
-            bool preferredRemovedFirst)
+            bool preferredRemovedFirst,
+            bool failAfterWithdrawal)
         {
             var namespaces = new NamespaceTable();
             using var servingHistorian = new HistorianProviderRegistry(namespaces);
@@ -238,6 +241,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<object>(), It.IsAny<IHistorianProvider>()))
                 .Returns<object, IHistorianProvider>(ownedServingHistorian.ReleaseStagedProviderOwnership);
             var servingOwners = new List<object>();
+            ownedHistorian.Setup(value => value.CaptureOwnedRegistrationRollback(It.IsAny<object>()))
+                .Returns<object>(owner =>
+                {
+                    Action restore = ownedServingHistorian.CaptureOwnedRegistrationRollback(owner);
+                    return () =>
+                    {
+                        restore();
+                        if (!servingOwners.Exists(existing => ReferenceEquals(existing, owner)))
+                        {
+                            servingOwners.Add(owner);
+                        }
+                    };
+                });
             ownedHistorian.Setup(value => value.ReplaceOwnedRegistrations(
                     It.IsAny<object>(), It.IsAny<HistorianProviderRegistration[]>()))
                 .Callback<object, HistorianProviderRegistration[]>((owner, registrations) =>
@@ -256,12 +272,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ownedHistorian.Setup(value => value.RemoveOwnedRegistrations(It.IsAny<object>()))
                 .Callback<object>(owner =>
                 {
-                    if (failRetirement && ++retirementCalls == 2)
+                    bool shouldFail = failRetirement && ++retirementCalls == 2;
+                    if (shouldFail && !failAfterWithdrawal)
                     {
                         throw failure;
                     }
                     ownedServingHistorian.RemoveOwnedRegistrations(owner);
                     servingOwners.RemoveAll(existing => ReferenceEquals(existing, owner));
+                    if (shouldFail)
+                    {
+                        throw failure;
+                    }
                 });
 
             var server = new Mock<IServerInternal>();

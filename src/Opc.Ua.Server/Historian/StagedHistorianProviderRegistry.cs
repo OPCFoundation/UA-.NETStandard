@@ -331,7 +331,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Withdraws this candidate's serving registrations when its generation leaves routing.
         /// </summary>
-        internal bool Retire()
+        internal bool Retire(List<Action>? rollbacks = null)
         {
             lock (m_lock)
             {
@@ -339,7 +339,25 @@ namespace Opc.Ua.Server.Historian
                 {
                     return false;
                 }
+
                 bool hadServingRegistrations = m_servingHasRegistrations;
+                if (rollbacks is not null)
+                {
+                    bool published = m_published;
+                    Action? restore = hadServingRegistrations
+                        ? GetOwnedRegistry().CaptureOwnedRegistrationRollback(m_owner)
+                        : null;
+                    rollbacks.Add(() =>
+                    {
+                        lock (m_lock)
+                        {
+                            restore?.Invoke();
+                            m_servingHasRegistrations = hadServingRegistrations;
+                            m_published = published;
+                            m_retired = false;
+                        }
+                    });
+                }
                 if (hadServingRegistrations)
                 {
                     GetOwnedRegistry().RemoveOwnedRegistrations(m_owner);
