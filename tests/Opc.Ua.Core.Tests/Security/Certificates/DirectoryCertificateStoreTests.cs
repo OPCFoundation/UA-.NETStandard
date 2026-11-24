@@ -698,6 +698,95 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(loaded.Thumbprint, Is.EqualTo(expected));
         }
         [Test]
+        public async Task LoadPrivateKeyAsyncTriesCertificatesOfPemBundleInFileOrderAsync()
+        {
+            // "old.der" holds A with an unreadable key; "bundle.pem" holds B,
+            // a renewal of A with the same key, followed by A. The bundle's
+            // key matches both, so the first certificate of the bundle wins.
+            using Certificate a = CertificateBuilder.Create("CN=Bundle")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using RSA key = a.GetRSAPrivateKey()!;
+            var request = new CertificateRequest(
+                "CN=Bundle", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using (X509Certificate2 template = X509CertificateLoader.LoadCertificate(a.RawData))
+            {
+                foreach (X509Extension extension in template.Extensions)
+                {
+                    // The authority key identifier names the issuer serial of A.
+                    if (extension.Oid?.Value != "2.5.29.35")
+                    {
+                        request.CertificateExtensions.Add(extension);
+                    }
+                }
+            }
+            using Certificate b = Certificate.From(request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1)));
+            Assert.That(b.Thumbprint, Is.Not.EqualTo(a.Thumbprint));
+
+            string certs = Path.Combine(m_tempDir, "certs");
+            string keys = Path.Combine(m_tempDir, "private");
+            Directory.CreateDirectory(certs);
+            Directory.CreateDirectory(keys);
+            File.WriteAllBytes(Path.Combine(certs, "old.der"), a.RawData);
+            File.WriteAllBytes(Path.Combine(keys, "old.pfx"), [1, 2, 3]);
+            File.WriteAllBytes(
+                Path.Combine(certs, "bundle.pem"),
+                [.. PEMWriter.ExportCertificateAsPEM(b), .. PEMWriter.ExportCertificateAsPEM(a)]);
+            File.WriteAllBytes(Path.Combine(keys, "bundle.pem"), PEMWriter.ExportPrivateKeyAsPEM(a));
+
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir, false);
+            using Certificate loaded = (await store.LoadPrivateKeyAsync(
+                null!, "CN=Bundle", null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                .ConfigureAwait(false))!;
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.Thumbprint, Is.EqualTo(b.Thumbprint));
+            Assert.That(loaded.HasPrivateKey, Is.True);
+        }
+
+        [Test]
+        public async Task LoadPrivateKeyAsyncFindsCertificateFileRepairedInPlaceAsync()
+        {
+            // Two certificates in one PEM file and an unreadable DER file:
+            // the store caches two entries for two files.
+            using Certificate first = CertificateBuilder.Create("CN=InBundleOne")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using Certificate second = CertificateBuilder.Create("CN=InBundleTwo")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using Certificate repaired = CertificateBuilder.Create("CN=Repaired")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string certs = Path.Combine(m_tempDir, "certs");
+            string keys = Path.Combine(m_tempDir, "private");
+            Directory.CreateDirectory(certs);
+            Directory.CreateDirectory(keys);
+            File.WriteAllBytes(
+                Path.Combine(certs, "bundle.pem"),
+                [.. PEMWriter.ExportCertificateAsPEM(first), .. PEMWriter.ExportCertificateAsPEM(second)]);
+            string repairedFile = Path.Combine(certs, "repaired.der");
+            File.WriteAllBytes(repairedFile, [1, 2, 3]);
+            File.WriteAllBytes(
+                Path.Combine(keys, "repaired.pfx"),
+                repaired.Export(X509ContentType.Pfx));
+
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir, false);
+            using (CertificateCollection all = await store.EnumerateAsync().ConfigureAwait(false))
+            {
+                Assert.That(all, Has.Count.EqualTo(2));
+            }
+
+            File.WriteAllBytes(repairedFile, repaired.RawData);
+            using Certificate loaded = (await store.LoadPrivateKeyAsync(
+                repaired.Thumbprint, null, null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                .ConfigureAwait(false))!;
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.Thumbprint, Is.EqualTo(repaired.Thumbprint));
+            Assert.That(loaded.HasPrivateKey, Is.True);
+        }
+
+        [Test]
         public async Task EnumerateCRLsAsyncOnEmptyStoreReturnsEmptyAsync()
         {
             using var store = new DirectoryCertificateStore(m_telemetry);

@@ -936,47 +936,45 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns whether every cached entry was read from the directory and
-        /// its files still have the size and last write time they had then.
+        /// Returns whether every cached entry was read by the last directory
+        /// scan and the directory still holds exactly the certificate files
+        /// that scan read, each with the same size and last write time. This
+        /// includes files that could not be parsed.
         /// </summary>
-        private static bool AreCertificateFilesUnchanged(Dictionary<string, Entry> entries)
+        private bool AreScannedFilesUnchanged(Dictionary<string, Entry> entries)
         {
             foreach (Entry entry in entries.Values)
             {
-                if (entry.FileIndex < 0 || !IsFileUnchanged(entry.CertificateFile))
+                if (entry.FileIndex < 0)
                 {
                     return false;
                 }
-                if (entry.DuplicateFiles != null)
-                {
-                    foreach ((FileInfo duplicate, int _) in entry.DuplicateFiles)
-                    {
-                        if (!IsFileUnchanged(duplicate))
-                        {
-                            return false;
-                        }
-                    }
-                }
             }
-            return true;
-        }
-
-        /// <summary>
-        /// Returns whether a file read during a directory scan still has the
-        /// size and last write time recorded by the scan.
-        /// </summary>
-        private static bool IsFileUnchanged(FileInfo? scanned)
-        {
-            if (scanned == null)
+            DirectoryInfo? certSubdir = m_certificateSubdir;
+            if (certSubdir == null)
             {
                 return false;
             }
             try
             {
-                var current = new FileInfo(scanned.FullName);
-                return current.Exists &&
-                    current.Length == scanned.Length &&
-                    current.LastWriteTimeUtc == scanned.LastWriteTimeUtc;
+                FileInfo[] current = [
+                    .. certSubdir.GetFiles(kCertSearchString),
+                    .. certSubdir.GetFiles(kPemCertSearchString)];
+                if (current.Length != m_scannedFiles.Count)
+                {
+                    return false;
+                }
+                for (int i = 0; i < current.Length; i++)
+                {
+                    (string path, long length, DateTime lastWriteTimeUtc) = m_scannedFiles[i];
+                    if (!string.Equals(current[i].FullName, path, StringComparison.Ordinal) ||
+                        current[i].Length != length ||
+                        current[i].LastWriteTimeUtc != lastWriteTimeUtc)
+                    {
+                        return false;
+                    }
+                }
+                return true;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -1026,13 +1024,14 @@ namespace Opc.Ua
                         IsPrivateKeyMatch(entry, thumbprint, subjectName, applicationUri, certificateType);
                 }
 
+                int scans = m_scanCount;
                 Dictionary<string, Entry> entries = Load(thumbprint: null, stopAfter, out bool complete);
-                if (!AreCertificateFilesUnchanged(entries))
+                if (scans == m_scanCount && !AreScannedFilesUnchanged(entries))
                 {
-                    // A certificate file was rewritten in place (same name and
-                    // file count), which the directory checks in Load do not
-                    // detect, or an entry was not read from the directory:
-                    // read the store again.
+                    // The entries came from the cache, but a certificate file
+                    // was rewritten in place (same name and file count), which
+                    // the directory checks in Load do not detect, or an entry
+                    // was not read from the directory: read the store again.
                     m_lastDirectoryCheck = DateTime.MinValue;
                     entries = Load(thumbprint: null, stopAfter, out complete);
                 }
@@ -1040,7 +1039,7 @@ namespace Opc.Ua
                 // Every file a matching certificate was read from is a
                 // candidate, in the order the files were read, so the result
                 // is the same as trying each file in turn.
-                var matches = new List<(int FileIndex, FileInfo File, Entry Entry)>();
+                var matches = new List<(int FileIndex, int IndexInFile, FileInfo File, Entry Entry)>();
                 foreach (Entry entry in entries.Values)
                 {
                     if (entry.Certificate == null ||
@@ -1052,20 +1051,22 @@ namespace Opc.Ua
 
                     if (entry.DuplicateFiles != null)
                     {
-                        foreach ((FileInfo duplicate, int duplicateIndex) in entry.DuplicateFiles)
+                        foreach ((FileInfo duplicate, int duplicateIndex, int duplicateIndexInFile) in entry.DuplicateFiles)
                         {
                             if (!skip.Contains(duplicate.FullName))
                             {
-                                matches.Add((duplicateIndex, duplicate, entry));
+                                matches.Add((duplicateIndex, duplicateIndexInFile, duplicate, entry));
                             }
                         }
                     }
                     if (!skip.Contains(entry.CertificateFile.FullName))
                     {
-                        matches.Add((entry.FileIndex, entry.CertificateFile, entry));
+                        matches.Add((entry.FileIndex, entry.IndexInFile, entry.CertificateFile, entry));
                     }
                 }
-                foreach ((int _, FileInfo file, Entry entry) in matches.OrderBy(m => m.FileIndex))
+                foreach ((int _, int _, FileInfo file, Entry entry) in matches
+                    .OrderBy(m => m.FileIndex)
+                    .ThenBy(m => m.IndexInFile))
                 {
                     candidates.Add((entry.Certificate.AddRef(), file));
                 }
@@ -1499,10 +1500,21 @@ namespace Opc.Ua
                 .GetFiles(kCertSearchString)
                 .Concat(certSubdir.GetFiles(kPemCertSearchString));
 
+            m_scanCount++;
             int fileIndex = -1;
             foreach (FileInfo file in files)
             {
                 fileIndex++;
+                // Every file is recorded, also one that fails to parse, so a
+                // later in-place repair is noticed (see AreScannedFilesUnchanged).
+                try
+                {
+                    m_scannedFiles.Add((file.FullName, file.Length, file.LastWriteTimeUtc));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    m_scannedFiles.Add((file.FullName, -1, DateTime.MinValue));
+                }
                 // Each Certificate.From(...) handle below is owned directly by
                 // the Entry it is placed into (no intermediate collection that
                 // would AddRef and orphan the original handle). Any handle not
@@ -1538,6 +1550,7 @@ namespace Opc.Ua
                             Certificate = certificate,
                             CertificateFile = file,
                             FileIndex = fileIndex,
+                            IndexInFile = ii,
                             PrivateKeyFile = null!,
                             CertificateWithPrivateKey = null!,
                             LastWriteTimeUtc = file.LastWriteTimeUtc
@@ -1594,7 +1607,8 @@ namespace Opc.Ua
                                     StringComparison.Ordinal))
                             {
                                 entry.DuplicateFiles = existing.DuplicateFiles ?? [];
-                                entry.DuplicateFiles.Add((existing.CertificateFile, existing.FileIndex));
+                                entry.DuplicateFiles.Add(
+                                    (existing.CertificateFile, existing.FileIndex, existing.IndexInFile));
                             }
                             else
                             {
@@ -1685,6 +1699,7 @@ namespace Opc.Ua
                 entry.CertificateWithPrivateKey?.Dispose();
             }
             m_certificates.Clear();
+            m_scannedFiles.Clear();
         }
 
         /// <summary>
@@ -2024,10 +2039,16 @@ namespace Opc.Ua
             public int FileIndex = -1;
 
             /// <summary>
+            /// The position of the certificate within <see cref="CertificateFile"/>
+            /// (a PEM file can hold several).
+            /// </summary>
+            public int IndexInFile;
+
+            /// <summary>
             /// Earlier files of the store that hold the same certificate, with
             /// their scan positions, or <see langword="null"/>.
             /// </summary>
-            public List<(FileInfo File, int FileIndex)>? DuplicateFiles;
+            public List<(FileInfo File, int FileIndex, int IndexInFile)>? DuplicateFiles;
         }
 
         /// <summary>
@@ -2105,6 +2126,17 @@ namespace Opc.Ua
         private DirectoryInfo? m_crlSubdir;
         private DirectoryInfo? m_privateKeySubdir;
         private readonly Dictionary<string, Entry> m_certificates;
+
+        /// <summary>
+        /// Path, size and last write time of every certificate file read by
+        /// the directory scan that filled <see cref="m_certificates"/>.
+        /// </summary>
+        private readonly List<(string Path, long Length, DateTime LastWriteTimeUtc)> m_scannedFiles = [];
+
+        /// <summary>
+        /// Number of directory scans, to tell a cached load from a scan.
+        /// </summary>
+        private int m_scanCount;
         private DateTime m_lastDirectoryCheck;
 
         /// <summary>

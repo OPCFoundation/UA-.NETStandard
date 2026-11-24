@@ -55,7 +55,9 @@ old and new certificates are never mixed.
   check after it creates a certificate (`UpdateAsync`), push management
   (`ConfigurationNodeManager` `UpdateCertificate`/`ApplyChanges` and the
   certificate slots call `UpdateAsync`) and configuration reload.
-  `UpdateApplicationCertificateAsync` drops all remembered keys.
+  `UpdateApplicationCertificateAsync` drops all remembered keys in the same
+  critical section that replaces the certificate, and a load that was already
+  running when it did so does not remember its keys.
 - Only stores served by the built-in `DirectoryStoreProvider` qualify. X509Store,
   PKCS#11, shared key/value and stores from any custom provider registered for
   the directory type are always loaded from the store. The snapshot is taken
@@ -94,12 +96,13 @@ Two details keep the result the same as the old per-file loop:
 
 - The entry cache is keyed by thumbprint. When the same certificate is in
   several files (`.der` and `.pem`), the entry remembers the earlier files with
-  their positions in the scan, and every matching file is tried in scan order,
-  as before.
+  their positions in the scan (file, and certificate within a PEM file), and
+  every matching file is tried in scan order, as before.
 - The store's own cache checks only the directory timestamps and the file
   count, so it can serve a certificate file that was rewritten in place for up
-  to 30 s. The lookup therefore checks the size and last write time of every
-  cached certificate file and reads the directory again when one changed.
+  to 30 s. The lookup therefore records the path, size and last write time of
+  every certificate file the scan read, also of files that failed to parse,
+  and reads the directory again when the files differ.
 - A PFX whose certificate is not the matched one is rejected.
 
 ## PFX loads per warm StandardServer fixture cycle

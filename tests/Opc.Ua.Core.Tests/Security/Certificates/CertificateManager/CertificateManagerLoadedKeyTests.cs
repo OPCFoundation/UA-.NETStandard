@@ -317,6 +317,30 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
 
+        [Test]
+        public async Task KeysLoadedBeforeCertificateUpdateAreNotRememberedAsync()
+        {
+            (CertificateIdentifier id, SecurityConfiguration config) = await CreateStoreAsync("CN=UpdateDuringLoad")
+                .ConfigureAwait(false);
+            await using var manager = new CertificateManager(m_telemetry);
+            using Certificate pushed = CertificateBuilder.Create("CN=UpdateDuringLoad")
+                .SetRSAKeySize(2048).CreateForRSA();
+            var passwords = new RotatingPasswordProvider { TriggerType = id.CertificateType };
+            config.CertificatePasswordProvider = passwords;
+
+            // The certificate is replaced while the load reads the key.
+            passwords.OnEcc = () =>
+            {
+                using var chain = new CertificateCollection();
+                manager.UpdateApplicationCertificateAsync(id.CertificateType, pushed, chain)
+                    .GetAwaiter().GetResult();
+            };
+            await manager.LoadApplicationCertificatesAsync(config).ConfigureAwait(false);
+
+            Assert.That(passwords.Rotated, Is.True);
+            Assert.That(manager.TryAcquireLoadedApplicationKey(id, passwords, null), Is.Null);
+        }
+
         private async Task<(CertificateIdentifier Id, SecurityConfiguration Config)> CreateStoreAsync(string subject)
         {
             using Certificate certificate = CertificateBuilder.Create(subject)
@@ -390,13 +414,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             public Action? OnEcc { get; set; }
 
+            public NodeId TriggerType { get; set; } = ObjectTypeIds.EccNistP256ApplicationCertificateType;
+
             public bool Rotated { get; private set; }
 
             public char[] GetPassword(CertificateIdentifier certificateIdentifier)
             {
                 if (!Rotated &&
                     OnEcc != null &&
-                    certificateIdentifier.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                    certificateIdentifier.CertificateType == TriggerType)
                 {
                     Rotated = true;
                     OnEcc();

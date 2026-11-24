@@ -634,6 +634,13 @@ namespace Opc.Ua
                 StringComparer.Ordinal);
             // Stores from which at least one key was reused.
             var reusedStores = new HashSet<string>(StringComparer.Ordinal);
+            // Keys loaded before a certificate update completes must not be
+            // remembered after it (see UpdateApplicationCertificateAsync).
+            int keyGeneration;
+            lock (m_certificatesLock)
+            {
+                keyGeneration = m_loadedKeysGeneration;
+            }
             try
             {
                 for (int i = 0; i < appCerts.Count; i++)
@@ -755,8 +762,11 @@ namespace Opc.Ua
                     newEntries.Clear();
                     oldLoadedKeys = [.. m_loadedApplicationKeys];
                     m_loadedApplicationKeys.Clear();
-                    m_loadedApplicationKeys.AddRange(newLoadedKeys);
-                    newLoadedKeys.Clear();
+                    if (keyGeneration == m_loadedKeysGeneration)
+                    {
+                        m_loadedApplicationKeys.AddRange(newLoadedKeys);
+                        newLoadedKeys.Clear();
+                    }
                 }
 
                 // Dispose the manager's own old entries OUTSIDE the lock.
@@ -893,13 +903,26 @@ namespace Opc.Ua
             List<LoadedApplicationKey> old;
             lock (m_certificatesLock)
             {
-                old = [.. m_loadedApplicationKeys];
-                m_loadedApplicationKeys.Clear();
+                old = DetachLoadedApplicationKeys();
             }
             foreach (LoadedApplicationKey loaded in old)
             {
                 loaded.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Removes every remembered private key and makes loads that are
+        /// still running not remember theirs. The caller holds
+        /// <see cref="m_certificatesLock"/> and disposes the returned keys
+        /// outside it.
+        /// </summary>
+        private List<LoadedApplicationKey> DetachLoadedApplicationKeys()
+        {
+            List<LoadedApplicationKey> old = [.. m_loadedApplicationKeys];
+            m_loadedApplicationKeys.Clear();
+            m_loadedKeysGeneration++;
+            return old;
         }
 
         /// <summary>
@@ -1259,11 +1282,8 @@ namespace Opc.Ua
                 : null;
             CertificateCollection effectiveChain = issuerChain ?? resolvedChain!;
 
-            // A replaced certificate invalidates every remembered key: the
-            // next load reads the stores again.
-            ForgetLoadedApplicationKeys();
-
             CertificateEntry? oldEntry = null;
+            List<LoadedApplicationKey> forgottenKeys;
             CertificateValidationCore? oldPeer;
             CertificateValidationCore? oldUser;
             CertificateValidationCore? oldHttps;
@@ -1271,6 +1291,12 @@ namespace Opc.Ua
             lock (m_certificatesLock)
             {
                 ThrowIfDisposed();
+                // A replaced certificate invalidates every remembered key, in
+                // the same critical section, so no load can make a key
+                // available again after the replacement: the next load reads
+                // the stores again.
+                forgottenKeys = DetachLoadedApplicationKeys();
+
                 // Find and replace the existing entry.
                 for (int i = 0; i < m_applicationCertificates.Count; i++)
                 {
@@ -1313,6 +1339,11 @@ namespace Opc.Ua
             oldPeer?.Dispose();
             oldUser?.Dispose();
             oldHttps?.Dispose();
+            // Dispose the forgotten keys OUTSIDE the lock.
+            foreach (LoadedApplicationKey forgotten in forgottenKeys)
+            {
+                forgotten.Dispose();
+            }
 
             m_lifecycleMonitor?.Reset();
 
@@ -2012,6 +2043,7 @@ namespace Opc.Ua
         /// they were loaded from; guarded by m_certificatesLock.
         /// </summary>
         private readonly List<LoadedApplicationKey> m_loadedApplicationKeys = [];
+        private int m_loadedKeysGeneration;
 
         /// <summary>
         /// How long a loaded private key may be reused from an unchanged store.
