@@ -28,12 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
@@ -285,6 +288,66 @@ namespace Opc.Ua.Gds.Tests
 
             X509SubjectAltNameExtension altNames = issued.FindExtension<X509SubjectAltNameExtension>()!;
             Assert.That(altNames.Uris, Is.EqualTo(s_applicationUris));
+        }
+
+        /// <summary>
+        /// Checks that the configured issuer's credential still needs explicit registrar approval.
+        /// </summary>
+        [Test]
+        public async Task ConfiguredIssuerCertificateRequiresExternalRegistrarApproval()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string path = Path.Combine(Path.GetTempPath(), "gds-issuer-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            try
+            {
+                var configuration = new CertificateGroupConfiguration
+                {
+                    SubjectName = "CN=GDS External Test CA",
+                    BaseStorePath = path,
+                    CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+                };
+                using var factory = new CertificateGroup(telemetry);
+                using ICertificateGroup group = factory.Create(Path.Combine(path, "authorities"), configuration);
+                await group.InitAsync().ConfigureAwait(false);
+                Assert.That(group, Is.InstanceOf<ICertificateGroupWithAuthenticatedSigningRequest>());
+                var issuer = (ICertificateGroupWithAuthenticatedSigningRequest)group;
+                using Certificate issued = await issuer.SigningRequestForAuthenticatedEvidenceAsync(
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    "CN=Approved External DCA",
+                    ApplicationUri,
+                    ProductInstanceUri,
+                    [],
+                    [],
+                    CreateSigningRequest(null)).ConfigureAwait(false);
+                ByteString der = ByteString.From(issued.RawData.AsSpan());
+
+                await using var certificates = new CertificateManager(telemetry);
+                certificates.RegisterTrustList(
+                    ExternalAuthenticationProvider.AuthenticationAuthorities, configuration.TrustedListPath);
+                var decision = new DeviceRegistrarExternalAuthenticationResult(
+                    ProductInstanceUri,
+                    new DeviceRegistrarOnboardingDecision(
+                        new ApplicationRecordDataType { ApplicationUri = ApplicationUri }, false, null));
+                var policy = new Mock<IDeviceRegistrarExternalAuthenticationPolicy>(MockBehavior.Strict);
+                policy.SetupSequence(value => value.EvaluateAsync(
+                    der,
+                    It.Is<ArrayOf<string>>(uris =>
+                        uris.Count == 2 && uris.Contains(ApplicationUri) && uris.Contains(ProductInstanceUri)),
+                    It.IsAny<CancellationToken>()))
+                    .Throws(new ServiceResultException(StatusCodes.BadUserAccessDenied))
+                    .ReturnsAsync(decision);
+                var provider = new ExternalAuthenticationProvider(certificates, policy.Object);
+
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                    () => provider.EvaluateAsync(der).AsTask());
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(await provider.EvaluateAsync(der).ConfigureAwait(false), Is.SameAs(decision));
+            }
+            finally
+            {
+                Directory.Delete(path, recursive: true);
+            }
         }
 
         [Test]
