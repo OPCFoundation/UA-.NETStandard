@@ -477,8 +477,6 @@ namespace Opc.Ua.Tools.Tests
 
             string[] serverShards =
             [
-                "server-node-lifecycle-prepared",
-                "server-node-lifecycle-a-n",
                 "server-node-lifecycle",
                 "server-node-management",
                 "server-history-subscriptions",
@@ -494,8 +492,6 @@ namespace Opc.Ua.Tools.Tests
                     ? serverShards
                     : profile.First().Os == "macos"
                         ? [
-                            "server-node-lifecycle-prepared",
-                            "server-node-lifecycle-a-n",
                             "server-node-lifecycle",
                             "server-node-management",
                             "server-history-subscriptions",
@@ -510,11 +506,11 @@ namespace Opc.Ua.Tools.Tests
             (string TestName, string ExpectedShard, string MacShard)[] testCases =
             [
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.PreparedBatchDecisionAsync",
-                    "server-node-lifecycle-prepared", "server-node-lifecycle-prepared"),
+                    "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.AddAsync",
-                    "server-node-lifecycle-a-n", "server-node-lifecycle-a-n"),
+                    "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.NativeReadAsync(True,False)",
-                    "server-node-lifecycle-a-n", "server-node-lifecycle-a-n"),
+                    "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.ObjectReadAsync",
                     "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync",
@@ -528,7 +524,7 @@ namespace Opc.Ua.Tools.Tests
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTestsExtra.PreparedBatchAsync",
                     "server-node-management", "server-node-management"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.PreparedBatchAsync(\"AddAsync\")",
-                    "server-node-lifecycle-prepared", "server-node-lifecycle-prepared"),
+                    "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.addAsync",
                     "server-node-lifecycle", "server-node-lifecycle"),
                 ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync",
