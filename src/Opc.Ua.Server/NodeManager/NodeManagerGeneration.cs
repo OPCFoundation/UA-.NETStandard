@@ -336,6 +336,19 @@ namespace Opc.Ua.Server
         internal bool EventBindingsSealed => Volatile.Read(ref m_eventBindingsSealed) != 0;
 
         /// <summary>
+        /// Gets whether this logical owner has been routed independently of a forwarding facade.
+        /// </summary>
+        internal bool WasRouted => Volatile.Read(ref m_wasRouted);
+
+        /// <summary>
+        /// Records the routing owner's independent responsibility for its own binding cleanup.
+        /// </summary>
+        internal void MarkRouted()
+        {
+            Volatile.Write(ref m_wasRouted, true);
+        }
+
+        /// <summary>
         /// Gets or sets whether external consumers must wait for post-publication initialization.
         /// </summary>
         internal bool ReadinessPending
@@ -1762,6 +1775,9 @@ namespace Opc.Ua.Server
         /// <summary>Non-zero once the all-events bindings were sealed at retirement.</summary>
         private int m_eventBindingsSealed;
 
+        /// <summary>Whether this generation has belonged to a routing snapshot.</summary>
+        private bool m_wasRouted;
+
         /// <summary>Zero when ready, one while the readiness callback is active, two while events are draining.</summary>
         private int m_deferredEventState;
 
@@ -2590,6 +2606,22 @@ namespace Opc.Ua.Server
                     }
                     m_cleanup.Dispose();
                     m_cleanupDisposed = true;
+                }
+            }
+
+            /// <summary>
+            /// Checks whether retiring a facade also owns cleanup of the unrouted physical source's bindings.
+            /// </summary>
+            internal bool OwnsUnroutedBindings(NodeManagerGeneration facade, NodeManagerGeneration source)
+            {
+                lock (m_sync)
+                {
+                    if (source.WasRouted || !m_owners.Contains(source))
+                    {
+                        return false;
+                    }
+                    return !m_owners.Any(owner => !ReferenceEquals(owner, facade) && owner.WasRouted &&
+                        owner.Gate.State is NodeManagerGenerationState.Prepared or NodeManagerGenerationState.Live);
                 }
             }
 

@@ -8751,22 +8751,20 @@ namespace Opc.Ua.Server
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = GetOperationSystemContext(context);
+            (AllEventsSubscription subscription, AllEventsOwner owner, NodeState[] sources) =
+                await PrepareAllEventsChangeAsync(monitoredItem, unsubscribe, cancellationToken)
+                    .ConfigureAwait(false);
             ServiceResult firstError = ServiceResult.Good;
 
-            // A client has subscribed to the Server object which means all events produced
-            // by this manager must be reported. This is done by incrementing the monitoring
-            // reference count for all root notifiers.
-            foreach (KeyValuePair<NodeId, NodeState> kvp in RootNotifiers)
+            foreach (NodeState source in sources)
             {
                 ServiceResult result;
                 try
                 {
-                    result = await SubscribeToEventsAsync(
-                        systemContext,
-                        kvp.Value,
-                        monitoredItem,
-                        unsubscribe,
+                    result = await ChangeAllEventsRootAsync(
+                        systemContext, source, monitoredItem, subscription, owner, unsubscribe,
                         cancellationToken).ConfigureAwait(false) ??
                         ServiceResult.Good;
                 }
@@ -8782,7 +8780,7 @@ namespace Opc.Ua.Server
                         : ServiceResult.Create(exception, StatusCodes.BadUnexpectedError,
                             "The event source could not complete subscription cleanup.");
                 }
-                if ((result.StatusCode == StatusCodes.BadNotSupported && !CanSubscribeToEvents(kvp.Value)) ||
+                if ((result.StatusCode == StatusCodes.BadNotSupported && !CanSubscribeToEvents(source)) ||
                     (unsubscribe && result.StatusCode == StatusCodes.BadNodeIdUnknown))
                 {
                     continue;
@@ -8839,11 +8837,9 @@ namespace Opc.Ua.Server
                 {
                     if (monitoredItems[ii].MonitoringAllEvents)
                     {
-                        await SubscribeToEventsAsync(
-                            SystemContext,
-                            notifier,
-                            monitoredItems[ii],
-                            false,
+                        IEventMonitoredItem item = monitoredItems[ii];
+                        await ChangeAllEventsRootAsync(
+                            SystemContext, notifier, item, subscription: null, owner: null, unsubscribe: false,
                             cancellationToken).ConfigureAwait(false);
                     }
                 }
@@ -9158,11 +9154,26 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            AllEventsRootChange? change = GetAllEventsRootChange(source, monitoredItem, unsubscribe);
+            if (unsubscribe && change is not null)
+            {
+                return await ReleaseAllEventsRootAsync(context, source, monitoredItem, change, cancellationToken)
+                    .ConfigureAwait(false);
+            }
             MonitoredNode2? monitoredNode;
             ServiceResult serviceResult;
             bool wasSubscribed;
             using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
+                if (change is not null &&
+                    (!IsCurrentRootNotifier(source) ||
+                        (change.Owner is { Active: false }) ||
+                        (change.Owner is null &&
+                        m_allEventsSubscriptions.TryGetValue(monitoredItem, out AllEventsSubscription? current) &&
+                        current.ActiveOwnerCount == 0)))
+                {
+                    return ServiceResult.Good;
+                }
                 wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
                     source.NodeId,
                     out MonitoredNode2? existingMonitoredNode) &&

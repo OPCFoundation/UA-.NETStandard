@@ -2164,6 +2164,11 @@ be treated as a new subscription. `BadNotSupported` from an all-events owner doe
 Deletion removes the item from the server's event registry before invoking unsubscribe callbacks, so
 a lifecycle operation started inside a callback cannot bind the deleted item to a new generation.
 
+When a facade forwards an all-events subscription to an async node manager, the logical owners share
+one physical link to the item on each root notifier. Releasing one owner keeps those links available
+to the others. The last owner detaches the links; if a provider callback fails, the retry uses the
+original notifier instance and does not repeat successful provider releases.
+
 The generation reclaimer owns retirement independently of the lifecycle writer. Each retired generation
 waits for its own view epochs and admitted callbacks; a blocked drain or deletion does not delay unrelated
 generations. Successful cleanup stages are retained across retries. A failure faults the retirement task

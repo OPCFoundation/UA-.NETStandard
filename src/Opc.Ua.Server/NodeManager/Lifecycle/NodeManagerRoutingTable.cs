@@ -111,6 +111,7 @@ namespace Opc.Ua.Server
             }
             foreach (NodeManagerGeneration generation in next.Generations)
             {
+                generation.MarkRouted();
                 bool wasHidden = ContainsManager(previous.HiddenNodeManagers, generation.NodeManager);
                 bool isHidden = ContainsManager(next.HiddenNodeManagers, generation.NodeManager);
                 if (generation.Gate.State == NodeManagerGenerationState.Prepared &&

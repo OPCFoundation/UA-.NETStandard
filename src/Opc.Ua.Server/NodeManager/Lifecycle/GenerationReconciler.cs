@@ -186,10 +186,33 @@ namespace Opc.Ua.Server
                 await ReleaseRetiredEventsAsync(generation, cancellationToken).ConfigureAwait(false);
             }
 
+            await CloseRetiredSessionsAsync(generation, cancellationToken).ConfigureAwait(false);
+            if (GetUnroutedBindingOwner(generation) is { } source)
+            {
+                await CloseRetiredSessionsAsync(source, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private static async ValueTask CloseRetiredSessionsAsync(
+            NodeManagerGeneration generation,
+            CancellationToken cancellationToken)
+        {
             foreach (NodeId sessionId in generation.SessionBindings.Keys)
             {
                 await CloseSessionAsync(generation, sessionId, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        private static NodeManagerGeneration? GetUnroutedBindingOwner(NodeManagerGeneration generation)
+        {
+            IAsyncNodeManager source = NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager);
+            // An independently routed source owns its own retirement, even if it is already retiring.
+            return NodeManagerGenerationRegistry.TryGet(source, out NodeManagerGeneration? owner) &&
+                owner is not null &&
+                !ReferenceEquals(owner, generation) &&
+                generation.ResourceOwnership.OwnsUnroutedBindings(generation, owner)
+                    ? owner
+                    : null;
         }
 
         /// <summary>
@@ -207,7 +230,17 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             generation.TrySealEventBindings();
+            await ReleaseOwnedEventsAsync(generation, cancellationToken).ConfigureAwait(false);
+            if (GetUnroutedBindingOwner(generation) is { } source)
+            {
+                await ReleaseOwnedEventsAsync(source, cancellationToken).ConfigureAwait(false);
+            }
+        }
 
+        private async ValueTask ReleaseOwnedEventsAsync(
+            NodeManagerGeneration generation,
+            CancellationToken cancellationToken)
+        {
             IAsyncNodeManager nodeManager = generation.NodeManager;
             List<Exception>? failures = null;
             foreach (KeyValuePair<IEventMonitoredItem, GenerationEventBindingRecord> binding in
@@ -557,7 +590,8 @@ namespace Opc.Ua.Server
             ServiceResult result;
             try
             {
-                result = await dispatchAsync(false, cancellationToken).ConfigureAwait(false) ?? ServiceResult.Good;
+                result = await DispatchAllEventsAsync(record, dispatchAsync, false, cancellationToken)
+                    .ConfigureAwait(false);
                 if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
                 {
                     failure = new ServiceResultException(result);
@@ -592,8 +626,8 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    ServiceResult cleanup = await dispatchAsync(true, CancellationToken.None).ConfigureAwait(false)
-                        ?? ServiceResult.Good;
+                    ServiceResult cleanup = await DispatchAllEventsAsync(record, dispatchAsync, true,
+                        CancellationToken.None).ConfigureAwait(false);
                     if (ServiceResult.IsBad(cleanup) && cleanup.StatusCode != StatusCodes.BadNotSupported)
                     {
                         throw new ServiceResultException(cleanup);
@@ -685,8 +719,8 @@ namespace Opc.Ua.Server
 
             try
             {
-                ServiceResult result = await dispatchAsync(true, cancellationToken).ConfigureAwait(false)
-                    ?? ServiceResult.Good;
+                ServiceResult result = await DispatchAllEventsAsync(record, dispatchAsync, true, cancellationToken)
+                    .ConfigureAwait(false);
                 if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
                 {
                     lock (record.Sync)
@@ -735,6 +769,30 @@ namespace Opc.Ua.Server
                 record.RetainsDisposal = true;
                 binding.DeferDisposal();
             }
+        }
+
+        /// <summary>
+        /// Resolves the exact logical binding across cooperating facades, even when they replace the context.
+        /// </summary>
+        internal static GenerationEventBindingRecord? GetDispatchBinding(IEventMonitoredItem item, bool unsubscribe)
+        {
+            var dispatch = NodeManagerAmbientScope<(
+                WeakReference<GenerationEventBindingRecord>? Binding, bool Unsubscribe)>.GetValue(s_eventDispatch);
+            return dispatch.Unsubscribe == unsubscribe &&
+                dispatch.Binding?.TryGetTarget(out GenerationEventBindingRecord? record) == true &&
+                record is not null && ReferenceEquals(record.Item, item) ? record : null;
+        }
+
+        private static async ValueTask<ServiceResult> DispatchAllEventsAsync(
+            GenerationEventBindingRecord record,
+            Func<bool, CancellationToken, ValueTask<ServiceResult>> dispatchAsync,
+            bool unsubscribe,
+            CancellationToken cancellationToken)
+        {
+            using var dispatch = new NodeManagerAmbientScope<(
+                WeakReference<GenerationEventBindingRecord>? Binding, bool Unsubscribe)>(
+                    s_eventDispatch, (new WeakReference<GenerationEventBindingRecord>(record), unsubscribe));
+            return await dispatchAsync(unsubscribe, cancellationToken).ConfigureAwait(false) ?? ServiceResult.Good;
         }
 
         private static void MarkRemoved(
@@ -825,6 +883,10 @@ namespace Opc.Ua.Server
             /// </summary>
             internal NodeManagerGenerationReference Generation { get; }
         }
+
+        /// <summary>Identifies the binding being dispatched without retaining it in escaped contexts.</summary>
+        private static readonly AsyncLocal<NodeManagerAmbientScope<(
+            WeakReference<GenerationEventBindingRecord>? Binding, bool Unsubscribe)>?> s_eventDispatch = new();
 
         private readonly IServerInternal m_server;
     }
