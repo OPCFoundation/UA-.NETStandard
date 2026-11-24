@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MemoryBuffer;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
@@ -242,6 +243,92 @@ namespace Opc.Ua.Server.Tests
             {
                 await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Modifying a tag item cannot add the filter that creating it refuses.
+        /// </summary>
+        [Test]
+        public async Task ModifyTagItemRejectsFilterAsync()
+        {
+            uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
+            try
+            {
+                CreateMonitoredItemsResponse created = await CreateItemsAsync(
+                    subscriptionId, ValueItem(TagId(5), 1)).ConfigureAwait(false);
+                Assert.That(created.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                var requestHeader = (RequestHeader)m_requestHeader.Clone();
+                requestHeader.Timestamp = DateTimeUtc.Now;
+                ModifyMonitoredItemsResponse modified = await m_services.ModifyMonitoredItemsAsync(
+                    requestHeader,
+                    subscriptionId,
+                    TimestampsToReturn.Both,
+                    new[]
+                    {
+                        new MonitoredItemModifyRequest
+                        {
+                            MonitoredItemId = created.Results[0].MonitoredItemId,
+                            RequestedParameters = new MonitoringParameters
+                            {
+                                ClientHandle = 1,
+                                SamplingInterval = 100,
+                                QueueSize = 10,
+                                DiscardOldest = true,
+                                Filter = new ExtensionObject(new DataChangeFilter
+                                {
+                                    Trigger = DataChangeTrigger.StatusValue,
+                                    DeadbandType = (uint)DeadbandType.None
+                                })
+                            }
+                        }
+                    }.ToArrayOf()).ConfigureAwait(false);
+
+                Assert.That(modified.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Disposing a manager directly, without deleting its address space
+        /// first, stops the buffer scan so it no longer feeds or retains
+        /// monitored items. Uses a second manager so the registered one is
+        /// left alone.
+        /// </summary>
+        [Test]
+        public async Task DisposeStopsBufferScanAsync()
+        {
+            var manager = new MemoryBufferNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                [
+                    global::MemoryBuffer.Namespaces.MemoryBuffer,
+                    global::MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"
+                ]);
+            await manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            // the scan feeds items through QueueValue(in DataValue, ...); the
+            // mock records every call, so count its invocations.
+            var item = new Mock<ISampledDataChangeMonitoredItem>();
+            manager.Buffers["UInt32"].AddMonitoredItem(item.Object, 0);
+
+            for (int ii = 0; ii < 50 && item.Invocations.Count == 0; ii++)
+            {
+                await Task.Delay(100).ConfigureAwait(false);
+            }
+            Assert.That(item.Invocations, Is.Not.Empty, "the scan did not run");
+
+            await manager.DisposeAsync().ConfigureAwait(false);
+            // a scan already running when the timer stopped may still finish.
+            await Task.Delay(150).ConfigureAwait(false);
+            int queuedAtDispose = item.Invocations.Count;
+            await Task.Delay(500).ConfigureAwait(false);
+
+            Assert.That(item.Invocations, Has.Count.EqualTo(queuedAtDispose));
         }
 
         private NodeId TagId(int offset)

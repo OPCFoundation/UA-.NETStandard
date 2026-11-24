@@ -160,6 +160,50 @@ namespace MemoryBuffer
         }
 
         /// <summary>
+        /// Stops the buffer scans when the manager is disposed without its
+        /// address space being deleted first.
+        /// </summary>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            foreach (MemoryBufferState buffer in m_buffers.Values)
+            {
+                buffer.StopScanning();
+            }
+
+            await base.DisposeAsyncCore().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Refuses filters on tags, so creating and modifying an item apply
+        /// the same policy.
+        /// </summary>
+        protected override ValueTask<ValidateMonitoringFilterResult> ValidateMonitoringFilterAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            uint attributeId,
+            double samplingInterval,
+            uint queueSize,
+            ExtensionObject filter,
+            CancellationToken cancellationToken = default)
+        {
+            if (handle.Node is MemoryTagState &&
+                ExtensionObject.ToEncodeable(filter) is MonitoringFilter)
+            {
+                return new ValueTask<ValidateMonitoringFilterResult>(
+                    new ValidateMonitoringFilterResult { StatusCode = StatusCodes.BadFilterNotAllowed });
+            }
+
+            return base.ValidateMonitoringFilterAsync(
+                context,
+                handle,
+                attributeId,
+                samplingInterval,
+                queueSize,
+                filter,
+                cancellationToken);
+        }
+
+        /// <summary>
         /// Returns a unique handle for the node.
         /// </summary>
         /// <remarks>
@@ -417,6 +461,11 @@ namespace MemoryBuffer
             offset = 0;
             return false;
         }
+
+        /// <summary>
+        /// The buffers created for the address space, by symbolic name.
+        /// </summary>
+        internal IReadOnlyDictionary<string, MemoryBufferState> Buffers => m_buffers;
 
         private readonly MemoryBufferConfiguration m_configuration;
         private readonly Dictionary<string, MemoryBufferState> m_buffers = [];
