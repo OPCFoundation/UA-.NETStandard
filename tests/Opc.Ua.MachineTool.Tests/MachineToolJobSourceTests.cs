@@ -91,6 +91,10 @@ namespace Opc.Ua.MachineTool.Tests
             }));
             Success(await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.StoreAndStart, Order())
                 .ConfigureAwait(false));
+            Assert.That((await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
+                .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.InvalidStatus));
+            Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.MarkReady)
+                .ConfigureAwait(false));
             Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
                 .ConfigureAwait(false));
             Success(await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.Pause, Order()).ConfigureAwait(false));
@@ -141,15 +145,15 @@ namespace Opc.Ua.MachineTool.Tests
                 Assert.That(capture.Snapshot, Is.SameAs(snapshot));
                 history.Add(snapshot);
             }).ConfigureAwait(false);
-            Assert.That(history, Has.Count.EqualTo(11));
+            Assert.That(history, Has.Count.EqualTo(12));
             for (int i = 0; i < history.Count; i++)
             {
                 Assert.That(history[i].Revision, Is.EqualTo((ulong)i));
             }
-            Assert.That(history[5].Production.Jobs[0].PartSets[0].Sample, Is.EqualTo(Acquired));
-            Assert.That(history[8].Production.Jobs[0].TransitionSequence, Is.EqualTo(5));
-            Assert.That(history[9].Production.Jobs[0], Is.EqualTo(history[8].Production.Jobs[0]));
-            Assert.That(history[10].Production.Jobs, Is.Empty);
+            Assert.That(history[6].Production.Jobs[0].PartSets[0].Sample, Is.EqualTo(Acquired));
+            Assert.That(history[9].Production.Jobs[0].TransitionSequence, Is.EqualTo(5));
+            Assert.That(history[10].Production.Jobs[0], Is.EqualTo(history[9].Production.Jobs[0]));
+            Assert.That(history[11].Production.Jobs, Is.Empty);
         }
 
         /// <summary>
@@ -340,6 +344,8 @@ namespace Opc.Ua.MachineTool.Tests
         internal static async ValueTask StartExecutingAsync(MachineToolJobSource source)
         {
             Success(await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.StoreAndStart, Order())
+                .ConfigureAwait(false));
+            Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.MarkReady)
                 .ConfigureAwait(false));
             Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
                 .ConfigureAwait(false));

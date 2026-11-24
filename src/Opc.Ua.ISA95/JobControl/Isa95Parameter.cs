@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// A version-neutral parameter captured by the in-memory engine. The engine
@@ -10,8 +10,10 @@ namespace Opc.Ua.ISA95.Server.Providers
     /// engine. Conversions between this record and the generated types are
     /// intentionally loss-aware (see <see cref="Isa95JobControlConversions"/>).
     /// </summary>
-    internal sealed record Isa95Parameter
+    public sealed record Isa95Parameter
     {
+        internal uint V2EncodingMask { get; init; }
+
         /// <summary>
         /// The identifier of the parameter.
         /// </summary>

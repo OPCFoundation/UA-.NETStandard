@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Machine Tools and Wireless Peripherals
 
 The `Opc.Ua.MachineTool*` libraries implement released
@@ -452,7 +457,12 @@ its runtimes have drained.
 Standard verbs remain `Store`, `StoreAndStart`, `Start`, `Stop`, `Abort`,
 `Pause`, `Resume`, `Clear`, `Cancel`, `Update` and `RevokeStart`. Their UInt64
 `ReturnStatus` is an ISA-95 bitmap: success is **1**, not UA `Good` (zero).
-An accepted order is not evidence of physical execution. Providers describing
+An accepted order is not evidence of physical execution. The execution system
+must signal `MarkReady` through `IIsa95JobExecutionController.TransitionAsync`
+before `BeginExecution` can start a V2 order with start permission. Readiness
+changes update the order catalog without publishing a status event. See
+[Job Control](ISA95.md#job-control-v1-and-v2) for the full lifecycle.
+Providers describing
 different equipment must not be combined into one instance's control,
 response and monitoring views.
 

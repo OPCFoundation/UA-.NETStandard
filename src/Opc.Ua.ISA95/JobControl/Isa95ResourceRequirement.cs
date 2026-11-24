@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// A version-neutral personnel, equipment or physical-asset resource entry
@@ -11,8 +11,10 @@ namespace Opc.Ua.ISA95.Server.Providers
     /// <c>EngineeringUnits</c> structure are unified onto
     /// <see cref="EngineeringUnits"/>.
     /// </summary>
-    internal sealed record Isa95ResourceRequirement
+    public sealed record Isa95ResourceRequirement
     {
+        internal uint V2EncodingMask { get; init; }
+
         /// <summary>
         /// The identifier of the resource.
         /// </summary>

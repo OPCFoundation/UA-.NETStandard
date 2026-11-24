@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA ISA-95 (OPC-10030 / OPC-10031-4)
 
 End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 ISA-95 Common Model and the OPC-10031-4 Job Control V1 and V2 companion models.
@@ -11,8 +16,10 @@ End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 I
 - [Server hosting model](#server-hosting-model)
 - [Common-model builder reference](#common-model-builder-reference)
 - [Job Control (V1 and V2)](#job-control-v1-and-v2)
+  - [Server-independent Job Control](#server-independent-job-control)
 - [GeoSpatialLocationType provider seam](#geospatiallocationtype-provider-seam)
 - [Client](#client)
+  - [Use neutral records with a UA client](#use-neutral-records-with-a-ua-client)
 - [In-memory limitations and HA guidance](#in-memory-limitations-and-ha-guidance)
 - [Conformance matrix](#conformance-matrix)
 - [Model sources, identifier mappings, and normative repairs](#model-sources-identifier-mappings-and-normative-repairs)
@@ -23,7 +30,7 @@ End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 I
 
 | Library | Role |
 |---------|------|
-| `Opc.Ua.ISA95` | Model assembly: source-generated NodeId tables, DataTypes, and ObjectType client proxies for the Common Model and both Job Control versions. Shared type contract for the client and server packages. |
+| `Opc.Ua.ISA95` | Model assembly: source-generated NodeId tables, DataTypes, and ObjectType client proxies for the Common Model and both Job Control versions, plus server-independent Job Control records, conversions, and rules. |
 | `Opc.Ua.ISA95.Server` | Server: `Isa95NodeManager` (one multi-namespace `FluentNodeManagerBase`), the typed common-model builder, Job Control provider abstractions plus an in-memory implementation, the `GeoSpatialLocationType` provider seam, and `AddIsa95Server` hosting integration. |
 | `Opc.Ua.ISA95.Client` | Client: `Isa95Client` discovery entry point, direct V1/V2 Job Control clients, typed V2 status-event streaming, and `AddIsa95Client` hosting integration. |
 
@@ -133,6 +140,9 @@ ulong status = await jobControl.StoreAndStartAsync(
 
 ## Job Control (V1 and V2)
 
+Applications that exchange jobs without an OPC UA server and authors of durable providers can reuse the
+[server-independent Job Control model and rules](#server-independent-job-control).
+
 The default `InMemoryIsa95JobControlProvider` implements every V1 and V2 provider interface over a **single shared, version-neutral store** keyed by job-order ID (`Isa95JobCanonicalState`), so a job order created through one Job Control version is visible and controllable through the other.
 
 | Canonical state | V2 term | V1 term |
@@ -145,14 +155,16 @@ The default `InMemoryIsa95JobControlProvider` implements every V1 and V2 provide
 | `Completed` (terminal) | Ended / Completed | Completed |
 | `Aborted` (terminal) | Aborted | Aborted |
 | `Closed` (terminal) | Ended / Closed | Closed |
-| `Loaded` (V1 response state) | Running projection | Loaded |
+| `Loaded` (V1 response state) | NotAllowedToStart / Loaded | Loaded |
 | `Error` (V1 response state) | Aborted projection | Error |
 
 The neutral store preserves every standard V1/V2 job-order and job-response field, including work masters, personnel/equipment/physical-asset/material requirements and actuals, nested parameters/properties, engineering units, and V2 optional-field `EncodingMask` bits. Same-version round trips are lossless; cross-version views project only the fields representable by the target specification.
 
 V1 behavior remains distinct where the specifications differ: `RequestJobResponse` requires exactly one selector (job-order ID or state), V1 `Stop` removes the stored order, and V1-only `Loaded`/`Error` response states round-trip without being collapsed.
 
-V2 interrupted and ended sub-states use the standard two-entry state path: a top-level `Interrupted`/`Ended` entry with an empty browse path, followed by state number `1` or `2` under the `HasSubStateMachine` path. No private composite state numbers are emitted.
+V2 preparation, interrupted, and ended substates use the standard two-entry state path: a top-level entry
+with an empty browse path, followed by the substate's standard number under `HasSubStateMachine`. No private
+composite state numbers are emitted.
 
 **V2 job-order operations** (`Isa95JobOrderOperationV2`, applied through `IIsa95JobOrderReceiverV2.ReceiveJobOrderAsync`):
 
@@ -170,9 +182,14 @@ V2 interrupted and ended sub-states use the standard two-entry state path: a top
 | `Cancel` | Removes a `NotAllowedToStart`/`AllowedToStart` order from the store. |
 | `Clear` | Removes a terminal (`Completed`/`Aborted`/`Closed`) order from the store. |
 
-**Execution-system transitions** (`Isa95JobExecutionTransition`, applied through `IIsa95JobExecutionController.TransitionAsync`) model the automatic, non-client-driven state changes of the OPC-10031-4 V2 execution-system state machine: `BeginExecution` (`AllowedToStart` → `Running`), `Hold` (`Running` → `Held`), `Complete` (`Running`/`Held`/`Suspended` → `Completed`), `Close` (`Completed` → `Closed`). A hosted service (or any application component) drives these once the execution system — not the OPC UA client — decides to start, hold, complete, or close a job order; `samples/ISA95/MinimalIsa95Server/DemoJobSeeder.cs` calls `StoreAndStart` followed by `BeginExecution` to demonstrate the automatic `AllowedToStart` → `Running` transition.
+**Execution-system transitions.** V2 `Store` and `StoreAndStart` both begin in Waiting. `Start` and
+`RevokeStart` change permission without resetting readiness. Use `IIsa95JobExecutionController.TransitionAsync`
+to signal `MarkReady` when prerequisites are met, `Load` or `Unload` for program or configuration changes,
+and `MarkNotReady` if prerequisites are no longer met. `BeginExecution` requires permission to start and
+either Ready or Loaded. The execution system can also signal `Hold`, `Complete`, and `Close`.
+V1-created orders retain the legacy execution workflow.
 
-**Status events.** `IIsa95JobStatusSourceV2.SubscribeAsync` publishes one `Isa95JobStatusNotificationV2` per committed state change to every independent subscriber. Because the standard `ISA95JobOrderStatusEventType` is abstract, `Isa95NodeManager` defines a concrete server-owned subtype and reports that subtype while preserving the standard event fields and type hierarchy. Each notification rewrites `JobResponse.JobState` to the current event state, and the latest non-empty V2 `Comment` array is retained as audit context.
+**Status events.** The in-memory provider publishes a status notification on creation and on transitions with a status-event effect. Close and Prepare-only changes update the catalog without sending a status event. Subscribe to the catalog for all order mutations. The node manager reports a concrete subtype of the abstract `ISA95JobOrderStatusEventType`. Each notification carries the current event state in `JobResponse.JobState` and the latest non-empty V2 `Comment`.
 
 **Catalog changes.** A successful V2 `Update` is a standard self-transition and emits the required status event with the modified order; it also emits an `Updated` catalog change so `JobOrderList` projections refresh. Cancel/Clear/V1-Stop removals emit a `Removed` catalog change without fabricating a life-cycle transition. The node manager consumes `IIsa95JobOrderCatalogChangeSource` so V1/V2 lists stay current even when a shared provider is changed outside the local method handler.
 
@@ -181,6 +198,51 @@ V2 interrupted and ended sub-states use the standard two-entry state path: a top
 **Business failures are `Uncertain`, not `Bad`.** When an operation cannot be applied for a business reason (unknown job order, invalid state transition, and similar), the in-memory provider returns `ServiceResult(StatusCodes.Uncertain, ...)` together with the relevant `ReturnStatus` bits, rather than a `Bad_*` status code; the OPC UA `ReturnStatus` output argument is the authoritative outcome channel, and `Uncertain` signals "the call was serviced but the requested business operation did not succeed" as opposed to a protocol-level failure.
 
 **Bounding.** `Isa95JobControlProviderOptions` bounds the in-memory engine: `MaxJobOrders` (default 1024) and `MaxJobResponses` (default 1024) cap concurrent storage and reject new entries beyond the bound; `ResponseRetention` (default `TimeSpan.Zero`, meaning disabled) purges responses older than the configured age using the injected `TimeProvider` before each new response is received or a query is served.
+
+### Server-independent Job Control
+
+Reference `OPCFoundation.NetStandard.Opc.Ua.ISA95` and import `Opc.Ua.ISA95.JobControl`. The neutral
+records, conversions, and rules work without a UA client, server, or session.
+
+#### Evaluate a command before storing it
+
+```csharp
+using Opc.Ua.ISA95.JobControl;
+
+var order = new Isa95JobOrder { Id = "batch-42" };
+Isa95JobDecision decision = Isa95JobControlRules.Evaluate(
+    current: null,
+    Isa95JobOperation.StoreAndStart,
+    Isa95JobControlVersion.V2);
+
+if (decision.ReturnStatus == Isa95JobReturnStatusBits.Success)
+{
+    // On Create, persist the order and decision.State atomically.
+    // Publish a status event after commit only if decision.PublishStatusEvent is true.
+}
+```
+
+Pass `null` only if no order exists. A durable provider must evaluate and apply each decision in the same
+transaction (or use optimistic concurrency and retry from the latest state). Capacity, scheduling, response
+retention, and message delivery remain with the caller. `ValidateV1ResponseSelector` checks the V1 requirement
+to select by order ID or by state, but not both.
+
+#### Convert orders and responses
+
+Use the `FromV1Order`/`ToV1Order` and `FromV2Order`/`ToV2Order` pairs on `Isa95JobControlConversions` and the
+corresponding pairs for responses. Supply the OPC UA namespace index of
+`http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/` when converting V2 responses or emitting state arrays; the
+index comes from the message context or session, not from the NodeSet. On an unchanged V2 response, the converter
+preserves the received state array, including a missing Prepare substate. For a changed state, it emits the
+applicable standard substate. V2 field presence is retained when a record is copied with `with`, even when the
+field's value is the default.
+
+The neutral records retain wire metadata in memory, not as a persistence format. If a durable relay must
+replay received wire details after a restart, store the received V2 structure and its namespace context
+alongside the canonical data.
+
+The SDK maps V1 Waiting/Ready by start permission; the specification does not define this mapping.
+The [state table](#job-control-v1-and-v2) shows the cross-version projections for V1 Loaded and Error.
 
 ## GeoSpatialLocationType provider seam
 
@@ -230,13 +292,36 @@ await foreach (ISA95JobOrderStatusEventTypeRecord record in
 
 `AddIsa95Client` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`) registers `ITelemetryContext` and the injectable `IIsa95ClientFactory`. `Create` wraps an existing session; when `Isa95ClientOptions.LazyConnect` is true (the default), `ConnectAsync` lazily acquires the `ManagedSession` registered by `AddClient` on first use and caches the resulting client.
 
+### Use neutral records with a UA client
+
+The V1 and V2 clients can convert orders and responses while retaining their version-specific methods
+and return-status bits. For example, with an `Isa95JobControlV2Client`:
+
+```csharp
+using Opc.Ua.ISA95.JobControl;
+
+ulong status = await client.ReceiveNeutralJobOrderAsync(
+    Isa95JobOperation.Store,
+    new Isa95JobOrder { Id = "batch-42" },
+    ct: cancellationToken);
+
+if ((status & Isa95JobReturnStatusBits.Success) != 0)
+{
+    var (response, responseStatus) =
+        await client.RequestNeutralJobResponseByIdAsync("batch-42", cancellationToken);
+}
+```
+
+V1 uses `ReceiveNeutralJobOrderAsync` with the V1 command enum and `RequestNeutralJobResponseAsync` with the
+existing V1 selectors. Both clients support `ReceiveNeutralJobResponseAsync`.
+
 ## In-memory limitations and HA guidance
 
 `InMemoryIsa95JobControlProvider` is a single-process, non-durable engine: all job orders, responses, and subscriptions live in process memory guarded by a `System.Threading.Lock`, and are lost on process restart or crash. It is appropriate for development, demos, and single-instance deployments, not for production high-availability topologies.
 
 For a highly-available or horizontally distributed server, implement the provider interfaces (`IIsa95JobOrderReceiverV1/V2`, `IIsa95JobResponseProviderV1/V2`, `IIsa95JobResponseReceiverV1/V2`, `IIsa95JobStatusSourceV2`, `IIsa95JobExecutionController`, `IIsa95JobOrderCatalog`, `IIsa95JobOrderCatalogChangeSource`) against one shared, durable backing store (for example a database or distributed cache reachable by every server instance) and register that cohesive set before calling `AddIsa95Server`. This mirrors the provider-model guidance in [Historical Access](HistoricalAccess.md) and the general redundancy guidance in [High Availability and OPC UA Redundancy](HighAvailability.md): state that must survive failover belongs behind a shared provider, not in server-local memory.
 
-`IIsa95JobStatusSourceV2.SubscribeAsync` and `IIsa95JobOrderCatalogChangeSource.SubscribeCatalogChangesAsync` each provide independent, post-subscription delivery streams. A durable/distributed implementation must preserve the exactly-once-per-committed-mutation contract (or document stronger replay/checkpoint semantics) so event and `JobOrderList` projections remain coherent across server instances.
+`IIsa95JobStatusSourceV2.SubscribeAsync` and `IIsa95JobOrderCatalogChangeSource.SubscribeCatalogChangesAsync` provide independent post-subscription streams. A durable provider must publish one catalog change per committed mutation and one status notification only when the rules indicate an event, or document its replay and checkpoint semantics.
 
 ## Conformance matrix
 
@@ -254,7 +339,7 @@ This matrix distinguishes **static NodeSet structure** (what the NodeSet2 XML de
 | Job Control V2 Job Order Receiver operations (Store/StoreAndStart/Start/Update/Stop/Pause/Resume/Abort/RevokeStart/Cancel/Clear — 🔲 optional, modelling rule `i=80`) | ✅ | ✅ | same | `ModelAssetTests.JobControlV2MethodRulesMatchPublishedModel`; `InMemoryIsa95JobControlProviderV2Tests` |
 | Job Control V2 response methods (`RequestJobResponseByJobOrderID`, `RequestJobResponseByJobOrderState`, `ReceiveJobResponse` — mandatory, modelling rule `i=78`) | ✅ | ✅ | same | same |
 | Job Control V2 state-machine causes and standard state paths (`HasCause`, `HasSubStateMachine`, scoped sub-state numbers) | ✅ | ✅ | same | `ModelAssetTests.JobControlV2StateMachineHasPublishedCauses`; `Isa95V2StateMachineTests` |
-| Job Control V1/V2 lossless fields, V1 selectors/Stop/Loaded/Error, and V2 comments | ✅ | ✅ | [`Isa95JobControlConversions`](../src/Opc.Ua.ISA95.Server/Providers/Internal/Isa95JobControlConversions.cs) | `Isa95JobControlConversionsTests`; `InMemoryIsa95JobControlProviderV1Tests`; `InMemoryIsa95JobControlProviderV2Tests` |
+| Job Control V1/V2 lossless fields, V1 selectors/Stop/Loaded/Error, and V2 comments | ✅ | ✅ | [`Isa95JobControlConversions`](../src/Opc.Ua.ISA95/JobControl/Isa95JobControlConversions.cs) | `Isa95JobControlConversionsTests`; `InMemoryIsa95JobControlProviderV1Tests`; `InMemoryIsa95JobControlProviderV2Tests` |
 | Job Control V2 abstract status-event shape, concrete server subtype, and live delivery | ✅ | ✅ | [`Isa95NodeManager`](../src/Opc.Ua.ISA95.Server/Isa95NodeManager.cs) | `ModelAssetTests.JobControlV2StatusEventHasRequiredShape`; `Isa95JobControlClientTests`; `Isa95EndToEndTests` |
 | Catalog mutation projection (`Updated`/`Removed`) | — | ✅ | [`IIsa95JobOrderCatalogChangeSource`](../src/Opc.Ua.ISA95.Server/Providers/IIsa95JobOrderCatalogChangeSource.cs) | `InMemoryIsa95JobControlProviderV2Tests`; `Isa95EndToEndTests` |
 | `ReturnStatus` Annex B bitmap / `Uncertain` business-failure result | — | ✅ | [`Isa95JobReturnStatus`](../src/Opc.Ua.ISA95.Server/Providers/Isa95JobReturnStatus.cs) | `InMemoryIsa95JobControlProviderV1Tests`; `InMemoryIsa95JobControlProviderV2Tests` |

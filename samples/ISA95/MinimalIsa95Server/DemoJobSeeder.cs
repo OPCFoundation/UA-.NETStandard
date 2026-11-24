@@ -32,6 +32,10 @@ namespace MinimalIsa95Server
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             await m_execution.TransitionAsync(
                 jobOrderId,
+                Isa95JobExecutionTransition.MarkReady,
+                cancellationToken).ConfigureAwait(false);
+            await m_execution.TransitionAsync(
+                jobOrderId,
                 Isa95JobExecutionTransition.BeginExecution,
                 cancellationToken).ConfigureAwait(false);
         }

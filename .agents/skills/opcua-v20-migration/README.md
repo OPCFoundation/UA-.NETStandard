@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA 1.5.378 → 2.0 Migration Skill
 
 A portable [Agent Skill](https://agentskills.io/specification) that packages the
@@ -91,4 +96,4 @@ installed plugin version:
 ## License
 
 MIT — same as the parent OPC UA .NET Standard repo
-([LICENSE.txt](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/LICENSE.txt)).
+([LICENSE](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/LICENSE)).
