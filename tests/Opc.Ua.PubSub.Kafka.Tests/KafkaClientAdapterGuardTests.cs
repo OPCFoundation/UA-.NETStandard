@@ -365,7 +365,10 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 BindingFlags.NonPublic | BindingFlags.Static)!;
             try
             {
-                method.Invoke(null, [builder, options]);
+                object[] arguments = method.GetParameters().Length == 3
+                    ? [builder, options, "test-group"]
+                    : [builder, options];
+                method.Invoke(null, arguments);
             }
             catch (TargetInvocationException ex) when (ex.InnerException is not null)
             {
