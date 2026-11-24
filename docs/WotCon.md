@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # OPC UA WoT Connectivity (OPC 10100-1)
 
 This repository implements the OPC UA **WoT Connectivity** companion specification (OPC 10100-1, "WoT Connectivity for OPC UA") through the model, client, server, and protocol-binding libraries plus integration tests and runnable aggregation samples:

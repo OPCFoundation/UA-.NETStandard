@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # The synchronous node manager API is deprecated
 
 Since 2.0.3 the synchronous node manager API is marked `[Obsolete]`. It keeps
