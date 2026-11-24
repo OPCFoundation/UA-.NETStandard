@@ -34,6 +34,7 @@ using OnboardingRegistrar;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 using CoreObjectTypeIds = Opc.Ua.ObjectTypeIds;
 
 namespace Opc.Ua.Gds.Tests.Onboarding
@@ -157,6 +158,58 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 issuer.VerifyNoOtherCalls();
+            }
+            finally
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// A real issuer and its trust list accept the sample DCA only after the matched receipt is committed.
+        /// </summary>
+        [Test]
+        public async Task RealIssuerCredentialRequiresCommittedEnrollmentForRegistrarAdmission()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string directory = Path.Combine(Path.GetTempPath(), "fdo-issuer-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                var configuration = new CertificateGroupConfiguration
+                {
+                    SubjectName = "CN=FDO External Test CA",
+                    BaseStorePath = directory,
+                    CertificateTypes = [nameof(CoreObjectTypeIds.RsaSha256ApplicationCertificateType)]
+                };
+                using var factory = new CertificateGroup(telemetry);
+                using ICertificateGroup group = factory.Create(Path.Combine(directory, "authorities"), configuration);
+                await group.InitAsync().ConfigureAwait(false);
+                var issuer = (ICertificateGroupWithAuthenticatedSigningRequest)group;
+                using FdoRegistrarEnrollmentPolicy policy = CreatePolicy(Path.Combine(directory, "receipts"), issuer);
+                using Certificate deviceKey = CertificateBuilder.Create("CN=Unapproved CSR Subject").CreateForRSA();
+                ByteString csr = ByteString.From(DefaultCertificateFactory.Instance.CreateSigningRequest(deviceKey));
+                Guid run = Guid.NewGuid();
+                ByteString der = await policy.AuthorizeAndIssueAsync(run, s_device, s_attestation, csr)
+                    .ConfigureAwait(false);
+                using Certificate issued = Certificate.FromRawData(der.ToArray());
+                Assert.That(issued.Subject, Is.EqualTo(Subject));
+
+                await using var certificates = new CertificateManager(telemetry);
+                certificates.RegisterTrustList(
+                    ExternalAuthenticationProvider.AuthenticationAuthorities, configuration.TrustedListPath);
+                var provider = new ExternalAuthenticationProvider(certificates, policy);
+
+                ServiceResultException denied = await Assert.ThrowsAsync<ServiceResultException>(
+                    () => provider.EvaluateAsync(der).AsTask());
+                Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+                await policy.CommitAsync(run, s_device, s_attestation, csr, der).ConfigureAwait(false);
+                DeviceRegistrarExternalAuthenticationResult? admitted = await provider.EvaluateAsync(der)
+                    .ConfigureAwait(false);
+                Assert.That(admitted, Is.Not.Null);
+                Assert.That(admitted!.ProductInstanceUri, Is.EqualTo(Product));
+                Assert.That(admitted.Decision.Application.ApplicationUri, Is.EqualTo(Application));
             }
             finally
             {
