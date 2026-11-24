@@ -4943,6 +4943,8 @@ namespace Opc.Ua.PackML.Tests
             options.PkiRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory, "packml-pki", Guid.NewGuid().ToString("N"));
             options.AutoAcceptUntrustedCertificates = true;
+            // The tests drive the server through anonymous sessions.
+            options.AnonymousAccess = AnonymousAccess.Unrestricted;
             options.IncludeUnsecurePolicyNone = true;
             options.EndpointUrls.Clear();
             var listener = new TcpListener(IPAddress.Loopback, 0);

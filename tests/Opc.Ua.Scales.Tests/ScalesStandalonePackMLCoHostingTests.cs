@@ -63,6 +63,8 @@ namespace Opc.Ua.Scales.Tests
                 options.ProductUri = "urn:localhost:scales-packml-cohost:product";
                 options.PkiRoot = Path.Combine(root, "server");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The test drives the server through an anonymous session.
+                options.AnonymousAccess = AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 var listener = new TcpListener(IPAddress.Loopback, 0);
