@@ -497,6 +497,36 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(byNewSubject.HasPrivateKey, Is.True);
         }
 
+        [TestCase(0)]
+        [TestCase(1)]
+        public async Task LoadPrivateKeyAsyncSkipsMatchWithUnreadableKeyAsync(int corrupted)
+        {
+            using Certificate first = CertificateBuilder.Create("CN=SameSubject")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using Certificate second = CertificateBuilder.Create("CN=SameSubject")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using (var writer = new DirectoryCertificateStore(m_telemetry))
+            {
+                writer.Open(m_tempDir, false);
+                await writer.AddAsync(first).ConfigureAwait(false);
+                await writer.AddAsync(second).ConfigureAwait(false);
+                Certificate broken = corrupted == 0 ? first : second;
+                File.WriteAllBytes(writer.GetPrivateKeyFilePath(broken.Thumbprint)!, [1, 2, 3]);
+            }
+            Certificate intact = corrupted == 0 ? second : first;
+
+            // A fresh store instance reads the directory for this lookup.
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir, false);
+            using Certificate loaded = (await store.LoadPrivateKeyAsync(
+                null!, "CN=SameSubject", null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                .ConfigureAwait(false))!;
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.Thumbprint, Is.EqualTo(intact.Thumbprint));
+            Assert.That(loaded.HasPrivateKey, Is.True);
+        }
+
         [Test]
         public async Task EnumerateCRLsAsyncOnEmptyStoreReturnsEmptyAsync()
         {
