@@ -936,6 +936,55 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns whether every cached entry was read from the directory and
+        /// its files still have the size and last write time they had then.
+        /// </summary>
+        private static bool AreCertificateFilesUnchanged(Dictionary<string, Entry> entries)
+        {
+            foreach (Entry entry in entries.Values)
+            {
+                if (entry.FileIndex < 0 || !IsFileUnchanged(entry.CertificateFile))
+                {
+                    return false;
+                }
+                if (entry.DuplicateFiles != null)
+                {
+                    foreach ((FileInfo duplicate, int _) in entry.DuplicateFiles)
+                    {
+                        if (!IsFileUnchanged(duplicate))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Returns whether a file read during a directory scan still has the
+        /// size and last write time recorded by the scan.
+        /// </summary>
+        private static bool IsFileUnchanged(FileInfo? scanned)
+        {
+            if (scanned == null)
+            {
+                return false;
+            }
+            try
+            {
+                var current = new FileInfo(scanned.FullName);
+                return current.Exists &&
+                    current.Length == scanned.Length &&
+                    current.LastWriteTimeUtc == scanned.LastWriteTimeUtc;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Returns the store certificates that match the private-key lookup,
         /// once per file it was read from, in store order, skipping the
         /// files in <paramref name="skip"/>.
@@ -978,6 +1027,20 @@ namespace Opc.Ua
                 }
 
                 Dictionary<string, Entry> entries = Load(thumbprint: null, stopAfter, out bool complete);
+                if (!AreCertificateFilesUnchanged(entries))
+                {
+                    // A certificate file was rewritten in place (same name and
+                    // file count), which the directory checks in Load do not
+                    // detect, or an entry was not read from the directory:
+                    // read the store again.
+                    m_lastDirectoryCheck = DateTime.MinValue;
+                    entries = Load(thumbprint: null, stopAfter, out complete);
+                }
+
+                // Every file a matching certificate was read from is a
+                // candidate, in the order the files were read, so the result
+                // is the same as trying each file in turn.
+                var matches = new List<(int FileIndex, FileInfo File, Entry Entry)>();
                 foreach (Entry entry in entries.Values)
                 {
                     if (entry.Certificate == null ||
@@ -987,23 +1050,24 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    // Every file the certificate was read from is a candidate,
-                    // in store order, so a key next to an earlier copy of the
-                    // same certificate is still tried.
                     if (entry.DuplicateFiles != null)
                     {
-                        foreach (FileInfo duplicate in entry.DuplicateFiles)
+                        foreach ((FileInfo duplicate, int duplicateIndex) in entry.DuplicateFiles)
                         {
                             if (!skip.Contains(duplicate.FullName))
                             {
-                                candidates.Add((entry.Certificate.AddRef(), duplicate));
+                                matches.Add((duplicateIndex, duplicate, entry));
                             }
                         }
                     }
                     if (!skip.Contains(entry.CertificateFile.FullName))
                     {
-                        candidates.Add((entry.Certificate.AddRef(), entry.CertificateFile));
+                        matches.Add((entry.FileIndex, entry.CertificateFile, entry));
                     }
+                }
+                foreach ((int _, FileInfo file, Entry entry) in matches.OrderBy(m => m.FileIndex))
+                {
+                    candidates.Add((entry.Certificate.AddRef(), file));
                 }
 
                 return (candidates, complete);
@@ -1435,8 +1499,10 @@ namespace Opc.Ua
                 .GetFiles(kCertSearchString)
                 .Concat(certSubdir.GetFiles(kPemCertSearchString));
 
+            int fileIndex = -1;
             foreach (FileInfo file in files)
             {
+                fileIndex++;
                 // Each Certificate.From(...) handle below is owned directly by
                 // the Entry it is placed into (no intermediate collection that
                 // would AddRef and orphan the original handle). Any handle not
@@ -1471,6 +1537,7 @@ namespace Opc.Ua
                             // Entry takes sole ownership of this handle.
                             Certificate = certificate,
                             CertificateFile = file,
+                            FileIndex = fileIndex,
                             PrivateKeyFile = null!,
                             CertificateWithPrivateKey = null!,
                             LastWriteTimeUtc = file.LastWriteTimeUtc
@@ -1527,7 +1594,7 @@ namespace Opc.Ua
                                     StringComparison.Ordinal))
                             {
                                 entry.DuplicateFiles = existing.DuplicateFiles ?? [];
-                                entry.DuplicateFiles.Add(existing.CertificateFile);
+                                entry.DuplicateFiles.Add((existing.CertificateFile, existing.FileIndex));
                             }
                             else
                             {
@@ -1951,10 +2018,16 @@ namespace Opc.Ua
             public DateTime LastWriteTimeUtc;
 
             /// <summary>
-            /// Earlier files of the store that hold the same certificate, in
-            /// store order, or <see langword="null"/>.
+            /// The position of <see cref="CertificateFile"/> in the directory
+            /// scan that read it, or -1 when the entry was not read by a scan.
             /// </summary>
-            public List<FileInfo>? DuplicateFiles;
+            public int FileIndex = -1;
+
+            /// <summary>
+            /// Earlier files of the store that hold the same certificate, with
+            /// their scan positions, or <see langword="null"/>.
+            /// </summary>
+            public List<(FileInfo File, int FileIndex)>? DuplicateFiles;
         }
 
         /// <summary>

@@ -93,12 +93,14 @@ on one store) and long-lived store instances.
 Two details keep the result the same as the old per-file loop:
 
 - The entry cache is keyed by thumbprint. When the same certificate is in
-  several files (`.der` and `.pem`), the entry remembers the earlier files and
-  the key next to each of them is tried in file order, as before.
-- A cached entry can be up to 30 s older than its files when a certificate and
-  its PFX are replaced in place (same names, same file count). A PFX whose
-  certificate is not the matched one is therefore rejected, and the retry
-  rereads the directory.
+  several files (`.der` and `.pem`), the entry remembers the earlier files with
+  their positions in the scan, and every matching file is tried in scan order,
+  as before.
+- The store's own cache checks only the directory timestamps and the file
+  count, so it can serve a certificate file that was rewritten in place for up
+  to 30 s. The lookup therefore checks the size and last write time of every
+  cached certificate file and reads the directory again when one changed.
+- A PFX whose certificate is not the matched one is rejected.
 
 ## PFX loads per warm StandardServer fixture cycle
 

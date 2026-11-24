@@ -6,6 +6,7 @@
 #pragma warning disable CA2000
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -599,6 +600,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             File.WriteAllBytes(certFile, replacementCert);
             File.WriteAllBytes(keyFile, replacementKey);
 
+            using (Certificate byNewThumbprint = (await store.LoadPrivateKeyAsync(
+                replacement.Thumbprint, null, null, rsaType, null).ConfigureAwait(false))!)
+            {
+                Assert.That(byNewThumbprint, Is.Not.Null);
+                Assert.That(byNewThumbprint.Thumbprint, Is.EqualTo(replacement.Thumbprint));
+            }
             Assert.That(
                 await store.LoadPrivateKeyAsync(original.Thumbprint, null, null, rsaType, null)
                     .ConfigureAwait(false),
@@ -610,6 +617,86 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(bySubject.HasPrivateKey, Is.True);
         }
 
+        [Test]
+        public async Task LoadPrivateKeyAsyncRejectsKeyFileOfAnotherCertificateAsync()
+        {
+            using Certificate original = CertificateBuilder.Create("CN=ForeignKey")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using Certificate other = CertificateBuilder.Create("CN=ForeignKey")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string otherDir = Path.Combine(m_tempDir, "other");
+            byte[] otherKey;
+            using (var store = new DirectoryCertificateStore(m_telemetry))
+            {
+                store.Open(otherDir, false);
+                await store.AddAsync(other).ConfigureAwait(false);
+                otherKey = File.ReadAllBytes(store.GetPrivateKeyFilePath(other.Thumbprint)!);
+            }
+            string storeDir = Path.Combine(m_tempDir, "store");
+            using (var store = new DirectoryCertificateStore(m_telemetry))
+            {
+                store.Open(storeDir, false);
+                await store.AddAsync(original).ConfigureAwait(false);
+                // The key file next to the certificate holds another certificate.
+                File.WriteAllBytes(store.GetPrivateKeyFilePath(original.Thumbprint)!, otherKey);
+            }
+
+            using var reader = new DirectoryCertificateStore(m_telemetry);
+            reader.Open(storeDir, false);
+            Assert.That(
+                await reader.LoadPrivateKeyAsync(
+                    original.Thumbprint, null, null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                    .ConfigureAwait(false),
+                Is.Null);
+        }
+
+        [Test]
+        public async Task LoadPrivateKeyAsyncTriesFilesInScanOrderAcrossDuplicatesAsync()
+        {
+            // Two certificates with the same subject in three files: "a" and
+            // "c" hold the same certificate, "b" the other one. The key next
+            // to "a" is unreadable, so the result is the certificate of the
+            // first of "b" and "c" in the directory's file order.
+            using Certificate first = CertificateBuilder.Create("CN=Interleaved")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using Certificate second = CertificateBuilder.Create("CN=Interleaved")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string certs = Path.Combine(m_tempDir, "certs");
+            string keys = Path.Combine(m_tempDir, "private");
+            using (var writer = new DirectoryCertificateStore(m_telemetry))
+            {
+                writer.Open(m_tempDir, false);
+                await writer.AddAsync(first).ConfigureAwait(false);
+                await writer.AddAsync(second).ConfigureAwait(false);
+                foreach ((Certificate certificate, string[] names) in
+                    new[] { (first, new[] { "a", "c" }), (second, new[] { "b" }) })
+                {
+                    string certFile = writer.GetPublicKeyFilePath(certificate.Thumbprint)!;
+                    string keyFile = writer.GetPrivateKeyFilePath(certificate.Thumbprint)!;
+                    foreach (string name in names)
+                    {
+                        File.Copy(certFile, Path.Combine(certs, name + ".der"));
+                        File.Copy(keyFile, Path.Combine(keys, name + ".pfx"));
+                    }
+                    File.Delete(certFile);
+                    File.Delete(keyFile);
+                }
+            }
+            File.WriteAllBytes(Path.Combine(keys, "a.pfx"), [1, 2, 3]);
+            string firstReadable = new DirectoryInfo(certs).GetFiles("*.der")
+                .Select(file => Path.GetFileNameWithoutExtension(file.Name))
+                .First(name => name != "a");
+            string expected = firstReadable == "b" ? second.Thumbprint : first.Thumbprint;
+
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir, false);
+            using Certificate loaded = (await store.LoadPrivateKeyAsync(
+                null!, "CN=Interleaved", null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                .ConfigureAwait(false))!;
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.Thumbprint, Is.EqualTo(expected));
+        }
         [Test]
         public async Task EnumerateCRLsAsyncOnEmptyStoreReturnsEmptyAsync()
         {
