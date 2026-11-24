@@ -2231,6 +2231,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             values.Add(System.Text.Encoding.UTF8.GetBytes(new string('a', 33)));
             values.Add(System.Text.Encoding.UTF8.GetBytes(new string('ä', 16)));
             values.Add(System.Text.Encoding.UTF8.GetBytes(new string('ä', 17)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('a', 64)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('a', 65)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('ä', 32)));
+            values.Add(System.Text.Encoding.UTF8.GetBytes(new string('ä', 33)));
             values.Add(System.Text.Encoding.UTF8.GetBytes("中文\U0001F600"));
             values.Add([0x41, 0xC3, 0x28, 0xFF, 0x42]);
             values.Add([0xE4, 0xB8]);
@@ -2260,7 +2264,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             byte[] source = System.Text.Encoding.UTF8.GetBytes("Server");
-            byte[] longValue = System.Text.Encoding.UTF8.GetBytes(new string('x', 40));
+            byte[] longValue = System.Text.Encoding.UTF8.GetBytes(new string('x', 65));
             byte[] buffer = EncodeStrings([source, source, longValue, longValue]);
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
@@ -2277,6 +2281,100 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(first, Is.EqualTo("Server"));
             Assert.That(secondLong, Is.EqualTo(firstLong));
             Assert.That(secondLong, Is.Not.SameAs(firstLong));
+        }
+
+        [TestCase(33)]
+        [TestCase(48)]
+        [TestCase(64)]
+        public void ReadStringReusesInstanceOfRepeatedStringNodeIdUpToLimit(int length)
+        {
+            // Arrange: identifiers of string node ids such as Scalar_Static_Mass_Int32_Int32_00,
+            // a hundred distinct ones decoded twice, as in a Read or Write request.
+            var values = new List<byte[]>();
+            for (int ii = 0; ii < 100; ii++)
+            {
+                string prefix = "Scalar_Static_Mass_Int32_Int32_" + ii.ToString("D2", CultureInfo.InvariantCulture);
+                values.Add(System.Text.Encoding.UTF8.GetBytes(prefix.PadRight(length, '_')));
+            }
+            byte[] buffer = EncodeStrings([.. values, .. values]);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            var first = new List<string>();
+            foreach (byte[] value in values)
+            {
+                first.Add(decoder.ReadString(null)!);
+            }
+            int reused = 0;
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                string second = decoder.ReadString(null)!;
+                Assert.That(second, Is.EqualTo(System.Text.Encoding.UTF8.GetString(values[ii])));
+                Assert.That(second, Has.Length.EqualTo(length));
+                if (ReferenceEquals(second, first[ii]))
+                {
+                    reused++;
+                }
+            }
+
+            // Assert: most ids reuse their instance; a few may share a slot and evict each other
+            // (the string hash is randomized per process, so the number of shared slots varies).
+            Assert.That(reused, Is.GreaterThanOrEqualTo(60));
+        }
+
+        [Test]
+        public void ReadStringDoesNotReuseInstanceAboveLimit()
+        {
+            // Arrange: 65 ASCII bytes, and 22 three-byte characters (66 bytes, 22 chars).
+            byte[] ascii = System.Text.Encoding.UTF8.GetBytes(new string('n', 65));
+            byte[] wide = System.Text.Encoding.UTF8.GetBytes(new string('中', 22));
+            byte[] buffer = EncodeStrings([ascii, ascii, wide, wide]);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            string a1 = decoder.ReadString(null)!;
+            string a2 = decoder.ReadString(null)!;
+            string w1 = decoder.ReadString(null)!;
+            string w2 = decoder.ReadString(null)!;
+
+            // Assert
+            Assert.That(a2, Is.EqualTo(a1).And.Not.SameAs(a1));
+            Assert.That(w2, Is.EqualTo(w1).And.Not.SameAs(w1));
+            Assert.That(w1, Is.EqualTo(new string('中', 22)));
+        }
+
+        [Test]
+        public void ReadStringDecodesInvalidUtf8AtLimitLikeUtf8GetString()
+        {
+            // Arrange: 64 bytes of invalid and truncated sequences, each byte its own
+            // replacement character, decoded twice to go through a cache hit.
+            byte[] invalid = new byte[64];
+            for (int ii = 0; ii < invalid.Length; ii++)
+            {
+                invalid[ii] = (ii % 3) switch
+                {
+                    0 => 0xFF,
+                    1 => 0xC3,
+                    _ => 0x41
+                };
+            }
+            byte[] buffer = EncodeStrings([invalid, invalid]);
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+            string expected = System.Text.Encoding.UTF8.GetString(invalid);
+
+            // Act
+            string first = decoder.ReadString(null)!;
+            string second = decoder.ReadString(null)!;
+
+            // Assert
+            Assert.That(first, Is.EqualTo(expected));
+            Assert.That(second, Is.SameAs(first));
         }
 #endif
 
