@@ -1288,6 +1288,12 @@ namespace Opc.Ua.SourceGeneration
             CancellationToken ct = context.Options?.Cancellation ?? default;
             ct.ThrowIfCancellationRequested();
 
+            // Prefix and Name are emitted verbatim as namespace and identifier
+            // names. They were checked when the model was validated, but a
+            // referenced assembly's ModelDependency attribute can still
+            // replace them afterwards (OverrideDependencyPrefixes).
+            ModelDesignValidator.EnsureNamespacesAreCodeSafe(context.ModelDesign.Namespaces);
+
             if (context.Options?.ClientAccessorsOnly == true)
             {
                 new ClientAccessorGenerator(context).Emit();

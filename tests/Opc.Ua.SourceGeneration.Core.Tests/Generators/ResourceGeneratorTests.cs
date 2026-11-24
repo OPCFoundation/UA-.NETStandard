@@ -62,6 +62,42 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(content, Does.Contain("public const string Nothing = \"\";"));
         }
 
+        /// <summary>
+        /// Model text (schema documentation) is embedded as a raw UTF-8 string
+        /// literal. A run of three quotes in it used to close the literal and
+        /// let the rest of the text compile as code; the delimiter is now
+        /// longer than any quote run in the text.
+        /// </summary>
+        [Test]
+        public void EmbedTextWithQuoteRunUsesLongerRawLiteralDelimiter()
+        {
+            string content = Embed(new TextResource(
+                "Doc",
+                "<doc>\n\"\"\"u8;\nstatic void Injected() { }\n\"\"\"\"\"</doc>"));
+
+            // Five quotes in the text: the literal is delimited by six.
+            Assert.That(content, Does.Contain("\"\"\"\"\"\"u8"));
+        }
+
+        /// <summary>
+        /// C# ends a line at NEL, LINE SEPARATOR and PARAGRAPH SEPARATOR, which
+        /// the line-based raw literal writer does not split on, so text that
+        /// contains one is embedded as bytes instead.
+        /// </summary>
+        [TestCase('\u0085')]
+        [TestCase('\u2028')]
+        [TestCase('\u2029')]
+        public void EmbedTextWithUnicodeLineTerminatorEmitsBytes(char terminator)
+        {
+            string content = Embed(new TextResource(
+                "Doc",
+                "<doc>a" + terminator + "\"\"\"u8; static void Injected() { }</doc>"));
+
+            Assert.That(content, Does.Contain("new byte[]"));
+            Assert.That(content, Does.Not.Contain("Injected"));
+            Assert.That(content, Does.Not.Contain(terminator.ToString()));
+        }
+
         private static string Embed(Resource resource)
         {
             var fileSystem = new Mock<IFileSystem>();
