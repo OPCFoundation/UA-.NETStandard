@@ -90,7 +90,12 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 Func<string, CancellationToken, ModelDependencyV1?> decode,
                 CancellationToken cancellationToken)
             {
-                lock (m_lock)
+                // Bound contention waits so cancellation does not depend on another caller's decode.
+                while (!m_lock.TryEnter(50))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     if (m_isNull)
@@ -111,6 +116,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                         m_value = new WeakReference<ModelDependencyV1>(value);
                     }
                     return value;
+                }
+                finally
+                {
+                    m_lock.Exit();
                 }
             }
 

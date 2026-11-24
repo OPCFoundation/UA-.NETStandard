@@ -153,6 +153,76 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// A waiting caller can cancel without waiting for another caller's decode.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task WaitingCallerCanCancelBeforeDecodeCompletes(bool shareByContent)
+        {
+            using var cancellation = new CancellationTokenSource();
+            using var releaseDecode = new ManualResetEventSlim();
+            var decoding = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var waiting = new TaskCompletionSource<Thread>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int decodes = 0;
+            var cache = new DependencyDecodeCache(shareByContent, (_, _) =>
+            {
+                Interlocked.Increment(ref decodes);
+                decoding.SetResult(true);
+                if (!releaseDecode.Wait(TimeSpan.FromSeconds(30), CancellationToken.None))
+                {
+                    throw new TimeoutException("The decode was not released.");
+                }
+                return new ModelDependencyV1();
+            });
+            string key = Guid.NewGuid().ToString();
+            Task<ModelDependencyV1?> first = Task.Run(() => cache.GetDependency(key));
+            Task? second = null;
+            try
+            {
+                Assert.That(
+                    await Task.WhenAny(decoding.Task, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false),
+                    Is.SameAs(decoding.Task));
+                second = Task.Factory.StartNew(
+                    () =>
+                    {
+                        waiting.SetResult(Thread.CurrentThread);
+                        string payload = shareByContent ? new string(key.ToCharArray()) : key;
+                        Assert.Throws<OperationCanceledException>(() => cache.GetDependency(payload, cancellation.Token));
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
+                Thread caller = await waiting.Task.ConfigureAwait(false);
+                Assert.That(
+                    SpinWait.SpinUntil(
+                        () => (caller.ThreadState & ThreadState.WaitSleepJoin) != 0,
+                        TimeSpan.FromSeconds(5)),
+                    Is.True);
+
+                cancellation.Cancel();
+
+                Assert.That(
+                    await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false),
+                    Is.SameAs(second),
+                    "Cancellation must finish while the first decode is still held open.");
+                await second.ConfigureAwait(false);
+                Assert.That(first.IsCompleted, Is.False);
+            }
+            finally
+            {
+                releaseDecode.Set();
+                await first.ConfigureAwait(false);
+                if (second != null)
+                {
+                    await second.ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(cache.GetDependency(key), Is.SameAs(await first.ConfigureAwait(false)));
+            Assert.That(decodes, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Malformed legacy payloads remain null, but security failures still propagate.
         /// </summary>
         [Test]
