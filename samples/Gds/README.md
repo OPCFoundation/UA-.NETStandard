@@ -570,6 +570,21 @@ outside these samples. No FDO SDK dependency or FDO interoperability result is
 provided. See [the handoff contract](../../docs/GDS.md#external-authentication-certificate-handoff)
 for provider registration and recovery behavior.
 
+For hosts integrating FDO, the sample code has two components that are not
+wired into these commands. [`FdoRegistrarEnrollmentPolicy`](OnboardingRegistrar/FdoRegistrarEnrollmentPolicy.cs)
+records issuance before the certificate is returned, then admits only the
+exact certificate from a committed enrollment. The host commits on
+authenticated `Done20`, before sending `DoneAck20`. The sample receipt
+directory permits one writer; the host must reconcile interrupted enrollment
+before processing a different run.
+
+On the Device, `InstallCompletedExternalCredentialAsync` in
+[`OnboardingDeviceCredentials`](OnboardingClient/OnboardingDeviceCredentials.cs)
+binds the approved certificate to its retained RSA CSR key, verifies the
+stored key pair, and then activates it without replacing OPC UA peer trust.
+The host must validate the certificate before sending `Done20` and call the
+installer only after authenticating `DoneAck20`.
+
 ### Recover a lost FinishRequest response
 
 The registrar can accept `FinishRequest` and issue the certificate while
