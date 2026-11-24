@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// A version-neutral job response tracked by the in-memory engine. Every
@@ -9,8 +9,12 @@ namespace Opc.Ua.ISA95.Server.Providers
     /// personnel, equipment, physical-asset and material actual collections, so
     /// that responses round-trip losslessly within a version.
     /// </summary>
-    internal sealed record Isa95JobResponse
+    public sealed record Isa95JobResponse
     {
+        internal uint V2EncodingMask { get; init; }
+
+        internal Isa95V2StateSnapshot? V2StateSnapshot { get; init; }
+
         public required string Id { get; init; }
         public required string JobOrderId { get; init; }
         public ArrayOf<LocalizedText> Description { get; init; } = [];

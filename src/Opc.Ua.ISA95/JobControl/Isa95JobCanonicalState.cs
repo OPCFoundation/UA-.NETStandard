@@ -1,15 +1,13 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
-    /// The version-neutral canonical life-cycle state of a job order tracked by
-    /// the in-memory engine. It mirrors the Job Control V2 receiver state machine
-    /// (with the two interrupted sub-states) and is projected to the Job Control
-    /// V1 <c>ISA95JobOrderStateEnum</c> by the conversion helpers.
+    /// The version-neutral lifecycle state of a job order. V2 preparation states
+    /// distinguish start permission from operational readiness.
     /// </summary>
-    internal enum Isa95JobCanonicalState
+    public enum Isa95JobCanonicalState
     {
         /// <summary>
         /// The order is stored but is not yet allowed to start
@@ -59,9 +57,8 @@ namespace Opc.Ua.ISA95.Server.Providers
 
         /// <summary>
         /// The order has been loaded into the execution system (V1 <c>Loaded</c>).
-        /// This is a V1-only response state with no distinct V2 equivalent; it is
-        /// preserved so that V1 responses round-trip and is projected to
-        /// V2 <c>Running</c> when a V2 view is requested.
+        /// Preserved in V1 round trips and projected to V2
+        /// <c>NotAllowedToStart/Loaded</c>.
         /// </summary>
         Loaded = 9,
 
@@ -71,6 +68,36 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// V1 responses round-trip and is projected to V2 <c>Aborted</c> when a
         /// V2 view is requested.
         /// </summary>
-        Error = 10
+        Error = 10,
+
+        /// <summary>
+        /// Permission to start has not been granted and the job is not ready.
+        /// </summary>
+        NotAllowedToStartWaiting = 11,
+
+        /// <summary>
+        /// The job is ready but is not allowed to start.
+        /// </summary>
+        NotAllowedToStartReady = 12,
+
+        /// <summary>
+        /// The job is loaded but is not allowed to start.
+        /// </summary>
+        NotAllowedToStartLoaded = 13,
+
+        /// <summary>
+        /// The job is allowed to start but is not ready.
+        /// </summary>
+        AllowedToStartWaiting = 14,
+
+        /// <summary>
+        /// The job is ready and allowed to start.
+        /// </summary>
+        AllowedToStartReady = 15,
+
+        /// <summary>
+        /// The job is loaded and allowed to start.
+        /// </summary>
+        AllowedToStartLoaded = 16
     }
 }

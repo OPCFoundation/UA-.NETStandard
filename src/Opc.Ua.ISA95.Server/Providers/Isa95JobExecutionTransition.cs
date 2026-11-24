@@ -26,6 +26,26 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// <summary>
         /// Closes an ended order after its response has been handled.
         /// </summary>
-        Close = 4
+        Close = 4,
+
+        /// <summary>
+        /// Marks an unready V2 job order as ready.
+        /// </summary>
+        MarkReady = 5,
+
+        /// <summary>
+        /// Marks a ready V2 job order as loaded.
+        /// </summary>
+        Load = 6,
+
+        /// <summary>
+        /// Returns a loaded V2 job order to Ready.
+        /// </summary>
+        Unload = 7,
+
+        /// <summary>
+        /// Returns a ready or loaded V2 job order to Waiting.
+        /// </summary>
+        MarkNotReady = 8
     }
 }

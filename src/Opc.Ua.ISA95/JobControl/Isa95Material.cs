@@ -1,15 +1,17 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
-namespace Opc.Ua.ISA95.Server.Providers
+namespace Opc.Ua.ISA95.JobControl
 {
     /// <summary>
     /// A version-neutral material resource entry captured by the in-memory
     /// engine. The same structure describes a job-order material requirement and
     /// a job-response material actual in both Job Control V1 and V2.
     /// </summary>
-    internal sealed record Isa95Material
+    public sealed record Isa95Material
     {
+        internal uint V2EncodingMask { get; init; }
+
         /// <summary>
         /// The material class identifier.
         /// </summary>
