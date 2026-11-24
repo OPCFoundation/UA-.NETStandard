@@ -293,8 +293,8 @@ namespace Opc.Ua.Server
         /// longer reads the message (when the Publish response was sent).
         /// </param>
         /// <param name="rentedItemArrays">
-        /// Optional, aligned with <paramref name="messages"/>: the arrays rented from
-        /// <c>ArrayPool&lt;T&gt;.Shared</c> whose slices hold the notifications of each
+        /// Optional, aligned with <paramref name="messages"/>: the pooled arrays whose slices
+        /// hold the notifications of each
         /// message, returned to the pools with the payload. Trimmed with the messages.
         /// </param>
         public NotificationMessage Enqueue(
