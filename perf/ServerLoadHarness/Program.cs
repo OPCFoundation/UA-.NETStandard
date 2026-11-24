@@ -350,6 +350,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
             authenticator?.Register(server.CurrentInstance);
+            // lifecycle-reload: runtime NodeSet managers added before ready, churned on command
+            var lifecycle = new LifecycleChurn(server, ArgInt("lc-managers", 0), ArgInt("lc-vars", 10));
+            await using ConfiguredAsyncDisposable disposeLifecycle = lifecycle.ConfigureAwait(false);
+            await lifecycle.InitializeAsync().ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
             ProcessStats mark = ProcessStats.Capture();
@@ -364,6 +368,26 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 TaskScheduler.Default).ConfigureAwait(false)) != null)
             {
                 line = line.Trim();
+                if (line.StartsWith("lifecycle ", StringComparison.Ordinal))
+                {
+                    // lifecycle start <intervalMs> <migrate|invalidate|alternate> <removeEvery> <abortEvery> <workers>
+                    // lifecycle stop
+                    string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts[1] == "stop")
+                    {
+                        await lifecycle.StopAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        lifecycle.Start(
+                            int.Parse(parts[2], CultureInfo.InvariantCulture),
+                            parts[3],
+                            int.Parse(parts[4], CultureInfo.InvariantCulture),
+                            int.Parse(parts[5], CultureInfo.InvariantCulture),
+                            int.Parse(parts[6], CultureInfo.InvariantCulture));
+                    }
+                    continue;
+                }
                 if (line.StartsWith("events ", StringComparison.Ordinal))
                 {
                     // events <rate>: start the event generator; events stop: stop it
@@ -386,16 +410,19 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         mark = ProcessStats.Capture();
                         (server as CounterServer)?.Counters.Mark();
                         events.Mark();
+                        lifecycle.Mark();
                         authenticator?.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
                         string counterReport = (server as CounterServer)?.Counters.Report(sampling) ?? string.Empty;
                         Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport + " " + events.Report() +
+                            " " + lifecycle.Report() +
                             (authenticator == null ? string.Empty : " " + authenticator.Report()));
                         break;
                     case "quit":
                         events.Stop();
+                        await lifecycle.StopAsync().ConfigureAwait(false);
                         await server.StopAsync().ConfigureAwait(false);
                         return 0;
                 }
@@ -408,6 +435,17 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             string scenario = Arg("scenario", "read");
             bool counters = scenario == "counters";
             int sessionCount = ArgInt("sessions", counters ? 1 : 20);
+            // lifecycle-reload: --sessions subscriber sessions of the sub load (none with --load 0),
+            // then --readers, one monitor session (--lc-monitor) and --idle sessions
+            bool lifecycleScenario = scenario == "lifecycle-reload";
+            bool lifecycleLoad = lifecycleScenario && ArgInt("load", 1) != 0;
+            int lifecycleReaders = lifecycleScenario ? ArgInt("readers", 4) : 0;
+            int lifecycleMonitors = lifecycleScenario && ArgInt("lc-monitor", 1) != 0 ? 1 : 0;
+            int idleSessions = lifecycleScenario ? ArgInt("idle", 0) : 0;
+            if (lifecycleScenario && !lifecycleLoad)
+            {
+                sessionCount = 0;
+            }
             // counters: --subs subscriptions per session, each with --nodes counters of its own
             int counterSubs = counters ? ArgInt("subs", 1) : 0;
             int counterCount = counters ? sessionCount * counterSubs * ArgInt("nodes", 1) : 0;
@@ -461,6 +499,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
                 FormattableString.Invariant(
                     $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} ") +
+                FormattableString.Invariant(
+                    $"--lc-managers {(lifecycleScenario ? ArgInt("lc-managers", 8) : 0)} --lc-vars {Arg("lc-vars", "10")} ") +
                 FormattableString.Invariant(
                     $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
                 FormattableString.Invariant($"--owner-share {Arg("owner-share", "1")} ") +
@@ -566,10 +606,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             var channelManager = new ClientChannelManager(client.Config, telemetry);
             await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
             // sub: --writers adds dedicated writer sessions after the subscriber sessions
-            int writerCount = scenario == "sub" ? ArgInt("writers", 0) : 0;
+            int writerCount = scenario == "sub" || lifecycleLoad ? ArgInt("writers", 0) : 0;
+            int extraSessions = lifecycleReaders + lifecycleMonitors + idleSessions;
             // connect/channel open their own sessions or channels per operation; idle
             // preconnected sessions would only add keep-alive traffic to the measurement
-            var sessions = new ISession[connectScenario ? 0 : sessionCount + writerCount];
+            var sessions = new ISession[connectScenario ? 0 : sessionCount + writerCount + extraSessions];
             var connectTime = Stopwatch.StartNew();
             // Shared sessions connect one at a time by default: concurrent creation
             // on one ClientChannelManager fails with BadSecureChannelClosed.
@@ -628,6 +669,34 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ArgInt("queue-size", 10000),
                     ArgInt("event-rate", 0),
                     ArgInt("event-where", 0) != 0)
+                : scenario == "historyread-paging"
+                ? new HistoryPagingWorkload(sessions, ArgInt("hist-nodes", 4), ArgInt("samples", 10000), ArgInt("page", 100))
+                : lifecycleScenario
+                ? new LifecycleWorkload(
+                    lifecycleLoad
+                        ? new SubscribeWorkload(
+                            sessions[..sessionCount],
+                            writerCount == 0 ? [sessions[0]] : sessions[sessionCount..(sessionCount + writerCount)],
+                            ArgInt("nodes", 100),
+                            ArgInt("subs", 5),
+                            ArgInt("pub", 100),
+                            ArgInt("write-interval", 100),
+                            false,
+                            ArgInt("write-nodes", 0),
+                            false,
+                            0)
+                        : null,
+                    sessions[(sessionCount + writerCount)..(sessionCount + writerCount + lifecycleReaders)],
+                    lifecycleMonitors == 0 ? null : sessions[sessionCount + writerCount + lifecycleReaders],
+                    ArgInt("lc-managers", 8),
+                    ArgInt("lc-vars", 10),
+                    ArgInt("read-nodes", 16),
+                    ArgInt("lc-sampling", 100),
+                    ArgInt("probe", 0),
+                    ArgInt("probe", 0) > 0 ? _ => client.ConnectAsync(new Uri(url), policy, selected) : null,
+                    FormattableString.Invariant(
+                        $"lifecycle start {ArgInt("lc-interval", 2000)} {Arg("lc-mode", "alternate")} {ArgInt("lc-remove-every", 5)} ") +
+                    FormattableString.Invariant($"{ArgInt("lc-abort-every", 0)} {ArgInt("lc-workers", 1)}"))
                 : scenario == "sub"
                 ? new SubscribeWorkload(
                     sessions[..sessionCount],
@@ -645,6 +714,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
             using var stop = new CancellationTokenSource();
             Task run = workload.RunAsync(stop.Token);
+            if (workload is LifecycleWorkload lifecycleWorkload && ArgInt("lc-interval", 2000) > 0)
+            {
+                await server.StandardInput.WriteLineAsync(lifecycleWorkload.ChurnCommand).ConfigureAwait(false);
+            }
             if (workload is EventWorkload eventWorkload)
             {
                 await server.StandardInput.WriteLineAsync(
@@ -683,6 +756,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             (double Count, string Name)? secondary = workload.Secondary;
             double clientCores = (Process.GetCurrentProcess().TotalProcessorTime - clientCpuStart).TotalSeconds /
                 window.Elapsed.TotalSeconds;
+            if (workload is LifecycleWorkload)
+            {
+                await server.StandardInput.WriteLineAsync("lifecycle stop").ConfigureAwait(false);
+            }
             if (workload is EventWorkload)
             {
                 await server.StandardInput.WriteLineAsync("events stop").ConfigureAwait(false);
@@ -1019,6 +1096,38 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 $"n={total} p50={Ms(0.5):F3}ms p90={Ms(0.9):F3}ms p99={Ms(0.99):F3}ms ") +
                 FormattableString.Invariant(
                 $"p999={Ms(0.999):F3}ms max={Volatile.Read(ref m_max) * 1000.0 / Stopwatch.Frequency:F3}ms");
+        }
+
+        /// <summary>
+        /// <c>n/p50/p99/max</c> in milliseconds, one token for key=value reports.
+        /// </summary>
+        public string Compact()
+        {
+            long[] counts = new long[m_buckets.Length];
+            long total = 0;
+            for (int i = 0; i < counts.Length; i++)
+            {
+                counts[i] = Volatile.Read(ref m_buckets[i]);
+                total += counts[i];
+            }
+            double max = Volatile.Read(ref m_max) * 1000.0 / Stopwatch.Frequency;
+            double Ms(double quantile)
+            {
+                long rank = Math.Min(total - 1, (long)(quantile * total));
+                long seen = 0;
+                for (int i = 0; i < counts.Length; i++)
+                {
+                    seen += counts[i];
+                    if (seen > rank)
+                    {
+                        return Value(i) * 1000.0 / Stopwatch.Frequency;
+                    }
+                }
+                return max;
+            }
+            return total == 0
+                ? "0/0/0/0"
+                : FormattableString.Invariant($"{total}/{Ms(0.5):F2}/{Ms(0.99):F2}/{max:F2}");
         }
 
         private static int Index(long ticks)
