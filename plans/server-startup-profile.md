@@ -113,7 +113,11 @@ CPU and allocation work, no waits:
    and key files that an identical identity created earlier in the same process
    (key: application URI and name, lifetime, server domain names, and per
    certificate its type, subject and minimum key size; only single directory
-   stores found by subject, no password provider). The first fixture per
+   stores found by subject, no password provider). The first certificate is
+   added through `DirectoryCertificateStore.AddAsync`, which creates the
+   private key folder with the product's owner-only permissions (Windows ACL,
+   Unix 0700); the other files are copied into it (keys created 0600 on Unix).
+   Adding all of them through the store would re-encrypt each key. The first fixture per
    identity creates the certificates under a per-identity gate so parallel
    fixtures do not generate them twice. After a seeded check the fixture calls
    `CertificateManager.UpdateAsync`, as the check itself does after creating a
@@ -140,25 +144,33 @@ CPU and allocation work, no waits:
    to wait for; ports are picked fresh per start.
 3. `ClientFixture.StartReverseConnectHostAsync` only waits before a retry.
 4. The probe above.
+   `TestCertificateCacheTests` (Opc.Ua.Server.Tests) pin the cache contract:
+   same-identity reuse and manager visibility, changed identity, opt-out,
+   existing certificates kept, parallel first use, owner-only keys on Unix.
 
 ## Results (paired A/B)
 
-Baseline (A, master `e6c29e434`) and this branch (B) were copied to separate
+Baseline (A, master `e6c29e434`) and this branch (B, `48d8be3f8`, with the
+certificate-manager refresh and store-based seeding) were copied to separate
 folders and run alternately, A/B then B/A, for 5 rounds: 10 cycles per test and
-run (12 with 4 workers), so 50 (60) cycles per cell. Medians in ms, both
-`ServerFixture` and `ClientFixture` phases. All 30 runs passed.
+run, so 50 cycles per cell. Medians in ms, both `ServerFixture` and
+`ClientFixture` phases. All 20 runs passed.
 
 The probe opts in like the harnesses, so the fresh-PKI rows show what a
 `ClientTestFramework` or `TestFixture` fixture saves.
 
 | Scenario | Server | A total | B total | Change | Main phase changes (A → B) |
 |---|---|---:|---:|---:|---|
-| Fresh PKI per cycle (most suites) | StandardServer | 973 | 319 | −67 % | start 456 → 203, client load 357 → 60, stop 122 → 14 |
-| Fresh PKI per cycle | ReferenceServer | 1498 | 895 | −40 % | start 953 → 746, client load 352 → 63, stop 135 → 31 |
-| Warm PKI | StandardServer | 489 | 394 | −19 % | stop 125 → 15 |
-| Warm PKI | ReferenceServer | 1054 | 1010 | −4 % | stop 142 → 41 (start is noise: 739 vs 786) |
-| Warm PKI, 4 parallel cycles | StandardServer | 880 | 797 | −9 % | stop 138 → 31 |
-| Warm PKI, 4 parallel cycles | ReferenceServer | 1824 | 1690 | −7 % | stop 162 → 52 |
+| Fresh PKI per cycle (harness fixtures) | StandardServer | 901 | 376 | −58 % | start 420 → 221, client load 328 → 104, stop 117 → 11 |
+| Fresh PKI per cycle | ReferenceServer | 1407 | 911 | −35 % | start 889 → 731, client load 336 → 111, stop 131 → 29 |
+| Warm PKI | StandardServer | 443 | 340 | −23 % | stop 118 → 13 |
+| Warm PKI | ReferenceServer | 965 | 855 | −11 % | stop 135 → 32 |
+
+An earlier A/B of the first version (before the certificate-manager refresh,
+which reloads the five keys once more per seeded application, ~45 ms each) had
+fresh-PKI StandardServer at 973 → 319 ms; with 4 parallel workers it measured
+StandardServer 880 → 797 ms and ReferenceServer 1824 → 1690 ms (stop phase
+only, as the cache did not apply to warm stores).
 
 - Under 4 parallel workers a warm StandardServer start takes ~530 ms instead
   of ~200 ms serially and a ReferenceServer start ~1.36 s instead of ~0.75 s.
@@ -170,7 +182,7 @@ The probe opts in like the harnesses, so the fresh-PKI rows show what a
   process and is therefore not cold.
 - With a fresh PKI, the first fixture per identity still generates its
   certificates (the cold rows: client load ~350-400 ms on both sides); every
-  later fixture in the process copies them.
+  later fixture in the process gets copies.
 
 ## Recommendations (product code, not done here)
 
