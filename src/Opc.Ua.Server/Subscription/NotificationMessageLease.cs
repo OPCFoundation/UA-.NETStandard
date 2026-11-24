@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 using System;
-using System.Buffers;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -10,9 +9,9 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Counts the owners of a notification message whose payload objects (the
     /// <see cref="NotificationMessage"/> and its data change list) came from their activator
-    /// pools, and whose notification arrays were rented from <see cref="ArrayPool{T}.Shared"/> or
-    /// <see cref="EventNotificationBuffer"/>. The payload is returned to the pools only when the last
-    /// owner releases it.
+    /// pools, and whose notification arrays were rented from <see cref="DataChangeNotificationBuffer"/>
+    /// or <see cref="EventNotificationBuffer"/>. The payload is returned to the pools only when the
+    /// last owner releases it.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -42,7 +41,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a lease with one reference owned by the creator for a message whose data
         /// change and event notifications are slices of the arrays in <paramref name="rented"/>,
-        /// rented from <see cref="ArrayPool{T}.Shared"/> and returned with the payload.
+        /// pooled buffers returned with the payload.
         /// </summary>
         /// <param name="message">The leased message.</param>
         /// <param name="rented">The rented arrays that hold the notifications, if any.</param>
@@ -115,10 +114,7 @@ namespace Opc.Ua.Server
             (message as IPooledEncodeable)?.Reuse();
 
             // cleared, so the arrays do not keep the recycled notifications reachable.
-            if (rented.Items != null)
-            {
-                ArrayPool<MonitoredItemNotification>.Shared.Return(rented.Items, clearArray: true);
-            }
+            rented.Items?.Return();
             // also releases the occurrence references (admission stamps) of the event fields.
             rented.Events?.Return();
         }
@@ -131,16 +127,14 @@ namespace Opc.Ua.Server
     /// The pooled arrays that hold the notifications of one notification message; the
     /// message sees exact-length slices of them.
     /// </summary>
-    /// <param name="Items">
-    /// The data change array rented from <see cref="ArrayPool{T}.Shared"/>, if any.
-    /// </param>
+    /// <param name="Items">The pooled data change notifications, if any.</param>
     /// <param name="Events">
     /// The pooled events and their admission stamps (see <see cref="QueuedEvent"/>), if any.
     /// The stamps keep the EventIds of the reported occurrences reserved until the message
     /// is released.
     /// </param>
     internal readonly record struct RentedNotificationArrays(
-        MonitoredItemNotification[]? Items,
+        DataChangeNotificationBuffer? Items,
         EventNotificationBuffer? Events = null);
 
     /// <summary>
