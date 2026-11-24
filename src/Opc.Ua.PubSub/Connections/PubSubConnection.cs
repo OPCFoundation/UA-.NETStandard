@@ -975,7 +975,7 @@ namespace Opc.Ua.PubSub.Connections
                     await sinks[i].OnReceivedAsync(received, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     throw;
                 }
@@ -1014,203 +1014,221 @@ namespace Opc.Ua.PubSub.Connections
                     in transport.ReceiveAsync(cancellationToken).ConfigureAwait(false))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    ReadOnlyMemory<byte> framePayload = frame.Payload;
-                    ReadOnlyMemory<byte> rawFrame = frame.Payload;
-                    bool frameSecured = false;
-                    bool frameVerified = false;
-                    bool singleFrame = true;
-
-                    if (UadpDecoder.TryReadPrefix(framePayload, out UadpPrefixInfo framePrefix))
-                    {
-                        int prefixLength = framePrefix.PrefixLength;
-                        bool securityEnabled = framePrefix.SecurityEnabled;
-                        PublisherId framePublisherId = framePrefix.PublisherId;
-                        ushort frameWriterGroupId = framePrefix.WriterGroupId;
-
-                        // Unified inbound message-security enforcement applied to
-                        // single NetworkMessages and to every chunk NetworkMessage:
-                        // each chunk is secured on its own (Part 14 §7.2.4.4.4), so
-                        // chunks are verified, decrypted and replay-checked before
-                        // they reach the reassembler.
-                        if (RequiresInboundSecurity)
-                        {
-                            // Fail-closed: a secured reader never accepts
-                            // an unsecured frame and never trusts the
-                            // wire's securityEnabled bit to opt out.
-                            if (m_securityWrapper is null || !securityEnabled)
-                            {
-                                RecordSecurityFailure(
-                                    StatusCodes.BadSecurityModeRejected,
-                                    "Inbound frame is not secured to the reader's " +
-                                    "configured SecurityMode.");
-                                m_logger.DroppingUnsecuredInboundFrame(Name, m_requiredSecurityMode);
-                                continue;
-                            }
-                            (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
-                                await TryUnwrapInboundAsync(
-                                    framePayload, prefixLength,
-                                    framePublisherId, frameWriterGroupId,
-                                    m_requiredSecurityMode, cancellationToken)
-                                    .ConfigureAwait(false);
-                            if (unwrapped is null)
-                            {
-                                continue;
-                            }
-                            framePayload = unwrapped.Value.Payload;
-                            frameVerified = unwrapped.Value.SignatureVerified;
-                        }
-                        else if (m_securityWrapper is not null && securityEnabled)
-                        {
-                            (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
-                                await TryUnwrapInboundAsync(
-                                    framePayload, prefixLength,
-                                    framePublisherId, frameWriterGroupId,
-                                    MessageSecurityMode.None, cancellationToken)
-                                    .ConfigureAwait(false);
-                            if (unwrapped is null)
-                            {
-                                continue;
-                            }
-                            framePayload = unwrapped.Value.Payload;
-
-                            // No SecurityMode is required here, so a frame
-                            // without a signature unwraps too. A message put
-                            // together from chunks is not treated as verified
-                            // either: unsigned chunks can be mixed into it.
-                            frameVerified = unwrapped.Value.SignatureVerified && !framePrefix.ChunkMessage;
-                        }
-
-                        if (framePrefix.ChunkMessage)
-                        {
-                            ReadOnlyMemory<byte>? reassembled;
-                            try
-                            {
-                                reassembled = TryReassembleChunk(framePayload, framePrefix);
-                            }
-                            catch (Exception ex)
-                            {
-                                // Fail-soft: a malformed or hostile chunk
-                                // must not terminate the receive loop.
-                                m_diagnostics.Increment(
-                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
-                                m_logger.InboundUadpChunkReassemblyThrew(ex);
-                                continue;
-                            }
-                            if (reassembled is null)
-                            {
-                                continue;
-                            }
-                            framePayload = reassembled.Value;
-                            // The message was reassembled from multiple chunk
-                            // frames, so no single wire frame faithfully
-                            // represents it; disable the raw-frame fast path.
-                            singleFrame = false;
-                        }
-
-                        frameSecured = securityEnabled;
-                    }
-                    else if (RequiresInboundSecurity)
-                    {
-                        // Fail-closed: the frame is not a UADP NetworkMessage
-                        // (e.g. a JSON frame, for which no message-security
-                        // wrapper exists), so it cannot be authenticated or
-                        // decrypted to satisfy the reader's configured
-                        // SecurityMode. Dropping it here prevents an attacker
-                        // from delivering forged, unsecured non-UADP frames to
-                        // application sinks on a secured reader. Mirrors the
-                        // send-side refusal to publish unsecured non-UADP
-                        // messages on a connection configured for security.
-                        RecordSecurityFailure(
-                            StatusCodes.BadSecurityModeRejected,
-                            "Inbound non-UADP frame cannot satisfy the reader's " +
-                            "configured SecurityMode.");
-                        // Logged at Debug: this is a per-frame hot path and a
-                        // flood of non-UADP frames (hostile or misconfigured)
-                        // must not amplify into high-volume warning logs. The
-                        // security-failure counter incremented above is the
-                        // rate-safe operational signal.
-                        m_logger.DroppingNonUadpInboundFrame(Name, m_requiredSecurityMode);
-                        continue;
-                    }
-
-                    // Only a frame whose signature was verified above is
-                    // authenticated. The security flag of the frame and a known
-                    // SecurityTokenId are not enough: both are sender-controlled.
-                    bool frameAuthenticated = frameVerified;
-                    PubSubNetworkMessage? message;
+                    // Nothing that happens while one frame is processed may end
+                    // the loop: it is started once per connection and is never
+                    // restarted, so an exception here would silently stop all
+                    // reception on the connection.
                     try
                     {
-                        message = await decoder.TryDecodeAsync(framePayload, context, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.DecoderThrewOnInboundFrame(ex);
-                        continue;
-                    }
-                    if (m_metaDataRecoveryPending)
-                    {
-                        await TryRecoverEvictedMetaDataAsync(cancellationToken).ConfigureAwait(false);
-                    }
-                    if (message is null)
-                    {
-                        continue;
-                    }
-                    if (message is UadpDiscoveryRequestMessage discoveryRequest)
-                    {
-                        await TryRespondToDiscoveryRequestAsync(discoveryRequest, cancellationToken)
-                            .ConfigureAwait(false);
-                        continue;
-                    }
-                    if (message is UadpDiscoveryResponseMessage discoveryResponse)
-                    {
-                        RouteInboundDiscoveryResponse(discoveryResponse);
-                        _ = TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length);
-                        continue;
-                    }
-                    if (message is UadpActionRequestMessage actionRequest)
-                    {
-                        await TryRespondToActionRequestAsync(actionRequest, cancellationToken)
-                            .ConfigureAwait(false);
-                        continue;
-                    }
-                    if (message is UadpActionResponseMessage actionResponse)
-                    {
-                        RouteInboundActionResponse(actionResponse);
-                        continue;
-                    }
-                    if (message is PubSubJsonActionNetworkMessage jsonAction &&
-                        await TryRouteJsonActionAsync(jsonAction, cancellationToken).ConfigureAwait(false))
-                    {
-                        continue;
-                    }
-                    if (TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length))
-                    {
-                        continue;
-                    }
-                    await NotifyReceivedSinksAsync(
-                        message, singleFrame ? rawFrame : default, frameSecured, cancellationToken)
-                        .ConfigureAwait(false);
-                    for (int i = 0; i < m_readerGroups.Count; i++)
-                    {
-                        ReaderGroup rg = m_readerGroups[i];
+                        ReadOnlyMemory<byte> framePayload = frame.Payload;
+                        ReadOnlyMemory<byte> rawFrame = frame.Payload;
+                        bool frameSecured = false;
+                        bool frameVerified = false;
+                        bool singleFrame = true;
+
+                        if (UadpDecoder.TryReadPrefix(framePayload, out UadpPrefixInfo framePrefix))
+                        {
+                            int prefixLength = framePrefix.PrefixLength;
+                            bool securityEnabled = framePrefix.SecurityEnabled;
+                            PublisherId framePublisherId = framePrefix.PublisherId;
+                            ushort frameWriterGroupId = framePrefix.WriterGroupId;
+
+                            // Unified inbound message-security enforcement applied to
+                            // single NetworkMessages and to every chunk NetworkMessage:
+                            // each chunk is secured on its own (Part 14 §7.2.4.4.4), so
+                            // chunks are verified, decrypted and replay-checked before
+                            // they reach the reassembler.
+                            if (RequiresInboundSecurity)
+                            {
+                                // Fail-closed: a secured reader never accepts
+                                // an unsecured frame and never trusts the
+                                // wire's securityEnabled bit to opt out.
+                                if (m_securityWrapper is null || !securityEnabled)
+                                {
+                                    RecordSecurityFailure(
+                                        StatusCodes.BadSecurityModeRejected,
+                                        "Inbound frame is not secured to the reader's " +
+                                        "configured SecurityMode.");
+                                    m_logger.DroppingUnsecuredInboundFrame(Name, m_requiredSecurityMode);
+                                    continue;
+                                }
+                                (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
+                                    await TryUnwrapInboundAsync(
+                                        framePayload, prefixLength,
+                                        framePublisherId, frameWriterGroupId,
+                                        m_requiredSecurityMode, cancellationToken)
+                                        .ConfigureAwait(false);
+                                if (unwrapped is null)
+                                {
+                                    continue;
+                                }
+                                framePayload = unwrapped.Value.Payload;
+                                frameVerified = unwrapped.Value.SignatureVerified;
+                            }
+                            else if (m_securityWrapper is not null && securityEnabled)
+                            {
+                                (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
+                                    await TryUnwrapInboundAsync(
+                                        framePayload, prefixLength,
+                                        framePublisherId, frameWriterGroupId,
+                                        MessageSecurityMode.None, cancellationToken)
+                                        .ConfigureAwait(false);
+                                if (unwrapped is null)
+                                {
+                                    continue;
+                                }
+                                framePayload = unwrapped.Value.Payload;
+
+                                // No SecurityMode is required here, so a frame
+                                // without a signature unwraps too. A message put
+                                // together from chunks is not treated as verified
+                                // either: unsigned chunks can be mixed into it.
+                                frameVerified = unwrapped.Value.SignatureVerified && !framePrefix.ChunkMessage;
+                            }
+
+                            if (framePrefix.ChunkMessage)
+                            {
+                                ReadOnlyMemory<byte>? reassembled;
+                                try
+                                {
+                                    reassembled = TryReassembleChunk(framePayload, framePrefix);
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Fail-soft: a malformed or hostile chunk
+                                    // must not terminate the receive loop.
+                                    m_diagnostics.Increment(
+                                        PubSubDiagnosticsCounterKind.ChunksDiscarded);
+                                    m_logger.InboundUadpChunkReassemblyThrew(ex);
+                                    continue;
+                                }
+                                if (reassembled is null)
+                                {
+                                    continue;
+                                }
+                                framePayload = reassembled.Value;
+                                // The message was reassembled from multiple chunk
+                                // frames, so no single wire frame faithfully
+                                // represents it; disable the raw-frame fast path.
+                                singleFrame = false;
+                            }
+
+                            frameSecured = securityEnabled;
+                        }
+                        else if (RequiresInboundSecurity)
+                        {
+                            // Fail-closed: the frame is not a UADP NetworkMessage
+                            // (e.g. a JSON frame, for which no message-security
+                            // wrapper exists), so it cannot be authenticated or
+                            // decrypted to satisfy the reader's configured
+                            // SecurityMode. Dropping it here prevents an attacker
+                            // from delivering forged, unsecured non-UADP frames to
+                            // application sinks on a secured reader. Mirrors the
+                            // send-side refusal to publish unsecured non-UADP
+                            // messages on a connection configured for security.
+                            RecordSecurityFailure(
+                                StatusCodes.BadSecurityModeRejected,
+                                "Inbound non-UADP frame cannot satisfy the reader's " +
+                                "configured SecurityMode.");
+                            // Logged at Debug: this is a per-frame hot path and a
+                            // flood of non-UADP frames (hostile or misconfigured)
+                            // must not amplify into high-volume warning logs. The
+                            // security-failure counter incremented above is the
+                            // rate-safe operational signal.
+                            m_logger.DroppingNonUadpInboundFrame(Name, m_requiredSecurityMode);
+                            continue;
+                        }
+
+                        // Only a frame whose signature was verified above is
+                        // authenticated. The security flag of the frame and a known
+                        // SecurityTokenId are not enough: both are sender-controlled.
+                        bool frameAuthenticated = frameVerified;
+                        PubSubNetworkMessage? message;
                         try
                         {
-                            await rg.DispatchAsync(message, cancellationToken)
+                            message = await decoder.TryDecodeAsync(framePayload, context, cancellationToken)
                                 .ConfigureAwait(false);
                         }
-                        catch (OperationCanceledException)
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                         {
                             throw;
                         }
                         catch (Exception ex)
                         {
-                            m_logger.ReaderGroupDispatchThrew(ex, rg.Name);
+                            m_logger.DecoderThrewOnInboundFrame(ex);
+                            continue;
                         }
+                        if (m_metaDataRecoveryPending)
+                        {
+                            await TryRecoverEvictedMetaDataAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        if (message is null)
+                        {
+                            continue;
+                        }
+                        if (message is UadpDiscoveryRequestMessage discoveryRequest)
+                        {
+                            await TryRespondToDiscoveryRequestAsync(discoveryRequest, cancellationToken)
+                                .ConfigureAwait(false);
+                            continue;
+                        }
+                        if (message is UadpDiscoveryResponseMessage discoveryResponse)
+                        {
+                            RouteInboundDiscoveryResponse(discoveryResponse);
+                            _ = TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length);
+                            continue;
+                        }
+                        if (message is UadpActionRequestMessage actionRequest)
+                        {
+                            await TryRespondToActionRequestAsync(actionRequest, cancellationToken)
+                                .ConfigureAwait(false);
+                            continue;
+                        }
+                        if (message is UadpActionResponseMessage actionResponse)
+                        {
+                            RouteInboundActionResponse(actionResponse);
+                            continue;
+                        }
+                        if (message is PubSubJsonActionNetworkMessage jsonAction &&
+                            await TryRouteJsonActionAsync(jsonAction, cancellationToken).ConfigureAwait(false))
+                        {
+                            continue;
+                        }
+                        if (TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length))
+                        {
+                            continue;
+                        }
+                        await NotifyReceivedSinksAsync(
+                            message, singleFrame ? rawFrame : default, frameSecured, cancellationToken)
+                            .ConfigureAwait(false);
+                        for (int i = 0; i < m_readerGroups.Count; i++)
+                        {
+                            ReaderGroup rg = m_readerGroups[i];
+                            try
+                            {
+                                await rg.DispatchAsync(message, cancellationToken)
+                                    .ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                            {
+                                throw;
+                            }
+                            catch (Exception ex)
+                            {
+                                m_logger.ReaderGroupDispatchThrew(ex, rg.Name);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Includes an OperationCanceledException that does not
+                        // come from the loop's own token, e.g. from a handler,
+                        // sink or transport that cancelled its own operation.
+                        m_logger.InboundFrameProcessingThrew(ex, Name);
                     }
                 }
             }
@@ -2109,7 +2127,7 @@ namespace Opc.Ua.PubSub.Connections
             {
                 return await handler.HandleAsync(invocation, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
@@ -3794,6 +3812,13 @@ namespace Opc.Ua.PubSub.Connections
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 10, Level = LogLevel.Error,
             Message = "Receive loop terminated.")]
         public static partial void ReceiveLoopTerminated(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 26, Level = LogLevel.Warning,
+            Message = "Processing an inbound frame on connection {Connection} failed; the frame was dropped.")]
+        public static partial void InboundFrameProcessingThrew(
+            this ILogger logger,
+            Exception exception,
+            string connection);
 
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 11, Level = LogLevel.Warning,
             Message = "Discarding stale inbound metadata for writer {WriterId}: incoming major {Incoming} < " +

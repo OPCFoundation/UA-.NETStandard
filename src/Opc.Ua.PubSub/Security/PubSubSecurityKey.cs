@@ -113,6 +113,23 @@ namespace Opc.Ua.PubSub.Security
         }
 
         /// <summary>
+        /// Returns the same key with another <see cref="IssuedAt"/>. The copy
+        /// shares the key material: the caller drops this instance without
+        /// disposing it, and the copy owns the material from then on.
+        /// </summary>
+        /// <param name="issuedAt">The new issuance timestamp.</param>
+        internal PubSubSecurityKey WithIssuedAt(DateTimeUtc issuedAt)
+        {
+            return new PubSubSecurityKey(
+                TokenId,
+                SigningKey,
+                EncryptingKey,
+                KeyNonce,
+                issuedAt,
+                Lifetime);
+        }
+
+        /// <summary>
         /// Zeroizes the key material held by this instance.
         /// </summary>
         public void Dispose()
