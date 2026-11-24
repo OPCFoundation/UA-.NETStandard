@@ -14,6 +14,7 @@ using Opc.Ua.Client;
 using Opc.Ua.OpenUsd.Client;
 using Opc.Ua.OpenUsd.Scene.Conversion;
 using Opc.Ua.OpenUsd.Scene;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.OpenUsd.Connector
 {
@@ -59,6 +60,10 @@ namespace Opc.Ua.OpenUsd.Connector
 
             public bool Insecure { get; private set; }
 
+            public bool TrustServer { get; private set; }
+
+            public string? PkiPath { get; private set; }
+
             public bool EnableCommands { get; private set; }
 
             public string? CommandValue { get; private set; }
@@ -83,6 +88,8 @@ namespace Opc.Ua.OpenUsd.Connector
                     CommandPrimPath = GetOptionalOption(args, "--pick-command"),
                     FetchAssetsPath = GetOption(args, "--fetch-assets"),
                     Insecure = HasFlag(args, "--insecure"),
+                    TrustServer = HasFlag(args, "--trust-server"),
+                    PkiPath = GetOption(args, "--pki"),
                     EnableCommands = HasFlag(args, "--enable-commands"),
                     CommandValue = GetOption(args, "--command-value")
                 };
@@ -171,7 +178,10 @@ namespace Opc.Ua.OpenUsd.Connector
 
             ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.SetMinimumLevel(LogLevel.Warning));
 
-            string pkiRoot = Path.Combine(GetPrivateStateRoot(), Path.GetRandomFileName());
+            // One stable per-user PKI root (or the operator's --pki), so a server
+            // certificate trusted once stays trusted and the connector keeps a single
+            // application certificate instead of minting a new key pair every run.
+            string pkiRoot = ResolvePkiRoot(options.PkiPath);
             var config = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "Opc.Ua.OpenUsd.Connector",
@@ -208,16 +218,33 @@ namespace Opc.Ua.OpenUsd.Connector
             };
             await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
 
+            // The application instance hands its certificate manager to the
+            // configuration, and the session validates with it. Disposing the instance
+            // here released that manager, so every secured connect failed with
+            // ObjectDisposedException and only --insecure (which never touches it)
+            // worked. CloseAsync disposes the manager once the session is gone.
+#pragma warning disable CA2000 // Ownership of the certificate manager moves to the configuration.
             var appInstance = new Opc.Ua.Configuration.ApplicationInstance(config, telemetry);
+#pragma warning restore CA2000
             await appInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
-            await appInstance.DisposeAsync().ConfigureAwait(false);
             config.CertificateManager ??= CertificateManagerFactory.Create(config.SecurityConfiguration, telemetry);
+            var trustOnFirstUse = new TrustOnFirstUse();
             if (insecure)
             {
                 // Demo-only: accept any server certificate.
                 config.CertificateManager.AcceptError = static (cert, err) => true;
                 Console.WriteLine(
                     "WARNING: --insecure: using an unsecured endpoint and accepting any server certificate.");
+            }
+            else if (options.TrustServer)
+            {
+                // Explicit trust on first use: endpoint selection is unchanged (the most
+                // secure endpoint offered, at least signed), and only an untrusted
+                // (otherwise valid) certificate of the server named on
+                // the command line is accepted, and it is persisted so later runs
+                // validate against it. The hook is removed again once the primary
+                // session exists, so federated servers never inherit it.
+                config.CertificateManager.AcceptError = trustOnFirstUse.Accept;
             }
 
             Console.WriteLine($"Connecting to {server} ...");
@@ -243,11 +270,34 @@ namespace Opc.Ua.OpenUsd.Connector
 
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, EndpointConfiguration.Create(config));
             var sessionFactory = new DefaultSessionFactory(telemetry);
-            ISession session = await sessionFactory.CreateAsync(
-                config, endpoint, updateBeforeConnect: false,
-                sessionName: "Opc.Ua.OpenUsd.Connector", sessionTimeout: 60000,
-                identity: new UserIdentity(new AnonymousIdentityToken()),
-                preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
+            ISession session;
+            try
+            {
+                // A secured session also requires the certificate to name the host in
+                // --server, so --trust-server never pins a certificate issued to another
+                // host.
+                session = await sessionFactory.CreateAsync(
+                    config, endpoint, updateBeforeConnect: false, checkDomain: !insecure,
+                    sessionName: "Opc.Ua.OpenUsd.Connector", sessionTimeout: 60000,
+                    identity: new UserIdentity(new AnonymousIdentityToken()),
+                    preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex) when (!insecure && IsCertificateTrustError(ex.StatusCode))
+            {
+                Console.Error.WriteLine(
+                    $"ERROR: the server certificate was rejected ({ex.StatusCode}). " +
+                    $"Trust it by moving it from {Path.Combine(pkiRoot, "rejected", "certs")} to " +
+                    $"{Path.Combine(pkiRoot, "trusted", "certs")}, or rerun with --trust-server to trust " +
+                    "this server's certificate on first use.");
+                await DisposeCertificateManagerAsync(config).ConfigureAwait(false);
+                return 6;
+            }
+
+            if (options.TrustServer && !insecure)
+            {
+                config.CertificateManager.AcceptError = null;
+                await PersistTrustedServerCertificateAsync(config, trustOnFirstUse, pkiRoot).ConfigureAwait(false);
+            }
 
             // Cross-server composition (spec 5.14) is opt-in. A component binding can
             // name another server's endpoint, and honouring that means the connector
@@ -283,11 +333,25 @@ namespace Opc.Ua.OpenUsd.Connector
             // connector keeps the live sink entirely out of that path.
             if (!string.IsNullOrEmpty(cacheDir))
             {
+                // Nothing a server sends touches the cache until the whole closure has
+                // arrived and been inspected: downloads go to a fresh staging directory,
+                // and the previous stage.usda is withdrawn first, so a failed or refused
+                // run leaves no stage that composes uninspected bytes.
+                if (TraversesLink(cacheDir!, Path.Combine(cacheDir!, ".incoming")))
+                {
+                    Console.Error.WriteLine(
+                        $"ERROR: the asset cache {cacheDir} is a linked directory; served assets are not fetched.");
+                    await CloseAsync(session, config).ConfigureAwait(false);
+                    return 5;
+                }
+                DiscardGeneratedStage(cacheDir!);
+                string stagingDir = Path.Combine(cacheDir!, ".incoming-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(stagingDir);
                 var fetcher = new OpenUsdConnector(session, new MockUsdSink(), enableCommands: false);
                 try
                 {
                     List<OpenUsdConnector.FetchedAsset> fetched =
-                        await fetcher.FetchServedAssetsAsync(cacheDir!, CancellationToken.None).ConfigureAwait(false);
+                        await fetcher.FetchServedAssetsAsync(stagingDir, CancellationToken.None).ConfigureAwait(false);
 
                     // A federated stage is only half fetched at this point. Composition
                     // has authored reference arcs onto prims owned by other servers, but
@@ -298,13 +362,30 @@ namespace Opc.Ua.OpenUsd.Connector
                     if (connectorOptions?.RemoteSessionFactory != null)
                     {
                         fetched.AddRange(await FetchFederatedAssetsAsync(
-                            fetcher, config, sessionFactory, telemetry, cacheDir!, insecure)
+                            fetcher, config, sessionFactory, telemetry, stagingDir, insecure)
                             .ConfigureAwait(false));
                     }
 
                     if (fetched.Count > 0)
                     {
-                        WriteStageUsda(cacheDir!, fetched);
+                        // Everything below hands these layers to native USD (the viewer,
+                        // or whoever opens stage.usda later), which resolves every asset
+                        // path they author. Refuse the stage unless each path stays inside
+                        // the closure just fetched and every layer is inspectable text.
+                        ISet<string> closure = new HashSet<string>();
+                        if (!TryValidateFetchedClosure(fetched, out _, out string? refusal) ||
+                            !TryPublishFetchedClosure(stagingDir, cacheDir!, fetched, out closure, out refusal) ||
+                            !TryWriteStageUsda(cacheDir!, fetched, closure, out refusal))
+                        {
+                            DiscardGeneratedStage(cacheDir!);
+                            Console.Error.WriteLine(
+                                $"ERROR: {refusal} The server-delivered stage is not composed.");
+                            await CloseAsync(session, config).ConfigureAwait(false);
+                            return 5;
+                        }
+                        fileSink.AssetPathFilter = path =>
+                            closure.Contains(path) &&
+                            path.EndsWith(".usda", StringComparison.OrdinalIgnoreCase);
                         if (string.IsNullOrEmpty(stagePath))
                         {
                             stagePath = Path.Combine(cacheDir!, "stage.usda");
@@ -329,6 +410,7 @@ namespace Opc.Ua.OpenUsd.Connector
                 finally
                 {
                     await fetcher.DisposeAsync().ConfigureAwait(false);
+                    DeleteStagingDirectory(stagingDir);
                 }
             }
 
@@ -433,25 +515,55 @@ namespace Opc.Ua.OpenUsd.Connector
 
         // Writes a self-contained stage.usda that composes the connector's live override
         // over every server-delivered root layer, all now local in the cache directory.
-        internal static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
+        // Every sublayer it authors is the cache-relative path of a root layer that
+        // TryValidateFetchedClosure inspected, and live.usda is recreated empty, so the
+        // stage cannot pull in anything that was not checked in this run.
+        internal static bool TryWriteStageUsda(
+            string cacheDir,
+            IReadOnlyList<OpenUsdConnector.FetchedAsset> fetched,
+            ISet<string> closure,
+            out string? refusal)
         {
-            var rootNames = new List<string>();
+            string cacheRoot = Path.GetFullPath(cacheDir);
+            string stagePath = Path.Combine(cacheRoot, "stage.usda");
+            string livePath = Path.Combine(cacheRoot, "live.usda");
+            if (closure.Contains(stagePath) || closure.Contains(livePath))
+            {
+                refusal = "A served asset would overwrite the connector's generated stage.usda or live.usda.";
+                return false;
+            }
+            if (TraversesLink(cacheRoot, stagePath) || TraversesLink(cacheRoot, livePath))
+            {
+                refusal = "The asset cache's stage.usda or live.usda is a link, or the cache is a linked directory.";
+                return false;
+            }
+
+            var rootPaths = new List<string>();
             foreach (OpenUsdConnector.FetchedAsset asset in fetched)
             {
                 if (asset.Kind != OpenUsdAssetKind.RootLayer)
                 {
                     continue;
                 }
-                string rootName = Path.GetFileName(asset.LocalPath);
-                if (!rootNames.Exists(
-                    name => string.Equals(name, rootName, StringComparison.Ordinal)))
+                string full = Path.GetFullPath(asset.LocalPath);
+                string? relative = GetCacheRelativePath(cacheRoot, full);
+                if (relative == null || !closure.Contains(full) ||
+                    !full.EndsWith(".usda", StringComparison.OrdinalIgnoreCase) ||
+                    !UsdAssetPaths.IsSafeRelativePath(relative))
                 {
-                    rootNames.Add(rootName);
+                    refusal = $"The served root layer '{asset.Identifier}' is not an inspected USDA layer " +
+                        "at a plain path inside the asset cache.";
+                    return false;
+                }
+                if (!rootPaths.Exists(path => string.Equals(path, relative, StringComparison.Ordinal)))
+                {
+                    rootPaths.Add(relative);
                 }
             }
-            if (rootNames.Count == 0)
+            if (rootPaths.Count == 0)
             {
-                rootNames.Add("base.usda");
+                refusal = "The server delivered assets but no root layer to compose them from.";
+                return false;
             }
 
             var sb = new StringBuilder();
@@ -459,24 +571,166 @@ namespace Opc.Ua.OpenUsd.Connector
             sb.Append("    doc = \"Self-contained OpenUSD stage: server-delivered base layers " +
                 "+ the live OPC UA override.\"\n");
             sb.Append("    subLayers = [\n        @./live.usda@");
-            foreach (string rootName in rootNames)
+            foreach (string rootPath in rootPaths)
             {
-                sb.Append(",\n        @./").Append(rootName).Append('@');
+                sb.Append(",\n        @./").Append(rootPath).Append('@');
             }
             sb.Append("\n    ]\n");
             sb.Append(")\n");
-            File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
 
-            // The override layer is only written once the first values arrive, so seed an
-            // empty one now. Without it a viewer that opens the stage first reports the
-            // sublayer as missing before the connector has had anything to say.
-            string livePath = Path.Combine(cacheDir, "live.usda");
-            if (!File.Exists(livePath))
+            // Recreated rather than kept: a live.usda left by an earlier run was written
+            // under that run's asset filter, and may name files this run did not admit.
+            // The empty layer also keeps a viewer that opens the stage before the first
+            // values arrive from reporting a missing sublayer.
+            File.WriteAllText(
+                livePath,
+                "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
+            File.WriteAllText(stagePath, sb.ToString());
+            refusal = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Removes a stage.usda left by an earlier run, so a refused closure cannot
+        /// still be composed through it.
+        /// </summary>
+        internal static void DiscardGeneratedStage(string cacheDir)
+        {
+            string stagePath = Path.Combine(cacheDir, "stage.usda");
+            if (File.Exists(stagePath))
             {
-                File.WriteAllText(
-                    livePath,
-                    "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
+                File.Delete(stagePath);
             }
+        }
+
+        /// <summary>
+        /// Moves a fetched closure that <see cref="TryValidateFetchedClosure"/> admitted
+        /// from its private staging directory into the cache, at the same relative
+        /// paths, and points each asset at its published file.
+        /// </summary>
+        /// <remarks>
+        /// Downloads land in staging so nothing a server sends reaches the cache, or
+        /// overwrites a layer of the current stage, until the whole closure has
+        /// arrived and been inspected. A served path that would land on the
+        /// connector's generated stage.usda or live.usda is refused before anything
+        /// moves.
+        /// </remarks>
+        /// <param name="stagingDir">Directory the closure was fetched into.</param>
+        /// <param name="cacheDir">The asset cache the stage is published in.</param>
+        /// <param name="fetched">The admitted assets; their local paths are updated.</param>
+        /// <param name="closure">The full paths of the published files.</param>
+        /// <param name="refusal">Why the closure was not published.</param>
+        /// <returns><c>true</c> when every asset was published.</returns>
+        internal static bool TryPublishFetchedClosure(
+            string stagingDir,
+            string cacheDir,
+            IReadOnlyList<OpenUsdConnector.FetchedAsset> fetched,
+            out ISet<string> closure,
+            out string? refusal)
+        {
+            string stagingRoot = Path.GetFullPath(stagingDir);
+            string cacheRoot = Path.GetFullPath(cacheDir);
+            var targets = new List<string>(fetched.Count);
+            var published = new HashSet<string>(PathComparer);
+            closure = published;
+            foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+            {
+                string? relative = GetCacheRelativePath(stagingRoot, Path.GetFullPath(asset.LocalPath));
+                if (relative == null ||
+                    PathComparer.Equals(relative, "stage.usda") ||
+                    PathComparer.Equals(relative, "live.usda"))
+                {
+                    refusal = $"The served asset '{asset.Identifier}' would overwrite the connector's " +
+                        "generated stage.usda or live.usda, or lies outside the download directory.";
+                    return false;
+                }
+                string target = Path.Combine(cacheRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+                if (TraversesLink(cacheRoot, target))
+                {
+                    refusal = $"The served asset '{asset.Identifier}' would be published through a linked " +
+                        "directory or file in the asset cache.";
+                    return false;
+                }
+                targets.Add(target);
+            }
+            for (int i = 0; i < fetched.Count; i++)
+            {
+                string target = targets[i];
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                if (File.Exists(target))
+                {
+                    File.Delete(target);
+                }
+                File.Move(fetched[i].LocalPath, target);
+                fetched[i].LocalPath = target;
+                published.Add(target);
+            }
+            refusal = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Deletes a staging directory, ignoring a file a viewer or scanner still holds.
+        /// </summary>
+        internal static void DeleteStagingDirectory(string stagingDir)
+        {
+            try
+            {
+                if (Directory.Exists(stagingDir))
+                {
+                    Directory.Delete(stagingDir, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        /// <summary>
+        /// Whether writing <paramref name="path"/> would pass through a symbolic link
+        /// or junction at or below <paramref name="cacheRoot"/>: the containment checks
+        /// are lexical, so a link planted in the cache would redirect the write (and the
+        /// delete before it) outside the cache. Directories above the cache root are
+        /// the operator's choice and are not inspected.
+        /// </summary>
+        internal static bool TraversesLink(string cacheRoot, string path)
+        {
+            string root = Path.GetFullPath(cacheRoot).TrimEnd(Path.DirectorySeparatorChar);
+            var file = new FileInfo(Path.GetFullPath(path));
+            if (file.Exists && (file.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return true;
+            }
+            for (DirectoryInfo? directory = file.Directory;
+                directory != null && directory.FullName.Length >= root.Length;
+                directory = directory.Parent)
+            {
+                if (directory.Exists && (directory.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static StringComparer PathComparer => RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+
+        private static string? GetCacheRelativePath(string cacheRoot, string fullPath)
+        {
+            string prefix = cacheRoot.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                ? cacheRoot
+                : cacheRoot + Path.DirectorySeparatorChar;
+            StringComparison comparison = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return fullPath.StartsWith(prefix, comparison)
+                ? fullPath.Substring(prefix.Length).Replace(Path.DirectorySeparatorChar, '/')
+                : null;
         }
 
         [ExcludeFromCodeCoverage]
@@ -520,6 +774,191 @@ namespace Opc.Ua.OpenUsd.Connector
         internal static string GetPrivateStateRoot()
         {
             return GetPrivateStateRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        }
+
+        /// <summary>
+        /// The PKI root: the operator's <c>--pki</c> directory, or a stable
+        /// <c>pki</c> directory under the private state root.
+        /// </summary>
+        /// <param name="pkiOption">The <c>--pki</c> value, if any.</param>
+        /// <returns>The absolute PKI root.</returns>
+        internal static string ResolvePkiRoot(string? pkiOption)
+        {
+            return string.IsNullOrWhiteSpace(pkiOption)
+                ? Path.Combine(GetPrivateStateRoot(), "pki")
+                : Path.GetFullPath(pkiOption!);
+        }
+
+        /// <summary>
+        /// Checks that a fetched asset closure can be handed to native USD: every
+        /// layer is USDA text, and every asset path any layer authors is a relative
+        /// path that resolves to a file fetched in this run, either another USDA
+        /// layer (inspected the same way) or a plain image texture.
+        /// </summary>
+        /// <param name="fetched">The assets fetched from the server(s).</param>
+        /// <param name="closure">The full local paths of the fetched files.</param>
+        /// <param name="refusal">Why the closure was refused.</param>
+        /// <returns><c>true</c> when the closure is admitted.</returns>
+        internal static bool TryValidateFetchedClosure(
+            IReadOnlyList<OpenUsdConnector.FetchedAsset> fetched,
+            out ISet<string> closure,
+            out string? refusal)
+        {
+            StringComparer comparer = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal;
+            var files = new HashSet<string>(comparer);
+            closure = files;
+            foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+            {
+                // Distinct identifiers (cell.usda, ./cell.usda) can land on one cache
+                // file; scanning it once per alias would multiply the work past the
+                // download budget, and the later write has replaced the earlier bytes.
+                if (!files.Add(Path.GetFullPath(asset.LocalPath)))
+                {
+                    refusal = $"The served asset '{asset.Identifier}' resolves to a file another served " +
+                        "asset already occupies.";
+                    return false;
+                }
+            }
+            refusal = null;
+            var strictUtf8 = new UTF8Encoding(false, true);
+            foreach (OpenUsdConnector.FetchedAsset asset in fetched)
+            {
+                string full = Path.GetFullPath(asset.LocalPath);
+                if (!full.EndsWith(".usda", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (asset.Kind != OpenUsdAssetKind.Texture || !IsImageTexture(full))
+                    {
+                        refusal = $"The served asset '{asset.Identifier}' is not an inspectable USDA text " +
+                            "layer or a plain image texture, so it cannot be composed safely.";
+                        return false;
+                    }
+                    continue;
+                }
+                IReadOnlyList<string> assetPaths;
+                try
+                {
+                    assetPaths = UsdAssetPaths.ScanUsdaAssetPaths(strictUtf8.GetString(File.ReadAllBytes(full)));
+                }
+                catch (Exception ex) when (ex is InvalidDataException or IOException or DecoderFallbackException)
+                {
+                    refusal = $"The served layer '{asset.Identifier}' was refused: {ex.Message}";
+                    return false;
+                }
+                foreach (string assetPath in assetPaths)
+                {
+                    string? target = UsdAssetPaths.IsSafeRelativePath(assetPath)
+                        ? UsdAssetPaths.Resolve(full, assetPath)
+                        : null;
+                    if (target == null || !files.Contains(target) ||
+                        (!target.EndsWith(".usda", StringComparison.OrdinalIgnoreCase) && !IsImageTexture(target)))
+                    {
+                        refusal = $"The served layer '{asset.Identifier}' references '{assetPath}', which is " +
+                            "not a USDA layer or image texture inside the fetched closure.";
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        private static bool IsImageTexture(string path)
+        {
+            string extension = Path.GetExtension(path);
+            return extension.Equals(".png", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static bool IsCertificateTrustError(StatusCode code)
+        {
+            // A rejected validation error reaches the session wrapped as
+            // BadCertificateInvalid (CertificateValidationCore), so it counts too.
+            return code == StatusCodes.BadCertificateUntrusted ||
+                code == StatusCodes.BadCertificateInvalid ||
+                code == StatusCodes.BadCertificateChainIncomplete ||
+                code == StatusCodes.BadSecurityChecksFailed;
+        }
+
+        // Excluded because it writes to the operator's trusted certificate store after a live connect.
+        [ExcludeFromCodeCoverage]
+        private static async Task PersistTrustedServerCertificateAsync(
+            ApplicationConfiguration config, TrustOnFirstUse trust, string pkiRoot)
+        {
+            byte[]? accepted = trust.AcceptedCertificate;
+            if (accepted == null)
+            {
+                return;
+            }
+            using var certificate = new Certificate(accepted);
+            if (config.CertificateManager is not ICertificateTrustListManager manager)
+            {
+                Console.Error.WriteLine(
+                    $"WARNING: trusted {certificate.Subject} for this run only; it was not persisted.");
+                return;
+            }
+            ITrustListTransaction transaction = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers, CancellationToken.None)
+                .ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                await transaction.AddTrustedCertificateAsync(certificate, CancellationToken.None)
+                    .ConfigureAwait(false);
+                await transaction.CommitAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            Console.WriteLine(
+                $"Trusted the server certificate {certificate.Subject} " +
+                $"(thumbprint {certificate.Thumbprint}) on first use; stored in " +
+                $"{Path.Combine(pkiRoot, "trusted")}.");
+        }
+
+        /// <summary>
+        /// Accepts exactly one server certificate whose only fault is that it is not
+        /// yet trusted; any other validation error still fails the connection.
+        /// </summary>
+        internal sealed class TrustOnFirstUse
+        {
+            private readonly object m_gate = new();
+            private byte[]? m_accepted;
+
+            /// <summary>
+            /// Gets the DER encoding of the certificate accepted, if any.
+            /// </summary>
+            public byte[]? AcceptedCertificate
+            {
+                get
+                {
+                    lock (m_gate)
+                    {
+                        return m_accepted;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// The <see cref="CertificateManager.AcceptError"/> hook.
+            /// </summary>
+            /// <param name="certificate">The certificate being validated.</param>
+            /// <param name="error">The validation error.</param>
+            /// <returns><c>true</c> to accept the error.</returns>
+            public bool Accept(Certificate certificate, ServiceResult error)
+            {
+                if (certificate == null || error == null || error.StatusCode != StatusCodes.BadCertificateUntrusted)
+                {
+                    return false;
+                }
+                byte[] raw = certificate.RawData;
+                lock (m_gate)
+                {
+                    if (m_accepted == null)
+                    {
+                        m_accepted = raw;
+                        return true;
+                    }
+                    return m_accepted.AsSpan().SequenceEqual(raw);
+                }
+            }
         }
 
         internal static string GetPrivateStateRoot(string? baseDirectory)
@@ -742,7 +1181,25 @@ namespace Opc.Ua.OpenUsd.Connector
         {
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await session.DisposeAsync().ConfigureAwait(false);
-            (config.CertificateManager as IDisposable)?.Dispose();
+            await DisposeCertificateManagerAsync(config).ConfigureAwait(false);
+        }
+
+        // Excluded because it drains and disposes the live certificate manager.
+        [ExcludeFromCodeCoverage]
+        private static async Task DisposeCertificateManagerAsync(ApplicationConfiguration config)
+        {
+            // The rejected store is written by a background queue; drain it while the
+            // manager is still usable, or the certificate the operator is told to move
+            // can be lost when disposal marks the manager unusable.
+            await config.CertificateManager.FlushRejectedAsync(CancellationToken.None).ConfigureAwait(false);
+            if (config.CertificateManager is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                (config.CertificateManager as IDisposable)?.Dispose();
+            }
         }
 
         /// <summary>
@@ -782,6 +1239,7 @@ namespace Opc.Ua.OpenUsd.Connector
                 config,
                 endpoint,
                 updateBeforeConnect: false,
+                checkDomain: !insecure,
                 sessionName: "Opc.Ua.OpenUsd.Connector (federated)",
                 sessionTimeout: 60000,
                 identity: new UserIdentity(new AnonymousIdentityToken()),

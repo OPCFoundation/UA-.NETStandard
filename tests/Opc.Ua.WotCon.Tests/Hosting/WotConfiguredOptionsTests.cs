@@ -35,7 +35,6 @@ namespace Opc.Ua.WotCon.Tests.Hosting
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotConfiguredOptionsTests
     {
         /// <summary>
@@ -576,6 +575,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                     factory = new WotConnectivityNodeManagerFactory(options);
                 }
 
+                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
                 m_server = await m_fixture.StartAsync(m_directory).ConfigureAwait(false);
                 await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(factory)])
                     .ConfigureAwait(false);
@@ -585,6 +585,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             private async Task ConnectClientAsync()
             {
                 m_clientFixture = new ClientFixture(false, false, m_telemetry);
+                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
                 await m_clientFixture.LoadClientConfigurationAsync(m_directory).ConfigureAwait(false);
                 var endpoint = new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}");
                 m_session = await m_clientFixture.ConnectAsync(endpoint, SecurityPolicies.None).ConfigureAwait(false);

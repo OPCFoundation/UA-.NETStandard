@@ -2149,7 +2149,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 return string.Empty;
             }
+            // The value lands on a /// line, so a line terminator in a browse
+            // name must not end the comment.
             return value
+                .AsSingleLineCommentText()
                 .Replace("&", "&amp;", StringComparison.Ordinal)
                 .Replace("<", "&lt;", StringComparison.Ordinal)
                 .Replace(">", "&gt;", StringComparison.Ordinal);

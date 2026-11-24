@@ -75,6 +75,8 @@ namespace Opc.Ua.LADS.Tests.Server
                 options.ProductUri = "urn:localhost:" + name + ":product";
                 options.PkiRoot = System.IO.Path.Combine(root, "pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(endpointUrl);

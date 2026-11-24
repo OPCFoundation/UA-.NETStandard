@@ -930,11 +930,20 @@ Highlights:
   `JsonNetworkMessage`
   ([§7.2.5.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.3)).
 - TLS, Anonymous, Username/Password, X.509-cert authentication.
-- Reconnect with exponential back-off honoured at the connection
-  state-machine level. Delivery across disconnects depends on session
-  persistence, broker queue limits and message expiry; QoS ≥ 1 alone
-  does not guarantee lossless reconnection.
+- When the broker connection is lost after the transport opened, the
+  transport reconnects with exponential back-off
+  (`MqttConnectionOptions.ReconnectDelay`, default 1 s, doubling up to
+  `MaxReconnectDelay`, default 30 s) and re-installs its subscriptions.
+  Set `AutoReconnect = false` to disable it. Delivery across disconnects
+  depends on session persistence, broker queue limits and message expiry;
+  QoS ≥ 1 alone does not guarantee lossless reconnection.
   `MqttConnectionOptions.CleanSession` defaults to `true`.
+- Host credentials (`UserName`, `PasswordSecretId`) are only sent to the
+  broker named by `MqttConnectionOptions.Endpoint` or listed in
+  `CredentialEndpoints`. The broker URL of a connection comes from the
+  PubSub configuration, which can be changed remotely, so the transport
+  factory refuses a connection that would send the host credentials to
+  any other broker.
 
 ```csharp
 writer.WithTransportSettings(
@@ -994,6 +1003,10 @@ var options = new MqttConnectionOptions
 
 The `opc.dtls://` transport URI is parsed for Part 14 §7.3.2.4 unicast endpoints and wired through the UDP transport factory when `.WithDtls(...)` is registered on the `IUdpTransportBuilder` returned by `AddUdpTransport()`. The DTLS 1.3 handshake is implemented, including ECDHE negotiation, HelloRetryRequest cookies, and certificate authentication. The key schedule/HKDF, AEAD record protection, and anti-replay window are implemented for the registered runtime profiles.
 
+Mutual authentication is required by default (`DtlsTransportOptions.RequireClientCertificate = true`): the subscriber (DTLS server) validates the publisher's certificate, so the publisher needs a local certificate and the subscriber a peer certificate validator. Without it, any host that reaches the subscriber's port first would become its single pinned peer. Set it to `false` only on a trusted network where the publisher is authenticated by message security.
+
+The subscriber does not run the handshake while the connection starts. It runs when the connection starts receiving and is retried with a back-off (1 s up to 30 s) after a handshake that fails or times out, so a publisher that is not running yet, or a host that disturbs the handshake, cannot fail the start of the application. `DtlsDatagramTransport.AcceptAsync` still runs one handshake and reports its failure to the caller.
+
 The runtime profile registry remains fail-closed: Curve25519 / Curve448 profiles are not registered because the portable .NET BCL does not expose RFC 7748 ECDH APIs, and optional NIST / Brainpool profiles are registered only when the required BCL cipher, HKDF, and ECDH curve probes succeed.
 
 ### Apache Kafka
@@ -1035,7 +1048,9 @@ Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the 
 
 **Record headers and delivery guarantees.** Every record carries the normative `content-type` header (Annex B.2): `application/opcua+uadp` for `pubsub-kafka-uadp` and `application/json` for `pubsub-kafka-json`. The record key derives from the PublisherId so a publisher's records keep partition ordering. `KafkaConnectionOptions.DeliveryGuarantee` maps to producer settings: `BestEffort` → `acks=0`; `AtMostOnce` → `acks=1`; `AtLeastOnce` and `ExactlyOnce` → `acks=all` with the idempotent producer enabled. Per-writer `RequestedDeliveryGuarantee` on the broker transport settings overrides the connection default.
 
-**SASL and TLS.** Use `kafkas://` or `KafkaConnectionOptions.Tls.UseTls` for TLS; `KafkaTlsOptions` carries CA / client-certificate / client-key PEM paths. `SecurityProtocol = KafkaSecurityProtocol.SaslSsl` with `SaslMechanism`, `UserName`, and `PasswordSecretId` enables SASL over TLS, and `PasswordSecretId` is resolved through the OPC UA secret store so configuration never carries a plaintext password. Sending SASL credentials over plaintext `kafka://` is rejected unless `AllowCredentialsOverPlaintext` is explicitly set for local development.
+**SASL and TLS.** Use `kafkas://` or `KafkaConnectionOptions.Tls.UseTls` for TLS; `KafkaTlsOptions` carries CA / client-certificate / client-key PEM paths. `SecurityProtocol = KafkaSecurityProtocol.SaslSsl` with `SaslMechanism`, `UserName`, and `PasswordSecretId` enables SASL over TLS, and `PasswordSecretId` is resolved through the OPC UA secret store so configuration never carries a plaintext password. Sending SASL credentials over plaintext `kafka://` is rejected unless `AllowCredentialsOverPlaintext` is explicitly set for local development. The SASL credentials are only sent to brokers the host names in `Endpoint`, `BootstrapServers` or `CredentialEndpoints`: a connection whose URL (from the PubSub configuration, which can be changed remotely) names any other bootstrap server is refused.
+
+If the managed (Dekaf) consumer fails, for example on a lost broker connection or a fetched batch it cannot decode, it is rebuilt and re-subscribed after an exponential back-off (1 s up to 30 s) instead of ending consumption.
 
 For the Confluent backend, explicit TLS enablement upgrades `Plaintext` to `Ssl`
 and `SaslPlaintext` to `SaslSsl` in both producer and consumer configuration.

@@ -106,7 +106,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 isSingleton, identifiers, sp.GetRequiredService<ITicketStore>(),
                 sp.GetRequiredService<IOnboardingTicketValidator>(),
                 sp.GetRequiredService<IProvisionableDeviceRegistrarStore>(),
-                sp.GetService<IProvisionableDeviceSecurity>()));
+                sp.GetService<IProvisionableDeviceSecurity>(),
+                sp.GetService<IProvisionableDeviceRegistrarConfiguration>()));
             return services;
         }
 
@@ -261,6 +262,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     (descriptor.ServiceType == typeof(ProvisionableDeviceSecurity) ||
                     descriptor.ServiceType == typeof(IProvisionableDeviceSecurity) ||
                     descriptor.ServiceType == typeof(IProvisionableDeviceRegistrarConfiguration) ||
+                    descriptor.ServiceType == typeof(IProvisionableDevicePullInstallation) ||
+                    descriptor.ServiceType == typeof(IProvisionableDevicePullInstallationRecovery) ||
                     descriptor.ServiceType == typeof(IPushConfigurationAuthorization) ||
                     descriptor.ServiceType == typeof(IServerConfigurationResetProvider)))
                 {
@@ -271,12 +274,17 @@ namespace Microsoft.Extensions.DependencyInjection
                 provider.GetRequiredService<ISecretStore>(), scope, applicationUri,
                 provider.GetRequiredService<ICertificateManager>(),
                 provider.GetRequiredService<IProvisionableDeviceSecurityInstaller>(),
-                provider.GetRequiredService<ITelemetryContext>()));
+                provider.GetRequiredService<ITelemetryContext>(),
+                provider.GetService<IProvisionableDevicePullInstallationJournal>()));
             services.AddSingleton<IServerConfigurationResetProvider>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
             services.AddSingleton<IProvisionableDeviceSecurity>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
             services.AddSingleton<IProvisionableDeviceRegistrarConfiguration>(provider =>
+                provider.GetRequiredService<ProvisionableDeviceSecurity>());
+            services.AddSingleton<IProvisionableDevicePullInstallation>(provider =>
+                provider.GetRequiredService<ProvisionableDeviceSecurity>());
+            services.AddSingleton<IProvisionableDevicePullInstallationRecovery>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
             services.AddSingleton<IPushConfigurationAuthorization>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
@@ -325,7 +333,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     provider.GetRequiredService<IServerApplicationCertificateActivator>(),
                     provider.GetRequiredService<ProvisionableDeviceSecurityInstallerOptions>(),
                     provider.GetRequiredService<ITelemetryContext>(),
-                    provider.GetService<IProvisionableDeviceSoftwareUpdatePolicy>()));
+                    provider.GetService<IProvisionableDeviceSoftwareUpdatePolicy>(),
+                    provider.GetService<IProvisionableDevicePullKeyProvider>()));
             return services.AddProvisionableDeviceSecurity(scope, applicationUri);
         }
 
@@ -729,15 +738,15 @@ namespace Microsoft.Extensions.DependencyInjection
             RequireProvider<IDeviceRegistrarLifecycle>(services);
             RequireProvider<IDeviceRegistrarCertificateLifecycle>(services);
             RequireProvider<ICertificateRequestIssuanceStore>(services);
+            RequireProvider<IDeviceRegistrarPushWorkStore>(services);
             services.TryAddSingleton<OnboardingPushIdentityValidator>();
             return services.AddDeviceRegistrarPushScheduler<DeviceRegistrarPushProcessor>(capacity);
         }
 
         /// <summary>
-        /// Selects an in-memory bounded push queue and registers its processor and host-owned worker as singletons.
-        /// Register before AddDeviceRegistrarRuntime validates its provider set. The processor owns authentication,
-        /// persistent provisioning state, and recovery of uncertain remote effects; this queue does not retry them.
-        /// Durable queue acceptance requires a different IDeviceRegistrarPushScheduler implementation.
+        /// Selects a bounded queue and registers its processor and host-owned worker as singletons.
+        /// Register a work store first for durable acceptance. Interrupted durable work requires a processor
+        /// implementing IDeviceRegistrarPushRecoveryProcessor; without a store acceptance remains in memory.
         /// </summary>
         /// <typeparam name="TProcessor">The injectable processor whose public constructors are retained.</typeparam>
         public static IServiceCollection AddDeviceRegistrarPushScheduler<
@@ -767,7 +776,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IDeviceRegistrarPushProcessor, TProcessor>();
             services.AddSingleton(provider => new DeviceRegistrarPushScheduler(
                 provider.GetRequiredService<IDeviceRegistrarPushProcessor>(),
-                provider.GetRequiredService<ITelemetryContext>(), capacity));
+                provider.GetRequiredService<ITelemetryContext>(), capacity,
+                provider.GetService<IDeviceRegistrarPushWorkStore>()));
             services.AddSingleton<IDeviceRegistrarPushScheduler>(provider =>
                 provider.GetRequiredService<DeviceRegistrarPushScheduler>());
             services.AddSingleton<IHostedService>(provider =>
@@ -820,6 +830,37 @@ namespace Microsoft.Extensions.DependencyInjection
                 provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
             services.AddSingleton<IDeviceRegistrarApplicationScopeLifecycle>(provider =>
                 provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a durable push-work checkpoint with one exclusive writer instance.
+        /// Distributed hosts must supply a transactional work store instead.
+        /// </summary>
+        public static IServiceCollection AddFileSystemDeviceRegistrarPushWorkStore(
+            this IServiceCollection services,
+            string path,
+            IFileSystem? fileSystem = null)
+        {
+            services.ThrowIfNull(nameof(services));
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new ArgumentException("A push work checkpoint path is required.", nameof(path));
+            }
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    (descriptor.ServiceType == typeof(IDeviceRegistrarPushWorkStore) ||
+                        descriptor.ServiceType == typeof(FileSystemDeviceRegistrarPushWorkStore)))
+                {
+                    throw new InvalidOperationException("Select only one registrar push work store.");
+                }
+            }
+            services.AddSingleton(provider => new FileSystemDeviceRegistrarPushWorkStore(
+                path, provider.GetRequiredService<ITelemetryContext>(),
+                fileSystem ?? provider.GetService<IFileSystem>()));
+            services.AddSingleton<IDeviceRegistrarPushWorkStore>(provider =>
+                provider.GetRequiredService<FileSystemDeviceRegistrarPushWorkStore>());
             return services;
         }
 

@@ -510,6 +510,7 @@ namespace Opc.Ua.WotCon.Tests
                     Is.True);
                 var manager = (WotRegistryNodeManager)registration!.NodeManager;
                 await using var connection = new ClientFixture(m_telemetry);
+                await WotTestPki.SeedAsync(Path.Combine(m_root, "f1bc"), "FederationOtherPeerClient").ConfigureAwait(false);
                 await connection.LoadClientConfigurationAsync(
                     Path.Combine(m_root, "f1bc"), "FederationOtherPeerClient").ConfigureAwait(false);
                 using ISession session = await connection.ConnectAsync(

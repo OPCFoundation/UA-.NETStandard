@@ -24,6 +24,8 @@ builder.Services
         o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
         // Sample convenience only; never auto-accept untrusted certificates in production.
         o.AutoAcceptUntrustedCertificates = true;
+        // Sample convenience only: anonymous sessions may write and call. Remove in production.
+        o.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
         o.PkiRoot = Path.Combine(
             Path.GetTempPath(),
             "OPC Foundation",

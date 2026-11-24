@@ -699,9 +699,28 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext,
             ApplicationConfiguration configuration)
         {
-            ServerConfiguration serverConfiguration = configuration.ServerConfiguration ?? new ServerConfiguration();
-            // setup server configuration node
             ServerConfigurationState configNode = m_serverConfigurationNode!;
+            ConfigurePushMethodNodes(configNode, configuration);
+            ConfigureOptionalServerConfigurationSurface(configNode, configuration);
+            m_configurationFile = ConfigureConfigurationFile(systemContext, configNode);
+            GrantSecurityAdminCallPermissions(systemContext, configNode);
+
+            configNode.ClearChangeMasks(systemContext, true);
+            UpdateTransactionDiagnostics(systemContext);
+            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+            {
+                ConfigurePushTrustList(systemContext, certGroup, certGroup.Node);
+            }
+
+            SubscribeTrustMaterialEnforcement();
+            m_alarmScheduler.UpdateAndEvaluate(systemContext, emitEvents: false);
+        }
+
+        private void ConfigurePushMethodNodes(
+            ServerConfigurationState configNode,
+            ApplicationConfiguration configuration)
+        {
+            ServerConfiguration serverConfiguration = configuration.ServerConfiguration ?? new ServerConfiguration();
             configNode.ServerCapabilities!.Value =
             [
                 .. serverConfiguration.ServerCapabilities
@@ -747,78 +766,51 @@ namespace Opc.Ua.Server
                 = new GetCertificatesMethodStateMethodCallHandler(
                 GetCertificates);
             configNode.SupportsTransactions?.Value = true;
+        }
 
-            ConfigureOptionalServerConfigurationSurface(systemContext, configNode, configuration);
-            GrantSecurityAdminCallPermissions(systemContext, configNode);
-
-            configNode.ClearChangeMasks(systemContext, true);
-            UpdateTransactionDiagnostics(systemContext);
-
-            // setup certificate group trust list handlers
-            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+        private void ConfigurePushTrustList(
+            ServerSystemContext systemContext,
+            ServerCertificateGroup certGroup,
+            CertificateGroupState groupNode)
+        {
+            groupNode.CertificateTypes!.Value = certGroup.CertificateTypes;
+            TrustList? trustList = null;
+            try
             {
-                certGroup.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
-                TrustList? trustList = null;
-                try
+                trustList = new TrustList(
+                    groupNode.TrustList!,
+                    certGroup.TrustedStore,
+                    certGroup.IssuerStore,
+                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                    Server.Telemetry,
+                    m_coordinator,
+                    m_configuration.ServerConfiguration?.MaxTrustListSize ?? 0,
+                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
+                    m_configuration.CertificateManager as ICertificateStoreResolver);
+                if (m_serverConfigurationOptions.PushAuthorization != null)
                 {
-                    trustList = new TrustList(
-                        certGroup.Node.TrustList!,
-                        certGroup.TrustedStore,
-                        certGroup.IssuerStore,
-                        new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                        new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                        Server.Telemetry,
-                        m_coordinator,
-                        serverConfiguration.MaxTrustListSize,
-                        m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
-                        m_configuration.CertificateManager as ICertificateStoreResolver);
-                    if (m_serverConfigurationOptions.PushAuthorization != null)
+                    trustList.SetWriteAuthorization((context, _, ct) =>
+                        AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                    if (m_applicationPushTarget != null)
                     {
-                        trustList.SetWriteAuthorization((context, _, ct) =>
+                        trustList.SetReadAuthorization((context, _, ct) =>
                             AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
-                        if (m_applicationPushTarget != null)
-                        {
-                            trustList.SetReadAuthorization((context, _, ct) =>
-                                AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
-                        }
                     }
-                    if (IsApplicationCertificateGroup(certGroup))
-                    {
-                        // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
-                        // an ApplicationCertificateType TrustList are validated
-                        // with the OPC 10000-4 process.
-                        trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
-                    }
-                    // §7.8.2: the TrustList audit events must reach Clients that
-                    // subscribe to the Server Object.
-                    trustList.SetAuditEventServer(Server);
-                    certGroup.Node.TrustList!.Handle = trustList;
-                    trustList = null;
                 }
-                finally
+                if (IsApplicationCertificateGroup(certGroup))
                 {
-                    trustList?.Dispose();
+                    trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
                 }
-                certGroup.Node.ClearChangeMasks(systemContext, true);
+                trustList.SetAuditEventServer(Server);
+                groupNode.TrustList!.Handle = trustList;
+                trustList = null;
             }
-
-            // Enforce trust-material changes on live channels/Sessions
-            // regardless of origin: any TrustListUpdated/CrlUpdated raised on
-            // the certificate manager (push ApplyChanges, WriteTrustListAsync,
-            // ITrustListTransaction commits, HA store sync, ...) triggers the
-            // same §7.10.9 effect fan-out that ApplyChanges runs, so a client
-            // whose certificate was revoked out-of-band is cut immediately
-            // instead of at its next security-token renewal.
-            SubscribeTrustMaterialEnforcement();
-
-            // OPC 10000-12 §7.8.3: publish the current certificate and CRL
-            // state onto the optional alarm inputs (ExpirationDate,
-            // TrustListId, LastUpdateTime) and establish the baseline
-            // inactive state. Events are suppressed here (emitEvents: false)
-            // because the subscription infrastructure is not yet ready during
-            // CreateAddressSpace; StartAlarmMonitoring re-evaluates with events
-            // once the server is running.
-            m_alarmScheduler.UpdateAndEvaluate(systemContext, emitEvents: false);
+            finally
+            {
+                trustList?.Dispose();
+            }
+            groupNode.ClearChangeMasks(systemContext, true);
         }
 
         /// <summary>
@@ -834,7 +826,6 @@ namespace Opc.Ua.Server
         /// the optional-child suppression is preserved.
         /// </summary>
         private void ConfigureOptionalServerConfigurationSurface(
-            ServerSystemContext systemContext,
             ServerConfigurationState configNode,
             ApplicationConfiguration configuration)
         {
@@ -867,7 +858,6 @@ namespace Opc.Ua.Server
                     = new GenericMethodCalledEventHandler2Async(ResetToServerDefaultsAsync);
             }
 
-            ConfigureConfigurationFile(systemContext, configNode);
         }
 
         /// <summary>
@@ -875,17 +865,24 @@ namespace Opc.Ua.Server
         /// handler onto the <c>ConfigurationFile</c> node (§7.10.20) when a
         /// provider is configured and the optional node was materialised.
         /// </summary>
-        private void ConfigureConfigurationFile(
+        private ApplicationConfigurationFile? ConfigureConfigurationFile(
             ServerSystemContext systemContext,
-            ServerConfigurationState configNode)
+            ServerConfigurationState configNode,
+            ApplicationConfigurationFileState? previousFile = null)
         {
             if (m_serverConfigurationOptions.ConfigurationFileProvider is not { } fileProvider ||
                 configNode.ConfigurationFile is not { } fileNode)
             {
-                return;
+                return null;
             }
 
-            m_configurationFile = new ApplicationConfigurationFile(
+            // Read provider state only for the initial attachment. A staged successor
+            // takes its initial values from the predecessor's nodes.
+            uint currentVersion = previousFile == null
+                ? fileProvider.CurrentVersion : previousFile.CurrentVersion!.Value;
+            DateTimeUtc lastUpdateTime = previousFile == null
+                ? new DateTimeUtc(fileProvider.LastUpdateTime) : previousFile.LastUpdateTime!.Value;
+            var file = new ApplicationConfigurationFile(
                 fileNode,
                 fileProvider,
                 new ApplicationConfigurationFile.SecureAccess(
@@ -899,14 +896,15 @@ namespace Opc.Ua.Server
                 m_applicationOperations);
 
             fileNode.ActivityTimeout?.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
-            fileNode.CurrentVersion?.Value = fileProvider.CurrentVersion;
-            fileNode.LastUpdateTime?.Value = new DateTimeUtc(fileProvider.LastUpdateTime);
+            fileNode.CurrentVersion?.Value = currentVersion;
+            fileNode.LastUpdateTime?.Value = lastUpdateTime;
             fileNode.SupportedDataType?.Value = DataTypeIds.ApplicationConfigurationDataType;
             fileNode.Writable?.Value = true;
             fileNode.UserWritable?.Value = true;
             fileNode.OpenCount?.Value = 0;
 
             fileNode.ClearChangeMasks(systemContext, true);
+            return file;
         }
 
         /// <summary>
@@ -1056,7 +1054,15 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void UpdateTransactionDiagnostics(ISystemContext context)
         {
-            if (m_serverConfigurationNode?.TransactionDiagnostics is not { } diagnosticsNode)
+            UpdateTransactionDiagnostics(context, m_serverConfigurationNode?.TransactionDiagnostics);
+            UpdateApplicationDiagnostics(context);
+        }
+
+        private void UpdateTransactionDiagnostics(
+            ISystemContext context,
+            TransactionDiagnosticsState? diagnosticsNode)
+        {
+            if (diagnosticsNode == null)
             {
                 return;
             }

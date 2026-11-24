@@ -99,7 +99,8 @@ namespace Opc.Ua.SourceGeneration
                         }
                         if (replacement is not TemplateDefinition definition)
                         {
-                            m_writer.Write(replacement.ToString());
+                            // A replacement is a value (model text), not template text.
+                            m_writer.WriteValue(replacement.ToString());
                             written = true;
                             break;
                         }

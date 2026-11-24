@@ -479,7 +479,6 @@ namespace Opc.Ua.Server.Tests
             trustList.SetAuditEventServer(auditServer);
             ISystemContext writer = CreateContext(new NodeId(Guid.NewGuid(), 1));
             ISystemContext owner = CreateContext(new NodeId(Guid.NewGuid(), 1));
-            using Certificate cert = CreateSelfSigned("CN=Push Foreign Transaction");
 
             OpenMethodStateResult open = await node.Open!.OnCallAsync!(
                 writer,
@@ -487,19 +486,16 @@ namespace Opc.Ua.Server.Tests
                 node.NodeId,
                 (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
                 CancellationToken.None).ConfigureAwait(false);
-            await node.Write!.OnCallAsync!(
+            Assert.That(open.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            CloseMethodStateResult closed = await node.Close!.OnCallAsync!(
                 writer,
-                node.Write,
+                node.Close,
                 node.NodeId,
                 open.FileHandle,
-                EncodeTrustListPayload(writer, new TrustListDataType
-                {
-                    SpecifiedLists = (uint)TrustListMasks.TrustedCertificates,
-                    TrustedCertificates = new[] { cert.RawData.ToByteString() }
-                }),
                 CancellationToken.None).ConfigureAwait(false);
+            Assert.That(closed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
 
-            // another Session starts a transaction while the file is open
+            // Staging is only allowed once the writer has closed the file.
             m_coordinator.Stage(GetSessionId(owner), new PushConfigurationOperation
             {
                 CommitAsync = _ => Task.CompletedTask

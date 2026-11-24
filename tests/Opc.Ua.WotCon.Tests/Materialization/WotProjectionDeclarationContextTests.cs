@@ -21,7 +21,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT projection declaration context.
     /// </summary>
     [TestFixture]
-    [NonParallelizable]
     public sealed class WotProjectionDeclarationContextTests
     {
         /// <summary>
@@ -118,6 +117,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Verifies that coordinator carries generated local identities into binding plans.
         /// </summary>
         [Test]
+        [Category("Integration")]
         public async Task CoordinatorCarriesGeneratedLocalIdentitiesIntoBindingPlans()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
@@ -171,6 +171,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <param name="typeRelation">The type relation used by this test case.</param>
         [TestCase("type")]
         [TestCase("ua:HasTypeDefinition")]
+        [Category("Integration")]
         public async Task CoordinatorDistinguishesContainedDeclarationsFromInstancesOfTheSameModel(
             string typeRelation)
         {
@@ -416,6 +417,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("HasOrderedComponent")]
         [TestCase("CustomOwnership")]
         [TestCase("Readable")]
+        [Category("Integration")]
         public async Task StockCoordinatorUsesRootOwnershipWithoutFollowingInstanceTypeDefinitions(string ownership)
         {
             UANodeSet model = NativeModel();

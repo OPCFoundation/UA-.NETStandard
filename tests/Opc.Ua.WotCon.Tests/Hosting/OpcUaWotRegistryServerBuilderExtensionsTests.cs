@@ -112,6 +112,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         [TestCase(true, false)]
         [TestCase(false, true)]
         [TestCase(true, true)]
+        [Category("Integration")]
         public async Task CurrentProjectionPlanReachesRegistryAndViewMaterialization(
             bool configuration, bool forceLeasedContent)
         {

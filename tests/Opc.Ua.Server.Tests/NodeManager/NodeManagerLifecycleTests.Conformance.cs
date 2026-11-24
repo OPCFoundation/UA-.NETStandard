@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -125,8 +99,51 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRegistration registration = lifecycle.Registrations.Find(
                     candidate => ReferenceEquals(candidate.NodeManager, manager)) ??
                     throw new InvalidOperationException("The startup NodeManager was not registered.");
-                await RemoveAndRetireAsync(lifecycle, registration, timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges removal = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
+                ServerSystemContext readContext = server.CurrentInstance.DefaultSystemContext;
+                bool includedBeforeCommit = false;
+                bool excludedAtCommit = false;
+                bool preservedAtCommit = false;
+                LifecycleResult result = await removal.CommitAsync(
+                    _ =>
+                    {
+                        includedBeforeCommit = ReadUnits().Contains(manager.ConformanceUnit) &&
+                            ReadProfiles().Contains(manager.ServerProfile);
+                        return default;
+                    },
+                    () =>
+                    {
+                        excludedAtCommit = !ReadUnits().Contains(manager.ConformanceUnit) &&
+                            !ReadProfiles().Contains(manager.ServerProfile);
+                        preservedAtCommit = ReadUnits().Contains(retainedContributor.ConformanceUnit) &&
+                            ReadProfiles().Contains(retainedContributor.ServerProfile);
+                    },
+                    timeout.Token).ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                Assert.That(includedBeforeCommit, Is.True);
+                Assert.That(excludedAtCommit, Is.True);
+                Assert.That(preservedAtCommit, Is.True);
+                await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(manager.IsDisposed, Is.True);
+
+                ArrayOf<QualifiedName> ReadUnits()
+                {
+                    Variant value = publishedUnits.Value;
+                    Assert.That(publishedUnits.OnSimpleReadValue, Is.Not.Null);
+                    publishedUnits.OnSimpleReadValue!(readContext, publishedUnits, ref value);
+                    Assert.That(value.TryGetValue(out ArrayOf<QualifiedName> units), Is.True);
+                    return units;
+                }
+
+                ArrayOf<string> ReadProfiles()
+                {
+                    Variant value = publishedProfiles.Value;
+                    Assert.That(publishedProfiles.OnSimpleReadValue, Is.Not.Null);
+                    publishedProfiles.OnSimpleReadValue!(readContext, publishedProfiles, ref value);
+                    Assert.That(value.TryGetValue(out ArrayOf<string> profiles), Is.True);
+                    return profiles;
+                }
 
                 int postDisposalReads = manager.PostDisposalConformanceReadCount;
                 await conformance.PublishAsync(timeout.Token).ConfigureAwait(false);

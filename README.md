@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard Stack
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
@@ -63,7 +68,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   OPC 40223 (Pumps and Vacuum Pumps),
   OPC 30010 ([AutoID Devices](docs/AutoID.md)),
   OPC 30500-1 ([Laboratory and Analytical Devices](docs/LADS.md)),
-  OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
+  OPC 40200 (Weighing Technology) with OPC 30050
+  ([PackML](docs/PackML.md), also available as standalone provider-backed units).
 - **Hosting and code generation** — `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -195,7 +201,7 @@ Contributors must sign the OPC Foundation
 The CLA "I AGREE" gate is presented automatically on your first PR.
 
 The project is licensed under the
-[MIT License](LICENSE.txt). Report security
+[MIT License](LICENSE). Report security
 vulnerabilities via the process documented in
 [SECURITY.md](SECURITY.md).
 

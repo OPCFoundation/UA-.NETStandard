@@ -56,7 +56,7 @@ namespace Opc.Ua.SourceGeneration
         private void WriteTemplate_XmlSchema(string fileName)
         {
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
-            using var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer, isCSharp: false);
             var template = new Template(templateWriter, XmlSchemaTemplates.File);
 
             if (!string.IsNullOrEmpty(m_context.ModelDesign.TargetNamespace.XmlNamespace))

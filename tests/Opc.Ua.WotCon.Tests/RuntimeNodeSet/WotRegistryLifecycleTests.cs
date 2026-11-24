@@ -41,7 +41,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [NonParallelizable]
+    [Category("Integration")]
     public sealed partial class WotRegistryLifecycleTests
     {
         private const double kMaxAge = 10000;
@@ -82,6 +82,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 AutoAccept = true
             };
 
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             (m_requestHeader, m_secureChannelContext) = await m_server

@@ -78,6 +78,8 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
                         o.ApplicationName = "GeneratorE2eServer";
                         o.ApplicationUri = "urn:localhost:OPCFoundation:GeneratorE2eServer";
                         o.AutoAcceptUntrustedCertificates = true;
+                        // The tests drive the server through anonymous sessions.
+                        o.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                         o.EndpointUrls.Add(serverUrl);
                     })
                 .ConfigureDevicesFor<global::Generators.GeneratorNodeManager>(

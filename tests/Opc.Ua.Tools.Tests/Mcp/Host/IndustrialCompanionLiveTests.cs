@@ -56,6 +56,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 options.ProductUri = "urn:localhost:industrial-mcp-tests:product";
                 options.PkiRoot = Path.Combine(m_root, "pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(endpoint);
@@ -122,6 +124,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 options.ProductUri = "urn:localhost:pump-mcp-tests:product";
                 options.PkiRoot = Path.Combine(m_root, "pump-pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(pumpEndpoint);

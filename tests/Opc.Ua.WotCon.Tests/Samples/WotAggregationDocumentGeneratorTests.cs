@@ -1064,16 +1064,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 ByteString.From(JsonSerializer.SerializeToUtf8Bytes(root ?? [])));
         }
 
-        private static async Task<ArrayOf<SampleDocument>> ReadUnboundPumpDocumentsAsync()
+        private static Task<ArrayOf<SampleDocument>> ReadUnboundPumpDocumentsAsync()
         {
-            using var stream = new FileStream(
-                PumpSourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer).ConfigureAwait(false);
-            buffer.Position = 0;
-            UANodeSet source = UANodeSet.Read(buffer)
-                ?? throw new InvalidOperationException("Could not read the pump source.");
-            return WotAggregationDocumentGenerator.GeneratePumpDeclarationDocuments(source);
+            return Task.FromResult(SampleInputCache.PumpDeclarationDocuments(PumpSourcePath));
         }
 
         private static ArrayOf<SampleDocument> RemoveDeclaration(

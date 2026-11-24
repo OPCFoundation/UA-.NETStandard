@@ -48,5 +48,13 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         [LoggerMessage(EventId = PubSubKafkaEventIds.KafkaClientAdapter + 7, Level = LogLevel.Error,
             Message = "Kafka consume loop terminated unexpectedly.")]
         public static partial void KafkaConsumeLoopTerminatedUnexpectedly(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubKafkaEventIds.KafkaClientAdapter + 8, Level = LogLevel.Warning,
+            Message = "Kafka consumer failed (failure {Failure}); restarting it in {RetryDelay}.")]
+        public static partial void KafkaConsumeLoopRestarting(
+            this ILogger logger,
+            Exception exception,
+            int failure,
+            TimeSpan retryDelay);
     }
 }

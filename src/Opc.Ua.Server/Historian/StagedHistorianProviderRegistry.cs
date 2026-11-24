@@ -296,7 +296,7 @@ namespace Opc.Ua.Server.Historian
                 {
                     ArrayOf<IHistorianProvider> serving = m_servingRegistry.Providers;
                     ArrayOf<IHistorianProvider> candidate = m_candidateRegistry.Providers;
-                    var providers = new HashSet<IHistorianProvider>();
+                    var providers = new HashSet<IHistorianProvider>(RefEqualityComparer.Default);
                     for (int index = 0; index < serving.Count; index++)
                     {
                         providers.Add(serving[index]);
@@ -331,7 +331,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Withdraws this candidate's serving registrations when its generation leaves routing.
         /// </summary>
-        internal bool Retire()
+        internal bool Retire(List<Action>? rollbacks = null)
         {
             lock (m_lock)
             {
@@ -339,7 +339,25 @@ namespace Opc.Ua.Server.Historian
                 {
                     return false;
                 }
+
                 bool hadServingRegistrations = m_servingHasRegistrations;
+                if (rollbacks is not null)
+                {
+                    bool published = m_published;
+                    Action? restore = hadServingRegistrations
+                        ? GetOwnedRegistry().CaptureOwnedRegistrationRollback(m_owner)
+                        : null;
+                    rollbacks.Add(() =>
+                    {
+                        lock (m_lock)
+                        {
+                            restore?.Invoke();
+                            m_servingHasRegistrations = hadServingRegistrations;
+                            m_published = published;
+                            m_retired = false;
+                        }
+                    });
+                }
                 if (hadServingRegistrations)
                 {
                     GetOwnedRegistry().RemoveOwnedRegistrations(m_owner);
@@ -543,7 +561,7 @@ namespace Opc.Ua.Server.Historian
             if (registrations.Length != 0)
             {
                 m_candidateRegistry.TransferProviderOwnership(registrations);
-                var transferredProviders = new HashSet<IHistorianProvider>();
+                var transferredProviders = new HashSet<IHistorianProvider>(RefEqualityComparer.Default);
                 foreach (HistorianProviderRegistration registration in registrations)
                 {
                     if (registration.OwnsProvider && transferredProviders.Add(registration.Provider))

@@ -2886,6 +2886,7 @@ namespace Opc.Ua.Client.Tests
                     typeof(SessionClient),
                     typeof(bool),
                     typeof(bool),
+                    typeof(bool),
                     typeof(bool)
                 ],
                 null);
@@ -2894,7 +2895,10 @@ namespace Opc.Ua.Client.Tests
 
             var task = (Task?)method!.Invoke(
                 session,
-                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null, false, false, false]);
+                [
+                    endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse,
+                    null, false, false, false, true
+                ]);
 
             Assert.That(task, Is.Not.Null);
             return task!;

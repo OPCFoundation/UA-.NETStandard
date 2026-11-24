@@ -3629,6 +3629,190 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
+        /// A value substituted into a line that is already a comment cannot end
+        /// the comment: its line breaks become spaces.
+        /// </summary>
+        [TestCase("\n")]
+        [TestCase("\r\n")]
+        [TestCase("\r")]
+        public void WriteValueOnCommentLineCannotEndTheComment(string lineBreak)
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.Write("/// ");
+                templateWriter.WriteValue("text" + lineBreak + "public static void Injected() { }");
+            }
+
+            string result = stringWriter.ToString();
+            Assert.That(result, Does.Not.Contain("\n").And.Not.Contain("\r"));
+            Assert.That(result, Does.StartWith("/// text"));
+        }
+
+        /// <summary>
+        /// NEL, LINE SEPARATOR and PARAGRAPH SEPARATOR end a line in C# and
+        /// never belong in generated code, so they are always written as a
+        /// space, inside or outside a comment.
+        /// </summary>
+        [TestCase('\u0085')]
+        [TestCase('\u2028')]
+        [TestCase('\u2029')]
+        public void UnicodeLineTerminatorsAreAlwaysWrittenAsSpace(char terminator)
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.Write("// ");
+                templateWriter.WriteValue("a" + terminator + "b");
+                templateWriter.WriteLine();
+                templateWriter.Write("x" + terminator + "y");
+            }
+
+            string result = stringWriter.ToString();
+            Assert.That(result, Does.Not.Contain(terminator.ToString()));
+            Assert.That(result, Does.Contain("// a b"));
+            Assert.That(result, Does.Contain("x y"));
+        }
+
+        /// <summary>
+        /// Characters written one at a time (embedded resources) follow the
+        /// same rules, and a "//" written that way opens a comment.
+        /// </summary>
+        [TestCase('\u0085')]
+        [TestCase('\u2028')]
+        [TestCase('\u2029')]
+        public void WriteCharFollowsTheCommentAndTerminatorRules(char terminator)
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.Write('/');
+                templateWriter.Write('/');
+                templateWriter.Write(terminator);
+                templateWriter.WriteValue("a\nb");
+            }
+
+            Assert.That(stringWriter.ToString(), Is.EqualTo("// a b"));
+        }
+
+        /// <summary>
+        /// Schema documents are not C#: the C# line terminator and comment
+        /// rules do not apply, so their text is written unchanged.
+        /// </summary>
+        [Test]
+        public void NonCSharpOutputIsWrittenUnchanged()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter, isCSharp: false))
+            {
+                templateWriter.Write("<!-- http://x -->");
+                templateWriter.WriteValue("a\u2028b\nc");
+                templateWriter.Write('\u2029');
+                templateWriter.Write("{0}", "d\u0085e");
+            }
+
+            Assert.That(stringWriter.ToString(), Is.EqualTo("<!-- http://x -->a\u2028b\nc\u2029d\u0085e"));
+        }
+
+        /// <summary>
+        /// Literal text that looks like an internal argument marker is not
+        /// replaced by an argument, and the argument still cannot end the
+        /// comment.
+        /// </summary>
+        [Test]
+        public void FormattedLiteralMarkerTextIsWrittenUnchanged()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.Write("// x0 {0}", "a\nb");
+            }
+
+            Assert.That(stringWriter.ToString(), Is.EqualTo("// x0 a b"));
+        }
+        /// <summary>
+        /// A formatted argument is a value too: a line break in it cannot end
+        /// a comment that the format text opened.
+        /// </summary>
+        [Test]
+        public void FormattedArgumentOnCommentLineCannotEndTheComment()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.WriteLine(
+                    "/// <summary>Walks the <c>{0}</c> child.</summary>",
+                    "Flow\n[ModuleInitializer] internal static void Injected() { } //");
+                templateWriter.WriteLine("public int Flow;");
+            }
+
+            string[] lines = stringWriter.ToString().Split(
+                [Environment.NewLine], StringSplitOptions.None);
+            Assert.That(lines[0], Does.StartWith("/// <summary>Walks the <c>Flow "));
+            Assert.That(lines[0], Does.Contain("Injected"));
+            Assert.That(lines[1], Is.EqualTo("public int Flow;"));
+        }
+
+        /// <summary>
+        /// The same argument through the indenting writer, which forwards the
+        /// format and arguments instead of the formatted text.
+        /// </summary>
+        [Test]
+        public void IndentedFormattedArgumentOnCommentLineCannotEndTheComment()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                var indented = new IndentedTemplateWriter(templateWriter);
+                indented.WriteLine("/// {0}", "a\r\nInjected();");
+            }
+
+            Assert.That(
+                stringWriter.ToString(),
+                Is.EqualTo("    /// a  Injected();" + Environment.NewLine));
+        }
+
+        /// <summary>
+        /// A value that continues the comment on its next line keeps the line
+        /// break: multi-line documentation stays multi-line.
+        /// </summary>
+        [Test]
+        public void WriteValueOnCommentLineKeepsLineBreakBeforeAnotherComment()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.Write("/// ");
+                templateWriter.WriteValue("first\r\n    /// second");
+            }
+
+            Assert.That(
+                stringWriter.ToString(),
+                Is.EqualTo("/// first\r\n    /// second"));
+        }
+
+        /// <summary>
+        /// Generator-built fragments that open their own comment and continue
+        /// with code, and values outside a comment, keep their line breaks.
+        /// </summary>
+        [Test]
+        public void WriteValueKeepsLineBreaksOutsideAnOpenComment()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.WriteValue("/// <inheritdoc/>\r\nprotected override string X => Y;");
+                templateWriter.WriteLine();
+                templateWriter.Write("int x = ");
+                templateWriter.WriteValue("1 +\r\n2;");
+            }
+
+            string result = stringWriter.ToString();
+            Assert.That(result, Does.Contain("/// <inheritdoc/>\r\nprotected override string X => Y;"));
+            Assert.That(result, Does.Contain("int x = 1 +\r\n2;"));
+        }
+
+        /// <summary>
         /// Tests that WriteLine handles text with control characters.
         /// </summary>
         [TestCase("Text\0with\0nulls")]

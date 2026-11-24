@@ -59,6 +59,7 @@ namespace Opc.Ua.Client.Tests.Perf
                 () => new ServerFixture<StandardServer>(t => new StandardServer(t))
                 {
                     AutoAccept = true,
+                    ReuseCachedCertificates = true
                 });
         }
 
@@ -71,6 +72,7 @@ namespace Opc.Ua.Client.Tests.Perf
                 {
                     AutoAccept = true,
                     OperationLimits = true,
+                    ReuseCachedCertificates = true
                 });
         }
 
@@ -143,37 +145,51 @@ namespace Opc.Ua.Client.Tests.Perf
             ServerFixture<T> server = createFixture();
             var total = Stopwatch.StartNew();
             var sw = Stopwatch.StartNew();
-            await server.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
-            times[0] = Lap(sw);
-            await server.StartAsync().ConfigureAwait(false);
-            times[1] = Lap(sw);
-
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            // Certificates are created once per PKI folder and reused (warm PKI).
-            var client = new ClientFixture(telemetry);
+            bool stopped = false;
             try
             {
-                await client.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
-                times[2] = Lap(sw);
-                var url = new Uri(
-                    Utils.UriSchemeOpcTcp + "://localhost:" +
-                    server.Port.ToString(CultureInfo.InvariantCulture));
-                ISession session = await client
-                    .ConnectAsync(url, SecurityPolicies.Basic256Sha256)
-                    .ConfigureAwait(false);
-                times[3] = Lap(sw);
-                await session.CloseAsync().ConfigureAwait(false);
-                session.Dispose();
+                await server.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                times[0] = Lap(sw);
+                await server.StartAsync().ConfigureAwait(false);
+                times[1] = Lap(sw);
+
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                // Mirrors ClientTestFramework and TestFixture, which reuse cached certificates.
+                var client = new ClientFixture(telemetry) { ReuseCachedCertificates = true };
+                try
+                {
+                    await client.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                    times[2] = Lap(sw);
+                    var url = new Uri(
+                        Utils.UriSchemeOpcTcp + "://localhost:" +
+                        server.Port.ToString(CultureInfo.InvariantCulture));
+                    ISession session = await client
+                        .ConnectAsync(url, SecurityPolicies.Basic256Sha256)
+                        .ConfigureAwait(false);
+                    times[3] = Lap(sw);
+                    await session.CloseAsync().ConfigureAwait(false);
+                    session.Dispose();
+                }
+                finally
+                {
+                    await client.DisposeAsync().ConfigureAwait(false);
+                }
+                times[4] = Lap(sw);
+                stopped = true;
+                await server.StopAsync().ConfigureAwait(false);
+                times[5] = Lap(sw);
+                times[6] = total.Elapsed.TotalMilliseconds;
+                return times;
             }
             finally
             {
-                await client.DisposeAsync().ConfigureAwait(false);
+                // A failed phase must not leave the server running (or its PKI
+                // folder in use when fresh-PKI mode deletes it).
+                if (!stopped)
+                {
+                    await server.StopAsync().ConfigureAwait(false);
+                }
             }
-            times[4] = Lap(sw);
-            await server.StopAsync().ConfigureAwait(false);
-            times[5] = Lap(sw);
-            times[6] = total.Elapsed.TotalMilliseconds;
-            return times;
         }
 
         private static double Lap(Stopwatch sw)

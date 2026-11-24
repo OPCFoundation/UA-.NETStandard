@@ -38,7 +38,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [NonParallelizable]
+    [Category("Integration")]
     public sealed partial class WotRegistryEventIntegrationTests
     {
         private string m_pkiRoot = null!;
@@ -68,6 +68,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             (m_requestHeader, m_secureChannelContext) = await m_server

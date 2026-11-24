@@ -418,7 +418,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Downgrade(manifest);
                 File.WriteAllText(path, manifest.ToJsonString());
             }
-            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            await using PreparedWotTestRuntime runtime = await StartRestartedServerAsync().ConfigureAwait(false);
             runtime.Namespaces.GetIndexOrAppend("urn:r30:namespace-padding");
             using FileWotRegistryStore store = m_storage.OpenStore();
             using var registry = new WotRegistryService(store);

@@ -70,6 +70,8 @@ namespace Opc.Ua.Extrusion.Tests
                 options.ApplicationUri = "urn:tests:extrusion:server";
                 options.PkiRoot = Path.Combine(root, "server");
                 options.IncludeUnsecurePolicyNone = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = AnonymousAccess.Unrestricted;
                 options.AutoAcceptUntrustedCertificates = true;
                 options.EndpointUrls.Add(endpoint);
             });

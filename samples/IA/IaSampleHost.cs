@@ -34,6 +34,8 @@ namespace IndustrialAutomationSample
                 options.ApplicationUri = "urn:localhost:OPCFoundation:IndustrialAutomationSampleServer";
                 options.PkiRoot = Path.Combine(pkiRoot, "server");
                 options.AutoAcceptUntrustedCertificates = demoTrust;
+                // Demo convenience only: anonymous sessions may write and call.
+                options.AnonymousAccess = demoTrust ? AnonymousAccess.Unrestricted : AnonymousAccess.ReadOnly;
                 options.IncludeUnsecurePolicyNone = false;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(endpoint);

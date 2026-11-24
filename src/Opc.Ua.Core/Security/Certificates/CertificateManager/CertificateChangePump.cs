@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -131,11 +132,14 @@ namespace Opc.Ua
         {
             IDisposable? subscription;
             TState? pending;
+            Queue<TState>? sealedBatches;
             lock (m_lock)
             {
                 m_disposed = true;
                 pending = m_pending;
                 m_pending = null;
+                sealedBatches = m_sealedBatches;
+                m_sealedBatches = null;
                 subscription = m_subscription;
                 m_subscription = null;
             }
@@ -147,7 +151,57 @@ namespace Opc.Ua
             finally
             {
                 Release(pending);
+                ReleaseBatches(sealedBatches);
             }
+        }
+
+        /// <summary>
+        /// Lets work accepted before the pause drain, while notifications received
+        /// during the pause coalesce separately without starting work.
+        /// </summary>
+        internal DrainPause PauseAfterPending()
+        {
+            lock (m_lock)
+            {
+                if (m_disposed || m_admissionClosed || m_pause != null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadWouldBlock);
+                }
+                if (m_pending != null)
+                {
+                    (m_sealedBatches ??= new Queue<TState>()).Enqueue(m_pending);
+                    m_pending = null;
+                }
+                return m_pause = new DrainPause(this, m_pumpTask ?? Task.CompletedTask);
+            }
+        }
+
+        private void FinishPause(DrainPause pause, bool resume)
+        {
+            TState? pending = null;
+            Queue<TState>? sealedBatches = null;
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(m_pause, pause))
+                {
+                    return;
+                }
+                m_pause = null;
+                m_admissionClosed = !resume;
+                if (!resume)
+                {
+                    pending = m_pending;
+                    m_pending = null;
+                    sealedBatches = m_sealedBatches;
+                    m_sealedBatches = null;
+                }
+                else if (!m_disposed && (m_pending != null || m_sealedBatches?.Count > 0))
+                {
+                    StartDrainNoLock();
+                }
+            }
+            Release(pending);
+            ReleaseBatches(sealedBatches);
         }
 
         private void OnEvent(CertificateChangeEvent evt)
@@ -162,7 +216,7 @@ namespace Opc.Ua
 
                 lock (m_lock)
                 {
-                    if (m_disposed)
+                    if (m_disposed || m_admissionClosed)
                     {
                         return;
                     }
@@ -173,14 +227,10 @@ namespace Opc.Ua
                     {
                         replaced = previous;
                     }
-                    if (m_pumpTask != null)
+                    if (m_pause == null)
                     {
-                        return;
+                        StartDrainNoLock();
                     }
-
-                    var task = Task.Run(DrainAsync, CancellationToken.None);
-                    m_pumpTask = task;
-                    m_onPumpStateChanged?.Invoke(task);
                 }
             }
             catch (Exception ex)
@@ -190,6 +240,16 @@ namespace Opc.Ua
             finally
             {
                 Release(replaced);
+            }
+        }
+
+        private void StartDrainNoLock()
+        {
+            if (m_pumpTask == null)
+            {
+                var task = Task.Run(DrainAsync, CancellationToken.None);
+                m_pumpTask = task;
+                m_onPumpStateChanged?.Invoke(task);
             }
         }
 
@@ -207,8 +267,19 @@ namespace Opc.Ua
                 TState? state;
                 lock (m_lock)
                 {
-                    state = m_pending;
-                    m_pending = null;
+                    if (m_sealedBatches is { Count: > 0 } batches)
+                    {
+                        state = batches.Dequeue();
+                    }
+                    else if (m_pause == null)
+                    {
+                        state = m_pending;
+                        m_pending = null;
+                    }
+                    else
+                    {
+                        state = null;
+                    }
                     if (state == null)
                     {
                         m_pumpTask = null;
@@ -248,6 +319,36 @@ namespace Opc.Ua
             }
         }
 
+        private void ReleaseBatches(Queue<TState>? batches)
+        {
+            if (batches != null)
+            {
+                foreach (TState state in batches)
+                {
+                    Release(state);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Owns the exact pause and exposes completion of only the pre-pause work.
+        /// </summary>
+        internal sealed class DrainPause(CertificateChangePump<TState> owner, Task drained)
+        {
+            /// <summary>
+            /// Gets the drain task captured at the admission boundary.
+            /// </summary>
+            internal Task Drained { get; } = drained;
+
+            /// <summary>
+            /// Resumes deferred work or permanently closes admission for this pump.
+            /// </summary>
+            internal void Finish(bool resume)
+            {
+                owner.FinishPause(this, resume);
+            }
+        }
+
         private sealed class Observer : IObserver<CertificateChangeEvent>
         {
             public Observer(CertificateChangePump<TState> owner)
@@ -280,7 +381,10 @@ namespace Opc.Ua
         private readonly Lock m_lock = new();
         private IDisposable? m_subscription;
         private TState? m_pending;
+        private Queue<TState>? m_sealedBatches;
         private Task? m_pumpTask;
+        private DrainPause? m_pause;
+        private bool m_admissionClosed;
         private bool m_disposed;
     }
 }

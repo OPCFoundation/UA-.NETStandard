@@ -122,7 +122,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     ByteString.From(Encoding.UTF8.GetBytes(graph.ToJsonString())));
             }
             await m_store.CommitAsync(damaged).ConfigureAwait(false);
-            await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
+            await using PreparedWotTestRuntime restarted = await StartRestartedServerAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend(kStockViewNamespace);
             using FileWotRegistryStore store = m_storage.OpenStore();
@@ -206,7 +206,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             WotRegistrySnapshot expected = m_registry.Current;
             Assert.That(expected.CanonicalViewGraphState.IsNull, Is.EqualTo(!emptyMap));
-            await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
+            await using PreparedWotTestRuntime restarted = await StartRestartedServerAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend("urn:c1:ordinary-padding");
             using FileWotRegistryStore store = m_storage.OpenStore();
@@ -260,7 +260,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 publication.Publish();
             }
             WotRegistrySnapshot expected = m_registry.Current;
-            await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
+            await using PreparedWotTestRuntime restarted = await StartRestartedServerAsync()
                 .ConfigureAwait(false);
             using FileWotRegistryStore store = m_storage.OpenStore();
             using var registry = new WotRegistryService(store);
@@ -319,7 +319,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ByteString expectedDigest = expectedGraph.Views.ToList()
                 .Single(view => view.ResourceXid == child.Xid).MembershipDigest;
 
-            await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
+            await using PreparedWotTestRuntime restarted = await StartRestartedServerAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend("urn:c1:restart-padding");
             restarted.Namespaces.GetIndexOrAppend(kStockViewNamespace);

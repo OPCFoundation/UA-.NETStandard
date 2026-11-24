@@ -4,7 +4,9 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
@@ -18,6 +20,116 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class LinqApplicationsDatabaseTests
     {
+        /// <summary>
+        /// Both persistence methods retain the public virtual slot used by previously compiled callers.
+        /// </summary>
+        [TestCase(typeof(LinqApplicationsDatabase))]
+        [TestCase(typeof(JsonApplicationsDatabase))]
+        public void SaveRetainsPublicVirtualMethodContract(Type databaseType)
+        {
+            MethodInfo? save = databaseType.GetMethod(
+                nameof(LinqApplicationsDatabase.Save),
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+            Assert.That(save, Is.Not.Null);
+            Assert.That(save!.IsPublic, Is.True);
+            Assert.That(save.IsVirtual, Is.True);
+            Assert.That(save.IsFinal, Is.False);
+            Assert.That(save.ReturnType, Is.EqualTo(typeof(void)));
+            Assert.That(save.GetParameters(), Is.Empty);
+            Assert.That(save.GetBaseDefinition().DeclaringType, Is.EqualTo(typeof(LinqApplicationsDatabase)));
+        }
+
+        /// <summary>
+        /// A derived public Save override still intercepts mutations and base dispatch persists the complete database.
+        /// </summary>
+        [Test]
+        public void DerivedSaveOverridePersistsRecordsThroughBaseDispatch()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = new SaveOverrideDatabase(fileName);
+                NodeId applicationId = database.RegisterApplication(
+                    CreateServerApplication("urn:test:save-override", "ServerOne"));
+
+                Assert.That(database.SaveCount, Is.EqualTo(2));
+                LinqApplicationsDatabase baseReference = database;
+                baseReference.Save();
+                Assert.That(database.SaveCount, Is.EqualTo(3));
+                JsonApplicationsDatabase jsonReference = database;
+                jsonReference.Save();
+                Assert.That(database.SaveCount, Is.EqualTo(4));
+
+                JsonApplicationsDatabase reloaded = JsonApplicationsDatabase.Load(fileName);
+                ApplicationRecordDataType[] records = reloaded.FindApplications("urn:test:save-override");
+                Assert.That(records, Has.Length.EqualTo(1));
+                Assert.That(records[0].ApplicationId, Is.EqualTo(applicationId));
+                Assert.That(records[0].ApplicationNames[0].Text, Is.EqualTo("ServerOne"));
+                Assert.That(File.Exists(fileName + ".tmp"), Is.False);
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
+        /// <summary>
+        /// Public saves and mutations share persistence ownership and leave a complete reloadable database.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentPublicSavesAndRegistrationsPersistCompleteRecordsAsync()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task registrations = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    for (int i = 0; i < 20; i++)
+                    {
+                        string suffix = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        database.RegisterApplication(
+                            CreateServerApplication("urn:test:concurrent:" + suffix, "Server" + suffix));
+                    }
+                });
+                Task saves = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    for (int i = 0; i < 20; i++)
+                    {
+                        database.Save();
+                    }
+                });
+                start.SetResult(true);
+                await Task.WhenAll(registrations, saves).ConfigureAwait(false);
+                database.Save();
+
+                JsonApplicationsDatabase reloaded = JsonApplicationsDatabase.Load(fileName);
+                ServerOnNetwork[] records = reloaded.QueryServers(0, 0, null!, null!, null!, [], out _);
+                Assert.That(records, Has.Length.EqualTo(20));
+                Assert.That(records.Select(record => record.RecordId), Is.Unique.And.Ordered);
+                for (int i = 0; i < 20; i++)
+                {
+                    string suffix = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    ApplicationRecordDataType[] applications = reloaded.FindApplications(
+                        "urn:test:concurrent:" + suffix);
+                    Assert.That(applications, Has.Length.EqualTo(1));
+                    Assert.That(applications[0].ApplicationNames[0].Text, Is.EqualTo("Server" + suffix));
+                    Assert.That(applications[0].DiscoveryUrls.Count, Is.EqualTo(1));
+                    Assert.That(applications[0].DiscoveryUrls[0],
+                        Is.EqualTo("opc.tcp://localhost:4840/Server" + suffix));
+                }
+                Assert.That(File.Exists(fileName + ".tmp"), Is.False);
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
         [Test]
         public void RegisterApplicationWithDuplicateUriThrowsBadEntryExists()
         {
@@ -783,6 +895,34 @@ namespace Opc.Ua.Gds.Tests
                 ServerCapabilities = ["AC", "DA", "RCP", "HD"]
             });
             return database;
+        }
+
+        /// <summary>
+        /// Exercises the existing public override contract without depending on the new persistence hook.
+        /// </summary>
+        private sealed class SaveOverrideDatabase : JsonApplicationsDatabase
+        {
+            /// <summary>
+            /// Creates a database that counts dispatch to its public Save override.
+            /// </summary>
+            public SaveOverrideDatabase(string fileName)
+                : base(fileName)
+            {
+            }
+
+            /// <summary>
+            /// Gets the number of public Save calls.
+            /// </summary>
+            public int SaveCount { get; private set; }
+
+            /// <summary>
+            /// Records dispatch and delegates persistence through the existing base Save method.
+            /// </summary>
+            public override void Save()
+            {
+                SaveCount++;
+                base.Save();
+            }
         }
 
         private static ApplicationRecordDataType CreateServerApplication(string applicationUri, string name)

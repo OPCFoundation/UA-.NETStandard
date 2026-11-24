@@ -24,10 +24,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     internal sealed class PreparedWotTestRuntime : IAsyncDisposable
     {
         private PreparedWotTestRuntime(
-            string root, ServerFixture<ReferenceServer> fixture, ReferenceServer server, bool forceLeasedContent)
+            string root, Func<Task> stop, int port, StandardServer server, bool forceLeasedContent)
         {
             m_root = root;
-            m_fixture = fixture;
+            m_stop = stop;
+            m_port = port;
             m_server = server;
             m_forceLeasedContent = forceLeasedContent;
             m_configuredStorage = new PreparedWotTestStorage(StorageFolder, forceLeasedContent);
@@ -57,7 +58,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Gets the port for <c>PreparedWotTestRuntime</c>.
         /// </summary>
-        public int Port => m_fixture.Port;
+        public int Port => m_port;
 
         /// <summary>
         /// Gets the configured registry storage directory within the test runtime.
@@ -73,18 +74,38 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Starts a runtime that hosts the prepared WoT publication pipeline.
         /// </summary>
         /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
-        public static async Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
+        public static Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
+        {
+            return StartAsync(telemetry => new ReferenceServer(telemetry), forceLeasedContent);
+        }
+
+        /// <summary>
+        /// Starts a runtime that hosts the prepared WoT publication pipeline on
+        /// a server of type <typeparamref name="T"/>.
+        /// </summary>
+        /// <remarks>
+        /// The server type names the application and therefore the server URI.
+        /// A test that restarts from a publication committed on a server of one
+        /// type must restart on the same type, or recovery sees another server.
+        /// </remarks>
+        /// <typeparam name="T">The server type to host.</typeparam>
+        /// <param name="factory">Creates the server.</param>
+        /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
+        public static async Task<PreparedWotTestRuntime> StartAsync<T>(
+            Func<ITelemetryContext, T> factory, bool forceLeasedContent = false)
+            where T : StandardServer
         {
             string root = Path.Combine(Path.GetTempPath(),
                 "pwr", Guid.NewGuid().ToString("N").Substring(0, 12));
-            var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
+            var fixture = new ServerFixture<T>(factory)
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
                 AutoAccept = true
             };
-            ReferenceServer server = await fixture.StartAsync(Path.Combine(root, "pki")).ConfigureAwait(false);
-            return new PreparedWotTestRuntime(root, fixture, server, forceLeasedContent);
+            await WotTestPki.SeedAsync(Path.Combine(root, "pki"), factory, 0).ConfigureAwait(false);
+            T server = await fixture.StartAsync(Path.Combine(root, "pki")).ConfigureAwait(false);
+            return new PreparedWotTestRuntime(root, fixture.StopAsync, fixture.Port, server, forceLeasedContent);
         }
 
         /// <summary>
@@ -128,7 +149,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             try
             {
-                await m_fixture.StopAsync().ConfigureAwait(false);
+                await m_stop().ConfigureAwait(false);
             }
             finally
             {
@@ -371,8 +392,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private readonly string m_root;
-        private readonly ServerFixture<ReferenceServer> m_fixture;
-        private readonly ReferenceServer m_server;
+        private readonly Func<Task> m_stop;
+        private readonly int m_port;
+        private readonly StandardServer m_server;
         private readonly bool m_forceLeasedContent;
         private readonly PreparedWotTestStorage m_configuredStorage;
         private readonly List<(WotRegistryService Registry, FileWotRegistryStore Store)> m_registries = [];

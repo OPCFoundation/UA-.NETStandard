@@ -3,6 +3,7 @@
 
 #if NET8_0_OR_GREATER
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -20,7 +21,6 @@ using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Server.Materialization;
-using Quickstarts.ReferenceServer;
 using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 using ISession = Opc.Ua.Client.ISession;
 using MonitoredItem = Opc.Ua.Client.MonitoredItem;
@@ -34,7 +34,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT event modes live.
     /// </summary>
     [TestFixture]
-    [NonParallelizable]
     [Category("Integration")]
     public sealed partial class WotEventModesLiveTests
     {
@@ -221,12 +220,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        private static readonly ConcurrentDictionary<string, int> s_endpointsPerTest = new(StringComparer.Ordinal);
+
         private sealed class NativeEndpoint : IAsyncDisposable
         {
             /// <summary>
             /// Gets or sets the server for <c>NativeEndpoint</c>.
             /// </summary>
-            public ReferenceServer Server { get; private set; } = null!;
+            public StandardServer Server { get; private set; } = null!;
 
             /// <summary>
             /// Gets or sets the session for <c>NativeEndpoint</c>.
@@ -245,6 +246,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 bool managed, CancellationToken ct, string securityPolicy = SecurityPolicies.Basic256Sha256)
             {
                 m_fixture.SecurityNone = securityPolicy == SecurityPolicies.None;
+                await WotTestPki.SeedAsync<StandardServer>(
+                    m_root, t => new StandardServer(t), m_identity, "EventModesClient").ConfigureAwait(false);
                 Server = await m_fixture.StartAsync(m_root).ConfigureAwait(false);
                 await m_client.LoadClientConfigurationAsync(m_root, "EventModesClient").ConfigureAwait(false);
                 m_session = await m_client.ConnectAsync(new Uri(EndpointUrl), securityPolicy)
@@ -335,11 +338,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
-            private readonly ServerFixture<ReferenceServer> m_fixture = new(t => new ReferenceServer(t))
+            private readonly ServerFixture<StandardServer> m_fixture = new(t => new StandardServer(t))
             {
                 AutoAccept = true
             };
             private readonly ClientFixture m_client = new(NUnitTelemetryContext.Create());
+
+            // Endpoints of one test authenticate as different authorities, as
+            // they would with freshly generated certificates.
+            private readonly int m_identity = s_endpointsPerTest.AddOrUpdate(
+                TestContext.CurrentContext.Test.ID, 0, (_, count) => count + 1);
             private readonly string m_root = Path.Combine(
                 Environment.GetEnvironmentVariable("WOT_EVENT_TEST_ROOT") ?? Path.GetTempPath(),
                 "wem-" + Guid.NewGuid().ToString("N")[..8]);
@@ -423,6 +431,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public ValueTask<ArrayOf<Variant>> ReadAsync(CancellationToken ct)
             {
                 return m_events.Reader.ReadAsync(ct);
+            }
+
+            /// <summary>
+            /// Enables or disables publishing. While publishing is disabled the
+            /// server keeps new notifications queued instead of delivering them.
+            /// </summary>
+            /// <param name="enabled">Whether the subscription publishes.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public Task SetPublishingAsync(bool enabled, CancellationToken ct)
+            {
+                return m_subscription.SetPublishingModeAsync(enabled, ct);
             }
 
             public async ValueTask DisposeAsync()

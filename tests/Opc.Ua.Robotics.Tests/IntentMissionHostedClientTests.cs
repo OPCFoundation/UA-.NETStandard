@@ -294,6 +294,8 @@ namespace Opc.Ua.Robotics.Tests
                         options.ApplicationUri = "urn:localhost:OPCFoundation:MissionHostedServer";
                         options.ProductUri = "uri:opcfoundation.org:MissionHostedServer";
                         options.AutoAcceptUntrustedCertificates = true;
+                        // The tests drive the server through anonymous sessions.
+                        options.AnonymousAccess = AnonymousAccess.Unrestricted;
                         options.EndpointUrls.Add(ServerUrl);
                         options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
                         {

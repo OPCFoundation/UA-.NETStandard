@@ -242,7 +242,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(true, true)]
 #endif
         [Category("Integration")]
-        [NonParallelizable]
         public async Task ConvertedCallContractsReachDirectAndDiProjectedInvocations(
             bool dependencyInjection, bool native)
         {
@@ -381,6 +380,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ReferenceServer? server = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 localSourceIndex = server.CurrentInstance.NamespaceUris.GetIndexOrAppend("urn:p15:source");
                 Assert.That(localSourceIndex, Is.Not.EqualTo(sourceIndex));
@@ -396,6 +396,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     Assert.That(activations, Is.Zero);
                     using var client = new ClientFixture(NUnitTelemetryContext.Create());
+                    await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                     await client.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                     using ISession clientSession = await client.ConnectAsync(
                         new UriBuilder(Utils.UriSchemeOpcTcp, "localhost", fixture.Port).Uri, SecurityPolicies.None)

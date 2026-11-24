@@ -26,6 +26,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Platform("Win")]
+        [Category("Integration")]
         public async Task RefreshFreezesRequestBeforePreparation()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();

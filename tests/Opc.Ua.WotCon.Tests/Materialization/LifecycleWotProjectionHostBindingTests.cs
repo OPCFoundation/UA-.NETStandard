@@ -183,6 +183,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("Immediate")]
         [TestCase("Remove")]
         [TestCase("Prepared")]
+        [Category("Integration")]
         public async Task StaleProjectionHandleCannotMutateNewerSlotGenerationAsync(string operation)
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
@@ -236,6 +237,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
+        [Category("Integration")]
         public async Task ObservedPublicationPreservesPrivateSourceRootMappingAsync(bool invocation, bool commit)
         {
             const string SourceUri = "urn:wot:observed-private-source";
