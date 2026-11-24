@@ -137,6 +137,14 @@ assertions that read "the first value published after an action":
   item's final `BadNodeIdUnknown`) can reach the subscription after the survivor's
   post-commit fence event. The test now publishes until both the fence and that
   emission arrived; the assertions on the exact captured values are unchanged.
+* `SlotChangeSetLegacyResultRetainsOriginalRegistrationHandleAsync`,
+  `SlotChangeSetLifecycleResultMetadataDoesNotRetainRegistrationOrPublishedManagerAsync`
+  and `VerifiedPrivateCleanupReleasesWriterUnitAndPreservesFailureAsync`: these
+  checked weak references after one collection (or three back to back). On a
+  loaded net48 runner a retirement continuation can still hold the manager or
+  factory for a moment (CI run 45360448331). The tests now collect and poll for
+  up to about five seconds (`CollectUntilReleasedAsync`); the assertions are
+  unchanged.
 
 ### Fixed delays
 
