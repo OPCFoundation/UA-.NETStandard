@@ -544,6 +544,41 @@ namespace Opc.Ua.ISA95.Tests.Integration
                 foundByState |= item.JobResponseID == "v2-response";
             }
             Assert.That(foundByState, Is.True);
+
+            foreach ((V1.ISA95JobOrderStateEnum legacy, Isa95JobCanonicalState expected) in new[]
+            {
+                (V1.ISA95JobOrderStateEnum.Waiting, Isa95JobCanonicalState.NotAllowedToStartWaiting),
+                (V1.ISA95JobOrderStateEnum.Ready, Isa95JobCanonicalState.AllowedToStartWaiting)
+            })
+            {
+                string orderId = $"v1-{legacy}";
+                await AssertV1ResponseCanBeQueriedByNeutralStateAsync(v1, v2, orderId, legacy, expected, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private static async Task AssertV1ResponseCanBeQueriedByNeutralStateAsync(
+            Isa95JobControlV1Client v1,
+            Isa95JobControlV2Client v2,
+            string orderId,
+            V1.ISA95JobOrderStateEnum state,
+            Isa95JobCanonicalState expected,
+            CancellationToken ct)
+        {
+            string responseId = $"{orderId}-response";
+            V1.ISA95JobResponseDataType response = Isa95TestData.V1Response(responseId, orderId);
+            response.JobState = state;
+            AssertSuccess(await v1.ReceiveJobResponseAsync(response, ct).ConfigureAwait(false));
+
+            (Isa95JobResponse? byId, ulong byIdStatus) =
+                await v2.RequestNeutralJobResponseByIdAsync(orderId, ct).ConfigureAwait(false);
+            AssertSuccess(byIdStatus);
+            Assert.That(byId?.State, Is.EqualTo(expected));
+
+            (ArrayOf<Isa95JobResponse> matches, ulong byStateStatus) =
+                await v2.RequestNeutralJobResponsesByStateAsync(byId!.State, ct).ConfigureAwait(false);
+            AssertSuccess(byStateStatus);
+            Assert.That(matches.ToList().Exists(match => match.Id == responseId), Is.True);
         }
 
         private static Isa95JobControlEndpoint GetEndpoint(

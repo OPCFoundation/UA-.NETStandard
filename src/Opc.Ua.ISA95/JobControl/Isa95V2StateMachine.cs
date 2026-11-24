@@ -236,6 +236,10 @@ namespace Opc.Ua.ISA95.JobControl
             {
                 return (topLevelNumber == 0 || TopLevel(substate).Number == topLevelNumber) &&
                     (candidate == substate ||
+                        (candidate == Isa95JobCanonicalState.NotAllowedToStart &&
+                            substate == Isa95JobCanonicalState.NotAllowedToStartWaiting) ||
+                        (candidate == Isa95JobCanonicalState.AllowedToStart &&
+                            substate == Isa95JobCanonicalState.AllowedToStartWaiting) ||
                         (candidate == Isa95JobCanonicalState.Loaded &&
                             substate == Isa95JobCanonicalState.NotAllowedToStartLoaded));
             }
