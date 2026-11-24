@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Tests
             string name = NewName();
             string first = await CheckAsync(name, Uri(name), reuse: true).ConfigureAwait(false);
 
-            using var application = await TestApplication.CreateAsync(name, Uri(name)).ConfigureAwait(false);
+            await using TestApplication application = await TestApplication.CreateAsync(name, Uri(name)).ConfigureAwait(false);
             Assert.That(await application.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
 
             Assert.That(application.StoredThumbprints(), Is.EqualTo(new[] { first }));
@@ -78,13 +78,13 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 string existing;
-                using (TestApplication own = await TestApplication.CreateAsync(name, Uri(name), pkiRoot).ConfigureAwait(false))
+                await using (TestApplication own = await TestApplication.CreateAsync(name, Uri(name), pkiRoot).ConfigureAwait(false))
                 {
                     Assert.That(await own.CheckAsync(reuse: false).ConfigureAwait(false), Is.True);
                     existing = own.StoredThumbprints().Single();
                 }
 
-                using TestApplication reused = await TestApplication.CreateAsync(name, Uri(name), pkiRoot).ConfigureAwait(false);
+                await using TestApplication reused = await TestApplication.CreateAsync(name, Uri(name), pkiRoot).ConfigureAwait(false);
                 Assert.That(await reused.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
 
                 Assert.That(existing, Is.Not.EqualTo(cached));
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             // added through the store, the others are copied.
             string name = NewName();
             List<string> created;
-            using (TestApplication first = await TestApplication
+            await using (TestApplication first = await TestApplication
                 .CreateAsync(name, Uri(name), allCertificates: true).ConfigureAwait(false))
             {
                 Assert.That(await first.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server.Tests
             }
             Assert.That(created, Has.Count.GreaterThan(1));
 
-            using TestApplication seeded = await TestApplication
+            await using TestApplication seeded = await TestApplication
                 .CreateAsync(name, Uri(name), allCertificates: true).ConfigureAwait(false);
             Assert.That(await seeded.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
 
@@ -148,13 +148,13 @@ namespace Opc.Ua.Server.Tests
 
             // All default certificate types, so the copied keys are covered too.
             string name = NewName();
-            using (TestApplication first = await TestApplication
+            await using (TestApplication first = await TestApplication
                 .CreateAsync(name, Uri(name), allCertificates: true).ConfigureAwait(false))
             {
                 Assert.That(await first.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
             }
 
-            using TestApplication application = await TestApplication
+            await using TestApplication application = await TestApplication
                 .CreateAsync(name, Uri(name), allCertificates: true).ConfigureAwait(false);
             Assert.That(await application.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
 
@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private static async Task<string> CheckAsync(string name, string applicationUri, bool reuse)
         {
-            using TestApplication application = await TestApplication.CreateAsync(name, applicationUri).ConfigureAwait(false);
+            await using TestApplication application = await TestApplication.CreateAsync(name, applicationUri).ConfigureAwait(false);
             Assert.That(await application.CheckAsync(reuse).ConfigureAwait(false), Is.True);
             return application.StoredThumbprints().Single();
         }
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A client application with one RSA application certificate.
         /// </summary>
-        private sealed class TestApplication : IDisposable
+        private sealed class TestApplication : IAsyncDisposable
         {
             private TestApplication(
                 ApplicationInstance application,
@@ -304,10 +304,17 @@ namespace Opc.Ua.Server.Tests
                 return thumbprints;
             }
 
-            public void Dispose()
+            public async ValueTask DisposeAsync()
             {
-                m_application.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                (m_configuration.CertificateManager as IDisposable)?.Dispose();
+                await m_application.DisposeAsync().ConfigureAwait(false);
+                if (m_configuration.CertificateManager is IAsyncDisposable asyncManager)
+                {
+                    await asyncManager.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    (m_configuration.CertificateManager as IDisposable)?.Dispose();
+                }
                 if (m_ownsPkiRoot)
                 {
                     DeletePkiRoot(m_pkiRoot);
