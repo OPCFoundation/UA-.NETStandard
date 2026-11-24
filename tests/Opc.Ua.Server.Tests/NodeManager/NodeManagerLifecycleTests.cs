@@ -9404,10 +9404,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IList<IEventMonitoredItem> monitoredItems,
                 CancellationToken cancellationToken = default)
             {
-                Interlocked.Increment(ref m_conditionRefreshCount);
+                // publish the ids before the count: tests wait on the count and then
+                // read the ids, which would otherwise still be the previous snapshot.
                 Interlocked.Exchange(
                     ref m_lastConditionRefreshMonitoredItemIds,
                     [.. monitoredItems.Select(monitoredItem => monitoredItem.Id)]);
+                Interlocked.Increment(ref m_conditionRefreshCount);
                 if (ConditionRefreshCallback is not null)
                 {
                     await ConditionRefreshCallback(monitoredItems, cancellationToken)

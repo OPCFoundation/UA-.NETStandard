@@ -3,8 +3,11 @@
 
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -15,6 +18,19 @@ namespace Opc.Ua.SourceGeneration
     /// </summary>
     internal static partial class SourceGenerator
     {
+        /// <summary>
+        /// Reads generated UTF-8 output without copying the VFS bytes or a whole-file string.
+        /// Preserves the leading BOM character emitted by the former GetString path.
+        /// </summary>
+        internal static SourceText ReadGeneratedSource(IFileSystem fileSystem, string path)
+        {
+            using Stream stream = fileSystem.OpenRead(path);
+            using var reader = new StreamReader(stream, s_utf8WithoutPreamble, detectEncodingFromByteOrderMarks: false);
+            // Roslyn uses length as a chunk-capacity estimate. UTF-8 byte length
+            // bounds the character count without a second decoding pass.
+            return SourceText.From(reader, checked((int)stream.Length), Encoding.UTF8);
+        }
+
         /// <summary>
         /// Runs a source output callback and converts an unhandled exception
         /// into a diagnostic. Roslyn fails the whole compilation with a bare
@@ -90,5 +106,7 @@ namespace Opc.Ua.SourceGeneration
                 Debugger.Launch();
             }
         }
+
+        private static readonly Encoding s_utf8WithoutPreamble = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     }
 }

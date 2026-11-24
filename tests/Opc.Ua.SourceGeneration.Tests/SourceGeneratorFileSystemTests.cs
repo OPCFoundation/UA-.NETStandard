@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System.IO;
+using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -61,6 +62,30 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(fileSystem.Exists("a.xml"), Is.True);
             Assert.That(fileSystem.Exists("b.xml"), Is.True);
             Assert.That(fileSystem.Exists("c.xml"), Is.False);
+        }
+
+        /// <summary>
+        /// Streamed output preserves the old UTF-8 text, encoding and checksum, including its BOM.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void GeneratedSourceStreamMatchesByteArrayPath(bool includePreamble)
+        {
+            using var fileSystem = new VirtualFileSystem();
+            using (var writer = new StreamWriter(fileSystem.OpenWrite("generated.cs"), new UTF8Encoding(includePreamble)))
+            {
+                writer.Write("// \u00E9 \U0001F642\r\n");
+                writer.Write(new string('x', 100_000));
+            }
+            var expected = SourceText.From(Encoding.UTF8.GetString(fileSystem.Get("generated.cs")),
+                Encoding.UTF8);
+
+            SourceText actual = SourceGenerator.ReadGeneratedSource(fileSystem, "generated.cs");
+
+            Assert.That(actual.ToString(), Is.EqualTo(expected.ToString()));
+            Assert.That(actual.Encoding, Is.EqualTo(expected.Encoding));
+            Assert.That(actual.ChecksumAlgorithm, Is.EqualTo(expected.ChecksumAlgorithm));
+            Assert.That(actual.GetChecksum(), Is.EqualTo(expected.GetChecksum()));
         }
 
         private sealed class StubAdditionalText : AdditionalText
