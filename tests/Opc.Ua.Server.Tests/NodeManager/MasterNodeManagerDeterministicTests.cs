@@ -1509,6 +1509,70 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ModifyMonitoredItemsAsyncDetachedVariableKeepsSourceMetadataAsync()
+        {
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("DetachedVariable", 2),
+                BrowseName = new QualifiedName("DetachedVariable", 2),
+                DataType = DataTypeIds.Double,
+                MinimumSamplingInterval = 5000
+            };
+            var euRange = new Range { Low = 0, High = 100 };
+            variable.AddChild(new PropertyState(variable)
+            {
+                BrowseName = QualifiedName.From(BrowseNames.EURange),
+                Value = new Variant(new ExtensionObject(euRange))
+            });
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem(
+                managerHandle: new NodeHandle(variable.NodeId, variable));
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+
+            // changes to the node after it left the address space do not reach the snapshot.
+            euRange.High = 1;
+            variable.MinimumSamplingInterval = 0;
+
+            var request = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 45,
+                    SamplingInterval = 2000,
+                    QueueSize = 1,
+                    DiscardOldest = true,
+                    Filter = new ExtensionObject(new DataChangeFilter
+                    {
+                        Trigger = DataChangeTrigger.StatusValue,
+                        DeadbandType = (uint)DeadbandType.Percent,
+                        DeadbandValue = 10
+                    })
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+            var filterResults = new List<MonitoringFilterResult> { null! };
+
+            using OperationContext context = CreateContext();
+            await sut.ModifyMonitoredItemsAsync(
+                context,
+                TimestampsToReturn.Both,
+                [item],
+                new[] { request }.ToArrayOf(),
+                errors,
+                filterResults,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(errors[0]), Is.True, errors[0]?.ToString());
+                Assert.That(item.ClientHandle, Is.EqualTo(45U));
+                Assert.That(item.SamplingInterval, Is.EqualTo(5000));
+                Assert.That(item.ToStorableMonitoredItem().Range, Is.EqualTo(100));
+            });
+        }
+
+        [Test]
         public void SetMonitoringModeAsync_NullContext_ThrowsArgumentNullException()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
@@ -1914,17 +1978,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         private MonitoredItem CreateDetachedMonitoredItem(
-            MonitoringMode monitoringMode = MonitoringMode.Reporting)
+            MonitoringMode monitoringMode = MonitoringMode.Reporting,
+            object? managerHandle = null)
         {
             var monitoredItem = new MonitoredItem(
                 m_server.CurrentInstance,
                 new Mock<IAsyncNodeManager>().Object,
-                new object(),
+                managerHandle ?? new object(),
                 subscriptionId: 1,
                 id: 2,
                 itemToMonitor: new ReadValueId
                 {
-                    NodeId = new NodeId("Detached", 2),
+                    NodeId = (managerHandle as NodeHandle)?.NodeId ?? new NodeId("Detached", 2),
                     AttributeId = Attributes.Value
                 },
                 diagnosticsMasks: DiagnosticsMasks.None,

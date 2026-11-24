@@ -595,9 +595,9 @@ namespace Opc.Ua
                         {
                             m_list.Remove(node);
                         }
-
-                        entry.InverseTargets = null;
                     }
+
+                    entry.InverseTargets = null;
                 }
 
                 if (entry.InverseExternalTargets != null)
@@ -735,7 +735,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? targets;
+                Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? targets;
                 if (key.IsInverse)
                 {
                     targets = entry.InverseTargets;
@@ -896,9 +896,9 @@ namespace Opc.Ua
                     : (ForwardTargets?.Count ?? 0) + (ForwardExternalTargets?.Count ?? 0);
             }
 
-            public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? ForwardTargets { get; set; }
+            public Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? ForwardTargets { get; set; }
             public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>? ForwardExternalTargets { get; set; }
-            public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? InverseTargets { get; set; }
+            public Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? InverseTargets { get; set; }
             public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>? InverseExternalTargets { get; set; }
 
             /// <summary>
@@ -1031,7 +1031,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? targets;
+                Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? targets;
                 if (key.IsInverse)
                 {
                     targets = entry.InverseTargets;
@@ -1126,7 +1126,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? targets;
+                Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? targets;
                 if (key.IsInverse)
                 {
                     entry.InverseTargets ??= [];
@@ -1204,7 +1204,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? targets;
+                Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? targets;
                 if (reference.IsInverse)
                 {
                     targets = entry.InverseTargets;
@@ -1277,7 +1277,14 @@ namespace Opc.Ua
             }
         }
 
-        private readonly NodeIdDictionary<ReferenceTypeEntry> m_references;
+        /// <summary>
+        /// Plain dictionaries: this type is not thread safe (nor is the linked
+        /// list) and callers such as <see cref="NodeState"/> guard it with
+        /// their own lock. A concurrent dictionary allocates lock
+        /// objects and counters per processor, which made every node with
+        /// references cost kilobytes on many-core machines.
+        /// </summary>
+        private readonly Dictionary<NodeId, ReferenceTypeEntry> m_references;
         private readonly LinkedList<KeyValuePair<IReference, T>> m_list;
     }
 }
