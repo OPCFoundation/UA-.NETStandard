@@ -229,6 +229,40 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(actualKey.Exponent, Is.EqualTo(expectedKey.Exponent));
         }
 
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Checks that authenticated signing verifies and preserves a P-256 CSR key.
+        /// </summary>
+        [Test]
+        public async Task AuthenticatedEvidenceSigningPreservesP256CsrKey()
+        {
+            ECCurve curve = ECCurve.NamedCurves.nistP256;
+            using Certificate signingCertificate = CertificateBuilder
+                .Create("CN=Test CA")
+                .SetCAConstraint()
+                .SetECCurve(curve)
+                .CreateForECDsa();
+            using var certificateGroup = new TestCertificateGroup(
+                signingCertificate,
+                NUnitTelemetryContext.Create(),
+                nameof(Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType));
+            using var deviceKey = ECDsa.Create(curve);
+            var request = new CertificateRequest("CN=CsrTest", deviceKey, HashAlgorithmName.SHA256);
+
+            using Certificate issued = await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
+                Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                "CN=Approved Device",
+                ApplicationUri,
+                ProductInstanceUri,
+                [],
+                [],
+                ByteString.From(request.CreateSigningRequest())).ConfigureAwait(false);
+
+            using ECDsa issuedKey = issued.GetECDsaPublicKey()!;
+            Assert.That(issuedKey.ExportSubjectPublicKeyInfo(), Is.EqualTo(deviceKey.ExportSubjectPublicKeyInfo()));
+        }
+#endif
+
         [Test]
         public async Task AuthenticatedEvidenceSigningAllowsApplicationAndProductUriToBeSame()
         {
@@ -690,22 +724,21 @@ namespace Opc.Ua.Gds.Tests
 
         private sealed class TestCertificateGroup : CertificateGroup
         {
-            public TestCertificateGroup(Certificate signingCertificate, ITelemetryContext telemetry)
+            public TestCertificateGroup(
+                Certificate signingCertificate,
+                ITelemetryContext telemetry,
+                string certificateType = nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType))
                 : base(
                     "unused",
                     new CertificateGroupConfiguration
                     {
                         SubjectName = "CN=Test CA",
                         BaseStorePath = "unused",
-                        CertificateTypes =
-                        [
-                            nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
-                        ]
+                        CertificateTypes = [certificateType]
                     },
                     telemetry)
             {
-                Certificates[Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType] =
-                    signingCertificate.AddRef();
+                Certificates[Ua.ObjectTypeIds.GetIdentifier(certificateType)] = signingCertificate.AddRef();
             }
 
             public override Task<Certificate> SigningRequestWithAdditionalUriSansAsync(
