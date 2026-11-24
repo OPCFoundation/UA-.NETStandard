@@ -1334,7 +1334,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns(new Mock<ICoreNodeManager>().Object);
             m_mockServer.Setup(value => value.MainNodeManagerFactory).Returns(factory.Object);
             using var master = new MasterNodeManager(
-                m_mockServer.Object, m_configuration, null, [foreignManager.Object]);
+                m_mockServer.Object, m_configuration, null, [manager, foreignManager.Object]);
             m_mockServer.Setup(value => value.NodeManager).Returns(master);
             m_mockServer.Invocations.Clear();
 

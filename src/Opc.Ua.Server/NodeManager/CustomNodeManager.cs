@@ -37,8 +37,15 @@ namespace Opc.Ua.Server
         IDisposable,
         IAsyncDisposable,
         ILocalAddressSpaceSource,
-        INodeManagerMonitoredItemSource
+        INodeManagerMonitoredItemSource,
+        INodeManagerOverrideBrowseCapability
     {
+        /// <inheritdoc/>
+        bool INodeManagerOverrideBrowseCapability.SupportsOverrideBrowse(ArrayOf<NodeId> targets)
+        {
+            return OverrideNodeBrowser.Supports(targets);
+        }
+
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -1579,7 +1586,14 @@ namespace Opc.Ua.Server
             {
                 NodeStateLifecycle.CompleteForRegistration(context, activeNode, m_logger);
             }
-            PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
+            if (Server.NodeManager is MasterNodeManager master)
+            {
+                master.IndexManagedNode(m_asyncNodeManager, SystemContext.NamespaceUris, PredefinedNodes, activeNode);
+            }
+            else
+            {
+                PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
+            }
 
             if (activeNode is BaseTypeState type)
             {
@@ -1642,6 +1656,12 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
+            TypeTable typeTree = Server.TypeTree;
+            long registrationVersion = node is BaseTypeState ? typeTree.GetRegistrationVersion(node.NodeId) : 0;
+            ChangePreparer.StagingServer? stagingServer =
+                node is BaseTypeState ? ChangePreparer.GetServer(m_asyncNodeManager) : null;
+            bool wasServing = stagingServer is null ||
+                (!stagingServer.IsStaging && !stagingServer.IsDetached);
             if (!PredefinedNodes.TryRemove(node.NodeId, node))
             {
                 return;
@@ -1672,10 +1692,11 @@ namespace Opc.Ua.Server
 
             // remove from type table.
 
-            if (node is BaseTypeState type &&
+            if (node is BaseTypeState type && registrationVersion != 0 &&
                 !IsTypeOwnedByAnotherNodeManager(type.NodeId))
             {
-                Server.TypeTree.Remove(type.NodeId);
+                MasterNodeManager.RemoveTypeRegistration(
+                    Server, typeTree, type.NodeId, registrationVersion, stagingServer, wasServing);
             }
 
             // remove inverse references.
@@ -2056,16 +2077,23 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
+                TypeTable typeTree = Server.TypeTree;
+                long registrationVersion = node is BaseTypeState ? typeTree.GetRegistrationVersion(node.NodeId) : 0;
+                ChangePreparer.StagingServer? stagingServer =
+                    node is BaseTypeState ? ChangePreparer.GetServer(m_asyncNodeManager) : null;
+                bool wasServing = stagingServer is null ||
+                    (!stagingServer.IsStaging && !stagingServer.IsDetached);
                 if (!PredefinedNodes.TryRemove(node.NodeId, node))
                 {
                     continue;
                 }
 
                 OnNodeRemoved(node);
-                if (node is BaseTypeState type &&
+                if (node is BaseTypeState type && registrationVersion != 0 &&
                     !IsTypeOwnedByAnotherNodeManager(type.NodeId))
                 {
-                    Server.TypeTree.Remove(type.NodeId);
+                    MasterNodeManager.RemoveTypeRegistration(
+                        Server, typeTree, type.NodeId, registrationVersion, stagingServer, wasServing);
                 }
 
                 var references = new List<IReference>();
@@ -2251,9 +2279,16 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
+                NamespaceDefaultPermissions? permissionDefaults =
+                    AsyncCustomNodeManager.RequiresDynamicPermissionReads(target)
+                        ? NamespaceDefaultPermissionReader.Read(Server, systemContext, target.NodeId.NamespaceIndex)
+                        : null;
+
                 // read the attributes.
-                ArrayOf<Variant> values = target.ReadAttributes(
+                ArrayOf<Variant> values = AsyncCustomNodeManager.ReadPermissionAwareAttributes(
+                    target,
                     systemContext,
+                    permissionDefaults,
                     Attributes.WriteMask,
                     Attributes.UserWriteMask,
                     Attributes.DataType,
@@ -2327,7 +2362,7 @@ namespace Opc.Ua.Server
                     metadata.UserRolePermissions = userRolePermissions;
                 }
 
-                SetDefaultPermissions(systemContext, target, metadata);
+                SetDefaultPermissions(systemContext, target, metadata, permissionDefaults);
 
                 // get instance references.
                 if (target is BaseInstanceState instance)
@@ -2371,15 +2406,24 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
+        /// <param name="defaults">The namespace permissions captured for this operation.</param>
         /// <returns>The values of the attributes</returns>
         private static ArrayOf<Variant> ReadAndCacheValidationAttributes(
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes,
             ServerSystemContext systemContext,
             NodeState target,
-            NodeId key)
+            NodeId key,
+            NamespaceDefaultPermissions? defaults = null)
         {
-            ArrayOf<Variant> values = ReadValidationAttributes(systemContext, target);
-            uniqueNodesServiceAttributes[key] = values.ToArray()!;
+            ArrayOf<Variant> values = ReadValidationAttributes(systemContext, target, defaults);
+            if (AsyncCustomNodeManager.RequiresDynamicPermissionReads(target))
+            {
+                uniqueNodesServiceAttributes.Remove(key);
+            }
+            else
+            {
+                uniqueNodesServiceAttributes[key] = values.ToArray()!;
+            }
 
             return values;
         }
@@ -2389,16 +2433,20 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
+        /// <param name="defaults">The namespace permissions captured for this operation.</param>
         /// <returns>The values of the attributes</returns>
         private static ArrayOf<Variant> ReadValidationAttributes(
             ServerSystemContext systemContext,
-            NodeState target)
+            NodeState target,
+            NamespaceDefaultPermissions? defaults = null)
         {
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
-            return target.ReadAttributes(
+            return AsyncCustomNodeManager.ReadPermissionAwareAttributes(
+                target,
                 systemContext,
+                defaults,
                 Attributes.AccessRestrictions,
                 Attributes.RolePermissions,
                 Attributes.UserRolePermissions);
@@ -2453,6 +2501,11 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadNodeNotInView);
                 }
 
+                if (context.RoutingSnapshot is { } referenceSnapshot)
+                {
+                    continuationPoint.ValidateOverrideReferences(referenceSnapshot, source, systemContext);
+                }
+
                 // check for previous continuation point.
                 browser = continuationPoint.Data as INodeBrowser;
 
@@ -2460,7 +2513,7 @@ namespace Opc.Ua.Server
                 if (browser == null)
                 {
                     // create a new browser.
-                    continuationPoint.Data = browser = source.CreateBrowser(
+                    continuationPoint.Data = browser = OverrideNodeBrowser.Wrap(source.CreateBrowser(
                         systemContext,
                         continuationPoint.View,
                         continuationPoint.ReferenceTypeId,
@@ -2468,7 +2521,7 @@ namespace Opc.Ua.Server
                         continuationPoint.BrowseDirection,
                         default,
                         null,
-                        false);
+                        false), context.RoutingSnapshot);
                 }
             }
             // A NodeBrowser is single-consumer, and this one is reachable from a continuation
@@ -2483,6 +2536,10 @@ namespace Opc.Ua.Server
                     reference != null;
                     reference = browser.Next())
                 {
+                    if (context.RoutingSnapshot is { } snapshot && continuationPoint.OverrideOwners is not null)
+                    {
+                        continuationPoint.ValidateOverrideTarget(snapshot, reference.TargetId);
+                    }
                     // validate Browse permission
                     ServiceResult serviceResult = ValidateRolePermissions(
                         context,
@@ -2630,6 +2687,13 @@ namespace Opc.Ua.Server
                 return description;
             }
 
+            if (context.OperationContext?.RoutingSnapshot?.NodeOverrides
+                .ContainsKey((NodeId)reference.TargetId) == true)
+            {
+                description.Unfiltered = true;
+                return description;
+            }
+
             NodeState? target = null;
 
             // check for local reference.
@@ -2729,15 +2793,15 @@ namespace Opc.Ua.Server
                 }
 
                 // get list of references that relative path.
-                INodeBrowser browser = source.CreateBrowser(
+                INodeBrowser browser = OverrideNodeBrowser.Wrap(source.CreateBrowser(
                     systemContext,
                     null,
                     relativePath.ReferenceTypeId,
                     relativePath.IncludeSubtypes,
                     relativePath.IsInverse ? BrowseDirection.Inverse : BrowseDirection.Forward,
-                    relativePath.TargetName,
+                    context.RoutingSnapshot?.NodeOverrides.Count > 0 ? default : relativePath.TargetName,
                     null,
-                    false);
+                    false), context.RoutingSnapshot);
 
                 // check the browse names.
                 try
@@ -2749,6 +2813,12 @@ namespace Opc.Ua.Server
                         // ignore unknown external references.
                         if (reference.TargetId.IsAbsolute)
                         {
+                            continue;
+                        }
+
+                        if (context.RoutingSnapshot?.NodeOverrides.ContainsKey((NodeId)reference.TargetId) == true)
+                        {
+                            unresolvedTargetIds.Add((NodeId)reference.TargetId);
                             continue;
                         }
 
@@ -5933,10 +6003,13 @@ namespace Opc.Ua.Server
             {
                 IsPartOfTypeHierarchy = source.IsPartOfTypeHierarchy
             };
-            SetAccessAndRolePermissions(ReadValidationAttributes(context, source), metadata);
             try
             {
-                SetDefaultPermissions(context, source, metadata);
+                NamespaceDefaultPermissions? defaults = AsyncCustomNodeManager.RequiresDynamicPermissionReads(source)
+                    ? NamespaceDefaultPermissionReader.Read(Server, context, source.NodeId.NamespaceIndex)
+                    : null;
+                SetAccessAndRolePermissions(ReadValidationAttributes(context, source, defaults), metadata);
+                SetDefaultPermissions(context, source, metadata, defaults);
             }
             catch (ServiceResultException error)
             {
@@ -6809,6 +6882,11 @@ namespace Opc.Ua.Server
 
                 ArrayOf<Variant> values = default;
 
+                NamespaceDefaultPermissions? permissionDefaults =
+                    AsyncCustomNodeManager.RequiresDynamicPermissionReads(target)
+                        ? NamespaceDefaultPermissionReader.Read(Server, systemContext, target.NodeId.NamespaceIndex)
+                        : null;
+
                 // construct the meta-data object.
                 var metadata = new NodeMetadata(target, target.NodeId)
                 {
@@ -6819,7 +6897,8 @@ namespace Opc.Ua.Server
                 if (uniqueNodesServiceAttributesCache != null)
                 {
                     NodeId key = handle.NodeId;
-                    if (uniqueNodesServiceAttributesCache.ContainsKey(key))
+                    if (uniqueNodesServiceAttributesCache.ContainsKey(key) &&
+                        !AsyncCustomNodeManager.RequiresDynamicPermissionReads(target))
                     {
                         if (uniqueNodesServiceAttributesCache[key].Length == 0)
                         {
@@ -6827,7 +6906,8 @@ namespace Opc.Ua.Server
                                 uniqueNodesServiceAttributesCache,
                                 systemContext,
                                 target,
-                                key);
+                                key,
+                                permissionDefaults);
                         }
                         else
                         {
@@ -6841,18 +6921,19 @@ namespace Opc.Ua.Server
                             uniqueNodesServiceAttributesCache,
                             systemContext,
                             target,
-                            key);
+                            key,
+                            permissionDefaults);
                     }
 
                     SetAccessAndRolePermissions(values, metadata);
                 } // All other calls that do not use the cache
-                else if (permissionsOnly)
+                else if (permissionsOnly || AsyncCustomNodeManager.RequiresDynamicPermissionReads(target))
                 {
-                    values = ReadValidationAttributes(systemContext, target);
+                    values = ReadValidationAttributes(systemContext, target, permissionDefaults);
                     SetAccessAndRolePermissions(values, metadata);
                 }
 
-                SetDefaultPermissions(systemContext, target, metadata);
+                SetDefaultPermissions(systemContext, target, metadata, permissionDefaults);
 
                 return metadata;
             }
@@ -6864,9 +6945,10 @@ namespace Opc.Ua.Server
         private void SetDefaultPermissions(
             ServerSystemContext systemContext,
             NodeState target,
-            NodeMetadata metadata)
+            NodeMetadata metadata,
+            NamespaceDefaultPermissions? permissionDefaults = null)
         {
-            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+            NamespaceDefaultPermissions defaults = permissionDefaults ?? NamespaceDefaultPermissionReader.Read(
                 Server, systemContext, target.NodeId.NamespaceIndex);
             if (!StatusCode.IsGood(defaults.Status))
             {

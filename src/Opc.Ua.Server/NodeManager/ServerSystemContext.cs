@@ -8,7 +8,8 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic implementation for ISystemContext interface.
     /// </summary>
-    public class ServerSystemContext : SessionSystemContext
+    public class ServerSystemContext :
+        SessionSystemContext, INodeStateReferenceView, INodeStateSnapshotBrowserGuard
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
@@ -97,6 +98,27 @@ namespace Opc.Ua.Server
             get => base.OperationContext as OperationContext;
             set => base.OperationContext = value;
         }
+
+        /// <inheritdoc/>
+        bool INodeStateReferenceView.TryGetReferences(NodeState node, out ArrayOf<IReference> references)
+        {
+            if (OperationContext?.RoutingSnapshot is { } snapshot)
+            {
+                return snapshot.TryGetReferences(node, out references);
+            }
+            references = default;
+            return false;
+        }
+
+        /// <inheritdoc/>
+        bool INodeStateReferenceView.IsOverridden(NodeId nodeId)
+        {
+            return OperationContext?.RoutingSnapshot?.NodeOverrides.ContainsKey(nodeId) == true;
+        }
+
+        /// <inheritdoc/>
+        bool INodeStateSnapshotBrowserGuard.RequiresSnapshotSafeBrowser =>
+            OperationContext?.RoutingSnapshot?.NodeOverrides.Count > 0;
 
         /// <summary>
         /// Creates a copy of the context that can be used with the specified operation context.

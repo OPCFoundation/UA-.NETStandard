@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Migration Guide
 
 Use this guide to migrate an application between versions of the OPC UA
@@ -217,7 +222,7 @@ Server hosts must pass an `IOnboardingTicketValidator` when calling
 registration with `BadConfigurationError` instead of storing unverified
 tickets. Register authority stores through `AddOnboardingTickets` and resolve
 the validator from dependency injection, or construct it with an explicit
-trust provider. See [onboarding configuration](GDS.md#opc-10000-21-onboardingclient).
+trust provider. See [onboarding configuration](Onboarding.md#opc-10000-21-onboardingclient).
 
 ## Migrating confirmation-enabled ConfigurationFile providers
 

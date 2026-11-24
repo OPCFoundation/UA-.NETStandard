@@ -645,6 +645,107 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Distinct providers with equal values retain separate bindings and disposal ownership.
+        /// </summary>
+        /// <param name="ownsSecond">Whether the registry owns the second provider.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EqualProvidersKeepIndependentRegistryOwnership(bool ownsSecond)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            var first = new EqualHistorianProvider();
+            var second = new EqualHistorianProvider();
+            var firstNode = new NodeId("equal-first", 0);
+            var secondNode = new NodeId("equal-second", 0);
+
+            registry.RegisterForNode(firstNode, first);
+            registry.RegisterForNode(secondNode, second, ownsProvider: ownsSecond);
+            Assert.That(registry.Providers, Has.Count.EqualTo(2));
+            Assert.That(registry.Resolve(firstNode), Is.SameAs(first));
+            Assert.That(registry.Resolve(secondNode), Is.SameAs(second));
+            Assert.That(registry.UnregisterForNode(firstNode), Is.True);
+            Assert.That(registry.Providers, Has.Count.EqualTo(1));
+            Assert.That(registry.Providers[0], Is.SameAs(second));
+
+            registry.Dispose();
+
+            Assert.That(first.DisposeCount, Is.EqualTo(1));
+            Assert.That(second.DisposeCount, Is.EqualTo(ownsSecond ? 1 : 0));
+        }
+
+        /// <summary>
+        /// An aborted candidate does not dispose an equal provider published by another candidate.
+        /// </summary>
+        [Test]
+        public void EqualPublishedProviderSurvivesAnotherCandidateAbort()
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var original = new EqualHistorianProvider();
+            var shared = new EqualHistorianProvider();
+            using var abortedCandidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            using var publishedCandidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var originalNode = new NodeId("equal-serving", 0);
+            var abortedNode = new NodeId("equal-aborted", 0);
+            var publishedNode = new NodeId("equal-published", 0);
+
+            serving.RegisterForNode(originalNode, original);
+            abortedCandidate.RegisterForNode(abortedNode, shared);
+            publishedCandidate.RegisterForNode(publishedNode, shared);
+            Assert.That(abortedCandidate.Providers, Has.Count.EqualTo(2));
+
+            publishedCandidate.Publish();
+            abortedCandidate.Dispose();
+
+            Assert.That(serving.Resolve(originalNode), Is.SameAs(original));
+            Assert.That(serving.Resolve(publishedNode), Is.SameAs(shared));
+            Assert.That(serving.Providers, Has.Count.EqualTo(2));
+            Assert.That(shared.DisposeCount, Is.Zero);
+
+            Assert.That(publishedCandidate.Retire(), Is.True);
+            serving.Dispose();
+
+            Assert.That(original.DisposeCount, Is.EqualTo(1));
+            Assert.That(shared.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Candidate publication and retirement do not invoke provider-defined equality or hashing.
+        /// </summary>
+        [Test]
+        public void CandidateLifecycleUsesProviderReferenceIdentity()
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            using var candidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            var original = new EqualHistorianProvider();
+            var first = new EqualHistorianProvider();
+            var second = new EqualHistorianProvider();
+
+            serving.RegisterForNode(new NodeId("identity-serving", 0), original);
+            candidate.RegisterForNode(new NodeId("identity-first", 0), first);
+            candidate.RegisterForNode(new NodeId("identity-second", 0), second);
+            Assert.That(candidate.Providers, Has.Count.EqualTo(3));
+            candidate.Publish();
+            Assert.That(candidate.Retire(), Is.True);
+            candidate.Dispose();
+            serving.Dispose();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(original.EqualityChecks, Is.Zero);
+                Assert.That(first.EqualityChecks, Is.Zero);
+                Assert.That(second.EqualityChecks, Is.Zero);
+                Assert.That(original.DisposeCount, Is.EqualTo(1));
+                Assert.That(first.DisposeCount, Is.EqualTo(1));
+                Assert.That(second.DisposeCount, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
         /// Shared providers held only by unpublished candidates are disposed after the last candidate releases them.
         /// </summary>
         [Test]
@@ -1153,6 +1254,44 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 registry.ClearDefault();
                 return true;
+            }
+        }
+
+        private sealed class EqualHistorianProvider : IHistorianProvider, IDisposable
+        {
+            public int DisposeCount { get; private set; }
+
+            public int EqualityChecks { get; private set; }
+
+            public ValueTask<HistorianNodeCapabilities> GetCapabilitiesAsync(
+                NodeId nodeId,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<HistorianNodeCapabilities>(HistorianNodeCapabilities.ReadOnly);
+            }
+
+            public ValueTask<bool> IsHistorizingAsync(
+                NodeId nodeId,
+                CancellationToken cancellationToken)
+            {
+                return new ValueTask<bool>(true);
+            }
+
+            public void Dispose()
+            {
+                DisposeCount++;
+            }
+
+            public override bool Equals(object? obj)
+            {
+                EqualityChecks++;
+                return obj is EqualHistorianProvider;
+            }
+
+            public override int GetHashCode()
+            {
+                EqualityChecks++;
+                return 0;
             }
         }
 

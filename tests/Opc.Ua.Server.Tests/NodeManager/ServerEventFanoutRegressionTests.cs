@@ -22,6 +22,134 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class ServerEventFanoutRegressionTests
     {
         /// <summary>
+        /// An existing Server subscriber receives root events through the published owner's gate.
+        /// </summary>
+        /// <param name="forwarded">Whether the owner is a custom forwarding facade.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExistingServerSubscriberReceivesPublishedRootEventAsync(bool forwarded)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using var resources = new ResourceManager(new ApplicationConfiguration());
+            server.SetupGet(value => value.ResourceManager).Returns(resources);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                await using var manager = new TestableAsyncCustomNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+                var facade = new Mock<IAsyncNodeManager>();
+                facade.SetupGet(value => value.NamespaceUris).Returns(() => manager.NamespaceUris);
+                facade.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
+                IAsyncNodeManager registered = forwarded ? facade.Object : manager;
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [registered]);
+                NodeManagerGeneration published = NodeManagerGenerationRegistry.GetOrCreate(registered);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                var filter = new EventFilter();
+                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+                var item = (MonitoredItem)events.CreateMonitoredItem(
+                    context, master.CoreNodeManager!, null!, 1, new MonitoredItemIdFactory(),
+                    TimestampsToReturn.Both, 1000,
+                    new MonitoredItemCreateRequest
+                    {
+                        ItemToMonitor = new ReadValueId
+                        {
+                            NodeId = ObjectIds.Server,
+                            AttributeId = Attributes.EventNotifier
+                        },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters { QueueSize = 10 }
+                    },
+                    filter, false);
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("forwarded-subscriber-root", manager.NamespaceIndex),
+                    BrowseName = new QualifiedName("forwarded-subscriber-root", manager.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, root).ConfigureAwait(false);
+                await manager.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
+                MonitoredNode2 monitored = manager.MonitoredNodes[root.NodeId];
+                Assert.That(monitored.EventMonitoredItems[item.Id], Is.SameAs(item));
+                NodeManagerGenerationReference generation = monitored.Generation
+                    ?? throw new AssertionException("The monitored node has no generation.");
+                Assert.That(generation.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                Assert.That(bound, Is.SameAs(published));
+                Assert.That(bound!.NodeManager, Is.SameAs(registered));
+
+                var occurrence = new BaseEventState(null);
+                occurrence.Initialize(manager.SystemContext, root, EventSeverity.Medium,
+                    new LocalizedText("forwarded-before"));
+                ServiceResult permission = await manager.ValidateEventRolePermissionsAsync(item, occurrence)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(permission), Is.True, $"Event permission: {permission}");
+                await root.ReportEventAsync(manager.SystemContext, occurrence).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                Assert.That(item.ItemsInQueue, Is.EqualTo(1));
+                var notifications = new Queue<QueuedEvent>();
+                _ = item.Publish(context, notifications, 10);
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                Assert.That(notifications.Dequeue().EventFields[0].TryGetValue(out LocalizedText message), Is.True);
+                Assert.That(message.Text, Is.EqualTo("forwarded-before"));
+
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, manager, out var admission, monitored.Generation), Is.True);
+                Task drain;
+                using (MasterNodeManager.SourceEmissionOrigin? origin = admission?.TransferToOrigin())
+                {
+                    Assert.That(admission?.Generation, Is.SameAs(published));
+                    Assert.That(origin, Is.Not.Null);
+                    published.Gate.Retire();
+                    drain = published.Gate.WaitForDrainAsync();
+                    Assert.That(drain.IsCompleted, Is.False);
+                    ISystemContext provenance = origin!.CreateContext(manager.SystemContext);
+                    Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, manager, out var child, monitored.Generation,
+                        context: provenance), Is.True);
+                    using (child)
+                    {
+                        Assert.That(child?.Generation, Is.SameAs(published));
+                    }
+                    var unrelated = new Mock<IAsyncNodeManager>();
+                    unrelated.SetupGet(value => value.SyncNodeManager).Returns(manager.SyncNodeManager);
+                    bool unrelatedAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, unrelated.Object, out var other, monitored.Generation, context: provenance);
+                    other?.Dispose();
+                    Mock<IServerInternal> foreign = DeterministicServerMock.Create(
+                        out MonitoredItemQueueFactory foreignQueues);
+                    using (foreignQueues)
+                    using (MasterNodeManager foreignMaster = DeterministicServerMock.CreateMasterNodeManager(
+                        foreign, []))
+                    {
+                        bool foreignAccepted = MasterNodeManager.TryCaptureSourceEmission(
+                            foreign.Object, foreignMaster.CoreNodeManager, out var foreignAdmission,
+                            isGlobalServerEventSink: true, context: provenance);
+                        foreignAdmission?.Dispose();
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(unrelatedAccepted, Is.False);
+                            Assert.That(foreignAccepted, Is.False);
+                        });
+                    }
+                    var rejected = new BaseEventState(null);
+                    rejected.Initialize(manager.SystemContext, root, EventSeverity.Medium,
+                        new LocalizedText("forwarded-after"));
+                    await root.ReportEventAsync(manager.SystemContext, rejected).ConfigureAwait(false);
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                        .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    _ = item.Publish(context, notifications, 10);
+                    Assert.That(notifications, Is.Empty);
+                }
+                await drain.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Root fan-out carries revocable source provenance and lets admitted child work finish after retirement.
         /// </summary>
         [Test]
@@ -1784,6 +1912,92 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServiceResult direct = await manager.SubscribeToEventsAsync(
                     context, handle, 1, item.Object, false).ConfigureAwait(false);
                 Assert.That(direct.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            }
+        }
+
+        /// <summary>
+        /// Retries a failed provider release without repeating releases that already succeeded.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task FailedAllEventsProviderReleaseIsRetriedForOriginalRootAsync(
+            bool samplingGroups,
+            bool multipleRoots)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            await using (var manager = new TestableAsyncCustomNodeManager(
+                server.Object,
+                new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration
+                    {
+                        MaxNotificationQueueSize = 100,
+                        MaxDurableNotificationQueueSize = 100,
+                        AvailableSamplingRates = []
+                    }
+                },
+                samplingGroups,
+                NullLogger.Instance,
+                DeterministicServerMock.TestNamespaceUri))
+            {
+                BaseObjectState root = await AddRootAsync(manager, "RetryRoot", true).ConfigureAwait(false);
+                BaseObjectState? secondRoot = multipleRoots
+                    ? await AddRootAsync(manager, "SecondRoot", true).ConfigureAwait(false)
+                    : null;
+                var item = new Mock<IEventMonitoredItem>();
+                item.SetupGet(value => value.Id).Returns(42);
+                item.SetupGet(value => value.NodeId).Returns(ObjectIds.Server);
+                item.SetupGet(value => value.MonitoringAllEvents).Returns(true);
+                item.SetupGet(value => value.MonitoringMode).Returns(MonitoringMode.Reporting);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                ServiceResult subscribed = await manager.SubscribeToAllEventsAsync(
+                    context, 1, item.Object, false).ConfigureAwait(false);
+                Assert.That(subscribed.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(manager.MonitoredNodes[root.NodeId].EventMonitoredItems[item.Object.Id],
+                    Is.SameAs(item.Object));
+
+                int releaseAttempts = 0;
+                manager.EventSubscriptionCallback = (unsubscribe, _) =>
+                {
+                    if (unsubscribe && ++releaseAttempts == 1)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadServerNotConnected);
+                    }
+                    return default;
+                };
+                ServiceResult firstRelease = await manager.SubscribeToAllEventsAsync(
+                    context, 1, item.Object, true).ConfigureAwait(false);
+                Assert.That(firstRelease.StatusCode, Is.EqualTo(StatusCodes.BadServerNotConnected));
+                Assert.That(releaseAttempts, Is.EqualTo(multipleRoots ? 2 : 1));
+                AssertSourceLinkReleased(root);
+                if (secondRoot is not null)
+                {
+                    AssertSourceLinkReleased(secondRoot);
+                }
+
+                ServiceResult retry = await manager.SubscribeToAllEventsAsync(
+                    context, 1, item.Object, true).ConfigureAwait(false);
+                Assert.That(retry.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(releaseAttempts, Is.EqualTo(multipleRoots ? 3 : 2),
+                    "Only the failed provider release is retried after its native link is removed.");
+
+                ServiceResult repeated = await manager.SubscribeToAllEventsAsync(
+                    context, 1, item.Object, true).ConfigureAwait(false);
+                Assert.That(repeated.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(releaseAttempts, Is.EqualTo(multipleRoots ? 3 : 2));
+
+                void AssertSourceLinkReleased(BaseObjectState source)
+                {
+                    if (manager.MonitoredNodes.TryGetValue(source.NodeId, out MonitoredNode2? monitored))
+                    {
+                        Assert.That(monitored.EventMonitoredItems.ContainsKey(item.Object.Id), Is.False);
+                    }
+                    Assert.That(source.AreEventsMonitored, Is.False);
+                }
             }
         }
 

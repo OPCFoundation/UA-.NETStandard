@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -585,6 +586,207 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A failed trust update leaves the original pull key available to a recreated installer.
+        /// </summary>
+        [Test]
+        public async Task PullInstallRetainsAttemptKeyAcrossInterruptedStoreUpdate()
+        {
+            Certificate rotated = CreateCertificate(kApplicationUri);
+            m_rotatedCertificate = rotated;
+            Guid attemptId = Guid.NewGuid();
+            ByteString issued = ByteString.From(rotated.RawData.AsSpan());
+            var pullKeys = new Mock<IProvisionableDevicePullKeyProvider>(MockBehavior.Strict);
+            pullKeys.Setup(provider => provider.GetSigningKeyAsync(attemptId, issued, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(rotated.AddRef()));
+            int trustWrites = 0;
+            m_certificates.Setup(manager => manager.WriteTrustListAsync(
+                    TrustListIdentifier.Peers, It.IsAny<TrustListData>(), TrustListMasks.All,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => Interlocked.Increment(ref trustWrites) == 1
+                    ? Task.FromException(new IOException("Trust update interrupted."))
+                    : Task.CompletedTask);
+            using (var first = CreateInstaller(pullKeys: pullKeys.Object))
+            {
+                IOException? error = await Assert.ThrowsAsync<IOException>(async () =>
+                    await first.InstallForPullAsync(attemptId, Credentials(rotated)).ConfigureAwait(false));
+                Assert.That(error!.Message, Is.EqualTo("Trust update interrupted."));
+            }
+
+            using var reopened = CreateInstaller(pullKeys: pullKeys.Object);
+            await reopened.InstallForPullAsync(attemptId, Credentials(rotated)).ConfigureAwait(false);
+
+            Assert.That(m_activeCertificate.Thumbprint, Is.EqualTo(rotated.Thumbprint));
+            Assert.That(m_activeCertificate.HasPrivateKey, Is.True);
+            Assert.That(trustWrites, Is.EqualTo(2));
+            pullKeys.Verify(provider => provider.GetSigningKeyAsync(
+                attemptId, issued, It.IsAny<CancellationToken>()), Times.Exactly(2));
+            m_pendingKeys.Verify(store => store.TryTakeMatchingAsync(
+                It.IsAny<PendingCertificateKeyContext>(), It.IsAny<Certificate>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A crash after registry replacement still requires endpoint activation before installation completes.
+        /// </summary>
+        [Test]
+        public async Task PullInstallReactivatesCertificateAfterInterruptedEndpointActivation()
+        {
+            Certificate rotated = CreateCertificate(kApplicationUri);
+            m_rotatedCertificate = rotated;
+            Guid attemptId = Guid.NewGuid();
+            ByteString issued = ByteString.From(rotated.RawData.AsSpan());
+            var pullKeys = new Mock<IProvisionableDevicePullKeyProvider>(MockBehavior.Strict);
+            pullKeys.Setup(provider => provider.GetSigningKeyAsync(attemptId, issued, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(rotated.AddRef()));
+            int activations = 0;
+            m_activator.Setup(activator => activator.ActivateAsync(
+                    CertificateIdentifier.GetCertificateType(m_identity), rotated.Thumbprint,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref activations) == 1)
+                    {
+                        throw new InvalidOperationException("Endpoint activation interrupted.");
+                    }
+                    return default;
+                });
+            using (var first = CreateInstaller(pullKeys: pullKeys.Object))
+            {
+                InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await first.InstallForPullAsync(attemptId, Credentials(rotated)).ConfigureAwait(false));
+                Assert.That(error!.Message, Is.EqualTo("Endpoint activation interrupted."));
+            }
+            Assert.That(m_activeCertificate.Thumbprint, Is.EqualTo(rotated.Thumbprint));
+            Assert.That(activations, Is.EqualTo(1));
+
+            using var reopened = CreateInstaller(pullKeys: pullKeys.Object);
+            await reopened.InstallForPullAsync(attemptId, Credentials(rotated)).ConfigureAwait(false);
+
+            Assert.That(activations, Is.EqualTo(2));
+            pullKeys.Verify(provider => provider.GetSigningKeyAsync(
+                attemptId, issued, It.IsAny<CancellationToken>()), Times.Exactly(2));
+            m_pendingKeys.Verify(store => store.TryTakeMatchingAsync(
+                It.IsAny<PendingCertificateKeyContext>(), It.IsAny<Certificate>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A pending key alone cannot prove ownership of the retained pull attempt.
+        /// </summary>
+        [Test]
+        public async Task PullInstallRejectsPendingOnlyFallbackBeforeSecurityStoreChanges()
+        {
+            Certificate rotated = CreateCertificate(kApplicationUri);
+            m_rotatedCertificate = rotated;
+            using var installer = CreateInstaller();
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await installer.InstallForPullAsync(Guid.NewGuid(), Credentials(rotated)).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            m_certificates.Verify(manager => manager.WriteTrustListAsync(
+                It.IsAny<TrustListIdentifier>(), It.IsAny<TrustListData>(), It.IsAny<TrustListMasks>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            m_pendingKeys.Verify(store => store.TryTakeMatchingAsync(
+                It.IsAny<PendingCertificateKeyContext>(), It.IsAny<Certificate>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// An unrelated retained key cannot be paired with the received certificate.
+        /// </summary>
+        [Test]
+        public async Task PullInstallRejectsDifferentRetainedKeyBeforeSecurityStoreChanges()
+        {
+            Certificate rotated = CreateCertificate(kApplicationUri);
+            m_rotatedCertificate = rotated;
+            using Certificate unrelated = CreateCertificate(kApplicationUri);
+            Guid attemptId = Guid.NewGuid();
+            var pullKeys = new Mock<IProvisionableDevicePullKeyProvider>(MockBehavior.Strict);
+            pullKeys.Setup(provider => provider.GetSigningKeyAsync(
+                    attemptId, It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(unrelated.AddRef()));
+            using var installer = CreateInstaller(pullKeys: pullKeys.Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await installer.InstallForPullAsync(attemptId, Credentials(rotated)).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            m_certificates.Verify(manager => manager.WriteTrustListAsync(
+                It.IsAny<TrustListIdentifier>(), It.IsAny<TrustListData>(), It.IsAny<TrustListMasks>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            m_pendingKeys.Verify(store => store.TryTakeMatchingAsync(
+                It.IsAny<PendingCertificateKeyContext>(), It.IsAny<Certificate>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Store publication is not accepted until the issued key pair can be reloaded.
+        /// </summary>
+        [Test]
+        public async Task PullInstallRejectsApplicationStoreThatCannotReloadIssuedKey()
+        {
+            Certificate rotated = CreateCertificate(kApplicationUri);
+            m_rotatedCertificate = rotated;
+            Guid attemptId = Guid.NewGuid();
+            var pullKeys = new Mock<IProvisionableDevicePullKeyProvider>(MockBehavior.Strict);
+            pullKeys.Setup(provider => provider.GetSigningKeyAsync(
+                    attemptId, It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(rotated.AddRef()));
+            m_applicationStore.Setup(store => store.LoadPrivateKeyAsync(
+                    rotated.Thumbprint, null, kApplicationUri,
+                    CertificateIdentifier.GetCertificateType(m_identity), It.IsAny<char[]?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Certificate?)null);
+            using var installer = CreateInstaller(pullKeys: pullKeys.Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await installer.InstallForPullAsync(attemptId, Credentials(rotated)).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            m_certificates.Verify(manager => manager.UpdateApplicationCertificateAsync(
+                It.IsAny<NodeId>(), It.IsAny<Certificate>(), It.IsAny<CertificateCollection?>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            m_activator.Verify(activator => activator.ActivateAsync(
+                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            m_pendingKeys.Verify(store => store.TryTakeMatchingAsync(
+                It.IsAny<PendingCertificateKeyContext>(), It.IsAny<Certificate>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Installed recovery rejects a missing or replaced store entry even when the registry still matches.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PullVerificationRequiresTheExactPersistedIssuedKey(bool replaced)
+        {
+            Certificate rotated = CreateCertificate(kApplicationUri);
+            m_rotatedCertificate = rotated;
+            using Certificate unrelated = CreateCertificate(kApplicationUri);
+            Guid attemptId = Guid.NewGuid();
+            ByteString issued = ByteString.From(rotated.RawData.AsSpan());
+            var pullKeys = new Mock<IProvisionableDevicePullKeyProvider>(MockBehavior.Strict);
+            pullKeys.Setup(provider => provider.GetSigningKeyAsync(
+                    attemptId, issued, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(rotated.AddRef()));
+            using var installer = CreateInstaller(pullKeys: pullKeys.Object);
+            await installer.InstallForPullAsync(attemptId, Credentials(rotated)).ConfigureAwait(false);
+            await installer.VerifyInstalledPullKeyAsync(issued).ConfigureAwait(false);
+
+            m_applicationStore.Setup(store => store.LoadPrivateKeyAsync(
+                    rotated.Thumbprint, null, kApplicationUri,
+                    CertificateIdentifier.GetCertificateType(m_identity), It.IsAny<char[]?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => replaced ? unrelated.AddRef() : null);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await installer.VerifyInstalledPullKeyAsync(issued).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(m_activeCertificate.RawData, Is.EqualTo(rotated.RawData));
+        }
+
+        /// <summary>
         /// Restores the separately retained device identity and original trust state without changing software.
         /// </summary>
         [Test]
@@ -796,7 +998,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             m_storeCertificates.Add(name, storedCertificates);
             var store = new Mock<ICertificateStore>(MockBehavior.Strict);
             store.Setup(s => s.Dispose());
-            store.SetupGet(s => s.SupportsLoadPrivateKey).Returns(enumeratePublicCertificates);
+            store.SetupGet(s => s.SupportsLoadPrivateKey).Returns(true);
             store.Setup(s => s.EnumerateAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
                 {
@@ -879,7 +1081,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private ProvisionableDeviceSecurityInstaller CreateInstaller(
             NodeId certificateType = default,
             ProvisionableDeviceSecurityInstallerOptions? options = null,
-            IProvisionableDeviceSoftwareUpdatePolicy? softwareUpdates = null)
+            IProvisionableDeviceSoftwareUpdatePolicy? softwareUpdates = null,
+            IProvisionableDevicePullKeyProvider? pullKeys = null)
         {
             options ??= CreateOptions(certificateType);
             return new ProvisionableDeviceSecurityInstaller(
@@ -892,7 +1095,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_activator.Object,
                 options,
                 NUnitTelemetryContext.Create(),
-                softwareUpdates);
+                softwareUpdates,
+                pullKeys);
         }
 
         /// <summary>
