@@ -436,7 +436,8 @@ namespace Opc.Ua.Wot.Exporter
                 var nativeId = NodeId.Parse(node.NodeId);
                 string namespaceUri = nativeId.NamespaceIndex == 0
                     ? Types.Namespaces.OpcUa
-                    : nodeSet.NamespaceUris[nativeId.NamespaceIndex - 1];
+                    : nodeSet.NamespaceUris?[nativeId.NamespaceIndex - 1] ??
+                        throw new FormatException($"No namespace URI for native NodeId '{node.NodeId}'.");
                 string name = QualifiedName.Parse(node.BrowseName).Name!;
                 string prefix;
                 if (Uri.TryCreate(namespaceUri, UriKind.Absolute, out Uri? uri) && uri.Host.Length > 0)

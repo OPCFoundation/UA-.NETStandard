@@ -281,7 +281,7 @@ namespace Opc.Ua.Wot
                 }
                 if (member.Name is InputMember or OutputMember or "uav:dataTypeDefinition" or
                     "uav:dataTypeDefinitions" or InverseNameTerm or SymmetricTerm or DataMember or
-                    EngineeringUnitsTerm or InstrumentRangeTerm or MinimumMember or MaximumMember or
+                    EngineeringUnitsTerm or EuRangeTerm or InstrumentRangeTerm or MinimumMember or MaximumMember or
                     ConditionTypeTerm or ConditionTypeIdTerm or ConditionActionTerm or ActsOnTerm)
                 {
                     return true;

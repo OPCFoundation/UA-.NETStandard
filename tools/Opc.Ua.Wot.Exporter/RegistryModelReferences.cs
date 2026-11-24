@@ -418,7 +418,8 @@ namespace Opc.Ua.Wot.Exporter
         {
             if (root.TryGetProperty("uav:id", out JsonElement nativeId) &&
                 nativeId.ValueKind == JsonValueKind.String &&
-                ExpandedNodeId.TryParse(nativeId.GetString(), out identity))
+                nativeId.GetString() is { } text &&
+                ExpandedNodeId.TryParse(text, out identity))
             {
                 identity = new ExpandedNodeId(
                     identity.InnerNodeId.WithNamespaceIndex(0), identity.NamespaceUri ?? Types.Namespaces.OpcUa);

@@ -303,7 +303,7 @@ namespace Opc.Ua.Wot.Exporter
         }
 
         /// <summary>
-        /// Expresses known native array lengths in ordinary schemas at each fixed dimension.
+        /// Expresses native maximum array lengths in ordinary schemas at each fixed dimension.
         /// </summary>
         private static void ApplyDimensions(JsonObject schema, JsonArray? dimensions)
         {
@@ -316,7 +316,6 @@ namespace Opc.Ua.Wot.Exporter
                 uint length = dimension?.GetValue<uint>() ?? 0;
                 if (length > 0)
                 {
-                    schema["minItems"] = length;
                     schema["maxItems"] = length;
                 }
                 if (schema["items"] is not JsonObject items)
@@ -406,7 +405,7 @@ namespace Opc.Ua.Wot.Exporter
         }
 
         /// <summary>
-        /// Adds canonical shapes without discarding authored nested constraints.
+        /// Combines native requiredness and upper bounds without weakening authored nested constraints.
         /// </summary>
         private static void MergeSchema(JsonObject target, JsonObject canonical)
         {
@@ -416,9 +415,27 @@ namespace Opc.Ua.Wot.Exporter
                 {
                     continue;
                 }
+                if (member == "maxItems" &&
+                    IntegerLimits(target, member) is { } authoredLimit &&
+                    IntegerLimits(canonical, member) is { } nativeLimit && authoredLimit.Floor <= nativeLimit.Floor)
+                {
+                    continue;
+                }
                 if (value is JsonObject child && target[member] is JsonObject existing)
                 {
                     MergeSchema(existing, child);
+                }
+                else if (member == "required" && value is JsonArray mandatory &&
+                    target[member] is JsonArray authored)
+                {
+                    var names = authored.Select(name => name!.GetValue<string>()).ToHashSet(StringComparer.Ordinal);
+                    foreach (JsonNode? name in mandatory)
+                    {
+                        if (names.Add(name!.GetValue<string>()))
+                        {
+                            authored.Add(name.DeepClone());
+                        }
+                    }
                 }
                 else if (member == "oneOf" && value is JsonArray alternatives && target[member] is JsonArray current)
                 {
@@ -566,7 +583,7 @@ namespace Opc.Ua.Wot.Exporter
             }
             const decimal outside = 18446744073709551616m;
             string text = value.ToJsonString();
-            bool negative = text.StartsWith('-');
+            bool negative = text.AsSpan().StartsWith("-", StringComparison.Ordinal);
             string magnitude = negative ? text[1..] : text;
             int exponentIndex = magnitude.IndexOf('e', StringComparison.OrdinalIgnoreCase);
             int exponent = 0;
@@ -576,7 +593,8 @@ namespace Opc.Ua.Wot.Exporter
                 if (!int.TryParse(exponentText, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture,
                     out exponent))
                 {
-                    exponent = exponentText.StartsWith('-') ? int.MinValue : int.MaxValue;
+                    exponent = exponentText.AsSpan().StartsWith("-", StringComparison.Ordinal)
+                        ? int.MinValue : int.MaxValue;
                 }
                 magnitude = magnitude[..exponentIndex];
             }

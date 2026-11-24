@@ -57,7 +57,7 @@ namespace Opc.Ua.Wot.Exporter
                         throw new FormatException($"No native naming metadata for '{childIdentity}'.");
                     }
                     string candidate = string.IsNullOrEmpty(child.Node.SymbolicName)
-                        ? QualifiedName.Parse(child.Node.BrowseName).Name ?? string.Empty
+                        ? QualifiedName.Parse(child.Node.BrowseName ?? string.Empty).Name ?? string.Empty
                         : child.Node.SymbolicName;
                     occurrences.Add((childIdentity, Identifier(candidate), property.Name));
                 }
@@ -102,7 +102,7 @@ namespace Opc.Ua.Wot.Exporter
                 foreach ((string key, JsonNode? value) in map)
                 {
                     string pointer = names["/" + collection + "/" + Escape(key)];
-                    string name = pointer[(pointer.LastIndexOf('/') + 1)..];
+                    string name = pointer[(pointer.AsSpan().LastIndexOf('/') + 1)..];
                     renamed.Add(name, value?.DeepClone());
                 }
                 root[collection] = renamed;
@@ -119,7 +119,7 @@ namespace Opc.Ua.Wot.Exporter
                 if (member is "tm:ref" or "$ref" or "uav:withUnit" or "uav:actsOn" or "uav:resolvedFrom" &&
                     String(node, member) is { } reference)
                 {
-                    if (member == "uav:actsOn" && !reference.StartsWith('/'))
+                    if (member == "uav:actsOn" && !reference.AsSpan().StartsWith("/", StringComparison.Ordinal))
                     {
                         string pointer = "/events/" + Escape(reference);
                         node[member] = names.TryGetValue(pointer, out string? target)
@@ -172,7 +172,7 @@ namespace Opc.Ua.Wot.Exporter
         /// </summary>
         private static string RewritePointer(string reference, Dictionary<string, string> names)
         {
-            bool fragment = reference.StartsWith('#');
+            bool fragment = reference.AsSpan().StartsWith("#", StringComparison.Ordinal);
             string pointer = fragment ? Uri.UnescapeDataString(reference[1..]) : reference;
             foreach ((string source, string destination) in names)
             {

@@ -304,7 +304,8 @@ namespace Opc.Ua.Wot.Exporter.Tests
             JsonElement fields = input.GetProperty("properties");
             Assert.That(fields.GetProperty("Count").TryGetProperty("minimum", out _), Is.False);
             JsonElement counts = fields.GetProperty("Count");
-            Assert.That(counts.GetProperty("minItems").GetInt32(), Is.EqualTo(2));
+            Assert.That(counts.TryGetProperty("minItems", out _), Is.False);
+            Assert.That(counts.GetProperty("maxItems").GetInt32(), Is.EqualTo(2));
             Assert.That(counts.GetProperty("items").GetProperty("maxItems").GetInt32(), Is.EqualTo(3));
             Assert.That(counts.GetProperty("items").GetProperty("items").GetProperty("type").GetString(),
                 Is.EqualTo("integer"));

@@ -324,7 +324,19 @@ namespace Opc.Ua.Wot
                 double high = engineeringRange.TryGetProperty(MaximumMember, out JsonElement highEndpoint) &&
                     highEndpoint.ValueKind == JsonValueKind.Number && highEndpoint.TryGetDouble(out double highValue)
                     ? highValue : double.NaN;
-                euRange = new WotRange(low, high);
+                if (low > high)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.InvalidRangeValue,
+                        $"The minimum of {EuRangeTerm} shall not exceed its maximum " +
+                        "(WoT Binding Section 6.4.1).",
+                        WotLocation.FromPointer(parentPointer + "/" + EuRangeTerm + "/" + MinimumMember)));
+                }
+                else
+                {
+                    euRange = new WotRange(low, high);
+                }
             }
             if (!element.TryGetProperty(InstrumentRangeTerm, out JsonElement declared))
             {

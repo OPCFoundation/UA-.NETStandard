@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -16,6 +17,56 @@ namespace Opc.Ua.Wot.Exporter.Tests
 {
     public sealed partial class ExportModelMappingTests
     {
+        /// <summary>
+        /// Leaves foreign or incomplete Range encodings in the native projection without inventing limits.
+        /// </summary>
+        [TestCase("i=99999", "<Range><Low>0</Low><High>3600</High></Range>")]
+        [TestCase("i=885", "<Other><Range><Low>0</Low><High>3600</High></Range></Other>")]
+        [TestCase("i=885", "<Range><Low>0</Low></Range>")]
+        [TestCase("i=885", "<Range><Low>invalid</Low><High>3600</High></Range>")]
+        public void UndecodableEngineeringRangesRetainTheirNativePayload(string encodingId, string body)
+        {
+            UANodeSet source = Source(k_analogNodes.Replace("i=885", encodingId, StringComparison.Ordinal)
+                .Replace("<Range><Low>LOW</Low><High>HIGH</High></Range>", body, StringComparison.Ordinal));
+            var mapping = new ExportModelMapping([source], new ExportMetadata(), false);
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(source);
+            using var enriched = WotDocument.Parse(mapping.Apply(original.Utf8Json, "model", []));
+            Assert.That(enriched.Properties["Speed"].TryGetProperty("uav:euRange", out _), Is.False);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(enriched);
+            Assert.That(restored.Items!.OfType<UAVariable>().Single(node => node.BrowseName == "EURange")
+                .Value!.OuterXml, Is.EqualTo(source.Items!.OfType<UAVariable>()
+                    .Single(node => node.BrowseName == "EURange").Value!.OuterXml));
+        }
+
+        /// <summary>
+        /// Preserves authored payload bounds when the readable schema already carries enrichment markers.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void EnrichedAnalogSchemasRetainAuthoredPayloadBounds(bool hasEngineeringRange)
+        {
+            UANodeSet source = Source(k_analogNodes.Replace("LOW", "0", StringComparison.Ordinal)
+                .Replace("HIGH", "3600", StringComparison.Ordinal));
+            JsonObject json = JsonNode.Parse(k_analogJson)!.AsObject();
+            JsonNode speed = json["properties"]!["Speed"]!;
+            if (hasEngineeringRange)
+            {
+                speed["uav:euRange"] = new JsonObject { ["minimum"] = 0, ["maximum"] = 3600 };
+            }
+            else
+            {
+                speed["uav:typeName"] = "org.opcfoundation.UA.UInt16";
+            }
+            var mapping = new ExportModelMapping([source], new ExportMetadata(), false);
+            using JsonDocument document = Apply(mapping, json.ToJsonString());
+            JsonElement property = document.RootElement.GetProperty("properties").GetProperty("Speed");
+            Assert.That(property.GetProperty("maximum").GetInt32(), Is.EqualTo(3600));
+            Assert.That(property.GetProperty("uav:euRange").GetProperty("maximum").GetInt32(), Is.EqualTo(3600));
+            using JsonDocument reapplied = Apply(mapping, document.RootElement.GetRawText());
+            Assert.That(reapplied.RootElement.GetProperty("properties").GetProperty("Speed")
+                .GetProperty("maximum").GetInt32(), Is.EqualTo(3600));
+        }
+
         /// <summary>
         /// Keeps engineering bounds separate from integer validation and identifies the run-time unit vocabulary.
         /// </summary>
@@ -180,6 +231,119 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(result.Diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict &&
                 diagnostic.Location?.JsonPointer?.Contains("uav:euRange", StringComparison.Ordinal) == true), Is.True);
+        }
+
+        /// <summary>
+        /// Treats native dimensions as upper bounds and retains independently authored minimum lengths.
+        /// </summary>
+        [Test]
+        public void NativeArrayDimensionsPreserveAuthoredMinimumLengths()
+        {
+            var mapping = new ExportModelMapping([Source(string.Empty)], new ExportMetadata(), false);
+            using JsonDocument document = Apply(mapping, /*lang=json,strict*/ """
+                {"properties":{"samples":{"uav:mapToType":"i=5","uav:valueRank":2,
+                  "uav:arrayDimensions":[2,3],"minItems":1,"items":{"minItems":0}}}}
+                """);
+            JsonElement samples = document.RootElement.GetProperty("properties").GetProperty("samples");
+            Assert.That(samples.GetProperty("minItems").GetInt32(), Is.EqualTo(1));
+            Assert.That(samples.GetProperty("maxItems").GetInt32(), Is.EqualTo(2));
+            Assert.That(samples.GetProperty("items").GetProperty("minItems").GetInt32(), Is.Zero);
+            Assert.That(samples.GetProperty("items").GetProperty("maxItems").GetInt32(), Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Combines mandatory native fields with authored requiredness and intersects nested array upper bounds.
+        /// </summary>
+        [TestCase(2, 2)]
+        [TestCase(6, 4)]
+        public async Task NativeStructureFallbackDoesNotWeakenAuthoredConstraintsAsync(int authoredMax, int expectedMax)
+        {
+            UANodeSet source = Source("""
+                <UADataType NodeId="ns=1;i=3001" BrowseName="1:Settings" IsAbstract="true">
+                  <References><Reference ReferenceType="i=45" IsForward="false">i=22</Reference></References>
+                  <Definition Name="1:Settings">
+                    <Field Name="Enabled" DataType="i=1" />
+                    <Field Name="Samples" DataType="i=5" ValueRank="2" ArrayDimensions="4,5" IsOptional="true" />
+                  </Definition>
+                </UADataType>
+                """);
+            var mapping = new ExportModelMapping([source], new ExportMetadata(), false);
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                .FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+            Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+            using WotDocumentSet documents = result.Value!;
+            mapping.AddDefinitions(documents);
+            using JsonDocument document = Apply(mapping, """
+                {"actions":{"Scan":{"input":{"uav:mapToType":"nsu=https://models.example.com/pump;i=3001",
+                  "required":["Samples"],"properties":{"Samples":{"minItems":1,"maxItems":MAX,
+                    "items":{"minItems":2,"maxItems":3}}}}}}}
+                """.Replace("MAX", authoredMax.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal));
+            JsonElement input = document.RootElement.GetProperty("actions").GetProperty("Scan").GetProperty("input");
+            Assert.That(input.GetProperty("required").EnumerateArray().Select(value => value.GetString()),
+                Is.EquivalentTo(["Enabled", "Samples"]));
+            JsonElement samples = input.GetProperty("properties").GetProperty("Samples");
+            Assert.That(samples.GetProperty("minItems").GetInt32(), Is.EqualTo(1));
+            Assert.That(samples.GetProperty("maxItems").GetInt32(), Is.EqualTo(expectedMax));
+            Assert.That(samples.GetProperty("items").GetProperty("minItems").GetInt32(), Is.EqualTo(2));
+            Assert.That(samples.GetProperty("items").GetProperty("maxItems").GetInt32(), Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Preserves literal JSON deeper than the platform default without exceeding the converter's budget.
+        /// </summary>
+        [TestCase(70, true)]
+        [TestCase(130, false)]
+        public void EnrichmentUsesTheConverterJsonDepthBudget(int depth, bool withinBudget)
+        {
+            string literal = string.Concat(Enumerable.Repeat("{\"child\":", depth)) + "42" + new string('}', depth);
+            string json = "{\"default\":" + literal + "}";
+            var mapping = new ExportModelMapping([Source(string.Empty)], new ExportMetadata(), false);
+            if (!withinBudget)
+            {
+                Assert.That(() => mapping.Apply(Encoding.UTF8.GetBytes(json), "model", []),
+                    Throws.InstanceOf<JsonException>());
+                return;
+            }
+            using var document = WotDocument.Parse(mapping.Apply(Encoding.UTF8.GetBytes(json), "model", []));
+            JsonElement value = document.RootElement.GetProperty("default");
+            for (int i = 0; i < depth; i++)
+            {
+                value = value.GetProperty("child");
+            }
+            Assert.That(value.GetInt32(), Is.EqualTo(42));
+        }
+
+        /// <summary>
+        /// Indexes DataType definitions containing deeply nested publisher annotations accepted by the converter.
+        /// </summary>
+        [Test]
+        public void DeepDataTypeDefinitionsCanBeIndexedAndEnriched()
+        {
+            string literal = string.Concat(Enumerable.Repeat("{\"child\":", 70)) + "42" + new string('}', 70);
+            string json = """
+                {"uav:dataTypeDefinitions":[{"uav:dataTypeId":"nsu=https://models.example.com/pump;i=3001",
+                  "uav:fields":[],"example:metadata":
+                """ + literal + """
+                }],"properties":{"value":{"uav:mapToType":"nsu=https://models.example.com/pump;i=3001"}}}
+                """;
+            using var documents = new WotDocumentSet("model", [
+                new WotDocumentSetEntry("model", WotDocument.Parse(Encoding.UTF8.GetBytes(json)))]);
+            UANodeSet source = Source("""
+                <UADataType NodeId="ns=1;i=3001" BrowseName="1:Settings">
+                  <References><Reference ReferenceType="i=45" IsForward="false">i=22</Reference></References>
+                </UADataType>
+                """);
+            var mapping = new ExportModelMapping([source], new ExportMetadata(), false);
+            mapping.AddDefinitions(documents);
+            using var document = WotDocument.Parse(mapping.Apply(documents.Entries[0].Document.Utf8Json, "model", []));
+            Assert.That(document.Properties["value"].GetProperty("type").GetString(), Is.EqualTo("object"));
+            JsonElement value = document.RootElement.GetProperty("uav:dataTypeDefinitions")[0]
+                .GetProperty("example:metadata");
+            for (int i = 0; i < 70; i++)
+            {
+                value = value.GetProperty("child");
+            }
+            Assert.That(value.GetInt32(), Is.EqualTo(42));
         }
 
         /// <summary>

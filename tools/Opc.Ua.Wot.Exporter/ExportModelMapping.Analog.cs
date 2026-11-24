@@ -15,7 +15,7 @@ namespace Opc.Ua.Wot.Exporter
     internal sealed partial class ExportModelMapping
     {
         /// <summary>
-        /// Separates established native engineering bounds from payload validation constraints.
+        /// Separates established native engineering bounds, migrating only unenriched legacy payload projections.
         /// </summary>
         private void ApplyEngineeringRange(
             JsonObject property, string href, string pointer, List<string> diagnostics)
@@ -33,19 +33,14 @@ namespace Opc.Ua.Wot.Exporter
             {
                 throw new FormatException($"Multiple native EURange properties for '{identity}'.");
             }
-            if (node.Node is UAVariable { Value: { } value })
+            if (node.Node is UAVariable { Value: { } value } &&
+                TryReadEngineeringRange(value, node.Source, out double low, out double high))
             {
                 var range = new JsonObject();
-                foreach ((string xmlName, string member) in
-                    (ValueTuple<string, string>[])[("Low", "minimum"), ("High", "maximum")])
+                bool legacyProjection = !property.ContainsKey("uav:euRange") && !property.ContainsKey("uav:typeName");
+                foreach ((double number, string member) in
+                    (ValueTuple<double, string>[])[(low, "minimum"), (high, "maximum")])
                 {
-                    XmlNode? endpoint = value.GetElementsByTagName(xmlName,
-                        "http://opcfoundation.org/UA/2008/02/Types.xsd").Item(0);
-                    if (endpoint is null)
-                    {
-                        continue;
-                    }
-                    double number = XmlConvert.ToDouble(endpoint.InnerText);
                     if (double.IsNaN(number))
                     {
                         continue;
@@ -57,7 +52,7 @@ namespace Opc.Ua.Wot.Exporter
                         continue;
                     }
                     range[member] = number;
-                    if (property[member] is { } existing &&
+                    if (legacyProjection && property[member] is { } existing &&
                         double.TryParse(existing.ToJsonString(), CultureInfo.InvariantCulture, out double bound) &&
                         bound == number)
                     {
@@ -71,6 +66,43 @@ namespace Opc.Ua.Wot.Exporter
                 }
                 property["uav:euRange"] = range;
                 return;
+            }
+        }
+
+        /// <summary>
+        /// Reads only a complete Range body with the standard XML encoding identity.
+        /// </summary>
+        private static bool TryReadEngineeringRange(
+            System.Xml.XmlElement value, UANodeSet source, out double low, out double high)
+        {
+            low = high = 0;
+            const string xmlNamespace = "http://opcfoundation.org/UA/2008/02/Types.xsd";
+            if (value.LocalName != "ExtensionObject" || value.NamespaceURI != xmlNamespace ||
+                value["TypeId", xmlNamespace]?["Identifier", xmlNamespace] is not { } identifier ||
+                value["Body", xmlNamespace] is not { } body ||
+                body.ChildNodes.OfType<System.Xml.XmlElement>().ToArray() is not [var range] ||
+                range.LocalName != "Range" || range.NamespaceURI != xmlNamespace ||
+                range.ChildNodes.OfType<System.Xml.XmlElement>().Count() != 2 ||
+                range["Low", xmlNamespace] is not { } minimum ||
+                range["High", xmlNamespace] is not { } maximum ||
+                minimum.ChildNodes.OfType<System.Xml.XmlElement>().Any() ||
+                maximum.ChildNodes.OfType<System.Xml.XmlElement>().Any())
+            {
+                return false;
+            }
+            try
+            {
+                if (Portable(identifier.InnerText.Trim(), source) != "i=885")
+                {
+                    return false;
+                }
+                low = XmlConvert.ToDouble(minimum.InnerText);
+                high = XmlConvert.ToDouble(maximum.InnerText);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
             }
         }
 

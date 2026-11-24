@@ -65,7 +65,7 @@ namespace Opc.Ua.Wot.Exporter
             }
             foreach (NativeNode node in m_nodes.Values)
             {
-                var browseName = QualifiedName.Parse(node.Node.BrowseName);
+                var browseName = QualifiedName.Parse(node.Node.BrowseName ?? string.Empty);
                 if (node.Node is UAVariable && browseName.NamespaceIndex == 0 && browseName.Name == "EURange" &&
                     m_parents.TryGetValue(node.Identity, out HashSet<string>? owners))
                 {
@@ -110,7 +110,9 @@ namespace Opc.Ua.Wot.Exporter
                         id.ValueKind == JsonValueKind.String)
                     {
                         m_definitions.TryAdd(CanonicalIdentity(id.GetString()!),
-                            JsonNode.Parse(definition.GetRawText())!.AsObject());
+                            JsonNode.Parse(definition.GetRawText(),
+                                documentOptions: new JsonDocumentOptions { MaxDepth = s_jsonOptions.MaxDepth })!
+                                .AsObject());
                     }
                 }
             }
@@ -122,7 +124,8 @@ namespace Opc.Ua.Wot.Exporter
         public ReadOnlyMemory<byte> Apply(
             ReadOnlyMemory<byte> json, string href, List<string> diagnostics)
         {
-            JsonObject root = JsonNode.Parse(json.Span)!.AsObject();
+            JsonObject root = JsonNode.Parse(json.Span,
+                documentOptions: new JsonDocumentOptions { MaxDepth = s_jsonOptions.MaxDepth })!.AsObject();
             m_schemaNodes = 0;
             NativeNode? rootNode = null;
             if (String(root, "uav:id") is { } id && m_nodes.TryGetValue(CanonicalIdentity(id), out NativeNode? node))
@@ -262,7 +265,8 @@ namespace Opc.Ua.Wot.Exporter
             return id.NamespaceIndex == 0
                 ? id.ToString()
                 : CanonicalIdentity(new ExpandedNodeId(
-                    id.WithNamespaceIndex(0), source.NamespaceUris[id.NamespaceIndex - 1]).ToString());
+                    id.WithNamespaceIndex(0), source.NamespaceUris?[id.NamespaceIndex - 1] ??
+                        throw new FormatException($"No namespace URI for native NodeId '{identity}'.")).ToString());
         }
 
         /// <summary>
@@ -321,7 +325,7 @@ namespace Opc.Ua.Wot.Exporter
                     string? standard = StandardName(identity);
                     return standard is null ? null : "org.opcfoundation.UA." + standard;
                 }
-                string? local = QualifiedName.Parse(node.Node.BrowseName).Name;
+                string? local = QualifiedName.Parse(node.Node.BrowseName ?? string.Empty).Name;
                 if (string.IsNullOrEmpty(local) || !ExportMetadata.IsName(local) ||
                     local.Contains('.', StringComparison.Ordinal))
                 {
@@ -340,7 +344,8 @@ namespace Opc.Ua.Wot.Exporter
                 if (!Uri.TryCreate(namespaceUri, UriKind.Absolute, out Uri? uri) ||
                     uri.Scheme is not ("http" or "https") || uri.HostNameType != UriHostNameType.Dns ||
                     uri.UserInfo.Length != 0 || uri.Query.Length != 0 || uri.Fragment.Length != 0 ||
-                    namespaceUri.Split('/')[2].Contains(':', StringComparison.Ordinal) || uri.Host.EndsWith('.') ||
+                    namespaceUri.Split('/')[2].Contains(':', StringComparison.Ordinal) ||
+                    uri.Host.AsSpan().EndsWith(".", StringComparison.Ordinal) ||
                     uri.Host.Any(character => character > 127))
                 {
                     return null;
@@ -484,8 +489,14 @@ namespace Opc.Ua.Wot.Exporter
             ["i=50", "i=58", "i=62", "i=63", "i=68", "i=2041", "i=2782", "i=2915",
                 "i=884", "i=887", "i=296", "i=12756"];
 
-        /// <summary>Writes JSON without reflection-based type metadata.</summary>
-        private static readonly JsonSerializerOptions s_jsonOptions = new() { WriteIndented = true };
+        /// <summary>
+        /// Writes JSON without reflection-based type metadata using the shared converter's depth budget.
+        /// </summary>
+        private static readonly JsonSerializerOptions s_jsonOptions = new()
+        {
+            WriteIndented = true,
+            MaxDepth = new WotNodeSetConverterOptions().MaxJsonDepth
+        };
 
         /// <summary>Holds explicit per-identity assertions.</summary>
         private readonly ExportMetadata m_metadata;

@@ -47,6 +47,31 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertConflictPreservesArchive(source, root, "/properties/Speed/" + member);
         }
 
+        /// <summary>
+        /// Checks engineering metadata against the archive without other projection-dependent assertions.
+        /// </summary>
+        [TestCase("minimum", -6)]
+        [TestCase("maximum", 96)]
+        public void ConflictingSeparateEngineeringRangeDoesNotReplaceArchive(string endpoint, int value)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet(withInstrumentRange: false);
+            JsonObject root = Archive(source);
+            root.Remove("uav:dataTypeDefinitions");
+            var engineeringRange = new JsonObject { ["minimum"] = -5, ["maximum"] = 95 };
+            engineeringRange[endpoint] = value;
+            root["properties"] = new JsonObject
+            {
+                ["Measurement"] = new JsonObject
+                {
+                    ["type"] = "number",
+                    ["uav:id"] = "nsu=urn:test:analog;i=1001",
+                    ["uav:euRange"] = engineeringRange
+                }
+            };
+
+            AssertConflictPreservesArchive(source, root, "/properties/Measurement/uav:euRange/" + endpoint);
+        }
+
         [Test]
         public void ConflictingTypeDefinitionDoesNotReplaceArchive()
         {
