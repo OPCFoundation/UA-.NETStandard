@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard Stack
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
@@ -136,6 +141,9 @@ the companion
 
 - [NodeSet2 to WoT export tool](docs/WotExportTool.md) - a .NET 10 global tool.
   Read local NodeSet2 files and write W3C WoT Thing Models with progress and diagnostic messages.
+  Export ordinary payload schemas, native type names, and separate engineering metadata.
+  Use publisher metadata for explicit names, standalone intent, and assigned CloudEvents contracts.
+  An optional mode produces identifier-safe interaction keys.
 - [UaLens](docs/UaLens.md) — NativeAOT-capable desktop engineering workspace for secure connections,
   monitoring, alarms, structured values, history, administration, PubSub, continuity diagnostics, and guided
   companion-model tasks. See [build and artifact qualification](tools/Opc.Ua.Lens/README.md#publish-and-package).

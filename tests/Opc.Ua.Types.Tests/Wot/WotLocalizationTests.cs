@@ -189,7 +189,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     speed.GetProperty("title").GetString(),
                     Is.EqualTo("Drehzahl"),
                     "'de' sorts before 'fr' by Unicode code point, so the singular " +
-                    "member carries it as a display fallback that asserts no locale - " +
+                    "member carries it as a display fallback with its source locale, " +
                     "and not the entry that happened to come first in the source.");
             });
         }
@@ -213,7 +213,7 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonElement speed = document.Properties["Speed"];
             Assert.That(speed.GetProperty("titles").GetProperty("de").GetString(), Is.EqualTo("Drehzahl"));
             Assert.That(speed.TryGetProperty("@context", out JsonElement local), Is.True);
-            Assert.That(local.GetProperty("title").GetProperty("@language").ValueKind, Is.EqualTo(JsonValueKind.Null));
+            Assert.That(local.GetProperty("title").GetProperty("@language").GetString(), Is.EqualTo("de"));
             Assert.That(local.TryGetProperty("description", out _), Is.False,
                 "An English description must not lose its language because the title is a fallback.");
         }
@@ -510,8 +510,8 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         [TestCase(null, "en", "en")]
         [TestCase("en", null, null)]
-        [TestCase("de", "en", null)]
-        [TestCase(null, "de", null)]
+        [TestCase("de", "en", "en")]
+        [TestCase(null, "de", "de")]
         public void ActionAndEventTextOverridesOnlyTheDifferingTerm(
             string? rootLocale, string? descriptionLocale, string? expectedLanguage)
         {
@@ -561,7 +561,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// Verifies that tagged fallbacks retain the local override required by the binding.
         /// </summary>
         [Test]
-        public void ActionAndEventFallbacksRetainTheirOwnNeutralTermOverrides()
+        public void ActionAndEventFallbacksRetainTheirOwnSourceLanguageOverrides()
         {
             UANodeSet source = CreateLocalizedAffordanceNodeSet(null, null, "de", null);
 
@@ -570,8 +570,8 @@ namespace Opc.Ua.Types.Tests.Wot
             foreach (JsonElement affordance in new[] { document.Actions["Run"], document.Events["Notice"] })
             {
                 JsonElement context = affordance.GetProperty("@context");
-                Assert.That(context.GetProperty("title").GetProperty("@language").ValueKind,
-                    Is.EqualTo(JsonValueKind.Null));
+                Assert.That(context.GetProperty("title").GetProperty("@language").GetString(),
+                    Is.EqualTo("de"));
                 Assert.That(context.TryGetProperty("description", out _), Is.False);
                 Assert.That(affordance.GetProperty("titles").GetProperty("de").GetString(),
                     Is.EqualTo(affordance.GetProperty("title").GetString()));

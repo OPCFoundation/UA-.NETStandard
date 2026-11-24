@@ -765,8 +765,6 @@ namespace Opc.Ua.Wot
                     case SymmetricTerm:
                     case DataMember:
                     case InstrumentRangeTerm:
-                    case MinimumMember:
-                    case MaximumMember:
                     case ConditionActionTerm:
                     case ActsOnTerm:
                         if (regenerated.ValueKind == JsonValueKind.Object &&
@@ -776,6 +774,31 @@ namespace Opc.Ua.Wot
                                 expectedDocument: regeneratedDocument))
                         {
                             ReportArchiveConflict(location, member.Name, diagnostics);
+                        }
+                        break;
+                    case MinimumMember:
+                    case MaximumMember:
+                        if (!UsesSeparateEngineeringRange(authored) &&
+                            regenerated.ValueKind == JsonValueKind.Object &&
+                            regenerated.TryGetProperty(member.Name, out JsonElement expectedBound) &&
+                            !IsArchivedJsonSubset(member.Value, expectedBound))
+                        {
+                            ReportArchiveConflict(location, member.Name, diagnostics);
+                        }
+                        break;
+                    case EuRangeTerm:
+                        if (regenerated.ValueKind == JsonValueKind.Object)
+                        {
+                            foreach (string endpoint in new[] { MinimumMember, MaximumMember })
+                            {
+                                if (regenerated.TryGetProperty(endpoint, out JsonElement expectedEndpoint) &&
+                                    (member.Value.ValueKind != JsonValueKind.Object ||
+                                        !member.Value.TryGetProperty(endpoint, out JsonElement actualEndpoint) ||
+                                        !IsArchivedJsonSubset(actualEndpoint, expectedEndpoint)))
+                                {
+                                    ReportArchiveConflict(location + "/" + endpoint, EuRangeTerm, diagnostics);
+                                }
+                            }
                         }
                         break;
                     case "uav:dataTypeDefinitions":
