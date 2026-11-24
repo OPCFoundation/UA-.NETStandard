@@ -18,6 +18,7 @@ namespace Opc.Ua.SourceGeneration
         {
             SourceGenerator.AttachDebuggerIfRequested();
             EcmFieldCopyGeneration.Register(context);
+            Isa95V2TransitionGeneration.Register(context);
 
             // Pair every AdditionalFile with its own per-file analyzer config
             // options once, up front, so both the design/NodeSet2 filter and

@@ -285,6 +285,13 @@ namespace MachineToolSample.Server
             {
                 return;
             }
+            Isa95JobOrderReceiptV2 ready = await source.TransitionAsync(
+                DemoContract.JobOrderId, Isa95JobExecutionTransition.MarkReady, cancellationToken)
+                .ConfigureAwait(false);
+            if (ready.ReturnStatus != Isa95JobReturnStatus.Success)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, ready.Result.ToString());
+            }
             Isa95JobOrderReceiptV2 receipt = await source.TransitionAsync(
                 DemoContract.JobOrderId, Isa95JobExecutionTransition.BeginExecution, cancellationToken)
                 .ConfigureAwait(false);

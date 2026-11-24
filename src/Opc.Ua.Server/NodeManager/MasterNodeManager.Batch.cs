@@ -168,10 +168,20 @@ namespace Opc.Ua.Server
             lock (m_retiringEventGenerationsLock)
             {
                 NodeManagerGeneration[] current = m_retiringEventGenerations;
-                var next = new NodeManagerGeneration[current.Length + generations.Count];
-                current.CopyTo(next, 0);
-                generations.CopyTo(next, current.Length);
-                Volatile.Write(ref m_retiringEventGenerations, next);
+                var next = new List<NodeManagerGeneration>(current);
+                foreach (NodeManagerGeneration generation in generations)
+                {
+                    AddIfMissing(generation);
+                }
+                Volatile.Write(ref m_retiringEventGenerations, [.. next]);
+
+                void AddIfMissing(NodeManagerGeneration generation)
+                {
+                    if (!next.Contains(generation))
+                    {
+                        next.Add(generation);
+                    }
+                }
             }
         }
 
@@ -226,6 +236,7 @@ namespace Opc.Ua.Server
                         throw new NodeManagerRoutingConflictException(
                             "The address space changed before reference discovery.", view);
                     }
+                    ApplyDeferredReferencePrunes();
                     previous = m_dynamicExternalReferences;
                     previousSnapshot = new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>(
                         previous, RefEqualityComparer.Default);
@@ -243,6 +254,7 @@ namespace Opc.Ua.Server
                         .ToDictionary(entry => entry.Key, entry => entry.Value, ownerComparer);
                     foreach (PreparedNodeManager candidate in candidates)
                     {
+                        ChangePreparer.GetServer(candidate.NodeManager)?.PruneStagedExternalReferences();
                         next.Add(candidate.NodeManager, candidate.ExternalReferences);
                     }
                 }
@@ -542,11 +554,7 @@ namespace Opc.Ua.Server
                             PreparedNodeManager candidate = candidates[candidateIndex];
                             ValidatePreparedNodeManager(candidate);
                         }
-                        var retiring = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
-                        for (int index = 0; index < removed.Count; index++)
-                        {
-                            retiring.Add(removed[index]);
-                        }
+                        HashSet<IAsyncNodeManager> retiring = CreateRetiringSet(removed);
                         foreach (PreparedNodeManager candidate in candidates)
                         {
                             if (candidate.ReplacedNodeManager is { } old)
@@ -595,6 +603,7 @@ namespace Opc.Ua.Server
                                     .Select(uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri)),
                                 originalTypes, originalFactory, readImages);
                         }
+                        OverrideBrowsePublicationValidator.Validate(m_nodeManagers.Revision, routes.Next);
                         routes.Reserve();
                         using TypeTable.Publication types =
                             Server.TypeTree.BeginPublication(originalTypes, typeRevision);
@@ -620,18 +629,26 @@ namespace Opc.Ua.Server
                             typeTree,
                             factory,
                             candidates,
-                            referenceUpdates,
+                            referenceOwners,
                             historianRegistrationsChanged =>
                             {
                                 commit.Publish(historianRegistrationsChanged);
                                 m_dynamicExternalReferences = nextReferences;
+                                // Deletions during the decision window queued pruning against the prepared image.
+                                ApplyDeferredReferencePrunes();
+                                if (!m_deferredServingRemovals.IsEmpty || !m_deferredTypeRemovals.IsEmpty)
+                                {
+                                    // Restarts a drain that stopped after a failed retry kept its removals queued.
+                                    ScheduleDeferredReferenceDrain();
+                                }
                                 TrackRetiringEventGenerations(retiringGenerations);
                                 foreach (PreparedNodeManager candidate in candidates)
                                 {
                                     candidate.Publish();
                                     SetPreparing(candidate.NodeManager, preparing: false);
                                 }
-                            });
+                            },
+                            context.Progress);
                         cancellationToken.ThrowIfCancellationRequested();
                         if (!commit.Publishes)
                         {
@@ -777,6 +794,49 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves the in-memory node that can contribute an abortable reference update.
+        /// </summary>
+        private static NodeState? GetPreparedReferenceNode(
+            IAsyncNodeManager owner,
+            NodeId sourceId,
+            object handle)
+        {
+            if (handle is not NodeHandle { Validated: true, Node: { } node })
+            {
+                return null;
+            }
+            if (owner is AsyncCustomNodeManager)
+            {
+                return node;
+            }
+#pragma warning disable CS0618, UA0031 // Preserve reference staging for legacy synchronous owners until they are removed.
+            if (owner.SyncNodeManager is CustomNodeManager2)
+            {
+                return node;
+            }
+#pragma warning restore CS0618, UA0031
+            // A facade may return a validated handle without owning an in-memory node.
+            // Only adopt the handle when the underlying manager indexes that exact instance.
+            return NodeManagerGenerationRegistry.GetIdentity(owner) is AsyncCustomNodeManager resource &&
+                ReferenceEquals(resource.Find(sourceId), node)
+                ? node
+                : null;
+        }
+
+        /// <summary>
+        /// Collects the exact managers explicitly retired by a lifecycle batch.
+        /// </summary>
+        private static HashSet<IAsyncNodeManager> CreateRetiringSet(ArrayOf<IAsyncNodeManager> removed)
+        {
+            var retiring = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
+            foreach (IAsyncNodeManager manager in removed)
+            {
+                retiring.Add(manager);
+            }
+            return retiring;
+        }
+
+        /// <summary>
         /// Computes the external reference additions and removals that prepared node managers contribute to nodes owned
         /// by in-memory node managers.
         /// </summary>
@@ -815,7 +875,7 @@ namespace Opc.Ua.Server
                 .. view.VisibleNodeManagers.Where(manager => !retiring.Contains(manager)),
                 .. newOwners
             ];
-            var nodes = new HashSet<NodeState>();
+            var nodes = new HashSet<NodeState>(RefEqualityComparer.Default);
             foreach (NodeId sourceId in previous.Keys.Union(next.Keys))
             {
                 previous.TryGetValue(sourceId, out ReferenceDictionary<bool>? oldReferences);
@@ -837,27 +897,25 @@ namespace Opc.Ua.Server
                     {
                         throw new InvalidOperationException("A reference owner retired during discovery.");
                     }
-                    object handle;
+                    NodeState? node;
                     try
                     {
-                        handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
+                        object handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
                             .ConfigureAwait(false);
+                        if (handle is null)
+                        {
+                            continue;
+                        }
+                        node = GetPreparedReferenceNode(owner, sourceId, handle);
+                        if (node is null)
+                        {
+                            hasUnsupportedOwner = true;
+                            continue;
+                        }
                     }
                     finally
                     {
                         generation?.Gate.Exit(stripe);
-                    }
-                    if (handle is null)
-                    {
-                        continue;
-                    }
-#pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners support batch handles.
-                    if ((owner is not AsyncCustomNodeManager && owner.SyncNodeManager is not CustomNodeManager2) ||
-#pragma warning restore CS0618, UA0031
-                        handle is not NodeHandle { Validated: true, Node: { } node })
-                    {
-                        hasUnsupportedOwner = true;
-                        continue;
                     }
                     if (!nodes.Add(node))
                     {
@@ -876,6 +934,17 @@ namespace Opc.Ua.Server
                 {
                     throw new NotSupportedException(
                         "Prepared external references have both in-memory and external owners.");
+                }
+                if (!hasUnsupportedOwner && ownerNodes.Count == 0)
+                {
+                    foreach (PreparedNodeManager candidate in candidates)
+                    {
+                        if (ChangePreparer.GetServer(candidate.NodeManager)?.RequiresExternalSource(sourceId) == true)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdUnknown, "A staged external reference source is not available.");
+                        }
+                    }
                 }
                 if (hasUnsupportedOwner || ownerNodes.Count == 0)
                 {

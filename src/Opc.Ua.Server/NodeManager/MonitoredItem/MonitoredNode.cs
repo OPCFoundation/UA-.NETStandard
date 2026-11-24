@@ -170,8 +170,13 @@ namespace Opc.Ua.Server
                     NodeManagerGeneration? generation;
                     if (m_server.NodeManager is MasterNodeManager master)
                     {
-                        if (!master.TryGetSourceGeneration(m_nodeManager, out generation) &&
-                            !master.TryGetLegacySourceGeneration(m_nodeManager, out generation))
+                        var staging = m_server as ChangePreparer.StagingServer;
+                        generation = staging?.GetForwardedSource(m_nodeManager);
+                        if (generation is null &&
+                            ((staging is { IsStaging: true } or { IsDetached: true } &&
+                                m_nodeManager is AsyncCustomNodeManager raw && ReferenceEquals(raw.Server, staging)) ||
+                                (!master.TryGetSourceGeneration(m_nodeManager, out generation) &&
+                                    !master.TryGetLegacySourceGeneration(m_nodeManager, out generation))))
                         {
                             return null;
                         }
@@ -2626,7 +2631,11 @@ namespace Opc.Ua.Server
                 !ReferenceEquals(CaptureNodeBinding(), binding) ||
                 !ReferenceEquals(Volatile.Read(ref m_generation), generation) ||
                 !generation.TryGetGeneration(out NodeManagerGeneration? currentGeneration) ||
-                currentGeneration?.Gate.State != NodeManagerGenerationState.Live)
+                currentGeneration is null ||
+                currentGeneration.Gate.State != NodeManagerGenerationState.Live ||
+                (currentGeneration.ForwardingFacade is not null &&
+                    (m_server.NodeManager is not MasterNodeManager master ||
+                        !master.TryGetVisibleForwardingFacade(currentGeneration, out _))))
             {
                 return false;
             }
@@ -2675,7 +2684,7 @@ namespace Opc.Ua.Server
             NodeManagerGenerationReference? generation = Generation;
             return generation is null
                 ? m_server.NodeManager is not MasterNodeManager
-                : ReferenceEquals(itemGeneration, generation);
+                : ReferenceEquals(itemGeneration.RoutingOwner, generation.RoutingOwner);
         }
 
         private void InvalidatePermissionCaches()
@@ -2987,7 +2996,7 @@ namespace Opc.Ua.Server
                     return !owner.TryGetGeneration(out NodeManagerGeneration? retained) ||
                         !retained!.TryEnterRetiredConsumerDisposal(this);
                 }
-                if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
+                if (Generation?.RoutingOwner.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
                     generation!.TryDeferDisposal(this))
                 {
                     m_retirementOwner = generation.Reference;
@@ -3010,7 +3019,7 @@ namespace Opc.Ua.Server
                     return;
                 }
                 if (disposing &&
-                    Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
+                    Generation?.RoutingOwner.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
                     generation!.TryDeferDisposal(this))
                 {
                     m_retirementOwner ??= generation.Reference;

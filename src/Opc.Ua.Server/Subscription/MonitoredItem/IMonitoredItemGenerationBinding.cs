@@ -29,6 +29,16 @@ namespace Opc.Ua.Server
         bool IsDisposed { get; }
 
         /// <summary>
+        /// Delays disposal until every retained generation binding has been released.
+        /// </summary>
+        void DeferDisposal();
+
+        /// <summary>
+        /// Completes one deferred disposal lease after its generation binding is released.
+        /// </summary>
+        void CompleteDeferredDisposal();
+
+        /// <summary>
         /// Gets whether subscription removal or disposal permanently forbids further adoption.
         /// </summary>
         bool IsRemoved { get; }

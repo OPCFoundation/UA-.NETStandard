@@ -32,4 +32,4 @@ nothing else above it (except a `#!` line):
   SHA-256 / git-blob pin that hashes it (provenance.json,
   companion-models.json, model classes, READMEs, tests).
 - NuGet packages declare `PackageLicenseExpression` `MIT` (set once in
-  `common.props`). Never add `PackageLicenseFile` or pack `LICENSE.txt`.
+  `common.props`). Never add `PackageLicenseFile` or pack the root `LICENSE`.

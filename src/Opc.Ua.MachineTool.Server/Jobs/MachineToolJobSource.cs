@@ -203,7 +203,7 @@ namespace Opc.Ua.MachineTool.Server
                 MachineToolProductionJob job = GetLegacyJob(jobOrderId);
                 RequireCompletedRun(job);
                 bool final = job.RunsCompleted + 1 == job.RunsPlanned;
-                RequireCapacity(final ? ChangeKind.Status : ChangeKind.None);
+                RequireCapacity(final ? ChangeKind.Status | ChangeKind.Catalog : ChangeKind.None);
                 MachineToolProductionJob next = Advance(job, final
                     ? MachineToolProductionPhase.Ended : MachineToolProductionPhase.Running, Sample(now), true);
                 if (!final && next.PartSets.Count != 0)
@@ -240,7 +240,7 @@ namespace Opc.Ua.MachineTool.Server
                     {
                         throw new ServiceResultException(receipt.Result);
                     }
-                    AccountChanges(ChangeKind.Status);
+                    AccountChanges(ChangeKind.Status | ChangeKind.Catalog);
                 }
                 m_jobs[jobOrderId] = next;
                 await CommitAsync().ConfigureAwait(false);

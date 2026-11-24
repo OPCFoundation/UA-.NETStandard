@@ -2181,6 +2181,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             services.AddSingleton(new Mock<IApplicationsDatabase>().Object);
             services.AddSingleton(new Mock<IOnboardingIdentitySelector>().Object);
             services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddSingleton(new Mock<IDeviceRegistrarPushWorkStore>().Object);
 
             Assert.That(services.AddDeviceRegistrarPush(3), Is.SameAs(services));
             using ServiceProvider provider = services.BuildServiceProvider();
@@ -2484,6 +2485,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     }
                     services.AddSingleton(Initial.Telemetry);
                     services.AddSingleton<TimeProvider>(CleanupTime);
+                    services.AddSingleton(new Mock<IDeviceRegistrarPushWorkStore>().Object);
                     services.AddDeviceRegistrarPush();
                     m_services = services.BuildServiceProvider();
                     Processor = (DeviceRegistrarPushProcessor)m_services

@@ -5,6 +5,7 @@
 // TODO: Remove the legacy cases when the synchronous API is removed.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -224,6 +225,215 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Is.True);
                 Assert.That(boundType, Is.SameAs(rangeType));
             });
+        }
+
+        /// <summary>
+        /// Cleanup for an earlier target does not discard a same-identifier replacement's staged contribution.
+        /// </summary>
+        [Test]
+        public void StagedReferenceCapturePreservesReplacementTargetIdentity()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            ChangePreparer.StagingServer candidate = new ChangePreparer(server.Object).CreateServer();
+            using var owner = new ServingNodeManager(candidate);
+            var oldTarget = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("target", owner.NamespaceIndex)
+            };
+            var replacement = new BaseObjectState(null)
+            {
+                NodeId = oldTarget.NodeId
+            };
+            var references = new Dictionary<NodeId, IList<IReference>>();
+            var reference = new LocalReference(
+                ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, oldTarget.NodeId);
+            candidate.TrackExternalReferences(references);
+            Assert.That(candidate.TryStageExternalReference(owner, oldTarget, reference), Is.True);
+            candidate.CaptureExternalReferences(references);
+            Assert.That(candidate.TryStageExternalReference(owner, replacement, reference), Is.True);
+            Assert.That(candidate.TryStageRootNotifierReference(replacement), Is.True);
+            Assert.That(references[ObjectIds.Server], Has.Count.EqualTo(1));
+            Assert.That(references[ObjectIds.Server][0], Is.InstanceOf<OwnedExternalReference>());
+            var captured = (OwnedExternalReference)references[ObjectIds.Server][0];
+            Assert.That(captured.TargetNode, Is.SameAs(replacement));
+            Assert.That(captured.Target, Is.Null);
+
+            var oldRemoval = new LocalReference(
+                ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, oldTarget.NodeId, oldTarget);
+            candidate.DiscardNodeReferences(oldTarget);
+            Assert.That(references[ObjectIds.Server], Has.Count.EqualTo(1));
+            var oldCleanup = new List<LocalReference> { oldRemoval };
+            candidate.ExcludePreparedReferences(oldCleanup);
+            Assert.That(oldCleanup, Has.Count.EqualTo(1));
+            candidate.DiscardCapturedReferences(oldCleanup);
+            var roots = new Dictionary<NodeId, IList<IReference>>();
+            candidate.AppendRootNotifierReferences(roots);
+            Assert.That(roots[ObjectIds.Server], Has.Count.EqualTo(1));
+
+            var replacementRemoval = new LocalReference(
+                ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, replacement.NodeId, replacement);
+            var replacementCleanup = new List<LocalReference> { replacementRemoval };
+            candidate.ExcludePreparedReferences(replacementCleanup);
+            Assert.That(replacementCleanup, Is.Empty);
+            candidate.DiscardCapturedReferences([replacementRemoval]);
+            replacementCleanup.Add(replacementRemoval);
+            candidate.ExcludePreparedReferences(replacementCleanup);
+            Assert.That(replacementCleanup, Has.Count.EqualTo(1));
+            roots.Clear();
+            candidate.AppendRootNotifierReferences(roots);
+            Assert.That(roots.ContainsKey(ObjectIds.Server), Is.False);
+        }
+
+        /// <summary>
+        /// A staged root survives cleanup for an older node with the same identifier.
+        /// </summary>
+        [Test]
+        public void StagedRootNotifierPreservesReplacementBeforeCapture()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            ChangePreparer.StagingServer candidate = new ChangePreparer(server.Object).CreateServer();
+            var oldTarget = new BaseObjectState(null) { NodeId = new NodeId("root", 1) };
+            var replacement = new BaseObjectState(null) { NodeId = oldTarget.NodeId };
+            Assert.That(candidate.TryStageRootNotifierReference(replacement), Is.True);
+            var oldRemoval = new LocalReference(
+                ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, oldTarget.NodeId, oldTarget);
+
+            candidate.DiscardCapturedReferences([oldRemoval]);
+            candidate.UnstageRootNotifierReference(oldTarget);
+
+            var references = new Dictionary<NodeId, IList<IReference>>();
+            candidate.AppendRootNotifierReferences(references);
+            Assert.That(references[ObjectIds.Server], Has.Count.EqualTo(1));
+            Assert.That(
+                ((OwnedExternalReference)references[ObjectIds.Server][0]).TargetNode,
+                Is.SameAs(replacement));
+            Assert.That(candidate.GetWithdrawnRootNotifierReferences(), Is.Empty);
+
+            candidate.UnstageRootNotifierReference(replacement);
+            references.Clear();
+            candidate.AppendRootNotifierReferences(references);
+            Assert.That(references.ContainsKey(ObjectIds.Server), Is.False);
+            Assert.That(candidate.GetWithdrawnRootNotifierReferences(), Is.EquivalentTo(new[] { replacement.NodeId }));
+        }
+
+        /// <summary>
+        /// Pruning a late stale addition restores the currently indexed target's identity.
+        /// </summary>
+        [Test]
+        public void StagedReferencePruningRestoresCurrentTargetIdentity()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            ChangePreparer.StagingServer candidate = new ChangePreparer(server.Object).CreateServer();
+            using var owner = new ServingNodeManager(candidate);
+            var oldTarget = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("target", owner.NamespaceIndex)
+            };
+            var replacement = new BaseObjectState(null) { NodeId = oldTarget.NodeId };
+            owner.Index(replacement);
+            var references = new Dictionary<NodeId, IList<IReference>>();
+            var reference = new LocalReference(
+                ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, oldTarget.NodeId);
+            candidate.TrackExternalReferences(references);
+            Assert.That(candidate.TryStageExternalReference(owner, replacement, reference), Is.True);
+            candidate.CaptureExternalReferences(references);
+            Assert.That(candidate.TryStageExternalReference(owner, oldTarget, reference), Is.True);
+            Assert.That(
+                ((OwnedExternalReference)references[ObjectIds.Server][0]).TargetNode,
+                Is.SameAs(oldTarget));
+
+            candidate.PruneStagedExternalReferences();
+
+            Assert.That(references[ObjectIds.Server], Has.Count.EqualTo(1));
+            Assert.That(
+                ((OwnedExternalReference)references[ObjectIds.Server][0]).TargetNode,
+                Is.SameAs(replacement));
+            var staleCleanup = new List<LocalReference>
+            {
+                new(ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, oldTarget.NodeId, oldTarget)
+            };
+            var replacementCleanup = new List<LocalReference>
+            {
+                new(ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, replacement.NodeId, replacement)
+            };
+            candidate.ExcludePreparedReferences(staleCleanup);
+            candidate.ExcludePreparedReferences(replacementCleanup);
+            Assert.That(staleCleanup, Has.Count.EqualTo(1));
+            Assert.That(replacementCleanup, Is.Empty);
+        }
+
+        /// <summary>
+        /// Contributions without target identity retain their existing cleanup behavior.
+        /// </summary>
+        [Test]
+        public void StagedReferenceCapturePreservesUnknownTargetCleanup()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            ChangePreparer.StagingServer candidate = new ChangePreparer(server.Object).CreateServer();
+            var target = new BaseObjectState(null) { NodeId = new NodeId("target", 1) };
+            var references = new Dictionary<NodeId, IList<IReference>>
+            {
+                [ObjectIds.Server] =
+                [
+                    new NodeStateReference(ReferenceTypeIds.HasNotifier, false, target.NodeId)
+                ]
+            };
+            candidate.CaptureExternalReferences(references);
+            var removal = new LocalReference(
+                ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, target.NodeId, target);
+            var cleanup = new List<LocalReference> { removal };
+            candidate.ExcludePreparedReferences(cleanup);
+            Assert.That(cleanup, Is.Empty);
+            candidate.DiscardCapturedReferences([removal]);
+            cleanup.Add(removal);
+            candidate.ExcludePreparedReferences(cleanup);
+            Assert.That(cleanup, Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Detached candidates release target references after their ownership cleanup completes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DetachedReferenceMetadataIsReleasedAfterCleanupAsync(bool published)
+        {
+            Mock<IServerInternal> server = CreateServer();
+            ChangePreparer.StagingServer candidate = new ChangePreparer(server.Object).CreateServer();
+            var target = new BaseObjectState(null) { NodeId = new NodeId("root", 1) };
+            Assert.That(candidate.TryStageRootNotifierReference(target), Is.True);
+            var references = new Dictionary<NodeId, IList<IReference>>();
+            candidate.AppendRootNotifierReferences(references);
+            candidate.CaptureExternalReferences(references);
+            if (published)
+            {
+                candidate.Bind();
+                var pendingRoots = new Dictionary<NodeId, IList<IReference>>();
+                candidate.AppendRootNotifierReferences(pendingRoots);
+                Assert.That(pendingRoots, Is.Empty);
+            }
+            var removal = new LocalReference(
+                ObjectIds.Server, ReferenceTypeIds.HasNotifier, false, target.NodeId, target);
+            var cleanup = new List<LocalReference> { removal };
+            candidate.ExcludePreparedReferences(cleanup);
+            Assert.That(cleanup, Is.Empty);
+            Assert.Throws<InvalidOperationException>(candidate.ReleaseCapturedReferences);
+
+            candidate.Detach();
+            await candidate.DisposeAsync().ConfigureAwait(false);
+            if (published)
+            {
+                cleanup.Add(removal);
+                candidate.ExcludePreparedReferences(cleanup);
+                Assert.That(cleanup, Is.Empty);
+                candidate.ReleaseCapturedReferences();
+            }
+
+            cleanup.Add(removal);
+            candidate.ExcludePreparedReferences(cleanup);
+            Assert.That(cleanup, Has.Count.EqualTo(1));
+            references.Clear();
+            candidate.AppendRootNotifierReferences(references);
+            Assert.That(references, Is.Empty);
         }
 
         /// <summary>
@@ -507,6 +717,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
             server.SetupGet(value => value.DefaultSystemContext)
                 .Returns(() => new ServerSystemContext(server.Object));
             return server;
+        }
+
+        /// <summary>
+        /// A serving resource that records disposal attempts.
+        /// </summary>
+        private sealed class ServingNodeManager : AsyncCustomNodeManager
+        {
+            /// <summary>
+            /// Creates a resource owned by the serving server.
+            /// </summary>
+            public ServingNodeManager(IServerInternal server)
+                : base(server, NullLogger.Instance, kBaseNamespaceUri)
+            {
+            }
+
+            /// <summary>
+            /// Gets the number of disposal attempts.
+            /// </summary>
+            public int DisposeCount { get; private set; }
+
+            /// <summary>
+            /// Indexes a target for staged reference ownership.
+            /// </summary>
+            internal void Index(NodeState target)
+            {
+                PredefinedNodes[target.NodeId] = target;
+            }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    DisposeCount++;
+                }
+                base.Dispose(disposing);
+            }
         }
 
         /// <summary>The namespace already present in serving metadata.</summary>

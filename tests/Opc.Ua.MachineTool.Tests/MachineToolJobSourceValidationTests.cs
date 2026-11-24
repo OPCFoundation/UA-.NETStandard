@@ -224,6 +224,8 @@ namespace Opc.Ua.MachineTool.Tests
                 .ConfigureAwait(false));
             if (stage >= 2)
             {
+                Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.MarkReady)
+                    .ConfigureAwait(false));
                 Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
                     .ConfigureAwait(false));
             }

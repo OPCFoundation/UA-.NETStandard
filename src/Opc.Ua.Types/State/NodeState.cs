@@ -3930,7 +3930,15 @@ namespace Opc.Ua
             IEnumerable<IReference>? additionalReferences,
             bool internalOnly)
         {
-            NodeBrowser? browser = OnCreateBrowser?.Invoke(
+            bool guarded = context is INodeStateSnapshotBrowserGuard { RequiresSnapshotSafeBrowser: true };
+            NodeStateCreateBrowserEventHandler? createBrowser = OnCreateBrowser;
+            NodeStatePopulateBrowserEventHandler? populateBrowser = guarded ? OnPopulateBrowser : null;
+            if (guarded && (createBrowser is not null || populateBrowser is not null))
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+
+            NodeBrowser? browser = createBrowser?.Invoke(
                 context,
                 this,
                 view,
@@ -3962,7 +3970,7 @@ namespace Opc.Ua
                 {
                     PopulateBrowser(context, browser);
 
-                    OnPopulateBrowser?.Invoke(context, this, browser);
+                    (guarded ? populateBrowser : OnPopulateBrowser)?.Invoke(context, this, browser);
                 }
 
                 newBrowser = null;
@@ -3996,9 +4004,16 @@ namespace Opc.Ua
 
             lock (GetOrCreateBrowseLock())
             {
+                bool guarded = context is INodeStateSnapshotBrowserGuard { RequiresSnapshotSafeBrowser: true };
+                NodeStatePopulateBrowserEventHandler? populateBrowser = guarded ? OnPopulateBrowser : null;
+                if (guarded && populateBrowser is not null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported);
+                }
+
                 PopulateBrowser(context, browser);
 
-                OnPopulateBrowser?.Invoke(context, this, browser);
+                (guarded ? populateBrowser : OnPopulateBrowser)?.Invoke(context, this, browser);
             }
         }
 
@@ -4290,7 +4305,22 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // add any arbitrary references.
-                if (m_references is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        if (referenceTypeId.IsNull
+                            ? (reference.IsInverse
+                                ? browserBrowseDirection != BrowseDirection.Forward
+                                : browserBrowseDirection != BrowseDirection.Inverse)
+                            : browser.IsRequired(reference.ReferenceTypeId, reference.IsInverse))
+                        {
+                            referencesToAdd.Add(reference);
+                        }
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     if (referenceTypeId.IsNull)
                     {
@@ -6387,6 +6417,19 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
+            return AddReferenceIfMissing(referenceTypeId, isInverse, targetId, out _);
+        }
+
+        /// <summary>
+        /// Reports whether storage changed before invoking the reference observer.
+        /// </summary>
+        internal bool AddReferenceIfMissing(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            out bool added)
+        {
+            added = false;
             if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
@@ -6409,6 +6452,7 @@ namespace Opc.Ua
                 }
 
                 references.Add(reference, null);
+                added = true;
             }
 
             m_changeMasks |= NodeStateChangeMasks.References;
@@ -6597,7 +6641,15 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        references.Add(reference);
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -6622,7 +6674,18 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        if (reference.IsInverse == isInverse && reference.ReferenceTypeId == referenceTypeId)
+                        {
+                            references.Add(reference);
+                        }
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {

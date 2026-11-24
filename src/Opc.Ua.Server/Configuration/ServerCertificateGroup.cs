@@ -23,6 +23,16 @@ namespace Opc.Ua.Server
         public NodeId NodeId { get; set; }
 
         /// <summary>
+        /// Gets the stable TrustList identity, independent of the address-space attachment.
+        /// </summary>
+        public NodeId EffectiveTrustListId => TrustListId.IsNull ? Node?.TrustList?.NodeId ?? NodeId.Null : TrustListId;
+
+        /// <summary>
+        /// The TrustList identity retained by a managed application engine.
+        /// </summary>
+        public NodeId TrustListId { get; set; }
+
+        /// <summary>
         /// The group node once the address space has been created.
         /// </summary>
         public CertificateGroupState Node { get; set; } = null!;

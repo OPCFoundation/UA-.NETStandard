@@ -5,6 +5,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.ISA95.JobControl;
 using V1 = Opc.Ua.ISA95.JobControl.V1;
 
 namespace Opc.Ua.ISA95.Client
@@ -116,6 +117,50 @@ namespace Opc.Ua.ISA95.Client
             CancellationToken ct = default)
         {
             return JobResponseReceiver.ReceiveJobResponseAsync(response, ct);
+        }
+
+        /// <summary>
+        /// Invokes the V1 order command with a version-neutral order.
+        /// </summary>
+        public ValueTask<ulong> ReceiveNeutralJobOrderAsync(
+            V1.ISA95JobOrderCommandEnum command,
+            Isa95JobOrder order,
+            CancellationToken ct = default)
+        {
+            return ReceiveJobOrderAsync(command, Isa95JobControlConversions.ToV1Order(order), ct);
+        }
+
+        /// <summary>
+        /// Sends a version-neutral response through the V1 interface.
+        /// </summary>
+        public ValueTask<ulong> ReceiveNeutralJobResponseAsync(
+            Isa95JobResponse response,
+            CancellationToken ct = default)
+        {
+            return ReceiveJobResponseAsync(Isa95JobControlConversions.ToV1Response(response), ct);
+        }
+
+        /// <summary>
+        /// Queries V1 by order identifier or V1 state and converts the results.
+        /// </summary>
+        public async ValueTask<(ArrayOf<Isa95JobResponse> Responses, ulong ReturnStatus)>
+            RequestNeutralJobResponseAsync(
+                string jobOrderId,
+                V1.ISA95JobOrderStateEnum state,
+                CancellationToken ct = default)
+        {
+            (ArrayOf<V1.ISA95JobResponseDataType> responses, ulong status) =
+                await RequestJobResponseAsync(jobOrderId, state, ct).ConfigureAwait(false);
+            if (responses.IsNull)
+            {
+                return (default, status);
+            }
+            var result = new Isa95JobResponse[responses.Count];
+            for (int i = 0; i < result.Length; i++)
+            {
+                result[i] = Isa95JobControlConversions.FromV1Response(responses[i]);
+            }
+            return (result.ToArrayOf(), status);
         }
 
         private static void ValidateNodeId(NodeId nodeId, string parameterName)

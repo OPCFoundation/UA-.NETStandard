@@ -16,6 +16,8 @@
     <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Client\Opc.Ua.Gds.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\OnboardingDevice\DevicePullJournal.cs" Link="DevicePullJournal.cs" />
+    <Compile Include="..\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs" Link="PushRegistrarCheckpointFiles.cs" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
