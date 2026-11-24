@@ -330,9 +330,10 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 // A failed owner reference must not silently drop a state, edge, or method.
-                foreach ((NodeId id, XElement component) in m_nodes)
+                foreach (KeyValuePair<NodeId, XElement> entry in m_nodes)
                 {
-                    if (!seen.Contains(id) &&
+                    XElement component = entry.Value;
+                    if (!seen.Contains(entry.Key) &&
                         (component.Name == s_ns + "UAObject" || component.Name == s_ns + "UAMethod") &&
                         (string?)component.Attribute("ParentNodeId") is string parent && ParseId(parent) == owner)
                     {
