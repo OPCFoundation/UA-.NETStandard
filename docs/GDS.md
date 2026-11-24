@@ -1510,6 +1510,17 @@ After admission, persisted lifecycle authorization governs the DCA, as with
 ticket-based admission. Hosts use the existing lifecycle operations to change
 software approval and application ownership.
 
+For a host that also issues the external DCA credential, the certificate group
+offers two separate signing capabilities. `ICertificateGroupWithApprovedUriSans`
+adds explicitly approved URI SANs while still requiring the application URI in
+the CSR. `ICertificateGroupWithAuthenticatedSigningRequest` instead uses only
+the host-approved subject and SANs. In that path the host must bind its approval
+and authenticated device evidence to the exact signed CSR before calling the
+issuer. The issuer requires one DER-encoded CSR, verifies its SHA-2 signature
+and key type, and does not authenticate the device, authorize enrollment, or
+admit it to the registrar.
+Neither capability is exposed by the Part 12 signing services.
+
 The typed client uses the already installed external DCA credential. First
 obtain the configured managers without requesting application certificates:
 
