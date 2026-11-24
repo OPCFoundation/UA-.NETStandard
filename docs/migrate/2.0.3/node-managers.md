@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # The synchronous node manager API is deprecated
 
 Since 2.0.3 the synchronous node manager API is marked `[Obsolete]`. It keeps
@@ -20,6 +23,7 @@ fluent node managers built on it. This is step 3 of issue
 - [Registration](#registration)
 - [Changed factories](#changed-factories)
 - [Suppressing the warning](#suppressing-the-warning)
+- [Changes in 2.1](#changes-in-21)
 
 ## UA0031
 
@@ -290,3 +294,46 @@ public class MyLegacyManager : CustomNodeManager2
 `UA0031` only suppresses this deprecation; `CS0618` is needed for .NET
 Framework targets. To silence it project-wide while you migrate, add
 `<NoWarn>$(NoWarn);UA0031</NoWarn>` (plus `CS0618` for .NET Framework).
+
+## Changes in 2.1
+
+These changes affect custom node managers built on the asynchronous API.
+
+**Permission checks fail closed for client requests.** Before a service
+operation the master node manager checks RolePermissions and
+AccessRestrictions (Part 3 §8.55, §8.56). When the request comes from a
+client (it has a session, user identity or secure channel), the check now
+returns `Bad_NodeIdUnknown` instead of Good if no node manager resolves the
+NodeId, or if the resolving node manager's `GetNodeMetadataAsync` and
+`GetPermissionMetadataAsync` return `null`. Services already returned
+`Bad_NodeIdUnknown` for such nodes, so well-behaved node managers see no
+change. A node manager that returns a handle but no metadata for nodes it
+actually serves must return metadata now, or those nodes become unreachable
+for clients. Internal calls without a session, identity or channel are not
+checked, as before. `TranslateBrowsePathsToNodeIds` also drops targets whose
+metadata cannot be resolved, and creating an event monitored item on a node
+without metadata fails with `Bad_NodeIdUnknown`.
+
+`AsyncCustomNodeManager.ValidateRolePermissionsAsync`, which also gates event
+delivery by ReceiveEvents on the event's SourceNode, still lets unknown nodes
+through: a SourceNode outside the address space must not suppress the event.
+
+**Nullable lookups.** `IAsyncNodeManager.GetManagerHandleAsync` returns
+`ValueTask<object?>` and `IAsyncNodeManager.GetNodeMetadataAsync` returns
+`ValueTask<NodeMetadata?>`, matching their documented `null` results.
+Implementations and overrides change their return types; callers handle
+`null`. This is an annotation change only; with nullable reference types
+disabled nothing changes.
+
+**`AddNode` registers like `AddPredefinedNodeAsync`.** The synchronous
+`IAsyncNodeManager.AddNode` of `AsyncCustomNodeManager` now assigns NodeIds to
+instance nodes that have none or that collide with a type declaration, and
+calls the new `OnPredefinedNodeAdded(ISystemContext, NodeState)` hook for every
+node, as `AddPredefinedNodeAsync` does. Override `OnPredefinedNodeAdded`,
+rather than `AddPredefinedNodeAsync`, for work that must follow every
+registration. Generated node managers and `RuntimeNodeSetNodeManager` raise
+their per-node `OnNodeAdded` lifecycle handlers from it, so nodes added through
+`AddNode` after start-up now raise them too. `AddNode` cannot await, so it
+still does not call `AddBehaviourToPredefinedNodeAsync` or overrides of
+`AddPredefinedNodeAsync`; register nodes that need behaviour with
+`AddPredefinedNodeAsync`.

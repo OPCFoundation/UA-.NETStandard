@@ -1042,9 +1042,13 @@ namespace Opc.Ua.Server
         /// namespaces that configure none (<see cref="StandardServer.NamespaceDefaultRolePermissions"/>),
         /// which only the server's own permission checks can supply.
         /// </summary>
+        /// <remarks>
+        /// <c>null</c> metadata imposes no restriction and returns Good. Callers that
+        /// must fail closed check for missing metadata themselves.
+        /// </remarks>
         protected internal static ServiceResult ValidateRolePermissions(
             OperationContext context,
-            NodeMetadata nodeMetadata,
+            NodeMetadata? nodeMetadata,
             PermissionType requestedPermission,
             ILogger? logger = null)
         {
@@ -1058,7 +1062,7 @@ namespace Opc.Ua.Server
         internal static ServiceResult ValidateRolePermissions(
             IServerInternal? server,
             OperationContext context,
-            NodeMetadata nodeMetadata,
+            NodeMetadata? nodeMetadata,
             PermissionType requestedPermission,
             ILogger? logger = null)
         {

@@ -3943,6 +3943,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Recursively indexes the node and its children.
         /// </summary>
+        /// <remarks>
+        /// Calls <see cref="OnPredefinedNodeAdded"/> for every node of the subtree once it
+        /// and its children are indexed.
+        /// </remarks>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
             bool nested = NodeManagerAmbientScope<bool>.GetValue(m_registrationScope);
@@ -3955,6 +3959,30 @@ namespace Opc.Ua.Server
             {
                 m_localAddressSpace?.NotifyAdded(active);
             }
+            OnPredefinedNodeAdded(context, active);
+        }
+
+        /// <summary>
+        /// Called after a node and its children are indexed as predefined nodes.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Runs once per node of a registered subtree, children before their parent, on
+        /// both registration paths: <see cref="AddPredefinedNodeAsync(ISystemContext, NodeState, CancellationToken)"/>
+        /// and the synchronous <see cref="IAsyncNodeManager.AddNode"/>. Override it for work
+        /// that must follow every registration, such as raising per-node lifecycle
+        /// notifications; an override of <c>AddPredefinedNodeAsync</c> does not run for
+        /// nodes added through <c>AddNode</c>.
+        /// </para>
+        /// <para>
+        /// The hook is synchronous because <c>AddNode</c> can run while a caller holds a
+        /// lock. Keep it short and do not call back into the server from it.
+        /// </para>
+        /// </remarks>
+        /// <param name="context">The system context of the registration.</param>
+        /// <param name="node">The indexed node, after any behaviour replacement.</param>
+        protected virtual void OnPredefinedNodeAdded(ISystemContext context, NodeState node)
+        {
         }
 
         private async ValueTask<NodeState> AddPredefinedNodeCoreAsync(
@@ -4184,12 +4212,18 @@ namespace Opc.Ua.Server
         /// Used by fluent builder extensions (e.g.
         /// <c>WithProperty</c>) that create nodes from inside synchronous
         /// configuration callbacks after the predefined-node tree has
-        /// already been registered. Unlike
+        /// already been registered, and by <see cref="IAsyncNodeManager.AddNode"/>.
+        /// Like
         /// <see cref="AddPredefinedNodeAsync(ISystemContext, NodeState, CancellationToken)"/>
-        /// this path does not invoke
-        /// <see cref="AddBehaviourToPredefinedNodeAsync"/> — it is intended
-        /// for plain instance nodes that carry no asynchronous behaviour
-        /// wiring. It completes the create lifecycle before indexing.
+        /// it assigns instance NodeIds that are missing or collide with a
+        /// declaration, completes the create lifecycle before indexing and
+        /// calls <see cref="OnPredefinedNodeAdded"/> for every node.
+        /// It cannot await, so it does not invoke
+        /// <see cref="AddBehaviourToPredefinedNodeAsync"/>, overrides of
+        /// <c>AddPredefinedNodeAsync</c>, or the resolution of sources that
+        /// other node managers left pending. It is intended for plain
+        /// instance nodes; register nodes that need behaviour wiring with
+        /// <c>AddPredefinedNodeAsync</c>.
         /// Registration is idempotent, so a subsequent tree registration
         /// that includes the same node is safe.
         /// </remarks>
@@ -4210,6 +4244,7 @@ namespace Opc.Ua.Server
 
         private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
         {
+            PrepareInstanceNodeIdsForRegistration(context, node);
             NodeStateLifecycle.CompleteForRegistration(
                 context,
                 node,
@@ -4230,6 +4265,8 @@ namespace Opc.Ua.Server
 
                 AddPredefinedNodeSynchronously(context, children[ii]);
             }
+
+            OnPredefinedNodeAdded(context, node);
         }
 
         /// <summary>
@@ -4828,7 +4865,7 @@ namespace Opc.Ua.Server
         /// NodeManager it should return a handle that does not require the NodeId to be validated again when
         /// the handle is passed into other methods such as 'Read' or 'Write'.
         /// </remarks>
-        public virtual async ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
+        public virtual async ValueTask<object?> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             return await GetManagerHandleAsync(SystemContext, nodeId, null!, cancellationToken).ConfigureAwait(false);
         }
@@ -4960,7 +4997,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This method validates any placeholder handle.
         /// </remarks>
-        public async ValueTask<NodeMetadata> GetNodeMetadataAsync(
+        public async ValueTask<NodeMetadata?> GetNodeMetadataAsync(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
@@ -4973,7 +5010,7 @@ namespace Opc.Ua.Server
 
             if (handle == null)
             {
-                return null!;
+                return null;
             }
 
             // validate node.
@@ -4981,7 +5018,7 @@ namespace Opc.Ua.Server
 
             if (target == null)
             {
-                return null!;
+                return null;
             }
 
             var nodeMetadataValues = new Variant[s_nodeMetaDataAttributes.Length];
@@ -5941,9 +5978,9 @@ namespace Opc.Ua.Server
             if (state == 0)
             {
                 // the delegates bind to the overrides of the type.
-                state = IsDefaultLookupMember(new Func<NodeId, CancellationToken, ValueTask<object>>(
+                state = IsDefaultLookupMember(new Func<NodeId, CancellationToken, ValueTask<object?>>(
                         GetManagerHandleAsync).Method) &&
-                    IsDefaultLookupMember(new Func<NodeId, CancellationToken, ValueTask<object>>(
+                    IsDefaultLookupMember(new Func<NodeId, CancellationToken, ValueTask<object?>>(
                         ((IAsyncNodeManager)this).GetManagerHandleAsync).Method) &&
                     IsDefaultLookupMember(new Func<ServerSystemContext, NodeId, IDictionary<NodeId, NodeState>, CancellationToken, ValueTask<NodeHandle>>(
                         GetManagerHandleAsync).Method) &&
@@ -10348,12 +10385,12 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            NodeMetadata metadata = await GetNodeMetadataAsync(
+            NodeMetadata? metadata = await GetNodeMetadataAsync(
                 context.OperationContext!,
                 handle,
                 BrowseResultMask.All,
                 cancellationToken).ConfigureAwait(false);
-            return ServiceResult.IsGood(
+            return metadata != null && ServiceResult.IsGood(
                 MasterNodeManager.ValidateRolePermissions(
                     Server,
                     context.OperationContext!,
@@ -10446,6 +10483,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates Role permissions for the specified NodeId
         /// </summary>
+        /// <remarks>
+        /// A NodeId that no node manager resolves, or whose node has no metadata, imposes no
+        /// restriction and the result is Good. This check also gates event delivery
+        /// (ReceiveEvents on the EventType and the SourceNode, Part 3 §8.55), where the
+        /// SourceNode can lie outside the address space; refusing such events would drop them
+        /// for every client. Service requests are checked by the master node manager first,
+        /// which refuses unknown nodes for client requests.
+        /// </remarks>
         public virtual async ValueTask<ServiceResult> ValidateRolePermissionsAsync(
             OperationContext operationContext,
             NodeId nodeId,
@@ -10486,7 +10531,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NodeMetadata nodeMetadata = await nodeManager.GetNodeMetadataAsync(
+            NodeMetadata? nodeMetadata = await nodeManager.GetNodeMetadataAsync(
                 operationContext,
                 nodeHandle,
                 BrowseResultMask.All,
@@ -11567,7 +11612,7 @@ namespace Opc.Ua.Server
 
             if (handle == null)
             {
-                return null!;
+                return null;
             }
 
             // validate node.
@@ -11575,7 +11620,7 @@ namespace Opc.Ua.Server
 
             if (target == null)
             {
-                return null!;
+                return null;
             }
 
             NamespaceDefaultPermissions? permissionDefaults = RequiresDynamicPermissionReads(target)

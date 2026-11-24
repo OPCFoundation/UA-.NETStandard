@@ -182,7 +182,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Node-manager lifecycle members emitted by the generated partial.
             Assert.That(mgr, Does.Contain("LoadPredefinedNodesAsync"));
             Assert.That(mgr, Does.Contain("CreateAddressSpaceAsync"));
-            Assert.That(mgr, Does.Contain("AddPredefinedNodeAsync"));
+            Assert.That(mgr, Does.Contain("OnPredefinedNodeAdded"));
             Assert.That(mgr, Does.Contain("RemovePredefinedNodeAsync"));
             Assert.That(
                 mgr,

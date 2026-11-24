@@ -212,12 +212,11 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     /// <inheritdoc/>
-                    protected override async global::System.Threading.Tasks.ValueTask AddPredefinedNodeAsync(
+                    protected override void OnPredefinedNodeAdded(
                         global::Opc.Ua.ISystemContext context,
-                        global::Opc.Ua.NodeState node,
-                        global::System.Threading.CancellationToken cancellationToken = default)
+                        global::Opc.Ua.NodeState node)
                     {
-                        await base.AddPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
+                        base.OnPredefinedNodeAdded(context, node);
                         if (__m_builder is { } __b)
                         {
                             __b.Dispatcher.NotifyNodeAdded(context, node);

@@ -900,7 +900,7 @@ namespace Opc.Ua.Server
                     NodeState? node;
                     try
                     {
-                        object handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
+                        object? handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
                             .ConfigureAwait(false);
                         if (handle is null)
                         {
