@@ -757,11 +757,13 @@ namespace Opc.Ua.Gds.Server
 
         private static void AddApprovedUriSan(List<string> uris, string uri)
         {
-            if (string.IsNullOrWhiteSpace(uri) || !Uri.TryCreate(uri, UriKind.Absolute, out _))
+            if (string.IsNullOrWhiteSpace(uri) ||
+                !Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed) ||
+                !string.Equals(uri, parsed.AbsoluteUri, StringComparison.Ordinal))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadCertificateUriInvalid,
-                    "An approved URI SAN is invalid.");
+                    "An approved URI SAN must be absolute and retain its exact value in the certificate.");
             }
 
             if (!uris.Contains(uri))

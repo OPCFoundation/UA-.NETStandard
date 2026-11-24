@@ -107,8 +107,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(altNames.Uris, Is.EqualTo(s_applicationAndProductUris));
         }
 
-        [Test]
-        public async Task SigningRequestRejectsInvalidApprovedUri()
+        [TestCase("not an absolute URI")]
+        [TestCase("https://DEVICE.example/identity")]
+        public async Task SigningRequestRejectsInvalidOrNormalizedApprovedUri(string approvedUri)
         {
             using Certificate signingCertificate = CertificateBuilder
                 .Create("CN=Test CA")
@@ -125,7 +126,7 @@ namespace Opc.Ua.Gds.Tests
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     [],
                     CreateSigningRequestWithUris(ApplicationUri),
-                    ["not an absolute URI"]).ConfigureAwait(false));
+                    [approvedUri]).ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
         }
@@ -385,8 +386,9 @@ namespace Opc.Ua.Gds.Tests
                 Is.EqualTo(typeConfigured ? StatusCodes.BadConfigurationError : StatusCodes.BadNotSupported));
         }
 
-        [Test]
-        public async Task AuthenticatedEvidenceSigningRejectsInvalidApprovedIdentity()
+        [TestCase("invalid application uri")]
+        [TestCase("https://DEVICE.example/identity")]
+        public async Task AuthenticatedEvidenceSigningRejectsInvalidOrNormalizedApprovedIdentity(string approvedUri)
         {
             using Certificate signingCertificate = CertificateBuilder
                 .Create("CN=Test CA")
@@ -400,7 +402,7 @@ namespace Opc.Ua.Gds.Tests
                 async () => await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     "CN=Approved Device",
-                    "invalid application uri",
+                    approvedUri,
                     ProductInstanceUri,
                     [],
                     [],

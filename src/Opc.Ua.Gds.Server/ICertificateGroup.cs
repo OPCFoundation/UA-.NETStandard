@@ -152,7 +152,8 @@ namespace Opc.Ua.Gds.Server
         /// <returns>The issued certificate.</returns>
         /// <remarks>
         /// URI SANs from the CSR that are not in <paramref name="approvedAdditionalUriSans"/> are not copied.
-        /// Approved URI SANs may be added even when they are not present in the CSR.
+        /// Approved URI SANs may be added even when they are not present in the CSR. They must already
+        /// be in the form that will be encoded in the certificate, without URI normalization.
         /// </remarks>
         Task<Certificate> SigningRequestWithAdditionalUriSansAsync(
             ApplicationRecordDataType application,
@@ -182,6 +183,7 @@ namespace Opc.Ua.Gds.Server
         /// <returns>The issued certificate.</returns>
         /// <remarks>
         /// The subject and SAN values are taken only from the host-approved arguments, not from the CSR.
+        /// Approved URI SANs must already be in the form that will be encoded, without URI normalization.
         /// Requires a SHA-2 signature compatible with the requested certificate type.
         /// The caller must bind these approved values to this exact signed CSR and authenticated FDO evidence,
         /// and decide enrollment or re-enrollment eligibility before calling this method. Re-enrollment
