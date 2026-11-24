@@ -179,6 +179,140 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         }
 
         [Test]
+        public async Task BrokerConnectionLost_ReconnectsAndResubscribesAsync()
+        {
+            var factory = new FakeMqttClientFactory();
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtt://broker.example.com:1883",
+                ReconnectDelay = TimeSpan.FromMilliseconds(10)
+            };
+            await using MqttBrokerTransport transport = NewTransport(
+                factory, PubSubTransportDirection.Receive, options);
+            await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+            int subscriptionsAfterOpen = factory.Adapter.Subscriptions.Count;
+            Assert.That(subscriptionsAfterOpen, Is.GreaterThan(0));
+
+            factory.Adapter.RaiseConnectionStateChanged(false, "broker restart");
+
+            await WaitUntilAsync(() =>
+                factory.Adapter.ConnectCount == 2 &&
+                factory.Adapter.Subscriptions.Count == 2 * subscriptionsAfterOpen).ConfigureAwait(false);
+            Assert.That(transport.IsConnected, Is.True);
+        }
+
+        [Test]
+        public async Task BrokerConnectionLost_RetriesFailedReconnectAsync()
+        {
+            var factory = new FakeMqttClientFactory();
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtt://broker.example.com:1883",
+                ReconnectDelay = TimeSpan.FromMilliseconds(10),
+                MaxReconnectDelay = TimeSpan.FromMilliseconds(20)
+            };
+            await using MqttBrokerTransport transport = NewTransport(
+                factory, PubSubTransportDirection.Receive, options);
+            await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+            int failuresLeft = 2;
+            factory.Adapter.OnConnect = (_, _) =>
+            {
+                if (Interlocked.Decrement(ref failuresLeft) >= 0)
+                {
+                    throw new InvalidOperationException("broker still down");
+                }
+                return default;
+            };
+
+            factory.Adapter.RaiseConnectionStateChanged(false, "broker restart");
+
+            await WaitUntilAsync(() => factory.Adapter.ConnectCount == 4 && transport.IsConnected)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task BrokerConnectionLost_DuringReconnectCompletion_ReconnectsAgainAsync()
+        {
+            var factory = new FakeMqttClientFactory();
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtt://broker.example.com:1883",
+                ReconnectDelay = TimeSpan.FromMilliseconds(10)
+            };
+            await using MqttBrokerTransport transport = NewTransport(
+                factory, PubSubTransportDirection.Receive, options);
+            await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+
+            // The first resubscribe of the reconnect worker succeeds, then the
+            // broker drops the connection before the worker has returned.
+            int dropOnSubscribe = 1;
+            factory.Adapter.OnSubscribe = _ =>
+            {
+                if (Interlocked.Exchange(ref dropOnSubscribe, 0) == 1)
+                {
+                    factory.Adapter.RaiseConnectionStateChanged(false, "dropped again");
+                }
+            };
+
+            factory.Adapter.RaiseConnectionStateChanged(false, "broker restart");
+
+            await WaitUntilAsync(() => factory.Adapter.ConnectCount == 3 && transport.IsConnected)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task BrokerConnectionLost_AutoReconnectDisabled_StaysDisconnectedAsync()
+        {
+            var factory = new FakeMqttClientFactory();
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtt://broker.example.com:1883",
+                AutoReconnect = false,
+                ReconnectDelay = TimeSpan.FromMilliseconds(10)
+            };
+            await using MqttBrokerTransport transport = NewTransport(factory, options: options);
+            await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+
+            factory.Adapter.RaiseConnectionStateChanged(false, "broker restart");
+            await Task.Delay(200).ConfigureAwait(false);
+
+            Assert.That(factory.Adapter.ConnectCount, Is.EqualTo(1));
+            Assert.That(transport.IsConnected, Is.False);
+        }
+
+        [Test]
+        public async Task Close_StopsPendingReconnectAsync()
+        {
+            var factory = new FakeMqttClientFactory();
+            var options = new MqttConnectionOptions
+            {
+                Endpoint = "mqtt://broker.example.com:1883",
+                ReconnectDelay = TimeSpan.FromSeconds(30)
+            };
+            await using MqttBrokerTransport transport = NewTransport(factory, options: options);
+            await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+            factory.Adapter.RaiseConnectionStateChanged(false, "broker restart");
+
+            Task close = transport.CloseAsync(CancellationToken.None).AsTask();
+
+            Assert.That(await Task.WhenAny(close, Task.Delay(5000)).ConfigureAwait(false), Is.SameAs(close));
+            Assert.That(factory.Adapter.ConnectCount, Is.EqualTo(1));
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(8);
+            while (!condition())
+            {
+                if (DateTime.UtcNow > deadline)
+                {
+                    Assert.Fail("Condition was not met within 8 s.");
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task SendAsync_WithoutOpen_Throws()
         {
             var factory = new FakeMqttClientFactory();

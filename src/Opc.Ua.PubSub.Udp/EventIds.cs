@@ -21,5 +21,6 @@ namespace Opc.Ua
         public const int DtlsProfileRegistry = 10;
         public const int UdpDatagramTransport = 20;
         public const int UdpPubSubTransportFactory = 50;
+        public const int DtlsDatagramTransport = 60;
     }
 }

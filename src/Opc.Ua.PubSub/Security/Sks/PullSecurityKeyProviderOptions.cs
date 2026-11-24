@@ -48,10 +48,11 @@ namespace Opc.Ua.PubSub.Security.Sks
         public TimeSpan OpportunisticRefreshInterval { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
-        /// Maximum number of consecutive failed refresh attempts
-        /// tolerated before the provider stops scheduling retries.
-        /// The provider keeps serving the last-known keys until a
-        /// caller-driven action restarts it.
+        /// Number of consecutive failed refresh attempts after which the
+        /// provider logs a warning that the SKS is unavailable. Refreshes
+        /// continue every <see cref="ReconnectDelay"/>; meanwhile the
+        /// provider uses the keys it already has, switching to the next
+        /// one when the current key expires.
         /// </summary>
         public int MaxConsecutiveFailures { get; set; } = 5;
     }

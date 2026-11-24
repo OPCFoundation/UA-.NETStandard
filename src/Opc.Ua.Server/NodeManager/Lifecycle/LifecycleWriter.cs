@@ -98,6 +98,7 @@ namespace Opc.Ua.Server
                 }
                 reset();
                 m_publicationFailed = false;
+                m_shutdownStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 m_shuttingDown = false;
             }
         }
@@ -155,6 +156,7 @@ namespace Opc.Ua.Server
                     throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
                 }
                 m_shuttingDown = true;
+                m_shutdownStarted.TrySetResult(true);
                 m_activeShutdownMethods++;
                 return new ValueTask<Task>(m_activeOperations == 0
                     ? Task.CompletedTask
@@ -195,6 +197,7 @@ namespace Opc.Ua.Server
             {
                 m_disposed = true;
                 m_shuttingDown = true;
+                m_shutdownStarted.TrySetResult(true);
                 TryDisposeSynchronization();
             }
         }
@@ -825,7 +828,13 @@ namespace Opc.Ua.Server
             internal OperationLifetime(LifecycleWriter owner)
             {
                 m_owner = owner;
+                ShutdownStarted = owner.m_shutdownStarted.Task;
             }
+
+            /// <summary>
+            /// Signals that shutdown has closed admission for this operation's server lifetime.
+            /// </summary>
+            internal Task ShutdownStarted { get; }
 
             /// <inheritdoc/>
             public void Dispose()
@@ -905,6 +914,10 @@ namespace Opc.Ua.Server
 
         /// <summary>Completion of outstanding operations after shutdown admission.</summary>
         private TaskCompletionSource<bool>? m_operationsDrained;
+
+        /// <summary>The shutdown signal for operations admitted during the current server lifetime.</summary>
+        private TaskCompletionSource<bool> m_shutdownStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>Operations owning shutdown exclusion.</summary>
         private int m_activeOperations;

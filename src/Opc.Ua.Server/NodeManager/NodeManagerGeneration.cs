@@ -193,20 +193,35 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             NodeManagerGenerationState state,
             NodeManagerGenerationRegistry.ResourceLifetime? resourceOwnership = null)
+            : this(slot, number, nodeManager, state, resourceOwnership, null)
+        {
+        }
+
+        private NodeManagerGeneration(
+            NodeManagerSlot slot,
+            long number,
+            IAsyncNodeManager nodeManager,
+            NodeManagerGenerationState state,
+            NodeManagerGenerationRegistry.ResourceLifetime? resourceOwnership,
+            NodeManagerGeneration? facade)
         {
             Slot = slot ?? throw new ArgumentNullException(nameof(slot));
             Number = number;
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             ResourceOwnership = resourceOwnership ?? new NodeManagerGenerationRegistry.ResourceLifetime();
-            Gate = new GenerationGate(state, stateChanged: ResourceOwnership.NotifyStateChanged);
-            CleanupRecoveryGate = new GenerationGate(NodeManagerGenerationState.Live);
+            Gate = facade?.Gate ?? new GenerationGate(state, stateChanged: ResourceOwnership.NotifyStateChanged);
+            CleanupRecoveryGate = facade?.CleanupRecoveryGate ?? new GenerationGate(NodeManagerGenerationState.Live);
+            ForwardingFacade = facade?.Reference;
             Reference = new NodeManagerGenerationReference(this);
             SessionBindings = new ConcurrentDictionary<NodeId, GenerationSessionBindingRecord>();
             MonitoredItems = new ConcurrentDictionary<IMonitoredItem, ISubscription>(
                 MonitoredItemReferenceComparer.Instance);
             EventBindings = new ConcurrentDictionary<IEventMonitoredItem, GenerationEventBindingRecord>(
                 MonitoredItemReferenceComparer.Instance);
-            ResourceOwnership.Add(this);
+            if (facade is null)
+            {
+                ResourceOwnership.Add(this);
+            }
         }
 
         /// <summary>
@@ -233,6 +248,42 @@ namespace Opc.Ua.Server
         /// Gets the physical ownership arbiter shared by otherwise independent logical generations.
         /// </summary>
         internal NodeManagerGenerationRegistry.ResourceLifetime ResourceOwnership { get; }
+
+        /// <summary>
+        /// Gets the exact routing owner for a non-owning forwarded source view.
+        /// </summary>
+        internal NodeManagerGenerationReference? ForwardingFacade { get; }
+
+        /// <summary>
+        /// Creates a raw source view without registering another routing or cleanup owner.
+        /// </summary>
+        internal NodeManagerGeneration CreateForwardedSourceView(IAsyncNodeManager source)
+        {
+            return new NodeManagerGeneration(Slot, Number, source, NodeManagerGenerationState.Prepared,
+                ResourceOwnership, this);
+        }
+
+        /// <summary>
+        /// Associates this generation with its server's NodeId reservations.
+        /// </summary>
+        internal void AttachNodeIdReservations(NodeIdReservations reservations)
+        {
+            NodeIdReservations? previous = Interlocked.CompareExchange(ref m_nodeIdReservations, reservations, null);
+            if (previous is not null && !ReferenceEquals(previous, reservations))
+            {
+                throw new InvalidOperationException("A generation cannot reserve NodeIds on multiple servers.");
+            }
+        }
+
+        /// <summary>
+        /// Releases claims after the lifecycle verifies physical cleanup of this exact generation.
+        /// </summary>
+        internal void ReleaseNodeIdReservations()
+        {
+            Volatile.Read(ref m_nodeIdReservations)?.Release(this);
+        }
+
+        private NodeIdReservations? m_nodeIdReservations;
 
         /// <summary>
         /// Gets the opaque identity used to address cleanup failures on this exact generation.
@@ -283,6 +334,19 @@ namespace Opc.Ua.Server
         /// generation accepts no new bindings and keeps released records so a release happens once.
         /// </summary>
         internal bool EventBindingsSealed => Volatile.Read(ref m_eventBindingsSealed) != 0;
+
+        /// <summary>
+        /// Gets whether this logical owner has been routed independently of a forwarding facade.
+        /// </summary>
+        internal bool WasRouted => Volatile.Read(ref m_wasRouted);
+
+        /// <summary>
+        /// Records the routing owner's independent responsibility for its own binding cleanup.
+        /// </summary>
+        internal void MarkRouted()
+        {
+            Volatile.Write(ref m_wasRouted, true);
+        }
 
         /// <summary>
         /// Gets or sets whether external consumers must wait for post-publication initialization.
@@ -660,12 +724,15 @@ namespace Opc.Ua.Server
         {
             lock (m_eventBindingsLock)
             {
-                if (EventBindingsSealed)
+                if (unsubscribe)
                 {
-                    return unsubscribe &&
-                        EventBindings.TryGetValue(monitoredItem, out GenerationEventBindingRecord? record)
+                    return EventBindings.TryGetValue(monitoredItem, out GenerationEventBindingRecord? record)
                         ? record
                         : null;
+                }
+                if (EventBindingsSealed)
+                {
+                    return null;
                 }
                 return EventBindings.GetOrAdd(monitoredItem, static item => new GenerationEventBindingRecord(item));
             }
@@ -724,6 +791,17 @@ namespace Opc.Ua.Server
             {
                 m_viewEpochs.RemoveAll(static current => current.IsDrained);
                 m_viewEpochs.Add(epoch);
+            }
+        }
+
+        /// <summary>
+        /// Captures the epochs still associated with this generation.
+        /// </summary>
+        internal AddressSpaceEpoch[] GetViewEpochs()
+        {
+            lock (m_epochLock)
+            {
+                return [.. m_viewEpochs];
             }
         }
 
@@ -1697,6 +1775,9 @@ namespace Opc.Ua.Server
         /// <summary>Non-zero once the all-events bindings were sealed at retirement.</summary>
         private int m_eventBindingsSealed;
 
+        /// <summary>Whether this generation has belonged to a routing snapshot.</summary>
+        private bool m_wasRouted;
+
         /// <summary>Zero when ready, one while the readiness callback is active, two while events are draining.</summary>
         private int m_deferredEventState;
 
@@ -1880,6 +1961,11 @@ namespace Opc.Ua.Server
         internal GenerationEventBindingState State { get; set; }
 
         /// <summary>
+        /// Gets or sets whether cleanup retains the monitored item for an unsubscribe retry.
+        /// </summary>
+        internal bool RetainsDisposal { get; set; }
+
+        /// <summary>
         /// Gets or sets whether an unsubscribe was requested during a bind callback.
         /// </summary>
         internal bool RemovalRequested { get; set; }
@@ -1939,7 +2025,13 @@ namespace Opc.Ua.Server
             m_slot = new WeakReference<NodeManagerSlot>(generation.Slot);
             Number = generation.Number;
             m_generation = new WeakReference<NodeManagerGeneration>(generation);
+            RoutingOwner = generation.ForwardingFacade ?? this;
         }
+
+        /// <summary>
+        /// Gets the token used by items attached through the serving route.
+        /// </summary>
+        internal NodeManagerGenerationReference RoutingOwner { get; }
 
         /// <summary>
         /// Gets the stable slot identifier.
@@ -2340,6 +2432,7 @@ namespace Opc.Ua.Server
                 generation.ResourceOwnership.Complete(generation);
             }
             ChangePreparer.Release(generation.NodeManager);
+            generation.ReleaseNodeIdReservations();
         }
 
         /// <summary>
@@ -2513,6 +2606,22 @@ namespace Opc.Ua.Server
                     }
                     m_cleanup.Dispose();
                     m_cleanupDisposed = true;
+                }
+            }
+
+            /// <summary>
+            /// Checks whether retiring a facade also owns cleanup of the unrouted physical source's bindings.
+            /// </summary>
+            internal bool OwnsUnroutedBindings(NodeManagerGeneration facade, NodeManagerGeneration source)
+            {
+                lock (m_sync)
+                {
+                    if (source.WasRouted || !m_owners.Contains(source))
+                    {
+                        return false;
+                    }
+                    return !m_owners.Any(owner => !ReferenceEquals(owner, facade) && owner.WasRouted &&
+                        owner.Gate.State is NodeManagerGenerationState.Prepared or NodeManagerGenerationState.Live);
                 }
             }
 
@@ -3216,6 +3325,23 @@ namespace Opc.Ua.Server
     internal sealed class AddressSpaceEpoch
     {
         /// <summary>
+        /// Associates this epoch with its routing view without extending the view's lifetime.
+        /// </summary>
+        internal void Attach(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            m_snapshot = new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(snapshot);
+        }
+
+        /// <summary>
+        /// Attempts to recover the view while it remains reachable.
+        /// </summary>
+        internal bool TryGetSnapshot(out NodeManagerRoutingTable.RoutingSnapshot? snapshot)
+        {
+            snapshot = null;
+            return m_snapshot?.TryGetTarget(out snapshot) == true;
+        }
+
+        /// <summary>
         /// Gets the stable diagnostic identity of this published view epoch.
         /// </summary>
         internal long Id { get; } = Interlocked.Increment(ref s_nextId);
@@ -3302,6 +3428,9 @@ namespace Opc.Ua.Server
 
         /// <summary>The striped pin counter.</summary>
         private readonly StripedCounter m_active = new();
+
+        /// <summary>The weak routing view that owns this epoch.</summary>
+        private WeakReference<NodeManagerRoutingTable.RoutingSnapshot>? m_snapshot;
 
         /// <summary>Protects the optional asynchronous drain waiter.</summary>
         private readonly Lock m_waitLock = new();

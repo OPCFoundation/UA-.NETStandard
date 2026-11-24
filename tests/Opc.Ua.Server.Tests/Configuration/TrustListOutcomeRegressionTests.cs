@@ -227,6 +227,8 @@ namespace Opc.Ua.Server.Tests
             harness.UseTrustedStore(failing.Object);
             DateTimeUtc lastUpdate = harness.Node.LastUpdateTime!.Value;
             uint handle = await harness.OpenAsync(write: true).ConfigureAwait(false);
+            // Count snapshot reads during CloseAndUpdate, not the reads performed by Open.
+            failing.Invocations.Clear();
             ByteString payload = harness.Encode(new TrustListDataType
             {
                 SpecifiedLists = (uint)(TrustListMasks.TrustedCertificates | TrustListMasks.IssuerCertificates),
@@ -240,6 +242,7 @@ namespace Opc.Ua.Server.Tests
                 harness.Context, harness.Node.CloseAndUpdate, harness.Node.NodeId, handle, CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(staged.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            failing.Verify(store => store.EnumerateAsync(It.IsAny<CancellationToken>()), Times.Never);
             ServiceResult result = await harness.Coordinator!.ApplyChangesAsync(s_sessionId, request.Token)
                 .ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));

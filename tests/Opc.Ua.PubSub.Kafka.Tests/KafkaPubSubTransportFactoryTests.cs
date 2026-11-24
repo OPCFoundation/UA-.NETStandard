@@ -118,7 +118,8 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             {
                 AuthenticationProfileUri = "default-profile",
                 ResourceUri = "default-resource",
-                UserName = "configured"
+                UserName = "configured",
+                Endpoint = KafkaTestHelper.EndpointUrl
             };
             KafkaPubSubTransportFactory factory = KafkaTestHelper.NewFactory(options: options);
             PubSubConnectionDataType connection = KafkaTestHelper.NewConnection();
@@ -148,7 +149,11 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                     id.StoreType == InMemorySecretStore.DefaultStoreType && id.Name == "kafka-password")))
                 .Returns(secret);
             KafkaPubSubTransportFactory factory = KafkaTestHelper.NewFactory(
-                options: new KafkaConnectionOptions { PasswordSecretId = "InMemory:kafka-password" },
+                options: new KafkaConnectionOptions
+                {
+                    PasswordSecretId = "InMemory:kafka-password",
+                    Endpoint = KafkaTestHelper.EndpointUrl
+                },
                 secretRegistry: registry.Object);
 
             var transport = (KafkaBrokerTransport)factory.Create(
@@ -166,12 +171,17 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         {
             KafkaPubSubTransportFactory noRegistry = KafkaTestHelper.NewFactory(options: new KafkaConnectionOptions
             {
-                PasswordSecretId = "InMemory:kafka-password"
+                PasswordSecretId = "InMemory:kafka-password",
+                Endpoint = KafkaTestHelper.EndpointUrl
             });
             var registry = new Mock<ISecretRegistry>(MockBehavior.Strict);
             registry.Setup(r => r.TryGet(It.IsAny<SecretIdentifier>())).Returns((ISecret?)null);
             KafkaPubSubTransportFactory missingSecret = KafkaTestHelper.NewFactory(
-                options: new KafkaConnectionOptions { PasswordSecretId = "missing-secret" },
+                options: new KafkaConnectionOptions
+                {
+                    PasswordSecretId = "missing-secret",
+                    Endpoint = KafkaTestHelper.EndpointUrl
+                },
                 secretRegistry: registry.Object);
 
             Assert.That(
@@ -183,6 +193,51 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System),
                 Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [TestCase("kafkas://attacker.example.com:9093")]
+        [TestCase("kafkas://broker1.example.com:9093,attacker.example.com:9093")]
+        [TestCase("kafkas://broker1.example.com:9094")]
+        public void CreateRefusesHostCredentialsForOtherBrokers(string url)
+        {
+            var options = new KafkaConnectionOptions
+            {
+                Endpoint = "kafkas://broker1.example.com:9093,broker2.example.com:9093",
+                UserName = "pubsub",
+                PasswordSecretId = "InMemory:kafka-password"
+            };
+            var registry = new Mock<ISecretRegistry>(MockBehavior.Strict);
+            KafkaPubSubTransportFactory factory = KafkaTestHelper.NewFactory(
+                options: options,
+                secretRegistry: registry.Object);
+
+            Assert.That(
+                () => factory.Create(
+                    KafkaTestHelper.NewConnection(url),
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System),
+                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("CredentialEndpoints"));
+        }
+
+        [TestCase("kafkas://BROKER2.example.com:9093")]
+        [TestCase("kafkas://broker1.example.com:9093,broker2.example.com:9093")]
+        [TestCase("kafkas://extra.example.com")]
+        public void CreateAllowsHostCredentialsForNamedBrokers(string url)
+        {
+            var options = new KafkaConnectionOptions
+            {
+                Endpoint = "kafkas://broker1.example.com:9093,broker2.example.com:9093",
+                UserName = "pubsub"
+            };
+            options.CredentialEndpoints.Add("extra.example.com:9092");
+            KafkaPubSubTransportFactory factory = KafkaTestHelper.NewFactory(options: options);
+
+            var transport = (KafkaBrokerTransport)factory.Create(
+                KafkaTestHelper.NewConnection(url),
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+
+            Assert.That(transport.Options.UserName, Is.EqualTo("pubsub"));
         }
 
         [Test]

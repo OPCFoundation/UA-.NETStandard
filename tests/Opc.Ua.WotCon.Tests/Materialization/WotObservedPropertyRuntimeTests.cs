@@ -33,6 +33,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT observed property runtime.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed partial class WotObservedPropertyRuntimeTests
     {
         /// <summary>
@@ -92,6 +93,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ReferenceServer? server = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 var host = new LifecycleWotProjectionHost(
                     server.NodeManagerLifecycle, new WotProjectionBindingRuntimeFactory(channels));
@@ -102,6 +104,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                                 new WotBindingPlan("observe-source", [], [observe], [], [])]
                             : default)).ConfigureAwait(false);
                 using var client = new ClientFixture(NUnitTelemetryContext.Create());
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await client.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 using ISession session = await client.ConnectAsync(
                     new UriBuilder(Utils.UriSchemeOpcTcp, "localhost", fixture.Port).Uri, SecurityPolicies.None)
@@ -654,6 +657,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ReferenceServer? server = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 IWotProjectionBindingRuntimeFactory bindings =
                     runtimeFactory ?? new WotProjectionBindingRuntimeFactory(channels);
@@ -723,6 +727,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 async Task RetireCoreAsync() => await remove().ConfigureAwait(false);
                 ValueTask RetireAsync() => new(retirement ??= RetireCoreAsync());
                 using var client = new ClientFixture(NUnitTelemetryContext.Create());
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await client.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 using ISession session = await client.ConnectAsync(
                     new UriBuilder(Utils.UriSchemeOpcTcp, "localhost", fixture.Port).Uri, SecurityPolicies.None)

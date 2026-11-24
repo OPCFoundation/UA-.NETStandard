@@ -165,6 +165,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// <param name="invalidPeer">The invalid-peer flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
+        [Category("Integration")]
         public async Task InjectedPreparedRuntimePublishesOrRollsBackTheRealNativeRegistryUnit(bool invalidPeer)
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync(
@@ -196,6 +197,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 ServerNamespaceUris = runtime.Namespaces
             };
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await WotTestPki.SeedAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
             await client.LoadClientConfigurationAsync(Path.Combine(m_root, "pki")).ConfigureAwait(false);
             using ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{runtime.Port}"), SecurityPolicies.None)

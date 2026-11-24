@@ -3830,7 +3830,8 @@ namespace Opc.Ua.Client
             SessionClient? recoveryClient = null,
             bool networkRecovery = false,
             bool bindSuppliedChannel = false,
-            bool retirePreviousSession = false)
+            bool retirePreviousSession = false,
+            bool allowTokenReuse = true)
         {
             ThrowIfDisposed();
             using Activity? activity = CachedActivitySource.StartActivity();
@@ -4024,7 +4025,8 @@ namespace Opc.Ua.Client
                 // existing session on the failover server by reusing the current
                 // AuthenticationToken instead of CreateSession. Any failure
                 // falls through to the full re-authentication below.
-                if ((EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
+                if (allowTokenReuse &&
+                    (EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
                     !SessionId.IsNull &&
                     (!m_serverNonce.IsNull || m_endpoint.Description.SecurityMode == MessageSecurityMode.None))
                 {
@@ -4624,20 +4626,40 @@ namespace Opc.Ua.Client
             }
             try
             {
-                bool reconnecting = Reconnecting;
-                if (reconnecting || (bindSuppliedChannel && ChannelRecoveryInProgress))
+                bool recreateForCertificateChange;
+                try
+                {
+                    if (Reconnecting || (bindSuppliedChannel && ChannelRecoveryInProgress))
+                    {
+                        m_logger.SessionAlreadyAttemptingReconnect();
+
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadInvalidState,
+                            "Session is already attempting to reconnect.");
+                    }
+
+                    recreateForCertificateChange = mgr == null && channel == null && recoveryClient == null &&
+                        m_instanceCertificateEntry is { } entry &&
+                        HasSessionClientCertificateChanged(entry.Certificate.RawData);
+                    if (!recreateForCertificateChange)
+                    {
+                        Reconnecting = true;
+                        resetReconnect = true;
+                    }
+                }
+                finally
                 {
                     m_reconnectLock.Release();
-                    m_logger.SessionAlreadyAttemptingReconnect();
-
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadInvalidState,
-                        "Session is already attempting to reconnect.");
                 }
 
-                Reconnecting = true;
-                resetReconnect = true;
-                m_reconnectLock.Release();
+                if (recreateForCertificateChange)
+                {
+                    // Reconnecting the existing unmanaged channel would retain its previous certificate.
+                    await RecreateInPlaceCoreAsync(
+                        endpoint: null, connection, channel: null, budget, ct,
+                        retirePreviousSession: true, allowTokenReuse: false).ConfigureAwait(false);
+                    return;
+                }
 
                 m_logger.SessionRECONNECTSessionIdStarting(SessionId);
 

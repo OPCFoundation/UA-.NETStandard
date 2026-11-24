@@ -11,6 +11,7 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
@@ -82,7 +83,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Preserves namespace permissions while granting SecurityAdmin access only on restricted nodes.
+        /// Keeps explicit permissions separate from namespace defaults after either configuration path.
         /// </summary>
         [TestCase(false, false, false)]
         [TestCase(true, false, false)]
@@ -156,31 +157,21 @@ namespace Opc.Ua.Server.Tests
                         if (node is MethodState or BaseObjectState)
                         {
                             bool explicitNode = explicitPermissions && ReferenceEquals(node, harness.Node);
-                            // Dynamic alarm nodes use their own namespace, not namespace zero's defaults.
-                            bool namespaceRestricted = restricted && node.NodeId.NamespaceIndex == 0;
-                            if (namespaceRestricted || explicitNode)
+                            if (explicitNode)
                             {
-                                Assert.That(node.RolePermissions.Count, Is.EqualTo(2), node.BrowseName.ToString());
+                                Assert.That(node.RolePermissions.Count, Is.EqualTo(1), node.BrowseName.ToString());
                                 Assert.Multiple(() =>
                                 {
                                     Assert.That(node.RolePermissions[0].RoleId,
-                                        Is.EqualTo(explicitNode
-                                            ? ObjectIds.WellKnownRole_Observer
-                                            : ObjectIds.WellKnownRole_Anonymous));
+                                        Is.EqualTo(ObjectIds.WellKnownRole_Observer));
                                     Assert.That(node.RolePermissions[0].Permissions,
-                                        Is.EqualTo((uint)(explicitNode
-                                            ? PermissionType.Browse | PermissionType.Read
-                                            : PermissionType.Browse)));
-                                    Assert.That(node.RolePermissions[1].RoleId,
-                                        Is.EqualTo(ObjectIds.WellKnownRole_SecurityAdmin));
-                                    Assert.That(node.RolePermissions[1].Permissions,
-                                        Is.EqualTo((uint)(PermissionType.Browse | PermissionType.Call)));
+                                        Is.EqualTo((uint)(PermissionType.Browse | PermissionType.Read)));
                                 });
                             }
                             else
                             {
                                 Assert.That(node.RolePermissions.IsEmpty, Is.True,
-                                    $"Unrestricted namespace permissions must remain inherited by {node.BrowseName}.");
+                                    $"Namespace permissions must remain inherited by {node.BrowseName}.");
                             }
                         }
 
@@ -191,6 +182,30 @@ namespace Opc.Ua.Server.Tests
                             pending.Push(child);
                         }
                     }
+
+                    if (explicitPermissions || restricted)
+                    {
+                        SessionSystemContext context = CreateContext(
+                            UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt,
+                            ObjectIds.WellKnownRole_SecurityAdmin);
+                        (ServiceResult result, DataValue value) =
+                            await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                                serverInternal, harness.Node, ToServerContext(serverInternal, context),
+                                Attributes.RolePermissions,
+                                default, default, new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                        Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(value.WrappedValue.TryGetStructure(
+                            out ArrayOf<RolePermissionType> advertised), Is.True);
+                        RolePermissionType stored = explicitPermissions
+                            ? harness.Node.RolePermissions[0]
+                            : metadata.DefaultRolePermissions.Value[0];
+                        RolePermissionType advertisedRole = advertised.ToList().Single(
+                            role => role.RoleId == stored.RoleId);
+                        Assert.That(advertisedRole, Is.Not.SameAs(stored));
+                        uint storedPermissions = stored.Permissions;
+                        advertisedRole.Permissions = 0;
+                        Assert.That(stored.Permissions, Is.EqualTo(storedPermissions));
+                    }
                 }
             }
             finally
@@ -198,6 +213,788 @@ namespace Opc.Ua.Server.Tests
                 metadata.DefaultRolePermissions.Value = original;
                 await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
                     .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Revoking an inherited role removes its access after either startup path.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NamespacePermissionRevocationAppliesAfterConfigurationAsync(bool asyncConfiguration)
+        {
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            NamespaceMetadataState? metadata = await serverInternal.ConfigurationNodeManager
+                .GetNamespaceMetadataStateAsync(0).ConfigureAwait(false);
+            Assert.That(metadata?.DefaultRolePermissions, Is.Not.Null);
+            Assert.That(metadata?.DefaultUserRolePermissions, Is.Not.Null);
+            ArrayOf<RolePermissionType> originalRoles = metadata!.DefaultRolePermissions!.Value;
+            ArrayOf<RolePermissionType> originalUserRoles = metadata.DefaultUserRolePermissions!.Value;
+
+            // The optional GetCertificates method is allocated in the diagnostics namespace.
+            const string diagnosticsUri = Ua.Namespaces.OpcUa + "Diagnostics";
+            NamespaceMetadataState diagnostics = await serverInternal.ConfigurationNodeManager
+                .CreateNamespaceMetadataStateAsync(diagnosticsUri).ConfigureAwait(false)
+                ?? throw new AssertionException("The diagnostics namespace metadata was not created.");
+            Assert.That(diagnostics.DefaultRolePermissions, Is.Not.Null);
+            Assert.That(diagnostics.DefaultUserRolePermissions, Is.Not.Null);
+            ArrayOf<RolePermissionType> originalDiagnosticsRoles = diagnostics.DefaultRolePermissions!.Value;
+            ArrayOf<RolePermissionType> originalDiagnosticsUserRoles = diagnostics.DefaultUserRolePermissions!.Value;
+            try
+            {
+                metadata.DefaultRolePermissions.Value =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Observer,
+                        Permissions = (uint)PermissionType.Browse
+                    }
+                ];
+                metadata.DefaultUserRolePermissions.Value = ArrayOf<RolePermissionType>.Empty;
+                diagnostics.DefaultRolePermissions.Value = metadata.DefaultRolePermissions.Value;
+                diagnostics.DefaultUserRolePermissions.Value = ArrayOf<RolePermissionType>.Empty;
+                await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+                await diagnostics.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+                Harness harness = await CreateHarnessAsync(
+                    new ServerConfigurationOptions(),
+                    asyncConfiguration: asyncConfiguration,
+                    beforeConfiguration: root =>
+                    {
+                        root.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        root.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        GetCertificatesMethodState method = root.GetCertificates!;
+                        Assert.That(method.NodeId.NamespaceIndex,
+                            Is.EqualTo(serverInternal.NamespaceUris.GetIndex(diagnosticsUri)));
+                        method.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        method.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
+                    }).ConfigureAwait(false);
+                using (harness.Manager)
+                {
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Operator,
+                        PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                    metadata.DefaultRolePermissions.Value =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Operator,
+                            Permissions = (uint)PermissionType.Browse
+                        }
+                    ];
+                    diagnostics.DefaultRolePermissions.Value = metadata.DefaultRolePermissions.Value;
+                    await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                        .ConfigureAwait(false);
+                    await diagnostics.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                        .ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Operator,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node.GetCertificates!,
+                        ObjectIds.WellKnownRole_SecurityAdmin, PermissionType.Call, StatusCodes.Good)
+                        .ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node.GetCertificates!,
+                        ObjectIds.WellKnownRole_Operator, PermissionType.Call, StatusCodes.BadUserAccessDenied)
+                        .ConfigureAwait(false);
+
+                    ArrayOf<RolePermissionType> explicitRoles =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Observer,
+                            Permissions = (uint)PermissionType.Browse
+                        }
+                    ];
+                    harness.Node.RolePermissions = explicitRoles;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Operator,
+                        PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                    Assert.That(harness.Node.RolePermissions, Is.EqualTo(explicitRoles));
+
+                    harness.Node.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Operator,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+
+                    harness.Node.RolePermissions = default;
+                    harness.Node.UserRolePermissions = default;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Operator,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    Assert.That(harness.Node.RolePermissions.IsNull, Is.True);
+                    harness.Node.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                    harness.Node.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
+
+                    metadata.DefaultRolePermissions.Value = explicitRoles;
+                    await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                        .ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Operator,
+                        PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                    Assert.That(harness.Node.RolePermissions.IsEmpty, Is.True);
+
+                    metadata.DefaultRolePermissions.Value = ArrayOf<RolePermissionType>.Empty;
+                    await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                        .ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Read, StatusCodes.Good).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                        PermissionType.Read, StatusCodes.Good).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                metadata.DefaultRolePermissions.Value = originalRoles;
+                metadata.DefaultUserRolePermissions.Value = originalUserRoles;
+                diagnostics.DefaultRolePermissions.Value = originalDiagnosticsRoles;
+                diagnostics.DefaultUserRolePermissions.Value = originalDiagnosticsUserRoles;
+                await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+                await diagnostics.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Reads explicit policies independently of failed defaults while authorization retains those failures.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExplicitPermissionAttributePreservesDefaultFailureIsolationAsync(bool asyncConfiguration)
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            NamespaceMetadataState? metadata = await server.ConfigurationNodeManager
+                .GetNamespaceMetadataStateAsync(0).ConfigureAwait(false);
+            Assert.That(metadata?.DefaultRolePermissions, Is.Not.Null);
+            BaseVariableState property = metadata!.DefaultRolePermissions!;
+            NodeValueSimpleEventHandler? original = property.OnSimpleReadValue;
+            try
+            {
+                Harness harness = await CreateHarnessAsync(
+                    new ServerConfigurationOptions(),
+                    asyncConfiguration: asyncConfiguration,
+                    beforeConfiguration: root =>
+                    {
+                        root.RolePermissions =
+                        [
+                            new RolePermissionType
+                            {
+                                RoleId = ObjectIds.WellKnownRole_Observer,
+                                Permissions = (uint)PermissionType.Browse
+                            }
+                        ];
+                    }).ConfigureAwait(false);
+                using (harness.Manager)
+                {
+                    property.OnSimpleReadValue =
+                        (ISystemContext _, NodeState _, ref Variant _) => StatusCodes.BadInternalError;
+                    NamespaceDefaultPermissionReader.Invalidate();
+                    SessionSystemContext context = CreateContext(
+                        UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt,
+                        ObjectIds.WellKnownRole_Observer);
+                    (ServiceResult result, DataValue value) =
+                        await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                            server, harness.Node, ToServerContext(server, context), Attributes.RolePermissions,
+                            default, default, new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(value.WrappedValue.TryGetStructure(
+                        out ArrayOf<RolePermissionType> permissions), Is.True);
+                    Assert.That(permissions.ToList().Any(permission =>
+                        permission.RoleId == ObjectIds.WellKnownRole_Observer), Is.True);
+                    object? handle = await harness.Manager.GetManagerHandleAsync(harness.Node.NodeId)
+                        .ConfigureAwait(false);
+                    Assert.That(handle, Is.Not.Null);
+                    (bool handled, ServiceResult? authorization) =
+                        await harness.Manager.TryValidatePermissionsAsync(
+                            (OperationContext)context.OperationContext!, handle, PermissionType.Browse,
+                            null, true, null, false).ConfigureAwait(false);
+                    Assert.That(handled, Is.True);
+                    Assert.That(authorization?.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+                    harness.Node.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                    (result, _) = await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                        server, harness.Node, ToServerContext(server, context), Attributes.RolePermissions,
+                        default, default, new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+
+                    ServiceResultException? configurationError = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () =>
+                    {
+                        if (asyncConfiguration)
+                        {
+                            await harness.Manager.CreateServerConfigurationAsync(
+                                server.DefaultSystemContext, m_fixture.Config).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            harness.Manager.CreateServerConfiguration(server.DefaultSystemContext, m_fixture.Config);
+                        }
+                    }).ConfigureAwait(false);
+                    Assert.That(configurationError?.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+                }
+            }
+            finally
+            {
+                property.OnSimpleReadValue = original;
+                NamespaceDefaultPermissionReader.Invalidate();
+            }
+        }
+
+        /// <summary>
+        /// Evaluates permission callbacks per caller and rejects returned errors and exceptions.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, true, true)]
+        public async Task ConfigurationPermissionCallbacksRemainDynamicAsync(
+            bool asyncConfiguration,
+            bool namespaceCallback,
+            bool userPermissions)
+        {
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            NamespaceMetadataState? metadata = await serverInternal.ConfigurationNodeManager
+                .GetNamespaceMetadataStateAsync(0).ConfigureAwait(false);
+            Assert.That(metadata?.DefaultRolePermissions, Is.Not.Null);
+            Assert.That(metadata?.DefaultUserRolePermissions, Is.Not.Null);
+            ArrayOf<RolePermissionType> originalRoles = metadata!.DefaultRolePermissions!.Value;
+            ArrayOf<RolePermissionType> originalUserRoles = metadata.DefaultUserRolePermissions!.Value;
+            BaseVariableState property = userPermissions
+                ? metadata.DefaultUserRolePermissions! : metadata.DefaultRolePermissions!;
+            NodeValueSimpleEventHandler? originalCallback = property.OnSimpleReadValue;
+            NodeId allowedRole = ObjectIds.WellKnownRole_Observer;
+            StatusCode callbackStatus = StatusCodes.Good;
+            bool throwCallback = false;
+            bool checkCaller = false;
+            int callbackCount = 0;
+            try
+            {
+                metadata.DefaultRolePermissions.Value = ArrayOf<RolePermissionType>.Empty;
+                metadata.DefaultUserRolePermissions.Value = ArrayOf<RolePermissionType>.Empty;
+                if (namespaceCallback)
+                {
+                    property.OnSimpleReadValue = (ISystemContext context, NodeState _, ref Variant value) =>
+                    {
+                        ServiceResult result = ReadPermissions(context, out ArrayOf<RolePermissionType> permissions);
+                        value = Variant.FromStructure(permissions);
+                        return result;
+                    };
+                }
+                await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+                Harness harness = await CreateHarnessAsync(
+                    new ServerConfigurationOptions(),
+                    asyncConfiguration: asyncConfiguration,
+                    beforeConfiguration: root =>
+                    {
+                        root.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        root.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        if (!namespaceCallback)
+                        {
+                            NodeAttributeEventHandler<ArrayOf<RolePermissionType>> callback =
+                                (ISystemContext context, NodeState _, ref ArrayOf<RolePermissionType> value) =>
+                                    ReadPermissions(context, out value);
+                            if (userPermissions)
+                            {
+                                root.OnReadUserRolePermissions = callback;
+                            }
+                            else
+                            {
+                                root.OnReadRolePermissions = callback;
+                            }
+                        }
+                    }).ConfigureAwait(false);
+                using (harness.Manager)
+                {
+                    checkCaller = true;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    allowedRole = ObjectIds.WellKnownRole_Operator;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Operator,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                        PermissionType.Browse | PermissionType.Call,
+                        userPermissions ? StatusCodes.BadUserAccessDenied : StatusCodes.Good).ConfigureAwait(false);
+
+                    callbackStatus = StatusCodes.BadUserAccessDenied;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                        PermissionType.Browse, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                    callbackStatus = StatusCodes.BadAttributeIdInvalid;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                        PermissionType.Browse, StatusCodes.BadAttributeIdInvalid).ConfigureAwait(false);
+                    throwCallback = true;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                        PermissionType.Browse, StatusCodes.BadUnexpectedError).ConfigureAwait(false);
+
+                    throwCallback = false;
+                    callbackStatus = StatusCodes.Good;
+                    allowedRole = ObjectIds.WellKnownRole_Observer;
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse, StatusCodes.Good).ConfigureAwait(false);
+                    Assert.That(callbackCount, Is.GreaterThan(0));
+                    Assert.That(harness.Node.RolePermissions.IsEmpty, Is.True);
+                    Assert.That(harness.Node.UserRolePermissions.IsEmpty, Is.True);
+                }
+            }
+            finally
+            {
+                property.OnSimpleReadValue = originalCallback;
+                metadata.DefaultRolePermissions.Value = originalRoles;
+                metadata.DefaultUserRolePermissions.Value = originalUserRoles;
+                await metadata.ClearChangeMasksAsync(serverInternal.DefaultSystemContext, true)
+                    .ConfigureAwait(false);
+            }
+
+            ServiceResult ReadPermissions(ISystemContext context, out ArrayOf<RolePermissionType> permissions)
+            {
+                callbackCount++;
+                if (checkCaller)
+                {
+                    Assert.That(context, Is.InstanceOf<ServerSystemContext>());
+                    Assert.That(((ServerSystemContext)context).OperationContext?.UserIdentity, Is.Not.Null);
+                }
+                if (throwCallback)
+                {
+                    throw new InvalidOperationException("Permission callback failed.");
+                }
+                permissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = allowedRole,
+                        Permissions = (uint)PermissionType.Browse
+                    }
+                ];
+                return callbackStatus;
+            }
+        }
+
+        /// <summary>
+        /// Retires advertised grants and cached authorization without replacing a newer binding's callback.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConfigurationPermissionGrantLifetimeMatchesBindingAsync(bool asyncConfiguration)
+        {
+            NodeAttributeEventHandler<ArrayOf<RolePermissionType>> original =
+                static (ISystemContext _, NodeState _, ref ArrayOf<RolePermissionType> _) => ServiceResult.Good;
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions(),
+                asyncConfiguration: asyncConfiguration,
+                beforeConfiguration: root =>
+                {
+                    root.RolePermissions =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Observer,
+                            Permissions = (uint)PermissionType.Browse
+                        }
+                    ];
+                    root.UserRolePermissions =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Observer,
+                            Permissions = (uint)PermissionType.Browse
+                        },
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            Permissions = (uint)PermissionType.Browse
+                        }
+                    ];
+                    root.OnReadRolePermissions = original;
+                }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                var cache = new Dictionary<NodeId, Variant[]>();
+                await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                    PermissionType.Browse, StatusCodes.Good, cache).ConfigureAwait(false);
+                Assert.That(cache.ContainsKey(harness.Node.NodeId), Is.False);
+
+                harness.Manager.RevokeSecurityAdminCallPermissions();
+                Assert.That(harness.Node.OnReadRolePermissions, Is.SameAs(original));
+                await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                    PermissionType.Browse, StatusCodes.BadUserAccessDenied, cache).ConfigureAwait(false);
+                await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                    PermissionType.Browse, StatusCodes.Good, cache).ConfigureAwait(false);
+
+                AsyncCustomNodeManager.RegisterSecurityAdminCallPermissions(harness.Manager, harness.Node);
+                await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                    PermissionType.Browse, StatusCodes.Good, cache).ConfigureAwait(false);
+
+                Harness replacement = await CreateHarnessAsync(new ServerConfigurationOptions()).ConfigureAwait(false);
+                using (replacement.Manager)
+                {
+                    AsyncCustomNodeManager.RegisterSecurityAdminCallPermissions(replacement.Manager, harness.Node);
+                    Assert.That(replacement.Manager.ReplacePredefinedNode(harness.Node.NodeId, harness.Node), Is.True);
+                    await AssertPermissionAsync(replacement, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                        PermissionType.Browse, StatusCodes.Good, cache).ConfigureAwait(false);
+                    NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? current =
+                        harness.Node.OnReadRolePermissions;
+                    harness.Manager.Dispose();
+                    Assert.That(harness.Node.OnReadRolePermissions, Is.SameAs(current));
+                    await AssertPermissionAsync(replacement, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                        PermissionType.Browse, StatusCodes.Good, cache).ConfigureAwait(false);
+                    SessionSystemContext context = CreateContext(
+                        UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt,
+                        ObjectIds.WellKnownRole_SecurityAdmin);
+                    (ServiceResult result, DataValue value) =
+                        await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                            m_server.CurrentInstance, harness.Node, ToServerContext(m_server.CurrentInstance, context),
+                            Attributes.RolePermissions,
+                            default, default, new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(value.WrappedValue.TryGetStructure(
+                        out ArrayOf<RolePermissionType> permissions), Is.True);
+                    Assert.That(permissions.ToList().Any(permission =>
+                        permission.RoleId == ObjectIds.WellKnownRole_SecurityAdmin &&
+                        (permission.Permissions & (uint)PermissionType.Browse) != 0), Is.True);
+
+                    replacement.Manager.Dispose();
+                    Assert.That(harness.Node.OnReadRolePermissions, Is.SameAs(original));
+                    (result, value) = await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                        m_server.CurrentInstance, harness.Node, ToServerContext(m_server.CurrentInstance, context),
+                        Attributes.RolePermissions,
+                        default, default, new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(value.WrappedValue.TryGetStructure(out permissions), Is.True);
+                    Assert.That(permissions.ToList().Any(permission =>
+                        permission.RoleId == ObjectIds.WellKnownRole_SecurityAdmin), Is.False);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Does not apply a cached grant to a replacement node that reuses a configuration NodeId.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConfigurationPermissionCacheDoesNotGrantReplacementNodeAsync(bool asyncConfiguration)
+        {
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions(),
+                asyncConfiguration: asyncConfiguration,
+                beforeConfiguration: root =>
+                {
+                    root.RolePermissions =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Observer,
+                            Permissions = (uint)PermissionType.Browse
+                        }
+                    ];
+                    root.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
+                }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                var cache = new Dictionary<NodeId, Variant[]>();
+                await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_SecurityAdmin,
+                    PermissionType.Browse, StatusCodes.Good, cache).ConfigureAwait(false);
+                Assert.That(cache.ContainsKey(harness.Node.NodeId), Is.False);
+                var replacement = new BaseObjectState(null)
+                {
+                    NodeId = harness.Node.NodeId,
+                    BrowseName = harness.Node.BrowseName,
+                    RolePermissions = harness.Node.RolePermissions,
+                    UserRolePermissions = harness.Node.UserRolePermissions
+                };
+                Assert.That(harness.Manager.ReplacePredefinedNode(replacement.NodeId, replacement), Is.True);
+                await AssertPermissionAsync(harness, replacement, ObjectIds.WellKnownRole_SecurityAdmin,
+                    PermissionType.Browse, StatusCodes.BadUserAccessDenied, cache).ConfigureAwait(false);
+                await AssertPermissionAsync(harness, replacement, ObjectIds.WellKnownRole_Observer,
+                    PermissionType.Browse, StatusCodes.Good, cache).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Rejects a read whose callback retires its grant before the permission decision completes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReentrantGrantRetirementRejectsPermissionReadAsync(bool dispose)
+        {
+            ConfigurationNodeManager? owner = null;
+            bool retireDuringRead = false;
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions(),
+                beforeConfiguration: root =>
+                {
+                    root.RolePermissions =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Observer,
+                            Permissions = (uint)PermissionType.Browse
+                        }
+                    ];
+                    root.OnReadRolePermissions =
+                        (ISystemContext _, NodeState _, ref ArrayOf<RolePermissionType> _) =>
+                        {
+                            if (retireDuringRead)
+                            {
+                                retireDuringRead = false;
+                                if (dispose)
+                                {
+                                    owner!.Dispose();
+                                }
+                                else
+                                {
+                                    owner!.RevokeSecurityAdminCallPermissions();
+                                }
+                            }
+                            return ServiceResult.Good;
+                        };
+                }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                owner = harness.Manager;
+                NodeAttributeEventHandler<ArrayOf<RolePermissionType>> retained =
+                    harness.Node.OnReadRolePermissions!;
+                retireDuringRead = true;
+                SessionSystemContext context = CreateContext(
+                    UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt,
+                    ObjectIds.WellKnownRole_SecurityAdmin);
+                (ServiceResult result, DataValue value) =
+                    await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                        m_server.CurrentInstance, harness.Node, ToServerContext(m_server.CurrentInstance, context),
+                        Attributes.RolePermissions,
+                        default, default, new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(value.WrappedValue.IsNull, Is.True);
+                ArrayOf<RolePermissionType> permissions = harness.Node.RolePermissions;
+                result = retained(context, harness.Node, ref permissions);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(permissions.ToList().Any(permission =>
+                    permission.RoleId == ObjectIds.WellKnownRole_SecurityAdmin), Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Rejects changed relevant defaults but accepts invalidation caused by another namespace.
+        /// </summary>
+        [TestCase(true, false, false)]
+        [TestCase(false, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
+        public async Task NamespacePolicyInvalidationDuringPermissionReadIsScopedAsync(
+            bool relevantPolicy,
+            bool attributeRead,
+            bool inPlace)
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            NamespaceMetadataState? metadata = await server.ConfigurationNodeManager
+                .GetNamespaceMetadataStateAsync(0).ConfigureAwait(false);
+            Assert.That(metadata?.DefaultRolePermissions, Is.Not.Null);
+            ArrayOf<RolePermissionType> original = metadata!.DefaultRolePermissions!.Value;
+            const string unrelatedUri = "urn:permission-invalidation-unrelated";
+            server.NamespaceUris.GetIndexOrAppend(unrelatedUri);
+            NamespaceMetadataState unrelated = await server.ConfigurationNodeManager
+                .CreateNamespaceMetadataStateAsync(unrelatedUri).ConfigureAwait(false)
+                ?? throw new AssertionException("The unrelated namespace metadata state was not created.");
+            unrelated.AddDefaultRolePermissions(server.DefaultSystemContext);
+            ArrayOf<RolePermissionType> originalUnrelated = unrelated.DefaultRolePermissions!.Value;
+            bool changePolicy = false;
+            try
+            {
+                metadata.DefaultRolePermissions.Value =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Observer,
+                        Permissions = (uint)PermissionType.Browse
+                    }
+                ];
+                NamespaceDefaultPermissionReader.Invalidate();
+                Harness harness = await CreateHarnessAsync(
+                    new ServerConfigurationOptions(),
+                    beforeConfiguration: root =>
+                    {
+                        root.RolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        root.UserRolePermissions = ArrayOf<RolePermissionType>.Empty;
+                        root.OnReadRolePermissions =
+                            (ISystemContext _, NodeState _, ref ArrayOf<RolePermissionType> _) =>
+                            {
+                                if (changePolicy)
+                                {
+                                    changePolicy = false;
+                                    NamespaceMetadataState changed = relevantPolicy ? metadata : unrelated;
+                                    if (inPlace)
+                                    {
+                                        changed.DefaultRolePermissions!.Value[0].RoleId =
+                                            ObjectIds.WellKnownRole_Operator;
+                                    }
+                                    else
+                                    {
+                                        changed.DefaultRolePermissions!.Value =
+                                        [
+                                            new RolePermissionType
+                                            {
+                                                RoleId = ObjectIds.WellKnownRole_Operator,
+                                                Permissions = (uint)PermissionType.Browse
+                                            }
+                                        ];
+                                    }
+                                    NamespaceDefaultPermissionReader.Invalidate();
+                                }
+                                return ServiceResult.Good;
+                            };
+                    }).ConfigureAwait(false);
+                using (harness.Manager)
+                {
+                    changePolicy = true;
+                    SessionSystemContext context = CreateContext(
+                        UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt,
+                        ObjectIds.WellKnownRole_Observer);
+                    object? handle = await harness.Manager.GetManagerHandleAsync(harness.Node.NodeId)
+                        .ConfigureAwait(false);
+                    Assert.That(handle, Is.Not.Null);
+                    if (attributeRead)
+                    {
+                        (ServiceResult result, DataValue value) =
+                            await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                                server, harness.Node, ToServerContext(server, context), Attributes.RolePermissions,
+                                default, default, new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                        Assert.That(result.StatusCode,
+                            Is.EqualTo(relevantPolicy ? StatusCodes.BadInvalidState : StatusCodes.Good));
+                        if (relevantPolicy)
+                        {
+                            Assert.That(value.WrappedValue.IsNull, Is.True);
+                        }
+                        else
+                        {
+                            Assert.That(value.WrappedValue.TryGetStructure(
+                                out ArrayOf<RolePermissionType> permissions), Is.True);
+                            Assert.That(permissions.ToList().Any(permission =>
+                                permission.RoleId == ObjectIds.WellKnownRole_Observer), Is.True);
+                        }
+                    }
+                    else if (relevantPolicy)
+                    {
+                        ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        {
+                            await harness.Manager.TryValidatePermissionsAsync(
+                                (OperationContext)context.OperationContext!, handle, PermissionType.Browse,
+                                null, true, null, false).ConfigureAwait(false);
+                        }).ConfigureAwait(false);
+                        Assert.That(error?.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                    }
+                    else
+                    {
+                        (bool handled, ServiceResult? result) = await harness.Manager.TryValidatePermissionsAsync(
+                            (OperationContext)context.OperationContext!, handle, PermissionType.Browse,
+                            null, true, null, false).ConfigureAwait(false);
+                        Assert.That(handled, Is.True);
+                        Assert.That(result?.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    }
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Observer,
+                        PermissionType.Browse,
+                        relevantPolicy ? StatusCodes.BadUserAccessDenied : StatusCodes.Good).ConfigureAwait(false);
+                    await AssertPermissionAsync(harness, harness.Node, ObjectIds.WellKnownRole_Operator,
+                        PermissionType.Browse,
+                        relevantPolicy ? StatusCodes.Good : StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                metadata.DefaultRolePermissions.Value = original;
+                unrelated.DefaultRolePermissions!.Value = originalUnrelated;
+                NamespaceDefaultPermissionReader.Invalidate();
+            }
+        }
+
+        /// <summary>
+        /// Resolves async-only metadata before a grant callback rather than blocking or granting unrestricted access.
+        /// </summary>
+        [Test]
+        public async Task ConfigurationGrantAwaitsAsyncOnlyNamespaceMetadataAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                server.SetupGet(value => value.Telemetry).Returns(s_telemetry);
+                var configuration = new Mock<IConfigurationNodeManager>();
+                var metadataReady = new TaskCompletionSource<NamespaceMetadataState?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                configuration.Setup(value => value.GetNamespaceMetadataStateAsync(
+                    It.IsAny<ushort>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<NamespaceMetadataState?>(metadataReady.Task));
+                Mock.Get(server.Object.NodeManager).SetupGet(value => value.ConfigurationNodeManager)
+                    .Returns(configuration.Object);
+                await using var owner = new PermissionTestNodeManager(server.Object);
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId(900, owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("PermissionNode", owner.NamespaceIndex),
+                    RolePermissions = default
+                };
+                AsyncCustomNodeManager.RegisterSecurityAdminCallPermissions(owner, node);
+                var metadata = new NamespaceMetadataState(null);
+                metadata.AddDefaultRolePermissions(server.Object.DefaultSystemContext);
+                metadata.DefaultRolePermissions!.Value =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Observer,
+                        Permissions = (uint)PermissionType.Browse
+                    }
+                ];
+                SessionSystemContext context = CreateContext(
+                    UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt,
+                    ObjectIds.WellKnownRole_SecurityAdmin);
+                Variant syncValue = default;
+                DateTimeUtc timestamp = default;
+                ServiceResult syncResult = node.ReadAttribute(
+                    ToServerContext(server.Object, context), Attributes.RolePermissions, ref syncValue, ref timestamp);
+                Assert.That(syncResult.StatusCode, Is.EqualTo(StatusCodes.BadWouldBlock));
+                Assert.That(syncValue.IsNull, Is.True);
+
+                Task<(ServiceResult Result, DataValue Value)> pending =
+                    AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                        server.Object, node, ToServerContext(server.Object, context), Attributes.RolePermissions,
+                        default, default,
+                        new DataValue(), CancellationToken.None).AsTask();
+                Assert.That(pending.IsCompleted, Is.False);
+                metadataReady.SetResult(metadata);
+                (ServiceResult result, DataValue value) = await pending.ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(value.WrappedValue.TryGetStructure(out ArrayOf<RolePermissionType> permissions), Is.True);
+                Assert.That(permissions.Count, Is.EqualTo(2));
+                Assert.That(permissions[0].RoleId, Is.EqualTo(ObjectIds.WellKnownRole_Observer));
+                Assert.That(permissions[1].RoleId, Is.EqualTo(ObjectIds.WellKnownRole_SecurityAdmin));
+                Assert.That(node.RolePermissions.IsNull, Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Owns only the permission grant under test, without starting another server.
+        /// </summary>
+        private sealed class PermissionTestNodeManager : AsyncCustomNodeManager
+        {
+            /// <summary>
+            /// Initializes the isolated manager against deterministic server services.
+            /// </summary>
+            public PermissionTestNodeManager(IServerInternal server)
+                : base(server, "urn:opcfoundation:tests:configuration-permissions")
+            {
             }
         }
 
@@ -514,6 +1311,8 @@ namespace Opc.Ua.Server.Tests
                 ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
                 SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(2, 1));
                 var updated = ByteString.From([0xAA, 0xBB, 0xCC]);
+                byte[] expected = s_initialConfig.ToArray();
+                updated.Span.CopyTo(expected);
 
                 OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
                     .ConfigureAwait(false);
@@ -532,7 +1331,8 @@ namespace Opc.Ua.Server.Tests
                 {
                     Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
                     Assert.That(provider.ApplyCount, Is.EqualTo(1));
-                    Assert.That(provider.LastApplied.ToArray(), Is.EqualTo(updated.ToArray()));
+                    Assert.That(provider.LastApplied.ToArray(), Is.EqualTo(expected),
+                        "a positional write changes the prefix without truncating the existing file");
                     Assert.That(result.NewVersion, Is.EqualTo(2u));
                     Assert.That(result.UpdateId.Guid, Is.EqualTo(Guid.Empty));
                     Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False,
@@ -729,12 +1529,11 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(file.OpenCount!.Value, Is.Zero);
                 });
 
-                // A second update while the first is still scheduled is rejected.
+                // A scheduled update retains writer exclusion until the apply finishes.
                 OpenMethodStateResult reopen = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
                     .ConfigureAwait(false);
-                ConfigurationFileCloseAndUpdateMethodStateResult second = await CloseAndUpdateAsync(
-                    file, ctx, reopen.FileHandle, versionToUpdate: 1, restartDelayTime: 5000).ConfigureAwait(false);
-                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(reopen.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                Assert.That(reopen.FileHandle, Is.Zero);
 
                 // The deferred apply starts on a background task; wait until it
                 // armed its RestartDelayTime timer.
@@ -1082,6 +1881,171 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Read and write use the smaller file or server ByteString limit on a seeded read-write handle.
+        /// </summary>
+        [TestCase(2u, 3)]
+        [TestCase(3u, 2)]
+        public async Task ConfigurationFileReadWriteSeedsContentAndHonorsEffectiveChunkLimitAsync(
+            uint fileLimit, int serverLimit)
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                file.MaxByteStringLength ??=
+                    new PropertyState<uint>.Implementation<VariantBuilder>(file)
+                    {
+                        BrowseName = new QualifiedName(Opc.Ua.BrowseNames.MaxByteStringLength)
+                    };
+                file.MaxByteStringLength.Value = fileLimit;
+                SessionSystemContext sessionContext = CreateAdminContextForSession(new NodeId(8101, 1));
+                ServerSystemContext ctx = harness.Manager.SystemContext.Copy(
+                    (OperationContext)sessionContext.OperationContext!);
+                ServiceMessageContext messageContext = (ServiceMessageContext)ctx.Server.MessageContext;
+                int previousLimit = messageContext.MaxByteStringLength;
+                try
+                {
+                    messageContext.MaxByteStringLength = serverLimit;
+                    OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                        .ConfigureAwait(false);
+                    Assert.That(open.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    var existing = new List<byte>();
+                    while (true)
+                    {
+                        ReadMethodStateResult read = await file.Read!.OnCallAsync!(
+                            ctx, file.Read, file.NodeId, open.FileHandle, int.MaxValue, CancellationToken.None)
+                            .ConfigureAwait(false);
+                        Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(read.Data.Length, Is.LessThanOrEqualTo(2));
+                        if (read.Data.IsEmpty)
+                        {
+                            break;
+                        }
+                        existing.AddRange(read.Data.ToArray());
+                        Assert.That(existing, Has.Count.LessThanOrEqualTo(s_initialConfig.Length));
+                    }
+                    Assert.That(existing.ToArray(), Is.EqualTo(s_initialConfig.ToArray()));
+                    GetPositionMethodStateResult position = await file.GetPosition!.OnCallAsync!(
+                        ctx, file.GetPosition, file.NodeId, open.FileHandle, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(position.Position, Is.EqualTo((ulong)s_initialConfig.Length));
+                    SetPositionMethodStateResult rewind = await file.SetPosition!.OnCallAsync!(
+                        ctx, file.SetPosition, file.NodeId, open.FileHandle, 0, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(rewind.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    WriteMethodStateResult tooLarge = await file.Write!.OnCallAsync!(
+                        ctx, file.Write, file.NodeId, open.FileHandle, ByteString.From(new byte[] { 1, 2, 3 }),
+                        CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(tooLarge.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                    position = await file.GetPosition.OnCallAsync!(
+                        ctx, file.GetPosition, file.NodeId, open.FileHandle, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(position.Position, Is.Zero);
+                    byte[] replacement = s_initialConfig.Span.ToArray();
+                    for (int offset = 0; offset < replacement.Length; offset += 2)
+                    {
+                        replacement[offset] = 0x55;
+                        WriteMethodStateResult write = await file.Write.OnCallAsync!(
+                            ctx, file.Write, file.NodeId, open.FileHandle,
+                            ByteString.From(replacement.AsSpan(offset, Math.Min(2, replacement.Length - offset))),
+                            CancellationToken.None).ConfigureAwait(false);
+                        Assert.That(write.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    }
+                    ConfigurationFileCloseAndUpdateMethodStateResult update = await CloseAndUpdateAsync(
+                        file, ctx, open.FileHandle, 1, 0, 0).ConfigureAwait(false);
+                    Assert.That(update.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(provider.CurrentConfiguration, Is.EqualTo(ByteString.From(replacement.AsSpan())));
+                }
+                finally
+                {
+                    messageContext.MaxByteStringLength = previousLimit;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reading the entire configuration does not reduce write capacity, but extension beyond the file cap fails.
+        /// </summary>
+        [Test]
+        public async Task ConfigurationFileFullReadThenFullReplacementPreservesSizeLimitAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(ByteString.From(new byte[s_maxConfigurationFileSize]));
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(8102, 1));
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                Assert.That(open.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                long total = 0;
+                while (true)
+                {
+                    ReadMethodStateResult read = await file.Read!.OnCallAsync!(
+                        ctx, file.Read, file.NodeId, open.FileHandle, 4096, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    if (read.Data.IsEmpty)
+                    {
+                        break;
+                    }
+                    total += read.Data.Length;
+                    Assert.That(total, Is.LessThanOrEqualTo(s_maxConfigurationFileSize));
+                }
+                Assert.That(total, Is.EqualTo(s_maxConfigurationFileSize));
+                SetPositionMethodStateResult rewind = await file.SetPosition!.OnCallAsync!(
+                    ctx, file.SetPosition, file.NodeId, open.FileHandle, 0, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(rewind.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                byte[] buffer = new byte[4096];
+                buffer.AsSpan().Fill(0x55);
+                ByteString chunk = ByteString.From(buffer.AsSpan());
+                for (long written = 0; written < s_maxConfigurationFileSize; written += chunk.Length)
+                {
+                    WriteMethodStateResult write = await file.Write!.OnCallAsync!(
+                        ctx, file.Write, file.NodeId, open.FileHandle, chunk, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(write.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+                WriteMethodStateResult overflow = await file.Write!.OnCallAsync!(
+                    ctx, file.Write, file.NodeId, open.FileHandle, ByteString.From(new byte[] { 0x66 }),
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(overflow.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                ConfigurationFileCloseAndUpdateMethodStateResult update = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, 1, 0, 0).ConfigureAwait(false);
+                Assert.That(update.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(provider.CurrentConfiguration.Length, Is.EqualTo(s_maxConfigurationFileSize));
+                Assert.That(provider.CurrentConfiguration.Span.ToArray(), Is.All.EqualTo(0x55));
+            }
+        }
+
+        /// <summary>
+        /// A provider configuration exceeding the configured file cap is rejected in either supported mode.
+        /// </summary>
+        [TestCase(OpenFileMode.Read)]
+        [TestCase(OpenFileMode.Read | OpenFileMode.Write)]
+        public async Task ConfigurationFileOversizedProviderContentIsRejectedAsync(OpenFileMode mode)
+        {
+            var provider = new FakeConfigurationFileProvider(
+                ByteString.From(new byte[s_maxConfigurationFileSize + 1]));
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(8103, 1));
+                OpenMethodStateResult open = await OpenAsync(harness.Node.ConfigurationFile!, ctx, mode)
+                    .ConfigureAwait(false);
+                Assert.That(open.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(open.FileHandle, Is.Zero);
+                Assert.That(harness.Node.ConfigurationFile!.OpenCount!.Value, Is.Zero);
+                Assert.That(provider.ApplyCount, Is.Zero);
+            }
+        }
+
         [Test]
         public async Task ConfigurationFileReadAtExactMaxBoundaryReturnsGoodAsync()
         {
@@ -1108,7 +2072,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ConfigurationFileReadOneByteOverMaxBoundaryReturnsBadEncodingLimitsExceededAsync()
+        public async Task ConfigurationFileReadOneByteOverMaxRequestReturnsBoundedContentAsync()
         {
             var provider = new FakeConfigurationFileProvider(s_initialConfig);
             Harness harness = await CreateHarnessAsync(
@@ -1121,19 +2085,52 @@ namespace Opc.Ua.Server.Tests
                 OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(open.ServiceResult), Is.True);
 
-                // One byte past the boundary must be rejected before any
-                // buffer is allocated.
                 ReadMethodStateResult read = await file.Read!.OnCallAsync!(
                     ctx, file.Read, file.NodeId, open.FileHandle, (int)s_maxConfigurationFileSize + 1,
                     CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-                Assert.That(read.Data.IsNull, Is.True);
+                Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.Data, Is.EqualTo(s_initialConfig));
+            }
+        }
+
+        /// <summary>
+        /// Nonpositive read requests do not advance the open file's cursor.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(-1)]
+        [TestCase(int.MinValue)]
+        public async Task ConfigurationFileReadRejectsNonpositiveLengthAsync(int length)
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(8103, 1));
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read).ConfigureAwait(false);
+                Assert.That(open.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                ReadMethodStateResult rejected = await file.Read!.OnCallAsync!(
+                    ctx, file.Read, file.NodeId, open.FileHandle, length, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(rejected.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(rejected.Data.IsNull, Is.True);
+                GetPositionMethodStateResult position = await file.GetPosition!.OnCallAsync!(
+                    ctx, file.GetPosition, file.NodeId, open.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(position.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(position.Position, Is.Zero);
+                ReadMethodStateResult valid = await file.Read.OnCallAsync!(
+                    ctx, file.Read, file.NodeId, open.FileHandle, 1, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(valid.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(valid.Data, Is.EqualTo(ByteString.From(s_initialConfig.Span[..1])));
+                CloseMethodStateResult close = await file.Close!.OnCallAsync!(
+                    ctx, file.Close, file.NodeId, open.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(close.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             }
         }
 
         [Test]
-        public async Task ConfigurationFileReadWithIntMaxValueLengthReturnsBadEncodingLimitsExceededAsync()
+        public async Task ConfigurationFileReadWithIntMaxValueLengthReturnsBoundedContentAsync()
         {
             var provider = new FakeConfigurationFileProvider(s_initialConfig);
             Harness harness = await CreateHarnessAsync(
@@ -1146,17 +2143,12 @@ namespace Opc.Ua.Server.Tests
                 OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(open.ServiceResult), Is.True);
 
-                // int.MaxValue exceeds Array.MaxLength for byte[] and would
-                // throw OutOfMemoryException if allocated before the size
-                // check. The fix must reject it up-front with
-                // BadEncodingLimitsExceeded instead of allocating and
-                // truncating.
                 ReadMethodStateResult read = await file.Read!.OnCallAsync!(
                     ctx, file.Read, file.NodeId, open.FileHandle, int.MaxValue,
                     CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-                Assert.That(read.Data.IsNull, Is.True);
+                Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.Data, Is.EqualTo(s_initialConfig));
             }
         }
 
@@ -1192,7 +2184,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ConfigurationFileReadCumulativeExceedingRemainingReturnsBadEncodingLimitsExceededAsync()
+        public async Task ConfigurationFileReadAtSizeLimitReturnsEmptyEofAndCanRewindAsync()
         {
             var content = ByteString.From(new byte[s_maxConfigurationFileSize]);
             var provider = new FakeConfigurationFileProvider(content);
@@ -1206,27 +2198,44 @@ namespace Opc.Ua.Server.Tests
                 OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(open.ServiceResult), Is.True);
 
-                // Consume all but the last 5 bytes of the quota with real
-                // data, then request 6 more: the cumulative total (already
-                // processed + requested) exceeds the maximum even though
-                // neither call individually looks oversized.
+                file.MaxByteStringLength ??=
+                    new PropertyState<uint>.Implementation<VariantBuilder>(file)
+                    {
+                        BrowseName = new QualifiedName(Opc.Ua.BrowseNames.MaxByteStringLength)
+                    };
+                file.MaxByteStringLength.Value = (uint)s_maxConfigurationFileSize;
                 ReadMethodStateResult first = await file.Read!.OnCallAsync!(
                     ctx, file.Read, file.NodeId, open.FileHandle, (int)s_maxConfigurationFileSize - 5,
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(first.ServiceResult), Is.True);
-                Assert.That(first.Data.Length, Is.EqualTo(s_maxConfigurationFileSize - 5));
+                long total = first.Data.Length;
+                while (total < s_maxConfigurationFileSize - 5)
+                {
+                    ReadMethodStateResult chunk = await file.Read.OnCallAsync!(
+                        ctx, file.Read, file.NodeId, open.FileHandle,
+                        (int)(s_maxConfigurationFileSize - 5 - total), CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(chunk.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(chunk.Data.Length, Is.Positive);
+                    total += chunk.Data.Length;
+                }
 
                 ReadMethodStateResult second = await file.Read.OnCallAsync!(
                     ctx, file.Read, file.NodeId, open.FileHandle, 6, CancellationToken.None).ConfigureAwait(false);
-                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-                Assert.That(second.Data.IsNull, Is.True);
+                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(second.Data.Length, Is.EqualTo(5));
 
-                // The boundary itself (exactly the remaining 5 bytes) must
-                // still succeed.
                 ReadMethodStateResult third = await file.Read.OnCallAsync!(
                     ctx, file.Read, file.NodeId, open.FileHandle, 5, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(third.ServiceResult), Is.True);
-                Assert.That(third.Data.Length, Is.EqualTo(5));
+                Assert.That(third.Data.IsEmpty, Is.True);
+                SetPositionMethodStateResult rewind = await file.SetPosition!.OnCallAsync!(
+                    ctx, file.SetPosition, file.NodeId, open.FileHandle, 0, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(rewind.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                ReadMethodStateResult reread = await file.Read.OnCallAsync!(
+                    ctx, file.Read, file.NodeId, open.FileHandle, 5, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(reread.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(reread.Data.Length, Is.EqualTo(5));
             }
         }
 
@@ -1560,24 +2569,26 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(ServiceResult.IsGood(openA.ServiceResult), Is.True);
                 ControllableTimer t1 = ActivityTimers(timeProvider)[^1];
 
-                // Session B opens; last-open-wins evicts A's handle and arms a new
-                // timer for B.
+                // Opening another reader rearms the timer but retains both handles.
                 OpenMethodStateResult openB = await OpenAsync(file, sessionB, OpenFileMode.Read)
                     .ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(openB.ServiceResult), Is.True);
                 Assert.That(t1.IsDisposed, Is.True);
 
-                // Session A's stale timer callback must not close Session B's handle.
+                // A superseded timer callback must not close either reader.
                 t1.Fire();
 
+                ReadMethodStateResult readA = await file.Read!.OnCallAsync!(
+                    sessionA, file.Read, file.NodeId, openA.FileHandle, 4, CancellationToken.None)
+                    .ConfigureAwait(false);
                 ReadMethodStateResult readB = await file.Read!.OnCallAsync!(
                     sessionB, file.Read, file.NodeId, openB.FileHandle, 4, CancellationToken.None)
                     .ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)1),
-                        "Session A's stale callback must not close Session B's handle");
+                    Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)2));
+                    Assert.That(ServiceResult.IsGood(readA.ServiceResult), Is.True);
                     Assert.That(ServiceResult.IsGood(readB.ServiceResult), Is.True,
                         "Session B's handle must stay usable after Session A's stale callback");
                 });
@@ -1620,7 +2631,7 @@ namespace Opc.Ua.Server.Tests
                 ReadMethodStateResult read = await file.Read!.OnCallAsync!(
                     ctx, file.Read, file.NodeId, open.FileHandle, 4, CancellationToken.None)
                     .ConfigureAwait(false);
-                Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(read.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             }
         }
 
@@ -1740,6 +2751,433 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [Test]
+        public async Task ConfigurationFileSupportsMultipleReadersAndExclusiveWriterAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext first = CreateAdminContextForSession(new NodeId(8101, 1));
+                SessionSystemContext second = CreateAdminContextForSession(new NodeId(8102, 1));
+                SessionSystemContext third = CreateAdminContextForSession(new NodeId(8103, 1));
+
+                OpenMethodStateResult firstRead = await OpenAsync(file, first, OpenFileMode.Read).ConfigureAwait(false);
+                OpenMethodStateResult secondRead = await OpenAsync(file, second, OpenFileMode.Read).ConfigureAwait(false);
+                Assert.That(file.OpenCount!.Value, Is.EqualTo((ushort)2));
+
+                OpenMethodStateResult rejectedWriter = await OpenAsync(
+                    file, third, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                Assert.That(rejectedWriter.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+
+                CloseMethodStateResult firstClose = await file.Close!.OnCallAsync!(
+                    first, file.Close, file.NodeId, firstRead.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(firstClose.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                rejectedWriter = await OpenAsync(file, third, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                Assert.That(rejectedWriter.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+
+                CloseMethodStateResult secondClose = await file.Close.OnCallAsync!(
+                    second, file.Close, file.NodeId, secondRead.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(secondClose.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                OpenMethodStateResult writer = await OpenAsync(
+                    file, third, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                Assert.That(writer.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                OpenMethodStateResult rejectedReader = await OpenAsync(file, first, OpenFileMode.Read)
+                    .ConfigureAwait(false);
+                Assert.That(rejectedReader.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+
+                CloseMethodStateResult writerClose = await file.Close.OnCallAsync!(
+                    third, file.Close, file.NodeId, writer.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(writerClose.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(file.OpenCount!.Value, Is.Zero);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFilePendingProviderReadKeepsWriterAdmissionAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig)
+            {
+                ReadStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+                ReadRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext context = CreateAdminContextForSession(new NodeId(8110, 1));
+                Task<OpenMethodStateResult> pending = OpenAsync(
+                    file, context, OpenFileMode.Read | OpenFileMode.Write).AsTask();
+                OpenMethodStateResult opened;
+                try
+                {
+                    await provider.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    for (int attempt = 0; attempt < 2; attempt++)
+                    {
+                        OpenMethodStateResult rejected = await OpenAsync(
+                            file, context, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                        Assert.That(rejected.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                        Assert.That(rejected.FileHandle, Is.Zero);
+                    }
+                    OpenMethodStateResult rejectedReader = await OpenAsync(
+                        file, context, OpenFileMode.Read).ConfigureAwait(false);
+                    Assert.That(rejectedReader.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+                    Assert.That(rejectedReader.FileHandle, Is.Zero);
+                    Assert.That(provider.ReadCount, Is.EqualTo(1));
+                    Assert.That(file.OpenCount!.Value, Is.Zero);
+                    Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.True);
+                }
+                finally
+                {
+                    provider.ReadRelease.TrySetResult(true);
+                    opened = await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+
+                Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                CloseMethodStateResult close = await file.Close!.OnCallAsync!(
+                    context, file.Close, file.NodeId, opened.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(close.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// A pending reader rejects a writer before another provider read starts.
+        /// </summary>
+        [Test]
+        public async Task ConfigurationFilePendingReaderRejectsWriterBeforeProviderReadAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig)
+            {
+                ReadStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+                ReadRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext context = CreateAdminContextForSession(new NodeId(8117, 1));
+                Task<OpenMethodStateResult> pending = OpenAsync(file, context, OpenFileMode.Read).AsTask();
+                OpenMethodStateResult opened;
+                try
+                {
+                    await provider.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    OpenMethodStateResult rejectedWriter = await OpenAsync(
+                        file, context, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                    Assert.That(rejectedWriter.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                    Assert.That(rejectedWriter.FileHandle, Is.Zero);
+                    Assert.That(provider.ReadCount, Is.EqualTo(1));
+                    Assert.That(file.OpenCount!.Value, Is.Zero);
+                    Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+                }
+                finally
+                {
+                    provider.ReadRelease.TrySetResult(true);
+                    opened = await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+
+                Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                CloseMethodStateResult close = await file.Close!.OnCallAsync!(
+                    context, file.Close, file.NodeId, opened.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(close.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(file.OpenCount!.Value, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// Cancellation prevents publication even when the provider returns normally, releasing admission.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConfigurationFileCancelledProviderReadReleasesAdmissionAsync(bool writer)
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            using (var cancellation = new CancellationTokenSource())
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext context = CreateAdminContextForSession(new NodeId(8116, 1));
+                provider.ReadStarted = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                provider.ReadRelease = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                provider.IgnoreReadCancellation = true;
+                Task<OpenMethodStateResult> pending = file.Open!.OnCallAsync!(
+                    context, file.Open, file.NodeId,
+                    (byte)(writer ? OpenFileMode.Read | OpenFileMode.Write : OpenFileMode.Read),
+                    cancellation.Token).AsTask();
+                try
+                {
+                    await provider.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    cancellation.Cancel();
+                }
+                finally
+                {
+                    provider.ReadRelease.TrySetResult(true);
+                }
+                OperationCanceledException? cancelled = await Assert.ThrowsAsync<OperationCanceledException>(
+                    async () => await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+                Assert.That(cancelled!.CancellationToken, Is.EqualTo(cancellation.Token));
+                Assert.That(file.OpenCount!.Value, Is.Zero);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+                OpenMethodStateResult next = await OpenAsync(
+                    file, context, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                Assert.That(next.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                CloseMethodStateResult closed = await file.Close!.OnCallAsync!(
+                    context, file.Close, file.NodeId, next.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(closed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(file.OpenCount!.Value, Is.Zero);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileWriteReservationBlocksTransactionsThroughApplyAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig)
+            {
+                ApplyStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+                ApplyRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext owner = CreateAdminContextForSession(new NodeId(8111, 1));
+                NodeId otherSessionId = new(8112, 1);
+                OpenMethodStateResult open = await OpenAsync(
+                    file, owner, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(
+                    owner, file.Write, file.NodeId, open.FileHandle, ByteString.From([1, 2, 3, 4]),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Task<ConfigurationFileCloseAndUpdateMethodStateResult> update = CloseAndUpdateAsync(
+                    file, owner, open.FileHandle, versionToUpdate: 1).AsTask();
+                try
+                {
+                    await provider.ApplyStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    ServiceResultException? rejected = Assert.Throws<ServiceResultException>(() =>
+                        harness.Coordinator.Stage(otherSessionId, new PushConfigurationOperation
+                        {
+                            CommitAsync = _ => Task.CompletedTask,
+                            RollbackAsync = _ => Task.CompletedTask
+                        }));
+                    Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadTransactionPending));
+                    Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.True);
+                }
+                finally
+                {
+                    provider.ApplyRelease.TrySetResult(true);
+                }
+
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await update.ConfigureAwait(false);
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileSessionCloseRejectsPendingHandlePublicationAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig)
+            {
+                ReadStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+                ReadRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                using var handler = new ApplicationConfigurationFile(
+                    file, provider, _ => { }, _ => { }, s_telemetry,
+                    harness.Coordinator, TimeProvider.System, 0);
+                NodeId sessionId = new(8112, 1);
+                SessionSystemContext context = CreateAdminContextForSession(sessionId);
+                Task<OpenMethodStateResult> pending = OpenAsync(
+                    file, context, OpenFileMode.Read | OpenFileMode.Write).AsTask();
+                OpenMethodStateResult opened;
+                try
+                {
+                    await provider.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    handler.NotifySessionClosing(sessionId);
+                }
+                finally
+                {
+                    provider.ReadRelease.TrySetResult(true);
+                    opened = await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+
+                Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+                Assert.That(opened.FileHandle, Is.Zero);
+                Assert.That(file.OpenCount!.Value, Is.Zero);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+
+                SessionSystemContext next = CreateAdminContextForSession(new NodeId(8114, 1));
+                OpenMethodStateResult nextWriter = await OpenAsync(
+                    file, next, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                Assert.That(nextWriter.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                CloseMethodStateResult close = await file.Close!.OnCallAsync!(
+                    next, file.Close, file.NodeId, nextWriter.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(close.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileShutdownDrainsPendingOpenAndRejectsPublicationAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig)
+            {
+                ReadStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+                ReadRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                using var handler = new ApplicationConfigurationFile(
+                    file, provider, _ => { }, _ => { }, s_telemetry,
+                    harness.Coordinator, TimeProvider.System, 0);
+                SessionSystemContext context = CreateAdminContextForSession(new NodeId(8111, 1));
+                Task<OpenMethodStateResult> pending = OpenAsync(
+                    file, context, OpenFileMode.Read | OpenFileMode.Write).AsTask();
+                Task? stop = null;
+                OpenMethodStateResult opened;
+                try
+                {
+                    await provider.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    stop = handler.StopAsync().AsTask();
+                    Assert.That(stop.IsCompleted, Is.False);
+                    int readsBefore = provider.ReadCount;
+                    OpenMethodStateResult rejected = await OpenAsync(file, context, OpenFileMode.Read)
+                        .ConfigureAwait(false);
+                    Assert.That(rejected.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+                    Assert.That(rejected.FileHandle, Is.Zero);
+                    Assert.That(provider.ReadCount, Is.EqualTo(readsBefore));
+                }
+                finally
+                {
+                    provider.ReadRelease.TrySetResult(true);
+                    opened = await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    if (stop != null)
+                    {
+                        await stop.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                }
+
+                Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+                Assert.That(opened.FileHandle, Is.Zero);
+                Assert.That(file.OpenCount!.Value, Is.Zero);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileShutdownWaitsForActiveUpdateAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig)
+            {
+                ApplyStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+                ApplyRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                using var handler = new ApplicationConfigurationFile(
+                    file, provider, _ => { }, _ => { }, s_telemetry,
+                    harness.Coordinator, TimeProvider.System, 0);
+                SessionSystemContext context = CreateAdminContextForSession(new NodeId(8115, 1));
+                OpenMethodStateResult open = await OpenAsync(
+                    file, context, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(
+                    context, file.Write, file.NodeId, open.FileHandle, ByteString.From([1, 2, 3, 4]),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Task<ConfigurationFileCloseAndUpdateMethodStateResult> update = CloseAndUpdateAsync(
+                    file, context, open.FileHandle, versionToUpdate: 1).AsTask();
+                Task? stop = null;
+                ConfigurationFileCloseAndUpdateMethodStateResult result;
+                try
+                {
+                    await provider.ApplyStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    stop = handler.StopAsync().AsTask();
+                    Assert.That(stop.IsCompleted, Is.False);
+                }
+                finally
+                {
+                    provider.ApplyRelease.TrySetResult(true);
+                    result = await update.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    if (stop != null)
+                    {
+                        await stop.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                }
+
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileShutdownRejectsNewUpdateAndConfirmationAsync()
+        {
+            bool authorized = true;
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                using var handler = new ApplicationConfigurationFile(
+                    file, provider, _ => { }, _ =>
+                    {
+                        if (!authorized)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                        }
+                    }, s_telemetry,
+                    harness.Coordinator, TimeProvider.System, 0);
+                SessionSystemContext context = CreateAdminContextForSession(new NodeId(8116, 1));
+                OpenMethodStateResult open = await OpenAsync(
+                    file, context, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false);
+                Assert.That(open.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                await handler.StopAsync().ConfigureAwait(false);
+
+                ConfigurationFileCloseAndUpdateMethodStateResult update = await CloseAndUpdateAsync(
+                    file, context, open.FileHandle, 1).ConfigureAwait(false);
+                Assert.That(update.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+                ConfigurationFileConfirmUpdateMethodStateResult confirm = await file.ConfirmUpdate!.OnCallAsync!(
+                    context, file.ConfirmUpdate, file.NodeId, Uuid.NewUuid(), CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(confirm.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+
+                authorized = false;
+                ServiceResultException? deniedUpdate = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await CloseAndUpdateAsync(file, context, open.FileHandle, 1).ConfigureAwait(false));
+                Assert.That(deniedUpdate!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                ServiceResultException? deniedConfirm = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await file.ConfirmUpdate!.OnCallAsync!(
+                        context, file.ConfirmUpdate, file.NodeId, Uuid.NewUuid(), CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(deniedConfirm!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(provider.ValidateCount, Is.Zero);
+                Assert.That(provider.ApplyCount, Is.Zero);
+                Assert.That(provider.ConfirmCount, Is.Zero);
+            }
+        }
+
         private static ControllableTimer[] ActivityTimers(ControllableTimeProvider timeProvider)
         {
             // The ApplicationConfigurationFile arms its inactivity timer with an
@@ -1792,6 +3230,108 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None);
         }
 
+        /// <summary>
+        /// Checks optimized, cached and metadata permission paths with a fresh caller context.
+        /// </summary>
+        private async Task AssertPermissionAsync(
+            Harness harness,
+            NodeState node,
+            NodeId role,
+            PermissionType permission,
+            StatusCode expectedStatus,
+            Dictionary<NodeId, Variant[]>? sharedCache = null)
+        {
+            object? handle = await harness.Manager.GetManagerHandleAsync(node.NodeId).ConfigureAwait(false);
+            Assert.That(handle, Is.Not.Null);
+            for (int path = 0; path < 5; path++)
+            {
+                SessionSystemContext context = CreateContext(
+                    UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt, role);
+                var operation = (OperationContext)context.OperationContext!;
+                ServiceResult? result;
+                try
+                {
+                    if (path < 2)
+                    {
+                        (bool handled, ServiceResult? verdict) = await harness.Manager.TryValidatePermissionsAsync(
+                            operation,
+                            handle,
+                            permission,
+                            path == 0 ? null : sharedCache ?? new Dictionary<NodeId, Variant[]>(),
+                            permissionsOnly: path == 0,
+                            logger: null,
+                            validateAccessRestrictions: false).ConfigureAwait(false);
+                        Assert.That(handled, Is.True);
+                        result = verdict;
+                    }
+                    else if (path < 4)
+                    {
+                        NodeMetadata? permissions = path == 2
+                            ? await harness.Manager.GetPermissionMetadataAsync(
+                                operation, handle, BrowseResultMask.NodeClass, sharedCache!, permissionsOnly: true)
+                                .ConfigureAwait(false)
+                            : await harness.Manager.GetNodeMetadataAsync(operation, handle, BrowseResultMask.NodeClass)
+                                .ConfigureAwait(false);
+                        Assert.That(permissions, Is.Not.Null);
+                        result = MasterNodeManager.ValidateRolePermissions(operation, permissions!, permission);
+                    }
+                    else
+                    {
+                        IServerInternal server = m_server.CurrentInstance;
+                        (ServiceResult rolesResult, DataValue roles) =
+                            await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                                server, node, ToServerContext(server, context), Attributes.RolePermissions,
+                                default, default, new DataValue(),
+                                CancellationToken.None).ConfigureAwait(false);
+                        (ServiceResult userRolesResult, DataValue userRoles) =
+                            await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                                server, node, ToServerContext(server, context), Attributes.UserRolePermissions,
+                                default, default,
+                                new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                        bool absentRoles = rolesResult.StatusCode == StatusCodes.BadAttributeIdInvalid &&
+                            node.RolePermissions.IsNull && node.OnReadRolePermissions == null;
+                        bool absentUserRoles = userRolesResult.StatusCode == StatusCodes.BadAttributeIdInvalid &&
+                            node.UserRolePermissions.IsNull && node.OnReadUserRolePermissions == null;
+                        if (!ServiceResult.IsGood(rolesResult) && !absentRoles)
+                        {
+                            result = rolesResult;
+                        }
+                        else if (!ServiceResult.IsGood(userRolesResult) && !absentUserRoles)
+                        {
+                            result = userRolesResult;
+                        }
+                        else
+                        {
+                            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                                server, ToServerContext(server, context), node.NodeId.NamespaceIndex)
+                                .ConfigureAwait(false);
+                            Assert.That(defaults.Status, Is.EqualTo(StatusCodes.Good));
+                            var advertised = new NodeMetadata(node, node.NodeId)
+                            {
+                                DefaultRolePermissions = defaults.DefaultRolePermissions,
+                                DefaultUserRolePermissions = defaults.DefaultUserRolePermissions
+                            };
+                            if (roles.WrappedValue.TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
+                            {
+                                advertised.RolePermissions = rolePermissions;
+                            }
+                            if (userRoles.WrappedValue.TryGetStructure(out ArrayOf<RolePermissionType> userPermissions))
+                            {
+                                advertised.UserRolePermissions = userPermissions;
+                            }
+                            result = MasterNodeManager.ValidateRolePermissions(operation, advertised, permission);
+                        }
+                    }
+                }
+                catch (ServiceResultException exception)
+                {
+                    result = new ServiceResult(exception);
+                }
+                Assert.That(result?.StatusCode, Is.EqualTo(expectedStatus),
+                    $"Permission path {path} on {node.BrowseName}");
+            }
+        }
+
         private async Task<Harness> CreateHarnessAsync(
             ServerConfigurationOptions options,
             TimeProvider? timeProvider = null,
@@ -1829,6 +3369,14 @@ namespace Opc.Ua.Server.Tests
             await manager.RecoverConfigurationFileUpdateAsync(CancellationToken.None).ConfigureAwait(false);
 
             return new Harness(manager, node, coordinator);
+        }
+
+        /// <summary>
+        /// Supplies server services while preserving the permission test's caller and operation cache.
+        /// </summary>
+        private static ServerSystemContext ToServerContext(IServerInternal server, SessionSystemContext context)
+        {
+            return new ServerSystemContext(server, (OperationContext)context.OperationContext!);
         }
 
         private static SessionSystemContext CreateContext(
@@ -1955,6 +3503,36 @@ namespace Opc.Ua.Server.Tests
             public bool ApplyShouldThrowUnexpected { get; set; }
 
             /// <summary>
+            /// Gets or sets a signal raised when configuration application starts.
+            /// </summary>
+            public TaskCompletionSource<bool>? ApplyStarted { get; set; }
+
+            /// <summary>
+            /// Gets or sets an optional signal that releases configuration application.
+            /// </summary>
+            public TaskCompletionSource<bool>? ApplyRelease { get; set; }
+
+            /// <summary>
+            /// Gets or sets the signal raised when a provider read starts.
+            /// </summary>
+            public TaskCompletionSource<bool>? ReadStarted { get; set; }
+
+            /// <summary>
+            /// Gets or sets the signal releasing a provider read.
+            /// </summary>
+            public TaskCompletionSource<bool>? ReadRelease { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether a provider read returns without observing cancellation.
+            /// </summary>
+            public bool IgnoreReadCancellation { get; set; }
+
+            /// <summary>
+            /// Gets the number of provider reads.
+            /// </summary>
+            public int ReadCount { get; private set; }
+
+            /// <summary>
             /// Gets the number of updates applied by this fake provider.
             /// </summary>
             public int ApplyCount => m_store.ApplyCount;
@@ -1982,9 +3560,16 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Reads the current configuration content.
             /// </summary>
-            public ValueTask<ByteString> ReadConfigurationAsync(CancellationToken cancellationToken = default)
+            public async ValueTask<ByteString> ReadConfigurationAsync(CancellationToken cancellationToken = default)
             {
-                return new ValueTask<ByteString>(m_store.Content);
+                ReadCount++;
+                ReadStarted?.TrySetResult(true);
+                if (ReadRelease != null)
+                {
+                    await ReadRelease.Task.WaitAsync(
+                        IgnoreReadCancellation ? CancellationToken.None : cancellationToken).ConfigureAwait(false);
+                }
+                return m_store.Content;
             }
 
             /// <summary>
@@ -2003,8 +3588,15 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Applies configuration content without confirmation.
             /// </summary>
-            public ValueTask ApplyConfigurationAsync(ByteString configuration, CancellationToken cancellationToken = default)
+            public async ValueTask ApplyConfigurationAsync(
+                ByteString configuration,
+                CancellationToken cancellationToken = default)
             {
+                ApplyStarted?.TrySetResult(true);
+                if (ApplyRelease != null)
+                {
+                    await ApplyRelease.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
                 if (ApplyShouldThrow)
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "apply failed");
@@ -2014,7 +3606,6 @@ namespace Opc.Ua.Server.Tests
                 m_store.Content = configuration;
                 CurrentVersion++;
                 m_store.LastUpdateTime = DateTime.UtcNow;
-                return default;
             }
 
             /// <summary>

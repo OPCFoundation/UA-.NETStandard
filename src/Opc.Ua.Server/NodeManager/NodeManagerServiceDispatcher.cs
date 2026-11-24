@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Applies readiness admission to the generation selected by this dispatch.
         /// </summary>
-        private static bool CanDispatchTo(
+        internal static bool CanDispatchTo(
             NodeManagerRoutingTable.RoutingSnapshot snapshot,
             IAsyncNodeManager nodeManager,
             NodeManagerReadinessScope? readiness)
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
-            return m_handleLookupOverride is null
+            return m_handleLookupOverride is null || snapshot.NodeOverrides.ContainsKey(nodeId)
                 ? ResolveManagerHandleAsync(nodeId, snapshot, context.Readiness, cancellationToken)
                 : GetOverriddenManagerHandleAsync(nodeId, snapshot, context.Readiness, cancellationToken);
         }
@@ -217,6 +217,15 @@ namespace Opc.Ua.Server
             int index = nodeId.NamespaceIndex;
             NodeManagerRoutingTable.RoutingSnapshot snapshot = m_nodeManagers.Revision;
             var routing = m_nodeManagers.GetDispatchView(snapshot);
+            if (snapshot.NodeOverrides.TryGetValue(nodeId, out IAsyncNodeManager? overrideManager))
+            {
+                if (!CanDispatchTo(snapshot, overrideManager, null))
+                {
+                    return null;
+                }
+                nodeManager = overrideManager.SyncNodeManager;
+                return nodeManager.GetManagerHandle(nodeId);
+            }
 
             // check if node managers are registered - use the core node manager if unknown.
             if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
@@ -331,6 +340,16 @@ namespace Opc.Ua.Server
             int index = nodeId.NamespaceIndex;
             snapshot ??= m_nodeManagers.Revision;
             var routing = m_nodeManagers.GetDispatchView(snapshot);
+            if (snapshot.NodeOverrides.TryGetValue(nodeId, out IAsyncNodeManager? overrideManager))
+            {
+                if (!CanDispatchTo(snapshot, overrideManager, readiness))
+                {
+                    return (null, null, null);
+                }
+                handle = await overrideManager.GetManagerHandleAsync(nodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                return handle is null ? (null, null, null) : (handle, overrideManager, null);
+            }
 
             // check if node managers are registered - use the core node manager if unknown.
             if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
@@ -430,6 +449,11 @@ namespace Opc.Ua.Server
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     throw;
+                }
+                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadContinuationPointInvalid)
+                {
+                    error = e.StatusCode;
+                    result.Targets = [];
                 }
                 catch (Exception e)
                 {
@@ -1358,6 +1382,7 @@ namespace Opc.Ua.Server
             using var owner = new ContinuationPointOwner(new ContinuationPoint
             {
                 Generation = GetGenerationReference(context, nodeManager!).Reference,
+                OverrideOwners = CaptureOverrideOwners(GetRouting(context)),
                 View = view,
                 NodeToBrowse = handle,
                 RequestedNodeId = nodeToBrowse.NodeId,
@@ -1411,6 +1436,10 @@ namespace Opc.Ua.Server
             bool saved = false;
             try
             {
+                IReadOnlyDictionary<NodeId, NodeManagerGenerationReference> overrideOwners =
+                    cp.OverrideOwners ??= CaptureOverrideOwners(GetRouting(context));
+                cp.ValidateOverrideOwners(GetRouting(context));
+                cp.ValidateOverrideTargets(GetRouting(context));
                 IAsyncNodeManager nodeManager = cp.Manager;
                 var nodeClassMask = (NodeClass)cp.NodeClassMask;
                 BrowseResultMask resultMask = cp.ResultMask;
@@ -1427,13 +1456,18 @@ namespace Opc.Ua.Server
                     if (currentCp is not null)
                     {
                         currentCp.Generation = generation;
+                        currentCp.OverrideOwners = overrideOwners;
+                        currentCp.ShareOverrideDependencies(cp);
                     }
 
                     var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
                     for (int ii = 0; ii < referenceList.Count; ii++)
                     {
                         ReferenceDescription reference = referenceList[ii];
-                        if (reference.Unfiltered)
+                        cp.ValidateOverrideTarget(GetRouting(context), reference.NodeId);
+                        if (reference.Unfiltered ||
+                            (!reference.NodeId.IsAbsolute &&
+                                GetRouting(context).NodeOverrides.ContainsKey((NodeId)reference.NodeId)))
                         {
                             if (reference.NodeId.IsAbsolute)
                             {
@@ -1482,6 +1516,16 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Captures weak generation identities needed to validate deferred browse targets.
+        /// </summary>
+        private static Dictionary<NodeId, NodeManagerGenerationReference> CaptureOverrideOwners(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            return snapshot.NodeOverrides.ToDictionary(
+                entry => entry.Key, entry => snapshot.GetGeneration(entry.Value).Reference);
         }
 
         /// <summary>
@@ -1649,6 +1693,15 @@ namespace Opc.Ua.Server
             NodeManagerRoutingTable.RoutingSnapshot snapshot =
                 context?.RoutingSnapshot ?? m_nodeManagers.Revision;
             NodeManagerReadinessScope? readiness = context?.Readiness;
+            if (snapshot.NodeOverrides.TryGetValue(nodeId, out IAsyncNodeManager? overrideManager))
+            {
+                if (!CanDispatchTo(snapshot, overrideManager, readiness))
+                {
+                    return null;
+                }
+                return (await overrideManager.GetManagerHandleAsync(nodeId, cancellationToken)
+                    .ConfigureAwait(false) as NodeHandle)?.Node;
+            }
             foreach (IAsyncNodeManager nodeManager in snapshot.VisibleNodeManagers)
             {
                 if (!CanDispatchTo(snapshot, nodeManager, readiness))
@@ -1745,6 +1798,7 @@ namespace Opc.Ua.Server
             // call each node manager that serves the namespace of a valid item.
             if (validItems)
             {
+                NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
                 // the values kept for the response are charged against the response byte
                 // budget of the service while they are read: by the node managers that
                 // charge their values themselves, and here for the others.
@@ -1754,57 +1808,37 @@ namespace Opc.Ua.Server
                     : null;
                 try
                 {
+                    if (snapshot.NodeOverrides.Count != 0)
+                    {
+                        await DispatchOverridesAsync(
+                            snapshot,
+                            nodesToRead,
+                            static item => item.NodeId,
+                            static item => item.Processed,
+                            static (item, processed) => item.Processed = processed,
+                            ReadWithBudgetAsync, context.Readiness).ConfigureAwait(false);
+                    }
                     foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                     {
                         if (!routes.Includes(nodeManager) ||
-                            !CanDispatchTo(GetRouting(context), nodeManager, context.Readiness))
+                            !CanDispatchTo(snapshot, nodeManager, context.Readiness))
                         {
                             continue;
                         }
 
-                        long remaining = 0;
-                        if (unread != null)
+                        if (snapshot.NodeOverrides.Count == 0)
                         {
-                            for (int ii = 0; ii < count; ii++)
-                            {
-                                unread[ii] = !nodesToRead[ii].Processed;
-                            }
-                            remaining = context.ResponseBytesRemaining;
+                            await ReadWithBudgetAsync(nodeManager).ConfigureAwait(false);
                         }
-
-                        await nodeManager.ReadAsync(
-                            context,
-                            maxAge,
-                            nodesToRead,
-                            values,
-                            errors,
-                            cancellationToken).ConfigureAwait(false);
-
-                        if (unread != null)
+                        else
                         {
-                            // every charged value counts at least its encoding mask, so a
-                            // node manager whose reads left the budget unchanged charged
-                            // nothing.
-                            if (context.ResponseBytesRemaining == remaining)
-                            {
-                                long responseBytes = 0;
-                                for (int ii = 0; ii < count && responseBytes <= remaining; ii++)
-                                {
-                                    if (unread[ii] && nodesToRead[ii].Processed)
-                                    {
-                                        responseBytes += ResponseSizeEstimator.EstimateValue(values[ii]);
-                                    }
-                                }
-                                context.TryChargeResponse(responseBytes);
-                            }
-
-                            // a response that exceeds the message size limit cannot be sent.
-                            if (context.ResponseBudgetExceeded)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadResponseTooLarge,
-                                    "The values of the Read exceed the response size limit.");
-                            }
+                            await DispatchWithoutOverridesAsync(
+                                snapshot,
+                                nodesToRead,
+                                static item => item.NodeId,
+                                static item => item.Processed,
+                                static (item, processed) => item.Processed = processed,
+                                () => ReadWithBudgetAsync(nodeManager)).ConfigureAwait(false);
                         }
                     }
                 }
@@ -1813,6 +1847,48 @@ namespace Opc.Ua.Server
                     if (unread != null)
                     {
                         System.Buffers.ArrayPool<bool>.Shared.Return(unread);
+                    }
+                }
+
+                async ValueTask ReadWithBudgetAsync(IAsyncNodeManager nodeManager)
+                {
+                    long remaining = 0;
+                    if (unread != null)
+                    {
+                        // Snapshot after routing masks are applied, so masked items are never charged.
+                        for (int ii = 0; ii < count; ii++)
+                        {
+                            unread[ii] = !nodesToRead[ii].Processed;
+                        }
+                        remaining = context.ResponseBytesRemaining;
+                    }
+
+                    await nodeManager.ReadAsync(
+                        context, maxAge, nodesToRead, values, errors, cancellationToken).ConfigureAwait(false);
+
+                    if (unread == null)
+                    {
+                        return;
+                    }
+
+                    // A manager that left the budget unchanged did not charge its own results.
+                    if (context.ResponseBytesRemaining == remaining)
+                    {
+                        long responseBytes = 0;
+                        for (int ii = 0; ii < count && responseBytes <= remaining; ii++)
+                        {
+                            if (unread[ii] && nodesToRead[ii].Processed)
+                            {
+                                responseBytes += ResponseSizeEstimator.EstimateValue(values[ii]);
+                            }
+                        }
+                        context.TryChargeResponse(responseBytes);
+                    }
+                    if (context.ResponseBudgetExceeded)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            "The values of the Read exceed the response size limit.");
                     }
                 }
             }
@@ -2009,12 +2085,28 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
+                NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
+                if (snapshot.NodeOverrides.Count != 0)
                 {
-                    if (!CanDispatchTo(GetRouting(context), nodeManager, context.Readiness))
+                    await DispatchOverridesAsync(
+                        snapshot, nodesToRead, static item => item.NodeId,
+                        static item => item.Processed, static (item, value) => item.Processed = value,
+                        DispatchHistoryAsync, context.Readiness).ConfigureAwait(false);
+                }
+                foreach (IAsyncNodeManager nodeManager in snapshot.VisibleNodeManagers)
+                {
+                    if (!CanDispatchTo(snapshot, nodeManager, context.Readiness))
                     {
                         continue;
                     }
+                    await DispatchWithoutOverridesAsync(
+                        snapshot, nodesToRead, static item => item.NodeId,
+                        static item => item.Processed, static (item, value) => item.Processed = value,
+                        () => DispatchHistoryAsync(nodeManager)).ConfigureAwait(false);
+                }
+
+                async ValueTask DispatchHistoryAsync(IAsyncNodeManager nodeManager)
+                {
                     var pending = new bool[nodesToRead.Count];
                     for (int ii = 0; ii < pending.Length; ii++)
                     {
@@ -2251,6 +2343,19 @@ namespace Opc.Ua.Server
             {
                 var errors = new ServiceResult[count];
 
+                NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
+                if (snapshot.NodeOverrides.Count != 0)
+                {
+                    await DispatchOverridesAsync(
+                        snapshot,
+                        nodesToWrite,
+                        static item => item.NodeId,
+                        static item => item.Processed,
+                        static (item, processed) => item.Processed = processed,
+                        manager => manager.WriteAsync(context, nodesToWrite, errors, cancellationToken),
+                        context.Readiness)
+                        .ConfigureAwait(false);
+                }
                 foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
                     if (!routes.Includes(nodeManager) ||
@@ -2259,11 +2364,22 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    await nodeManager.WriteAsync(
-                        context,
-                        nodesToWrite,
-                        errors,
-                        cancellationToken).ConfigureAwait(false);
+                    if (snapshot.NodeOverrides.Count == 0)
+                    {
+                        await nodeManager.WriteAsync(context, nodesToWrite, errors, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await DispatchWithoutOverridesAsync(
+                            snapshot,
+                            nodesToWrite,
+                            static item => item.NodeId,
+                            static item => item.Processed,
+                            static (item, processed) => item.Processed = processed,
+                            () => nodeManager.WriteAsync(context, nodesToWrite, errors, cancellationToken))
+                            .ConfigureAwait(false);
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToWrite.Count; ii++)
@@ -2438,6 +2554,17 @@ namespace Opc.Ua.Server
                 foreach (Type detailsType in detailTypes)
                 {
                     NodeManagerRoutingTable.RoutingSnapshot routing = GetRouting(context);
+                    ArrayOf<HistoryUpdateDetails> updateItems = [.. nodesToUpdate];
+                    if (routing.NodeOverrides.Count != 0)
+                    {
+                        await DispatchOverridesAsync(
+                            routing, updateItems, static item => item.NodeId,
+                            static item => item.Processed, static (item, value) => item.Processed = value,
+                            manager => manager.HistoryUpdateAsync(
+                                context, detailsType, nodesToUpdate, results, errors, cancellationToken),
+                            context.Readiness)
+                            .ConfigureAwait(false);
+                    }
                     foreach (IAsyncNodeManager nodeManager in routing.VisibleNodeManagers)
                     {
                         if (!CanDispatchTo(routing, nodeManager, context.Readiness))
@@ -2445,13 +2572,12 @@ namespace Opc.Ua.Server
                             continue;
                         }
 
-                        await nodeManager.HistoryUpdateAsync(
-                            context,
-                            detailsType,
-                            nodesToUpdate,
-                            results,
-                            errors,
-                            cancellationToken).ConfigureAwait(false);
+                        await DispatchWithoutOverridesAsync(
+                            routing, updateItems, static item => item.NodeId,
+                            static item => item.Processed, static (item, value) => item.Processed = value,
+                            () => nodeManager.HistoryUpdateAsync(
+                                context, detailsType, nodesToUpdate, results, errors, cancellationToken))
+                            .ConfigureAwait(false);
                     }
                 }
 
@@ -2603,19 +2729,44 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
+                NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
+                if (snapshot.NodeOverrides.Count != 0)
+                {
+                    await DispatchOverridesAsync(
+                        snapshot,
+                        methodsToCall,
+                        static item => item.ObjectId,
+                        static item => item.Processed,
+                        static (item, processed) => item.Processed = processed,
+                        manager => context.ResponseBudgetExceeded
+                            ? default
+                            : manager.CallAsync(context, methodsToCall, results, errors, cancellationToken),
+                        context.Readiness)
+                        .ConfigureAwait(false);
+                }
+                foreach (IAsyncNodeManager nodeManager in snapshot.VisibleNodeManagers)
                 {
                     if (context.ResponseBudgetExceeded)
                     {
                         break;
                     }
-
-                    await nodeManager.CallAsync(
-                        context,
-                        methodsToCall,
-                        results,
-                        errors,
-                        cancellationToken).ConfigureAwait(false);
+                    if (snapshot.NodeOverrides.Count == 0)
+                    {
+                        await nodeManager.CallAsync(context, methodsToCall, results, errors, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await DispatchWithoutOverridesAsync(
+                            snapshot,
+                            methodsToCall,
+                            static item => item.ObjectId,
+                            static item => item.Processed,
+                            static (item, processed) => item.Processed = processed,
+                            () => nodeManager.CallAsync(
+                                context, methodsToCall, results, errors, cancellationToken))
+                            .ConfigureAwait(false);
+                    }
                 }
             }
 
@@ -2821,12 +2972,28 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
 
                     // create items for data access.
-                    foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
+                    NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
+                    if (snapshot.NodeOverrides.Count != 0)
                     {
-                        if (!CanDispatchTo(GetRouting(context), nodeManager, context.Readiness))
+                        await DispatchOverridesAsync(
+                            snapshot, itemsToCreate, static item => item.ItemToMonitor.NodeId,
+                            static item => item.Processed, static (item, value) => item.Processed = value,
+                            DispatchMonitoredItemsAsync, context.Readiness).ConfigureAwait(false);
+                    }
+                    foreach (IAsyncNodeManager nodeManager in snapshot.VisibleNodeManagers)
+                    {
+                        if (!CanDispatchTo(snapshot, nodeManager, context.Readiness))
                         {
                             continue;
                         }
+                        await DispatchWithoutOverridesAsync(
+                            snapshot, itemsToCreate, static item => item.ItemToMonitor.NodeId,
+                            static item => item.Processed, static (item, value) => item.Processed = value,
+                            () => DispatchMonitoredItemsAsync(nodeManager)).ConfigureAwait(false);
+                    }
+
+                    async ValueTask DispatchMonitoredItemsAsync(IAsyncNodeManager nodeManager)
+                    {
                         await nodeManager.CreateMonitoredItemsAsync(
                                 context,
                                 subscriptionId,
@@ -2975,6 +3142,7 @@ namespace Opc.Ua.Server
                     }
 
                     errors[ii] = MasterNodeManager.ValidateRolePermissions(
+                        Server,
                         context,
                         nodeMetadata,
                         PermissionType.ReceiveEvents,
@@ -5048,6 +5216,7 @@ namespace Opc.Ua.Server
             PermissionType requestedPermission)
         {
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(
+                Server,
                 context,
                 nodeMetadata,
                 requestedPermission,
@@ -5153,9 +5322,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Releases a deleted item's binding on a retired generation through its binding record. The record is
-        /// removed even when the release fails, because the deleted item can no longer be retried; the failure is
-        /// reported to the client instead.
+        /// Releases a deleted item's binding on a retired generation. Failed releases are reported to the
+        /// client and keep the item alive until retirement retries the binding.
         /// </summary>
         private async ValueTask<ServiceResult> ReleaseRetiringEventBindingAsync(
             OperationContext context,
@@ -5173,8 +5341,7 @@ namespace Opc.Ua.Server
                     monitoredItem,
                     (remove, ct) => owner.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
                     unsubscribe: true,
-                    cancellationToken,
-                    retainFailedRelease: false).ConfigureAwait(false) ??
+                    cancellationToken).ConfigureAwait(false) ??
                     ServiceResult.Good;
                 if (result.StatusCode == StatusCodes.BadNotSupported)
                 {
@@ -5272,13 +5439,105 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The namespace routes of the valid operations of one service call, so that the call
-        /// skips node managers that cannot own any of its nodes.
+        /// Dispatches only exact override requests to each owner in the selected routing view.
+        /// </summary>
+        /// <typeparam name="T">The service request item type.</typeparam>
+        private static async ValueTask DispatchOverridesAsync<T>(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            ArrayOf<T> items,
+            Func<T, NodeId> nodeId,
+            Func<T, bool> processed,
+            Action<T, bool> setProcessed,
+            Func<IAsyncNodeManager, ValueTask> dispatch,
+            NodeManagerReadinessScope? readiness)
+        {
+            foreach (IAsyncNodeManager manager in snapshot.NodeOverrides.Values.Distinct())
+            {
+                if (!CanDispatchTo(snapshot, manager, readiness))
+                {
+                    continue;
+                }
+                var masked = new List<T>();
+                bool selected = false;
+                foreach (T item in items)
+                {
+                    if (processed(item))
+                    {
+                        continue;
+                    }
+                    if (snapshot.NodeOverrides.TryGetValue(nodeId(item), out IAsyncNodeManager? owner) &&
+                        ReferenceEquals(owner, manager))
+                    {
+                        selected = true;
+                    }
+                    else
+                    {
+                        setProcessed(item, true);
+                        masked.Add(item);
+                    }
+                }
+                try
+                {
+                    if (selected)
+                    {
+                        await dispatch(manager).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    foreach (T item in masked)
+                    {
+                        setProcessed(item, false);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Excludes exact override requests from the ordinary manager dispatch.
+        /// </summary>
+        /// <typeparam name="T">The service request item type.</typeparam>
+        private static async ValueTask DispatchWithoutOverridesAsync<T>(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            ArrayOf<T> items,
+            Func<T, NodeId> nodeId,
+            Func<T, bool> processed,
+            Action<T, bool> setProcessed,
+            Func<ValueTask> dispatch)
+        {
+            if (snapshot.NodeOverrides.Count == 0)
+            {
+                await dispatch().ConfigureAwait(false);
+                return;
+            }
+            var masked = new List<T>();
+            foreach (T item in items)
+            {
+                if (!processed(item) && snapshot.NodeOverrides.ContainsKey(nodeId(item)))
+                {
+                    setProcessed(item, true);
+                    masked.Add(item);
+                }
+            }
+            try
+            {
+                await dispatch().ConfigureAwait(false);
+            }
+            finally
+            {
+                foreach (T item in masked)
+                {
+                    setProcessed(item, false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Collects namespace routes for valid operations in a service call.
         /// </summary>
         /// <remarks>
-        /// Every node manager registered for a requested namespace is still called in dispatch
-        /// order, so a node claimed by several node managers of one namespace is processed by
-        /// the same node manager as before. A namespace without a route calls every node manager.
+        /// Every manager registered for a requested namespace is called in dispatch order.
+        /// A namespace without a route calls every manager.
         /// </remarks>
         private struct NamespaceRoutes
         {

@@ -17,6 +17,8 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
+using OnboardingDevice;
+using OnboardingRegistrar;
 using OnboardingClientSample;
 using DeviceRegistrarTypeClient = Opc.Ua.Onboarding.DeviceRegistrarTypeClient;
 
@@ -72,6 +74,13 @@ try
     }
     string? signingJournal = builder.Configuration["signingJournal"];
     string? signingKeyStore = builder.Configuration["signingKeyStore"];
+    string? keyPairRecoverySlot = builder.Configuration["keyPairRecoverySlot"];
+    if (keyPairRecoverySlot != null && (!runPull || runExternalAuthentication || signingJournal != null))
+    {
+        throw new ArgumentException(
+            "--keyPairRecoverySlot requires --pull and cannot be combined with " +
+            "signing recovery or external authentication.");
+    }
     bool discardSigningRequest =
         bool.TryParse(builder.Configuration["discardSigningRequest"], out bool discard) && discard;
     if ((signingJournal == null) != (signingKeyStore == null) || (signingJournal != null && !runPull))
@@ -82,11 +91,13 @@ try
     {
         throw new ArgumentException("--discardSigningRequest requires --signingJournal and --signingKeyStore.");
     }
-    if (signingJournal != null && (builder.Configuration["resumeApplicationId"] != null ||
+    if (builder.Configuration["resumeApplicationId"] != null ||
         builder.Configuration["resumeRequestId"] != null ||
-        builder.Configuration["resumeSigningKeyCertificate"] != null))
+        builder.Configuration["resumeSigningKeyCertificate"] != null)
     {
-        throw new ArgumentException("The --resume* options cannot be combined with --signingJournal.");
+        throw new ArgumentException(
+            "The --resume* options do not retain the original channel binding. " +
+            "Use --signingJournal and --signingKeyStore from the initial request for restart recovery.");
     }
     IClientIdentityProvider? identityProvider = null;
     if (!useAnonymous)
@@ -158,10 +169,28 @@ try
             services.GetRequiredService<OnboardingDeviceCredentials>());
         builder.Services.AddSingleton<IPullDcaCredentialProvider>(services =>
             services.GetRequiredService<OnboardingDeviceCredentials>());
+        builder.Services.AddSingleton<IPullDcaNewKeyPairCredentialProvider>(services =>
+            services.GetRequiredService<OnboardingDeviceCredentials>());
+        builder.Services.AddSingleton<IPullDcaBoundCredentialProvider>(services =>
+            services.GetRequiredService<OnboardingDeviceCredentials>());
+        builder.Services.AddSingleton<IPullDcaSigningKeyEvidenceProvider>(services =>
+            services.GetRequiredService<OnboardingDeviceCredentials>());
         if (signingJournal != null)
         {
             builder.Services.AddSingleton<IPullDcaSigningRecoveryProvider>(services =>
                 services.GetRequiredService<OnboardingDeviceCredentials>());
+            builder.Services.AddSingleton(_ => new PushRegistrarCheckpointFiles(signingJournal + ".pull"));
+            builder.Services.AddSingleton(services => new DevicePullJournal(
+                services.GetRequiredService<PushRegistrarCheckpointFiles>(),
+                services.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration.ApplicationUri ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "The DCA application URI is missing."),
+                builder.Configuration["registrarApplicationUri"],
+                services.GetRequiredService<ITelemetryContext>()));
+            builder.Services.AddSingleton<IPullDcaSigningJournal>(services =>
+                services.GetRequiredService<DevicePullJournal>());
+            builder.Services.AddSingleton<IPullDcaCertificateReceiptStore>(services =>
+                services.GetRequiredService<DevicePullJournal>());
         }
         builder.Services.AddSingleton<Func<PullDcaRegistrar, CancellationToken, ValueTask<ManagedSession>>>(
             (_, cancellationToken) =>
@@ -175,10 +204,19 @@ try
                 }
                 return new ValueTask<ManagedSession>(session);
             });
+        if (keyPairRecoverySlot != null)
+        {
+            // The embedding host registers IProtectedPullDcaRecoveryStore; the sample has no default backend.
+            gds.AddPullDcaKeyPairRecovery(keyPairRecoverySlot);
+        }
         gds.AddPullDcaWorkflow();
     }
 
     using IHost host = builder.Build();
+    if (keyPairRecoverySlot != null)
+    {
+        _ = host.Services.GetRequiredService<IPullDcaNewKeyPairRecoveryProvider>();
+    }
     if (runExternalAuthentication)
     {
         host.Services.GetRequiredService<IOpcUaApplicationConfigurationProvider>()
@@ -201,6 +239,35 @@ try
     await host.StartAsync(ct).ConfigureAwait(false);
     try
     {
+        DevicePullJournalCheckpoint? retainedPull = null;
+        bool appliedPullRecovered = false;
+        if (signingJournal != null)
+        {
+            DevicePullJournal publicJournal = host.Services.GetRequiredService<DevicePullJournal>();
+            OnboardingDeviceCredentials credentials = host.Services.GetRequiredService<OnboardingDeviceCredentials>();
+            credentials.UsePullJournal(publicJournal);
+            retainedPull = await publicJournal.ReadAsync(ct).ConfigureAwait(false);
+            if (retainedPull != null)
+            {
+                if (discardSigningRequest)
+                {
+                    throw new InvalidOperationException(
+                        "A retained pull attempt cannot be discarded by deleting its signing-key journal.");
+                }
+                if (retainedPull.Stage == DevicePullJournalStage.DispatchUnknown)
+                {
+                    throw new InvalidOperationException(
+                        "The retained StartSigningRequest outcome is unknown; no new request was dispatched.");
+                }
+                appliedPullRecovered = await credentials.RecoverAppliedPullReceiptAsync(retainedPull, ct)
+                    .ConfigureAwait(false);
+                if (!appliedPullRecovered)
+                {
+                    await credentials.ActivateAsync(retainedPull.Binding.ClientChannelCertificate, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
         Func<CancellationToken, Task<ManagedSession>> connect =
             host.Services.GetRequiredService<
                 Func<CancellationToken, Task<ManagedSession>>>();
@@ -208,6 +275,31 @@ try
             .ConfigureAwait(false);
         await using var sessionLifetime = session.ConfigureAwait(false);
         selectedSession = session;
+        if (appliedPullRecovered)
+        {
+            DevicePullJournalCheckpoint installed = await host.Services.GetRequiredService<DevicePullJournal>()
+                .ReadForSessionAsync(session.NamespaceUris.ToArrayOf(), ct).ConfigureAwait(false);
+            PullDcaCredentials installedCredentials = installed.Credentials ??
+                throw new InvalidOperationException("The installed pull receipt has no retained credentials.");
+            SessionRequestContext recoveredContext = await SessionRequestContext.CaptureConfidentialAsync(session, ct)
+                .ConfigureAwait(false);
+            await using var recoveredContextLifetime = recoveredContext.ConfigureAwait(false);
+            ITransportChannel channel = recoveredContext.Session.TransportChannel;
+            if (!installedCredentials.Certificate.Span.SequenceEqual(channel.ClientChannelCertificate) ||
+                !installed.Binding.RegistrarChannelCertificate.Span.SequenceEqual(channel.ServerChannelCertificate) ||
+                !string.Equals(installed.Binding.RegistrarApplicationUri,
+                    channel.EndpointDescription.Server?.ApplicationUri, StringComparison.Ordinal) ||
+                !Uri.TryCreate(channel.EndpointDescription.EndpointUrl, UriKind.Absolute, out Uri? recoveredEndpoint) ||
+                !installed.Binding.Registrar.EndpointUrl.Equals(recoveredEndpoint) ||
+                recoveredContext.Invalidated.IsCompleted)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The recovered installation connected to a different channel.");
+            }
+            Console.WriteLine($"PULL_DCA_REQUEST_INSTALLED {installed.Binding.ApplicationId}");
+            return 0;
+        }
         if (softwareStatus != null)
         {
             NodeId deviceRegistrarId = ExpandedNodeId.ToNodeId(
@@ -267,6 +359,18 @@ try
                     session.NamespaceUris);
                 OnboardingSigningRequestState state = await credentials.GetSigningRequestStateAsync(ct)
                     .ConfigureAwait(false);
+                DevicePullJournalCheckpoint? sessionPull = retainedPull == null
+                    ? null
+                    : await host.Services.GetRequiredService<DevicePullJournal>()
+                        .ReadForSessionAsync(session.NamespaceUris.ToArrayOf(), ct).ConfigureAwait(false);
+                if (sessionPull != null && state == OnboardingSigningRequestState.Prepared)
+                {
+                    PullDcaSigningBinding binding = sessionPull.Binding;
+                    await credentials.OnSigningRequestStartedAsync(
+                        binding.Registrar, binding.ApplicationId, binding.RequestId, binding.Profile,
+                        binding.SigningRequest, ct).ConfigureAwait(false);
+                    state = await credentials.GetSigningRequestStateAsync(ct).ConfigureAwait(false);
+                }
                 if (discardSigningRequest)
                 {
                     await credentials.DiscardSigningRequestAsync(ct).ConfigureAwait(false);
@@ -278,9 +382,25 @@ try
                     case OnboardingSigningRequestState.Started:
                         OnboardingJournaledSigningRequest journaled = await credentials
                             .RestoreJournaledSigningRequestAsync(registrar, ct).ConfigureAwait(false);
+                        PullDcaSigningBinding binding = sessionPull?.Binding ??
+                            throw new InvalidOperationException(
+                                "The signing request has no durable original channel binding; " +
+                                "Finish was not dispatched.");
+                        ByteString retainedKey = await credentials.GetSigningKeyCertificateAsync(
+                            journaled.ApplicationId, journaled.Profile, binding.SigningRequest, ct)
+                            .ConfigureAwait(false);
+                        if (journaled.Registrar != binding.Registrar ||
+                            journaled.ApplicationId != binding.ApplicationId ||
+                            journaled.RequestId != binding.RequestId ||
+                            journaled.Profile != binding.Profile ||
+                            retainedKey != binding.SigningKeyCertificate)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadSecurityChecksFailed,
+                                "The signing journals identify different attempts.");
+                        }
                         await host.Services.GetRequiredService<PullDcaWorkflow>()
-                            .CompleteCertificateRequestAsync(registrar, journaled.ApplicationId,
-                                journaled.RequestId, journaled.Profile, cancellationToken: ct)
+                            .CompleteCertificateRequestAsync(binding, cancellationToken: ct)
                             .ConfigureAwait(false);
                         await session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
                         await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
@@ -288,45 +408,22 @@ try
                         return 0;
                     case OnboardingSigningRequestState.Prepared:
                         throw new InvalidOperationException(
-                            "The StartSigningRequest outcome is unknown. Run again with " +
-                            "--discardSigningRequest true, then start a new request.");
+                            "The StartSigningRequest outcome is unknown; recovery requires retained request evidence.");
                     case OnboardingSigningRequestState.Installed:
-                        await credentials.DiscardSigningRequestAsync(ct).ConfigureAwait(false);
-                        Console.WriteLine("PULL_DCA_REQUEST_CLEANED");
-                        return 0;
+                        throw new InvalidOperationException(
+                            "The signing-key journal is installed but its public receipt was not verified; " +
+                            "the retained attempt was not discarded.");
                     case OnboardingSigningRequestState.None:
+                        if (sessionPull != null)
+                        {
+                            throw new InvalidOperationException(
+                                "A retained pull attempt has no matching signing-key journal; " +
+                                "no new Start was dispatched.");
+                        }
                         break;
                     default:
                         throw new InvalidOperationException($"Unknown signing request state {state}.");
                 }
-            }
-            string? resumeApplication = builder.Configuration["resumeApplicationId"];
-            string? resumeRequest = builder.Configuration["resumeRequestId"];
-            string? resumeKey = builder.Configuration["resumeSigningKeyCertificate"];
-            if (resumeApplication != null || resumeRequest != null || resumeKey != null)
-            {
-                if (string.IsNullOrWhiteSpace(resumeApplication) || string.IsNullOrWhiteSpace(resumeRequest) ||
-                    string.IsNullOrWhiteSpace(resumeKey))
-                {
-                    throw new ArgumentException(
-                        "Resumption requires --resumeApplicationId, --resumeRequestId and " +
-                        "--resumeSigningKeyCertificate from the original local signing request.");
-                }
-                NodeId applicationId = ExpandedNodeId.ToNodeId(
-                    ExpandedNodeId.Parse(resumeApplication), session.NamespaceUris);
-                NodeId requestId = ExpandedNodeId.ToNodeId(
-                    ExpandedNodeId.Parse(resumeRequest), session.NamespaceUris);
-                ByteString original = ByteString.From(
-                    await File.ReadAllBytesAsync(resumeKey, ct).ConfigureAwait(false));
-                await host.Services.GetRequiredService<OnboardingDeviceCredentials>()
-                    .RestoreSigningRequestAsync(applicationId, profile, original, ct).ConfigureAwait(false);
-                await host.Services.GetRequiredService<PullDcaWorkflow>()
-                    .CompleteCertificateRequestAsync(registrar, applicationId, requestId, profile,
-                        cancellationToken: ct).ConfigureAwait(false);
-                await session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
-                await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
-                Console.WriteLine($"PULL_DCA_REQUEST_INSTALLED {applicationId}");
-                return 0;
             }
             string ticketPath = builder.Configuration["deviceTicket"] ??
                 throw new InvalidOperationException("Set --deviceTicket to this device's signed ticket.");
@@ -339,7 +436,12 @@ try
             var offer = new PullDcaIdentityOffer(
                 [ByteString.From(identity.Certificate.RawData.AsSpan())], issuerBytes,
                 [await File.ReadAllTextAsync(ticketPath, ct).ConfigureAwait(false)]);
-            var request = new PullDcaRequest(offer, profile, []);
+            var request = new PullDcaRequest(offer, profile, [])
+            {
+                DcaCertificateRequestMode = keyPairRecoverySlot == null
+                    ? PullDcaCertificateRequestMode.SigningRequest
+                    : PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
             PullDcaResult result;
             try
             {

@@ -54,6 +54,7 @@
   </ItemGroup>
   <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
     <Compile Remove="OpenUsdConnectorRunnerTests.cs" />
+    <Compile Remove="UntrustedAssetPathTests.cs" />
     <Compile Remove="OpenUsdViewHostTests.cs" />
     <Compile Remove="ViewportCaptureFailureTests.cs" />
   </ItemGroup>

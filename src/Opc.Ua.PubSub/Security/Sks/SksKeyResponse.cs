@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// has the wrong length for the resolved policy.
         /// </remarks>
         public ArrayOf<PubSubSecurityKey> Unpacked =>
-            m_unpacked ??= UnpackKeys(DateTimeUtc.From(DateTime.UtcNow));
+            m_unpacked ??= UnpackKeys(_ => DateTimeUtc.From(DateTime.UtcNow));
 
         /// <summary>
         /// Unpacks the response using the supplied time provider to timestamp the keys.
@@ -126,10 +126,51 @@ namespace Opc.Ua.PubSub.Security.Sks
                 throw new ArgumentNullException(nameof(timeProvider));
             }
 
-            return UnpackKeys(DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime));
+            var now = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime);
+            return UnpackKeys(_ => now);
         }
 
-        private ArrayOf<PubSubSecurityKey> UnpackKeys(DateTimeUtc issuedAt)
+        /// <summary>
+        /// Unpacks the keys of a response to a request for the current key
+        /// (StartingTokenId 0), giving every key the time it becomes the
+        /// current key: the first key is current until
+        /// <see cref="TimeToNextKey"/> has elapsed, and every later key is
+        /// current for <see cref="KeyLifetime"/> after its predecessor
+        /// (Part 14 §8.3.2).
+        /// </summary>
+        /// <param name="requestedAt">
+        /// When the request was sent. The SKS computed
+        /// <see cref="TimeToNextKey"/> at or after that time, so measuring
+        /// it from there never extends a key past its real expiry, however
+        /// late the response is processed.
+        /// </param>
+        internal ArrayOf<PubSubSecurityKey> UnpackScheduled(DateTimeUtc requestedAt)
+        {
+            DateTimeUtc now = requestedAt;
+            TimeSpan lifetime = KeyLifetime;
+            if (lifetime <= TimeSpan.Zero ||
+                Keys.Count > MaxScheduledHorizon.Ticks / lifetime.Ticks)
+            {
+                return UnpackKeys(_ => now);
+            }
+            // A TimeToNextKey of 0 (unknown) or above the lifetime is taken
+            // as a full lifetime for the current key.
+            TimeSpan untilNextKey = TimeToNextKey > TimeSpan.Zero && TimeToNextKey < lifetime
+                ? TimeToNextKey
+                : lifetime;
+            DateTimeUtc firstExpiry = now + untilNextKey;
+            return UnpackKeys(index =>
+                firstExpiry + TimeSpan.FromTicks(lifetime.Ticks * (index - 1)));
+        }
+
+        /// <summary>
+        /// Longest time span the keys of one response are scheduled over.
+        /// Bounds the arithmetic for a key count and lifetime from an
+        /// untrusted SKS.
+        /// </summary>
+        private static readonly TimeSpan MaxScheduledHorizon = TimeSpan.FromDays(100 * 365);
+
+        private ArrayOf<PubSubSecurityKey> UnpackKeys(Func<int, DateTimeUtc> issuedAt)
         {
             IPubSubSecurityPolicy? policy =
                 PubSubSecurityPolicyRegistry.Default.GetByUri(SecurityPolicyUri);
@@ -176,7 +217,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                         ByteString.Create(signing),
                         ByteString.Create(encrypting),
                         ByteString.Create(nonce),
-                        issuedAt,
+                        issuedAt(i),
                         KeyLifetime);
                 }
                 finally

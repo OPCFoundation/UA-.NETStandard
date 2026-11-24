@@ -195,16 +195,8 @@ namespace Opc.Ua.Server
         /// <returns>A task completed after registrations have ended and admitted reads have drained.</returns>
         internal Task BeginNodeManagerCleanup(IAsyncNodeManager nodeManager, bool withdraw)
         {
-            var contributors = new List<IConformanceContributor>();
-            if (nodeManager is IConformanceContributor asyncContributor)
-            {
-                contributors.Add(asyncContributor);
-            }
-            if (nodeManager.SyncNodeManager is IConformanceContributor syncContributor &&
-                !contributors.Exists(current => ReferenceEquals(current, syncContributor)))
-            {
-                contributors.Add(syncContributor);
-            }
+            var contributors = new HashSet<IConformanceContributor>(RefEqualityComparer.Default);
+            CollectCleanupContributors(nodeManager, contributors);
 
             var drains = new List<Task>(contributors.Count);
             lock (m_lock)
@@ -268,17 +260,91 @@ namespace Opc.Ua.Server
         /// space through the diagnostics node manager.
         /// </summary>
         /// <param name="cancellationToken">A cancellation token.</param>
-        public async ValueTask PublishAsync(CancellationToken cancellationToken = default)
+        public ValueTask PublishAsync(CancellationToken cancellationToken = default)
+        {
+            return PublishStagedAsync(null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Captures candidate contributions without making them visible in the active catalog.
+        /// </summary>
+        internal static Dictionary<NodeManagerGeneration, NodeManagerContribution> StageContributions(
+            ArrayOf<PreparedNodeManager> candidates)
+        {
+            var staged = new Dictionary<NodeManagerGeneration, NodeManagerContribution>(RefEqualityComparer.Default);
+            foreach (PreparedNodeManager candidate in candidates)
+            {
+                if (GetNodeManagerContributor(candidate.NodeManager) is { } contributor)
+                {
+                    staged.Add(candidate.Generation, new NodeManagerContribution(
+                        [.. contributor.ConformanceUnits],
+                        [.. contributor.ServerProfiles]));
+                }
+            }
+            return staged;
+        }
+
+        /// <summary>
+        /// Prepares the catalog read image without changing the current diagnostics values.
+        /// </summary>
+        internal ConformanceReadImage PrepareReadImage(
+            DiagnosticsNodeManager diagnostics,
+            NodeManagerRoutingTable.RoutingSnapshot routing,
+            HashSet<NodeManagerGeneration> retiring,
+            Dictionary<NodeManagerGeneration, NodeManagerContribution> staged)
+        {
+            var excluded = new HashSet<IConformanceContributor>(RefEqualityComparer.Default);
+            foreach (NodeManagerGeneration generation in retiring)
+            {
+                CollectCleanupContributors(generation.NodeManager, excluded);
+            }
+            var contributions = ReadNodeManagerContributions(staged, routing, retiring);
+            (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) =
+                AggregateExplicitContributors(contributions, excluded);
+            return new ConformanceReadImage(diagnostics, units, profiles);
+        }
+
+        private static void CollectCleanupContributors(
+            IAsyncNodeManager manager,
+            HashSet<IConformanceContributor> contributors)
+        {
+            if (manager is IConformanceContributor contributor)
+            {
+                contributors.Add(contributor);
+            }
+            if (manager.SyncNodeManager is IConformanceContributor synchronous)
+            {
+                contributors.Add(synchronous);
+            }
+        }
+
+        /// <summary>
+        /// Publishes staged contributions only for generations visible in the serving routing image.
+        /// </summary>
+        internal async ValueTask PublishStagedAsync(
+            Dictionary<NodeManagerGeneration, NodeManagerContribution>? staged,
+            CancellationToken cancellationToken)
         {
             // Publishing is serialized, so the address space ends with the
             // set read last.
             await m_publishLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = Aggregate(refreshNodeManagers: true);
-                await m_server.DiagnosticsNodeManager
-                    .PublishConformanceUnitsAsync(units, profiles, cancellationToken)
-                    .ConfigureAwait(false);
+                IDiagnosticsNodeManager diagnostics = m_server.DiagnosticsNodeManager;
+                ConformanceReadImage? image = (m_server.NodeManager as INodeManagerReadImageSource)
+                    ?.GetReadImage(diagnostics) as ConformanceReadImage;
+                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = Aggregate(
+                    refreshNodeManagers: true, staged: staged);
+                if (diagnostics is DiagnosticsNodeManager builtIn)
+                {
+                    await builtIn.PublishConformanceUnitsAsync(units, profiles, image, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await diagnostics.PublishConformanceUnitsAsync(units, profiles, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -296,11 +362,13 @@ namespace Opc.Ua.Server
         /// the current contributors rather than replacing the set that
         /// registration already committed.
         /// </remarks>
-        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) Aggregate(bool refreshNodeManagers = false)
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) Aggregate(
+            bool refreshNodeManagers = false,
+            Dictionary<NodeManagerGeneration, NodeManagerContribution>? staged = null)
         {
             if (refreshNodeManagers)
             {
-                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = ReadNodeManagerContributions();
+                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = ReadNodeManagerContributions(staged);
                 lock (m_lock)
                 {
                     m_nodeManagerUnits = units;
@@ -315,19 +383,25 @@ namespace Opc.Ua.Server
         /// Reads committed managers while their exact generations remain admitted.
         /// </summary>
         /// <exception cref="InvalidOperationException">A contributor retired before admission.</exception>
-        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) ReadNodeManagerContributions()
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) ReadNodeManagerContributions(
+            Dictionary<NodeManagerGeneration, NodeManagerContribution>? staged,
+            NodeManagerRoutingTable.RoutingSnapshot? preparingFrom = null,
+            HashSet<NodeManagerGeneration>? retiring = null)
         {
             var owners = new List<(IAsyncNodeManager Manager, NodeManagerGeneration Generation)>();
             if (m_server.NodeManager is IDynamicNodeManagerBatchHost host)
             {
-                NodeManagerRoutingTable.RoutingSnapshot snapshot = host.RoutingRevision;
+                NodeManagerRoutingTable.RoutingSnapshot snapshot = preparingFrom ?? host.RoutingRevision;
                 int visibleIndex = 0;
                 for (int ii = 0; ii < snapshot.NodeManagers.Length; ii++)
                 {
                     if (visibleIndex < snapshot.VisibleNodeManagers.Length &&
                         ReferenceEquals(snapshot.NodeManagers[ii], snapshot.VisibleNodeManagers[visibleIndex]))
                     {
-                        owners.Add((snapshot.NodeManagers[ii], snapshot.Generations[ii]));
+                        if (retiring?.Contains(snapshot.Generations[ii]) != true)
+                        {
+                            owners.Add((snapshot.NodeManagers[ii], snapshot.Generations[ii]));
+                        }
                         visibleIndex++;
                     }
                 }
@@ -356,17 +430,35 @@ namespace Opc.Ua.Server
                 var units = new List<QualifiedName>();
                 var profiles = new List<string>();
                 var contributors = new List<IConformanceContributor>();
-                foreach ((IAsyncNodeManager manager, NodeManagerGeneration _) in owners)
+                foreach ((IAsyncNodeManager manager, NodeManagerGeneration generation) in owners)
                 {
                     if (GetNodeManagerContributor(manager) is { } contributor &&
                         !contributors.Exists(current => ReferenceEquals(current, contributor)))
                     {
                         contributors.Add(contributor);
-                        foreach (QualifiedName unit in contributor.ConformanceUnits)
+                        NodeManagerContribution contribution =
+                            staged is not null && staged.TryGetValue(generation, out NodeManagerContribution? captured)
+                                ? captured
+                                : new NodeManagerContribution(contributor.ConformanceUnits, contributor.ServerProfiles);
+                        foreach (QualifiedName unit in contribution.Units)
                         {
                             units.Add(unit);
                         }
-                        foreach (string profile in contributor.ServerProfiles)
+                        foreach (string profile in contribution.Profiles)
+                        {
+                            profiles.Add(profile);
+                        }
+                    }
+                }
+                if (preparingFrom is not null && staged is not null)
+                {
+                    foreach (NodeManagerContribution candidate in staged.Values)
+                    {
+                        foreach (QualifiedName unit in candidate.Units)
+                        {
+                            units.Add(unit);
+                        }
+                        foreach (string profile in candidate.Profiles)
                         {
                             profiles.Add(profile);
                         }
@@ -382,6 +474,19 @@ namespace Opc.Ua.Server
                 }
             }
         }
+
+        /// <summary>
+        /// The capabilities captured for one exact candidate generation.
+        /// </summary>
+        internal sealed record NodeManagerContribution(ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles);
+
+        /// <summary>
+        /// Holds the conformance values that become visible with one routing publication.
+        /// </summary>
+        internal sealed record ConformanceReadImage(
+            IAsyncNodeManager Owner,
+            ArrayOf<QualifiedName> Units,
+            ArrayOf<string> Profiles) : INodeManagerReadImage;
 
         /// <summary>
         /// Finds the routed manager's contribution, including a resource behind a synchronous adapter.
@@ -407,7 +512,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Combines explicit contributions with the last admitted manager snapshot.
         /// </summary>
-        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) AggregateExplicitContributors()
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) AggregateExplicitContributors(
+            (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles)? proposed = null,
+            HashSet<IConformanceContributor>? excluded = null)
         {
             while (true)
             {
@@ -417,13 +524,21 @@ namespace Opc.Ua.Server
                 long registrationVersion;
                 lock (m_lock)
                 {
-                    contributors = [.. m_contributors];
+                    var selected = new List<ContributorRegistration>(m_contributors.Count);
+                    foreach (ContributorRegistration registration in m_contributors)
+                    {
+                        if (excluded?.Contains(registration.Contributor) != true)
+                        {
+                            selected.Add(registration);
+                        }
+                    }
+                    contributors = [.. selected];
                     foreach (ContributorRegistration registration in contributors)
                     {
                         registration.ActiveReads++;
                     }
-                    nodeManagerUnits = m_nodeManagerUnits;
-                    nodeManagerProfiles = m_nodeManagerProfiles;
+                    nodeManagerUnits = proposed?.Units ?? m_nodeManagerUnits;
+                    nodeManagerProfiles = proposed?.Profiles ?? m_nodeManagerProfiles;
                     registrationVersion = m_registrationVersion;
                 }
 
@@ -470,7 +585,10 @@ namespace Opc.Ua.Server
                         {
                             continue;
                         }
-                        m_conformanceUnits = units;
+                        if (proposed is null)
+                        {
+                            m_conformanceUnits = units;
+                        }
                     }
 
                     var orderedUnits = new List<QualifiedName>(units);

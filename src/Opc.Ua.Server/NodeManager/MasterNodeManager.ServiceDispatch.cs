@@ -1038,9 +1038,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validates the role permissions
+        /// Validates the role permissions without the role permissions the server applies to
+        /// namespaces that configure none (<see cref="StandardServer.NamespaceDefaultRolePermissions"/>),
+        /// which only the server's own permission checks can supply.
         /// </summary>
         protected internal static ServiceResult ValidateRolePermissions(
+            OperationContext context,
+            NodeMetadata nodeMetadata,
+            PermissionType requestedPermission,
+            ILogger? logger = null)
+        {
+            return ValidateRolePermissions(null, context, nodeMetadata, requestedPermission, logger);
+        }
+
+        /// <summary>
+        /// Validates the role permissions of metadata a node manager supplied, applying the role
+        /// permissions of <paramref name="server"/> for namespaces that configure none.
+        /// </summary>
+        internal static ServiceResult ValidateRolePermissions(
+            IServerInternal? server,
             OperationContext context,
             NodeMetadata nodeMetadata,
             PermissionType requestedPermission,
@@ -1053,6 +1069,7 @@ namespace Opc.Ua.Server
             }
 
             return ValidateRolePermissions(
+                server,
                 context,
                 PermissionMetadata.From(nodeMetadata),
                 requestedPermission,
@@ -1060,9 +1077,71 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Validates the requested permission against the role permissions the server applies to
+        /// nodes that have none, for the roles granted to the caller.
+        /// </summary>
+        private static ServiceResult ValidateServerDefault(
+            OperationContext context,
+            NodeId nodeId,
+            ArrayOf<RolePermissionType> serverDefault,
+            PermissionType requestedPermission,
+            ILogger? logger)
+        {
+            ArrayOf<NodeId> grantedRoleIds = context?.UserIdentity?.GrantedRoleIds ?? default;
+            if (grantedRoleIds.IsEmpty)
+            {
+                logger?.CurrentUserHasNoGrantedRole();
+                return ServiceResult.Create(
+                    StatusCodes.BadUserAccessDenied,
+                    "Current user has no granted role.");
+            }
+
+            PermissionType actualPermissions = PermissionType.None;
+            for (int ii = 0; ii < serverDefault.Count; ii++)
+            {
+                RolePermissionType rolePermission = serverDefault[ii];
+                for (int jj = 0; jj < grantedRoleIds.Count; jj++)
+                {
+                    if (rolePermission.RoleId == grantedRoleIds[jj])
+                    {
+                        actualPermissions |= (PermissionType)rolePermission.Permissions;
+                        if ((actualPermissions & requestedPermission) == requestedPermission)
+                        {
+                            return StatusCodes.Good;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            logger?.RolePermissionsValidationFailedForNodeNodeId(
+                nodeId,
+                requestedPermission,
+                actualPermissions);
+
+            return ServiceResult.Create(
+                StatusCodes.BadUserAccessDenied,
+                "The requested permission {0} is not granted for node id {1}.",
+                requestedPermission,
+                nodeId);
+        }
+
+        /// <summary>
+        /// The role permissions <paramref name="server"/> applies to a node without role
+        /// permissions in a namespace without default role permissions; empty when it applies none.
+        /// </summary>
+        internal static ArrayOf<RolePermissionType> GetNamespaceDefaultRolePermissions(IServerInternal? server)
+        {
+            return server is IServerNamespaceDefaultPermissionsProvider provider
+                ? provider.NamespaceDefaultRolePermissions
+                : default;
+        }
+
+        /// <summary>
         /// Validates the role permissions
         /// </summary>
         internal static ServiceResult ValidateRolePermissions(
+            IServerInternal? server,
             OperationContext context,
             in PermissionMetadata nodeMetadata,
             PermissionType requestedPermission,
@@ -1106,8 +1185,22 @@ namespace Opc.Ua.Server
 
             if (userRolePermissions.IsEmpty && rolePermissions.IsEmpty)
             {
-                // there is no restriction from role permissions
-                return StatusCodes.Good;
+                // neither the node nor its namespace restricts the node: the role permissions the
+                // server applies to such nodes decide. Namespace 0 carries its permissions on the
+                // nodes and never takes them. A node or namespace that grants roles anything,
+                // including through user role permissions only, is evaluated as configured.
+                ArrayOf<RolePermissionType> serverDefault = nodeMetadata.NodeId.NamespaceIndex != 0
+                    ? GetNamespaceDefaultRolePermissions(server)
+                    : default;
+                if (serverDefault.IsEmpty)
+                {
+                    // there is no restriction from role permissions
+                    return StatusCodes.Good;
+                }
+
+                // this is the check of every node a server without configured permissions
+                // serves: the few entries are compared directly, without the lookups below.
+                return ValidateServerDefault(context, nodeMetadata.NodeId, serverDefault, requestedPermission, logger);
             }
 
             // group all permissions defined in rolePermissions by RoleId

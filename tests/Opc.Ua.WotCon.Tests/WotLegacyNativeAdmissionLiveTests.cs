@@ -38,7 +38,6 @@ namespace Opc.Ua.WotCon.Tests
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed partial class WotLegacyNativeAdmissionLiveTests
     {
         /// <summary>
@@ -496,7 +495,7 @@ namespace Opc.Ua.WotCon.Tests
             return result.ToArrayOf();
         }
 
-        private static ByteString Document(
+        internal static ByteString Document(
             string binding = "\"@type\":[\"Thing\",\"uav:object\",\"model:PumpType\"],",
             string properties = "{\"Speed\":{\"type\":\"number\",\"forms\":[{\"href\":\"sim://opcua.test/wot/speed\"}]}}",
             string extra = "")
@@ -808,12 +807,13 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 m_directory = Path.Combine(Path.GetTempPath(), "r42-admission", Guid.NewGuid().ToString("N"));
-                m_serverFixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
+                m_serverFixture = new ServerFixture<StandardServer>(context => new StandardServer(context))
                 {
                     UriScheme = Utils.UriSchemeOpcTcp,
                     AutoAccept = true,
                     SecurityNone = false
                 };
+                await WotTestPki.SeedAsync<StandardServer>(m_directory, telemetry => new StandardServer(telemetry), 0).ConfigureAwait(false);
                 m_server = await m_serverFixture.StartAsync(m_directory);
                 await m_server.NodeManagerLifecycle.ApplyAsync(
                     [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
@@ -863,6 +863,7 @@ namespace Opc.Ua.WotCon.Tests
                     Is.True);
                 m_registration = registration!;
                 m_clientFixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
                 await m_clientFixture.LoadClientConfigurationAsync(m_directory);
                 Session = await m_clientFixture.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"),
@@ -873,8 +874,8 @@ namespace Opc.Ua.WotCon.Tests
             }
 
             private string m_directory = string.Empty;
-            private ServerFixture<ReferenceServer>? m_serverFixture;
-            private ReferenceServer m_server = null!;
+            private ServerFixture<StandardServer>? m_serverFixture;
+            private StandardServer m_server = null!;
             private ClientFixture? m_clientFixture;
             private NodeManagerRegistration m_registration = null!;
             private ServiceProvider? m_services;
@@ -964,7 +965,7 @@ namespace Opc.Ua.WotCon.Tests
             private readonly SimulatedWotAssetProviderFactory m_inner = new();
         }
 
-        private sealed class Discovery : IWotAssetDiscoveryProvider
+        internal sealed class Discovery : IWotAssetDiscoveryProvider
         {
             /// <summary>
             /// Initializes a new <c>Discovery</c> instance.

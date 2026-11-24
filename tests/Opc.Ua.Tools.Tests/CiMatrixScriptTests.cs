@@ -592,7 +592,8 @@ namespace Opc.Ua.Tools.Tests
 
         /// <summary>
         /// Each integration project has a standard workload budget. The WoT
-        /// suite uses additional partitions for net48 and macOS.
+        /// suite runs whole on Windows and Linux and in two namespace halves
+        /// on net48 and macOS.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
@@ -620,23 +621,10 @@ namespace Opc.Ua.Tools.Tests
                 .Where(entry => entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal))
                 .GroupBy(entry => entry.Profile))
             {
-                string[] expectedShards = profile.First().Framework == "net48"
-                    ? [
-                        "wot-materialization-core",
-                        "wot-materialization-integration",
-                        "wot-other-core",
-                        "wot-other-integration"
-                    ]
-                    : profile.First().Os == "macos" ? [
-                        "wot-materialization-core",
-                        "wot-materialization-integration",
-                        "wot-materialization-live-events",
-                        "wot-other-core",
-                        "wot-other-integration",
-                        "wot-other-identity-integration",
-                        "wot-other-identity-di-integration",
-                        "wot-other-legacy-integration"
-                    ] : ["wot-materialization", "wot-other"];
+                string[] expectedShards =
+                    profile.First().Framework == "net48" || profile.First().Os == "macos"
+                        ? ["wot-materialization", "wot-other"]
+                        : ["all"];
                 Assert.That(
                     profile.Select(entry => entry.Shard),
                     Is.EquivalentTo(expectedShards));
@@ -710,41 +698,10 @@ namespace Opc.Ua.Tools.Tests
                             .Where(entry => MatchesWotFilter(entry.Filter, testName, categories))
                             .Select(entry => entry.Shard)
                             .ToArray();
-                        string expectedShard = !materialization
-                            ? profile.First().Framework != "net48" && profile.First().Os != "macos"
-                                ? "wot-other"
-                                : integration ? "wot-other-integration" : "wot-other-core"
-                            : profile.First().Framework != "net48" && profile.First().Os != "macos"
-                                ? "wot-materialization"
-                                : integration ? "wot-materialization-integration" : "wot-materialization-core";
-                        if (integration &&
-                            profile.First().Framework != "net48" &&
-                            profile.First().Os == "macos" &&
-                            testName.Contains(".WotEventModesLiveTests.", StringComparison.Ordinal))
-                        {
-                            expectedShard = "wot-materialization-live-events";
-                        }
-                        if (!materialization &&
-                            integration &&
-                            profile.First().Framework != "net48" &&
-                            profile.First().Os == "macos" &&
-                            testName.Contains(
-                                "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests",
-                                StringComparison.Ordinal))
-                        {
-                            expectedShard = testName.Contains(
-                                "Opc.Ua.WotCon.Tests.WotRegistryIdentityLiveTests(True)", StringComparison.Ordinal)
-                                ? "wot-other-identity-di-integration"
-                                : "wot-other-identity-integration";
-                        }
-                        if (!materialization &&
-                            integration &&
-                            profile.First().Framework != "net48" &&
-                            profile.First().Os == "macos" &&
-                            testName.Contains("Opc.Ua.WotCon.Tests.WotLegacy", StringComparison.Ordinal))
-                        {
-                            expectedShard = "wot-other-legacy-integration";
-                        }
+                        string expectedShard =
+                            profile.First().Framework != "net48" && profile.First().Os != "macos"
+                                ? "all"
+                                : materialization ? "wot-materialization" : "wot-other";
 
                         Assert.That(
                             matches,

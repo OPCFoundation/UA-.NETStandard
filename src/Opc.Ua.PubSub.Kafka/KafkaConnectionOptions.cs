@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Kafka
 {
@@ -138,6 +139,21 @@ namespace Opc.Ua.PubSub.Kafka
         /// <see cref="Endpoint"/> when not set explicitly.
         /// </summary>
         public string BootstrapServers { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Additional brokers (<c>kafka[s]://</c> URL or comma-separated
+        /// <c>host[:port]</c> list) that may receive the SASL credentials
+        /// configured on these options (<see cref="UserName"/>,
+        /// <see cref="PasswordSecretId"/>), in addition to the brokers named by
+        /// <see cref="Endpoint"/> and <see cref="BootstrapServers"/>.
+        /// </summary>
+        /// <remarks>
+        /// The broker URL of a connection comes from the PubSub configuration,
+        /// which can be changed remotely, while the credentials come from the
+        /// host. The transport factory therefore refuses to create a connection
+        /// whose bootstrap servers are not all named by the host.
+        /// </remarks>
+        public IList<string> CredentialEndpoints { get; } = [];
 
         /// <summary>
         /// Optional Kafka <c>client.id</c>; when <see langword="null"/> or

@@ -1029,6 +1029,42 @@ that implicit `Anonymous` policy is not advertised; the endpoints list
 one policy per token type of the registered authenticators instead
 (OPC 10000-4 §7.14: the user identity tokens the server accepts).
 
+An entry is either the token type itself (`"UserTokenPolicies": ["UserName"]`)
+or an object with a `TokenType`. A missing or unknown token type, and any
+other server option whose value cannot be parsed (for example `"0"` for a
+boolean), fails the startup with an `ArgumentException` instead of keeping
+the default.
+
+### Anonymous access
+
+A node without `RolePermissions`, in a namespace without
+`DefaultRolePermissions`, has no restriction of its own. The hosted server
+therefore applies a server-wide default to every namespace except namespace 0:
+the `Anonymous` role may browse, read and receive events, and the
+`AuthenticatedUser` role and the other well-known user roles keep every
+permission. An anonymous session cannot write values, call methods, update
+history or add and delete nodes unless a node or its namespace grants that.
+
+```csharp
+builder.Services.AddOpcUa().AddServer(o =>
+{
+    // default: AnonymousAccess.ReadOnly
+    // demos and closed test networks only:
+    o.AnonymousAccess = AnonymousAccess.Unrestricted;
+});
+```
+
+Bindable from `OpcUa:Server:AnonymousAccess`. To let anonymous sessions use
+selected nodes, keep the default and set `RolePermissions` on those nodes
+(for example with `OnReadRolePermissions` on the fluent builder) or
+`DefaultRolePermissions` on the namespace metadata Object; both override the
+server default. A server that is not hosted through `AddServer` sets
+`StandardServer.NamespaceDefaultRolePermissions`, for example to
+`ServerDefaultRolePermissions.AnonymousReadOnly`; its default is empty, which
+keeps such nodes unrestricted. This setting restricts anonymous sessions
+only: to separate authenticated users, assign roles and role permissions as
+described in [Role-based user management](RoleBasedUserManagement.md).
+
 ### Identity (server)
 
 > Full identity surface is documented in

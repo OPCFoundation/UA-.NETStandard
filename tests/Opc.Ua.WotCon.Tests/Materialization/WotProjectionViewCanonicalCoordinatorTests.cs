@@ -19,7 +19,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     [TestFixture]
     [Category("WoT")]
-    [NonParallelizable]
+    [Category("Integration")]
     public sealed class WotProjectionViewCanonicalCoordinatorTests
     {
         /// <summary>

@@ -256,6 +256,8 @@ namespace Opc.Ua.Aot.Tests
                 options.ProductUri = "urn:opcfoundation:LadsAot";
                 options.PkiRoot = Path.Combine(directory, "pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add("opc.tcp://localhost:" +

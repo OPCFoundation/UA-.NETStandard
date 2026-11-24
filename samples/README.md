@@ -15,6 +15,8 @@
   workflows with explicitly simulated providers.
 - [AutoID](AutoID/) — a simulated OPC 30010 RFID reader: synchronous and
   asynchronous scans, tag memory access and presence events.
+- [PackML](PackML/) — a simulated OPC 30050 unit and typed client, with
+  configurable modes, delayed equipment completion and administration.
 - [Cranes and Hoists](CranesHoists/) — observed crane topology and authorized
   simulated limit requests, never physical motion commands.
 - [Combined companion suite](CompanionSuite/) — MachineTool, WMTP, GMS,

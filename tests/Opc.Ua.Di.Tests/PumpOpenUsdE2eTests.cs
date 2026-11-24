@@ -108,6 +108,8 @@ namespace Opc.Ua.Di.Tests
                     o.ApplicationName = "PumpOpenUsdE2eServer";
                     o.ApplicationUri = "urn:localhost:OPCFoundation:PumpOpenUsdE2eServer";
                     o.AutoAcceptUntrustedCertificates = true;
+                    // The tests drive the server through anonymous sessions.
+                    o.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                     o.EndpointUrls.Add(serverUrl);
                     // §9: the pump withholds the command target's write right from
                     // anonymous sessions, so the endpoint must also offer a real

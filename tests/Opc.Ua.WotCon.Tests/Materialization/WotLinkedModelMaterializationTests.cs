@@ -17,6 +17,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Tests materialization of resources linked to shared WoT models.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed class WotLinkedModelMaterializationTests
     {
         /// <summary>

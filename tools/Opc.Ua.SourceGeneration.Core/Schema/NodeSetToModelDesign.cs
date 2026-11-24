@@ -329,6 +329,13 @@ namespace Opc.Ua.Schema.Model
                 ns.XmlPrefix = ns.Prefix = "Opc.Ua";
             }
 
+            // The names are derived from a model URI in the file and end up
+            // verbatim in generated code, which only accepts identifiers (see
+            // ModelDesignValidator.EnsureNamespacesAreCodeSafe). Names that
+            // already are identifiers are kept as they are.
+            ns.Name = ns.Name.ToCodeSafeName(dotted: false);
+            ns.XmlPrefix = ns.Prefix = ns.Prefix.ToCodeSafeName(dotted: true);
+
             return ns;
         }
 
@@ -2262,6 +2269,34 @@ namespace Opc.Ua.Schema.Model
 
         private XmlQualifiedName BuildSymbolicId(UANode node)
         {
+            // The id is built from the parent's id, so a ParentNodeId chain that
+            // loops back (a node that is its own parent, or two nodes that
+            // name each other) would recurse until the compiler's stack
+            // overflows, which no exception handler can catch.
+            string key = node.NodeId ?? string.Empty;
+            if (!m_symbolicIdPath.Add(key))
+            {
+                throw new InvalidDataException(
+                    $"The ParentNodeId chain of node {node.NodeId} contains a cycle.");
+            }
+            if (m_symbolicIdPath.Count > MaxParentDepth)
+            {
+                throw new InvalidDataException(
+                    $"The ParentNodeId chain of node {node.NodeId} is deeper than " +
+                    $"{MaxParentDepth} levels.");
+            }
+            try
+            {
+                return BuildSymbolicIdCore(node);
+            }
+            finally
+            {
+                m_symbolicIdPath.Remove(key);
+            }
+        }
+
+        private XmlQualifiedName BuildSymbolicIdCore(UANode node)
+        {
             NodeId nodeId = ImportNodeId(node.NodeId, false);
 
             if (node is not UAInstance instance)
@@ -3407,6 +3442,14 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private static string? ImportArrayDimensions(int valueRank, string? arrayDimensions)
         {
+            if (valueRank > MaxValueRank)
+            {
+                // The rank sizes an allocation below: an unchecked value from
+                // the file would let a tiny NodeSet exhaust the compiler's
+                // memory.
+                throw new InvalidDataException(
+                    $"ValueRank {valueRank} exceeds the maximum of {MaxValueRank} dimensions.");
+            }
             if (valueRank > 1 && string.IsNullOrWhiteSpace(arrayDimensions))
             {
                 return string.Join(",", Enumerable.Repeat("0", valueRank));
@@ -3589,6 +3632,19 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
         private readonly HashSet<string> m_digitPreservingNames = [];
         private readonly HashSet<string> m_collisionSuffixed = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_symbolicIdPath = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Deepest ParentNodeId chain a SymbolicId is built from. Every level
+        /// appends to the id, so a real instance hierarchy stays far below it.
+        /// </summary>
+        internal const int MaxParentDepth = 256;
+
+        /// <summary>
+        /// Most dimensions a ValueRank may declare (the matrix rank limit of
+        /// the stack, MatrixOf.MaxMatrixRank).
+        /// </summary>
+        internal const int MaxValueRank = 32;
         private readonly HashSet<string> m_userExecutableSpecified = new(StringComparer.Ordinal);
         private Dictionary<NodeId, List<UAVariable>>? m_variablesByParent;
         private Dictionary<NodeId, UANode>? m_dataTypesByEncoding;

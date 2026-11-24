@@ -740,6 +740,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var pool = new TrackingArrayPool();
             using TestServerChannel channel = CreateOpenChannel(pool, clock: clock, channelLifetime: 1000);
 
+            // The channel's assembly scheduler ticks on the same clock every
+            // lifetime / 2 (500 ms here). Start off that grid so the deadline does
+            // not expire on a tick: a tick that sees the expired message queues the
+            // cleanup on the thread pool, which can discard the saved parts before
+            // the assertion below reads them.
+            clock.Advance(TimeSpan.FromMilliseconds(100));
             channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
             clock.Advance(TimeSpan.FromMilliseconds(600));
             channel.SaveReceivedPartForTest(2, new ArraySegment<byte>(channel.TakeBufferForTest(32)));

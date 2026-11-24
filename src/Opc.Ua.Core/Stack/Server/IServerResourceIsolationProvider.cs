@@ -372,6 +372,18 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Implemented by a lease that knows whether it holds shared capacity.
+    /// </summary>
+    internal interface IResourceIsolationLeaseCapacity
+    {
+        /// <summary>
+        /// False when the whole lease was taken from a protected floor, so that
+        /// releasing it frees no capacity the shared pool can admit.
+        /// </summary>
+        bool UsesSharedCapacity { get; }
+    }
+
+    /// <summary>
     /// The accounting of one admitted stage beyond its stage, owner and amount. Only the
     /// issuing provider interprets it.
     /// </summary>

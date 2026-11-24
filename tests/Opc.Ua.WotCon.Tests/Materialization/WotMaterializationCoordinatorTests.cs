@@ -19,6 +19,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// behaviours required by the WoT Connectivity V2 runtime.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed class WotMaterializationCoordinatorTests
     {
         private static readonly string[] s_tmTdSourceNames = ["tm-a", "td-a"];

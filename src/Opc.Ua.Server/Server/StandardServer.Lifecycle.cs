@@ -82,7 +82,8 @@ namespace Opc.Ua.Server
                         // the validator CreateSession checks client certificates
                         // with; ActivateSession validates an embedded user token
                         // signing certificate with it.
-                        CertificateValidator = m_server.CertificateManager
+                        CertificateValidator = m_server.CertificateManager,
+                        NamespaceDefaultRolePermissions = m_server.NamespaceDefaultRolePermissions
                     };
 
                     foreach (IUserTokenAuthenticator authenticator in m_server.m_preStartAuthenticators)

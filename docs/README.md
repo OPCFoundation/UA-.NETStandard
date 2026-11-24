@@ -244,6 +244,8 @@ models that each model depends on.
 - [Scales](Scales.md) (OPC 40200 and OPC 30050) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
+- [PackML](PackML.md) (OPC 30050) — standalone provider-backed units,
+  configurable modes, administration, typed clients and a simulated sample.
 - [Plastics and rubber capabilities](PlasticsRubber.md) (OPC 40083 and OPC 40082-6) —
   shared machine configuration, control and monitoring, with
   [production dataset transfer](PlasticsRubber.md#production-dataset-protocol) and
@@ -359,6 +361,12 @@ Assumes [stage 5](#5-prepare-for-production).
   before exposing application data.
 - [Global Discovery Server](GDS.md) — application registration and central
   certificate management.
+- [Device onboarding](Onboarding.md) — registrar setup and pull and push
+  provisioning.
+- [Pull DCA key-pair recovery](GDS.md#recover-pull-dca-key-pair-requests) — protected
+  checkpoint storage for server-generated key pairs.
+- [Provisionable device replacement](Onboarding.md#replace-a-provisionable-devices-node-manager) —
+  replace the node manager without replacing the managed targets.
 - [GDS sample](../samples/Gds/README.md) — a runnable onboarding workflow.
 - [AuthorizationService](AuthorizationService.md) — issue access tokens.
 - [KeyCredentialService](KeyCredentialService.md) — manage credentials for

@@ -3388,6 +3388,18 @@ namespace Opc.Ua.Server
         public EventIdentityAdmissionOptions EventIdentityAdmissionOptions { get; set; } = new();
 
         /// <summary>
+        /// Gets or sets the role permissions the server applies to a node that
+        /// has no <c>RolePermissions</c> in a namespace, other than namespace 0,
+        /// that has no <c>DefaultRolePermissions</c>. Empty (the default) leaves
+        /// such a node unrestricted, also for anonymous sessions; the hosted
+        /// server sets <see cref="ServerDefaultRolePermissions.AnonymousReadOnly"/>.
+        /// A namespace that configures <c>DefaultRolePermissions</c> on its
+        /// <c>NamespaceMetadata</c> Object, or a node with its own
+        /// <c>RolePermissions</c>, overrides this value. Set before startup.
+        /// </summary>
+        public ArrayOf<RolePermissionType> NamespaceDefaultRolePermissions { get; set; }
+
+        /// <summary>
         /// An optional factory used to build the server's session manager. When
         /// <c>null</c> (the default), the built-in <see cref="SessionManager"/>
         /// is used. Set this before the server starts (the hosting layer wires
