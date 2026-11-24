@@ -89,25 +89,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
+        /// <remarks>
+        /// The node manager logs under the full name of its concrete type.
+        /// </remarks>
         protected AsyncCustomNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             bool useSamplingGroups,
             params string[] namespaceUris)
-            : this(
-                  server,
-                  configuration,
-                  useSamplingGroups,
-#pragma warning disable CS0618, UA0031 // Keeps the established logger category.
-                  server.Telemetry.CreateLogger<CustomNodeManager2>(),
-#pragma warning restore CS0618, UA0031
-                  namespaceUris)
+            : this(server, configuration, useSamplingGroups, null!, namespaceUris)
         {
         }
 
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
+        /// <remarks>
+        /// When <paramref name="logger"/> is <c>null</c> the node manager logs
+        /// under the full name of its concrete type.
+        /// </remarks>
         protected AsyncCustomNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
 
             // save a reference to the UA server instance that owns the node manager.
             Server = server;
-            m_logger = logger;
+            m_logger = logger ?? server.Telemetry.CreateLogger(this);
 
             // all operations require information about the system
             SystemContext = Server.DefaultSystemContext.Copy();

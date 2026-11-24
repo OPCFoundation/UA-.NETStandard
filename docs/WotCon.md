@@ -84,7 +84,7 @@ options.Bindings.Add(new MyHttpWotAssetProviderFactory());
 options.Bindings.Add(new MyModbusWotAssetProviderFactory());
 options.Discovery = new MyDiscoveryProvider();   // optional
 
-server.NodeManagerFactories.Add(new WotConnectivityNodeManagerFactory(options));
+server.AddNodeManager(new WotConnectivityNodeManagerFactory(options));
 ```
 
 The factory advertises two namespaces:

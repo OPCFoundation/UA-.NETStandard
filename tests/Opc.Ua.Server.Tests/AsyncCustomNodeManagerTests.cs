@@ -11266,6 +11266,19 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Creates a testable asynchronous node manager that lets the base class choose its logger.
+        /// </summary>
+        public TestableAsyncCustomNodeManager(
+           IServerInternal server,
+           ApplicationConfiguration configuration,
+           bool useSamplingGroups,
+           params string[] namespaceUris)
+           : base(server, configuration, useSamplingGroups, namespaceUris)
+        {
+            m_testServer = server;
+        }
+
+        /// <summary>
         /// Gets the logger used by the node manager.
         /// </summary>
         public ILogger Logger => m_logger;

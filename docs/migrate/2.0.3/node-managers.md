@@ -138,9 +138,15 @@ public class MyNodeManager : AsyncCustomNodeManager
 ```
 
 The constructor overloads match (`namespaceUris`, optional `ILogger`,
-optional `useSamplingGroups`). Pass your own logger to keep a meaningful log
-category; without one the base class logs under the `CustomNodeManager2`
-category, as before.
+optional `useSamplingGroups`). Without a logger (or with a `null` one) the
+base class logs under the full name of the concrete node manager type, for
+example `MyCompany.MyNodeManager`.
+
+> [!NOTE]
+> Until 2.1 the logger-less `AsyncCustomNodeManager` constructors logged under
+> the `Opc.Ua.Server.CustomNodeManager2` category. If your logging
+> configuration filters or routes on that category, switch it to the node
+> manager's own type name, or pass a logger explicitly.
 
 ### Overridden hooks
 
@@ -226,11 +232,31 @@ So when porting:
 ## Direct `INodeManager` implementations
 
 A class that implements `INodeManager`/`INodeManager2`/`INodeManager3`
-directly (like the `SampleNodeManager` that the MemoryBuffer sample still
-derives from) is adapted to the asynchronous seam by `AsyncNodeManagerAdapter`
-at registration. Port it by deriving from `AsyncCustomNodeManager` and moving
+directly is adapted to the asynchronous seam by `AsyncNodeManagerAdapter` at
+registration. Port it by deriving from `AsyncCustomNodeManager` and moving
 each interface method into the matching override from the table above, or
 implement `IAsyncNodeManager` directly if you need full control.
+
+Managers that built their own monitored-item pipeline (a custom
+`MonitoredItem` subclass created in `CreateMonitoredItem` and fed from a
+device scan) do not need to replace the stack's pipeline any more:
+
+- Override `OnCreatingMonitoredItemAsync` and return
+  `MonitoredItemCreateDecision.Use(context => context.CreatePushMonitoredItem())`
+  for the items your source feeds, or `Refuse(...)` for requests it cannot
+  serve. The stack validates, registers, modifies and deletes the item.
+- Connect the item to your source in `OnMonitoredItemCreated` and queue its
+  initial value there; disconnect it in `OnMonitoredItemDeletedAsync`.
+  `OnMonitoredItemAttachedAsync`/`OnMonitoredItemDetachedAsync` cover items
+  that move between managers, and `OnMonitoringModeChangedAsync` lets you send
+  a fresh value when an item is enabled again.
+- Feed values with `QueueValue` on the item.
+
+The MemoryBuffer sample (`samples/Quickstarts.Servers/MemoryBuffer`) was ported
+this way in 2.1. It also shows virtual nodes resolved per operation by
+overriding `GetManagerHandleAsync(ServerSystemContext, NodeId, ...)`. The
+sample's `SampleNodeManager`, `DataChangeMonitoredItem` and `MonitoredNode`
+classes were removed with the port.
 
 ## Registration
 
@@ -266,6 +292,10 @@ code that called `Create(...)` on them calls `CreateAsync(...)` instead:
 - `Opc.Ua.PubSub.Server.PubSubNodeManagerFactory`
 - `Opc.Ua.WotCon.Server.WotConnectivityNodeManagerFactory`
 - `Boiler.BoilerNodeManagerFactory` (Quickstarts sample)
+- `MemoryBuffer.MemoryBufferNodeManagerFactory` (Quickstarts sample, since
+  2.1). `Quickstarts.Servers.Utils.NodeManagerFactories` was removed with it;
+  `Utils.AsyncNodeManagerFactories` lists every sample factory, MemoryBuffer
+  first so the sample namespace indexes stay as they were.
 
 Their node managers are no longer wrapped as async → sync → async; the master
 receives the asynchronous manager directly. Because synchronous factories
