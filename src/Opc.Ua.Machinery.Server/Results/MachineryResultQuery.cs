@@ -132,6 +132,10 @@ namespace Opc.Ua.Machinery.Server.Results
                     break;
                 }
 
+                // A store may answer synchronously, so nothing else observes
+                // the token while a filter is evaluated against every result.
+                cancellationToken.ThrowIfCancellationRequested();
+
                 MachineryResult? result = await store
                     .GetResultByIdAsync(ids[ii], cancellationToken)
                     .ConfigureAwait(false);
