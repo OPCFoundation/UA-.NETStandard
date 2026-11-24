@@ -221,9 +221,31 @@ What this shows:
   authorization, and again in `finally`. A request whose items are all rejected still retires
   every cached verdict. On the ReferenceServer an anonymous session's AddNodes succeeds, so any
   client can drive this cost.
+- The traces of n6-sub-nm attribute the extra cost to rebuilding the read verdicts. About 75 % of
+  allocation is `MonitoredReadVerdict.ValidateAsync` (15 %),
+  `AsyncCustomNodeManager.ValidateMonitoredReadAsync` with its `NodeHandle`, `ExecutionContext` and
+  `AsyncLocal` maps (17 %), `FluentNodeManagerBase.GetManagerHandleAsync` (18 %),
+  `MonitoredNode2.ValidateDataChangePermissionAsync` / `CachedDataChangePermission` (10 %) and
+  `BeginNodeManagerOperation` (16 %). The trace without AddNodes/DeleteNodes has none of these
+  in its top 15.
+- 99.9 % of the 18,300 contention events come from the rebuild re-reading the namespace defaults
+  under the metadata variable's node lock (`NamespaceDefaultPermissionReader.ReadRolePermissions`
+  → `BaseVariableState.ReadValueAttribute`). Monitored-item contexts never remember the defaults
+  (`OperationContext.cs:1095`).
 - Reloading a 500-variable manager with 500 sampled items costs 54 MB of allocation and about
   170 ms of server CPU per operation, net of control. That is ~109 KB per variable, against
-  3.3 MB for a 10-variable manager.
+  3.3 MB for a 10-variable manager. **50 % of that allocation is `object[]` in
+  `MonitoredNode2.Remove`** (`MonitoredNode.cs:378`). Every monitored node subscribes a handler to
+  the server-wide `ConfigurationNodeManager.DefaultPermissionsChanged` event. Removing one
+  rebuilds the multicast invocation list, so each removal copies an array the length of all
+  monitored nodes on the server. Removing 500 items with 10,000 monitored nodes copies about
+  5 million references. The cost is O(monitored nodes) per removal and quadratic across a reload.
+  The add side (`+=`) has the same shape. A further 16 % is `UANodeSet.WrapAsVariant` while the
+  NodeSet is parsed.
+- For a 10-variable manager (f3-w1 alloc trace), the reload cost is mostly copying shared
+  tables: `TypeTable.CopyGraph` (about 38 %) and `MasterNodeManager.PrepareReferenceSourcesAsync`
+  (about 22 %). Both copy server-wide structures whose size does not depend on the size of the
+  reloaded manager.
 
 ## F6: component cost per notification and per Read
 
