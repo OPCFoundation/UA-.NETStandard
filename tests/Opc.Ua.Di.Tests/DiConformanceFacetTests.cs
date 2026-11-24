@@ -288,6 +288,8 @@ namespace Opc.Ua.Di.Tests
             options.ProductUri = "urn:localhost:" + applicationName + ":product";
             options.PkiRoot = Path.Combine(testRoot, "pki");
             options.AutoAcceptUntrustedCertificates = true;
+            // The tests drive the server through anonymous sessions.
+            options.AnonymousAccess = AnonymousAccess.Unrestricted;
             options.IncludeUnsecurePolicyNone = true;
             options.EndpointUrls.Clear();
             options.EndpointUrls.Add(

@@ -49,7 +49,7 @@ namespace Opc.Ua.Server
             NodeManagerRoutingTable.RoutingSnapshot view = context.RoutingSnapshot!;
             var targets = new Dictionary<NodeId, IAsyncNodeManager?>();
             var sources = new Dictionary<NodeId, (object? Handle, IAsyncNodeManager? Owner)>();
-            var removals = new Dictionary<NodeState, List<IReference>>();
+            var removals = new Dictionary<NodeState, List<IReference>>(RefEqualityComparer.Default);
             var updates = new List<NodeState.ReferenceUpdate>();
             var owners = new HashSet<IAsyncNodeManager>(RefEqualityComparer.Default);
             var admissions = new List<(GenerationGate Gate, int Slot)>();

@@ -154,6 +154,19 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <summary>
+        /// Applies the anonymous access default unless the server factory already set its own
+        /// namespace default role permissions.
+        /// </summary>
+        internal static void ApplyAnonymousAccess(StandardServer server, OpcUaServerOptions options)
+        {
+            if (options.AnonymousAccess == AnonymousAccess.ReadOnly &&
+                server.NamespaceDefaultRolePermissions.IsEmpty)
+            {
+                server.NamespaceDefaultRolePermissions = ServerDefaultRolePermissions.AnonymousReadOnly;
+            }
+        }
+
+        /// <summary>
         /// Applies an optional DI policy while preserving a policy supplied by the server factory when absent.
         /// </summary>
         internal static void ApplyRequestParking(ServerBase server, IServiceProvider services)
@@ -306,6 +319,7 @@ namespace Opc.Ua.Server.Hosting
                 m_server.SessionBindingProvider = sessionBindingProvider;
             }
             ApplyResourceIsolation(m_server, m_services, m_options);
+            ApplyAnonymousAccess(m_server, m_options);
 
             foreach (OpcUaServerNodeManagerRegistration reg in
                 m_services.GetServices<OpcUaServerNodeManagerRegistration>())

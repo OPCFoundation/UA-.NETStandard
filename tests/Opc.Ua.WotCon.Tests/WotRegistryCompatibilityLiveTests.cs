@@ -28,7 +28,6 @@ namespace Opc.Ua.WotCon.Tests
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotRegistryCompatibilityLiveTests
     {
         /// <summary>
@@ -48,6 +47,7 @@ namespace Opc.Ua.WotCon.Tests
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(pkiRoot).ConfigureAwait(false);
             ReferenceServer server = await fixture.StartAsync(pkiRoot).ConfigureAwait(false);
             using var inner = new WotRegistryService();
             var legacy = new LegacyOnlyRegistryService(inner);
@@ -78,6 +78,7 @@ namespace Opc.Ua.WotCon.Tests
                 Is.True);
             var nodeManager = (WotRegistryNodeManager)registration!.NodeManager;
             using var clientFixture = new ClientFixture(false, false, telemetry);
+            await WotTestPki.SeedAsync(pkiRoot).ConfigureAwait(false);
             await clientFixture.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
             string url = $"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}";
             Opc.Ua.Client.ISession session = await clientFixture

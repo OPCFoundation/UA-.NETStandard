@@ -54,6 +54,7 @@ namespace Opc.Ua.WotCon.Tests
             await WaitForFederationDefaultAsync(first.LogicalResource.ResourceNodeId, "v1", ct).ConfigureAwait(false);
 
             await using var remoteConnection = new ClientFixture(m_telemetry);
+            await WotTestPki.SeedAsync(Path.Combine(m_root, "fr"), "FederationRemoteClient").ConfigureAwait(false);
             await remoteConnection.LoadClientConfigurationAsync(
                 Path.Combine(m_root, "fr"), "FederationRemoteClient").ConfigureAwait(false);
             using ISession remoteSession = await remoteConnection.ConnectAsync(
@@ -93,6 +94,7 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     localServer = await localFixture.StartAsync(Path.Combine(m_root, "fl")).ConfigureAwait(false);
                     await using var localConnection = new ClientFixture(m_telemetry);
+                    await WotTestPki.SeedAsync(Path.Combine(m_root, "fc"), "FederationLocalClient").ConfigureAwait(false);
                     await localConnection.LoadClientConfigurationAsync(
                         Path.Combine(m_root, "fc"), "FederationLocalClient").ConfigureAwait(false);
                     using ISession localSession = await localConnection.ConnectAsync(
@@ -211,6 +213,7 @@ namespace Opc.Ua.WotCon.Tests
                         }
 
                         await using var alternateConnection = new ClientFixture(m_telemetry);
+                        await WotTestPki.SeedAsync(Path.Combine(m_root, "fa"), "FederationAlternateClient").ConfigureAwait(false);
                         await alternateConnection.LoadClientConfigurationAsync(
                             Path.Combine(m_root, "fa"), "FederationAlternateClient").ConfigureAwait(false);
                         EndpointDescription originalEndpoint = remoteSession.Endpoint;
@@ -806,6 +809,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 server = await fixture.StartAsync(Path.Combine(m_root, "fp")).ConfigureAwait(false);
                 await using var connection = new ClientFixture(m_telemetry);
+                await WotTestPki.SeedAsync(Path.Combine(m_root, "fpc"), "FederationProxyClient").ConfigureAwait(false);
                 await connection.LoadClientConfigurationAsync(Path.Combine(m_root, "fpc"), "FederationProxyClient")
                     .ConfigureAwait(false);
                 using ISession session = await connection.ConnectAsync(
@@ -832,6 +836,7 @@ namespace Opc.Ua.WotCon.Tests
         private async Task WithNativeFederationClientAsync(Func<ISession, WotRegistryClient, Task> action)
         {
             await using var connection = new ClientFixture(m_telemetry);
+            await WotTestPki.SeedAsync(Path.Combine(m_root, "fv"), "FederationVerifier").ConfigureAwait(false);
             await connection.LoadClientConfigurationAsync(
                 Path.Combine(m_root, "fv"), "FederationVerifier").ConfigureAwait(false);
             using ISession session = await connection.ConnectAsync(
@@ -905,6 +910,7 @@ namespace Opc.Ua.WotCon.Tests
                     .ConfigureAwait(false);
                 Assert.That(projectionHost.Documents, Has.Count.EqualTo(1));
                 await using var connection = new ClientFixture(m_telemetry);
+                await WotTestPki.SeedAsync(Path.Combine(m_root, "fbc"), "FederationRebasedClient").ConfigureAwait(false);
                 await connection.LoadClientConfigurationAsync(Path.Combine(m_root, "fbc"), "FederationRebasedClient")
                     .ConfigureAwait(false);
                 using ISession session = await connection.ConnectAsync(

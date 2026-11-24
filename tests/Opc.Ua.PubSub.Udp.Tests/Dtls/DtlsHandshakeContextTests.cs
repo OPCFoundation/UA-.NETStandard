@@ -240,7 +240,10 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                     PeerCertificateValidator = validator.Object,
                     RequireHelloRetryRequestCookie = true,
                     InitialRetransmissionTimeout = TimeSpan.FromSeconds(1),
-                    MaxRetransmissionTimeout = TimeSpan.FromSeconds(1)
+                    MaxRetransmissionTimeout = TimeSpan.FromSeconds(1),
+                    // The expected sequences below are those of the one-way
+                    // flight (no CertificateRequest).
+                    RequireClientCertificate = false
                 };
                 options.LocalCertificates.Add(certificate);
                 return options;

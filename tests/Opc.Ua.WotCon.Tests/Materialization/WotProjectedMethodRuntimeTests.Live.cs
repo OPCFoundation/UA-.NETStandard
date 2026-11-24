@@ -34,7 +34,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task ContextualCallDetailsReachTheClientWithReceivingStringTableAndPermissions(bool diagnostics)
         {
             await VerifyCallDetailsAsync(diagnostics, native: false).ConfigureAwait(false);
@@ -48,7 +47,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task NativeCallDetailsReachTheClientWithReceivingStringTableAndPermissions(bool diagnostics)
         {
             await VerifyCallDetailsAsync(diagnostics, native: true).ConfigureAwait(false);
@@ -64,7 +62,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase(false, 0)]
         [TestCase(false, 4)]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task CompleteOperationDetailsSurviveFinalCallAssembly(bool successful, int innerDepth)
         {
             var inner = new ServiceResult(StatusCodes.BadTypeMismatch);
@@ -90,7 +87,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task GoodInnerInformationBitsReachTheClientWithoutStrings()
         {
             var inner = new ServiceResult(StatusCodes.Good.SetSemanticsChanged(true));
@@ -104,7 +100,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Category("Integration")]
-        [NonParallelizable]
         public async Task CallStatusInformationBitsReachTheClientWithoutDiagnostics()
         {
             await VerifyCallDetailsAsync(
@@ -230,6 +225,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ReferenceServer? server = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 var host = new LifecycleWotProjectionHost(
                     server.NodeManagerLifecycle, new WotProjectionBindingRuntimeFactory(channels));
@@ -237,6 +233,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 try
                 {
                     using var client = new ClientFixture(NUnitTelemetryContext.Create());
+                    await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                     await client.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                     using ISession session = await client.ConnectAsync(
                         new UriBuilder(Utils.UriSchemeOpcTcp, "localhost", fixture.Port).Uri, SecurityPolicies.None)

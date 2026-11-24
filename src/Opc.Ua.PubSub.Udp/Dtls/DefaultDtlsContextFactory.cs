@@ -142,7 +142,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             return context;
         }
 
-        private static DtlsEndpointRole DetermineRole(PubSubConnectionDataType connection)
+        internal static DtlsEndpointRole DetermineRole(PubSubConnectionDataType connection)
         {
             bool hasWriters = !connection.WriterGroups.IsNull && connection.WriterGroups.Count > 0;
             bool hasReaders = !connection.ReaderGroups.IsNull && connection.ReaderGroups.Count > 0;

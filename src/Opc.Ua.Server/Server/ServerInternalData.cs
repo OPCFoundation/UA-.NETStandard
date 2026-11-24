@@ -43,6 +43,7 @@ namespace Opc.Ua.Server
         IHistoryContinuationPointStoreProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
+        IServerNamespaceDefaultPermissionsProvider,
         IConformanceUnitsManagerProvider,
         IAsyncDisposable,
         ITimeProviderProvider,
@@ -413,6 +414,14 @@ namespace Opc.Ua.Server
         {
             m_serverEndpoints = endpoints;
         }
+
+        /// <summary>
+        /// The role permissions of the nodes without <c>RolePermissions</c> in
+        /// a namespace without <c>DefaultRolePermissions</c>, set by
+        /// <see cref="StandardServer"/> before the node managers start. Empty
+        /// when the server applies no default.
+        /// </summary>
+        public ArrayOf<RolePermissionType> NamespaceDefaultRolePermissions { get; init; }
 
         /// <summary>
         /// The server-wide registry of Part 11 historian providers.

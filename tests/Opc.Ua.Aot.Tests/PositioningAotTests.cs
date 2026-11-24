@@ -35,6 +35,8 @@ namespace Opc.Ua.Aot.Tests
                 {
                     options.ApplicationName = "PositioningAotServer";
                     options.AutoAcceptUntrustedCertificates = true;
+                    // The tests drive the server through anonymous sessions.
+                    options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 })
                 .AddPositioningServer();
             services.AddOpcUa()

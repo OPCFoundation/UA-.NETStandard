@@ -271,10 +271,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     item.SetupGet(value => value.Id).Returns((uint)i + 1);
                     item.SetupGet(value => value.NodeManager).Returns(m_owners[i + 1]);
                     item.SetupGet(value => value.ManagerHandle).Returns(new NodeHandle());
+                    bool monitorsAllEvents = i == 0 && allEvents;
                     item.SetupGet(value => value.MonitoredItemType).Returns(
-                        i == 0 && allEvents
+                        monitorsAllEvents
                             ? MonitoredItemTypeMask.Events | MonitoredItemTypeMask.AllEvents
                             : MonitoredItemTypeMask.Events);
+                    item.SetupGet(value => value.MonitoringAllEvents).Returns(monitorsAllEvents);
+                    if (monitorsAllEvents)
+                    {
+                        // Deletion releases existing subscriptions; it cannot invent bindings for this mock item.
+                        foreach (IAsyncNodeManager owner in m_owners)
+                        {
+                            Assert.That(m_master.TryGetCurrentGeneration(owner, out NodeManagerGeneration? generation),
+                                Is.True);
+                            GenerationEventBindingRecord? binding = generation!.GetEventBinding(
+                                item.Object, unsubscribe: false);
+                            Assert.That(binding, Is.Not.Null);
+                            binding!.State = GenerationEventBindingState.Bound;
+                        }
+                    }
                     m_items[i] = item.Object;
                 }
                 m_items[2] = null!;

@@ -376,6 +376,49 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public async Task GetSecurityKeysIssuesAFreshCurrentKeyAfterEveryKeyExpired()
+        {
+            // An idle SKS whose whole schedule expired used to keep handing
+            // out its last, expired key to single-key requests.
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var server = new InMemoryPubSubKeyServiceServer(clock);
+            await server.AddSecurityGroupAsync(BuildGroup()).ConfigureAwait(false);
+
+            uint previous = 0;
+            for (int round = 1; round <= 3; round++)
+            {
+                clock.Advance(TimeSpan.FromMinutes(30));
+                SksKeyResponse response = await server.GetSecurityKeysAsync(
+                    CallerId,
+                    new SksKeyRequest("group-1", 0, 1)).ConfigureAwait(false);
+
+                Assert.That(response.FirstTokenId, Is.GreaterThan(previous), $"token in round {round}");
+                Assert.That(response.TimeToNextKey, Is.EqualTo(TimeSpan.FromMinutes(5)), $"round {round}");
+                previous = response.FirstTokenId;
+            }
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ForceKeyRotationAfterIdleDoesNotReviveAnExpiredKey()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var server = new InMemoryPubSubKeyServiceServer(clock);
+            await server.AddSecurityGroupAsync(BuildGroup()).ConfigureAwait(false);
+
+            // Tokens 1-5 cover 25 minutes; all of them have expired.
+            clock.Advance(TimeSpan.FromMinutes(30));
+            await server.ForceKeyRotationAsync("group-1").ConfigureAwait(false);
+
+            SksKeyResponse response = await server.GetSecurityKeysAsync(
+                CallerId,
+                new SksKeyRequest("group-1", 0, 1)).ConfigureAwait(false);
+            Assert.That(response.FirstTokenId, Is.GreaterThan(5u));
+            Assert.That(response.TimeToNextKey, Is.EqualTo(TimeSpan.FromMinutes(5)));
+        }
+
+        [Test]
         public void AddSecurityGroupAsync_RejectsNullGroup()
         {
             var server = new InMemoryPubSubKeyServiceServer();

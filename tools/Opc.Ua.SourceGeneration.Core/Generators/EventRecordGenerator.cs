@@ -1030,9 +1030,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return string.Empty;
             }
-            return description
-                .Replace("\r", " ", StringComparison.Ordinal)
-                .Replace("\n", " ", StringComparison.Ordinal);
+            // The description is emitted on a /// line: every C# line
+            // terminator (not only CR and LF) would end the comment.
+            return description.AsSingleLineCommentText();
         }
 
         /// <summary>

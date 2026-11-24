@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 using System.Xml;
 
@@ -217,6 +218,198 @@ namespace Opc.Ua.SourceGeneration
                     return "@" + symbol;
             }
             return symbol;
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="c"/> ends a line in C# source: CR,
+        /// LF, NEL (U+0085), LINE SEPARATOR (U+2028) or PARAGRAPH SEPARATOR
+        /// (U+2029).
+        /// </summary>
+        public static bool IsCSharpLineTerminator(char c)
+        {
+            return c is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029';
+        }
+
+        /// <summary>
+        /// Makes model text safe to place on a single comment line of
+        /// generated code: every C# line terminator is replaced with a space,
+        /// so the text cannot end the comment and continue as code.
+        /// </summary>
+        public static string AsSingleLineCommentText(this string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value ?? string.Empty;
+            }
+            StringBuilder? builder = null;
+            for (int ii = 0; ii < value!.Length; ii++)
+            {
+                if (IsCSharpLineTerminator(value[ii]))
+                {
+                    builder ??= new StringBuilder(value);
+                    builder[ii] = ' ';
+                }
+            }
+            return builder?.ToString() ?? value;
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="name"/> can be emitted as a single
+        /// C# identifier without an '@' escape: an identifier start character
+        /// followed by identifier part characters (see
+        /// <see cref="IsIdentifierStartCharacter(char)"/> and
+        /// <see cref="IsIdentifierPartCharacter(char)"/>) that is not a
+        /// reserved keyword. Model names (SymbolicName, SymbolicId, ClassName,
+        /// namespace Name) are emitted verbatim in identifier positions, so
+        /// anything else would either break the generated code or inject
+        /// arbitrary code into it.
+        /// </summary>
+        public static bool IsCodeSafeIdentifier([NotNullWhen(true)] this string? name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
+            if (!IsIdentifierStartCharacter(name![0]))
+            {
+                return false;
+            }
+            for (int ii = 1; ii < name.Length; ii++)
+            {
+                if (!IsIdentifierPartCharacter(name[ii]))
+                {
+                    return false;
+                }
+            }
+            return !s_csharpKeywords.Contains(name);
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="c"/> can start a C# identifier: '_'
+        /// or a letter (Unicode categories Lu, Ll, Lt, Lm, Lo and Nl).
+        /// </summary>
+        public static bool IsIdentifierStartCharacter(char c)
+        {
+            if (c == '_')
+            {
+                return true;
+            }
+            switch (char.GetUnicodeCategory(c))
+            {
+                case UnicodeCategory.UppercaseLetter:
+                case UnicodeCategory.LowercaseLetter:
+                case UnicodeCategory.TitlecaseLetter:
+                case UnicodeCategory.ModifierLetter:
+                case UnicodeCategory.OtherLetter:
+                case UnicodeCategory.LetterNumber:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="c"/> can continue a C# identifier:
+        /// an identifier start character, a decimal digit (Nd), a combining
+        /// mark (Mn, Mc) or connector punctuation (Pc). Formatting characters
+        /// (Cf), which C# also accepts, are not: they include the
+        /// bidirectional overrides that make code read differently than it
+        /// compiles, and no model name needs them.
+        /// </summary>
+        public static bool IsIdentifierPartCharacter(char c)
+        {
+            if (IsIdentifierStartCharacter(c))
+            {
+                return true;
+            }
+            switch (char.GetUnicodeCategory(c))
+            {
+                case UnicodeCategory.DecimalDigitNumber:
+                case UnicodeCategory.NonSpacingMark:
+                case UnicodeCategory.SpacingCombiningMark:
+                case UnicodeCategory.ConnectorPunctuation:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="name"/> is a dotted sequence of
+        /// identifiers (see <see cref="IsCodeSafeIdentifier(string?)"/>) that
+        /// can be emitted as a C# namespace name.
+        /// </summary>
+        public static bool IsCodeSafeNamespace([NotNullWhen(true)] this string? name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
+            foreach (string segment in name!.Split('.'))
+            {
+                if (!segment.IsCodeSafeIdentifier())
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Turns a name derived from model data (e.g. a model URI) into an
+        /// identifier, or a dot separated sequence of identifiers when
+        /// <paramref name="dotted"/> is set. A name that already is one is
+        /// returned unchanged; otherwise every other character becomes an
+        /// underscore, a segment that cannot start an identifier (e.g. a
+        /// digit) gets a leading underscore and a reserved keyword gets a
+        /// trailing underscore (as the default names derived from a model URI
+        /// do, because the Name and Prefix are also used where an '@' escape
+        /// is not allowed).
+        /// </summary>
+        public static string ToCodeSafeName(this string? name, bool dotted)
+        {
+            if (string.IsNullOrEmpty(name) ||
+                (dotted ? name.IsCodeSafeNamespace() : name.IsCodeSafeIdentifier()))
+            {
+                return name ?? string.Empty;
+            }
+
+            var segments = new List<string>();
+            foreach (string segment in dotted ? name!.Split('.') : [name!])
+            {
+                if (segment.Length == 0)
+                {
+                    continue;
+                }
+                var builder = new StringBuilder(segment.Length + 1);
+                foreach (char c in segment)
+                {
+                    builder.Append(IsIdentifierPartCharacter(c) ? c : '_');
+                }
+                if (!IsIdentifierStartCharacter(builder[0]))
+                {
+                    builder.Insert(0, '_');
+                }
+                string identifier = builder.ToString();
+                segments.Add(s_csharpKeywords.Contains(identifier) ? identifier + "_" : identifier);
+            }
+            return segments.Count == 0 ? "_" : string.Join(".", segments);
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="name"/> is a type name that can be
+        /// emitted verbatim: an optional <c>global::</c> alias followed by a
+        /// dotted sequence of identifiers (the built-in model names its CLR
+        /// types this way, e.g. <c>global::Opc.Ua.IEncodeable</c>).
+        /// </summary>
+        public static bool IsCodeSafeTypeName([NotNullWhen(true)] this string? name)
+        {
+            const string kGlobalAlias = "global::";
+            if (name != null && name.StartsWith(kGlobalAlias, StringComparison.Ordinal))
+            {
+                name = name.Substring(kGlobalAlias.Length);
+            }
+            return name.IsCodeSafeNamespace();
         }
 
         /// <summary>

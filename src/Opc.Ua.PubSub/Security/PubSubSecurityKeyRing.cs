@@ -190,6 +190,56 @@ namespace Opc.Ua.PubSub.Security
         }
 
         /// <summary>
+        /// Replaces the <see cref="PubSubSecurityKey.IssuedAt"/> of the
+        /// current or a future key with the one derived from the newest SKS
+        /// response. That time is measured from when the request was sent,
+        /// so it is never later than the real issuance time under the SKS's
+        /// current schedule: a delayed response can only retire a key early
+        /// (by at most its round trip), never extend it, and a forced
+        /// rotation is always followed. The next timely response restores
+        /// an estimate a delayed one shortened. Past keys are left alone.
+        /// </summary>
+        /// <param name="tokenId">Token id of the key to re-time.</param>
+        /// <param name="issuedAt">Issuance time measured from the request.</param>
+        /// <returns>
+        /// <see langword="true"/> when a current or future key with
+        /// <paramref name="tokenId"/> was found.
+        /// </returns>
+        internal bool Reschedule(uint tokenId, DateTimeUtc issuedAt)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+                if (m_current?.TokenId == tokenId)
+                {
+                    if (m_current.IssuedAt != issuedAt)
+                    {
+                        m_current = m_current.WithIssuedAt(issuedAt);
+                        m_byToken[tokenId] = m_current;
+                    }
+                    return true;
+                }
+                bool found = false;
+                int count = m_future.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    PubSubSecurityKey key = m_future.Dequeue();
+                    if (key.TokenId == tokenId)
+                    {
+                        found = true;
+                        if (key.IssuedAt != issuedAt)
+                        {
+                            key = key.WithIssuedAt(issuedAt);
+                            m_byToken[tokenId] = key;
+                        }
+                    }
+                    m_future.Enqueue(key);
+                }
+                return found;
+            }
+        }
+
+        /// <summary>
         /// Looks up a previously-observed token by id.
         /// </summary>
         /// <param name="tokenId">Token id.</param>

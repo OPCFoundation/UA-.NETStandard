@@ -290,11 +290,15 @@ namespace Opc.Ua.Client
 
         private bool RequiresSessionRecreation(ITransportChannel channel)
         {
-            if (RequiresAnonymousSignSessionRecreation())
-            {
-                return true;
-            }
+            return RequiresAnonymousSignSessionRecreation() ||
+                HasSessionClientCertificateChanged(channel.ClientChannelCertificate);
+        }
 
+        /// <summary>
+        /// Compares the exact certificate, not just its key, with the certificate bound to the session.
+        /// </summary>
+        private bool HasSessionClientCertificateChanged(ReadOnlySpan<byte> certificate)
+        {
             ByteString sessionClientCertificate;
             lock (m_lock)
             {
@@ -308,10 +312,8 @@ namespace Opc.Ua.Client
             // one used for the original SecureChannel; a rotated certificate would
             // make ActivateSession transfer fail (Bad_SecurityChecksFailed), so the
             // Session must be recreated instead of reactivated.
-            byte[] channelClientCertificate = channel.ClientChannelCertificate;
-            return !sessionClientCertificate.IsEmpty &&
-                channelClientCertificate is { Length: > 0 } &&
-                sessionClientCertificate != channelClientCertificate.ToByteString();
+            return !sessionClientCertificate.IsEmpty && !certificate.IsEmpty &&
+                !sessionClientCertificate.Span.SequenceEqual(certificate);
         }
 
         async ValueTask IRecreateAwareReconnectParticipant.RecreateAsync(CancellationToken ct)

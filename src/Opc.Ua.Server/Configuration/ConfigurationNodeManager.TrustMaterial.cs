@@ -75,8 +75,7 @@ namespace Opc.Ua.Server
 
                 foreach (ServerCertificateGroup certGroup in m_certificateGroups)
                 {
-                    if (certGroup.Node?.TrustList == null ||
-                        !Utils.IsEqual(certGroup.Node.TrustList.NodeId, trustListId))
+                    if (!Utils.IsEqual(certGroup.EffectiveTrustListId, trustListId))
                     {
                         continue;
                     }
@@ -146,7 +145,7 @@ namespace Opc.Ua.Server
             TrustListIdentifier scope = GetGroupValidationScope(certGroup);
             return new TrustListChangeEffect
             {
-                TrustListId = certGroup.Node?.TrustList?.NodeId ?? NodeId.Null,
+                TrustListId = certGroup.EffectiveTrustListId,
                 CertificateGroupId = certGroup.NodeId,
                 Kind = scope == TrustListIdentifier.Users
                     ? TrustListEffectKind.UserIdentityTrust
@@ -316,10 +315,11 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (shutdownToken.IsCancellationRequested)
+            if (shutdownToken.IsCancellationRequested ||
+                (m_applicationPushTarget != null &&
+                    !Array.Exists(Volatile.Read(ref m_applicationAttachments), static attachment =>
+                        attachment.IsServing)))
             {
-                // Server shutting down: never run effects against listeners
-                // and managers that are being torn down.
                 return;
             }
 
@@ -337,6 +337,33 @@ namespace Opc.Ua.Server
             // stop instead of sweeping listeners/sessions being torn down.
             await ApplyTrustListEffectsAsync(effects, listeners, shutdownToken)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Drains trust notifications admitted before handoff and holds later notifications for the serving attachment.
+        /// </summary>
+        internal TrustHandoff PauseTrustEffects()
+        {
+            return new TrustHandoff(m_trustMaterialPump?.PauseAfterPending());
+        }
+
+        /// <summary>
+        /// Owns the trust notification cutoff until the worker chooses a serving attachment.
+        /// </summary>
+        internal sealed class TrustHandoff(CertificateChangePump<HashSet<TrustListIdentifier>>.DrainPause? pause)
+        {
+            /// <summary>
+            /// Gets the completion of pre-cutoff trust effects.
+            /// </summary>
+            internal Task Drained => pause?.Drained ?? Task.CompletedTask;
+
+            /// <summary>
+            /// Releases deferred notifications only if an attachment can still serve.
+            /// </summary>
+            internal void Finish(bool serving)
+            {
+                pause?.Finish(serving);
+            }
         }
     }
 }

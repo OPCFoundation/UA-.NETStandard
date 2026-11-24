@@ -57,6 +57,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         [TestCase("fluent", true)]
         [TestCase("configuration", true)]
         [TestCase("section", true)]
+        [Category("Integration")]
         public async Task ConfiguredIndependentModeReachesTheRegistryMergeAsync(string route, bool forceLeasedContent)
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync(forceLeasedContent)
@@ -144,6 +145,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         /// Verifies that changing the mode invalidates the registry input identity.
         /// </summary>
         [Test]
+        [Category("Integration")]
         public async Task ChangingTheModeInvalidatesTheRegistryInputIdentityAsync()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
@@ -186,6 +188,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         /// Verifies that independent review registry failure does not publish a mode fingerprint.
         /// </summary>
         [Test]
+        [Category("Integration")]
         public async Task IndependentReviewRegistryFailureDoesNotPublishAModeFingerprintAsync()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);

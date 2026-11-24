@@ -54,7 +54,7 @@ namespace Opc.Ua.SourceGeneration
         public void WriteTemplate_BinarySchema(string fileName)
         {
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
-            using var templateWriter = new TemplateWriter(writer);
+            using var templateWriter = new TemplateWriter(writer, isCSharp: false);
             var template = new Template(templateWriter, BinarySchemaTemplates.File);
 
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;

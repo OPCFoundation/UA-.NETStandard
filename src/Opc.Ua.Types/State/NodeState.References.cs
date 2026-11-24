@@ -20,7 +20,8 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 EnsureReferencesMutable();
-                ReferenceDictionary<object?> afterRemovals = CopyReferences(m_references);
+                ReferenceDictionary<object?> before = CopyReferences(m_references);
+                ReferenceDictionary<object?> afterRemovals = CopyReferences(before);
                 var removed = new List<IReference>();
                 foreach (IReference reference in removals)
                 {
@@ -42,7 +43,8 @@ namespace Opc.Ua
                     }
                 }
                 return new ReferenceUpdate(
-                    this, m_referenceRevision, afterRemovals, afterAdditions, [.. added], [.. removed]);
+                    this, m_referenceRevision, [.. before.Keys],
+                    afterRemovals, afterAdditions, [.. afterAdditions.Keys], [.. added], [.. removed]);
             }
         }
 
@@ -81,13 +83,42 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Copies the operation's stored references without retaining local target objects.
+        /// </summary>
+        internal ArrayOf<IReference> CaptureStoredReferences(ISystemContext context)
+        {
+            lock (m_referencesLock)
+            {
+                var copy = new List<IReference>();
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> image))
+                {
+                    foreach (IReference reference in image)
+                    {
+                        copy.Add(new NodeStateReference(
+                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                    }
+                }
+                else if (m_references is { } table)
+                {
+                    foreach (IReference reference in table.Keys)
+                    {
+                        copy.Add(new NodeStateReference(
+                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                    }
+                }
+                return [.. copy];
+            }
+        }
+
+        /// <summary>
         /// Rejects mutation of references reserved by a pending lifecycle decision.
         /// </summary>
         private void EnsureReferencesMutable()
         {
             if (m_referencePublicationPending)
             {
-                throw new InvalidOperationException("The node references have a pending publication.");
+                throw new NodeReferencesReservedException();
             }
         }
 
@@ -140,11 +171,28 @@ namespace Opc.Ua
         internal sealed class ReferenceUpdate(
             NodeState owner,
             long revision,
+            ArrayOf<IReference> before,
             ReferenceDictionary<object?> afterRemovals,
             ReferenceDictionary<object?> afterAdditions,
+            ArrayOf<IReference> after,
             ArrayOf<IReference> added,
             ArrayOf<IReference> removed) : IDisposable
         {
+            /// <summary>
+            /// Gets the node whose references are being updated.
+            /// </summary>
+            internal NodeState Owner => owner;
+
+            /// <summary>
+            /// Gets the explicit references observed during preparation.
+            /// </summary>
+            internal ArrayOf<IReference> Before => before;
+
+            /// <summary>
+            /// Gets the explicit references prepared for the published view.
+            /// </summary>
+            internal ArrayOf<IReference> After => after;
+
             /// <summary>
             /// Validates and reserves the node before the decision callback.
             /// </summary>

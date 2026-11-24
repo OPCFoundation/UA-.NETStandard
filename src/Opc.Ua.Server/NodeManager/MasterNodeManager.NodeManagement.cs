@@ -1368,7 +1368,8 @@ namespace Opc.Ua.Server
 
                 if (!defaults.HasDefaultAccessRestrictions &&
                     !defaults.HasDefaultRolePermissions &&
-                    !defaults.HasDefaultUserRolePermissions)
+                    !defaults.HasDefaultUserRolePermissions &&
+                    MasterNodeManager.GetNamespaceDefaultRolePermissions(Server).IsEmpty)
                 {
                     return StatusCodes.Good;
                 }

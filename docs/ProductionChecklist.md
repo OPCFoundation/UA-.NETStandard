@@ -55,6 +55,9 @@ review of your deployment.
 - [ ] Decide whether anonymous access is acceptable. A hosted server without
   `UserTokenPolicies` advertises an `Anonymous` policy. See
   [User token policies](DependencyInjection.md#user-token-policies).
+- [ ] Keep `AnonymousAccess` at `ReadOnly` (the hosted-server default), so that
+  anonymous sessions cannot write, call methods or change nodes that carry no
+  role permissions. See [Anonymous access](DependencyInjection.md#anonymous-access).
 - [ ] Register an authenticator for each user-token policy that the server
   advertises, for example with `AddDefaultIdentityAuthenticators`. A policy
   without an authenticator does not authenticate users. See

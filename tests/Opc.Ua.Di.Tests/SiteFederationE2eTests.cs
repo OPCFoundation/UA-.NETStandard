@@ -303,6 +303,8 @@ namespace Opc.Ua.Di.Tests
                     o.ApplicationName = applicationName;
                     o.ApplicationUri = $"urn:localhost:OPCFoundation:{applicationName}";
                     o.AutoAcceptUntrustedCertificates = true;
+                    // The tests drive the server through anonymous sessions.
+                    o.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                     o.EndpointUrls.Add(endpointUrl);
                     o.UserTokenPolicies.Add(new Opc.Ua.Server.Hosting.OpcUaUserTokenPolicy
                     {

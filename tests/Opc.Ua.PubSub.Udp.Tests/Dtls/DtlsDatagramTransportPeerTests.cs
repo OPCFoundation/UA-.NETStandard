@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Tests;
@@ -66,7 +68,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
             try
             {
-                await transport.OpenAsync().ConfigureAwait(false);
+                await transport.AcceptAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -106,6 +108,160 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 Assert.That(transport.RemoteEndpoint, Is.EqualTo(authenticatedEndpoint));
                 Assert.That(contextFactory.UnprotectCount, Is.EqualTo(1));
             });
+        }
+
+        [Test]
+        public async Task ServerOpenDoesNotWaitForHandshakeAndReceiveRetriesFailedHandshakeAsync()
+        {
+            int port;
+            try
+            {
+                port = UdpIntegrationTestHelpers.ReserveEphemeralPort(IPAddress.Loopback);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            DtlsProfile profile = CreateProfile();
+            string url = $"opc.dtls://127.0.0.1:{port}";
+            var endpoint = new UdpEndpoint(
+                IPAddress.Loopback,
+                port,
+                UdpAddressType.Unicast,
+                url,
+                IsDtls: true,
+                DtlsProfileName: profile.Name);
+            using var authenticatedSocket = NewLoopbackSocket();
+            var authenticatedEndpoint = (IPEndPoint)authenticatedSocket.LocalEndPoint!;
+            // The first handshake fails the way a timed-out or disturbed
+            // handshake does; the second one completes.
+            var contextFactory = new MarkerContextFactory(authenticatedEndpoint, failingHandshakes: 1);
+            await using var transport = new DtlsDatagramTransport(
+                UdpIntegrationTestHelpers.NewConnection(url, "dtls-peer-retry"),
+                endpoint,
+                PubSubTransportDirection.Receive,
+                networkInterface: null,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System,
+                UdpIntegrationTestHelpers.LoopbackOptions(),
+                diagnostics: null,
+                contextFactory,
+                profile);
+
+            try
+            {
+                await transport.OpenAsync().ConfigureAwait(false);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"DTLS loopback open failed: {ex.Message}");
+                return;
+            }
+
+            Assert.That(contextFactory.HandshakeCount, Is.Zero, "OpenAsync must not run the server handshake.");
+
+            Task<PubSubTransportFrame?> receiveTask = UdpIntegrationTestHelpers.ReceiveOneAsync(
+                transport,
+                TimeSpan.FromSeconds(8));
+            var destination = new IPEndPoint(IPAddress.Loopback, port);
+            var stopwatch = Stopwatch.StartNew();
+            while (contextFactory.HandshakeCount < 2 && stopwatch.Elapsed < TimeSpan.FromSeconds(6))
+            {
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+            // The successful handshake pins the peer right after it is counted.
+            await Task.Delay(50).ConfigureAwait(false);
+            await authenticatedSocket.SendToAsync(
+                new byte[] { MarkerContext.Marker, 0x42 },
+                SocketFlags.None,
+                destination).ConfigureAwait(false);
+            PubSubTransportFrame? frame = await receiveTask.ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(contextFactory.HandshakeCount, Is.EqualTo(2));
+                Assert.That(frame, Is.Not.Null);
+                Assert.That(frame!.Value.Payload.ToArray(), Is.EqualTo(new byte[] { 0x42 }));
+            });
+        }
+
+        [Test]
+        public async Task CloseDuringHandshakeBackOffEndsReceiveAsync()
+        {
+            int port;
+            try
+            {
+                port = UdpIntegrationTestHelpers.ReserveEphemeralPort(IPAddress.Loopback);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            DtlsProfile profile = CreateProfile();
+            string url = $"opc.dtls://127.0.0.1:{port}";
+            var endpoint = new UdpEndpoint(
+                IPAddress.Loopback,
+                port,
+                UdpAddressType.Unicast,
+                url,
+                IsDtls: true,
+                DtlsProfileName: profile.Name);
+            using var peerSocket = NewLoopbackSocket();
+            var contextFactory = new MarkerContextFactory(
+                (IPEndPoint)peerSocket.LocalEndPoint!,
+                failingHandshakes: int.MaxValue);
+            // Fake time never advances, so the back-off after the failed
+            // handshake only ends when the transport is closed.
+            var time = new FakeTimeProvider();
+            await using var transport = new DtlsDatagramTransport(
+                UdpIntegrationTestHelpers.NewConnection(url, "dtls-peer-close"),
+                endpoint,
+                PubSubTransportDirection.Receive,
+                networkInterface: null,
+                NUnitTelemetryContext.Create(),
+                time,
+                UdpIntegrationTestHelpers.LoopbackOptions(),
+                diagnostics: null,
+                contextFactory,
+                profile);
+
+            try
+            {
+                await transport.OpenAsync().ConfigureAwait(false);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"DTLS loopback open failed: {ex.Message}");
+                return;
+            }
+
+            await using IAsyncEnumerator<PubSubTransportFrame> receive =
+                transport.ReceiveAsync().GetAsyncEnumerator();
+            Task<bool> next = receive.MoveNextAsync().AsTask();
+            var stopwatch = Stopwatch.StartNew();
+            while (contextFactory.HandshakeCount < 1 && stopwatch.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+            Assert.That(contextFactory.HandshakeCount, Is.EqualTo(1));
+
+            await transport.CloseAsync().ConfigureAwait(false);
+
+            Assert.That(
+                await Task.WhenAny(next, Task.Delay(5000)).ConfigureAwait(false),
+                Is.SameAs(next),
+                "Closing the transport must end a receive waiting in the handshake back-off.");
+            Assert.That(await next.ConfigureAwait(false), Is.False);
+        }
+
+        [Test]
+        public void ClientCertificateRequiredByDefault()
+        {
+            Assert.That(new DtlsTransportOptions().RequireClientCertificate, Is.True);
         }
 
         [Test]
@@ -178,7 +334,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
             try
             {
-                await transport.OpenAsync().ConfigureAwait(false);
+                await transport.AcceptAsync().ConfigureAwait(false);
             }
             catch (SocketException ex)
             {
@@ -266,12 +422,15 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
         private sealed class MarkerContextFactory : IDtlsContextFactory
         {
-            public MarkerContextFactory(IPEndPoint authenticatedPeer)
+            public MarkerContextFactory(IPEndPoint authenticatedPeer, int failingHandshakes = 0)
             {
                 m_authenticatedPeer = authenticatedPeer;
+                m_failingHandshakes = failingHandshakes;
             }
 
             public int UnprotectCount => Volatile.Read(ref m_unprotectCount);
+
+            public int HandshakeCount => Volatile.Read(ref m_handshakeCount);
 
             public ValueTask<IDtlsContext> CreateAsync(
                 PubSubConnectionDataType connection,
@@ -283,7 +442,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 return new ValueTask<IDtlsContext>(
-                    new MarkerContext(profile, m_authenticatedPeer, RecordUnprotect));
+                    new MarkerContext(profile, m_authenticatedPeer, RecordUnprotect, RecordHandshake));
             }
 
             private void RecordUnprotect()
@@ -291,8 +450,15 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 Interlocked.Increment(ref m_unprotectCount);
             }
 
+            private bool RecordHandshake()
+            {
+                return Interlocked.Increment(ref m_handshakeCount) > m_failingHandshakes;
+            }
+
             private readonly IPEndPoint m_authenticatedPeer;
+            private readonly int m_failingHandshakes;
             private int m_unprotectCount;
+            private int m_handshakeCount;
         }
 
         private sealed class MarkerContext : IDtlsContext
@@ -302,11 +468,13 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             public MarkerContext(
                 DtlsProfile profile,
                 IPEndPoint authenticatedPeer,
-                Action recordUnprotect)
+                Action recordUnprotect,
+                Func<bool> recordHandshake)
             {
                 Profile = profile;
                 m_authenticatedPeer = authenticatedPeer;
                 m_recordUnprotect = recordUnprotect;
+                m_recordHandshake = recordHandshake;
             }
 
             public DtlsProfile Profile { get; }
@@ -316,6 +484,10 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (!m_recordHandshake())
+                {
+                    throw new DtlsHandshakeException("Simulated handshake failure.");
+                }
                 if (channel is not IDtlsAuthenticatedPeerChannel peerChannel)
                 {
                     throw new InvalidOperationException(
@@ -357,6 +529,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
             private readonly IPEndPoint m_authenticatedPeer;
             private readonly Action m_recordUnprotect;
+            private readonly Func<bool> m_recordHandshake;
         }
     }
 }

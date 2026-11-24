@@ -51,5 +51,13 @@ namespace Opc.Ua.Server
         public static partial void ShutdownReconciliationReported(
             this ILogger logger,
             Exception exception);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 7, Level = LogLevel.Warning,
+            Message = "NodeManager handoff reported {ErrorType}. Committed: {Committed}.")]
+        public static partial void HandoffReportedFailure(this ILogger logger, bool committed, string errorType);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 8, Level = LogLevel.Warning,
+            Message = "A NodeManager handoff cancellation callback failed: {ErrorType}.")]
+        public static partial void HandoffShutdownCancellationFailed(this ILogger logger, string errorType);
     }
 }

@@ -280,6 +280,33 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// Enumeration fields become enum members named verbatim, so a legal
+        /// XML name that is no C# identifier (or is a keyword) is rejected
+        /// instead of generating an invalid enum declaration.
+        /// </summary>
+        [TestCase("Ready-Now")]
+        [TestCase("Ready.Now")]
+        [TestCase("class")]
+        public void EnumFieldNameMustBeACSharpIdentifier(string fieldName)
+        {
+            string path = AddDesign(
+                "BadEnums",
+                $"""
+                <opc:DataType SymbolicName="PumpState" BaseType="ua:Enumeration">
+                  <opc:Fields>
+                    <opc:Field Name="Idle" Identifier="0" />
+                    <opc:Field Name="{fieldName}" Identifier="1" />
+                  </opc:Fields>
+                </opc:DataType>
+                """);
+            ModelDesignValidator validator = CreateValidator();
+
+            InvalidOperationException? error = Assert.Throws<InvalidOperationException>(() =>
+                validator.Validate([path], [], null!));
+            Assert.That(error!.Message, Does.Contain("not a valid C# identifier"));
+        }
+
+        /// <summary>
         /// A child variable of a dependency type keeps its authored ValueRank
         /// instead of taking the rank of its default value.
         /// </summary>

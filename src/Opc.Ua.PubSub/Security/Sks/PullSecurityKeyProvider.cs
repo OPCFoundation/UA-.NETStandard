@@ -41,6 +41,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         private readonly CancellationTokenSource m_disposeCts = new();
         private readonly SemaphoreSlim m_refreshSemaphore = new(1, 1);
         private readonly Lock m_stateLock = new();
+        private readonly Lock m_rotationLock = new();
         private Task? m_backgroundTask;
         private Task? m_opportunisticRefreshTask;
         private long m_lastOpportunisticRefreshTicks;
@@ -155,9 +156,21 @@ namespace Opc.Ua.PubSub.Security.Sks
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
+            AdvanceExpiredKeys();
             PubSubSecurityKey? current = Ring.Current ??
                 throw new InvalidOperationException(
                     $"No current key available for SecurityGroupId '{SecurityGroupId}'.");
+            if (current.IsExpired(m_timeProvider))
+            {
+                // Every cached key has expired (the SKS has been unreachable
+                // for the whole schedule): stop publishing rather than keep
+                // signing and encrypting with an expired key. The key stays
+                // in the ring for TryGetKeyAsync, and the background loop
+                // keeps refreshing.
+                throw new InvalidOperationException(
+                    $"The current key of SecurityGroupId '{SecurityGroupId}' has expired " +
+                    "and no newer key is available.");
+            }
             return new ValueTask<PubSubSecurityKey>(current);
         }
 
@@ -301,6 +314,9 @@ namespace Opc.Ua.PubSub.Security.Sks
                 TimeSpan delay;
                 try
                 {
+                    // The current key is replaced when it expires even while
+                    // the SKS cannot be reached.
+                    AdvanceExpiredKeys();
                     delay = ComputeNextDelay();
                 }
                 catch (Exception ex)
@@ -330,10 +346,12 @@ namespace Opc.Ua.PubSub.Security.Sks
                 {
                     failures = m_consecutiveFailures;
                 }
-                if (failures >= m_options.MaxConsecutiveFailures && m_options.MaxConsecutiveFailures > 0)
+                if (failures == m_options.MaxConsecutiveFailures && m_options.MaxConsecutiveFailures > 0)
                 {
-                    m_logger.BackgroundSksRefreshPaused(failures);
-                    return;
+                    // Refreshes are not stopped: a provider that stopped
+                    // would keep its last key past the key lifetime and never
+                    // receive keys again once the SKS is back.
+                    m_logger.SksUnavailable(failures);
                 }
 
                 try
@@ -368,9 +386,43 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return m_options.ReconnectDelay;
             }
             var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
-            DateTimeUtc refreshAt = current.IssuedAt + (current.Lifetime - m_options.RefreshLeadTime);
+            DateTimeUtc expiresAt = current.IssuedAt + current.Lifetime;
+            DateTimeUtc refreshAt = expiresAt - m_options.RefreshLeadTime;
             TimeSpan remaining = refreshAt - now;
-            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+            if (remaining > TimeSpan.Zero)
+            {
+                return remaining;
+            }
+            // The lead-time refresh is done. Once the next key is known, wake
+            // up when the current key expires to replace it; until then poll
+            // the SKS (ReconnectDelay).
+            bool nextKeyKnown;
+            lock (m_stateLock)
+            {
+                nextKeyKnown = m_highestKnownTokenId > current.TokenId;
+            }
+            TimeSpan untilExpiry = expiresAt - now;
+            return nextKeyKnown && untilExpiry > TimeSpan.Zero ? untilExpiry : TimeSpan.Zero;
+        }
+
+        /// <summary>
+        /// Replaces the current key with the next future key for as long as
+        /// the current key has expired (Part 14 §8.3: a key is used for its
+        /// KeyLifetime). Rotation follows the clock, not the SKS: a refresh
+        /// that brings no new keys must not keep an expired key current.
+        /// </summary>
+        private void AdvanceExpiredKeys()
+        {
+            lock (m_rotationLock)
+            {
+                PubSubSecurityKey? current = Ring.Current;
+                while (current is not null &&
+                    current.IsExpired(m_timeProvider) &&
+                    Ring.RotateToNextFuture())
+                {
+                    current = Ring.Current;
+                }
+            }
         }
 
         private async Task RefreshAsync(CancellationToken ct)
@@ -389,12 +441,13 @@ namespace Opc.Ua.PubSub.Security.Sks
         private async Task TryRefreshOnceAsync(CancellationToken ct)
         {
             uint requestedKeyCount = (uint)Math.Max(1, m_options.RequestedFutureKeyCount + 1);
-            uint startingTokenId;
-            lock (m_stateLock)
-            {
-                startingTokenId = m_highestKnownTokenId == 0 ? 0u : unchecked(m_highestKnownTokenId + 1u);
-            }
-            var request = new SksKeyRequest(SecurityGroupId, startingTokenId, requestedKeyCount);
+            // Always ask for the current key and the keys after it
+            // (StartingTokenId 0). The TimeToNextKey of the response then
+            // refers to the first key, which schedules every returned key,
+            // and an SKS that has no key after the known ones yet still
+            // answers instead of failing the refresh. Known keys are skipped.
+            var request = new SksKeyRequest(SecurityGroupId, 0u, requestedKeyCount);
+            var requestedAt = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             SksKeyResponse response;
             try
             {
@@ -426,16 +479,16 @@ namespace Opc.Ua.PubSub.Security.Sks
                     ex);
             }
 
-            ApplyResponse(response);
+            ApplyResponse(response, requestedAt);
             lock (m_stateLock)
             {
                 m_consecutiveFailures = 0;
             }
         }
 
-        private void ApplyResponse(SksKeyResponse response)
+        private void ApplyResponse(SksKeyResponse response, DateTimeUtc requestedAt)
         {
-            ArrayOf<PubSubSecurityKey> keys = response.Unpack(m_timeProvider);
+            ArrayOf<PubSubSecurityKey> keys = response.UnpackScheduled(requestedAt);
             if (keys.Count == 0)
             {
                 m_logger.SksResponseContainedNoUsableKeys(SecurityGroupId);
@@ -453,6 +506,11 @@ namespace Opc.Ua.PubSub.Security.Sks
                 PubSubSecurityKey key = keys[i];
                 if (previousHighest is uint h && key.TokenId <= h)
                 {
+                    // Already in the ring: take the newest schedule, which
+                    // follows a forced rotation and never extends a key (see
+                    // Reschedule), then zero this copy of the material.
+                    Ring.Reschedule(key.TokenId, key.IssuedAt);
+                    key.Dispose();
                     continue;
                 }
                 if (Ring.Current is null)
@@ -472,11 +530,22 @@ namespace Opc.Ua.PubSub.Security.Sks
                 }
             }
 
-            PubSubSecurityKey? current = Ring.Current;
-            if (current is not null && current.IsExpired(m_timeProvider))
+            // The first key of a StartingTokenId 0 response is the SKS's
+            // current key: move up to it when the SKS rotated ahead of the
+            // ring (a forced rotation). Never move back.
+            uint sksCurrentTokenId = keys[0].TokenId;
+            lock (m_rotationLock)
             {
-                Ring.RotateToNextFuture();
+                PubSubSecurityKey? current = Ring.Current;
+                while (current is not null &&
+                    current.TokenId < sksCurrentTokenId &&
+                    Ring.RotateToNextFuture())
+                {
+                    current = Ring.Current;
+                }
             }
+
+            AdvanceExpiredKeys();
         }
 
         private void OnRingRotated(object? sender, PubSubKeyRotatedEventArgs e)
@@ -517,8 +586,8 @@ namespace Opc.Ua.PubSub.Security.Sks
         public static partial void FailedToComputeNextSksRefreshDelay(this ILogger logger, Exception exception);
 
         [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 3, Level = LogLevel.Warning,
-            Message = "Background SKS refresh paused after {Failures} consecutive failures.")]
-        public static partial void BackgroundSksRefreshPaused(this ILogger logger, int failures);
+            Message = "SKS unavailable after {Failures} consecutive failures; background refresh retries will continue.")]
+        public static partial void SksUnavailable(this ILogger logger, int failures);
 
         [LoggerMessage(EventId = PubSubEventIds.PullSecurityKeyProvider + 4, Level = LogLevel.Warning,
             Message = "Background SKS refresh failed for SecurityGroupId {GroupId}.")]

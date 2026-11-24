@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC 10000-21 Onboarding Demo
 
 This sample provides OPC 10000-21 registrar administration and separate opt-in
@@ -596,7 +601,7 @@ without requesting tickets from an externally authenticated device. The
 it does not run an external authentication service or install its DCA credential.
 FDO discovery, ownership vouchers, TO0/TO1/TO2 and `fdo.csr` exchange remain
 outside these samples. No FDO SDK dependency or FDO interoperability result is
-provided. See [the handoff contract](../../docs/GDS.md#external-authentication-certificate-handoff)
+provided. See [the handoff contract](../../docs/Onboarding.md#external-authentication-certificate-handoff)
 for provider registration and recovery behavior.
 
 ### Recover a lost FinishRequest response
@@ -633,6 +638,11 @@ the journal in the `Prepared` state before it calls `StartSigningRequest`.
 It adds the registrar and the returned request ID in the `Started` state
 before the first `FinishRequest`. A certificate issued for an earlier
 request cannot match a key used only for the current request.
+
+On Windows, the client retries local journal publication when the
+filesystem reports that the old file could not be removed and both files
+retain their original names. It retries the same staged record, not the
+registrar request. Other replacement failures stop the workflow.
 
 When the `FinishRequest` retries end in `Bad_InvalidArgument`, the
 workflow reads `GetCertificates` and the complete TrustList for the

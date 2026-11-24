@@ -91,6 +91,11 @@ namespace Opc.Ua.Server.Historian
         /// Removes registrations contributed by <paramref name="owner"/>.
         /// </summary>
         void RemoveOwnedRegistrations(object owner);
+
+        /// <summary>
+        /// Captures an undo action for a withdrawal, preserving the original registration precedence.
+        /// </summary>
+        Action CaptureOwnedRegistrationRollback(object owner);
     }
 
     /// <summary>
@@ -472,33 +477,7 @@ namespace Opc.Ua.Server.Historian
                     return;
                 }
 
-                long order = ++m_registrationOrder;
-                var owned = new OwnedRegistrationSet(registrations);
-                m_ownedRegistrations.Add(owner, owned);
-                foreach (HistorianProviderRegistration registration in registrations)
-                {
-                    switch (registration.Kind)
-                    {
-                        case HistorianProviderRegistrationKind.Node:
-                            AddOwnedBinding(
-                                m_ownedNodes,
-                                registration.NodeId,
-                                new OwnedProviderBinding(owner, registration.Provider, order));
-                            break;
-                        case HistorianProviderRegistrationKind.Namespace:
-                            AddOwnedBinding(
-                                m_ownedNamespaces,
-                                registration.NamespaceUri!,
-                                new OwnedProviderBinding(owner, registration.Provider, order));
-                            break;
-                        case HistorianProviderRegistrationKind.Default:
-                            m_ownedDefaults.Add(new OwnedProviderBinding(owner, registration.Provider, order));
-                            break;
-                        default:
-                            throw new ArgumentOutOfRangeException(nameof(registrations));
-                    }
-                    AddProvider(registration.Provider, registration.OwnsProvider);
-                }
+                AddOwnedRegistrationsCore(owner, new OwnedRegistrationSet(registrations, ++m_registrationOrder));
             }
         }
 
@@ -515,6 +494,25 @@ namespace Opc.Ua.Server.Historian
             lock (m_lock)
             {
                 RemoveOwnedRegistrationsCore(owner);
+            }
+        }
+
+        /// <inheritdoc/>
+        Action IHistorianOwnedProviderRegistry.CaptureOwnedRegistrationRollback(object owner)
+        {
+            lock (m_lock)
+            {
+                m_ownedRegistrations.TryGetValue(owner, out OwnedRegistrationSet? original);
+                return () =>
+                {
+                    lock (m_lock)
+                    {
+                        if (original is not null && !m_ownedRegistrations.ContainsKey(owner))
+                        {
+                            AddOwnedRegistrationsCore(owner, original);
+                        }
+                    }
+                };
             }
         }
 
@@ -726,7 +724,7 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(owner));
             }
-            var sharedProviders = new HashSet<IHistorianProvider>();
+            var sharedProviders = new HashSet<IHistorianProvider>(RefEqualityComparer.Default);
             ArrayOf<IHistorianProvider> registeredProviders = sharedRegistry.Providers;
             for (int index = 0; index < registeredProviders.Count; index++)
             {
@@ -764,7 +762,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public void Dispose()
         {
-            HashSet<IHistorianProvider> providers;
+            IHistorianProvider[] providers;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -1447,12 +1445,36 @@ namespace Opc.Ua.Server.Historian
                 }
                 else
                 {
-                    m_ownedRegistrations[binding.Owner] = new OwnedRegistrationSet(remaining);
+                    m_ownedRegistrations[binding.Owner] = new OwnedRegistrationSet(remaining, registrations.Order);
                 }
             }
             foreach (OwnedProviderBinding binding in bindings)
             {
                 RebuildProviderSet(binding.Provider);
+            }
+        }
+
+        private void AddOwnedRegistrationsCore(object owner, OwnedRegistrationSet registrations)
+        {
+            m_ownedRegistrations.Add(owner, registrations);
+            foreach (HistorianProviderRegistration registration in registrations.Registrations)
+            {
+                var binding = new OwnedProviderBinding(owner, registration.Provider, registrations.Order);
+                switch (registration.Kind)
+                {
+                    case HistorianProviderRegistrationKind.Node:
+                        AddOwnedBinding(m_ownedNodes, registration.NodeId, binding);
+                        break;
+                    case HistorianProviderRegistrationKind.Namespace:
+                        AddOwnedBinding(m_ownedNamespaces, registration.NamespaceUri!, binding);
+                        break;
+                    case HistorianProviderRegistrationKind.Default:
+                        m_ownedDefaults.Add(binding);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(registrations));
+                }
+                AddProvider(registration.Provider, registration.OwnsProvider);
             }
         }
 
@@ -1520,8 +1542,8 @@ namespace Opc.Ua.Server.Historian
             new(RefEqualityComparer.Default);
         private readonly Dictionary<IHistorianProvider, HashSet<object>> m_stagedProviderOwners =
             new(RefEqualityComparer.Default);
-        private readonly HashSet<IHistorianProvider> m_providers = [];
-        private readonly HashSet<IHistorianProvider> m_ownedProviders = [];
+        private readonly HashSet<IHistorianProvider> m_providers = new(RefEqualityComparer.Default);
+        private readonly HashSet<IHistorianProvider> m_ownedProviders = new(RefEqualityComparer.Default);
         private IHistorianProvider? m_default;
 
         /// <summary>Whether shutdown invalidated all registrations and pending replacements.</summary>
@@ -1529,7 +1551,7 @@ namespace Opc.Ua.Server.Historian
         private long m_defaultRegistrationOrder;
         private long m_registrationOrder;
 
-        private sealed record OwnedRegistrationSet(HistorianProviderRegistration[] Registrations);
+        private sealed record OwnedRegistrationSet(HistorianProviderRegistration[] Registrations, long Order);
 
         private sealed record OwnedProviderBinding(
             object Owner,

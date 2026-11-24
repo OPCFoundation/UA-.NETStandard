@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Migration Guide
 
 Use this guide to migrate an application between versions of the OPC UA
@@ -48,6 +53,7 @@ covers cross-cutting changes.
 - [ContentFilter NULL semantics follow OPC 10000-4 1.05.07](#contentfilter-null-semantics-follow-opc-10000-4-10507)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
+- [Hosted servers restrict anonymous sessions to read-only access](#hosted-servers-restrict-anonymous-sessions-to-read-only-access)
 - [Migrating from the classic subscription fast callbacks and DefaultSubscription](#migrating-from-the-classic-subscription-fast-callbacks-and-defaultsubscription)
 - [Migrating from the PublishSequenceNumbersToAcknowledge event](#migrating-from-the-publishsequencenumberstoacknowledge-event)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
@@ -216,7 +222,7 @@ Server hosts must pass an `IOnboardingTicketValidator` when calling
 registration with `BadConfigurationError` instead of storing unverified
 tickets. Register authority stores through `AddOnboardingTickets` and resolve
 the validator from dependency injection, or construct it with an explicit
-trust provider. See [onboarding configuration](GDS.md#opc-10000-21-onboardingclient).
+trust provider. See [onboarding configuration](Onboarding.md#opc-10000-21-onboardingclient).
 
 ## Migrating confirmation-enabled ConfigurationFile providers
 
@@ -1356,6 +1362,32 @@ fails with `Bad_WriteNotSupported` without the received timestamps and remembers
   definition for structures without fields, and sets the `DefaultEncodingId` of concrete
   structures. `StructureDefinition.FirstExplicitFieldIndex` marks the first field of the
   subtype; NodeSet export writes only those fields.
+
+## Hosted servers restrict anonymous sessions to read-only access
+
+A server hosted with `AddOpcUa().AddServer(...)` now applies a server-wide default to the nodes
+that have no `RolePermissions` in a namespace (other than namespace 0) without
+`DefaultRolePermissions`: the `Anonymous` role may browse, read and receive events, the
+`AuthenticatedUser` role and the other well-known user roles keep every permission. Before,
+such nodes were open to every session, so an anonymous client could write values and call
+methods of any node manager that did not set permissions itself. Writes, method calls, history
+updates and node management by anonymous sessions now return `Bad_UserAccessDenied`.
+
+- To keep anonymous write and call access on selected nodes, set `RolePermissions` on them or
+  `DefaultRolePermissions` on the namespace metadata; both override the server default.
+- To restore the previous behavior, for example in a demo, set
+  `OpcUaServerOptions.AnonymousAccess = AnonymousAccess.Unrestricted`
+  (`OpcUa:Server:AnonymousAccess`).
+- A `StandardServer` that is started without the hosting extensions is unchanged. Opt in with
+  `StandardServer.NamespaceDefaultRolePermissions = ServerDefaultRolePermissions.AnonymousReadOnly`.
+- Server components that act without a user identity through the node managers' permission
+  checks are treated like a session without roles; run them with an identity that holds a role.
+
+The options bound from configuration (`AddServer(IConfiguration)`) are also stricter: a value
+that cannot be parsed, such as `"0"` for a boolean or an unknown `TokenType` in
+`UserTokenPolicies`, now fails the startup with an `ArgumentException`. Earlier versions ignored
+the value and kept the default, which turned an unknown token type into an `Anonymous` policy.
+A `UserTokenPolicies` entry may be written as the token type itself (`["UserName"]`).
 
 ## Migrating from the classic subscription fast callbacks and DefaultSubscription
 
