@@ -55,30 +55,46 @@ namespace Quickstarts.ReferenceServer
                 (static (server, configuration, factories) =>
                     new MasterNodeManager(server, configuration, null, factories));
             m_telemetry = telemetry;
-            m_userDatabase = new LinqUserDatabase();
-            m_userDatabase.CreateUser("sysadmin", "demo"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
-            m_userDatabase.CreateUser("user1", "password"u8, [Role.AuthenticatedUser]);
-            m_userDatabase.CreateUser("user2", "password1"u8, [Role.AuthenticatedUser]);
-            m_userDatabase.CreateUser(
+            // Each server owns its database; only the demo users' password verifiers are
+            // shared, so later user changes stay private to this instance.
+            m_userDatabase = new LinqUserDatabase { Users = s_demoUsers.Value };
+            m_userManagement = new UserManagement(m_userDatabase, new Opc.Ua.Range(256, 1));
+        }
+
+        /// <summary>
+        /// Creates the demo users once per process.
+        /// </summary>
+        /// <remarks>
+        /// Every user costs a PBKDF2-SHA512 derivation with 100,000 iterations: about 50 ms
+        /// on .NET and 270 ms on .NET Framework per user, more on CI runners. Hashing the
+        /// seven demo users for every server instance made it the largest part of a test
+        /// server start on net48.
+        /// </remarks>
+        private static LinqUserDatabase.User[] CreateDemoUsers()
+        {
+            var database = new LinqUserDatabase();
+            database.CreateUser("sysadmin", "demo"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
+            database.CreateUser("user1", "password"u8, [Role.AuthenticatedUser]);
+            database.CreateUser("user2", "password1"u8, [Role.AuthenticatedUser]);
+            database.CreateUser(
                    "SystemAdmin",
                    Encoding.UTF8.GetBytes("demo"),
                    [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin,
                        Role.ConfigureAdmin, Role.AuthenticatedUser]);
-            m_userDatabase.CreateUser(
+            database.CreateUser(
                 "AppAdmin",
                 Encoding.UTF8.GetBytes("demo"),
                 [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin,
                     GdsRole.DiscoveryAdmin, Role.AuthenticatedUser]);
-            m_userDatabase.CreateUser(
+            database.CreateUser(
                 "DiscoveryAdmin",
                 Encoding.UTF8.GetBytes("demo"),
                 [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin, Role.AuthenticatedUser]);
-            m_userDatabase.CreateUser(
+            database.CreateUser(
                 "CertificateAuthorityAdmin",
                 Encoding.UTF8.GetBytes("demo"),
                 [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, Role.AuthenticatedUser]);
-
-            m_userManagement = new UserManagement(m_userDatabase, new Opc.Ua.Range(256, 1));
+            return database.Users;
         }
 
         /// <summary>
@@ -950,6 +966,9 @@ namespace Quickstarts.ReferenceServer
 
         private readonly LinqUserDatabase m_userDatabase;
         private readonly UserManagement m_userManagement;
+
+        /// <summary>The demo users with their password verifiers, hashed once per process.</summary>
+        private static readonly Lazy<LinqUserDatabase.User[]> s_demoUsers = new(CreateDemoUsers);
     }
 
     internal static partial class ReferenceServerLog
