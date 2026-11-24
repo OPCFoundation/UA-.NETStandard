@@ -268,6 +268,39 @@ namespace OnboardingClientSample
         }
 
         /// <summary>
+        /// Installs the exact host-validated external leaf with its retained CSR key without changing peer trust.
+        /// The external protocol must authenticate completion before calling this method.
+        /// </summary>
+        internal async ValueTask InstallCompletedExternalCredentialAsync(
+            ByteString approvedCertificate,
+            Certificate retainedKey,
+            CertificateCollection issuerChain,
+            CancellationToken ct = default)
+        {
+            if (retainedKey == null)
+            {
+                throw new ArgumentNullException(nameof(retainedKey));
+            }
+            if (issuerChain == null)
+            {
+                throw new ArgumentNullException(nameof(issuerChain));
+            }
+            ct.ThrowIfCancellationRequested();
+            byte[] encoded = approvedCertificate.ToArray();
+            using Certificate issued = Certificate.FromRawData(encoded);
+            if (!issued.RawData.AsSpan().SequenceEqual(encoded))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid, "Expected exactly one approved DER certificate.");
+            }
+            using Certificate combined = BindToRetainedKey(issued, retainedKey);
+            CertificateIdentifier identifier = GetIdentifier();
+            await PersistApplicationCertificateAsync(identifier, combined, verifyPersistence: true, ct)
+                .ConfigureAwait(false);
+            await ActivateInstalledCertificateAsync(identifier, combined, issuerChain, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Enables request-bound signing recovery for this single-writer device. Each new request then uses a fresh
         /// RSA key that is stored only in <paramref name="signingKeyStore"/>. The journal at <paramref name="path"/>
         /// holds public data only: the key's certificate, the CSR and the URI-qualified registrar, application,
@@ -633,6 +666,28 @@ namespace OnboardingClientSample
                 .ConfigureAwait(false);
             using TrustListData trust = DecodeTrustList(credentials.TrustList);
             CertificateIdentifier identifier = GetIdentifier();
+            await PersistApplicationCertificateAsync(identifier, combined, m_journal != null, cancellationToken)
+                .ConfigureAwait(false);
+            await m_manager.WriteTrustListAsync(
+                TrustListIdentifier.Peers, trust, TrustListMasks.All, cancellationToken).ConfigureAwait(false);
+            using var issuers = new CertificateCollection();
+            for (int i = 1; i < chain.Count; i++)
+            {
+                issuers.Add(chain[i]);
+            }
+            await ActivateInstalledCertificateAsync(identifier, combined, issuers, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Writes the key pair to the configured store and optionally checks the persisted certificate and key.
+        /// </summary>
+        private async ValueTask PersistApplicationCertificateAsync(
+            CertificateIdentifier identifier,
+            Certificate combined,
+            bool verifyPersistence,
+            CancellationToken cancellationToken)
+        {
             if (string.IsNullOrEmpty(identifier.StorePath) || string.IsNullOrEmpty(identifier.StoreType))
             {
                 throw new ServiceResultException(StatusCodes.BadConfigurationError);
@@ -644,7 +699,7 @@ namespace OnboardingClientSample
                 .GetPassword(identifier) ?? [];
             try
             {
-                if (m_journal == null)
+                if (!verifyPersistence)
                 {
                     await store.AddAsync(combined, password, cancellationToken).ConfigureAwait(false);
                 }
@@ -673,13 +728,17 @@ namespace OnboardingClientSample
             {
                 Array.Clear(password, 0, password.Length);
             }
-            await m_manager.WriteTrustListAsync(
-                TrustListIdentifier.Peers, trust, TrustListMasks.All, cancellationToken).ConfigureAwait(false);
-            using var issuers = new CertificateCollection();
-            for (int i = 1; i < chain.Count; i++)
-            {
-                issuers.Add(chain[i]);
-            }
+        }
+
+        /// <summary>
+        /// Updates the live certificate manager before selecting the stored leaf in the application configuration.
+        /// </summary>
+        private async ValueTask ActivateInstalledCertificateAsync(
+            CertificateIdentifier identifier,
+            Certificate combined,
+            CertificateCollection issuers,
+            CancellationToken cancellationToken)
+        {
             await m_manager.UpdateApplicationCertificateAsync(
                 ObjectTypeIds.RsaSha256ApplicationCertificateType, combined, issuers, cancellationToken)
                 .ConfigureAwait(false);
