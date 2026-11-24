@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -271,6 +272,24 @@ namespace Opc.Ua.SourceGeneration
             bool useAllowSubtypes,
             IReadOnlyDictionary<string, Dependency.ModelDependencyV1>? referencedDependencies)
         {
+            return OpenModelDesign(fileSystem, designFiles, exclusions, telemetry,
+                useAllowSubtypes, referencedDependencies, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Opens a design with cancellable dependency materialization for a generator run.
+        /// </summary>
+        internal static IModelDesign OpenModelDesign(
+            this IFileSystem fileSystem,
+            DesignFileCollection designFiles,
+            IReadOnlyList<string> exclusions,
+            ITelemetryContext telemetry,
+            bool useAllowSubtypes,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1>? referencedDependencies,
+            CancellationToken cancellationToken,
+            Dependency.ModelDependencyResolver? dependencyResolver = null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             DesignFileOptions options = designFiles.Options ?? new DesignFileOptions();
             var validator = new ModelDesignValidator(
                 fileSystem,
@@ -282,13 +301,16 @@ namespace Opc.Ua.SourceGeneration
                 UseAllowSubtypes = useAllowSubtypes,
                 ReleaseCandidate = options.ReleaseCandidate,
                 ModelVersion = options.ModelVersion,
-                ModelPublicationDate = options.ModelPublicationDate
+                ModelPublicationDate = options.ModelPublicationDate,
+                DependencyCancellation = cancellationToken,
+                DependencyResolver = dependencyResolver
             };
 
             if (referencedDependencies != null)
             {
                 foreach (KeyValuePair<string, Dependency.ModelDependencyV1> entry in referencedDependencies)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (entry.Value == null)
                     {
                         continue;

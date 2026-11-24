@@ -143,12 +143,7 @@ namespace Opc.Ua.SourceGeneration
             referencedModelProviders ??= [.. referencedModels.Values];
             referencedAccessorProviders ??= [];
 
-            // The dependency payloads are carried inside the referenced
-            // model attributes; decode them here so a design file can
-            // resolve upstream types (e.g. subtype a structure) without an
-            // AdditionalFiles entry for the upstream model.
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies =
-                BuildReferencedDependencyMap(referencedModels);
+            var dependencyResolver = new Dependency.ModelDependencyResolver(referencedModels);
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
@@ -171,7 +166,9 @@ namespace Opc.Ua.SourceGeneration
                     options.Exclusions,
                     telemetry,
                     useAllowSubtypes,
-                    referencedDependencies);
+                    referencedDependencies: null,
+                    options.Cancellation,
+                    dependencyResolver);
 
                 // Override resolution: if a referenced assembly already
                 // provides this model under the same C# prefix, silently
@@ -422,6 +419,7 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="reportDiagnostic">
         /// Receives model URI, prefix, path and the reason on rejection.
         /// </param>
+        /// <param name="cancellationToken">Cancellation for dependency decoding in this run.</param>
         /// <returns>True when the target may be extended.</returns>
         internal static bool ValidateFluentAccessorsOnlyTarget(
             string modelUri,
@@ -429,7 +427,8 @@ namespace Opc.Ua.SourceGeneration
             string path,
             IReadOnlyList<ModelDependencyReference> referencedModelProviders,
             IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders,
-            Action<string, string, string, string>? reportDiagnostic)
+            Action<string, string, string, string>? reportDiagnostic,
+            CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(modelUri))
             {
@@ -465,7 +464,7 @@ namespace Opc.Ua.SourceGeneration
                     reference.IsValid &&
                     string.Equals(reference.ModelUri, modelUri, StringComparison.Ordinal)))
             {
-                Dependency.ModelDependencyV1? dependency = reference.GetDependency();
+                Dependency.ModelDependencyV1? dependency = reference.GetDependencyForGeneration(cancellationToken);
                 if (string.Equals(reference.Prefix, prefix, StringComparison.Ordinal) &&
                     !string.IsNullOrEmpty(reference.Payload) &&
                     (dependency == null ||
@@ -556,7 +555,8 @@ namespace Opc.Ua.SourceGeneration
                     path,
                     referencedModelProviders,
                     referencedAccessorProviders,
-                    null);
+                    null,
+                    options.Cancellation);
             }
             return ValidateFluentAccessorsOnlyTarget(
                     modelUri,
@@ -564,7 +564,8 @@ namespace Opc.Ua.SourceGeneration
                     path,
                     referencedModelProviders,
                     referencedAccessorProviders,
-                    reportDiagnostic) &&
+                    reportDiagnostic,
+                    options.Cancellation) &&
                 ValidateFluentAccessorsOnlyOptions(
                     modelUri,
                     prefix,
@@ -916,10 +917,9 @@ namespace Opc.Ua.SourceGeneration
             referencedModelProviders ??= [.. referencedModels.Values];
             referencedAccessorProviders ??= [];
 
-            // The payloads are carried inside the referenced model
-            // attributes, so a caller that already supplies the models does
-            // not have to decode and thread the map as well.
-            referencedDependencies ??= BuildReferencedDependencyMap(referencedModels);
+            Dependency.ModelDependencyResolver? dependencyResolver = referencedDependencies == null
+                ? new Dependency.ModelDependencyResolver(referencedModels)
+                : null;
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
@@ -977,16 +977,15 @@ namespace Opc.Ua.SourceGeneration
                 {
                     Targets = designFilesForModel
                 };
-                IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
+                IReadOnlyDictionary<string, Dependency.ModelDependencyV1>?
                     validationDependencies = referencedDependencies;
                 if ((accessorsOnly || options.ClientAccessorsOnly) &&
-                    referencedDependencies.ContainsKey(modelUri))
+                    referencedDependencies?.ContainsKey(modelUri) == true)
                 {
-                    Dictionary<string, Dependency.ModelDependencyV1> dependenciesWithoutTarget =
-                        referencedDependencies.ToDictionary(
-                            entry => entry.Key,
-                            entry => entry.Value,
-                            StringComparer.Ordinal);
+                    var dependenciesWithoutTarget = referencedDependencies.ToDictionary(
+                        entry => entry.Key,
+                        entry => entry.Value,
+                        StringComparer.Ordinal);
                     dependenciesWithoutTarget.Remove(modelUri);
                     validationDependencies = dependenciesWithoutTarget;
                 }
@@ -995,7 +994,9 @@ namespace Opc.Ua.SourceGeneration
                     options.Exclusions,
                     telemetry,
                     useAllowSubtypes,
-                    validationDependencies);
+                    validationDependencies,
+                    options.Cancellation,
+                    dependencyResolver);
 
                 // Cross-namespace prefix override: when a referenced
                 // assembly publishes a model under a specific C# prefix,
@@ -1066,36 +1067,6 @@ namespace Opc.Ua.SourceGeneration
                     totalDesigns,
                     reportBindingDiagnostic);
             }
-        }
-
-        /// <summary>
-        /// Build a per-URI dictionary of the deserialised model dependency
-        /// payloads carried by the referenced model attributes. Payloads
-        /// with unknown versions or malformed encodings are silently
-        /// dropped (the validator then falls back to explicit
-        /// AdditionalFiles resolution).
-        /// </summary>
-        private static IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
-            BuildReferencedDependencyMap(
-                IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
-        {
-            if (referencedModels.Count == 0)
-            {
-                return ImmutableDictionary<string, Dependency.ModelDependencyV1>.Empty;
-            }
-            var map = new Dictionary<string, Dependency.ModelDependencyV1>(
-                StringComparer.Ordinal);
-            foreach (KeyValuePair<string, ModelDependencyReference> entry in referencedModels)
-            {
-                Dependency.ModelDependencyV1? decoded = entry.Value.GetDependency();
-                if (decoded == null ||
-                    !string.Equals(decoded.ModelUri, entry.Key, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-                map[entry.Key] = decoded;
-            }
-            return map;
         }
 
         /// <summary>
