@@ -21,6 +21,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ConformancePublishDoesNotReadRetiredLifecycleContributorAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -56,8 +57,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleTestServer? server = null;
             try
             {
-                server = await fixture.StartAsync(
-                    Path.Combine(m_pkiRoot, "conformance-" + Guid.NewGuid().ToString("N")))
+                server = await fixture.StartAsync(await SeedPkiAsync(
+                    Path.Combine(m_pkiRoot, "conformance-" + Guid.NewGuid().ToString("N"))).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 ConformanceReadProbeNodeManager manager = createdManager ??
                     throw new InvalidOperationException("The startup factory did not create its NodeManager.");

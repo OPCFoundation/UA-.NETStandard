@@ -19,6 +19,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
+        [NoFixtureServer]
         public async Task RegistrationFailureDoesNotSkipIndependentAddressSpaceShutdownAsync(bool failCancellation)
         {
             await FinishShutdownTestAsync().ConfigureAwait(false);

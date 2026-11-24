@@ -172,7 +172,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     var messages = new List<string>();
                     bool fenced = false;
                     NotificationMessage? sent = null;
-                    while (!fenced)
+                    // On a loaded machine the retired source's last queued emission (captured-772, or
+                    // the data item's final BadNodeIdUnknown) can reach the subscription after the
+                    // survivor's fence, so wait for it as well; the assertions below still require
+                    // exactly the captured values and nothing produced after the cutoff.
+                    while (!fenced ||
+                        (events
+                            ? messages.Count < 2
+                            : !values.Any(value => value.StatusCode == StatusCodes.BadNodeIdUnknown)))
                     {
                         header.Timestamp = DateTimeUtc.Now;
                         PublishResponse response = await services.PublishAsync(header, acknowledgements, timeout.Token)
