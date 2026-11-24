@@ -350,6 +350,41 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        /// <summary>
+        /// Distinguishes an unsupported group type from a configured type without an initialized CA.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task AuthenticatedEvidenceSigningReportsUnavailableAuthority(bool typeConfigured)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=Uninitialized CA",
+                BaseStorePath = "unused",
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
+            using var factory = new CertificateGroup(telemetry);
+            using ICertificateGroup group = factory.Create("unused", configuration);
+            var issuer = (ICertificateGroupWithAuthenticatedSigningRequest)group;
+            NodeId type = typeConfigured
+                ? Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType
+                : Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await issuer.SigningRequestForAuthenticatedEvidenceAsync(
+                    type,
+                    "CN=Approved External DCA",
+                    ApplicationUri,
+                    ProductInstanceUri,
+                    [],
+                    [],
+                    CreateSigningRequest(null)).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode,
+                Is.EqualTo(typeConfigured ? StatusCodes.BadConfigurationError : StatusCodes.BadNotSupported));
+        }
+
         [Test]
         public async Task AuthenticatedEvidenceSigningRejectsInvalidApprovedIdentity()
         {

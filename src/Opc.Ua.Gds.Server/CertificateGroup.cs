@@ -663,6 +663,7 @@ namespace Opc.Ua.Gds.Server
 
                 return await IssueSigningRequestAsync(
                     certificateType,
+                    Certificates[certificateType]!,
                     pkcs10CertificationRequest,
                     pkcs10CertificationRequest.Subject,
                     new X509SubjectAltNameExtension(applicationUris, domainNames),
@@ -732,8 +733,22 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
+            if (!Certificates.TryGetValue(certificateType, out Certificate? authority))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The certificate type is not configured in this certificate group.");
+            }
+            if (authority == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The certificate group has no signing authority for the requested certificate type.");
+            }
+
             return IssueSigningRequestAsync(
                 certificateType,
+                authority,
                 pkcs10CertificationRequest,
                 new X500DistinguishedName(approvedSubjectName),
                 new X509SubjectAltNameExtension(approvedUris, domains),
@@ -786,6 +801,7 @@ namespace Opc.Ua.Gds.Server
 
         private async Task<Certificate> IssueSigningRequestAsync(
             NodeId certificateType,
+            Certificate authority,
             Pkcs10CertificationRequest request,
             X500DistinguishedName subjectName,
             X509SubjectAltNameExtension altNames,
@@ -793,7 +809,7 @@ namespace Opc.Ua.Gds.Server
         {
             DateTime yesterday = DateTime.Today.AddDays(-1);
             using Certificate signingKey = await LoadSigningKeyAsync(
-                Certificates[certificateType]!,
+                authority,
                 null,
                 m_telemetry,
                 ct).ConfigureAwait(false);
