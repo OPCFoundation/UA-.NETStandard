@@ -1076,17 +1076,18 @@ namespace Opc.Ua.Types.Tests.State
         /// compiler allocates a closure at the entry of the method whose parameters it captures,
         /// so the executor call lives in a helper that only bound nodes reach.
         /// </summary>
-        [Test]
-        public async Task UnboundClearChangeMasksAsyncDoesNotAllocateAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnboundClearChangeMasksAsyncDoesNotAllocateAsync(bool includeChildren)
         {
 #if DEBUG
             Assert.Ignore("Debug builds compile async state machines as classes, which allocate.");
 #endif
             BaseObjectState node = CreateObjectNode();
-            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+            await node.ClearChangeMasksAsync(m_context, includeChildren).ConfigureAwait(false);
 
             long before = GC.GetAllocatedBytesForCurrentThread();
-            ValueTask clear = node.ClearChangeMasksAsync(m_context, false);
+            ValueTask clear = node.ClearChangeMasksAsync(m_context, includeChildren);
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
             Assert.That(clear.IsCompleted, Is.True);
