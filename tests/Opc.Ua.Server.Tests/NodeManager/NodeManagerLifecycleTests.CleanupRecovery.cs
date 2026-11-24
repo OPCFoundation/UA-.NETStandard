@@ -2702,12 +2702,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await harness.Recovery.ConfirmAsync(handle).ConfigureAwait(false);
             harness.AssertPhysicalCleanupOnce();
             await Task.Yield();
-            for (int attempt = 0; attempt < 3 && factory.IsAlive; attempt++)
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-            }
+            await CollectUntilReleasedAsync(() => !factory.IsAlive).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(factory.IsAlive, Is.False);

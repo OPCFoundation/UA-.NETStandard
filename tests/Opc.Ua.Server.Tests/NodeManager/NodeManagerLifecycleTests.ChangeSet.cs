@@ -836,7 +836,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 WeakReference<NodeManagerRegistration> registrationReference,
                 WeakReference<IAsyncNodeManager> managerReference) =
                 await CreateLegacyResultAfterRetirementAsync().ConfigureAwait(false);
-            CollectLifecycleOwnershipTargets();
+            await CollectUntilReleasedAsync(
+                () => !registrationReference.TryGetTarget(out _) && !managerReference.TryGetTarget(out _))
+                .ConfigureAwait(false);
 
             bool registrationAvailable = registrationReference.TryGetTarget(out _);
             bool managerAvailable = managerReference.TryGetTarget(out _);
@@ -866,7 +868,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 long generation,
                 string[] namespaceUris) =
                 await CreateModernResultAfterRetirementAsync().ConfigureAwait(false);
-            CollectLifecycleOwnershipTargets();
+            await CollectUntilReleasedAsync(
+                () => !registrationReference.TryGetTarget(out _) && !managerReference.TryGetTarget(out _))
+                .ConfigureAwait(false);
 
             NodeManagerRegistrationSnapshot snapshot = result.Registrations[0];
             bool registrationAvailable = registrationReference.TryGetTarget(out _);
@@ -1129,6 +1133,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
+        }
+
+        /// <summary>
+        /// Collects until <paramref name="released"/> reports that the observed targets are gone,
+        /// for at most about five seconds.
+        /// </summary>
+        /// <remarks>
+        /// Retirement finishes on pool threads. Under parallel load a continuation that already
+        /// completed its work can still hold a target on its stack for a moment, so a single
+        /// collection right after the awaited call may find it alive.
+        /// </remarks>
+        private static async Task CollectUntilReleasedAsync(Func<bool> released)
+        {
+            for (int attempt = 0; attempt < 200; attempt++)
+            {
+                CollectLifecycleOwnershipTargets();
+                if (released())
+                {
+                    return;
+                }
+                await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false);
+            }
         }
 
     }
