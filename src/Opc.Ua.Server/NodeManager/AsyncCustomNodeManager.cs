@@ -9902,6 +9902,7 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             return ServiceResult.IsGood(
                 MasterNodeManager.ValidateRolePermissions(
+                    Server,
                     context.OperationContext!,
                     metadata,
                     PermissionType.ReadHistory));
@@ -10039,6 +10040,7 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
 
             return MasterNodeManager.ValidateRolePermissions(
+                Server,
                 operationContext,
                 nodeMetadata,
                 requestedPermission);
@@ -11357,7 +11359,7 @@ namespace Opc.Ua.Server
                 defaults.DefaultUserRolePermissions);
 
             ServiceResult result = validateRolePermissions
-                ? MasterNodeManager.ValidateRolePermissions(context, permissions, requestedPermission, logger)
+                ? MasterNodeManager.ValidateRolePermissions(Server, context, permissions, requestedPermission, logger)
                 : ServiceResult.Good;
             return validateAccessRestrictions && ServiceResult.IsGood(result)
                 ? MasterNodeManager.ValidateAccessRestrictions(context, permissions, requestedPermission)

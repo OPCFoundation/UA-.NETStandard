@@ -75,6 +75,8 @@ namespace Opc.Ua.PADIM.Tests
                 options.ProductUri = "urn:OPCFoundation:PadimLocales";
                 options.PkiRoot = Path.Combine(root, "server-pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(endpoint);

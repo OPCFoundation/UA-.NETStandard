@@ -41,6 +41,8 @@ serverBuilder.Services.AddOpcUa().AddServer(options =>
     options.ProductUri = "urn:opcfoundation.org:NetworkModelSample";
     options.PkiRoot = Path.Combine(pkiRoot, "server");
     options.AutoAcceptUntrustedCertificates = true;
+    // Sample convenience only: anonymous sessions may write and call. Remove in production.
+    options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
     options.EndpointUrls.Add(endpoint);
 }).AddNetworkModel(
     services => services.GetRequiredService<INetworkModelProvider>(),

@@ -289,6 +289,7 @@ namespace Opc.Ua.Server
             IHistorianRegistryProvider, IHistorianBuilderRegistry,
             AliasNames.IAliasNameStoreRegistryProvider, AliasNames.IAliasNameStoreRegistrationValidator,
             IConformanceUnitsManagerProvider, IServerEndpointRegistryProvider, ITransportListenerRegistryProvider,
+            IServerNamespaceDefaultPermissionsProvider,
             ISecurityPolicyRegistryProvider, ICertificateValidatorProvider, IHistoryContinuationPointStoreProvider,
             IAsyncDisposable,
             IServerServiceLevelControl
@@ -356,6 +357,12 @@ namespace Opc.Ua.Server
 
             /// <inheritdoc/>
             public TimeProvider TimeProvider => (m_server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+
+            /// <inheritdoc/>
+            public ArrayOf<RolePermissionType> NamespaceDefaultRolePermissions =>
+                m_server is IServerNamespaceDefaultPermissionsProvider provider
+                    ? provider.NamespaceDefaultRolePermissions
+                    : default;
 
             /// <inheritdoc/>
             public IRebasableNodeIdFactory? NodeIdFactory => (m_server as INodeIdFactoryProvider)?.NodeIdFactory;

@@ -149,6 +149,8 @@ namespace Opc.Ua.Aot.Tests
                 {
                     options.ApplicationName = "RobotIntentAotServer";
                     options.AutoAcceptUntrustedCertificates = true;
+                    // The tests drive the server through anonymous sessions.
+                    options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 })
                 .AddRobotIntent();
             services.AddOpcUa()

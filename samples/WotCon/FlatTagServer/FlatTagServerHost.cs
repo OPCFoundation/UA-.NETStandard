@@ -84,6 +84,8 @@ namespace FlatTagServer
                         server.PkiRoot = options.PkiRoot;
                     }
                     server.AutoAcceptUntrustedCertificates = true;
+                    // Sample convenience only: anonymous sessions may write and call. Remove in production.
+                    server.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                     server.IncludeUnsecurePolicyNone = true;
                     server.EndpointUrls.Add(endpoint);
                 })

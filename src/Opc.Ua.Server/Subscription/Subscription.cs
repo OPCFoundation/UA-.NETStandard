@@ -1595,7 +1595,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                 }
                 ServiceResult permission = MasterNodeManager.ValidateRolePermissions(
-                    context, metadata, PermissionType.ReceiveEvents);
+                    m_server, context, metadata, PermissionType.ReceiveEvents);
                 if (ServiceResult.IsGood(permission))
                 {
                     permission = MasterNodeManager.ValidateAccessRestrictions(

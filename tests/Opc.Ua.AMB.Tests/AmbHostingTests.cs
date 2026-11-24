@@ -246,6 +246,8 @@ namespace Opc.Ua.AMB.Tests
                     Path.GetTempPath(),
                     "amb-hosting-" + Guid.NewGuid().ToString("N"));
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = AnonymousAccess.Unrestricted;
                 options.EndpointUrls.Clear();
                 string port = ServerFixtureUtils.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture);
                 options.EndpointUrls.Add(

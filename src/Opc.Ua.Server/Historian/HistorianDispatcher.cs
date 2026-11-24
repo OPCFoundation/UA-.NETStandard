@@ -2556,6 +2556,7 @@ namespace Opc.Ua.Server.Historian
                 cancellationToken).ConfigureAwait(false);
             return metadata != null &&
                 !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
+                    systemContext.Server,
                     operationContext,
                     metadata,
                     PermissionType.ReceiveEvents)) &&

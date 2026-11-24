@@ -77,6 +77,8 @@ namespace Opc.Ua.Aot.Tests
             {
                 options.ApplicationName = "PadimAotServer";
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
             }).AddPadim();
             services.AddOpcUa().AddClient(options =>
             {

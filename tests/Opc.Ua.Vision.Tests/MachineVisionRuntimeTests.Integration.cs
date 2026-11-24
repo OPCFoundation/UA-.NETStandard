@@ -73,6 +73,8 @@ namespace Opc.Ua.Vision.Tests
                     options.ApplicationUri = "urn:opcfoundation:tests:machinevision:server";
                     options.PkiRoot = Path.Combine(root, "server");
                     options.AutoAcceptUntrustedCertificates = true;
+                    // The tests drive the server through anonymous sessions.
+                    options.AnonymousAccess = AnonymousAccess.Unrestricted;
                     options.IncludeUnsecurePolicyNone = true;
                     options.EndpointUrls.Add(url);
                 });

@@ -279,6 +279,8 @@ namespace Opc.Ua.GranulateDrying.Tests
             options.ProductUri = "urn:tests:gdd";
             options.PkiRoot = Path.Combine(m_root!, "server");
             options.AutoAcceptUntrustedCertificates = true;
+            // The tests drive the server through anonymous sessions.
+            options.AnonymousAccess = AnonymousAccess.Unrestricted;
             options.IncludeUnsecurePolicyNone = true;
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();

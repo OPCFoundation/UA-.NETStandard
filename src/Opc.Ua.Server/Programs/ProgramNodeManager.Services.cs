@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Programs
                 DefaultAccessRestrictions = defaults.DefaultAccessRestrictions
             };
             ServiceResult permission = MasterNodeManager.ValidateRolePermissions(
-                context.OperationContext, metadata, PermissionType.AddNode);
+                Server, context.OperationContext, metadata, PermissionType.AddNode);
             if (ServiceResult.IsBad(permission))
             {
                 return permission;
