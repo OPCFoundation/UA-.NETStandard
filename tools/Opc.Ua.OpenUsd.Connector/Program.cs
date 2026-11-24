@@ -6,7 +6,7 @@ using Opc.Ua.OpenUsd.Connector;
 // Standalone OPC UA -> OpenUSD connector client.
 //
 // Usage: Opc.Ua.OpenUsd.Connector [--server <opc.tcp url>] [--out <live.usda>]
-//            [--seconds N] [--fetch-assets <dir>] [--insecure]
+//            [--seconds N] [--fetch-assets <dir>] [--insecure | --trust-server] [--pki <dir>]
 //            [--enable-commands] [--command-value <double>] [--federate]
 //            [--view] [--renderer <Auto|Storm|D3D12|Vulkan>] [--stage <stage.usda>]
 //            [--plugins <plugin/usd dir>] [--pick-command [<prim path>]]
