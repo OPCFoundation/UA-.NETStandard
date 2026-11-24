@@ -110,11 +110,16 @@ namespace Opc.Ua.Wot.Exporter
             VisitSchemas(schema, pointer, href, diagnostics);
             JsonObject canonical = ValueSchema(identity, rank, pointer, href, diagnostics, []);
             ApplyDimensions(canonical, schema["uav:arrayDimensions"] as JsonArray);
-            MergeSchema(schema, canonical);
-            if (integerProperty &&
+            var storageBounds = integerProperty &&
                 (!m_nodes.TryGetValue(identity, out NativeNode? node) ||
-                    node.Node is not Export.UADataType { IsAbstract: true }) &&
-                IntegerBounds(Terminal(identity, [])) is { } bounds)
+                    node.Node is not Export.UADataType { IsAbstract: true })
+                ? IntegerBounds(Terminal(identity, [])) : null;
+            if (storageBounds is { } nativeBounds)
+            {
+                AddStorageBounds(canonical, nativeBounds, pointer);
+            }
+            MergeSchema(schema, canonical);
+            if (storageBounds is { } bounds)
             {
                 AddStorageBounds(schema, bounds, pointer);
             }
@@ -405,12 +410,16 @@ namespace Opc.Ua.Wot.Exporter
         }
 
         /// <summary>
-        /// Combines native requiredness and upper bounds without weakening authored nested constraints.
+        /// Intersects native and authored constraints, keeping alternative sets and property maps distinct.
         /// </summary>
         private static void MergeSchema(JsonObject target, JsonObject canonical)
         {
             foreach ((string member, JsonNode? value) in canonical)
             {
+                if (value is JsonObject && target[member]?.GetValueKind() == System.Text.Json.JsonValueKind.False)
+                {
+                    continue;
+                }
                 if (member is "minimum" or "maximum" && target.ContainsKey(member))
                 {
                     continue;
@@ -421,7 +430,11 @@ namespace Opc.Ua.Wot.Exporter
                 {
                     continue;
                 }
-                if (value is JsonObject child && target[member] is JsonObject existing)
+                if (member == "properties" && value is JsonObject fields && target[member] is JsonObject authoredFields)
+                {
+                    MergePropertySchemas(authoredFields, fields);
+                }
+                else if (value is JsonObject child && target[member] is JsonObject existing)
                 {
                     MergeSchema(existing, child);
                 }
@@ -437,23 +450,49 @@ namespace Opc.Ua.Wot.Exporter
                         }
                     }
                 }
-                else if (member == "oneOf" && value is JsonArray alternatives && target[member] is JsonArray current)
+                else if (member == "oneOf" && value is JsonArray && target[member] is JsonArray)
                 {
-                    if (current.Count != alternatives.Count)
+                    if (JsonNode.DeepEquals(target[member], value))
                     {
-                        throw new FormatException("Authored alternatives disagree with the native value schema.");
+                        continue;
                     }
-                    for (int i = 0; i < alternatives.Count; i++)
+                    // Each oneOf retains exclusive-match semantics; its branches have no positional correspondence.
+                    var intersection = new JsonObject { ["oneOf"] = value.DeepClone() };
+                    if (target["allOf"] is not JsonArray conjunction)
                     {
-                        if (current[i] is JsonObject existingBranch && alternatives[i] is JsonObject branch)
-                        {
-                            MergeSchema(existingBranch, branch);
-                        }
+                        conjunction = [];
+                        target["allOf"] = conjunction;
+                    }
+                    if (!conjunction.Any(branch => JsonNode.DeepEquals(branch, intersection)))
+                    {
+                        conjunction.Add((JsonNode)intersection);
                     }
                 }
                 else
                 {
                     target[member] = value?.DeepClone();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Merges individual field schemas without interpreting their names as schema keywords.
+        /// </summary>
+        private static void MergePropertySchemas(JsonObject target, JsonObject canonical)
+        {
+            foreach ((string name, JsonNode? value) in canonical)
+            {
+                if (target[name]?.GetValueKind() == System.Text.Json.JsonValueKind.False)
+                {
+                    continue;
+                }
+                if (value is JsonObject field && target[name] is JsonObject authored)
+                {
+                    MergeSchema(authored, field);
+                }
+                else
+                {
+                    target[name] = value?.DeepClone();
                 }
             }
         }

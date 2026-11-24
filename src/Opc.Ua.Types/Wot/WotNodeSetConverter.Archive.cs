@@ -787,17 +787,32 @@ namespace Opc.Ua.Wot
                         }
                         break;
                     case EuRangeTerm:
-                        if (regenerated.ValueKind == JsonValueKind.Object)
+                        if (member.Value.ValueKind != JsonValueKind.Object)
                         {
-                            foreach (string endpoint in new[] { MinimumMember, MaximumMember })
+                            ReportArchiveConflict(location, EuRangeTerm, diagnostics);
+                            break;
+                        }
+                        foreach (string endpoint in new[] { MinimumMember, MaximumMember })
+                        {
+                            if (!member.Value.TryGetProperty(endpoint, out JsonElement actualEndpoint))
                             {
-                                if (regenerated.TryGetProperty(endpoint, out JsonElement expectedEndpoint) &&
-                                    (member.Value.ValueKind != JsonValueKind.Object ||
-                                        !member.Value.TryGetProperty(endpoint, out JsonElement actualEndpoint) ||
-                                        !IsArchivedJsonSubset(actualEndpoint, expectedEndpoint)))
+                                continue;
+                            }
+                            if (regenerated.ValueKind == JsonValueKind.Object &&
+                                regenerated.TryGetProperty(endpoint, out JsonElement expectedEndpoint))
+                            {
+                                if (!IsArchivedJsonSubset(actualEndpoint, expectedEndpoint))
                                 {
                                     ReportArchiveConflict(location + "/" + endpoint, EuRangeTerm, diagnostics);
                                 }
+                            }
+                            else if (TryReadArchivedEngineeringEndpoint(
+                                node, baseline, index, aliases, referenceTypes, endpoint, out double expectedValue) &&
+                                (actualEndpoint.ValueKind != JsonValueKind.Number ||
+                                    !actualEndpoint.TryGetDouble(out double actualValue) ||
+                                    actualValue != expectedValue))
+                            {
+                                ReportArchiveConflict(location + "/" + endpoint, EuRangeTerm, diagnostics);
                             }
                         }
                         break;
@@ -809,6 +824,43 @@ namespace Opc.Ua.Wot
                 }
             }
             AttachPreservedNodeIdentity(diagnostics, firstDiagnostic, node.NodeId);
+        }
+
+        /// <summary>
+        /// Reads an archived endpoint independently when the complete range has no readable JSON projection.
+        /// </summary>
+        private static bool TryReadArchivedEngineeringEndpoint(
+            UANode node,
+            UANodeSet baseline,
+            Dictionary<string, UANode?> index,
+            INodeSetAliasResolver aliases,
+            WotReferenceTypeNames referenceTypes,
+            string endpoint,
+            out double value)
+        {
+            foreach (UANode candidate in baseline.Items ?? [])
+            {
+                if (candidate is not UAVariable range ||
+                    !IsBaseNamespaceBrowseName(range.BrowseName, EuRangeBrowseName) ||
+                    !HasArchivedReference(
+                        node, index, aliases, null, isForward: true,
+                        ResolveArchivedAlias(range.NodeId, aliases), referenceTypes))
+                {
+                    continue;
+                }
+                System.Xml.XmlElement? body = TryGetExtensionBody(range.Value, RangeXmlEncoding, "Range");
+                System.Xml.XmlElement? field = body is null
+                    ? null
+                    : FindChild(body, endpoint == MinimumMember ? "Low" : "High");
+                if (field is not null &&
+                    double.TryParse(field.InnerText.Trim(), System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out value))
+                {
+                    return true;
+                }
+            }
+            value = default;
+            return false;
         }
 
         private static void CompareArchivedEngineeringUnits(
