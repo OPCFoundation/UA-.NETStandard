@@ -475,15 +475,24 @@ namespace Opc.Ua.Configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
 
-            Certificate? certificate = await CertificateIdentifierResolver
-                .LoadPrivateKeyWithStoreResolverAsync(
-                    id,
-                    configuration.CertificateManager as ICertificateStoreResolver,
-                    passwordProvider,
-                    configuration.ApplicationUri,
-                    m_telemetry,
-                    ct)
-                .ConfigureAwait(false);
+            // Reuse the key configuration validation loaded into the
+            // certificate manager when its directory store is unchanged;
+            // otherwise load it from the store.
+            Certificate? certificate =
+                (configuration.CertificateManager as CertificateManager)?
+                    .TryAcquireLoadedApplicationKey(
+                        id,
+                        passwordProvider,
+                        configuration.ApplicationUri)
+                ?? await CertificateIdentifierResolver
+                    .LoadPrivateKeyWithStoreResolverAsync(
+                        id,
+                        configuration.CertificateManager as ICertificateStoreResolver,
+                        passwordProvider,
+                        configuration.ApplicationUri,
+                        m_telemetry,
+                        ct)
+                    .ConfigureAwait(false);
 
             try
             {

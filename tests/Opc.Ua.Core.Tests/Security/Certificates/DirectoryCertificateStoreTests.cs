@@ -437,6 +437,67 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task LoadPrivateKeyAsyncFindsMatchAmongSeveralCertificatesAsync()
+        {
+            using Certificate first = CertificateBuilder.Create("CN=FirstKey, O=OPC Foundation")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using Certificate second = CertificateBuilder.Create("CN=SecondKey, O=OPC Foundation")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir, false);
+            await store.AddAsync(first).ConfigureAwait(false);
+            await store.AddAsync(second).ConfigureAwait(false);
+            // An unreadable certificate file is skipped, not fatal.
+            File.WriteAllBytes(Path.Combine(m_tempDir, "certs", "broken.der"), [1, 2, 3]);
+            NodeId rsaType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+
+            using (Certificate bySubject = (await store.LoadPrivateKeyAsync(
+                null!, "CN=SecondKey, O=OPC Foundation", null, rsaType, null).ConfigureAwait(false))!)
+            {
+                Assert.That(bySubject, Is.Not.Null);
+                Assert.That(bySubject.Thumbprint, Is.EqualTo(second.Thumbprint));
+                Assert.That(bySubject.HasPrivateKey, Is.True);
+            }
+            using (Certificate byCommonName = (await store.LoadPrivateKeyAsync(
+                null!, "FirstKey", null, rsaType, null).ConfigureAwait(false))!)
+            {
+                Assert.That(byCommonName, Is.Not.Null);
+                Assert.That(byCommonName.Thumbprint, Is.EqualTo(first.Thumbprint));
+                Assert.That(byCommonName.HasPrivateKey, Is.True);
+            }
+            using (Certificate byThumbprint = (await store.LoadPrivateKeyAsync(
+                second.Thumbprint, null, null, rsaType, null).ConfigureAwait(false))!)
+            {
+                Assert.That(byThumbprint, Is.Not.Null);
+                Assert.That(byThumbprint.Thumbprint, Is.EqualTo(second.Thumbprint));
+            }
+            Assert.That(
+                await store.LoadPrivateKeyAsync(
+                    first.Thumbprint, "CN=SecondKey, O=OPC Foundation", null, rsaType, null).ConfigureAwait(false),
+                Is.Null);
+            Assert.That(
+                await store.LoadPrivateKeyAsync(
+                    null!, "FirstKey", null, ObjectTypeIds.EccNistP256ApplicationCertificateType, null)
+                    .ConfigureAwait(false),
+                Is.Null);
+
+            // A certificate added after the first lookup is found on the same
+            // store instance.
+            using Certificate third = CertificateBuilder.Create("CN=ThirdKey")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using (var writer = new DirectoryCertificateStore(m_telemetry))
+            {
+                writer.Open(m_tempDir, false);
+                await writer.AddAsync(third).ConfigureAwait(false);
+            }
+            using Certificate byNewSubject = (await store.LoadPrivateKeyAsync(
+                null!, "CN=ThirdKey", null, rsaType, null).ConfigureAwait(false))!;
+            Assert.That(byNewSubject, Is.Not.Null);
+            Assert.That(byNewSubject.Thumbprint, Is.EqualTo(third.Thumbprint));
+            Assert.That(byNewSubject.HasPrivateKey, Is.True);
+        }
+
+        [Test]
         public async Task EnumerateCRLsAsyncOnEmptyStoreReturnsEmptyAsync()
         {
             using var store = new DirectoryCertificateStore(m_telemetry);
