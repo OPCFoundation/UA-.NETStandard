@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertLifecycleValue(originalManager);
             NodeId nodeId = new(kValueNodeId, originalManager.NamespaceIndexes[0]);
             await SeedLifecycleHistoryAsync(originalManager, oldProvider, 101, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var second = await AddHistoryOwnerAsync(secondData,
                 CreateHistoryProbe(secondData), kModelNamespaceUri + ":Second", timeout.Token)
                 .ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             source = owner.Manager;
             NodeState originalNode = RequireLifecycleValue(source.Find(owner.NodeId));
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -344,7 +344,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             var owner = await AddHistoryOwnerAsync(data, provider, kModelNamespaceUri, timeout.Token)
                 .ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -477,7 +477,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var data = new InMemoryHistorianProvider(
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
             var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -528,7 +528,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var owner = await AddHistoryOwnerAsync(data,
                 CreateHistoryProbe(data),
                 kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -568,7 +568,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var owner = await AddHistoryOwnerAsync(data,
                 CreateHistoryProbe(data), kModelNamespaceUri, timeout.Token)
                 .ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -662,12 +662,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var data = new InMemoryHistorianProvider(
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
             var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
-            await using var foreignClient = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var foreignClient = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await foreignClient.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession foreign = await foreignClient.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -731,7 +731,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await firstData.InsertAsync(context, first.NodeId,
                 [new DataValue(new Variant(103), StatusCodes.Good, s_historyTime.AddMilliseconds(1500),
                     s_historyTime.AddMilliseconds(11500))], timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -802,7 +802,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             await release.Task.WaitAsync(ct).ConfigureAwait(false);
                         }
                     }), kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-                await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+                await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
                 await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
                 using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -897,7 +897,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventId, Attributes.Value);
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.Message, Attributes.Value);
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.Time, Attributes.Value);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -968,7 +968,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ], timeout.Token).ConfigureAwait(false);
             var filter = new EventFilter();
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventId, Attributes.Value);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -1037,7 +1037,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CreateHistoryEvent(firstId, "first", s_historyTime, notifier.NodeId),
                     CreateHistoryEvent(secondId, "second", s_historyTime.AddSeconds(1), foreignSource)
                 ], timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -1083,7 +1083,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CreateHistoryEvent(firstId, "first", s_historyTime, notifier.NodeId),
                     CreateHistoryEvent(secondId, "second", s_historyTime.AddSeconds(1), notifier.NodeId)
                 ], timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -1191,7 +1191,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             NodeId annotations = await owner.Manager.AddHistoryAnnotationsAsync(timeout.Token).ConfigureAwait(false);
             await SeedHistoryAnnotationsAsync(owner.Manager, data, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -1228,7 +1228,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
             var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             await SeedHistoryAnnotationsAsync(owner.Manager, data, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -1293,7 +1293,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var data = new InMemoryHistorianProvider(
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
             var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)

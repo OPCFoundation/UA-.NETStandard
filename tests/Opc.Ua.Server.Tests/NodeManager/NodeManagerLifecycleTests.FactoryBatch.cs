@@ -246,12 +246,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             try
             {
                 LifecycleTestServer server = await fixture.StartAsync(
-                    await SeedPkiAsync(Path.Combine(m_pkiRoot, "initial-alias")).ConfigureAwait(false))
+                    Path.Combine(m_pkiRoot, "initial-alias"))
                     .ConfigureAwait(false);
                 IAliasNameStoreRegistry registry =
                     ((IAliasNameStoreRegistryProvider)server.CurrentInstance).AliasNameStoreRegistry;
@@ -826,11 +827,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             try
             {
-                string pki = await SeedPkiAsync(Path.Combine(m_pkiRoot, "foreign-factory")).ConfigureAwait(false);
+                string pki = Path.Combine(m_pkiRoot, "foreign-factory");
                 ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.StartAsync(pki).ConfigureAwait(false))
                     .ConfigureAwait(false);
@@ -859,9 +861,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
-            string pki = await SeedPkiAsync(Path.Combine(m_pkiRoot, "factory-lifetime")).ConfigureAwait(false);
+            string pki = Path.Combine(m_pkiRoot, "factory-lifetime");
             ExpandedNodeId alias = new(8308, "urn:opcfoundation.org:Tests:FactoryLifetime");
             try
             {

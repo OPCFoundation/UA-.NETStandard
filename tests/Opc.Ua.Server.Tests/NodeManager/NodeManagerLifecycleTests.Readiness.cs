@@ -78,6 +78,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             StandardServer? server = null;
@@ -85,7 +86,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 server = await fixture.StartAsync(
-                    await SeedPkiAsync(Path.Combine(m_pkiRoot, "readiness-warning")).ConfigureAwait(false))
+                    Path.Combine(m_pkiRoot, "readiness-warning"))
                     .ConfigureAwait(false);
                 INodeManagerLifecycle lifecycle = server.NodeManagerLifecycle;
                 ReadinessLifecycleNodeManager? participant = null;

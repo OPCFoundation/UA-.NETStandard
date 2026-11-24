@@ -96,14 +96,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             "urn:localhost:opcfoundation.org:NodeManagerLifecycleTests";
 
         /// <summary>
-        /// Seeds a private certificate store for the test, then starts a fresh
+        /// Picks a private certificate store for the test, then starts a fresh
         /// <see cref="ReferenceServer"/> and activates a session unless the test is
         /// marked <see cref="NoFixtureServerAttribute"/>.
         /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
-            m_pkiRoot = await CreateSeededPkiRootAsync().ConfigureAwait(false);
+            m_pkiRoot = CreatePkiRoot();
             m_logger = NUnitTelemetryContext.Create().CreateLogger<NodeManagerLifecycleTests>();
             m_fixtureCleanupAuthorization = new CleanupRecoveryAuthorization();
             m_fixtureCleanupAudit = new CleanupRecoveryAudit();
@@ -123,6 +123,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
 

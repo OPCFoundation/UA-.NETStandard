@@ -90,17 +90,20 @@ instead of rewriting tests.
    salts) are shared between instances of one process. Users, passwords and roles
    are unchanged. This is sample code, not `src/`; it is the one change outside
    the test projects and it speeds up every suite that starts a `ReferenceServer`.
-2. **One certificate template per process
-   (`NodeManager/NodeManagerLifecycleTests.TestPki.cs`).** The template holds the
-   certificates of every server type the lifecycle tests start
-   (`LifecycleTestServer`, `StandardServer`, `ShutdownStageTestServer`,
-   `RetainedWorkerTestServer`) and of the default client. `[SetUp]` copies it into
-   a new store per case (a few milliseconds) and `[TearDown]` deletes the store.
-   Nested servers seed their own subfolders (`cleanup-<guid>`, `cursor-<guid>`, ...)
-   the same way, so no lifecycle case creates a certificate any more. This follows
-   `WotTestPki` from PR #5148; it is fixture-local because the template must name
-   private nested server types. PR #5166's opt-in `TestCertificateCache` would
-   serve the same purpose once merged; the two do not conflict.
+2. **Certificates created once per process (`TestCertificateCache`).** Every
+   server and client fixture a lifecycle case creates sets
+   `ReuseCachedCertificates`, the opt-in of PR #5166's shared
+   `TestCertificateCache`: the first fixture of an identity (one per server type,
+   `LifecycleTestServer`, `StandardServer`, `ShutdownStageTestServer`,
+   `RetainedWorkerTestServer`, and the client) creates its certificates, and every
+   later fixture seeds its empty store from them. `[SetUp]` picks a new store per
+   case (`NodeManager/NodeManagerLifecycleTests.TestPki.cs`) and `[TearDown]`
+   deletes it; nested servers keep their own subfolders (`cleanup-<guid>`,
+   `cursor-<guid>`, ...). So no lifecycle case after the first of each identity
+   creates a certificate. The first version of this PR copied a fixture-local
+   template (as `WotTestPki` from PR #5148 does); it switched to the shared cache
+   once #5166 was merged, at the same wall time (net10.0, default workers: 3 min
+   33 s with the template, 3 min 37 s with the cache for 758 cases).
 3. **No fixture server for cases that do not use it.** A private
    `[NoFixtureServer]` attribute marks the 57 cases above; `[SetUp]` still creates
    their store, logger and recovery stubs but skips the server and session. They
@@ -116,7 +119,8 @@ instead of rewriting tests.
    (see "Open items"); nothing is serialized for process-wide state. The worker count
    is NUnit's default (one per core: 4 on the Windows and Linux runners, 3 on macOS).
 5. **No fixed stop delay.** `ServerFixture.StopAsync` no longer waits 100 ms after
-   stopping (the same one-line change as in PR #5166, so the two merge cleanly).
+   stopping. PR #5166 made the same change and is merged, so this PR no longer
+   touches that file.
 6. **CI layout.** net48 and macOS run all lifecycle cases in one entry,
    `server-node-lifecycle` (`FullyQualifiedName~...NodeManagerLifecycleTests.`),
    instead of three (`-prepared`, `-a-n`, rest); that removes two jobs' build and
@@ -191,6 +195,8 @@ by about ±20 %), same filter, Release:
 | + demo users hashed once, net10.0, default workers | 721 passed | 3 min 33 s | 7.0 s |
 | + demo users hashed once, net10.0, 4 workers (as on CI) | 721 passed | 4 min 28 s | 1.49 s |
 | + demo users hashed once, net48, 4 workers | 721 passed | 7 min 22 s | 2.45 s |
+| Rebased on master (more cases), `TestCertificateCache` instead of the template, net10.0, default workers | 758 passed | 3 min 37 s | |
+| Same, net48, 4 workers | 758 passed | 3 min 59 s | 1.26 s |
 
 With 24 workers every case runs about ten times slower (the address-space build in
 `MasterNodeManager.Startup` goes from 0.16 s to 2.7-4 s), so more workers than
@@ -249,7 +255,3 @@ items"; they now run alone.
   survivor event reported once the commit returned. The test now waits for it; whether a
   committed removal should guarantee that order is a question for the lifecycle
   owners (#4931).
-* PR #5166 (`TestCertificateCache`, server start profile) overlaps in
-  `ServerFixture.StopAsync` (identical change) and in purpose with
-  `NodeManagerLifecycleTests.TestPki.cs`; once both are merged the lifecycle
-  template could use the shared cache.

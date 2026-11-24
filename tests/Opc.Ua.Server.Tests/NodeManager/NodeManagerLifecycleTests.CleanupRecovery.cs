@@ -434,6 +434,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             var failure = new IOException("The provider cursor did not close.");
@@ -461,8 +462,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             try
             {
-                server = await fixture.StartAsync(await SeedPkiAsync(
-                    Path.Combine(m_pkiRoot, "cursor-" + Guid.NewGuid().ToString("N"))).ConfigureAwait(false))
+                server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "cursor-" + Guid.NewGuid().ToString("N")))
                     .ConfigureAwait(false);
                 INodeManagerLifecycle lifecycle = server.NodeManagerLifecycle;
                 LifecycleResult added = await lifecycle.ApplyAsync([LifecycleChange.Add(factory)], timeout.Token)
@@ -694,6 +694,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             string namespaceUri = kModelNamespaceUri + ":RetiredConsumer:" + Guid.NewGuid().ToString("N");
@@ -710,8 +711,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 probe.IsExternallyClosed;
             try
             {
-                server = await fixture.StartAsync(await SeedPkiAsync(
-                    Path.Combine(m_pkiRoot, "consumer-" + Guid.NewGuid().ToString("N"))).ConfigureAwait(false))
+                server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "consumer-" + Guid.NewGuid().ToString("N")))
                     .ConfigureAwait(false);
                 INodeManagerLifecycle lifecycle = server.NodeManagerLifecycle;
                 NodeManagerCleanupRecovery service = recovery ??
@@ -2753,12 +2753,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             try
             {
-                LifecycleTestServer testServer = await fixture.StartAsync(await SeedPkiAsync(
-                    Path.Combine(m_pkiRoot, "cleanup-" + Guid.NewGuid().ToString("N"))).ConfigureAwait(false))
+                LifecycleTestServer testServer = await fixture.StartAsync(Path.Combine(m_pkiRoot, "cleanup-" + Guid.NewGuid().ToString("N")))
                     .ConfigureAwait(false);
                 var owner = (NodeManagerLifecycle)testServer.NodeManagerLifecycle;
                 string namespaceUri = kModelNamespaceUri + ":Cleanup:" + Guid.NewGuid().ToString("N");

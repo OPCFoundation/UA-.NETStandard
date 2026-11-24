@@ -306,7 +306,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     services, valueId, 1).ConfigureAwait(false);
                 (_, ArrayOf<SubscriptionAcknowledgement> initialAcknowledgements) = await PublishForDataChangeAsync(
                     services, subscriptionId, default, 1).ConfigureAwait(false);
-                await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+                await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
                 await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
                 using Client.ISession session = await client.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)

@@ -37,6 +37,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             CancellationTokenRegistration callback = default;
