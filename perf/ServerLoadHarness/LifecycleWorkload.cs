@@ -150,6 +150,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 tasks.Add(Task.Run(() => ReadLoopAsync(reader, ct), CancellationToken.None));
             }
+            if (m_nodeManagementInterval > 0 && (m_monitor ?? m_readers.FirstOrDefault()) is ISession nm)
+            {
+                tasks.Add(Task.Run(() => NodeManagementLoopAsync(nm, ct), CancellationToken.None));
+            }
             if (m_connectProbe != null)
             {
                 tasks.Add(Task.Run(() => ProbeLoopAsync(ct), CancellationToken.None));
@@ -177,6 +181,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Interlocked.Exchange(ref m_monitorGood, 0);
             Interlocked.Exchange(ref m_monitorBad, 0);
             Interlocked.Exchange(ref m_probeErrors, 0);
+            m_nodeManagement.Clear();
+            Interlocked.Exchange(ref m_nodeManagementGood, 0);
+            Interlocked.Exchange(ref m_nodeManagementBad, 0);
         }
 
         public override void OnServerReport(string report)
@@ -205,7 +212,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                 $"probeConnectMs={m_connect.Compact()} probeReactivateMs={m_reactivate.Compact()} ") +
                 FormattableString.Invariant(
-                $"probeCloseMs={m_close.Compact()} probeErrors={Interlocked.Read(ref m_probeErrors)}");
+                $"probeCloseMs={m_close.Compact()} probeErrors={Interlocked.Read(ref m_probeErrors)} ") +
+                FormattableString.Invariant(
+                $"nmMs={m_nodeManagement.Compact()} nmGood={Interlocked.Read(ref m_nodeManagementGood)} ") +
+                FormattableString.Invariant($"nmBad={Interlocked.Read(ref m_nodeManagementBad)} nmLastBad={m_nodeManagementStatus}");
         }
 
         private async Task ReadLoopAsync(ISession reader, CancellationToken ct)
@@ -304,6 +314,67 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
         }
 
+        /// <summary>
+        /// AddNodes then DeleteNodes of one Object under the ReferenceServer Scalar folder, once
+        /// per interval (<c>--addnodes ms</c>). Each request with items invalidates the server-wide
+        /// role-permission cache, which keys the cached read verdicts of monitored items.
+        /// </summary>
+        private async Task NodeManagementLoopAsync(ISession session, CancellationToken ct)
+        {
+            ushort ns = (ushort)session.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_nodeManagementInterval));
+            int n = 0;
+            try
+            {
+                while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+                {
+                    string name = FormattableString.Invariant($"perf_nm_{n++}");
+                    var nodeId = new NodeId(name, ns);
+                    long start = Stopwatch.GetTimestamp();
+                    try
+                    {
+                        AddNodesResponse added = await session.AddNodesAsync(
+                            null,
+                            [
+                                new AddNodesItem
+                                {
+                                    ParentNodeId = new NodeId("Scalar", ns),
+                                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                                    RequestedNewNodeId = nodeId,
+                                    BrowseName = new QualifiedName(name, ns),
+                                    NodeClass = NodeClass.Object,
+                                    TypeDefinition = ObjectTypeIds.BaseObjectType
+                                }
+                            ],
+                            ct).ConfigureAwait(false);
+                        DeleteNodesResponse deleted = await session.DeleteNodesAsync(
+                            null,
+                            [new DeleteNodesItem { NodeId = nodeId, DeleteTargetReferences = true }],
+                            ct).ConfigureAwait(false);
+                        m_nodeManagement.Record(Stopwatch.GetTimestamp() - start);
+                        StatusCode status = added.Results[0].StatusCode;
+                        if (StatusCode.IsGood(status) && StatusCode.IsGood(deleted.Results[0]))
+                        {
+                            Interlocked.Increment(ref m_nodeManagementGood);
+                        }
+                        else
+                        {
+                            Interlocked.Increment(ref m_nodeManagementBad);
+                            m_nodeManagementStatus = (StatusCode.IsGood(status) ? deleted.Results[0] : status).ToString();
+                        }
+                    }
+                    catch (ServiceResultException ex) when (!ct.IsCancellationRequested)
+                    {
+                        Interlocked.Increment(ref m_nodeManagementBad);
+                        m_nodeManagementStatus = ex.StatusCode.ToString();
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // stopped
+            }
+        }
         private sealed class MonitorHandler : V2.ISubscriptionNotificationHandler
         {
             public MonitorHandler(LifecycleWorkload owner, SubscriptionSetup setup)
@@ -380,6 +451,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private readonly LatencyRecorder m_connect = new();
         private readonly LatencyRecorder m_reactivate = new();
         private readonly LatencyRecorder m_close = new();
+        private readonly LatencyRecorder m_nodeManagement = new();
+        private readonly int m_nodeManagementInterval = Program.ArgInt("addnodes", 0);
+        private long m_nodeManagementGood;
+        private long m_nodeManagementBad;
+        private string m_nodeManagementStatus = "-";
         private NodeId[] m_readIds = [];
         private long m_reads;
         private long m_badValues;
