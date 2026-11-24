@@ -11284,19 +11284,31 @@ namespace Opc.Ua.Server.Tests
         public ILogger Logger => m_logger;
 
         /// <summary>
-        /// Gets the nodes reported to <see cref="OnPredefinedNodeAdded"/>, in call order.
+        /// Returns the nodes reported to <see cref="OnPredefinedNodeAdded"/> since
+        /// the last call, in call order, and clears them.
         /// </summary>
-        public List<NodeState> PredefinedNodeAddedNotifications { get; } = [];
+        public NodeState[] TakePredefinedNodeAddedNotifications()
+        {
+            lock (m_predefinedNodeAddedLock)
+            {
+                NodeState[] nodes = [.. m_predefinedNodeAddedNotifications];
+                m_predefinedNodeAddedNotifications.Clear();
+                return nodes;
+            }
+        }
 
         /// <inheritdoc/>
         protected override void OnPredefinedNodeAdded(ISystemContext context, NodeState node)
         {
             base.OnPredefinedNodeAdded(context, node);
-            lock (PredefinedNodeAddedNotifications)
+            lock (m_predefinedNodeAddedLock)
             {
-                PredefinedNodeAddedNotifications.Add(node);
+                m_predefinedNodeAddedNotifications.Add(node);
             }
         }
+
+        private readonly Lock m_predefinedNodeAddedLock = new();
+        private readonly List<NodeState> m_predefinedNodeAddedNotifications = [];
 
         /// <summary>
         /// Gets the registered predefined nodes for fixture inspection.

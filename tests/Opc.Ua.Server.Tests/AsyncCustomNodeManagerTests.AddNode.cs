@@ -94,14 +94,9 @@ namespace Opc.Ua.Server.Tests
 
         private static string[] TakeNotifications(TestableAsyncCustomNodeManager manager)
         {
-            lock (manager.PredefinedNodeAddedNotifications)
-            {
-                string[] names = manager.PredefinedNodeAddedNotifications
-                    .Select(node => node.BrowseName.Name!)
-                    .ToArray();
-                manager.PredefinedNodeAddedNotifications.Clear();
-                return names;
-            }
+            return manager.TakePredefinedNodeAddedNotifications()
+                .Select(node => node.BrowseName.Name!)
+                .ToArray();
         }
 
         private static BaseObjectState CreateObjectWithProperties(
