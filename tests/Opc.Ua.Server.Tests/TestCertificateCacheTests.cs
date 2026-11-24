@@ -107,6 +107,35 @@ namespace Opc.Ua.Server.Tests
             Assert.That(thumbprints.Distinct().Count(), Is.EqualTo(1));
         }
 
+        [Test]
+        public async Task EveryDefaultCertificateTypeIsSeededAndVisibleToTheCertificateManagerAsync()
+        {
+            // The harnesses configure the full RSA and ECC list: one certificate is
+            // added through the store, the others are copied.
+            string name = NewName();
+            List<string> created;
+            using (TestApplication first = await TestApplication
+                .CreateAsync(name, Uri(name), allCertificates: true).ConfigureAwait(false))
+            {
+                Assert.That(await first.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
+                created = first.StoredThumbprints();
+            }
+            Assert.That(created, Has.Count.GreaterThan(1));
+
+            using TestApplication seeded = await TestApplication
+                .CreateAsync(name, Uri(name), allCertificates: true).ConfigureAwait(false);
+            Assert.That(await seeded.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
+
+            Assert.That(seeded.StoredThumbprints(), Is.EquivalentTo(created));
+            Assert.That(
+                Directory.GetFiles(Path.Combine(seeded.StorePath, "private")),
+                Has.Length.EqualTo(created.Count));
+            List<string?> managed = seeded.ManagerThumbprintsPerCertificateType();
+            Assert.That(managed, Has.Count.EqualTo(created.Count));
+            Assert.That(managed, Is.Unique);
+            Assert.That(managed, Is.SubsetOf(created));
+        }
+
 #if NET8_0_OR_GREATER
         [Test]
         public async Task SeededPrivateKeyIsReadableOnlyByTheOwnerAsync()
@@ -117,17 +146,25 @@ namespace Opc.Ua.Server.Tests
                 return;
             }
 
+            // All default certificate types, so the copied keys are covered too.
             string name = NewName();
-            await CheckAsync(name, Uri(name), reuse: true).ConfigureAwait(false);
+            using (TestApplication first = await TestApplication
+                .CreateAsync(name, Uri(name), allCertificates: true).ConfigureAwait(false))
+            {
+                Assert.That(await first.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
+            }
 
-            using var application = await TestApplication.CreateAsync(name, Uri(name)).ConfigureAwait(false);
+            using TestApplication application = await TestApplication
+                .CreateAsync(name, Uri(name), allCertificates: true).ConfigureAwait(false);
             Assert.That(await application.CheckAsync(reuse: true).ConfigureAwait(false), Is.True);
 
             string privateDirectory = Path.Combine(application.StorePath, "private");
             Assert.That(
                 File.GetUnixFileMode(privateDirectory),
                 Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute));
-            foreach (string key in Directory.GetFiles(privateDirectory))
+            string[] keys = Directory.GetFiles(privateDirectory);
+            Assert.That(keys, Has.Length.GreaterThan(1));
+            foreach (string key in keys)
             {
                 Assert.That(File.GetUnixFileMode(key), Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite));
             }
@@ -199,7 +236,8 @@ namespace Opc.Ua.Server.Tests
             public static async Task<TestApplication> CreateAsync(
                 string name,
                 string applicationUri,
-                string? pkiRoot = null)
+                string? pkiRoot = null,
+                bool allCertificates = false)
             {
                 bool ownsPkiRoot = pkiRoot == null;
                 pkiRoot ??= NewPkiRoot();
@@ -217,7 +255,7 @@ namespace Opc.Ua.Server.Tests
                 ApplicationConfiguration configuration = await application
                     .Build(applicationUri, applicationUri + ":product")
                     .AsClient()
-                    .AddSecurityConfiguration([certificates[0]], pkiRoot)
+                    .AddSecurityConfiguration(allCertificates ? certificates : [certificates[0]], pkiRoot)
                     .SetAutoAcceptUntrustedCertificates(true)
                     .CreateAsync()
                     .ConfigureAwait(false);
@@ -248,6 +286,22 @@ namespace Opc.Ua.Server.Tests
                 using CertificateEntry? entry = ((CertificateManager)m_configuration.CertificateManager!)
                     .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256);
                 return entry?.Certificate?.Thumbprint;
+            }
+
+            /// <summary>
+            /// The thumbprint the certificate manager serves for each configured
+            /// certificate type.
+            /// </summary>
+            public List<string?> ManagerThumbprintsPerCertificateType()
+            {
+                var manager = (CertificateManager)m_configuration.CertificateManager!;
+                var thumbprints = new List<string?>();
+                foreach (CertificateIdentifier id in m_configuration.SecurityConfiguration.ApplicationCertificates)
+                {
+                    using CertificateEntry? entry = manager.AcquireApplicationCertificateByType(id.CertificateType);
+                    thumbprints.Add(entry?.Certificate?.Thumbprint);
+                }
+                return thumbprints;
             }
 
             public void Dispose()
