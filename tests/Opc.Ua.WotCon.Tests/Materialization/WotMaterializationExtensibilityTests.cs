@@ -22,6 +22,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     [TestFixture]
     [Category("WotCon")]
+    [Category("Integration")]
     public sealed class WotMaterializationExtensibilityTests
     {
         /// <summary>

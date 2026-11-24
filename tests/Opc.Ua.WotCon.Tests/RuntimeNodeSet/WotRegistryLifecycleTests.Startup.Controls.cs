@@ -729,6 +729,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             return await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
         }
 

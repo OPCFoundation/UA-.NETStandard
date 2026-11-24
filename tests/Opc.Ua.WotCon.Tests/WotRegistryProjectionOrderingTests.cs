@@ -23,6 +23,7 @@ namespace Opc.Ua.WotCon.Tests
     /// </summary>
     [TestFixture]
     [Category("WotCon")]
+    [Category("Integration")]
     public sealed class WotRegistryProjectionOrderingTests
     {
         /// <summary>

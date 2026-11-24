@@ -66,6 +66,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 AutoAccept = true
             };
 
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             Task<ReferenceServer> startup = m_fixture.StartAsync(m_pkiRoot);
             try
             {

@@ -24,6 +24,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Platform("Win")]
+        [Category("Integration")]
         public async Task ContentlessDependencyRecordsFailureWithoutAbortingIndependentWork()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
@@ -69,6 +70,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Platform("Win")]
+        [Category("Integration")]
         public async Task PreDependencyManifestHydrationSupportsPreparedMetadataCommit()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
@@ -130,6 +132,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Platform("Win")]
+        [Category("Integration")]
         public async Task CommittedSnapshotPinsExactOriginVersionAndRawEdge()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
@@ -167,6 +170,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Platform("Win")]
+        [Category("Integration")]
         public async Task FailedAttemptDoesNotReplaceCommittedGraph()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
@@ -203,6 +207,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Platform("Win")]
+        [Category("Integration")]
         public async Task DryRunLeavesBothDependencyObservationsUnchanged()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
@@ -235,6 +240,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Platform("Win")]
+        [Category("Integration")]
         public async Task SameInputNoopRecordsAttemptWithoutReplacingCommittedGraph()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();
@@ -267,6 +273,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         [Test]
         [Platform("Win")]
+        [Category("Integration")]
         public async Task FileReloadKeepsSnapshotAndReverseDependencyMetadata()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync();

@@ -27,6 +27,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     [TestFixture]
     [Category("WoT")]
+    [Category("Integration")]
     public sealed class WotProjectionViewCoordinatorTests
     {
         /// <summary>

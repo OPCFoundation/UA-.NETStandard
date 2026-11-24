@@ -35,7 +35,6 @@ namespace Opc.Ua.WotCon.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Platform("Win")]
-    [NonParallelizable]
     public sealed class WotRegistryLeaseRecoveryLiveTests
     {
         /// <summary>
@@ -55,6 +54,7 @@ namespace Opc.Ua.WotCon.Tests
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             m_server = await m_serverFixture.StartAsync(m_root).ConfigureAwait(false);
             var options = new WotRegistryServerOptions
             {
@@ -77,6 +77,7 @@ namespace Opc.Ua.WotCon.Tests
                 [LifecycleChange.Add(new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator))])
                 .ConfigureAwait(false);
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             await m_clientFixture.LoadClientConfigurationAsync(m_root).ConfigureAwait(false);
             m_session = await m_clientFixture.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"),
