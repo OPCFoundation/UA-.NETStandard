@@ -632,6 +632,8 @@ namespace Opc.Ua
             // still unchanged after all keys were loaded.
             var storeSnapshots = new Dictionary<string, (CertificateIdentifier Id, CertificateStoreFileSnapshot? Snapshot)>(
                 StringComparer.Ordinal);
+            // Stores from which at least one key was reused.
+            var reusedStores = new HashSet<string>(StringComparer.Ordinal);
             try
             {
                 for (int i = 0; i < appCerts.Count; i++)
@@ -660,6 +662,7 @@ namespace Opc.Ua
                     Certificate? loaded;
                     if (reused != null)
                     {
+                        reusedStores.Add(storeKey!);
                         newLoadedKeys.Add(reused);
                         loaded = reused.Certificate.AddRef();
                     }
@@ -716,6 +719,20 @@ namespace Opc.Ua
                     if (store.Value.Snapshot != null &&
                         !store.Value.Snapshot.Equals(CaptureOwnStoreSnapshot(store.Value.Id)))
                     {
+                        if (reusedStores.Contains(store.Key))
+                        {
+                            // A key of this store was reused against the
+                            // snapshot taken before the change, so the loaded
+                            // set can mix old and new certificates. Load all
+                            // keys from the stores again; the pending entries
+                            // are disposed below.
+                            await LoadApplicationCertificatesCoreAsync(
+                                securityConfiguration,
+                                applicationUri,
+                                reuseLoadedKeys: false,
+                                ct).ConfigureAwait(false);
+                            return;
+                        }
                         for (int i = newLoadedKeys.Count - 1; i >= 0; i--)
                         {
                             if (newLoadedKeys[i].StoreKey == store.Key)

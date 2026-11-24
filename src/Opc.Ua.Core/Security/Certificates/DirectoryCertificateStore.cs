@@ -655,7 +655,7 @@ namespace Opc.Ua
                 // the first match with a key file, so a lookup reads as many
                 // certificate files as before and only the matching key file;
                 // the rest of the store is read when that key cannot be loaded.
-                var tried = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var tried = new HashSet<string>(StringComparer.Ordinal);
                 (List<(Certificate Certificate, FileInfo File)> candidates, bool complete) =
                     await FindPrivateKeyCandidatesAsync(
                         thumbprint,
@@ -746,7 +746,7 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key of the first candidate whose key file can be
         /// imported and verified, trying the candidates in order. Disposes
-        /// the candidates and records each tried thumbprint.
+        /// the candidates and records each tried certificate file.
         /// </summary>
         private Certificate? TryLoadPrivateKey(
             List<(Certificate Certificate, FileInfo File)> candidates,
@@ -761,7 +761,7 @@ namespace Opc.Ua
             {
                 foreach ((Certificate candidate, FileInfo file) in candidates)
                 {
-                    tried.Add(candidate.Thumbprint);
+                    tried.Add(file.FullName);
                     try
                     {
                         string fileRoot = file.Name[..^file.Extension.Length];
@@ -802,8 +802,16 @@ namespace Opc.Ua
                                                 privateKeyFilePfx.FullName),
                                             password,
                                             flag));
-                                    if (X509PfxUtils.VerifyKeyPair(
-                                        certificate, certificate, true))
+                                    // The PFX must hold the certificate that was
+                                    // matched: a cached entry can be older than a
+                                    // PFX replaced in place, which then fails here
+                                    // and the retry rereads the directory.
+                                    if (string.Equals(
+                                            certificate.Thumbprint,
+                                            candidate.Thumbprint,
+                                            StringComparison.OrdinalIgnoreCase) &&
+                                        X509PfxUtils.VerifyKeyPair(
+                                            certificate, certificate, true))
                                     {
                                         m_logger
                                             .DirectoryStoreLog5(
@@ -929,8 +937,8 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns the store certificates that match the private-key lookup,
-        /// in store order, with the file each was read from, skipping the
-        /// thumbprints in <paramref name="skip"/>.
+        /// once per file it was read from, in store order, skipping the
+        /// files in <paramref name="skip"/>.
         /// </summary>
         /// <remarks>
         /// The caller owns the returned certificate references. The store's
@@ -974,12 +982,25 @@ namespace Opc.Ua
                 {
                     if (entry.Certificate == null ||
                         entry.CertificateFile == null ||
-                        skip.Contains(entry.Certificate.Thumbprint))
+                        !IsPrivateKeyMatch(entry, thumbprint, subjectName, applicationUri, certificateType))
                     {
                         continue;
                     }
 
-                    if (IsPrivateKeyMatch(entry, thumbprint, subjectName, applicationUri, certificateType))
+                    // Every file the certificate was read from is a candidate,
+                    // in store order, so a key next to an earlier copy of the
+                    // same certificate is still tried.
+                    if (entry.DuplicateFiles != null)
+                    {
+                        foreach (FileInfo duplicate in entry.DuplicateFiles)
+                        {
+                            if (!skip.Contains(duplicate.FullName))
+                            {
+                                candidates.Add((entry.Certificate.AddRef(), duplicate));
+                            }
+                        }
+                    }
+                    if (!skip.Contains(entry.CertificateFile.FullName))
                     {
                         candidates.Add((entry.Certificate.AddRef(), entry.CertificateFile));
                     }
@@ -1497,6 +1518,21 @@ namespace Opc.Ua
                                 out Entry? existing) &&
                             existing != null)
                         {
+                            // Remember the earlier files of the certificate:
+                            // the private-key lookup tries each of them.
+                            if (existing.CertificateFile != null &&
+                                !string.Equals(
+                                    existing.CertificateFile.FullName,
+                                    file.FullName,
+                                    StringComparison.Ordinal))
+                            {
+                                entry.DuplicateFiles = existing.DuplicateFiles ?? [];
+                                entry.DuplicateFiles.Add(existing.CertificateFile);
+                            }
+                            else
+                            {
+                                entry.DuplicateFiles = existing.DuplicateFiles;
+                            }
                             existing.Certificate?.Dispose();
                             existing.CertificateWithPrivateKey?.Dispose();
                         }
@@ -1913,6 +1949,12 @@ namespace Opc.Ua
             public FileInfo? PrivateKeyFile;
             public Certificate? CertificateWithPrivateKey;
             public DateTime LastWriteTimeUtc;
+
+            /// <summary>
+            /// Earlier files of the store that hold the same certificate, in
+            /// store order, or <see langword="null"/>.
+            /// </summary>
+            public List<FileInfo>? DuplicateFiles;
         }
 
         /// <summary>

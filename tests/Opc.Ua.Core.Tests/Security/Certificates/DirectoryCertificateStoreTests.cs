@@ -527,6 +527,89 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(loaded.HasPrivateKey, Is.True);
         }
 
+        [TestCase(0)]
+        [TestCase(1)]
+        public async Task LoadPrivateKeyAsyncTriesEveryFileOfDuplicateCertificateAsync(int corrupted)
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=DuplicateFiles")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string[] keyFiles;
+            using (var writer = new DirectoryCertificateStore(m_telemetry))
+            {
+                writer.Open(m_tempDir, false);
+                await writer.AddAsync(certificate).ConfigureAwait(false);
+                string certFile = writer.GetPublicKeyFilePath(certificate.Thumbprint)!;
+                string keyFile = writer.GetPrivateKeyFilePath(certificate.Thumbprint)!;
+                // The same certificate and key a second time under another name.
+                File.Copy(certFile, Path.Combine(Path.GetDirectoryName(certFile)!, "copy.der"));
+                string copiedKey = Path.Combine(Path.GetDirectoryName(keyFile)!, "copy.pfx");
+                File.Copy(keyFile, copiedKey);
+                keyFiles = [keyFile, copiedKey];
+            }
+            File.WriteAllBytes(keyFiles[corrupted], [1, 2, 3]);
+
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir, false);
+            using Certificate loaded = (await store.LoadPrivateKeyAsync(
+                null!, "CN=DuplicateFiles", null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                .ConfigureAwait(false))!;
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            Assert.That(loaded.HasPrivateKey, Is.True);
+        }
+
+        [Test]
+        public async Task LoadPrivateKeyAsyncDoesNotReturnKeyReplacedBehindCachedEntryAsync()
+        {
+            using Certificate original = CertificateBuilder.Create("CN=ReplacedInPlace")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using Certificate replacement = CertificateBuilder.Create("CN=ReplacedInPlace")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string replacementDir = Path.Combine(m_tempDir, "replacement");
+            byte[] replacementCert;
+            byte[] replacementKey;
+            using (var other = new DirectoryCertificateStore(m_telemetry))
+            {
+                other.Open(replacementDir, false);
+                await other.AddAsync(replacement).ConfigureAwait(false);
+                replacementCert = File.ReadAllBytes(other.GetPublicKeyFilePath(replacement.Thumbprint)!);
+                replacementKey = File.ReadAllBytes(other.GetPrivateKeyFilePath(replacement.Thumbprint)!);
+            }
+            string storeDir = Path.Combine(m_tempDir, "store");
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(storeDir, false);
+            await store.AddAsync(original).ConfigureAwait(false);
+            // Read the whole store into the store's entry cache.
+            using (CertificateCollection all = await store.EnumerateAsync().ConfigureAwait(false))
+            {
+                Assert.That(all, Has.Count.EqualTo(1));
+            }
+            NodeId rsaType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            using (Certificate warm = (await store.LoadPrivateKeyAsync(
+                original.Thumbprint, null, null, rsaType, null).ConfigureAwait(false))!)
+            {
+                Assert.That(warm.Thumbprint, Is.EqualTo(original.Thumbprint));
+            }
+
+            // Replace certificate and key in place: same names and file count,
+            // so the store's cached entries still describe the original.
+            string certFile = store.GetPublicKeyFilePath(original.Thumbprint)!;
+            string keyFile = store.GetPrivateKeyFilePath(original.Thumbprint)!;
+            File.WriteAllBytes(certFile, replacementCert);
+            File.WriteAllBytes(keyFile, replacementKey);
+
+            Assert.That(
+                await store.LoadPrivateKeyAsync(original.Thumbprint, null, null, rsaType, null)
+                    .ConfigureAwait(false),
+                Is.Null);
+            using Certificate bySubject = (await store.LoadPrivateKeyAsync(
+                null!, "CN=ReplacedInPlace", null, rsaType, null).ConfigureAwait(false))!;
+            Assert.That(bySubject, Is.Not.Null);
+            Assert.That(bySubject.Thumbprint, Is.EqualTo(replacement.Thumbprint));
+            Assert.That(bySubject.HasPrivateKey, Is.True);
+        }
+
         [Test]
         public async Task EnumerateCRLsAsyncOnEmptyStoreReturnsEmptyAsync()
         {

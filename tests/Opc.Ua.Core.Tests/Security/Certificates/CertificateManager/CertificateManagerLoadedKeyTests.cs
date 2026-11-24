@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
@@ -248,6 +249,74 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(manager.TryAcquireLoadedApplicationKey(id, null, null), Is.Null);
         }
 
+        [Test]
+        public async Task StoreChangeDuringLoadReloadsReusedKeysAsync()
+        {
+            (CertificateIdentifier rsaId, SecurityConfiguration config) = await CreateStoreAsync("CN=RaceRsa")
+                .ConfigureAwait(false);
+            using Certificate ecc = CertificateBuilder.Create("CN=RaceEcc")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            await ecc.AddToStoreAsync(CertificateStoreType.Directory, rsaId.StorePath!, null, m_telemetry)
+                .ConfigureAwait(false);
+            var eccId = new CertificateIdentifier
+            {
+                SubjectName = "CN=RaceEcc",
+                StoreType = CertificateStoreType.Directory,
+                StorePath = rsaId.StorePath,
+                CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
+            };
+
+            // The RSA key in place of the original, with the same file names.
+            using Certificate rotated = CertificateBuilder.Create("CN=RaceRsa")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string rotatedStore = rsaId.StorePath + "-rotated";
+            lock (m_tempDirs)
+            {
+                m_tempDirs.Add(rotatedStore);
+            }
+            byte[] rotatedCert;
+            byte[] rotatedKey;
+            using (var store = new DirectoryCertificateStore(m_telemetry))
+            {
+                store.Open(rotatedStore, false);
+                await store.AddAsync(rotated).ConfigureAwait(false);
+                rotatedCert = File.ReadAllBytes(store.GetPublicKeyFilePath(rotated.Thumbprint)!);
+                rotatedKey = File.ReadAllBytes(store.GetPrivateKeyFilePath(rotated.Thumbprint)!);
+            }
+
+            await using var manager = new CertificateManager(m_telemetry);
+            var passwords = new RotatingPasswordProvider();
+            config.CertificatePasswordProvider = passwords;
+            await manager.LoadApplicationCertificatesAsync(config).ConfigureAwait(false);
+            using CertificateEntry original = manager.AcquireApplicationCertificateByType(rsaId.CertificateType)!;
+            string certFile;
+            string keyFile;
+            using (var store = new DirectoryCertificateStore(m_telemetry))
+            {
+                store.Open(rsaId.StorePath!, false);
+                certFile = store.GetPublicKeyFilePath(original.Certificate.Thumbprint)!;
+                keyFile = store.GetPrivateKeyFilePath(original.Certificate.Thumbprint)!;
+            }
+
+            // The second load reuses the RSA key; loading the ECC key rotates
+            // the RSA key in the store while the load is running.
+            passwords.OnEcc = () =>
+            {
+                File.WriteAllBytes(certFile, rotatedCert);
+                File.WriteAllBytes(keyFile, rotatedKey);
+            };
+            config.ApplicationCertificates = [rsaId, eccId];
+            await manager.LoadApplicationCertificatesAsync(config).ConfigureAwait(false);
+
+            using CertificateEntry rsa = manager.AcquireApplicationCertificateByType(rsaId.CertificateType)!;
+            using CertificateEntry loadedEcc = manager.AcquireApplicationCertificateByType(eccId.CertificateType)!;
+            Assert.That(passwords.Rotated, Is.True);
+            Assert.That(rsa.Certificate.Thumbprint, Is.EqualTo(rotated.Thumbprint));
+            Assert.That(rsa.Certificate.HasPrivateKey, Is.True);
+            Assert.That(loadedEcc.Certificate.Thumbprint, Is.EqualTo(ecc.Thumbprint));
+        }
+
+
         private async Task<(CertificateIdentifier Id, SecurityConfiguration Config)> CreateStoreAsync(string subject)
         {
             using Certificate certificate = CertificateBuilder.Create(subject)
@@ -313,6 +382,29 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 return new DirectoryCertificateStore(false, telemetry);
             }
         }
+
+        /// <summary>
+        /// Runs a callback once, the first time the ECC key's password is read.
+        /// </summary>
+        private sealed class RotatingPasswordProvider : ICertificatePasswordProvider
+        {
+            public Action? OnEcc { get; set; }
+
+            public bool Rotated { get; private set; }
+
+            public char[] GetPassword(CertificateIdentifier certificateIdentifier)
+            {
+                if (!Rotated &&
+                    OnEcc != null &&
+                    certificateIdentifier.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                {
+                    Rotated = true;
+                    OnEcc();
+                }
+                return [];
+            }
+        }
+
 
         private ITelemetryContext m_telemetry = null!;
         private readonly List<string> m_tempDirs = [];

@@ -28,7 +28,9 @@ Now the `CertificateManager` remembers each key it loaded from a directory
 store, together with a snapshot of that store: full path, size and last write
 time of every file below the store directory, taken before the first key of the
 store is loaded and compared again after all keys are loaded (a store that
-changed during the load is not remembered).
+changed during the load is not remembered). If a store changed during a load
+that reused one of its keys, the load runs again without reusing any key, so
+old and new certificates are never mixed.
 
 - `LoadApplicationCertificatesAsync` reuses a remembered key, and the
   certificate check asks for it through the internal
@@ -88,9 +90,15 @@ on its own is small for the same reason: in the startup path every lookup uses
 a fresh instance. It helps the resolver's fallback passes (up to three lookups
 on one store) and long-lived store instances.
 
-One difference: the store's entry cache is keyed by thumbprint, so when the
-same certificate is in two files (`.der` and `.pem`) only one of them is tried
-for a private key. Before, both were tried in file order.
+Two details keep the result the same as the old per-file loop:
+
+- The entry cache is keyed by thumbprint. When the same certificate is in
+  several files (`.der` and `.pem`), the entry remembers the earlier files and
+  the key next to each of them is tried in file order, as before.
+- A cached entry can be up to 30 s older than its files when a certificate and
+  its PFX are replaced in place (same names, same file count). A PFX whose
+  certificate is not the matched one is therefore rejected, and the retry
+  rereads the directory.
 
 ## PFX loads per warm StandardServer fixture cycle
 
