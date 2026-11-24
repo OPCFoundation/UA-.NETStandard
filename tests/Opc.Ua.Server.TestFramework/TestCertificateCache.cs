@@ -3,20 +3,22 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server.TestFramework
 {
     /// <summary>
     /// Creates the application instance certificates of a test identity once
-    /// per test process and seeds later, empty PKI folders with copies.
+    /// per test process and seeds later, empty PKI folders with them.
     /// </summary>
     /// <remarks>
     /// Most fixtures start on a fresh PKI folder, so every fixture used to
@@ -24,15 +26,18 @@ namespace Opc.Ua.Server.TestFramework
     /// the client: about 700 ms of a 1.1 s fixture start on a developer
     /// machine (see plans/server-startup-profile.md). The fixtures still run
     /// <see cref="IApplicationInstance.CheckApplicationInstanceCertificatesAsync"/>
-    /// on every start; the cache only puts the files of an earlier, identical
-    /// identity into the own store first, so the check finds them instead of
-    /// creating new ones. Seeded fixtures of the same identity therefore share
-    /// one key pair per certificate type within a process; trust lists stay
-    /// per PKI folder. Fixtures opt in with <c>ReuseCachedCertificates</c>;
-    /// ClientTestFramework and TestFixture do, ad-hoc fixtures that build
-    /// several applications of one identity and expect distinct keys do not.
-    /// Setting the environment variable <c>OPCUA_TEST_FRESH_CERTIFICATES=1</c>
-    /// turns the cache off for the whole process.
+    /// on every start; the cache only adds the certificates of an earlier,
+    /// identical identity to the own store first (through
+    /// <see cref="DirectoryCertificateStore.AddAsync"/>, so the private key
+    /// files get the same permissions as created ones), and the check finds
+    /// them instead of creating new ones. Seeded fixtures of the same identity
+    /// therefore share one key pair per certificate type within a process;
+    /// trust lists stay per PKI folder. Fixtures opt in with
+    /// <c>ReuseCachedCertificates</c>; ClientTestFramework and TestFixture do,
+    /// ad-hoc fixtures that build several applications of one identity and
+    /// expect distinct keys do not. Setting the environment variable
+    /// <c>OPCUA_TEST_FRESH_CERTIFICATES=1</c> turns the cache off for the
+    /// whole process.
     /// </remarks>
     public static class TestCertificateCache
     {
@@ -53,12 +58,14 @@ namespace Opc.Ua.Server.TestFramework
         /// <param name="application">The application whose certificates are checked.</param>
         /// <param name="lifeTimeInMonths">The lifetime of created certificates.</param>
         /// <param name="reuse">Whether this fixture accepts cached certificates.</param>
+        /// <param name="telemetry">The telemetry context for the certificate store.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The result of the certificate check.</returns>
         public static async Task<bool> CheckApplicationInstanceCertificatesAsync(
             IApplicationInstance application,
             ushort? lifeTimeInMonths,
             bool reuse,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             Identity? identity = reuse && Enabled
@@ -71,9 +78,9 @@ namespace Opc.Ua.Server.TestFramework
                     .ConfigureAwait(false);
             }
 
-            if (s_templates.TryGetValue(identity.Key, out CachedFile[]? template))
+            if (s_templates.TryGetValue(identity.Key, out CachedCertificate[]? template))
             {
-                return await SeedAndCheckAsync(application, identity, template, lifeTimeInMonths, ct)
+                return await SeedAndCheckAsync(application, identity, template, lifeTimeInMonths, telemetry, ct)
                     .ConfigureAwait(false);
             }
 
@@ -84,7 +91,7 @@ namespace Opc.Ua.Server.TestFramework
             {
                 if (s_templates.TryGetValue(identity.Key, out template))
                 {
-                    return await SeedAndCheckAsync(application, identity, template, lifeTimeInMonths, ct)
+                    return await SeedAndCheckAsync(application, identity, template, lifeTimeInMonths, telemetry, ct)
                         .ConfigureAwait(false);
                 }
 
@@ -105,20 +112,21 @@ namespace Opc.Ua.Server.TestFramework
         }
 
         /// <summary>
-        /// Seeds the own store and runs the certificate check. When files were
-        /// seeded the certificate manager is refreshed afterwards, as the check
-        /// does after it creates a certificate: configuration validation loaded
-        /// the still empty store into the manager, and a check that finds the
-        /// certificates instead of creating them leaves the manager as it is.
+        /// Seeds the own store and runs the certificate check. When certificates
+        /// were seeded the certificate manager is refreshed afterwards, as the
+        /// check does after it creates a certificate: configuration validation
+        /// loaded the still empty store into the manager, and a check that finds
+        /// the certificates instead of creating them leaves the manager as it is.
         /// </summary>
         private static async Task<bool> SeedAndCheckAsync(
             IApplicationInstance application,
             Identity identity,
-            CachedFile[] template,
+            CachedCertificate[] template,
             ushort? lifeTimeInMonths,
+            ITelemetryContext telemetry,
             CancellationToken ct)
         {
-            bool seeded = identity.Seed(template);
+            bool seeded = await identity.SeedAsync(template, telemetry, ct).ConfigureAwait(false);
             bool result = await application
                 .CheckApplicationInstanceCertificatesAsync(true, lifeTimeInMonths, ct)
                 .ConfigureAwait(false);
@@ -134,19 +142,23 @@ namespace Opc.Ua.Server.TestFramework
         }
 
         /// <summary>
-        /// A file of a cached own store, relative to the store folder.
+        /// The certificate and private key file contents of one cached certificate.
         /// </summary>
-        private sealed class CachedFile
+        private sealed class CachedCertificate
         {
-            public CachedFile(string relativePath, byte[] content)
+            public CachedCertificate(string name, byte[] der, byte[] pfx)
             {
-                RelativePath = relativePath;
-                Content = content;
+                Name = name;
+                Der = der;
+                Pfx = pfx;
             }
 
-            public string RelativePath { get; }
+            /// <summary>The file name without extension, as the store names it.</summary>
+            public string Name { get; }
 
-            public byte[] Content { get; }
+            public byte[] Der { get; }
+
+            public byte[] Pfx { get; }
         }
 
         /// <summary>
@@ -217,7 +229,8 @@ namespace Opc.Ua.Server.TestFramework
 
                 string? commonName = X509Utils.ParseDistinguishedName(subjectName!)
                     .FirstOrDefault(name => name.StartsWith("CN=", StringComparison.Ordinal))?[3..].Trim();
-                if (string.IsNullOrEmpty(commonName) || commonName!.Any(ch => kInvalidFileNameChars.Contains(ch, StringComparison.Ordinal)))
+                if (string.IsNullOrEmpty(commonName) ||
+                    commonName!.Any(ch => kInvalidFileNameChars.Contains(ch, StringComparison.Ordinal)))
                 {
                     return null;
                 }
@@ -229,36 +242,66 @@ namespace Opc.Ua.Server.TestFramework
                     security.ApplicationCertificates.Count);
             }
 
+
             /// <summary>
-            /// Copies the cached files into the own store unless it already
-            /// holds a certificate of this subject; returns whether it copied.
+            /// Seeds the own store with the cached certificates unless it already
+            /// holds a certificate of this subject; returns whether it seeded.
             /// </summary>
-            public bool Seed(CachedFile[] template)
+            /// <remarks>
+            /// The first certificate goes through <see cref="DirectoryCertificateStore.AddAsync"/>,
+            /// which creates the private key folder with owner-only access (an
+            /// inherited Windows ACL, mode 0700 on Unix), exactly as for a created
+            /// certificate. The other files are copied into that folder; on Unix
+            /// the keys are created with mode 0600. Going through the store for
+            /// every certificate would re-encrypt each key and cost ~150 ms per
+            /// fixture.
+            /// </remarks>
+            public async Task<bool> SeedAsync(
+                CachedCertificate[] template,
+                ITelemetryContext telemetry,
+                CancellationToken ct)
             {
                 if (FindFiles(kCertsFolder, "*").Length != 0)
                 {
                     return false;
                 }
 
-                foreach (CachedFile file in template)
+                X509KeyStorageFlags flags = X509KeyStorageFlags.Exportable;
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    string target = Path.Combine(m_storePath, file.RelativePath);
-                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                    File.WriteAllBytes(target, file.Content);
+                    flags |= X509KeyStorageFlags.EphemeralKeySet;
+                }
+
+                using (var store = new DirectoryCertificateStore(telemetry))
+                {
+                    store.Open(m_storePath);
+                    using Certificate first = Certificate.From(
+                        X509CertificateLoader.LoadPkcs12(template[0].Pfx, null, flags));
+                    await store.AddAsync(first, null, ct).ConfigureAwait(false);
+                }
+
+                for (int ii = 1; ii < template.Length; ii++)
+                {
+                    CachedCertificate cached = template[ii];
+                    File.WriteAllBytes(
+                        Path.Combine(m_storePath, kCertsFolder, cached.Name + kCertExtension),
+                        cached.Der);
+                    WritePrivateKey(
+                        Path.Combine(m_storePath, kPrivateFolder, cached.Name + kPfxExtension),
+                        cached.Pfx);
                 }
                 return true;
             }
 
             /// <summary>
             /// Reads the certificate and private key files of this subject from
-            /// the own store, or returns <c>null</c> when they are not exactly
-            /// one certificate and key per configured certificate.
+            /// the own store, or returns <c>null</c> when the store does not hold
+            /// exactly one certificate and key per configured certificate.
             /// </summary>
-            public CachedFile[]? TryCapture()
+            public CachedCertificate[]? TryCapture()
             {
-                string[] certificates = FindFiles(kCertsFolder, "*.der");
-                string[] keys = FindFiles(kPrivateFolder, "*.pfx");
-                if (certificates.Length != m_certificateCount ||
+                string[] keys = FindFiles(kPrivateFolder, "*" + kPfxExtension);
+                if (FindFiles(kCertsFolder, "*" + kCertExtension).Length != m_certificateCount ||
                     keys.Length != m_certificateCount ||
                     FindFiles(kCertsFolder, "*").Length != m_certificateCount ||
                     FindFiles(kPrivateFolder, "*").Length != m_certificateCount)
@@ -266,20 +309,37 @@ namespace Opc.Ua.Server.TestFramework
                     return null;
                 }
 
-                var files = new List<CachedFile>(certificates.Length + keys.Length);
-                foreach (string path in certificates)
+                var certificates = new CachedCertificate[keys.Length];
+                for (int ii = 0; ii < keys.Length; ii++)
                 {
-                    files.Add(new CachedFile(
-                        Path.Combine(kCertsFolder, Path.GetFileName(path)),
-                        File.ReadAllBytes(path)));
+                    string name = Path.GetFileNameWithoutExtension(keys[ii]);
+                    string der = Path.Combine(m_storePath, kCertsFolder, name + kCertExtension);
+                    if (!File.Exists(der))
+                    {
+                        return null;
+                    }
+                    certificates[ii] = new CachedCertificate(name, File.ReadAllBytes(der), File.ReadAllBytes(keys[ii]));
                 }
-                foreach (string path in keys)
+                return certificates;
+            }
+
+            private static void WritePrivateKey(string path, byte[] content)
+            {
+#if NET8_0_OR_GREATER
+                if (!OperatingSystem.IsWindows())
                 {
-                    files.Add(new CachedFile(
-                        Path.Combine(kPrivateFolder, Path.GetFileName(path)),
-                        File.ReadAllBytes(path)));
+                    using var stream = new FileStream(path, new FileStreamOptions
+                    {
+                        Mode = FileMode.CreateNew,
+                        Access = FileAccess.Write,
+                        UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite
+                    });
+                    stream.Write(content, 0, content.Length);
+                    return;
                 }
-                return [.. files];
+#endif
+                // Windows: the file inherits the owner-only ACL of the private folder.
+                File.WriteAllBytes(path, content);
             }
 
             private string[] FindFiles(string folder, string extensionPattern)
@@ -297,13 +357,15 @@ namespace Opc.Ua.Server.TestFramework
 
             private const string kCertsFolder = "certs";
             private const string kPrivateFolder = "private";
+            private const string kCertExtension = ".der";
+            private const string kPfxExtension = ".pfx";
             private readonly string m_storePath;
             private readonly string m_filePrefix;
             private readonly int m_certificateCount;
         }
 
         private const string kInvalidFileNameChars = "<>:\"/\\|?*[]";
-        private static readonly ConcurrentDictionary<string, CachedFile[]> s_templates = new(StringComparer.Ordinal);
+        private static readonly ConcurrentDictionary<string, CachedCertificate[]> s_templates = new(StringComparer.Ordinal);
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> s_creation = new(StringComparer.Ordinal);
     }
 }

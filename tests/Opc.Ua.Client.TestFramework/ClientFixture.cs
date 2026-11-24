@@ -242,7 +242,7 @@ namespace Opc.Ua.Client.TestFramework
 
             // check the application certificate.
             bool haveAppCertificate = await TestCertificateCache
-                .CheckApplicationInstanceCertificatesAsync(application, null, ReuseCachedCertificates)
+                .CheckApplicationInstanceCertificatesAsync(application, null, ReuseCachedCertificates, m_telemetry)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {

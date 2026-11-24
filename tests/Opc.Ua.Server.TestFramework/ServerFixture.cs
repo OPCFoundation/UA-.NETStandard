@@ -382,7 +382,8 @@ namespace Opc.Ua.Server.TestFramework
                 .CheckApplicationInstanceCertificatesAsync(
                     Application,
                     CertificateFactory.DefaultLifeTime,
-                    ReuseCachedCertificates)
+                    ReuseCachedCertificates,
+                    m_telemetry)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
