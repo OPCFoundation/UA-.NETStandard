@@ -28,11 +28,26 @@ namespace Opc.Ua.Redundancy.Server
             IRecordProtector protector,
             LoadDirectionOptions options,
             string localServerUri)
+            : this(store, context, protector, options, localServerUri, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates the publisher with an explicit clock for publication timestamps.
+        /// </summary>
+        public SharedPeerEndpointPublisher(
+            ISharedKeyValueStore store,
+            IServiceMessageContext context,
+            IRecordProtector protector,
+            LoadDirectionOptions options,
+            string localServerUri,
+            TimeProvider timeProvider)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_protector = protector ?? throw new ArgumentNullException(nameof(protector));
+            m_protector = LoadDirectionRecordValidation.RequireProtection(m_store, protector);
             m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             if (string.IsNullOrEmpty(localServerUri))
             {
                 throw new ArgumentException("The local ServerUri must be provided.", nameof(localServerUri));
@@ -48,7 +63,7 @@ namespace Opc.Ua.Redundancy.Server
             string key = m_options.EndpointKeyPrefix + m_localServerUri;
             ByteString payload = m_protector.Protect(
                 RecordProtectionContext.Create("peer-endpoint", key),
-                PeerEndpointCodec.Encode(endpoints, m_context));
+                PeerEndpointCodec.Encode(endpoints, m_timeProvider.GetUtcNow().UtcDateTime.Ticks, m_context));
             return m_store.SetAsync(key, payload, cancellationToken);
         }
 
@@ -57,5 +72,6 @@ namespace Opc.Ua.Redundancy.Server
         private readonly IRecordProtector m_protector;
         private readonly LoadDirectionOptions m_options;
         private readonly string m_localServerUri;
+        private readonly TimeProvider m_timeProvider;
     }
 }

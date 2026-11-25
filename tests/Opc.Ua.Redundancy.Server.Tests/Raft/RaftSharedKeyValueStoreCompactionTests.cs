@@ -11,6 +11,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Raft;
@@ -275,7 +276,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task EngineSnapshotNewerThanTheRestoredSnapshotReplacesItAsync()
         {
             var consensus = new ScriptedSnapshotConsensus();
-            await using var source = new RaftSharedKeyValueStore(consensus, false, TimeSpan.Zero, compactionInterval: 3);
+            await using var source = new RaftSharedKeyValueStore(
+                consensus, false, TimeSpan.Zero, compactionInterval: 3);
             await source.SetAsync("a", Value(1));
             RaftKeyValueSnapshot older = await source.CreateSnapshotAsync();
             await source.SetAsync("b", Value(2));
@@ -341,9 +343,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task EngineSnapshotReportsAValueThatChangesBetweenNullAndEmptyAsync()
         {
             var consensus = new ScriptedSnapshotConsensus();
-            await using var source = new RaftSharedKeyValueStore(consensus, false, TimeSpan.Zero, compactionInterval: 2);
+            await using var source = new RaftSharedKeyValueStore(
+                consensus, false, TimeSpan.Zero, compactionInterval: 3);
             await source.SetAsync("toNull", default(ByteString));
             await source.SetAsync("toEmpty", ByteString.From(Array.Empty<byte>()));
+            await source.TryGetAsync("toEmpty");
             await consensus.WaitForCompactionAsync();
             (ulong index, byte[] engineSnapshot) = consensus.Compactions[0];
 
@@ -496,7 +500,117 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 Assert.That(watchError, Is.Not.Null);
                 Assert.That(watchRefused?.InnerException, Is.TypeOf<FormatException>());
+                Assert.That(store.IsLinearizable("a"), Is.False);
+                Assert.That(store.AppliedIndex, Is.Zero);
             });
+        }
+
+        [TestCase(0, TestName = "RepeatedSnapshotDoesNotReplaceAppliedState")]
+        [TestCase(1, TestName = "SnapshotForAnotherLogIndexDoesNotReplaceAppliedState")]
+        public async Task InvalidSnapshotPositionStopsBeforeAdvancingAppliedIndexAsync(int indexOffset)
+        {
+            await using var consensus = new ScriptedSnapshotConsensus();
+            await using var source = new RaftSharedKeyValueStore(
+                consensus, false, TimeSpan.Zero, compactionInterval: 1);
+            await source.SetAsync("source", Value(1));
+            await consensus.WaitForCompactionAsync();
+            (ulong index, byte[] snapshot) = consensus.Compactions[0];
+
+            await using var target = new ScriptedSnapshotConsensus();
+            await using var store = new RaftSharedKeyValueStore(target);
+            await store.SetAsync("target", Value(1));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task watch = CollectAsync(store, [], 1, timeout.Token);
+
+            await target.DeliverSnapshotAsync(index + (ulong)indexOffset, snapshot);
+
+            Assert.That(async () => await watch, Throws.TypeOf<FormatException>());
+            Assert.That(store.AppliedIndex, Is.EqualTo(index), "the previous applied index remains published");
+            Assert.That(store.IsLinearizable("target"), Is.False);
+        }
+
+        [Test]
+        public async Task UnusableSnapshotIsRejectedBeforePersistingOrCompactingAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var storage = new MemoryStorage(new ConfState([1]));
+            await using var consensus = CreateSingleNode(network, storage);
+            await using var store = new RaftSharedKeyValueStore(consensus);
+            await store.SetAsync("a", Value(1), timeout.Token);
+            RaftKeyValueSnapshot exported = await store.CreateSnapshotAsync(timeout.Token);
+            ulong firstIndex = storage.FirstIndex();
+
+            Assert.That(async () => await consensus.CompactAsync(store.AppliedIndex, exported.Data, timeout.Token),
+                Throws.InvalidOperationException);
+            Assert.Multiple(() =>
+            {
+                Assert.That(storage.LatestSnapshot(), Is.Null);
+                Assert.That(storage.FirstIndex(), Is.EqualTo(firstIndex));
+                Assert.That(consensus.IsLeader, Is.True, "rejection did not disturb the running replica");
+            });
+        }
+
+        [Test]
+        public async Task IncompatibleCommittedDataWithdrawsNativeLeadershipAsync()
+        {
+            await using var consensus = DefaultRaftConsensus.CreateSingleNode();
+            await using var election = new RaftLeaderElection(consensus);
+            await using var store = new RaftSharedKeyValueStore(consensus);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var becameLeader = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var lostLeadership = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            election.LeadershipChanged += leader =>
+            {
+                if (leader)
+                {
+                    becameLeader.TrySetResult(true);
+                }
+                else
+                {
+                    lostLeadership.TrySetResult(true);
+                }
+            };
+            await store.SetAsync("a", Value(1), timeout.Token);
+            await becameLeader.Task.WaitAsync(timeout.Token);
+            ulong applied = store.AppliedIndex;
+            Task watch = CollectAsync(store, [], 1, timeout.Token);
+
+            await consensus.ProposeAsync("incompatible legacy data"u8.ToArray(), timeout.Token);
+
+            Assert.That(async () => await watch, Throws.TypeOf<FormatException>());
+            await lostLeadership.Task.WaitAsync(timeout.Token);
+            Assert.Multiple(() =>
+            {
+                Assert.That(election.IsLeader, Is.False);
+                Assert.That(store.AppliedIndex, Is.EqualTo(applied));
+                Assert.That(store.IsLinearizable("a"), Is.False);
+            });
+        }
+
+        [Test]
+        public async Task ConcurrentStartupWaitersObserveTheSameFailureAsync()
+        {
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var transport = new Mock<IRaftTransport>();
+            transport.Setup(t => t.StartAsync(It.IsAny<CancellationToken>())).Returns((CancellationToken ct) =>
+            {
+                started.TrySetResult(true);
+                return new ValueTask(ready.Task.WaitAsync(ct));
+            });
+            await using var consensus = DefaultRaftConsensus.CreateCluster(1, [1UL], transport.Object);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task first = consensus.StartAsync(timeout.Token).AsTask();
+            await started.Task.WaitAsync(timeout.Token);
+            Task second = consensus.StartAsync(timeout.Token).AsTask();
+            ready.TrySetException(new IOException("The transport is unavailable."));
+
+            Assert.That(async () => await first, Throws.TypeOf<IOException>());
+            Assert.That(async () => await second, Throws.TypeOf<IOException>());
+            Assert.That(async () => await consensus.StartAsync(timeout.Token), Throws.TypeOf<IOException>());
+            Assert.That(consensus.IsLeader, Is.False);
+            transport.Verify(t => t.StartAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]

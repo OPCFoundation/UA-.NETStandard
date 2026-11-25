@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,7 +33,7 @@ namespace Opc.Ua.Client
         /// failover in progress completes.
         /// </remarks>
         /// <param name="target">
-        /// The endpoint to fail over to, or <see langword="null"/> to fail over
+        /// The endpoint of a known redundancy member, or <see langword="null"/> to fail over
         /// to the target the redundancy handler selects from a refreshed
         /// redundancy snapshot.
         /// </param>
@@ -55,10 +56,12 @@ namespace Opc.Ua.Client
                     StatusCodes.BadInvalidState, "The managed session can only fail over while it is connected.");
             }
 
+            bool configured = target != null;
             target ??= await SelectFailoverTargetAsync(handler, ct).ConfigureAwait(false) ??
                 throw new ServiceResultException(
                     StatusCodes.BadNothingToDo, "The redundancy handler selected no failover target.");
-            await RunRequestedFailoverAsync(target, ct).ConfigureAwait(false);
+            string peerUri = GetFailoverPeerUri(target, configured);
+            await RunRequestedFailoverAsync(target, peerUri, ct).ConfigureAwait(false);
         }
 
         private async Task<ConfiguredEndpoint?> SelectFailoverTargetAsync(
@@ -68,18 +71,18 @@ namespace Opc.Ua.Client
             await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
             await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true).ConfigureAwait(false);
             ServerRedundancyInfo? info = m_redundancyInfo;
-            return info == null ? null : handler.SelectFailoverTarget(info, ConfiguredEndpoint);
+            return SelectEligibleFailoverTarget(handler, info);
         }
 
         /// <summary>
         /// Runs a failover to <paramref name="target"/> in the Failover state of
         /// the state machine and waits until the session is connected again.
         /// </summary>
-        private async Task RunRequestedFailoverAsync(ConfiguredEndpoint target, CancellationToken ct)
+        private async Task RunRequestedFailoverAsync(ConfiguredEndpoint target, string peerUri, CancellationToken ct)
         {
             var outcome = new TaskCompletionSource<ServiceResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (!StateMachine.RequestFailover(
-                (budget, token) => FailoverToRequestedTargetAsync(target, budget, token),
+                (budget, token) => FailoverToRequestedTargetAsync(target, peerUri, budget, token),
                 outcome))
             {
                 throw new ServiceResultException(
@@ -116,6 +119,7 @@ namespace Opc.Ua.Client
 
         private async Task<ServiceResult> FailoverToRequestedTargetAsync(
             ConfiguredEndpoint target,
+            string peerUri,
             IRetryBudget budget,
             CancellationToken ct)
         {
@@ -123,7 +127,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionFailingOverEndpoint(target.EndpointUrl);
                 ServiceResult result = await SwitchToRedundantServerAsync(
-                    target, budget, retirePreviousSession: true, ct).ConfigureAwait(false);
+                    target, peerUri, budget, retirePreviousSession: true, ct).ConfigureAwait(false);
                 if (ServiceResult.IsGood(result))
                 {
                     await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
@@ -194,56 +198,72 @@ namespace Opc.Ua.Client
             // A Healthy Server is never left (OPC 10000-4 §6.6.2.4.3), so only its
             // ServiceLevel is read; the redundant set is refreshed, resolved and
             // probed once the Server in use is no longer Healthy.
-            if (await IsServiceLevelHealthyAsync(ct).ConfigureAwait(false))
+            ConfiguredEndpoint current = ConfiguredEndpoint;
+            byte? currentLevel = await ReadActiveServiceLevelAsync(ct).ConfigureAwait(false);
+            if (currentLevel is not byte level || ServiceLevels.IsHealthy(level))
             {
+                // An unreadable active level is not a degradation signal. Normal reconnect owns channel faults.
                 return;
             }
 
             await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
             info = m_redundancyInfo;
-            if (info == null ||
-                info.Mode is RedundancySupport.None or RedundancySupport.Transparent ||
-                (info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel)))
+            if (info == null || info.Mode is RedundancySupport.None or RedundancySupport.Transparent)
             {
                 return;
             }
 
             await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true).ConfigureAwait(false);
-            info = m_redundancyInfo!;
-            ConfiguredEndpoint current = ConfiguredEndpoint;
-            ServerFailoverDecision decision = handler.ShouldFailover(info, current);
-            ConfiguredEndpoint? target = decision.IsFailoverWarranted
-                ? handler.SelectFailoverTarget(info, current)
-                : null;
-            if (target == null || StateMachine.State != ConnectionState.Connected)
+            byte? latestLevel = await ReadActiveServiceLevelAsync(ct).ConfigureAwait(false);
+            if (StateMachine.State != ConnectionState.Connected || !ReferenceEquals(current, ConfiguredEndpoint) ||
+                (latestLevel == null && !ServiceLevels.IsMaintenance(level)))
             {
+                return;
+            }
+            info = WithActiveServiceLevel(
+                m_redundancyInfo ?? info,
+                latestLevel ?? level);
+            if (info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel))
+            {
+                return;
+            }
+            ServerFailoverDecision decision = handler.ShouldFailover(ForPeerSelection(info), current);
+            ConfiguredEndpoint? target = decision.IsFailoverWarranted
+                ? SelectEligibleFailoverTarget(handler, info, proactive: true)
+                : null;
+            if (target == null)
+            {
+                if (IsCurrentMemberInMaintenance(info))
+                {
+                    SuspendForMaintenance(info);
+                }
                 return;
             }
 
             m_logger.ManagedSessionServiceLevelFailover(info.ServiceLevel, decision.Reason);
-            await RunRequestedFailoverAsync(target, ct).ConfigureAwait(false);
+            await RunRequestedFailoverAsync(target, GetFailoverPeerUri(target, configured: false), ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
         /// Reads the <c>ServiceLevel</c> of the Server in use.
         /// </summary>
-        /// <returns>
-        /// <see langword="true"/> when the read succeeds and the value is in the
-        /// Healthy subrange.
-        /// </returns>
-        private async Task<bool> IsServiceLevelHealthyAsync(CancellationToken ct)
+        private async Task<byte?> ReadActiveServiceLevelAsync(CancellationToken ct)
         {
+            using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
+                m_redundancyRefreshTimeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
             try
             {
-                DataValue value = await this.ReadValueAsync(VariableIds.Server_ServiceLevel, ct)
+                DataValue value = await this.ReadValueAsync(VariableIds.Server_ServiceLevel, linked.Token)
                     .ConfigureAwait(false);
                 return StatusCode.IsGood(value.StatusCode) &&
-                    value.WrappedValue.TryGetValue(out byte level) &&
-                    ServiceLevels.IsHealthy(level);
+                    value.WrappedValue.TryGetValue(out byte level) ? level : null;
             }
-            catch (ServiceResultException)
+            catch (Exception exception) when (exception is ServiceResultException ||
+                (exception is OperationCanceledException && !ct.IsCancellationRequested))
             {
-                return false;
+                return null;
             }
         }
 
@@ -255,6 +275,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task<ServiceResult> SwitchToRedundantServerAsync(
             ConfiguredEndpoint target,
+            string peerUri,
             IRetryBudget budget,
             bool retirePreviousSession,
             CancellationToken ct)
@@ -279,13 +300,23 @@ namespace Opc.Ua.Client
                 // recreate/transfer for both unamanged templates and
                 // the new engine.
                 using IDisposable recovery = session.DeferSubscriptionRecovery();
-                await RecreateInPlaceAndRebindAsync(
-                        session,
-                        target,
-                        budget,
-                        ct,
-                        retirePreviousSession)
-                    .ConfigureAwait(false);
+                session.EnableTokenReuseFailover =
+                    m_enableTokenReuseFailover && m_redundancyInfo?.Mode == RedundancySupport.HotAndMirrored;
+                try
+                {
+                    await RecreateInPlaceAndRebindAsync(
+                            session,
+                            target,
+                            budget,
+                            ct,
+                            retirePreviousSession,
+                            peerUri)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    session.EnableTokenReuseFailover = m_enableTokenReuseFailover;
+                }
             }
 
             m_reconnectPolicy.Reset();
@@ -293,14 +324,15 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// After the initial connect, switches to the member of the redundant
-        /// Server set with the highest probed <c>ServiceLevel</c> when it is
-        /// higher than the <c>ServiceLevel</c> of the Server connected to.
+        /// Checks the initial server's health before admitting application services.
         /// </summary>
         private async Task SelectInitialRedundantServerAsync(CancellationToken ct)
         {
             ServerRedundancyInfo? info = m_redundancyInfo;
-            if (info == null || info.Mode is RedundancySupport.None or RedundancySupport.Transparent)
+            if (info == null ||
+                m_redundancyHandler is not IServerRedundancyHandler handler ||
+                info.Mode is RedundancySupport.None or RedundancySupport.Transparent ||
+                (info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel)))
             {
                 return;
             }
@@ -315,22 +347,26 @@ namespace Opc.Ua.Client
                 !(exception is OperationCanceledException && ct.IsCancellationRequested))
             {
                 m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
-                return;
             }
 
-            info = m_redundancyInfo;
-            RedundantServer? best = info == null ? null : SelectHigherServiceLevelMember(info, ConfiguredEndpoint);
-            if (best?.Endpoint == null)
+            byte? latestLevel = await ReadActiveServiceLevelAsync(ct).ConfigureAwait(false);
+            info = WithActiveServiceLevel(
+                m_redundancyInfo ?? info,
+                latestLevel ?? (IsCurrentMemberInMaintenance(info) ? info.ServiceLevel : null));
+            ConfiguredEndpoint? target = handler.ShouldFailover(ForPeerSelection(info), ConfiguredEndpoint)
+                .IsFailoverWarranted ? SelectEligibleFailoverTarget(handler, info, proactive: true) : null;
+            if (target == null)
             {
+                if (m_monitorServiceLevel && IsCurrentMemberInMaintenance(info))
+                {
+                    throw new ServiceResultException(SuspendForMaintenance(info));
+                }
                 return;
             }
 
-            m_logger.ManagedSessionSelectingRedundantServer(
-                best.Endpoint.EndpointUrl,
-                best.ServiceLevel,
-                info!.ServiceLevel);
             ServiceResult result = await SwitchToRedundantServerAsync(
-                    best.Endpoint, CreateRecoveryBudget(), retirePreviousSession: true, ct)
+                    target, GetFailoverPeerUri(target, configured: false),
+                    CreateRecoveryBudget(), retirePreviousSession: true, ct)
                 .ConfigureAwait(false);
             if (ServiceResult.IsBad(result))
             {
@@ -339,32 +375,85 @@ namespace Opc.Ua.Client
             await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Selects the running member with a read <c>ServiceLevel</c> that is
-        /// higher than the <c>ServiceLevel</c> of the Server in use.
-        /// </summary>
-        private static RedundantServer? SelectHigherServiceLevelMember(
-            ServerRedundancyInfo info,
-            ConfiguredEndpoint current)
+        private ConfiguredEndpoint? SelectEligibleFailoverTarget(
+            IServerRedundancyHandler handler,
+            ServerRedundancyInfo? info,
+            bool proactive = false)
         {
-            string? currentUri = current.Description?.Server?.ApplicationUri;
-            byte currentLevel = info.ServiceLevelAccessible ? info.ServiceLevel : ServiceLevels.Maintenance;
-            RedundantServer? best = null;
-            for (int ii = 0; ii < info.RedundantServers.Count; ii++)
+            if (info == null || info.Mode is RedundancySupport.None or RedundancySupport.Transparent)
             {
-                RedundantServer server = info.RedundantServers[ii];
-                if (server.Endpoint != null &&
-                    server.ServiceLevelKnown &&
-                    server.ResolutionError == null &&
-                    server.ServerState == ServerState.Running &&
-                    server.ServiceLevel > currentLevel &&
-                    !string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal) &&
-                    (best == null || server.ServiceLevel > best.ServiceLevel))
-                {
-                    best = server;
-                }
+                return null;
             }
-            return best;
+
+            bool requiresHealthyPeer = proactive &&
+                info.ServiceLevelAccessible && ServiceLevels.IsDegraded(info.ServiceLevel);
+            ServerRedundancyInfo selection = ForPeerSelection(info, requiresHealthyPeer);
+            ConfiguredEndpoint? target = handler.SelectFailoverTarget(selection, ConfiguredEndpoint);
+            return target != null && (!m_probeMemberServiceLevel ||
+                selection.RedundantServers.Contains(server => ReferenceEquals(server.Endpoint, target)))
+                ? target
+                : null;
+        }
+
+        private ServerRedundancyInfo ForPeerSelection(ServerRedundancyInfo info, bool requiresHealthyPeer = false)
+        {
+            return !m_probeMemberServiceLevel ? info : CopySnapshot(
+                info,
+                info.ServiceLevel,
+                info.ServiceLevelAccessible,
+                info.RedundantServers.ToList().Where(server =>
+                    server.ServiceLevelProbed && server.ServiceLevelKnown && server.ResolutionError == null &&
+                    server.ServerState == ServerState.Running &&
+                    (requiresHealthyPeer
+                        ? ServiceLevels.IsHealthy(server.ServiceLevel)
+                        : ServiceLevels.IsOperational(server.ServiceLevel)))
+                    .ToArray());
+        }
+
+        private bool IsCurrentMemberInMaintenance(ServerRedundancyInfo? info)
+        {
+            if (info is { ServiceLevelAccessible: true })
+            {
+                return info.Mode is not (RedundancySupport.None or RedundancySupport.Transparent) &&
+                    ServiceLevels.IsMaintenance(info.ServiceLevel);
+            }
+            return Volatile.Read(ref m_suspendedMaintenanceUri) is string uri &&
+                string.Equals(uri, m_session?.RedundantPeerUri, StringComparison.Ordinal);
+        }
+
+        private ServiceResult SuspendForMaintenance(ServerRedundancyInfo? info)
+        {
+            DateTime retryAfter = DefaultServerRedundancyHandler.GetMaintenanceRetryTime(
+                info?.EstimatedReturnTime ?? DateTime.MinValue, m_timeProvider.GetUtcNow().UtcDateTime);
+            var failure = new ServiceResult(
+                StatusCodes.BadServerHalted,
+                new LocalizedText("The only available redundancy member is in maintenance."));
+            if (StateMachine.SuspendRecoveryUntil(retryAfter, failure))
+            {
+                Volatile.Write(ref m_suspendedMaintenanceUri, m_session?.RedundantPeerUri);
+            }
+            return failure;
+        }
+
+        private static ServerRedundancyInfo WithActiveServiceLevel(ServerRedundancyInfo info, byte? level)
+        {
+            return CopySnapshot(info, level ?? ServiceLevels.NoData, level.HasValue, info.RedundantServers);
+        }
+
+        private static ServerRedundancyInfo CopySnapshot(
+            ServerRedundancyInfo info, byte level, bool levelKnown, ArrayOf<RedundantServer> servers)
+        {
+            return new ServerRedundancyInfo
+            {
+                Mode = info.Mode,
+                RedundantServers = servers,
+                ServiceLevel = level,
+                ServiceLevelAccessible = levelKnown,
+                ServiceLevelSubrange = ServiceLevels.GetSubrange(level),
+                EstimatedReturnTime = info.EstimatedReturnTime,
+                CurrentServerId = info.CurrentServerId,
+                ReadStatuses = info.ReadStatuses
+            };
         }
 
         /// <summary>
@@ -383,24 +472,29 @@ namespace Opc.Ua.Client
             }
 
             string? currentUri = current.Description?.Server?.ApplicationUri;
-            var probes = new Task<RedundantServer>[snapshot.RedundantServers.Count];
-            for (int ii = 0; ii < probes.Length; ii++)
+            int count = Math.Min(snapshot.RedundantServers.Count, m_maxProbedMembers);
+            var servers = new RedundantServer[count];
+            var workers = new Task[Math.Min(count, m_maxConcurrentPeerProbes)];
+            int next = -1;
+            for (int ii = 0; ii < workers.Length; ii++)
             {
-                probes[ii] = ProbeMemberAsync(snapshot.RedundantServers[ii], current, currentUri, ct);
+                workers[ii] = ProbeNextAsync();
             }
-            RedundantServer[] servers = await Task.WhenAll(probes).ConfigureAwait(false);
+            await Task.WhenAll(workers).ConfigureAwait(false);
             // A member whose probe waited for a connection in vain is no longer selectable.
-            return ApplyMemberConnections(new ServerRedundancyInfo
+            return ApplyMemberConnections(
+                CopySnapshot(snapshot, snapshot.ServiceLevel, snapshot.ServiceLevelAccessible, servers), current);
+
+            async Task ProbeNextAsync()
             {
-                Mode = snapshot.Mode,
-                RedundantServers = servers,
-                ServiceLevel = snapshot.ServiceLevel,
-                ServiceLevelAccessible = snapshot.ServiceLevelAccessible,
-                ServiceLevelSubrange = snapshot.ServiceLevelSubrange,
-                EstimatedReturnTime = snapshot.EstimatedReturnTime,
-                CurrentServerId = snapshot.CurrentServerId,
-                ReadStatuses = snapshot.ReadStatuses
-            }, current);
+                int index;
+                while ((index = Interlocked.Increment(ref next)) < count)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    servers[index] = await ProbeMemberAsync(
+                        snapshot.RedundantServers[index], current, currentUri, ct).ConfigureAwait(false);
+                }
+            }
         }
 
         private async Task<RedundantServer> ProbeMemberAsync(
@@ -410,15 +504,14 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             ConfiguredEndpoint? endpoint = server.Endpoint;
-            if (endpoint == null ||
+            if (endpoint == null || server.ResolutionError != null ||
                 string.IsNullOrEmpty(server.ServerUri) ||
                 string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal))
             {
                 return server;
             }
 
-            // The probe authenticates with the identity in use, so it must not
-            // weaken the security the session is bound to.
+            // Probes use a separate session without weakening channel security.
             ServiceResultException? mismatch = GetSecurityConfigurationMismatch(
                 current.Description, endpoint.Description);
             if (mismatch != null)
@@ -427,8 +520,8 @@ namespace Opc.Ua.Client
                 return WithProbeError(server, mismatch.Result);
             }
 
-            IUserIdentity? identity = m_session?.Identity ?? m_identity;
-            using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(m_peerProbeTimeout);
+            using CancellationTokenSource timeout =
+                m_timeProvider.CreateCancellationTokenSource(m_peerProbeTimeout);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
             ISession? probe = null;
             try
@@ -436,26 +529,35 @@ namespace Opc.Ua.Client
                 probe = await CreateProbeSessionAsync(
                     server.ServerUri,
                     DetachEndpoint(endpoint),
-                    identity == null ? null : new UserIdentity(identity.TokenHandler),
                     linked.Token).ConfigureAwait(false);
                 (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) = await probe.ReadValuesAsync(
                     [VariableIds.Server_ServiceLevel, VariableIds.Server_ServerStatus_State],
                     linked.Token).ConfigureAwait(false);
+                if (values.Count != 2 || errors.Count != 2)
+                {
+                    return WithProbeError(server, new ServiceResult(StatusCodes.BadUnknownResponse));
+                }
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    if (StatusCode.IsBad(errors[ii].StatusCode) || StatusCode.IsBad(values[ii].StatusCode))
+                    if (!StatusCode.IsGood(errors[ii].StatusCode) || !StatusCode.IsGood(values[ii].StatusCode))
                     {
-                        return WithProbeError(server, StatusCode.IsBad(errors[ii].StatusCode)
+                        return WithProbeError(server, !StatusCode.IsGood(errors[ii].StatusCode)
                             ? errors[ii]
                             : new ServiceResult(values[ii].StatusCode));
                     }
                 }
+                if (!values[0].WrappedValue.TryGetValue(out byte level) ||
+                    !values[1].WrappedValue.TryGetValue(out ServerState state))
+                {
+                    return WithProbeError(server, new ServiceResult(StatusCodes.BadTypeMismatch));
+                }
                 return new RedundantServer
                 {
                     ServerUri = server.ServerUri,
-                    ServiceLevel = values[0].GetValue<byte>(0),
+                    ServiceLevel = level,
                     ServiceLevelKnown = true,
-                    ServerState = (ServerState)values[1].GetValue((int)server.ServerState),
+                    ServiceLevelProbed = true,
+                    ServerState = state,
                     Endpoint = endpoint
                 };
             }
@@ -492,10 +594,9 @@ namespace Opc.Ua.Client
         {
             try
             {
-                int closeTimeout = m_peerProbeTimeout == Timeout.InfiniteTimeSpan
-                    ? 0
-                    : (int)Math.Min(m_peerProbeTimeout.TotalMilliseconds, int.MaxValue);
-                await probe.CloseAsync(closeTimeout, true, CancellationToken.None).ConfigureAwait(false);
+                using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(m_peerProbeTimeout);
+                int closeTimeout = Math.Max(1, (int)m_peerProbeTimeout.TotalMilliseconds);
+                await probe.CloseAsync(closeTimeout, true, timeout.Token).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
@@ -512,8 +613,8 @@ namespace Opc.Ua.Client
             return new RedundantServer
             {
                 ServerUri = server.ServerUri,
-                ServiceLevel = server.ServiceLevel,
-                ServiceLevelKnown = server.ServiceLevelKnown,
+                ServiceLevel = ServiceLevels.NoData,
+                ServiceLevelKnown = false,
                 ServerState = server.ServerState,
                 Endpoint = server.Endpoint,
                 ResolutionError = error
@@ -528,45 +629,124 @@ namespace Opc.Ua.Client
         private async Task<ISession> CreateProbeSessionAsync(
             string serverUri,
             ConfiguredEndpoint endpoint,
-            IUserIdentity? identity,
             CancellationToken ct)
         {
+            ServerPeerIdentity.ValidateEndpoint(endpoint, serverUri);
             ITransportWaitingConnection? connection = m_memberConnections == null
                 ? null
                 : await WaitForRecoveryConnectionAsync(endpoint, null, switching: true, ct).ConfigureAwait(false);
-            if (connection == null)
-            {
-                return await SessionFactory.CreateAsync(
-                    m_configuration,
-                    endpoint,
-                    false,
-                    m_checkDomain,
-                    m_sessionName,
-                    m_sessionTimeout,
-                    identity,
-                    m_preferredLocales,
-                    ct).ConfigureAwait(false);
-            }
 
             try
             {
-                return await SessionFactory.CreateAsync(
-                    m_configuration,
-                    connection,
-                    endpoint,
-                    false,
-                    m_checkDomain,
-                    m_sessionName,
-                    m_sessionTimeout,
-                    identity,
-                    m_preferredLocales,
-                    ct).ConfigureAwait(false);
+                IUserIdentity? configuredProbeIdentity = m_probeIdentity;
+                IUserIdentity? activeIdentity = m_session?.Identity ?? m_identity;
+                if (configuredProbeIdentity is { TokenType: not UserTokenType.Anonymous } &&
+                    (ReferenceEquals(configuredProbeIdentity, activeIdentity) ||
+                        (activeIdentity != null && configuredProbeIdentity.TokenType == activeIdentity.TokenType &&
+                            string.Equals(configuredProbeIdentity.DisplayName, activeIdentity.DisplayName,
+                                StringComparison.Ordinal))))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        "The probe identity must differ from the active identity.");
+                }
+
+                IUserIdentity? probeIdentity = configuredProbeIdentity == null
+                    ? null
+                    : new UserIdentity(configuredProbeIdentity.TokenHandler);
+                return await CreatePeerBoundSessionAsync(
+                    endpoint, connection, serverUri, probeIdentity, ct, probeOnly: true)
+                    .ConfigureAwait(false);
             }
             catch
             {
-                CloseUnusedConnection(connection);
+                if (connection != null)
+                {
+                    CloseUnusedConnection(connection);
+                }
                 throw;
             }
+        }
+
+        private Task<Session> CreatePeerBoundSessionAsync(
+            ConfiguredEndpoint endpoint,
+            ITransportWaitingConnection? connection,
+            string expectedUri,
+            IUserIdentity? identity,
+            CancellationToken ct,
+            bool probeOnly = false)
+        {
+            ServerPeerIdentity.ValidateEndpoint(endpoint, expectedUri);
+            return OpenActivatedSessionAsync(
+                endpoint,
+                connection,
+                async (session, token) =>
+                {
+                    session.BindRedundantPeerIdentity(expectedUri);
+                    IUserIdentity sessionIdentity = identity ?? new UserIdentity();
+                    if (probeOnly)
+                    {
+                        await session.OpenForRedundancyProbeAsync(
+                            m_sessionName, m_sessionTimeout, sessionIdentity, m_checkDomain, token)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await session.OpenAsync(
+                            m_sessionName, m_sessionTimeout, sessionIdentity,
+                            m_preferredLocales, m_checkDomain, token).ConfigureAwait(false);
+                    }
+                },
+                ct,
+                useReverseConnectManager: !probeOnly,
+                allowDirectCustomFactory: true);
+        }
+
+        private string GetFailoverPeerUri(ConfiguredEndpoint target, bool configured)
+        {
+            if (m_redundancyInfo?.Mode == RedundancySupport.Transparent &&
+                m_session?.RedundantPeerUri is string sharedUri)
+            {
+                return sharedUri;
+            }
+
+            string? claimedUri = target.Description.Server?.ApplicationUri;
+            string? expectedUri = null;
+            if (m_redundancyInfo is { Mode: not (RedundancySupport.None or RedundancySupport.Transparent) } info)
+            {
+                foreach (RedundantServer member in info.RedundantServers)
+                {
+                    if (ReferenceEquals(member.Endpoint, target) ||
+                        (configured && string.Equals(claimedUri, member.ServerUri, StringComparison.Ordinal)))
+                    {
+                        if (expectedUri != null &&
+                            !string.Equals(expectedUri, member.ServerUri, StringComparison.Ordinal))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadCertificateUriInvalid,
+                                "The endpoint refers to more than one redundancy member.");
+                        }
+                        expectedUri = member.ServerUri;
+                    }
+                }
+            }
+
+            return expectedUri ??
+                (m_session?.RedundantPeerUri is string currentUri &&
+                    string.Equals(claimedUri, currentUri, StringComparison.Ordinal)
+                        ? currentUri
+                        : null) ??
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateUriInvalid,
+                    "The endpoint does not identify a known redundancy member.");
+        }
+
+        private static string RequirePeerUri(string? expectedUri)
+        {
+            return expectedUri ??
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateUriInvalid,
+                    "Redundancy requires an independently configured server application URI.");
         }
 
         /// <summary>
@@ -609,8 +789,8 @@ namespace Opc.Ua.Client
                 servers[ii] = new RedundantServer
                 {
                     ServerUri = server.ServerUri,
-                    ServiceLevel = server.ServiceLevel,
-                    ServiceLevelKnown = server.ServiceLevelKnown,
+                    ServiceLevel = ServiceLevels.NoData,
+                    ServiceLevelKnown = false,
                     ServerState = server.ServerState,
                     ResolutionError = ReverseConnectRedundantServerEndpointResolver.NotConnected().Result
                 };
@@ -670,6 +850,11 @@ namespace Opc.Ua.Client
         /// of their connections in vain.
         /// </summary>
         private readonly ConcurrentDictionary<string, Uri> m_connectingMembers = new(StringComparer.Ordinal);
+        private readonly bool m_monitorServiceLevel;
+        private readonly int m_maxConcurrentPeerProbes;
+        private readonly int m_maxProbedMembers;
+        private readonly IUserIdentity? m_probeIdentity;
+        private string? m_suspendedMaintenanceUri;
 
         private RetryBudget CreateRecoveryBudget()
         {

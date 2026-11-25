@@ -5,9 +5,8 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
@@ -29,7 +28,7 @@ namespace Opc.Ua.Redundancy
     /// <see cref="IRaftConsensus.ProposeAsync"/>d. A single applier drains <see cref="IRaftConsensus.Committed"/> in
     /// log order and mutates a materialized map deterministically — so a compare-and-swap is decided at apply time
     /// against the committed state, identically on every replica. The originating store correlates the applied command
-    /// back to the caller (by request id) to return the result.
+    /// back to the caller only if the committed bytes match the proposal.
     /// </para>
     /// <para>
     /// Reads (<see cref="TryGetAsync"/>/<see cref="ScanAsync"/>) first commit and apply a no-op barrier, then snapshot
@@ -45,7 +44,7 @@ namespace Opc.Ua.Redundancy
     /// </para>
     /// </remarks>
     public sealed class RaftSharedKeyValueStore :
-        ISharedKeyValueStore,
+        IGuardedSharedKeyValueStore,
         ISharedKeyValueStoreConsistency,
         IRaftSnapshotManager,
         IAsyncDisposable
@@ -53,7 +52,8 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public bool IsLinearizable(string key)
         {
-            return key != null;
+            return key != null && Volatile.Read(ref m_applierFault) == null && Volatile.Read(ref m_disposed) == 0 &&
+                m_consensus is not DefaultRaftConsensus { IsAvailable: false };
         }
 
         /// <inheritdoc/>
@@ -61,6 +61,12 @@ namespace Opc.Ua.Redundancy
         {
             return m_processLocal;
         }
+
+        /// <summary>
+        /// Gets whether this store has no externally accessible backend.
+        /// </summary>
+        internal bool UsesOnlyInProcessMemory =>
+            m_consensus is InProcessRaftConsensus or DefaultRaftConsensus { UsesOnlyInProcessMemory: true };
 
         /// <summary>
         /// Creates a store backed by a private single-node in-process consensus replica (always the leader). Useful
@@ -95,7 +101,7 @@ namespace Opc.Ua.Redundancy
             TimeSpan commitTimeout = default)
         {
             m_consensus = consensus ?? throw new ArgumentNullException(nameof(consensus));
-            m_processLocal = consensus is InProcessRaftConsensus;
+            m_processLocal = consensus is not IRaftConsensusLocality { IsProcessLocal: false };
             m_ownsConsensus = ownsConsensus;
             m_commitTimeout = commitTimeout == TimeSpan.Zero ? TimeSpan.FromSeconds(30) : commitTimeout;
         }
@@ -165,6 +171,7 @@ namespace Opc.Ua.Redundancy
             _ = await ProposeAsync(OpBarrier, string.Empty, default, default, ct).ConfigureAwait(false);
             lock (m_lock)
             {
+                ThrowIfApplierStopped();
                 return m_state.TryGetValue(key, out ByteString value) ? (true, value) : (false, default);
             }
         }
@@ -186,6 +193,25 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
+        public async ValueTask<bool> CompareAndSwapWhenAsync(
+            string key,
+            ByteString expected,
+            ByteString value,
+            string guardKey,
+            ByteString guardExpected,
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(guardKey) || key == guardKey || guardExpected.IsNull)
+            {
+                throw new ArgumentException("A separate guard with a non-null expected value is required.");
+            }
+            ProposalResult result = await ProposeCoreAsync(
+                OpGuardedCas, key, expected, value, captureSnapshot: false, ct, guardKey, guardExpected)
+                .ConfigureAwait(false);
+            return result.Applied;
+        }
+
+        /// <inheritdoc/>
         public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
         {
             return ProposeAsync(OpDelete, key, default, default, ct);
@@ -199,10 +225,9 @@ namespace Opc.Ua.Redundancy
         /// </remarks>
         public async ValueTask<RaftKeyValueSnapshot> CreateSnapshotAsync(CancellationToken ct = default)
         {
-            var capture = new TaskCompletionSource<RaftKeyValueSnapshot>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            _ = await ProposeAsync(OpBarrier, string.Empty, default, default, capture, ct).ConfigureAwait(false);
-            return await capture.Task.ConfigureAwait(false);
+            ProposalResult result = await ProposeCoreAsync(
+                OpBarrier, string.Empty, default, default, captureSnapshot: true, ct).ConfigureAwait(false);
+            return result.Snapshot!;
         }
 
         /// <inheritdoc/>
@@ -261,97 +286,164 @@ namespace Opc.Ua.Redundancy
         /// <summary>
         /// Encodes the state and the position of the command being applied. The caller holds <c>m_lock</c>.
         /// </summary>
-        private byte[] EncodeSnapshotLocked(long lastIncludedCommand)
+        private byte[] EncodeSnapshotLocked(long lastIncludedCommand, ulong? logIndex = null)
         {
-            using var stream = new MemoryStream();
-            using (var writer = new BinaryWriter(stream, s_strictUtf8, leaveOpen: true))
+            int engineHeaderLength = logIndex.HasValue ? kEngineHeaderLength : 0;
+            long length = kSnapshotHeaderLength + engineHeaderLength;
+            if (m_state.Count > kMaxSnapshotEntries)
             {
-                writer.Write(s_snapshotEncodingVersion);
-                writer.Write(lastIncludedCommand);
-                writer.Write(m_state.Count);
-                foreach (KeyValuePair<string, ByteString> entry in m_state)
+                throw new InvalidOperationException("The state exceeds the Raft key/value snapshot entry limit.");
+            }
+            foreach (KeyValuePair<string, ByteString> entry in m_state)
+            {
+                length += (long)kSnapshotEntryOverhead + s_strictUtf8.GetByteCount(entry.Key) + entry.Value.Length;
+                if (length > MaxSnapshotBytes)
                 {
-                    byte[] key = s_strictUtf8.GetBytes(entry.Key);
-                    writer.Write(key.Length);
-                    writer.Write(key);
-                    byte[] value = entry.Value.IsNull ? [] : entry.Value.ToArray() ?? [];
-                    writer.Write(entry.Value.IsNull ? kSnapshotNullValue : kSnapshotValue);
-                    writer.Write(value.Length);
-                    writer.Write(value);
+                    throw new InvalidOperationException("The state exceeds the Raft key/value snapshot size limit.");
                 }
             }
-            return stream.ToArray();
+
+            var snapshot = new byte[(int)length];
+            if (logIndex.HasValue)
+            {
+                snapshot[0] = kEngineSnapshotFormat;
+                BinaryPrimitives.WriteUInt64LittleEndian(snapshot.AsSpan(1), logIndex.Value);
+            }
+            int offset = engineHeaderLength;
+            snapshot[offset++] = s_snapshotEncodingVersion;
+            BinaryPrimitives.WriteInt64LittleEndian(snapshot.AsSpan(offset), lastIncludedCommand);
+            offset += sizeof(long);
+            WriteLength(snapshot, ref offset, m_state.Count);
+            foreach (KeyValuePair<string, ByteString> entry in m_state)
+            {
+                WriteKey(snapshot, ref offset, entry.Key, s_strictUtf8.GetByteCount(entry.Key));
+                snapshot[offset++] = entry.Value.IsNull ? kSnapshotNullValue : kSnapshotValue;
+                WriteLength(snapshot, ref offset, entry.Value.Length);
+                entry.Value.Span.CopyTo(snapshot.AsSpan(offset));
+                offset += entry.Value.Length;
+            }
+            return snapshot;
         }
 
         /// <summary>
-        /// Decodes a snapshot strictly: only what <see cref="EncodeSnapshotLocked"/> can produce is accepted.
+        /// Validates the application envelope for a snapshot before the engine persists or recovers it.
+        /// </summary>
+        internal static bool IsValidEngineSnapshot(ReadOnlySpan<byte> snapshot, ulong logIndex)
+        {
+            try
+            {
+                _ = DecodeEngineSnapshot(snapshot, logIndex);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        private static (Dictionary<string, ByteString> State, long LastIncludedCommand) DecodeEngineSnapshot(
+            ReadOnlySpan<byte> snapshot,
+            ulong logIndex)
+        {
+            if (snapshot.IsEmpty || snapshot.Length > MaxSnapshotBytes || logIndex == 0)
+            {
+                throw new FormatException("The Raft engine snapshot has an invalid size or log index.");
+            }
+            switch (snapshot[0])
+            {
+                case kEngineSnapshotFormat when snapshot.Length >= kEngineHeaderLength &&
+                    BinaryPrimitives.ReadUInt64LittleEndian(snapshot.Slice(1)) == logIndex:
+                    return DecodeSnapshot(snapshot.Slice(kEngineHeaderLength), logIndex);
+                case kLegacyEngineSnapshotFormat:
+                    return DecodeSnapshot(snapshot.Slice(1), logIndex);
+                case kEngineSnapshotFormat:
+                    throw new FormatException("The Raft engine snapshot does not match its log index.");
+                default:
+                    throw new FormatException("The Raft engine delivered a snapshot in an unsupported format.");
+            }
+        }
+
+        /// <summary>
+        /// Decodes a snapshot strictly and bounds the state it could materialize before allocating it.
         /// </summary>
         /// <exception cref="FormatException">The data is not a valid snapshot.</exception>
         private static (Dictionary<string, ByteString> State, long LastIncludedCommand) DecodeSnapshot(
-            ReadOnlySpan<byte> snapshot)
+            ReadOnlySpan<byte> snapshot,
+            ulong logIndex = ulong.MaxValue)
         {
+            if (snapshot.Length < kSnapshotHeaderLength || snapshot.Length > MaxSnapshotBytes ||
+                snapshot[0] != s_snapshotEncodingVersion)
+            {
+                throw new FormatException("The snapshot has an invalid size or encoding version.");
+            }
+            long lastIncludedCommand = BinaryPrimitives.ReadInt64LittleEndian(snapshot.Slice(1));
+            if (lastIncludedCommand is < 1 or long.MaxValue || (ulong)lastIncludedCommand > logIndex)
+            {
+                throw new FormatException("The snapshot holds an invalid command position.");
+            }
+            int count = BinaryPrimitives.ReadInt32LittleEndian(snapshot.Slice(1 + sizeof(long)));
+            if (count < 0 || count > kMaxSnapshotEntries || count > lastIncludedCommand ||
+                count > (snapshot.Length - kSnapshotHeaderLength) / kSnapshotEntryOverhead)
+            {
+                throw new FormatException("The snapshot holds an invalid entry count.");
+            }
+
             var state = new Dictionary<string, ByteString>(StringComparer.Ordinal);
-            long lastIncludedCommand;
-            try
+            ReadOnlySpan<byte> remaining = snapshot.Slice(kSnapshotHeaderLength);
+            for (int ii = 0; ii < count; ii++)
             {
-                using var reader = new BinaryReader(new MemoryStream(snapshot.ToArray()), s_strictUtf8);
-                if (reader.ReadByte() != s_snapshotEncodingVersion)
+                ReadOnlySpan<byte> key = ReadBlock(ref remaining);
+                if (remaining.IsEmpty || remaining[0] is not (kSnapshotNullValue or kSnapshotValue))
                 {
-                    throw new FormatException("The snapshot has an unknown encoding version.");
+                    throw new FormatException("The snapshot holds an invalid value marker.");
                 }
-                lastIncludedCommand = reader.ReadInt64();
-                if (lastIncludedCommand < 1)
+                bool isNull = remaining[0] == kSnapshotNullValue;
+                remaining = remaining.Slice(1);
+                ReadOnlySpan<byte> value = ReadBlock(ref remaining);
+                if ((isNull && !value.IsEmpty) || key.Length + value.Length > MaxCommandBytes - kSetCommandOverhead)
                 {
-                    throw new FormatException("The snapshot holds an invalid log position.");
+                    throw new FormatException("The snapshot holds an invalid entry size.");
                 }
-                int count = reader.ReadInt32();
-                if (count < 0)
+                string decodedKey = DecodeKey(key);
+                if (!state.TryAdd(decodedKey, isNull ? default : ByteString.From(value)))
                 {
-                    throw new FormatException("The snapshot holds a negative entry count.");
-                }
-                for (int ii = 0; ii < count; ii++)
-                {
-                    string key = s_strictUtf8.GetString(ReadBlock(reader));
-                    byte kind = reader.ReadByte();
-                    if (kind is not (kSnapshotNullValue or kSnapshotValue))
-                    {
-                        throw new FormatException("The snapshot holds an invalid value marker.");
-                    }
-                    byte[] value = ReadBlock(reader);
-                    if (kind == kSnapshotNullValue && value.Length != 0)
-                    {
-                        throw new FormatException("The snapshot holds a payload for a null value.");
-                    }
-                    if (state.ContainsKey(key))
-                    {
-                        throw new FormatException("The snapshot holds a key twice.");
-                    }
-                    state.Add(key, kind == kSnapshotNullValue ? default : ByteString.From(value));
-                }
-                if (reader.BaseStream.Position != reader.BaseStream.Length)
-                {
-                    throw new FormatException("The snapshot has trailing data.");
+                    throw new FormatException("The snapshot holds a key twice.");
                 }
             }
-            catch (EndOfStreamException e)
+            if (!remaining.IsEmpty)
             {
-                throw new FormatException("The snapshot is truncated.", e);
-            }
-            catch (DecoderFallbackException e)
-            {
-                throw new FormatException("The snapshot holds a key that is not valid UTF-8.", e);
+                throw new FormatException("The snapshot has trailing data.");
             }
             return (state, lastIncludedCommand);
         }
 
-        private static byte[] ReadBlock(BinaryReader reader)
+        private static string DecodeKey(ReadOnlySpan<byte> key)
         {
-            int length = reader.ReadInt32();
-            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            try
             {
-                throw new FormatException("The snapshot holds an invalid length.");
+                return s_strictUtf8.GetString(key.ToArray());
             }
-            return reader.ReadBytes(length);
+            catch (DecoderFallbackException e)
+            {
+                throw new FormatException("The Raft key is not valid UTF-8.", e);
+            }
+        }
+
+        private static ReadOnlySpan<byte> ReadBlock(ref ReadOnlySpan<byte> remaining)
+        {
+            if (remaining.Length < sizeof(int))
+            {
+                throw new FormatException("The Raft payload is truncated.");
+            }
+            int length = BinaryPrimitives.ReadInt32LittleEndian(remaining);
+            remaining = remaining.Slice(sizeof(int));
+            if (length < 0 || length > remaining.Length)
+            {
+                throw new FormatException("The Raft payload holds an invalid length.");
+            }
+            ReadOnlySpan<byte> block = remaining.Slice(0, length);
+            remaining = remaining.Slice(length);
+            return block;
         }
         /// <inheritdoc/>
         public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
@@ -364,6 +456,7 @@ namespace Opc.Ua.Redundancy
             List<KeyValuePair<string, ByteString>> snapshot;
             lock (m_lock)
             {
+                ThrowIfApplierStopped();
                 snapshot = new List<KeyValuePair<string, ByteString>>(m_state.Count);
                 foreach (KeyValuePair<string, ByteString> entry in m_state)
                 {
@@ -433,18 +526,11 @@ namespace Opc.Ua.Redundancy
                 }
                 m_disposed = 1;
                 m_cts.Cancel();
-                foreach (KeyValuePair<long, TaskCompletionSource<bool>> pending
-                    in m_pending)
+                foreach (PendingProposal pending in m_pending.Values)
                 {
-                    pending.Value.TrySetCanceled(m_cts.Token);
+                    pending.Completion.TrySetCanceled(m_cts.Token);
                 }
                 m_pending.Clear();
-                foreach (KeyValuePair<long, TaskCompletionSource<RaftKeyValueSnapshot>> capture
-                    in m_snapshotCaptures)
-                {
-                    capture.Value.TrySetCanceled(m_cts.Token);
-                }
-                m_snapshotCaptures.Clear();
             }
 
             await m_startGate.WaitAsync().ConfigureAwait(false);
@@ -479,45 +565,52 @@ namespace Opc.Ua.Redundancy
             m_startGate.Dispose();
         }
 
-        private ValueTask<bool> ProposeAsync(
-            byte op,
-            string key,
-            ByteString expected,
-            ByteString value,
-            CancellationToken ct)
-        {
-            return ProposeAsync(op, key, expected, value, null, ct);
-        }
-
         private async ValueTask<bool> ProposeAsync(
             byte op,
             string key,
             ByteString expected,
             ByteString value,
-            TaskCompletionSource<RaftKeyValueSnapshot>? snapshotCapture,
             CancellationToken ct)
+        {
+            ProposalResult result = await ProposeCoreAsync(op, key, expected, value, captureSnapshot: false, ct)
+                .ConfigureAwait(false);
+            return result.Applied;
+        }
+
+        private async ValueTask<ProposalResult> ProposeCoreAsync(
+            byte op,
+            string key,
+            ByteString expected,
+            ByteString value,
+            bool captureSnapshot,
+            CancellationToken ct,
+            string? guardKey = null,
+            ByteString guardExpected = default)
         {
             if (key == null)
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            await EnsureStartedAsync(ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            int length = GetCommandLength(
+                op, key, expected, value, guardKey, guardExpected, out int keyLength, out int guardKeyLength);
+            long requestId = Interlocked.Increment(ref m_requestId);
+            if (requestId <= 0)
+            {
+                throw new InvalidOperationException("The Raft key/value store exhausted its request identifiers.");
+            }
+            byte[] command = Encode(
+                op, m_originator, requestId, key, keyLength, expected, value, length,
+                guardKey, guardKeyLength, guardExpected);
+            var proposal = new PendingProposal(SHA256.HashData(command), captureSnapshot);
 
-            long requestId;
-            TaskCompletionSource<bool> tcs;
+            await EnsureStartedAsync(ct).ConfigureAwait(false);
             CancellationToken disposeToken;
             lock (m_proposalLock)
             {
                 ThrowIfDisposed();
                 ThrowIfApplierStopped();
-                requestId = Interlocked.Increment(ref m_requestId);
-                tcs = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                m_pending[requestId] = tcs;
-                if (snapshotCapture != null)
-                {
-                    m_snapshotCaptures[requestId] = snapshotCapture;
-                }
+                m_pending[requestId] = proposal;
                 disposeToken = m_cts.Token;
             }
 
@@ -526,63 +619,28 @@ namespace Opc.Ua.Redundancy
             // change / lost-quorum window never blocks the caller indefinitely.
             using var commitCts = CancellationTokenSource
                 .CreateLinkedTokenSource(ct, disposeToken);
-            if (m_commitTimeout != Timeout.InfiniteTimeSpan)
-            {
-                commitCts.CancelAfter(m_commitTimeout);
-            }
-            // A snapshot capture is only discarded together with the proposal
-            // it belongs to: whoever claims the pending proposal (the applier,
-            // this callback, or a failed propose) also settles the capture, so
-            // a proposal that succeeds always finds its capture completed.
-            using CancellationTokenRegistration reg = commitCts.Token.Register(() =>
-            {
-                if (m_pending.TryRemove(requestId, out TaskCompletionSource<bool>? pending))
-                {
-                    m_snapshotCaptures.TryRemove(requestId, out _);
-                    if (ct.IsCancellationRequested)
-                    {
-                        pending.TrySetCanceled(ct);
-                    }
-                    else if (disposeToken.IsCancellationRequested)
-                    {
-                        pending.TrySetCanceled(disposeToken);
-                    }
-                    else
-                    {
-                        pending.TrySetException(
-                            CreateCommitTimeoutException());
-                    }
-                }
-            });
-
-            byte[] command = Encode(op, m_originator, requestId, key, expected, value);
             try
             {
+                if (m_commitTimeout != Timeout.InfiniteTimeSpan)
+                {
+                    commitCts.CancelAfter(m_commitTimeout);
+                }
                 await m_consensus
                     .ProposeAsync(command, commitCts.Token)
                     .ConfigureAwait(false);
+                return await proposal.Completion.Task.WaitAsync(commitCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
                 when (!ct.IsCancellationRequested &&
                     !disposeToken.IsCancellationRequested &&
                     commitCts.IsCancellationRequested)
             {
-                if (m_pending.TryRemove(requestId, out _))
-                {
-                    m_snapshotCaptures.TryRemove(requestId, out _);
-                }
                 throw CreateCommitTimeoutException();
             }
-            catch
+            finally
             {
-                if (m_pending.TryRemove(requestId, out _))
-                {
-                    m_snapshotCaptures.TryRemove(requestId, out _);
-                }
-                throw;
+                m_pending.TryRemove(requestId, out _);
             }
-
-            return await tcs.Task.ConfigureAwait(false);
         }
 
         private async ValueTask EnsureStartedAsync(CancellationToken ct)
@@ -620,17 +678,16 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <summary>
-        /// Refuses a proposal or a watch once the applier stopped: nothing would complete it. Called under
-        /// <c>m_proposalLock</c>, which also orders it with the applier's fault, so a proposal or watch registered
-        /// before the fault is ended by the applier and one after it is refused here.
+        /// Refuses operations once the applier stopped. Registration under <c>m_proposalLock</c>
+        /// orders proposals and watches with the fault transition.
         /// </summary>
         private void ThrowIfApplierStopped()
         {
-            if (m_applierFault != null)
+            if (Volatile.Read(ref m_applierFault) is Exception error)
             {
                 throw new InvalidOperationException(
                     "The Raft key/value store stopped applying committed commands.",
-                    m_applierFault);
+                    error);
             }
         }
 
@@ -658,15 +715,18 @@ namespace Opc.Ua.Redundancy
                 if (m_consensus is IRaftSnapshotConsensus snapshotting)
                 {
                     await ApplyItemsAsync(snapshotting, ct).ConfigureAwait(false);
-                    return;
                 }
-
-                await foreach (ReadOnlyMemory<byte> command in m_consensus.Committed
-                    .ReadAllAsync(ct)
-                    .ConfigureAwait(false))
+                else
                 {
-                    ApplyCommittedCommand(command.Span);
+                    await foreach (ReadOnlyMemory<byte> command in m_consensus.Committed
+                        .ReadAllAsync(ct)
+                        .ConfigureAwait(false))
+                    {
+                        ApplyCommittedCommand(command.Span);
+                    }
                 }
+                ct.ThrowIfCancellationRequested();
+                throw new InvalidOperationException("The Raft committed stream ended unexpectedly.");
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -680,7 +740,11 @@ namespace Opc.Ua.Redundancy
                 // and refuse every later proposal and watch.
                 lock (m_proposalLock)
                 {
-                    m_applierFault = ex;
+                    if (m_consensus is DefaultRaftConsensus consensus)
+                    {
+                        consensus.ReportStateMachineFault(ex);
+                    }
+                    Volatile.Write(ref m_applierFault, ex);
                     lock (m_lock)
                     {
                         foreach (Watcher watcher in m_watchers)
@@ -690,7 +754,10 @@ namespace Opc.Ua.Redundancy
                         m_watchers.Clear();
                     }
                 }
-                FailAllPending(ex);
+                foreach (PendingProposal pending in m_pending.Values)
+                {
+                    pending.Completion.TrySetException(ex);
+                }
             }
         }
 
@@ -743,13 +810,14 @@ namespace Opc.Ua.Redundancy
             {
                 lock (m_lock)
                 {
-                    if (m_appliedCommands < m_skipThroughCommand)
+                    if (m_appliedCommands < m_skipThroughCommand || m_appliedCommands != m_lastEngineCommand)
                     {
                         // The state holds commands the log has not delivered again yet (a restored
-                        // snapshot replayed from the first command), so it is not the state at this index.
+                        // snapshot replayed from the first command), or includes an external baseline
+                        // not represented in this engine's log.
                         return false;
                     }
-                    snapshot = EncodeEngineSnapshotLocked();
+                    snapshot = EncodeSnapshotLocked(m_appliedCommands, index);
                 }
                 await consensus.CompactAsync(index, new ByteString(snapshot), ct).ConfigureAwait(false);
                 return true;
@@ -760,20 +828,6 @@ namespace Opc.Ua.Redundancy
                 m_logger?.RaftLogCompactionFailed(ex, index);
                 return false;
             }
-        }
-
-        /// <summary>
-        /// Encodes the state for the consensus engine: a format marker followed by the snapshot encoding of
-        /// <see cref="CreateSnapshotAsync"/> at the position of the last applied command. The caller holds
-        /// <c>m_lock</c>.
-        /// </summary>
-        private byte[] EncodeEngineSnapshotLocked()
-        {
-            byte[] state = EncodeSnapshotLocked(m_appliedCommands);
-            byte[] snapshot = new byte[state.Length + 1];
-            snapshot[0] = kEngineSnapshotFormat;
-            state.CopyTo(snapshot, 1);
-            return snapshot;
         }
 
         /// <summary>
@@ -791,13 +845,14 @@ namespace Opc.Ua.Redundancy
         /// <exception cref="FormatException">The snapshot is not one this store wrote.</exception>
         private void InstallEngineSnapshot(ReadOnlySpan<byte> snapshot, ulong logIndex)
         {
-            if (snapshot.IsEmpty || snapshot[0] != kEngineSnapshotFormat)
-            {
-                throw new FormatException("The Raft engine delivered a snapshot in an unsupported format.");
-            }
-            (Dictionary<string, ByteString> state, long lastIncludedCommand) = DecodeSnapshot(snapshot.Slice(1));
+            (Dictionary<string, ByteString> state, long lastIncludedCommand) = DecodeEngineSnapshot(snapshot, logIndex);
             lock (m_lock)
             {
+                if (logIndex <= m_lastLogIndex || lastIncludedCommand < m_lastEngineCommand ||
+                    (ulong)(lastIncludedCommand - m_lastEngineCommand) > logIndex - m_lastLogIndex)
+                {
+                    throw new FormatException("The Raft engine snapshot does not advance the applied log.");
+                }
                 var changes = new List<KeyValueChange>();
                 foreach (KeyValuePair<string, ByteString> entry in m_state)
                 {
@@ -828,6 +883,8 @@ namespace Opc.Ua.Redundancy
                 }
                 m_appliedCommands = lastIncludedCommand;
                 m_skipThroughCommand = 0;
+                m_lastLogIndex = logIndex;
+                m_lastEngineCommand = lastIncludedCommand;
 
                 // A watcher that reads AppliedIndex on a change sees the index of the state it reports.
                 Volatile.Write(ref m_appliedIndex, logIndex);
@@ -845,102 +902,75 @@ namespace Opc.Ua.Redundancy
         /// </summary>
         private void ApplyCommittedCommand(ReadOnlySpan<byte> command, ulong? logIndex = null)
         {
-            // Every delivered command takes a position, including one
-            // that is skipped or malformed, so the positions are the
-            // same on every replica.
-            long position;
+            if (command.Length is < kCommandHeaderLength or > MaxCommandBytes || command[0] != s_commandEncodingVersion)
+            {
+                throw new FormatException("The committed Raft key/value command has an invalid size or version.");
+            }
+            byte op = command[1];
+            var originator = new Guid(command.Slice(2, 16).ToArray());
+            long requestId = BinaryPrimitives.ReadInt64LittleEndian(command.Slice(18));
+            if (op is not (OpSet or OpDelete or OpCas or OpBarrier or OpGuardedCas) ||
+                originator == Guid.Empty || requestId <= 0)
+            {
+                throw new FormatException("The committed Raft key/value command has an invalid operation or identity.");
+            }
+            ReadOnlySpan<byte> remaining = command.Slice(26);
+            string key = DecodeKey(ReadBlock(ref remaining));
+            ByteString expected = op is OpCas or OpGuardedCas ? ReadValue(ref remaining) : default;
+            ByteString value = op is OpSet or OpCas or OpGuardedCas ? ReadValue(ref remaining) : default;
+            string? guardKey = null;
+            ByteString guardExpected = default;
+            if (op == OpGuardedCas)
+            {
+                guardKey = DecodeKey(ReadBlock(ref remaining));
+                guardExpected = ReadValue(ref remaining);
+                if (guardKey.Length == 0 || guardKey == key || guardExpected.IsNull)
+                {
+                    throw new FormatException("The committed guarded Raft command has an invalid guard.");
+                }
+            }
+            if (!remaining.IsEmpty || (op == OpBarrier && key.Length != 0))
+            {
+                throw new FormatException("The committed Raft key/value command has unexpected data.");
+            }
+
+            PendingProposal? pending = null;
+            if (originator == m_originator &&
+                m_pending.TryGetValue(requestId, out PendingProposal? candidate) &&
+                !candidate.Completion.Task.IsCompleted &&
+                candidate.Digest.AsSpan().SequenceEqual(HashCommittedCommand(command)))
+            {
+                pending = candidate;
+            }
+            bool result = false;
+            KeyValueChange? change = null;
             lock (m_lock)
             {
-                position = ++m_appliedCommands;
+                if (logIndex.HasValue && logIndex.Value <= m_lastLogIndex)
+                {
+                    throw new FormatException("The committed Raft key/value command is out of log order.");
+                }
+                long position = checked(m_appliedCommands + 1);
+                if (position == long.MaxValue || (position <= m_skipThroughCommand && pending != null))
+                {
+                    throw new FormatException("The committed Raft key/value command has an invalid replay position.");
+                }
+                if (logIndex.HasValue)
+                {
+                    m_lastLogIndex = logIndex.Value;
+                    m_lastEngineCommand++;
+                }
+                m_appliedCommands = position;
                 if (position <= m_skipThroughCommand)
                 {
-                    // Already held by the restored snapshot: the state is the one at the
-                    // restored snapshot's last command, so only that command's index is published.
+                    // This command is already represented by the restored state.
                     if (position == m_skipThroughCommand)
                     {
                         PublishAppliedIndex(logIndex);
                     }
                     return;
                 }
-            }
-            try
-            {
-                Apply(command, position, logIndex);
-            }
-            catch (Exception ex)
-            {
-                PublishAppliedIndex(logIndex);
-                Trace.TraceWarning(
-                    "Skipping malformed RaftSharedKeyValueStore command. The applier will continue. {0}",
-                    ex);
-            }
-        }
 
-        private void PublishAppliedIndex(ulong? logIndex)
-        {
-            if (logIndex.HasValue)
-            {
-                Volatile.Write(ref m_appliedIndex, logIndex.Value);
-            }
-        }
-
-        private void FailAllPending(Exception error)
-        {
-            foreach (KeyValuePair<long, TaskCompletionSource<bool>> pending in m_pending)
-            {
-                pending.Value.TrySetException(error);
-            }
-            m_pending.Clear();
-            foreach (KeyValuePair<long, TaskCompletionSource<RaftKeyValueSnapshot>> capture in m_snapshotCaptures)
-            {
-                capture.Value.TrySetException(error);
-            }
-            m_snapshotCaptures.Clear();
-        }
-
-        private void Apply(ReadOnlySpan<byte> command, long position, ulong? logIndex)
-        {
-            if (command.Length < s_minCommandLength)
-            {
-                throw new InvalidOperationException("Committed Raft key/value command is truncated.");
-            }
-
-            byte version = command[0];
-            if (version != s_commandEncodingVersion)
-            {
-                throw new InvalidOperationException(
-                    $"Unsupported Raft key/value command encoding version {version}.");
-            }
-
-            byte op = command[1];
-            var originator = new Guid(command.Slice(2, 16).ToArray());
-            long requestId = BinaryPrimitives.ReadInt64LittleEndian(command.Slice(18, 8));
-            int offset = 26;
-
-            int keyLength = BinaryPrimitives.ReadInt32LittleEndian(command.Slice(offset, 4));
-            offset += 4;
-            string key = Encoding.UTF8.GetString(command.Slice(offset, keyLength).ToArray());
-            offset += keyLength;
-
-            ByteString expected = default;
-            if (op == OpCas)
-            {
-                expected = ReadValue(command, ref offset);
-            }
-
-            ByteString value = default;
-            if (op is OpSet or OpCas)
-            {
-                value = ReadValue(command, ref offset);
-            }
-
-            bool result = false;
-            KeyValueChange? change = null;
-            TaskCompletionSource<RaftKeyValueSnapshot>? snapshotCapture = null;
-            RaftKeyValueSnapshot? snapshot = null;
-            EncoderFallbackException? snapshotError = null;
-            lock (m_lock)
-            {
                 switch (op)
                 {
                     case OpSet:
@@ -956,6 +986,13 @@ namespace Opc.Ua.Redundancy
                         }
                         break;
                     case OpCas:
+                    case OpGuardedCas:
+                        if (guardKey != null &&
+                            (!m_state.TryGetValue(guardKey, out ByteString guard) || guard != guardExpected))
+                        {
+                            break;
+                        }
+
                         bool present = m_state.TryGetValue(key, out ByteString current);
                         bool matches = expected.IsNull ? !present : present && current.Equals(expected);
                         if (matches)
@@ -987,23 +1024,7 @@ namespace Opc.Ua.Redundancy
                         break;
                     case OpBarrier:
                         result = true;
-                        if (originator == m_originator &&
-                            m_snapshotCaptures.TryRemove(requestId, out snapshotCapture))
-                        {
-                            try
-                            {
-                                snapshot = new RaftKeyValueSnapshot(
-                                    position,
-                                    ByteString.From(EncodeSnapshotLocked(position)));
-                            }
-                            catch (EncoderFallbackException ex)
-                            {
-                                snapshotError = ex;
-                            }
-                        }
                         break;
-                    default:
-                        throw new InvalidOperationException($"Unsupported Raft key/value operation '{op}'.");
                 }
 
                 PublishAppliedIndex(logIndex);
@@ -1011,20 +1032,39 @@ namespace Opc.Ua.Redundancy
                 {
                     PublishLocked(change);
                 }
+                if (pending != null)
+                {
+                    try
+                    {
+                        RaftKeyValueSnapshot? snapshot = pending.CaptureSnapshot
+                            ? new RaftKeyValueSnapshot(position, new ByteString(EncodeSnapshotLocked(position)))
+                            : null;
+                        pending.Completion.TrySetResult(new ProposalResult(result, snapshot));
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        // Only the requested capture failed; the barrier itself was applied.
+                        pending.Completion.TrySetException(ex);
+                    }
+                }
             }
+        }
 
-            if (snapshotError != null)
+        private void PublishAppliedIndex(ulong? logIndex)
+        {
+            if (logIndex.HasValue)
             {
-                snapshotCapture?.TrySetException(snapshotError);
+                Volatile.Write(ref m_appliedIndex, logIndex.Value);
             }
-            else if (snapshot != null)
-            {
-                snapshotCapture?.TrySetResult(snapshot);
-            }
-            if (originator == m_originator && m_pending.TryRemove(requestId, out TaskCompletionSource<bool>? tcs))
-            {
-                tcs.TrySetResult(result);
-            }
+        }
+
+        private static byte[] HashCommittedCommand(ReadOnlySpan<byte> command)
+        {
+#if NET6_0_OR_GREATER
+            return SHA256.HashData(command);
+#else
+            return SHA256.HashData(command.ToArray());
+#endif
         }
 
         private void PublishLocked(KeyValueChange change)
@@ -1039,30 +1079,61 @@ namespace Opc.Ua.Redundancy
             }
         }
 
+        private static int GetCommandLength(
+            byte op,
+            string key,
+            ByteString expected,
+            ByteString value,
+            string? guardKey,
+            ByteString guardExpected,
+            out int keyLength,
+            out int guardKeyLength)
+        {
+            if (key.Length > MaxCommandBytes - kCommandHeaderLength)
+            {
+                throw new ArgumentOutOfRangeException(nameof(key), "The Raft key exceeds the command size limit.");
+            }
+            keyLength = s_strictUtf8.GetByteCount(key);
+            long length = kCommandHeaderLength + keyLength;
+            if (op is OpCas or OpGuardedCas)
+            {
+                length += (long)sizeof(int) + expected.Length;
+            }
+            if (op is OpSet or OpCas or OpGuardedCas)
+            {
+                length += (long)sizeof(int) + value.Length;
+            }
+            guardKeyLength = 0;
+            if (guardKey != null)
+            {
+                if (guardKey.Length > MaxCommandBytes - kCommandHeaderLength)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(guardKey), "The guard key exceeds the command limit.");
+                }
+                guardKeyLength = s_strictUtf8.GetByteCount(guardKey);
+                length += (2L * sizeof(int)) + guardKeyLength + guardExpected.Length;
+            }
+            if (length > MaxCommandBytes)
+            {
+                throw new ArgumentException("The encoded Raft key/value command exceeds its size limit.");
+            }
+            return (int)length;
+        }
+
         private static byte[] Encode(
             byte op,
             Guid originator,
             long requestId,
             string key,
+            int keyLength,
             ByteString expected,
-            ByteString value)
+            ByteString value,
+            int length,
+            string? guardKey,
+            int guardKeyLength,
+            ByteString guardExpected)
         {
-            byte[] keyBytes = Encoding.UTF8.GetBytes(key);
-            byte[]? expectedBytes = op == OpCas && !expected.IsNull ? expected.ToArray() : null;
-            byte[]? valueBytes = op is OpSet or OpCas && !value.IsNull ? value.ToArray() : null;
-
-            int length = 1 + 16 + 8 + 4 + keyBytes.Length;
-            length++;
-            if (op == OpCas)
-            {
-                length += 4 + (expectedBytes?.Length ?? 0);
-            }
-            if (op is OpSet or OpCas)
-            {
-                length += 4 + (valueBytes?.Length ?? 0);
-            }
-
-            byte[] buffer = new byte[length];
+            var buffer = new byte[length];
             int offset = 0;
             buffer[offset++] = s_commandEncodingVersion;
             buffer[offset++] = op;
@@ -1070,50 +1141,60 @@ namespace Opc.Ua.Redundancy
             offset += 16;
             BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset, 8), requestId);
             offset += 8;
-            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(offset, 4), keyBytes.Length);
-            offset += 4;
-            keyBytes.CopyTo(buffer, offset);
-            offset += keyBytes.Length;
+            WriteKey(buffer, ref offset, key, keyLength);
 
-            if (op == OpCas)
+            if (op is OpCas or OpGuardedCas)
             {
-                WriteValue(buffer, ref offset, expected.IsNull, expectedBytes);
+                WriteValue(buffer, ref offset, expected);
             }
-            if (op is OpSet or OpCas)
+            if (op is OpSet or OpCas or OpGuardedCas)
             {
-                WriteValue(buffer, ref offset, value.IsNull, valueBytes);
+                WriteValue(buffer, ref offset, value);
+            }
+            if (guardKey != null)
+            {
+                WriteKey(buffer, ref offset, guardKey, guardKeyLength);
+                WriteValue(buffer, ref offset, guardExpected);
             }
 
             return buffer;
         }
 
-        private static void WriteValue(byte[] buffer, ref int offset, bool isNull, byte[]? bytes)
+        private static void WriteKey(byte[] buffer, ref int offset, string key, int length)
         {
-            int len = isNull ? -1 : bytes?.Length ?? 0;
-            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(offset, 4), len);
-            offset += 4;
-            if (len > 0 && bytes != null)
-            {
-                bytes.CopyTo(buffer, offset);
-                offset += bytes.Length;
-            }
+            WriteLength(buffer, ref offset, length);
+            offset += s_strictUtf8.GetBytes(key, 0, key.Length, buffer, offset);
         }
 
-        private static ByteString ReadValue(ReadOnlySpan<byte> command, ref int offset)
+        private static void WriteLength(byte[] buffer, ref int offset, int length)
         {
-            int len = BinaryPrimitives.ReadInt32LittleEndian(command.Slice(offset, 4));
-            offset += 4;
-            if (len < 0)
+            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(offset), length);
+            offset += sizeof(int);
+        }
+
+        private static void WriteValue(byte[] buffer, ref int offset, ByteString value)
+        {
+            WriteLength(buffer, ref offset, value.IsNull ? -1 : value.Length);
+            value.Span.CopyTo(buffer.AsSpan(offset));
+            offset += value.Length;
+        }
+
+        private static ByteString ReadValue(ref ReadOnlySpan<byte> remaining)
+        {
+            if (remaining.Length >= sizeof(int) && BinaryPrimitives.ReadInt32LittleEndian(remaining) == -1)
             {
+                remaining = remaining.Slice(sizeof(int));
                 return default;
             }
-            if (len == 0)
-            {
-                return new ByteString(Array.Empty<byte>());
-            }
-            byte[] bytes = command.Slice(offset, len).ToArray();
-            offset += len;
-            return new ByteString(bytes);
+            return ByteString.From(ReadBlock(ref remaining));
+        }
+
+        private readonly record struct ProposalResult(bool Applied, RaftKeyValueSnapshot? Snapshot);
+
+        private sealed record PendingProposal(byte[] Digest, bool CaptureSnapshot)
+        {
+            public TaskCompletionSource<ProposalResult> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>
@@ -1143,19 +1224,36 @@ namespace Opc.Ua.Redundancy
                     new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         }
 
+        /// <summary>
+        /// Maximum complete application command size, including the key and both CAS operands.
+        /// </summary>
+        internal const int MaxCommandBytes = 4 * 1024 * 1024;
+
+        /// <summary>
+        /// Maximum serialized snapshot size, including any engine header.
+        /// </summary>
+        internal const int MaxSnapshotBytes = 8 * 1024 * 1024;
+
         private const byte OpSet = 0;
         private const byte OpDelete = 1;
         private const byte OpCas = 2;
         private const byte OpBarrier = 3;
+        private const byte OpGuardedCas = 4;
         private const byte s_commandEncodingVersion = 1;
         private const byte s_snapshotEncodingVersion = 1;
         private const byte kSnapshotNullValue = 0;
         private const byte kSnapshotValue = 1;
-        private const byte kEngineSnapshotFormat = 2;
+        private const byte kLegacyEngineSnapshotFormat = 2;
+        private const byte kEngineSnapshotFormat = 3;
+        private const int kEngineHeaderLength = 1 + sizeof(ulong);
+        private const int kSnapshotHeaderLength = 1 + sizeof(long) + sizeof(int);
+        private const int kSnapshotEntryOverhead = 2 * sizeof(int) + sizeof(byte);
+        private const int kMaxSnapshotEntries = 65_536;
         private static readonly UTF8Encoding s_strictUtf8 = new(
             encoderShouldEmitUTF8Identifier: false,
             throwOnInvalidBytes: true);
-        private const int s_minCommandLength = 30;
+        private const int kCommandHeaderLength = 2 + 16 + sizeof(long) + sizeof(int);
+        private const int kSetCommandOverhead = kCommandHeaderLength + sizeof(int);
 
         private readonly IRaftConsensus m_consensus;
         private readonly bool m_processLocal;
@@ -1165,9 +1263,7 @@ namespace Opc.Ua.Redundancy
         private readonly Guid m_originator = Guid.NewGuid();
         private readonly Dictionary<string, ByteString> m_state = new(StringComparer.Ordinal);
         private readonly List<Watcher> m_watchers = [];
-        private readonly ConcurrentDictionary<long, TaskCompletionSource<bool>> m_pending = new();
-        private readonly ConcurrentDictionary<long, TaskCompletionSource<RaftKeyValueSnapshot>> m_snapshotCaptures =
-            new();
+        private readonly ConcurrentDictionary<long, PendingProposal> m_pending = new();
         private readonly Lock m_lock = new();
         private readonly Lock m_proposalLock = new();
         private readonly SemaphoreSlim m_startGate = new(1, 1);
@@ -1180,6 +1276,8 @@ namespace Opc.Ua.Redundancy
         private int m_disposed;
         private long m_appliedCommands;
         private long m_skipThroughCommand;
+        private long m_lastEngineCommand;
+        private ulong m_lastLogIndex;
         private ulong m_appliedIndex;
     }
 

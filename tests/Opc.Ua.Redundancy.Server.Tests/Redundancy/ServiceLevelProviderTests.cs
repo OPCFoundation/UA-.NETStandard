@@ -6,6 +6,7 @@
 #pragma warning disable CA2007
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -162,16 +163,45 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task LeaderProviderManualOverrideClearsOnTransitionAsync()
+        public async Task LeaderProviderRetainsMaintenanceAcrossElectionsUntilClearedAsync()
         {
             await using var election = new MutableLeaderElection();
-            using var provider = new LeaderServiceLevelProvider(election, leaderLevel: 255, standbyLevel: 200);
-            provider.SetServiceLevel(ServiceLevels.DegradedMaximum);
-            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.DegradedMaximum));
+            using var provider = new LeaderServiceLevelProvider(election, RedundancySupport.Warm);
+            List<byte> published = [];
+            provider.ServiceLevelChanged += published.Add;
+            provider.SetServiceLevel(ServiceLevels.Maintenance);
 
             election.Set(true);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maintenance));
+            election.Set(false);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maintenance));
 
-            Assert.That(provider.GetServiceLevel(), Is.EqualTo(255));
+            provider.ClearServiceLevelOverride();
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.DegradedMaximum));
+            Assert.That(published, Is.EqualTo(new byte[] { ServiceLevels.Maintenance, ServiceLevels.DegradedMaximum }));
+        }
+
+        [TestCase(RedundancySupport.Cold, ServiceLevels.NoData)]
+        [TestCase(RedundancySupport.Warm, ServiceLevels.DegradedMaximum)]
+        [TestCase(RedundancySupport.Hot, ServiceLevels.Maximum)]
+        [TestCase(RedundancySupport.HotAndMirrored, ServiceLevels.Maximum)]
+        public async Task LeaderProviderCapsUnverifiedRolesAtNoDataAsync(RedundancySupport mode, byte standbyLevel)
+        {
+            await using var election = new MutableLeaderElection();
+            bool? verifiedWriter = null;
+            using var provider = new LeaderServiceLevelProvider(
+                election, mode, null, null, isLeader => verifiedWriter == isLeader);
+
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.NoData));
+            verifiedWriter = false;
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(standbyLevel));
+
+            election.Set(true);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.NoData));
+            verifiedWriter = true;
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maximum));
+            election.Set(false);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.NoData));
         }
 
         [Test]
@@ -188,7 +218,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 while (!cts.IsCancellationRequested)
                 {
                     provider.SetServiceLevel(ServiceLevels.DegradedMaximum);
-                    election.Set(true);
+                    provider.ClearServiceLevelOverride();
                 }
             });
             var reader = Task.Run(() =>
@@ -212,7 +242,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(
                 Volatile.Read(ref invalidLevel),
                 Is.EqualTo(-1),
-                "Concurrent SetServiceLevel/leadership clear must not expose torn ServiceLevel values.");
+                "Concurrent set and clear must not expose torn ServiceLevel values.");
         }
 
         [Test]

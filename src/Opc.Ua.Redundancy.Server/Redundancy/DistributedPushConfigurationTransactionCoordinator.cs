@@ -3,6 +3,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +44,11 @@ namespace Opc.Ua.Redundancy.Server
     /// cancelled, abandoned (session close) or reset.
     /// </para>
     /// <para>
+    /// Each commit or compensation delegate must first renew the exact confirmed lease.
+    /// This does not make the lease update atomic with a mutation in a separate store.
+    /// Trust-store writes through the ordinary certificate and CRL APIs are therefore unsupported.
+    /// </para>
+    /// <para>
     /// This type is intended to be used as a singleton per server process; it
     /// owns a background loop and shared-store lease, and must be disposed
     /// (<see cref="DisposeAsync"/>) with the host. Distributed behaviour is
@@ -55,10 +61,12 @@ namespace Opc.Ua.Redundancy.Server
         IPushConfigurationTransactionCoordinator,
         IPushConfigurationFileWriteCoordinator,
         IPushConfigurationTransactionOwnershipGate,
+        IPushConfigurationTrustStoreMutationGate,
+        IPushConfigurationTransactionCompletion,
         IAsyncDisposable,
         IDisposable
     {
-        private const int MaxAcquireAttempts = 5;
+        private const int MaxAcquireRetries = 5;
 
         /// <summary>
         /// Creates a distributed coordinator over a shared key/value store.
@@ -69,7 +77,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <see cref="PushConfigurationTransactionCoordinator"/> when
         /// <c>null</c> and <paramref name="telemetry"/> is supplied).
         /// </param>
-        /// <param name="store">The shared key/value backend holding the lease.</param>
+        /// <param name="store">The freshness-protected view shared by all lease members.</param>
         /// <param name="options">The distributed PushManagement options.</param>
         /// <param name="telemetry">
         /// Telemetry context used to create a logger and, when
@@ -95,7 +103,8 @@ namespace Opc.Ua.Redundancy.Server
             ITelemetryContext telemetry,
             TimeProvider? timeProvider = null,
             ILeaderElection? leaderElection = null)
-            : this(inner, store, options, telemetry, timeProvider, leaderElection, startRenewLoop: true)
+            : this(inner, RequireProtectedStore(store), options, telemetry, timeProvider, leaderElection,
+                startRenewLoop: true)
         {
         }
 
@@ -124,13 +133,38 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(options));
             }
             options.Validate();
+            if (string.IsNullOrWhiteSpace(options.ReplicaId))
+            {
+                throw new ArgumentException("An explicit lease replica id is required.", nameof(options));
+            }
+            if (store is not InMemorySharedKeyValueStore)
+            {
+                _ = RequireProtectedStore(store);
+                var members = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string member in options.LeaseMemberIds)
+                {
+                    if (string.IsNullOrWhiteSpace(member) || !members.Add(member))
+                    {
+                        throw new ArgumentException("Lease members must have unique, nonempty ids.", nameof(options));
+                    }
+                    _ = s_leaseEncoding.GetByteCount(member);
+                }
+                if (!members.Contains(options.ReplicaId))
+                {
+                    throw new ArgumentException(
+                        "The local replica id must be a configured lease member.", nameof(options));
+                }
+                m_memberIds = members;
+            }
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_logger = telemetry.CreateLogger<DistributedPushConfigurationTransactionCoordinator>();
             m_inner = inner ?? new PushConfigurationTransactionCoordinator(telemetry, m_timeProvider);
-            m_leaderElection = leaderElection;
-            m_requireLeadership = options.RequireLeadership;
+            m_leaderElection = options.RequireLeadership
+                ? leaderElection ?? throw new ArgumentNullException(nameof(leaderElection))
+                : null;
 
             m_replicaId = options.ReplicaId;
+            m_ownerBytes = s_leaseEncoding.GetBytes(m_replicaId);
             m_leaseKey = options.TransactionLeaseKey;
             m_leaseDuration = options.LeaseDuration;
             m_renewInterval = options.RenewInterval;
@@ -163,9 +197,13 @@ namespace Opc.Ua.Redundancy.Server
         {
             get
             {
+                if (m_leaderElection?.IsLeader == false)
+                {
+                    return false;
+                }
                 lock (m_stateLock)
                 {
-                    return m_holdsLease;
+                    return !m_disposed && IsLive(m_confirmation);
                 }
             }
         }
@@ -174,7 +212,7 @@ namespace Opc.Ua.Redundancy.Server
         public NodeId OwnerSessionId => m_inner.OwnerSessionId;
 
         /// <inheritdoc/>
-        public bool IsTransactionActive => m_inner.IsTransactionActive;
+        public bool IsTransactionActive => m_inner.IsTransactionActive && HoldsLease;
 
         /// <inheritdoc/>
         public bool HasOpenTrustListWriter => m_inner.HasOpenTrustListWriter;
@@ -182,20 +220,44 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public void ValidateSessionCanParticipate(NodeId sessionId)
         {
-            ThrowIfForeignOwner();
             m_inner.ValidateSessionCanParticipate(sessionId);
+            bool active = m_inner.IsTransactionActive;
+            lock (m_stateLock)
+            {
+                if (m_disposed || m_unavailable || (active && !IsLive(m_confirmation)))
+                {
+                    ThrowTransactionPending();
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public void ValidateUnfencedTrustStoreMutation()
+        {
+            throw new ServiceResultException(
+                StatusCodes.BadNotSupported,
+                "Distributed PushManagement trust changes require a sink that checks the current lease " +
+                "and publishes the trust revision atomically. The configured path cannot do that.");
         }
 
         /// <inheritdoc/>
         public void Stage(NodeId sessionId, PushConfigurationOperation operation)
         {
-            // AcquireTransactionOwnershipAsync ran at the async boundary before
-            // this synchronous call, so this replica holds (or has reserved)
-            // the shared lease. The foreign-owner guard defends against a split
-            // brain detected by the background loop between acquisition and
-            // staging.
-            ThrowIfForeignOwner();
-            m_inner.Stage(sessionId, operation);
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            NodeId owner = m_inner.OwnerSessionId;
+            lock (m_stateLock)
+            {
+                if (m_disposed || !IsLive(m_confirmation) ||
+                    (!Utils.IsEqual(owner, sessionId) &&
+                        (!Utils.IsEqual(m_reservationOwner, sessionId) || !HasReservation())))
+                {
+                    ThrowTransactionPending();
+                }
+            }
+            m_inner.Stage(sessionId, FenceOperation(operation));
         }
 
         /// <inheritdoc/>
@@ -208,14 +270,13 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public void OpenConfigurationFileWrite(NodeId configurationFileId, NodeId sessionId)
         {
-            ThrowIfForeignOwner();
+            ValidateSessionCanParticipate(sessionId);
             if (m_inner is IPushConfigurationFileWriteCoordinator fileWriteCoordinator)
             {
                 fileWriteCoordinator.OpenConfigurationFileWrite(configurationFileId, sessionId);
             }
             else
             {
-                m_inner.ValidateSessionCanParticipate(sessionId);
                 m_inner.SetTrustListWriteOpen(configurationFileId, true);
             }
             SignalReconcile();
@@ -228,28 +289,34 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<ServiceResult> ApplyChangesAsync(
+        public ValueTask<ServiceResult> ApplyChangesAsync(
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = await m_inner
-                .ApplyChangesAsync(sessionId, cancellationToken)
-                .ConfigureAwait(false);
-            await ReleaseAfterCompletionAsync(sessionId).ConfigureAwait(false);
-            return result;
+            return ApplyChangesCoreAsync(sessionId, null, null, cancellationToken);
         }
 
         /// <inheritdoc/>
-        public async ValueTask<ServiceResult> ApplyChangesAsync(
+        public ValueTask<ServiceResult> ApplyChangesAsync(
             NodeId sessionId,
             PushConfigurationApplyEffects committedEffects,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = await m_inner
-                .ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
-                .ConfigureAwait(false);
-            await ReleaseAfterCompletionAsync(sessionId).ConfigureAwait(false);
-            return result;
+            return ApplyChangesCoreAsync(
+                sessionId, committedEffects ?? throw new ArgumentNullException(nameof(committedEffects)),
+                null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> ApplyChangesAsync(
+            NodeId sessionId,
+            PushConfigurationApplyEffects committedEffects,
+            PushConfigurationOperation completion,
+            CancellationToken cancellationToken = default)
+        {
+            return ApplyChangesCoreAsync(
+                sessionId, committedEffects ?? throw new ArgumentNullException(nameof(committedEffects)),
+                completion ?? throw new ArgumentNullException(nameof(completion)), cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -275,7 +342,6 @@ namespace Opc.Ua.Redundancy.Server
             m_inner.Reset();
             lock (m_stateLock)
             {
-                m_reservationDeadlineTicks = 0;
                 m_reservationOwner = NodeId.Null;
             }
             SignalReconcile();
@@ -292,6 +358,7 @@ namespace Opc.Ua.Redundancy.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
+            CancellationToken lifetime;
             lock (m_stateLock)
             {
                 if (m_disposed)
@@ -299,88 +366,62 @@ namespace Opc.Ua.Redundancy.Server
                     throw new ObjectDisposedException(
                         nameof(DistributedPushConfigurationTransactionCoordinator));
                 }
+                lifetime = m_cts.Token;
             }
 
-            // Optional leadership gate: funnel PushManagement transactions
-            // through the elected leader (Kubernetes-native Lease, Raft or
-            // shared-store, whichever is configured) when RequireLeadership is
-            // set. The shared-store transaction lease below still enforces
-            // single ownership on its own when leadership is not required.
-            if (m_requireLeadership && m_leaderElection != null)
-            {
-                bool leader = await m_leaderElection
-                    .TryAcquireOrRenewAsync(cancellationToken)
-                    .ConfigureAwait(false);
-                if (!leader)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadTransactionPending,
-                        "This replica is not the active leader of the redundant server set, so it " +
-                        "cannot start a PushManagement configuration transaction.");
-                }
-            }
-
-            await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime);
+            CancellationToken ct = linked.Token;
+            await m_storeGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                for (int attempt = 0; ; attempt++)
+                m_inner.ValidateSessionCanParticipate(sessionId);
+                lock (m_stateLock)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    long now = NowTicks();
-
-                    (bool found, ByteString current) = await m_store
-                        .TryGetAsync(m_leaseKey, cancellationToken)
-                        .ConfigureAwait(false);
-                    bool parsed = TryParseLease(current, out string owner, out long expiry);
-                    bool live = found && parsed && now < expiry;
-                    if (live && !IsSelf(owner))
+                    if (IsLive(m_confirmation) && HasReservation() &&
+                        !Utils.IsEqual(m_reservationOwner, sessionId))
                     {
-                        SetLeaseState(holdsLease: false, foreignOwner: true);
                         ThrowTransactionPending();
                     }
-
-                    ByteString newLease = EncodeLease(m_replicaId, now + m_leaseDuration.Ticks);
-                    ByteString expected = found ? current : default;
-                    bool acquired = await m_store
-                        .CompareAndSwapAsync(m_leaseKey, expected, newLease, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (acquired)
+                }
+                if (!await ConfirmLeadershipAsync(ct).ConfigureAwait(false))
+                {
+                    InvalidateLease();
+                    ThrowTransactionPending();
+                }
+                LeaseConfirmation previous = GetConfirmation();
+                if (m_inner.IsTransactionActive || IsLive(previous))
+                {
+                    // A staged transaction may renew its exact confirmed lease, never join a new one.
+                    if (await TryWriteLeaseAsync(previous.Value, previous, ct).ConfigureAwait(false))
                     {
-                        // Reserve ownership only now that the lease is actually
-                        // granted, so a rejected or otherwise failed acquisition
-                        // (leadership, foreign owner, cancellation, CAS
-                        // contention, or any exception) never leaves a
-                        // reservation behind that the reconcile loop could later
-                        // use to acquire the lease on this replica's behalf. The
-                        // reservation is set while the store gate is still held so
-                        // a concurrent reconcile pass cannot delete the lease
-                        // before the first Stage marks the transaction active.
-                        SetLeaseState(holdsLease: true, foreignOwner: false);
-                        ReserveOwnership(sessionId);
-                        return;
-                    }
-
-                    if (attempt >= MaxAcquireAttempts)
-                    {
-                        // The compare-and-swap kept losing. Re-read once more to
-                        // decide whether another replica now owns the lease
-                        // (reject) or the contention was with this replica's own
-                        // renew loop (we effectively already hold it).
-                        (bool reFound, ByteString reValue) = await m_store
-                            .TryGetAsync(m_leaseKey, cancellationToken)
-                            .ConfigureAwait(false);
-                        bool reParsed = TryParseLease(reValue, out string reOwner, out long reExpiry);
-                        bool foreignLive = reFound && reParsed && NowTicks() < reExpiry && !IsSelf(reOwner);
-                        if (foreignLive)
-                        {
-                            SetLeaseState(holdsLease: false, foreignOwner: true);
-                            ThrowTransactionPending();
-                        }
-                        SetLeaseState(holdsLease: true, foreignOwner: false);
                         ReserveOwnership(sessionId);
                         return;
                     }
                 }
+                else
+                {
+                    for (int attempt = 0; attempt <= MaxAcquireRetries; attempt++)
+                    {
+                        (bool found, ByteString current) = await ReadLeaseAsync(ct).ConfigureAwait(false);
+                        if (found && !IsVacant(current, NowTicks()))
+                        {
+                            break;
+                        }
+                        if (await TryWriteLeaseAsync(found ? current : default, null, ct).ConfigureAwait(false))
+                        {
+                            ReserveOwnership(sessionId);
+                            return;
+                        }
+                    }
+                }
+                InvalidateLease();
+                ThrowTransactionPending();
+            }
+            catch (Exception ex) when (ex is not ServiceResultException result ||
+                result.StatusCode != StatusCodes.BadTransactionPending)
+            {
+                InvalidateLease();
+                throw;
             }
             finally
             {
@@ -414,7 +455,8 @@ namespace Opc.Ua.Redundancy.Server
                 }
             }
 
-            await ReleaseIfOwnedAsync(CancellationToken.None).ConfigureAwait(false);
+            using var timeout = new CancellationTokenSource(m_renewInterval);
+            await ReleaseIfOwnedAsync(timeout.Token).ConfigureAwait(false);
 
             m_cts.Dispose();
             m_storeGate.Dispose();
@@ -424,11 +466,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            // Non-blocking teardown: signalling the background loop to stop and
-            // releasing the lease require awaiting, which must never be done
-            // sync-over-async. Cancel the loop and let it release the lease as
-            // it unwinds; a lease that outlives this call still expires on its
-            // own. Prefer DisposeAsync where the caller can await full cleanup.
+            // Stop renewing without waiting for store I/O. Prefer DisposeAsync for early release.
             lock (m_stateLock)
             {
                 if (m_disposed)
@@ -442,12 +480,105 @@ namespace Opc.Ua.Redundancy.Server
             SignalReconcile();
         }
 
+        private async ValueTask<ServiceResult> ApplyChangesCoreAsync(
+            NodeId sessionId,
+            PushConfigurationApplyEffects? committedEffects,
+            PushConfigurationOperation? completion,
+            CancellationToken ct)
+        {
+            if (!m_inner.HasOpenTrustListWriter && m_inner.IsTransactionActive &&
+                Utils.IsEqual(m_inner.OwnerSessionId, sessionId) && !HoldsLease)
+            {
+                return StatusCodes.BadTransactionPending;
+            }
+
+            ServiceResult result;
+            if (completion != null)
+            {
+                if (m_inner is not IPushConfigurationTransactionCompletion transactionalCompletion)
+                {
+                    return StatusCodes.BadNotSupported;
+                }
+                result = await transactionalCompletion.ApplyChangesAsync(
+                    sessionId, committedEffects!, FenceOperation(completion), ct).ConfigureAwait(false);
+            }
+            else
+            {
+                result = committedEffects == null
+                    ? await m_inner.ApplyChangesAsync(sessionId, ct).ConfigureAwait(false)
+                    : await m_inner.ApplyChangesAsync(sessionId, committedEffects, ct).ConfigureAwait(false);
+            }
+            await ReleaseAfterCompletionAsync(sessionId).ConfigureAwait(false);
+            return result;
+        }
+
+        private PushConfigurationOperation FenceOperation(PushConfigurationOperation operation)
+        {
+            if (operation.WritesUnfencedTrustStore || !operation.AffectedTrustList.IsNull)
+            {
+                ValidateUnfencedTrustStoreMutation();
+            }
+            return new PushConfigurationOperation
+            {
+                AffectedCertificateGroup = operation.AffectedCertificateGroup,
+                AffectedCertificateType = operation.AffectedCertificateType,
+                AffectedTrustList = operation.AffectedTrustList,
+                LeavesCertificateSlotEmpty = operation.LeavesCertificateSlotEmpty,
+                PrepareAsync = operation.PrepareAsync,
+                CommitAsync = ct => RunWithLeaseAsync(operation.CommitAsync, ct),
+                RollbackAsync = operation.RollbackAsync is { } rollback ? ct => RunWithLeaseAsync(rollback, ct) : null,
+                DisposeStaged = operation.DisposeStaged
+            };
+        }
+
+        private async Task RunWithLeaseAsync(Func<CancellationToken, Task> mutation, CancellationToken ct)
+        {
+            CancellationToken lifetime;
+            lock (m_stateLock)
+            {
+                if (m_disposed)
+                {
+                    ThrowTransactionPending();
+                }
+                lifetime = m_cts.Token;
+            }
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime);
+            await m_storeGate.WaitAsync(linked.Token).ConfigureAwait(false);
+            try
+            {
+                LeaseConfirmation previous = GetConfirmation();
+                if (!IsLive(previous) || !await ConfirmLeadershipAsync(linked.Token).ConfigureAwait(false) ||
+                    !await TryWriteLeaseAsync(previous.Value, previous, linked.Token).ConfigureAwait(false))
+                {
+                    ThrowTransactionPending();
+                }
+            }
+            catch
+            {
+                InvalidateLease();
+                throw;
+            }
+            finally
+            {
+                m_storeGate.Release();
+            }
+
+            linked.Token.ThrowIfCancellationRequested();
+            if (!HoldsLease)
+            {
+                ThrowTransactionPending();
+            }
+            // The mutation's store is not part of the lease CAS. Recheck at every delegate boundary.
+            await mutation(linked.Token).ConfigureAwait(false);
+        }
+
         private async ValueTask ReleaseAfterCompletionAsync(NodeId sessionId)
         {
             ClearReservationIfOwner(sessionId);
             try
             {
-                await ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+                using var timeout = new CancellationTokenSource(m_renewInterval);
+                await ReconcileAsync(timeout.Token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -496,54 +627,43 @@ namespace Opc.Ua.Redundancy.Server
             await m_storeGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                // Read the hold/reservation state under the same gate that a
-                // successful AcquireTransactionOwnershipAsync sets it under, so a
-                // concurrent grant cannot slip a reservation in between this read
-                // and the store update below (which would otherwise let this pass
-                // delete a lease that was just acquired).
-                bool innerBusy = m_inner.IsTransactionActive || m_inner.HasOpenTrustListWriter;
-                bool holds;
-                long reservationDeadline;
+                LeaseConfirmation previous = GetConfirmation();
+                bool reserved;
                 lock (m_stateLock)
                 {
-                    holds = m_holdsLease;
-                    reservationDeadline = m_reservationDeadlineTicks;
-                }
-
-                (bool found, ByteString current) = await m_store
-                    .TryGetAsync(m_leaseKey, ct)
-                    .ConfigureAwait(false);
-                long now = NowTicks();
-                bool shouldHold = innerBusy || now < reservationDeadline;
-                bool parsed = TryParseLease(current, out string owner, out long expiry);
-                bool live = found && parsed && now < expiry;
-                bool ownedBySelf = live && IsSelf(owner);
-                bool foreignOwner = live && !IsSelf(owner);
-
-                if (shouldHold)
-                {
-                    if (foreignOwner)
+                    if (m_disposed)
                     {
-                        // Another replica owns the transaction; back off and let
-                        // the synchronous guards reject local staging.
-                        SetLeaseState(holdsLease: false, foreignOwner: true);
                         return;
                     }
-
-                    ByteString newLease = EncodeLease(m_replicaId, now + m_leaseDuration.Ticks);
-                    ByteString expected = found ? current : default;
-                    bool renewed = await m_store
-                        .CompareAndSwapAsync(m_leaseKey, expected, newLease, ct)
-                        .ConfigureAwait(false);
-                    SetLeaseState(holdsLease: renewed, foreignOwner: false);
-                    return;
+                    reserved = HasReservation();
                 }
 
-                if (holds && ownedBySelf)
+                if (IsLive(previous))
                 {
-                    await m_store.DeleteAsync(m_leaseKey, ct).ConfigureAwait(false);
+                    if ((m_inner.IsTransactionActive || m_inner.HasOpenTrustListWriter || reserved) &&
+                        m_leaderElection?.IsLeader != false)
+                    {
+                        if (!await TryWriteLeaseAsync(previous.Value, previous, ct).ConfigureAwait(false))
+                        {
+                            InvalidateLease();
+                        }
+                    }
+                    else
+                    {
+                        bool released = await SwapLeaseAsync(previous.Value, default, ct).ConfigureAwait(false);
+                        InvalidateLease(unavailable: !released);
+                    }
                 }
-                SetLeaseState(holdsLease: false, foreignOwner: foreignOwner);
+                else
+                {
+                    (bool found, ByteString current) = await ReadLeaseAsync(ct).ConfigureAwait(false);
+                    InvalidateLease(unavailable: found && !IsVacant(current, NowTicks()));
+                }
+            }
+            catch
+            {
+                InvalidateLease();
+                throw;
             }
             finally
             {
@@ -553,36 +673,34 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask ReleaseIfOwnedAsync(CancellationToken ct)
         {
-            await m_storeGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                (bool found, ByteString current) = await m_store
-                    .TryGetAsync(m_leaseKey, ct)
-                    .ConfigureAwait(false);
-                if (found &&
-                    TryParseLease(current, out string owner, out _) &&
-                    IsSelf(owner))
+                await m_storeGate.WaitAsync(ct).ConfigureAwait(false);
+                try
                 {
-                    await m_store.DeleteAsync(m_leaseKey, ct).ConfigureAwait(false);
+                    LeaseConfirmation previous = GetConfirmation();
+                    if (!previous.Value.IsNull)
+                    {
+                        _ = await SwapLeaseAsync(previous.Value, default, ct).ConfigureAwait(false);
+                    }
+                    InvalidateLease();
                 }
-                SetLeaseState(holdsLease: false, foreignOwner: false);
+                finally
+                {
+                    m_storeGate.Release();
+                }
             }
             catch (Exception ex)
             {
                 m_logger.FailedToReleaseDistributedLease(ex, m_replicaId);
             }
-            finally
-            {
-                m_storeGate.Release();
-            }
         }
 
         private void ReserveOwnership(NodeId sessionId)
         {
-            long now = NowTicks();
             lock (m_stateLock)
             {
-                m_reservationDeadlineTicks = now + m_reservationTimeout.Ticks;
+                m_reservedAt = m_timeProvider.GetTimestamp();
                 m_reservationOwner = sessionId;
             }
         }
@@ -593,39 +711,99 @@ namespace Opc.Ua.Redundancy.Server
             {
                 if (Utils.IsEqual(sessionId, m_reservationOwner))
                 {
-                    m_reservationDeadlineTicks = 0;
                     m_reservationOwner = NodeId.Null;
                 }
             }
         }
 
-        private void SetLeaseState(bool holdsLease, bool foreignOwner)
+        private bool HasReservation()
+        {
+            return !m_reservationOwner.IsNull &&
+                m_timeProvider.GetElapsedTime(m_reservedAt) < m_reservationTimeout;
+        }
+
+        private LeaseConfirmation GetConfirmation()
         {
             lock (m_stateLock)
             {
-                m_holdsLease = holdsLease;
-                m_foreignOwner = foreignOwner;
+                return m_confirmation;
             }
         }
 
-        private void ThrowIfForeignOwner()
+        private void InvalidateLease(bool unavailable = true)
         {
-            bool foreign;
             lock (m_stateLock)
             {
-                foreign = m_foreignOwner;
+                m_confirmation = default;
+                m_unavailable = unavailable;
+                m_reservationOwner = NodeId.Null;
             }
-            if (foreign)
+        }
+
+        private bool IsLive(LeaseConfirmation proof)
+        {
+            return !proof.Value.IsNull && NowTicks() < proof.Expiry &&
+                m_timeProvider.GetElapsedTime(proof.Timestamp) < m_leaseDuration;
+        }
+
+        private async ValueTask<bool> TryWriteLeaseAsync(
+            ByteString expected,
+            LeaseConfirmation? previous,
+            CancellationToken ct)
+        {
+            long timestamp = m_timeProvider.GetTimestamp();
+            long now = NowTicks();
+            if ((previous.HasValue && !IsLive(previous.Value)) ||
+                now > DateTimeOffset.MaxValue.UtcTicks - m_leaseDuration.Ticks)
             {
-                ThrowTransactionPending();
+                return false;
             }
+            long expiry = now + m_leaseDuration.Ticks;
+            ByteString next = EncodeLease(now, expiry);
+            if (!await SwapLeaseAsync(expected, next, ct).ConfigureAwait(false))
+            {
+                return false;
+            }
+            ct.ThrowIfCancellationRequested();
+            if (m_leaderElection?.IsLeader == false)
+            {
+                return false;
+            }
+            var proof = new LeaseConfirmation(next, timestamp, expiry);
+            lock (m_stateLock)
+            {
+                if (m_disposed || !IsLive(proof) || (previous.HasValue && !IsLive(previous.Value)))
+                {
+                    return false;
+                }
+                m_confirmation = proof;
+                m_unavailable = false;
+                return true;
+            }
+        }
+
+        private Task<bool> ConfirmLeadershipAsync(CancellationToken ct)
+        {
+            return m_leaderElection == null
+                ? Task.FromResult(true)
+                : m_leaderElection.TryAcquireOrRenewAsync(ct).AsTask().WaitAsync(ct);
+        }
+
+        private Task<(bool Found, ByteString Value)> ReadLeaseAsync(CancellationToken ct)
+        {
+            return m_store.TryGetAsync(m_leaseKey, ct).AsTask().WaitAsync(ct);
+        }
+
+        private Task<bool> SwapLeaseAsync(ByteString expected, ByteString value, CancellationToken ct)
+        {
+            return m_store.CompareAndSwapAsync(m_leaseKey, expected, value, ct).AsTask().WaitAsync(ct);
         }
 
         private static void ThrowTransactionPending()
         {
             throw new ServiceResultException(
                 StatusCodes.BadTransactionPending,
-                "Another replica already owns the active PushManagement configuration transaction.");
+                "This replica could not confirm ownership of the PushManagement transaction lease.");
         }
 
         private void SignalReconcile()
@@ -640,56 +818,74 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private bool IsSelf(string owner)
-        {
-            return string.Equals(owner, m_replicaId, StringComparison.Ordinal);
-        }
-
         private long NowTicks()
         {
             return m_timeProvider.GetUtcNow().UtcTicks;
         }
 
-        private static ByteString EncodeLease(string owner, long expiryUtcTicks)
+        private ByteString EncodeLease(long issuedTicks, long expiryTicks)
         {
-            byte[] ownerBytes = Encoding.UTF8.GetBytes(owner);
-            byte[] buffer = new byte[4 + ownerBytes.Length + 8];
-            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(0, 4), ownerBytes.Length);
-            ownerBytes.CopyTo(buffer, 4);
-            BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(4 + ownerBytes.Length, 8), expiryUtcTicks);
+            byte[] buffer = new byte[sizeof(int) + m_ownerBytes.Length + kLeaseFieldsLength];
+            BinaryPrimitives.WriteInt32LittleEndian(buffer, m_ownerBytes.Length);
+            m_ownerBytes.CopyTo(buffer, sizeof(int));
+            int offset = sizeof(int) + m_ownerBytes.Length;
+            BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset), issuedTicks);
+            BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset + sizeof(long)), expiryTicks);
+            Guid.NewGuid().ToByteArray().CopyTo(buffer, offset + 2 * sizeof(long));
             return new ByteString(buffer);
         }
 
-        private static bool TryParseLease(ByteString raw, out string owner, out long expiryUtcTicks)
+        private bool IsVacant(ByteString raw, long nowTicks)
         {
-            owner = string.Empty;
-            expiryUtcTicks = 0;
-            if (raw.IsNull)
+            ReadOnlySpan<byte> bytes = raw.Span;
+            int ownerSize = bytes.Length - sizeof(int) - kLeaseFieldsLength;
+            if (ownerSize <= 0 || BinaryPrimitives.ReadInt32LittleEndian(bytes) != ownerSize)
             {
                 return false;
             }
-            byte[] bytes = raw.ToArray();
-            if (bytes.Length < 4)
+            string owner;
+            try
+            {
+                owner = s_leaseEncoding.GetString(bytes.Slice(sizeof(int), ownerSize).ToArray());
+            }
+            catch (DecoderFallbackException)
             {
                 return false;
             }
-            int ownerLength = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(0, 4));
-            if (ownerLength < 0 || bytes.Length < 4 + ownerLength + 8)
+            if (string.IsNullOrWhiteSpace(owner) || (m_memberIds != null && !m_memberIds.Contains(owner)))
             {
                 return false;
             }
-            owner = Encoding.UTF8.GetString(bytes, 4, ownerLength);
-            expiryUtcTicks = BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(4 + ownerLength, 8));
-            return true;
+            ReadOnlySpan<byte> fields = bytes[(sizeof(int) + ownerSize)..];
+            long issuedTicks = BinaryPrimitives.ReadInt64LittleEndian(fields);
+            long expiryTicks = BinaryPrimitives.ReadInt64LittleEndian(fields[sizeof(long)..]);
+            return !fields[(2 * sizeof(long))..].SequenceEqual(s_emptyGuid) &&
+                issuedTicks >= 0 && expiryTicks > issuedTicks && expiryTicks <= nowTicks &&
+                expiryTicks - issuedTicks <= m_leaseDuration.Ticks;
         }
 
+        private static FreshnessProtectedKeyValueStore RequireProtectedStore(ISharedKeyValueStore store)
+        {
+            if (store == null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+            return store as FreshnessProtectedKeyValueStore ??
+                throw new ArgumentException(
+                    "Distributed PushManagement requires a freshness-protected store.", nameof(store));
+        }
+
+        private const int kLeaseFieldsLength = 2 * sizeof(long) + 16;
+        private static readonly byte[] s_emptyGuid = Guid.Empty.ToByteArray();
+        private static readonly UTF8Encoding s_leaseEncoding = new(false, true);
         private readonly IPushConfigurationTransactionCoordinator m_inner;
         private readonly ISharedKeyValueStore m_store;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly ILeaderElection? m_leaderElection;
-        private readonly bool m_requireLeadership;
         private readonly string m_replicaId;
+        private readonly byte[] m_ownerBytes;
+        private readonly HashSet<string>? m_memberIds;
         private readonly string m_leaseKey;
         private readonly TimeSpan m_leaseDuration;
         private readonly TimeSpan m_renewInterval;
@@ -699,11 +895,13 @@ namespace Opc.Ua.Redundancy.Server
         private readonly SemaphoreSlim m_wake = new(0, 1);
         private readonly CancellationTokenSource m_cts = new();
         private readonly Task? m_loop;
-        private bool m_holdsLease;
-        private bool m_foreignOwner;
-        private long m_reservationDeadlineTicks;
+        private LeaseConfirmation m_confirmation;
+        private bool m_unavailable;
+        private long m_reservedAt;
         private NodeId m_reservationOwner = NodeId.Null;
         private bool m_disposed;
+
+        private readonly record struct LeaseConfirmation(ByteString Value, long Timestamp, long Expiry);
     }
 
     internal static partial class DistributedPushConfigurationTransactionCoordinatorLog

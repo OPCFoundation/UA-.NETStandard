@@ -48,6 +48,7 @@ namespace Opc.Ua.PubSub.Groups
         // between the two reservations.
         private readonly SemaphoreSlim m_publishLock = new(1, 1);
         private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
+        private IPubSubActivationFenceProvider? m_activationFences;
         private IPubSubWriterCheckpointStore m_checkpointStore = NullPubSubWriterCheckpointStore.Instance;
         private string m_componentId = string.Empty;
         private bool m_roleChangedSubscribed;
@@ -162,6 +163,11 @@ namespace Opc.Ua.PubSub.Groups
         public Func<PubSubNetworkMessage, CancellationToken, ValueTask>? PublishSink { get; set; }
 
         /// <summary>
+        /// Gets the component identity used by the activation coordinator.
+        /// </summary>
+        internal string ActivationComponentId => m_componentId;
+
+        /// <summary>
         /// Reserves <paramref name="count"/> consecutive NetworkMessage
         /// SequenceNumbers from the group counter, e.g. for the additional
         /// chunk NetworkMessages a NetworkMessage is split into, which each
@@ -244,10 +250,26 @@ namespace Opc.Ua.PubSub.Groups
             await m_publishLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (Volatile.Read(ref m_restorePending) == 1)
+                IPubSubActivationFenceProvider? fences = m_activationFences;
+                string componentId = m_componentId;
+                long fence = 0;
+                if (fences is not null &&
+                    (!fences.TryGetActiveFence(componentId, out fence) || fence <= 0))
                 {
-                    await RestoreSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
-                    Interlocked.Exchange(ref m_restorePending, 0);
+                    return;
+                }
+
+                if (Interlocked.Exchange(ref m_restorePending, 0) == 1)
+                {
+                    try
+                    {
+                        await RestoreSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        Interlocked.Exchange(ref m_restorePending, 1);
+                        throw;
+                    }
                 }
 
                 var dataSetMessages = new List<PubSubDataSetMessage>(m_writers.Count);
@@ -312,14 +334,20 @@ namespace Opc.Ua.PubSub.Groups
                     }
                 }
                 PubSubNetworkMessage networkMessage = BuildNetworkMessage(dataSetMessages);
+                if (fences is not null && !HasFence(fences, componentId, fence))
+                {
+                    return;
+                }
+
                 await PublishSink(networkMessage, cancellationToken)
                     .ConfigureAwait(false);
                 Interlocked.Exchange(ref m_lastPublishedTicks, m_timeProvider.GetTimestamp());
                 long nowTicks = m_timeProvider.GetTimestamp();
-                if (m_timeProvider.GetElapsedTime(m_lastCheckpointTicks, nowTicks) >= kCheckpointInterval)
+                if (m_timeProvider.GetElapsedTime(m_lastCheckpointTicks, nowTicks) >= kCheckpointInterval &&
+                    await CheckpointSequenceNumbersAsync(fences, componentId, fence, cancellationToken)
+                        .ConfigureAwait(false))
                 {
                     m_lastCheckpointTicks = nowTicks;
-                    await CheckpointSequenceNumbersAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
@@ -338,7 +366,8 @@ namespace Opc.Ua.PubSub.Groups
 
         internal void ConfigureActivationCoordinator(
             string componentId,
-            IPubSubActivationCoordinator? activationCoordinator)
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubActivationFenceProvider? activationFences = null)
         {
             if (string.IsNullOrEmpty(componentId))
             {
@@ -352,6 +381,7 @@ namespace Opc.Ua.PubSub.Groups
                 previous = m_activationCoordinator;
                 unsubscribe = m_roleChangedSubscribed;
                 m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
+                m_activationFences = activationFences ?? m_activationCoordinator as IPubSubActivationFenceProvider;
                 m_componentId = componentId;
                 m_roleChangedSubscribed = false;
             }
@@ -478,29 +508,47 @@ namespace Opc.Ua.PubSub.Groups
             }
         }
 
-        private async ValueTask CheckpointSequenceNumbersAsync(CancellationToken cancellationToken)
+        private async ValueTask<bool> CheckpointSequenceNumbersAsync(
+            IPubSubActivationFenceProvider? fences,
+            string componentId,
+            long fence,
+            CancellationToken cancellationToken)
         {
             IPubSubWriterCheckpointStore store;
-            string componentId;
             lock (m_gate)
             {
                 store = m_checkpointStore;
-                componentId = m_componentId;
             }
             if (store is NullPubSubWriterCheckpointStore)
             {
-                return;
+                return true;
             }
 
             foreach (KeyValuePair<ushort, WriterRuntimeState> entry in m_writerState)
             {
-                await store.SetSequenceNumberAsync(
-                    componentId,
-                    entry.Key,
-                    entry.Value.SequenceNumber,
-                    cancellationToken)
-                    .ConfigureAwait(false);
+                if (fences is not null)
+                {
+                    if (!HasFence(fences, componentId, fence))
+                    {
+                        return false;
+                    }
+                    await store.SetSequenceNumberAsync(
+                        componentId, entry.Key, entry.Value.SequenceNumber, fence, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await store.SetSequenceNumberAsync(
+                        componentId, entry.Key, entry.Value.SequenceNumber, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
+            return true;
+        }
+
+        private static bool HasFence(IPubSubActivationFenceProvider fences, string componentId, long fence)
+        {
+            return fences.TryGetActiveFence(componentId, out long current) && current == fence;
         }
 
         private async ValueTask<PubSubDataSetMessage?> BuildDataSetMessageAsync(

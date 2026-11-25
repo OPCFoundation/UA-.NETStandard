@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -25,6 +27,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
     [Parallelizable(ParallelScope.All)]
     public sealed class DistributedBuilderExtensionsTests
     {
+        /// <summary>
+        /// A local definition route does not exempt other subscription records from requiring freshness.
+        /// </summary>
+        [Test]
+        public async Task SubscriptionRegistrationRejectsHybridWithUnknownBulkLocalityAsync()
+        {
+            using var localDefinitions = new InMemorySharedKeyValueStore();
+            ISharedKeyValueStore unknownBulk = Mock.Of<ISharedKeyValueStore>();
+            await using var hybrid = new HybridSharedKeyValueStore(unknownBulk, localDefinitions, ["subscription/"]);
+            Assert.That(hybrid.IsProcessLocal("subscription/"), Is.True);
+            Assert.That(hybrid.IsProcessLocal("subscription-retransmission/"), Is.False);
+
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton<ISharedKeyValueStore>(hybrid);
+            builder.UseDistributedSubscriptionMirroring();
+            await using ServiceProvider services = builder.Services.BuildServiceProvider();
+            Assert.That(() => services.GetRequiredService<ISubscriptionStore>(),
+                Throws.InvalidOperationException.With.Message.Contains("independent freshness authority"));
+        }
+
         [Test]
         public void AddServerServiceLevelThrowsOnNullBuilder()
         {
@@ -172,12 +194,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             builder.Services.AddSingleton(context);
             builder.Services.AddSingleton(telemetry);
-
             builder.UseDistributedSubscriptionMirroring();
 
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
-            Assert.That(sp.GetRequiredService<ISubscriptionStore>(),
-                Is.InstanceOf<SharedKeyValueSubscriptionStore>());
+            ISubscriptionStore store = sp.GetRequiredService<ISubscriptionStore>();
+            Assert.That(store, Is.InstanceOf<SharedKeyValueSubscriptionStore>());
+            Assert.That(sp.GetService<IMonitoredItemQueueFactory>(), Is.Null);
+            Assert.That(await store.RestoreDataChangeMonitoredItemQueueAsync(1).ConfigureAwait(false), Is.Null);
+            Assert.That(await store.RestoreEventMonitoredItemQueueAsync(1).ConfigureAwait(false), Is.Null);
         }
 
         [Test]
@@ -203,21 +227,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             builder.AddRequestServerStateChange();
 
-            using ServiceProvider sp = builder.Services.BuildServiceProvider();
-            Assert.That(sp.GetServices<IServerStartupTask>().ToArray(),
-                Has.Some.InstanceOf<RequestServerStateChangeStartupTask>());
-        }
-
-        [Test]
-        public void AddManualFailoverDelegatesToRequestServerStateChange()
-        {
-            var builder = new DiTestServerBuilder();
-
-#pragma warning disable CS0618 // exercising the obsolete alias on purpose
-            IOpcUaServerBuilder result = builder.AddManualFailover();
-#pragma warning restore CS0618
-
-            Assert.That(result, Is.SameAs(builder));
             using ServiceProvider sp = builder.Services.BuildServiceProvider();
             Assert.That(sp.GetServices<IServerStartupTask>().ToArray(),
                 Has.Some.InstanceOf<RequestServerStateChangeStartupTask>());

@@ -255,20 +255,19 @@ public sealed class ConnectionProfileTests
     }
 
     [Test]
-    public void AutomaticFailoverCannotCarryATrustDecisionToAnotherEndpoint()
+    public async Task ConnectionBackendRejectsAnEndpointOutsideTheSelectedProfileAsync()
     {
         (EndpointDescription endpoint, ConnectionProfile profile) = CreateUserNameProfile();
-        var current = new ConfiguredEndpoint(null, endpoint, null);
-        var other = new ConfiguredEndpoint(null, (EndpointDescription)endpoint.Clone(), null);
-        other.Description.EndpointUrl = "opc.tcp://localhost:4901/other";
-        var information = new ServerRedundancyInfo { Mode = RedundancySupport.Hot };
-        var inner = new Mock<IServerRedundancyHandler>();
-        inner.Setup(value => value.SelectFailoverTarget(information, current)).Returns(other);
-        var handler = new ProfileRedundancyHandler(profile, inner.Object);
+        endpoint.EndpointUrl = "opc.tcp://localhost:4901/other";
+        ITelemetryContext telemetry = CreateMessageContext().Telemetry;
+        var configuration = new ApplicationConfiguration(telemetry);
+        await using var backend = new StackConnectionBackend(telemetry, _ => Task.FromResult(configuration));
 
-        Assert.That(
-            () => handler.SelectFailoverTarget(information, current),
-            Throws.InstanceOf<ServiceResultException>());
+        await Assert.ThatAsync(
+            () => backend.ConnectAsync(
+                configuration, endpoint, profile, Mock.Of<IClientIdentityProvider>(), CancellationToken.None),
+            Throws.InstanceOf<ServiceResultException>().With.Property("StatusCode")
+                .EqualTo(StatusCodes.BadSecurityPolicyRejected)).ConfigureAwait(false);
     }
 
     private static ServiceMessageContext CreateMessageContext()

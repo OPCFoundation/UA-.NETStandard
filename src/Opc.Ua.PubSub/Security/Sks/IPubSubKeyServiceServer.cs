@@ -28,6 +28,10 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <summary>
         /// Snapshot of every currently-registered SecurityGroupId.
         /// </summary>
+        /// <remarks>
+        /// This synchronous property is supported by process-local services. Use
+        /// <see cref="IAsyncPubSubSecurityGroupCatalog"/> when the store is shared.
+        /// </remarks>
         ArrayOf<string> SecurityGroupIds { get; }
 
         /// <summary>

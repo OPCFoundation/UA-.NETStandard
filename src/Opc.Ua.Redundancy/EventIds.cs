@@ -19,5 +19,6 @@ namespace Opc.Ua
     {
         public const int RaftLeaderElection = 0;
         public const int RaftSharedKeyValueStore = 10;
+        public const int ReplicatedSharedKeyValueStore = 30;
     }
 }

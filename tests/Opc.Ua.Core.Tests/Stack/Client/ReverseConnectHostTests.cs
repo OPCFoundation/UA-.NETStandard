@@ -301,7 +301,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(captured.MaxChannelCount, Is.EqualTo(ReverseConnectHost.kDefaultMaxChannelCount));
             Assert.That(captured.MaxChannelCount, Is.GreaterThan(0));
             Assert.That(captured.ConnectionRateLimiter, Is.Not.Null);
-            Assert.That(captured.HandshakeTimeout, Is.LessThanOrEqualTo(TimeSpan.FromMinutes(2)));
+            Assert.That(captured.HandshakeTimeout, Is.LessThanOrEqualTo(TimeSpan.FromSeconds(5)));
 
             IConnectionRateLimiter limiter = captured.ConnectionRateLimiter!;
             int admitted = 0;

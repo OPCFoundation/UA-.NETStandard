@@ -1402,7 +1402,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void RestoreQueueFallbacksReturnNull()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            ISubscriptionStore store = CreateStore(kv);
 
             Assert.That(store.RestoreDataChangeMonitoredItemQueue(1), Is.Null);
             Assert.That(store.RestoreEventMonitoredItemQueue(1), Is.Null);

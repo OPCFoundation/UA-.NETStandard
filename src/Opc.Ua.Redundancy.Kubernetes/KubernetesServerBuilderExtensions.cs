@@ -59,7 +59,6 @@ namespace Opc.Ua.Redundancy.Kubernetes
             configure?.Invoke(options);
 
             builder.Services.TryAddSingleton(_ => KubernetesApiClientFactory.Create(options.Kubernetes));
-            builder.Services.TryAddSingleton<ISharedKeyValueStore>(_ => new InMemorySharedKeyValueStore());
             builder.Services.RemoveAll<ILeaderElection>();
             builder.Services.AddSingleton<ILeaderElection>(sp =>
             {
@@ -73,13 +72,16 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 if (options.UseSharedStoreFallback)
                 {
                     return new SharedStoreLeaseElection(
-                        sp.GetRequiredService<ISharedKeyValueStore>(),
+                        sp.GetRequiredService<FreshnessProtectedKeyValueStore>(),
                         options.FallbackLeaseKey,
-                        options.Kubernetes.NodeId,
+                        options.FallbackNodeId,
+                        options.FallbackLeaseMemberIds,
                         options.LeaseDuration,
-                        options.RenewInterval);
+                        options.RenewInterval,
+                        sp.GetService<TimeProvider>());
                 }
-                return new StaticLeaderElection(false);
+                throw new InvalidOperationException(
+                    "Kubernetes lease election requires in-cluster credentials or an explicitly configured shared fallback.");
             });
 
             return builder;

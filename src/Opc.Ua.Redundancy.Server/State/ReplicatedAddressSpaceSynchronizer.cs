@@ -355,6 +355,7 @@ namespace Opc.Ua.Redundancy.Server
             ValidateRemoteState(remote);
             lock (m_lock)
             {
+                ReplicatedCrdtClock.Observe(m_clock, m_timeProvider, remote);
                 m_map.Merge(remote);
                 peerNeedsState = HasDifferentVisibleState(remote);
                 diffs = ComputeDiffsLocked();
@@ -914,7 +915,6 @@ namespace Opc.Ua.Redundancy.Server
                     return frame.AsMemory(8 + length);
                 }
             }
-            m_identity.RejectPeer();
             throw new ServiceResultException(StatusCodes.BadConfigurationError,
                 "The peer's replica-set identity, namespace layout or NodeId policy is incompatible.");
         }

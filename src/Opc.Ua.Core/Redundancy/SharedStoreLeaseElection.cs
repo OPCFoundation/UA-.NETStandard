@@ -4,6 +4,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,12 +20,12 @@ namespace Opc.Ua.Redundancy
     /// ("shared read, master write"). A leader that stops renewing loses the
     /// lease once it expires, allowing a standby to take over.
     /// </summary>
-    public sealed class SharedStoreLeaseElection : ILeaderElection
+    public sealed class SharedStoreLeaseElection : ILeaderElection, ISharedStoreWriteFenceSource
     {
         /// <summary>
-        /// Creates a lease election.
+        /// Creates a process-local lease election for isolated use.
         /// </summary>
-        /// <param name="store">The shared key/value backend.</param>
+        /// <param name="store">An explicitly supplied in-memory store.</param>
         /// <param name="leaseKey">The key holding the lease.</param>
         /// <param name="nodeId">This replica's unique identity.</param>
         /// <param name="leaseDuration">
@@ -43,18 +44,96 @@ namespace Opc.Ua.Redundancy
             TimeSpan renewInterval,
             TimeProvider? timeProvider = null,
             ILogger? logger = null)
+            : this(store, leaseKey, nodeId, leaseDuration, renewInterval, default, timeProvider, logger,
+                isolated: store is InMemorySharedKeyValueStore)
+        {
+        }
+
+        /// <summary>
+        /// Creates a shared lease election using an independently enrolled freshness authority.
+        /// </summary>
+        /// <param name="store">The freshness-protected view used by all replicas.</param>
+        /// <param name="leaseKey">The key holding the lease.</param>
+        /// <param name="nodeId">This replica's explicitly configured identity.</param>
+        /// <param name="memberIds">The same complete set of unique replica identities on every member.</param>
+        /// <param name="leaseDuration">The maximum lease lifetime.</param>
+        /// <param name="renewInterval">The interval between renewal attempts.</param>
+        /// <param name="timeProvider">Time source (defaults to system).</param>
+        /// <param name="logger">Optional logger.</param>
+        /// <remarks>
+        /// Replicas must use synchronized UTC clocks and agree on the maximum lease lifetime.
+        /// The payload store and the freshness authority must both be reachable by every replica.
+        /// </remarks>
+        public SharedStoreLeaseElection(
+            FreshnessProtectedKeyValueStore store,
+            string leaseKey,
+            string nodeId,
+            ArrayOf<string> memberIds,
+            TimeSpan leaseDuration,
+            TimeSpan renewInterval,
+            TimeProvider? timeProvider = null,
+            ILogger? logger = null)
+            : this(store, leaseKey, nodeId, leaseDuration, renewInterval, memberIds, timeProvider, logger,
+                isolated: false)
+        {
+        }
+
+        /// <summary>
+        /// Creates an election with an optional isolated-store seam for deterministic tests.
+        /// </summary>
+        internal SharedStoreLeaseElection(
+            ISharedKeyValueStore store,
+            string leaseKey,
+            string nodeId,
+            TimeSpan leaseDuration,
+            TimeSpan renewInterval,
+            ArrayOf<string> memberIds,
+            TimeProvider? timeProvider,
+            ILogger? logger,
+            bool isolated)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
-            if (string.IsNullOrEmpty(leaseKey))
+            if (string.IsNullOrWhiteSpace(leaseKey))
             {
                 throw new ArgumentException("Lease key must not be null or empty.", nameof(leaseKey));
             }
-            if (string.IsNullOrEmpty(nodeId))
+            if (string.IsNullOrWhiteSpace(nodeId))
             {
                 throw new ArgumentException("Node id must not be null or empty.", nameof(nodeId));
             }
+            if (!isolated && store is not FreshnessProtectedKeyValueStore)
+            {
+                throw new ArgumentException(
+                    "Shared lease election requires a freshness-protected store.", nameof(store));
+            }
+            if (leaseDuration <= TimeSpan.Zero || leaseDuration.TotalMilliseconds >= uint.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(leaseDuration));
+            }
+            if (renewInterval <= TimeSpan.Zero || renewInterval >= leaseDuration)
+            {
+                throw new ArgumentOutOfRangeException(nameof(renewInterval));
+            }
+            if (!isolated)
+            {
+                var members = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string member in memberIds)
+                {
+                    if (string.IsNullOrWhiteSpace(member) || !members.Add(member))
+                    {
+                        throw new ArgumentException("Lease members must have unique, nonempty ids.", nameof(memberIds));
+                    }
+                    _ = s_leaseEncoding.GetByteCount(member);
+                }
+                if (!members.Contains(nodeId))
+                {
+                    throw new ArgumentException("The local node id must be a configured lease member.", nameof(nodeId));
+                }
+                m_memberIds = members;
+            }
             m_leaseKey = leaseKey;
             m_nodeId = nodeId;
+            m_ownerBytes = s_leaseEncoding.GetBytes(nodeId);
             m_leaseDuration = leaseDuration;
             m_renewInterval = renewInterval;
             m_timeProvider = timeProvider ?? TimeProvider.System;
@@ -80,6 +159,30 @@ namespace Opc.Ua.Redundancy
         public event Action<bool>? LeadershipChanged;
 
         /// <inheritdoc/>
+        public bool TryCaptureWriteFence(
+            ISharedKeyValueStore store,
+            out string guardKey,
+            [NotNullWhen(true)] out Func<SharedStoreWriteGrant>? readBoundGrant)
+        {
+            if (store == null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+            guardKey = m_leaseKey;
+            readBoundGrant = null;
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(store, m_store) || !HasCurrentFenceLocked())
+                {
+                    return false;
+                }
+                Guid generation = m_writeFenceGeneration;
+                readBoundGrant = () => ReadBoundGrant(generation);
+                return true;
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
@@ -100,10 +203,11 @@ namespace Opc.Ua.Redundancy
 
             using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime);
             CancellationToken cancellationToken = cancellation.Token;
+            long confirmation = 0;
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!IsCurrentAttempt(attempt, out long confirmation))
+                if (!IsCurrentAttempt(attempt, out confirmation))
                 {
                     return false;
                 }
@@ -117,43 +221,48 @@ namespace Opc.Ua.Redundancy
                 long timestamp = m_timeProvider.GetTimestamp();
                 long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
 
-                bool canTake = !found;
-                if (found)
+                if (found &&
+                    (!TryParseLease(current, nowTicks, out bool ownIncarnation, out long expiryTicks) ||
+                        (!ownIncarnation && nowTicks < expiryTicks)))
                 {
-                    canTake = !TryParseLease(current, out string owner, out long expiryTicks) ||
-                        nowTicks >= expiryTicks ||
-                        string.Equals(owner, m_nodeId, StringComparison.Ordinal);
+                    return CompleteAttempt(attempt, confirmation, false, 0, 0);
                 }
-
-                if (!canTake)
+                if (nowTicks > DateTimeOffset.MaxValue.UtcTicks - m_leaseDuration.Ticks)
                 {
                     return CompleteAttempt(attempt, confirmation, false, 0, 0);
                 }
 
                 long newExpiryTicks = nowTicks + m_leaseDuration.Ticks;
-                ByteString newLease = EncodeLease(m_nodeId, newExpiryTicks);
+                ByteString newLease = EncodeLease(nowTicks, newExpiryTicks);
                 ByteString expected = found ? current : default;
                 bool acquired = await m_store
                     .CompareAndSwapAsync(m_leaseKey, expected, newLease, cancellationToken)
                     .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (acquired)
                 {
-                    return CompleteAttempt(attempt, confirmation, true, timestamp, newExpiryTicks);
+                    return CompleteAttempt(attempt, confirmation, true, timestamp, newExpiryTicks, expected, newLease);
                 }
                 if (!IsCurrentAttempt(attempt, out confirmation))
                 {
                     return false;
                 }
 
-                // A concurrent renewal may have won the CAS without changing ownership.
+                // A live record from this incarnation can only preserve an earlier acknowledged deadline.
                 (found, current) = await m_store.TryGetAsync(m_leaseKey, cancellationToken)
                     .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
                 long confirmedExpiry = 0;
                 bool stillOwned = found &&
-                    TryParseLease(current, out string confirmedOwner, out confirmedExpiry) &&
-                    string.Equals(confirmedOwner, m_nodeId, StringComparison.Ordinal) &&
-                    m_timeProvider.GetUtcNow().UtcTicks < confirmedExpiry;
-                return CompleteAttempt(attempt, confirmation, stillOwned, timestamp, confirmedExpiry);
+                    TryParseLease(current, nowTicks, out bool ownRecord, out confirmedExpiry) &&
+                    ownRecord && nowTicks < confirmedExpiry;
+                return CompleteAttempt(attempt, confirmation, false, 0, stillOwned ? confirmedExpiry : 0);
+            }
+            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadSecurityChecksFailed)
+            {
+                CompleteAttempt(attempt, confirmation, false, 0, 0);
+                throw;
             }
             finally
             {
@@ -261,8 +370,8 @@ namespace Opc.Ua.Redundancy
                     .TryGetAsync(m_leaseKey, cancellationToken)
                     .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
                 if (found &&
-                    TryParseLease(current, out string owner, out _) &&
-                    string.Equals(owner, m_nodeId, StringComparison.Ordinal))
+                    TryParseLease(current, m_timeProvider.GetUtcNow().UtcTicks, out bool ownIncarnation, out _) &&
+                    ownIncarnation)
                 {
                     await m_store.CompareAndSwapAsync(
                         m_leaseKey,
@@ -295,7 +404,14 @@ namespace Opc.Ua.Redundancy
         /// <summary>
         /// Confirms a current acquisition result only while its lease remains valid and schedules its expiry.
         /// </summary>
-        private bool CompleteAttempt(long attempt, long confirmation, bool acquired, long timestamp, long expiryTicks)
+        private bool CompleteAttempt(
+            long attempt,
+            long confirmation,
+            bool acquired,
+            long timestamp,
+            long expiryTicks,
+            ByteString predecessor = default,
+            ByteString grant = default)
         {
             bool confirmed = false;
             lock (m_lock)
@@ -307,6 +423,10 @@ namespace Opc.Ua.Redundancy
                     {
                         // A newer confirmation supersedes this failed observation without restarting its lease.
                         return m_isLeader;
+                    }
+                    if (!acquired && m_isLeader && expiryTicks >= m_confirmedExpiryTicks)
+                    {
+                        return true;
                     }
                     if (acquired &&
                         m_isLeader &&
@@ -332,6 +452,12 @@ namespace Opc.Ua.Redundancy
                     m_isLeader = confirmed;
                     if (confirmed)
                     {
+                        // Only an acknowledged CAS from the prior grant proves acquisition continuity.
+                        if (!wasLeader || predecessor != m_confirmedGrant)
+                        {
+                            m_writeFenceGeneration = Guid.NewGuid();
+                        }
+                        m_confirmedGrant = grant;
                         ++m_confirmation;
                         m_confirmedTimestamp = confirmedTimestamp;
                         m_confirmedExpiryTicks = expiryTicks;
@@ -350,6 +476,20 @@ namespace Opc.Ua.Redundancy
                 }
             }
             return confirmed;
+        }
+
+        private bool HasCurrentFenceLocked() => !m_disposed && m_isLeader && !m_confirmedGrant.IsNull &&
+            GetRemainingLeaseTime(m_confirmedTimestamp, m_confirmedExpiryTicks) > TimeSpan.Zero;
+
+        private SharedStoreWriteGrant ReadBoundGrant(Guid generation)
+        {
+            lock (m_lock)
+            {
+                return generation == m_writeFenceGeneration && HasCurrentFenceLocked()
+                    ? new SharedStoreWriteGrant(
+                        m_confirmedGrant, new DateTimeOffset(m_confirmedExpiryTicks, TimeSpan.Zero))
+                    : default;
+            }
         }
 
         /// <summary>
@@ -471,39 +611,65 @@ namespace Opc.Ua.Redundancy
             }
         }
 
-        private static ByteString EncodeLease(string owner, long expiryUtcTicks)
+        private ByteString EncodeLease(long issuedTicks, long expiryUtcTicks)
         {
-            byte[] ownerBytes = Encoding.UTF8.GetBytes(owner);
-            byte[] buffer = new byte[4 + ownerBytes.Length + 8];
-            BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(0, 4), ownerBytes.Length);
-            ownerBytes.CopyTo(buffer, 4);
-            BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(4 + ownerBytes.Length, 8), expiryUtcTicks);
+            byte[] buffer = new byte[sizeof(int) + m_ownerBytes.Length + kLeaseFieldsLength];
+            BinaryPrimitives.WriteInt32LittleEndian(buffer, m_ownerBytes.Length);
+            m_ownerBytes.CopyTo(buffer, sizeof(int));
+            int offset = sizeof(int) + m_ownerBytes.Length;
+            BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset), issuedTicks);
+            BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(offset + sizeof(long)), expiryUtcTicks);
+            m_incarnation.CopyTo(buffer, offset + 2 * sizeof(long));
+            Guid.NewGuid().ToByteArray().CopyTo(buffer, offset + 2 * sizeof(long) + kGuidLength);
             return new ByteString(buffer);
         }
 
-        private static bool TryParseLease(ByteString raw, out string owner, out long expiryUtcTicks)
+        private bool TryParseLease(ByteString raw, long nowTicks, out bool ownIncarnation, out long expiryUtcTicks)
         {
-            owner = string.Empty;
+            ownIncarnation = false;
             expiryUtcTicks = 0;
-            byte[] bytes = raw.ToArray();
-            if (bytes.Length < 4 + 8)
+            ReadOnlySpan<byte> bytes = raw.Span;
+            int ownerSize = bytes.Length - sizeof(int) - kLeaseFieldsLength;
+            if (ownerSize <= 0 || BinaryPrimitives.ReadInt32LittleEndian(bytes) != ownerSize)
             {
                 return false;
             }
-            int ownerLength = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(0, 4));
-            // Compare without adding to ownerLength so a corrupt length cannot overflow the bound.
-            if (ownerLength < 0 || ownerLength > bytes.Length - 4 - 8)
+            string owner;
+            try
+            {
+                owner = s_leaseEncoding.GetString(bytes.Slice(sizeof(int), ownerSize).ToArray());
+            }
+            catch (DecoderFallbackException)
             {
                 return false;
             }
-            owner = Encoding.UTF8.GetString(bytes, 4, ownerLength);
-            expiryUtcTicks = BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(4 + ownerLength, 8));
-            return true;
+            if (string.IsNullOrWhiteSpace(owner) || (m_memberIds != null && !m_memberIds.Contains(owner)))
+            {
+                return false;
+            }
+            ReadOnlySpan<byte> fields = bytes[(sizeof(int) + ownerSize)..];
+            long issuedTicks = BinaryPrimitives.ReadInt64LittleEndian(fields);
+            expiryUtcTicks = BinaryPrimitives.ReadInt64LittleEndian(fields[sizeof(long)..]);
+            ownIncarnation = string.Equals(owner, m_nodeId, StringComparison.Ordinal) &&
+                fields.Slice(2 * sizeof(long), kGuidLength).SequenceEqual(m_incarnation);
+            return !fields.Slice(2 * sizeof(long), kGuidLength).SequenceEqual(s_emptyGuid) &&
+                !fields[(2 * sizeof(long) + kGuidLength)..].SequenceEqual(s_emptyGuid) &&
+                issuedTicks >= 0 &&
+                (issuedTicks <= nowTicks || (ownIncarnation && issuedTicks - nowTicks <= m_leaseDuration.Ticks)) &&
+                expiryUtcTicks > issuedTicks && expiryUtcTicks <= DateTimeOffset.MaxValue.UtcTicks &&
+                expiryUtcTicks - issuedTicks <= m_leaseDuration.Ticks;
         }
 
+        private const int kGuidLength = 16;
+        private const int kLeaseFieldsLength = 2 * sizeof(long) + 2 * kGuidLength;
+        private static readonly byte[] s_emptyGuid = Guid.Empty.ToByteArray();
+        private static readonly UTF8Encoding s_leaseEncoding = new(false, true);
         private readonly ISharedKeyValueStore m_store;
         private readonly string m_leaseKey;
         private readonly string m_nodeId;
+        private readonly byte[] m_ownerBytes;
+        private readonly byte[] m_incarnation = Guid.NewGuid().ToByteArray();
+        private readonly HashSet<string>? m_memberIds;
         private readonly TimeSpan m_leaseDuration;
         private readonly TimeSpan m_renewInterval;
         private readonly TimeProvider m_timeProvider;
@@ -536,6 +702,8 @@ namespace Opc.Ua.Redundancy
         /// Stores the UTC expiry ticks encoded in the last confirmed lease.
         /// </summary>
         private long m_confirmedExpiryTicks;
+        private Guid m_writeFenceGeneration;
+        private ByteString m_confirmedGrant;
         private bool m_isLeader;
         private bool m_started;
         private bool m_disposed;

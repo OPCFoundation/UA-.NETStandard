@@ -49,10 +49,8 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// The last <c>serverNonce</c> issued for the session — the value the
-        /// client signs on its next <c>ActivateSession</c>. Single-use: a
-        /// standby must invalidate it (via an
-        /// <see cref="ISingleUseNonceRegistry"/>) when it consumes it on
-        /// restore so a captured activation cannot be replayed.
+        /// client signs on its next <c>ActivateSession</c>. A successful
+        /// activation atomically replaces it in the committed session entry.
         /// </summary>
         public ByteString ServerNonce { get; init; }
 

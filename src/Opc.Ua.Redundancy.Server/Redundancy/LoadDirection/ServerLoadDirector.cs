@@ -31,12 +31,26 @@ namespace Opc.Ua.Redundancy.Server
             ILoadWeightProvider loadWeightProvider,
             LoadDirectionOptions options,
             ILogger<ServerLoadDirector>? logger = null)
+            : this(serviceLevelProvider, loadWeightProvider, options, logger, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates the director with an explicit clock for scheduling endpoint refreshes on discovery.
+        /// </summary>
+        public ServerLoadDirector(
+            IServiceLevelProvider serviceLevelProvider,
+            ILoadWeightProvider loadWeightProvider,
+            LoadDirectionOptions options,
+            ILogger<ServerLoadDirector>? logger,
+            TimeProvider timeProvider)
         {
             m_serviceLevelProvider = serviceLevelProvider
                 ?? throw new ArgumentNullException(nameof(serviceLevelProvider));
             m_loadWeightProvider = loadWeightProvider ?? throw new ArgumentNullException(nameof(loadWeightProvider));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_logger = logger;
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         }
 
         /// <summary>
@@ -54,12 +68,33 @@ namespace Opc.Ua.Redundancy.Server
             IPeerEndpointPublisher endpointPublisher,
             string localServerUri)
         {
+            ConfigureCore(policy, endpointDirectory,
+                endpointPublisher ?? throw new ArgumentNullException(nameof(endpointPublisher)), localServerUri);
+        }
+
+        /// <summary>
+        /// Activates redirection without publishing request-filtered endpoint snapshots.
+        /// </summary>
+        internal void ConfigureForHostedPublishing(
+            IServerDirectionPolicy policy,
+            IPeerEndpointDirectory endpointDirectory,
+            string localServerUri)
+        {
+            ConfigureCore(policy, endpointDirectory, null, localServerUri);
+        }
+
+        private void ConfigureCore(
+            IServerDirectionPolicy policy,
+            IPeerEndpointDirectory endpointDirectory,
+            IPeerEndpointPublisher? endpointPublisher,
+            string localServerUri)
+        {
             m_endpointDirectory = endpointDirectory ?? throw new ArgumentNullException(nameof(endpointDirectory));
-            m_endpointPublisher = endpointPublisher ?? throw new ArgumentNullException(nameof(endpointPublisher));
             if (string.IsNullOrEmpty(localServerUri))
             {
                 throw new ArgumentException("The local ServerUri must be provided.", nameof(localServerUri));
             }
+            m_endpointPublisher = endpointPublisher;
             m_localServerUri = localServerUri;
             m_policy = policy ?? throw new ArgumentNullException(nameof(policy));
         }
@@ -104,7 +139,7 @@ namespace Opc.Ua.Redundancy.Server
                 return (false, default);
             }
 
-            if (target == null)
+            if (target == null || string.Equals(target, localServerUri, StringComparison.Ordinal))
             {
                 return (false, default);
             }
@@ -122,7 +157,9 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             // Fail safe: without the target's endpoints we cannot direct the Client, so serve locally.
-            return peerEndpoints.Count == 0 ? (false, default) : (true, peerEndpoints);
+            return LoadDirectionRecordValidation.MatchesMember(peerEndpoints, target)
+                ? (true, peerEndpoints)
+                : (false, default);
         }
 
         private async ValueTask MaybePublishLocalEndpointsAsync(
@@ -130,25 +167,36 @@ namespace Opc.Ua.Redundancy.Server
             CancellationToken cancellationToken)
         {
             IPeerEndpointPublisher? publisher = m_endpointPublisher;
-            if (publisher == null || localEndpoints.Count == 0)
+            if (publisher == null ||
+                m_localServerUri is not string localServerUri ||
+                !LoadDirectionRecordValidation.MatchesMember(localEndpoints, localServerUri) ||
+                Interlocked.CompareExchange(ref m_publishInProgress, 1, 0) != 0)
             {
                 return;
             }
-
-            string signature = ComputeSignature(localEndpoints);
-            if (string.Equals(Volatile.Read(ref m_lastPublishedSignature), signature, StringComparison.Ordinal))
-            {
-                return;
-            }
-            Volatile.Write(ref m_lastPublishedSignature, signature);
 
             try
             {
+                string signature = ComputeSignature(localEndpoints);
+                long timestamp = m_timeProvider.GetTimestamp();
+                if (string.Equals(m_lastPublishedSignature, signature, StringComparison.Ordinal) &&
+                    m_timeProvider.GetElapsedTime(m_lastPublishTimestamp, timestamp).Ticks <
+                        m_options.StalenessWindow.Ticks / 2)
+                {
+                    return;
+                }
+
                 await publisher.PublishAsync(localEndpoints, cancellationToken).ConfigureAwait(false);
+                m_lastPublishedSignature = signature;
+                m_lastPublishTimestamp = timestamp;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 m_logger?.FailedToPublishLocalEndpointsForLoadDirection(ex);
+            }
+            finally
+            {
+                Volatile.Write(ref m_publishInProgress, 0);
             }
         }
 
@@ -187,11 +235,14 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ILoadWeightProvider m_loadWeightProvider;
         private readonly LoadDirectionOptions m_options;
         private readonly ILogger<ServerLoadDirector>? m_logger;
+        private readonly TimeProvider m_timeProvider;
         private IServerDirectionPolicy? m_policy;
         private IPeerEndpointDirectory? m_endpointDirectory;
         private IPeerEndpointPublisher? m_endpointPublisher;
         private string? m_localServerUri;
         private string? m_lastPublishedSignature;
+        private long m_lastPublishTimestamp;
+        private int m_publishInProgress;
     }
 
     /// <summary>

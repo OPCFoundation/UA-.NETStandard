@@ -12,12 +12,15 @@
 #pragma warning disable CA2007
 
 using System;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
 
@@ -60,11 +63,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.ArgumentNullException);
             Assert.That(
                 () => new DistributedPushConfigurationTransactionCoordinator(
-                    null, store, null!, m_telemetry, time),
+                    null, store, null!, m_telemetry, time, null, startRenewLoop: false),
                 Throws.ArgumentNullException);
             Assert.That(
                 () => new DistributedPushConfigurationTransactionCoordinator(
-                    null, store, options, null!, time),
+                    null, store, options, null!, time, null, startRenewLoop: false),
                 Throws.ArgumentNullException);
         }
 
@@ -273,7 +276,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task ForeignOwnerGuardRejectsLocalStageAndValidateAsync()
+        public async Task ForeignOwnerGuardRejectsLocalStageValidationAndConfigurationFileOpenAsync()
         {
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
@@ -291,6 +294,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(
                 () => b.Stage(Session("s2"), NoopOperation()),
                 Throws.TypeOf<ServiceResultException>());
+            Assert.That(
+                () => b.OpenConfigurationFileWrite(new NodeId(42), Session("s2")),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadTransactionPending));
+            Assert.That(b.HasOpenTrustListWriter, Is.False);
         }
 
         [Test]
@@ -518,6 +527,283 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
+        [Test]
+        public async Task LostAcquisitionReplyDoesNotReserveOrStageAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var stores = new LeaseStores();
+            await stores.Store.EnrollAsync();
+            await using DistributedPushConfigurationTransactionCoordinator replica = Create(stores.Store, "A", time);
+            NodeId session = Session("s1");
+            stores.LoseNextWriteReply = true;
+
+            await Assert.ThatAsync(async () => await replica.AcquireTransactionOwnershipAsync(session),
+                Throws.TypeOf<TimeoutException>());
+            Assert.That((await stores.Store.TryGetAsync(LeaseKey())).Found, Is.True);
+            await replica.ReconcileNowAsync();
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(replica.HoldsLease, Is.False);
+                Assert.That(() => replica.Stage(session, NoopOperation()), Throws.TypeOf<ServiceResultException>());
+            }
+        }
+
+        [TestCase("retired", 30)]
+        [TestCase("B", 300)]
+        public async Task UnrecognizedOrOverlongMembershipRecordDoesNotBecomeVacantAsync(string owner, int leaseSeconds)
+        {
+            var time = new FakeTimeProvider();
+            using var stores = new LeaseStores();
+            await stores.Store.EnrollAsync();
+            DistributedPushConfigurationOptions options = NewOptions(owner);
+            options.LeaseMemberIds = ["A", owner];
+            options.LeaseDuration = TimeSpan.FromSeconds(leaseSeconds);
+            await using var oldOwner = new DistributedPushConfigurationTransactionCoordinator(
+                null, stores.Store, options, m_telemetry, time, null, startRenewLoop: false);
+            await using DistributedPushConfigurationTransactionCoordinator standby = Create(stores.Store, "A", time);
+            await oldOwner.AcquireTransactionOwnershipAsync(Session("old"));
+            var original = await stores.Store.TryGetAsync(LeaseKey());
+            time.Advance(options.LeaseDuration);
+
+            Assert.That(await TryAcquireAsync(standby, Session("new")), Is.False);
+            Assert.That(await stores.Store.TryGetAsync(LeaseKey()), Is.EqualTo(original));
+        }
+
+        [Test]
+        public async Task BlockedRenewalDoesNotKeepTransactionActiveAfterExpiryAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var stores = new LeaseStores();
+            await stores.Store.EnrollAsync();
+            await using DistributedPushConfigurationTransactionCoordinator owner = Create(stores.Store, "A", time);
+            NodeId session = Session("owner");
+            await owner.AcquireTransactionOwnershipAsync(session);
+            owner.Stage(session, NoopOperation());
+            Assert.That(owner.IsTransactionActive, Is.True);
+            var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            stores.PendingWrite = pending.Task;
+            using var cancellation = new CancellationTokenSource();
+            time.Advance(s_renewInterval);
+            Task renewal = owner.ReconcileNowAsync(cancellation.Token).AsTask();
+            try
+            {
+                Assert.That(renewal.IsCompleted, Is.False);
+                time.Advance(s_leaseDuration - s_renewInterval);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(owner.IsTransactionActive, Is.False);
+                    Assert.That(owner.HoldsLease, Is.False);
+                    Assert.That(() => owner.Stage(session, NoopOperation()), Throws.TypeOf<ServiceResultException>());
+                }
+            }
+            finally
+            {
+                cancellation.Cancel();
+                await Assert.ThatAsync(async () => await renewal, Throws.InstanceOf<OperationCanceledException>());
+                pending.TrySetCanceled();
+            }
+        }
+
+        [Test]
+        public async Task ExpiredTransactionCannotReacquireOrCommitAfterStandbyTakesOverAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var stores = new LeaseStores();
+            await stores.Store.EnrollAsync();
+            await using DistributedPushConfigurationTransactionCoordinator owner = Create(stores.Store, "A", time);
+            await using DistributedPushConfigurationTransactionCoordinator standby = Create(stores.Store, "B", time);
+            NodeId session = Session("owner");
+            await owner.AcquireTransactionOwnershipAsync(session);
+            bool committed = false;
+            owner.Stage(session, new PushConfigurationOperation
+            {
+                CommitAsync = _ =>
+                {
+                    committed = true;
+                    return Task.CompletedTask;
+                }
+            });
+            time.Advance(s_leaseDuration);
+            await standby.AcquireTransactionOwnershipAsync(Session("standby"));
+
+            ServiceResult result = await owner.ApplyChangesAsync(session);
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTransactionPending));
+            Assert.That(committed, Is.False);
+            await standby.DisposeAsync();
+            Assert.That(await TryAcquireAsync(owner, session), Is.False);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ConfirmedLeaseDoesNotPermitUnfencedTrustDelegatesAsync(bool issuerImport)
+        {
+            var time = new FakeTimeProvider();
+            using var stores = new LeaseStores();
+            await stores.Store.EnrollAsync();
+            await using DistributedPushConfigurationTransactionCoordinator owner = Create(stores.Store, "A", time);
+            NodeId session = Session("owner");
+            await owner.AcquireTransactionOwnershipAsync(session);
+            Assert.That(owner.HoldsLease, Is.True);
+
+            var publish = new Mock<Func<CancellationToken, Task>>(MockBehavior.Strict);
+            var rollback = new Mock<Func<CancellationToken, Task>>(MockBehavior.Strict);
+            var operation = new PushConfigurationOperation
+            {
+                AffectedTrustList = issuerImport ? NodeId.Null : new NodeId(42, 1),
+                WritesUnfencedTrustStore = issuerImport,
+                CommitAsync = publish.Object,
+                RollbackAsync = rollback.Object
+            };
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => owner.Stage(session, operation));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Assert.That(owner.GetStagedOperations().Count, Is.Zero);
+            }
+            ServiceResult result = await owner.ApplyChangesAsync(session);
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNothingToDo));
+            publish.VerifyNoOtherCalls();
+            rollback.VerifyNoOtherCalls();
+        }
+
+        [TestCase(nameof(TrustListState.Open))]
+        [TestCase(nameof(TrustListState.CloseAndUpdate))]
+        [TestCase(nameof(TrustListState.AddCertificate))]
+        [TestCase(nameof(TrustListState.RemoveCertificate))]
+        public async Task DistributedTrustListRejectsUnfencedWritesBeforeOpeningStoresAsync(string method)
+        {
+            var time = new FakeTimeProvider();
+            using var stores = new LeaseStores();
+            await stores.Store.EnrollAsync();
+            await using DistributedPushConfigurationTransactionCoordinator owner = Create(stores.Store, "A", time);
+            stores.AuthorityUnavailable = true;
+            SessionSystemContext context = CreateTrustListContext();
+            TrustListState node = CreateTrustListNode(context);
+            var resolver = new Mock<ICertificateStoreResolver>(MockBehavior.Strict);
+            using var trustList = new TrustList(node,
+                new CertificateStoreIdentifier("test-trusted"),
+                new CertificateStoreIdentifier("test-issuer"),
+                (_, _) => { }, (_, _) => { }, m_telemetry, owner,
+                maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 1024, storeResolver: resolver.Object);
+
+            StatusCode status;
+            if (method == nameof(TrustListState.Open))
+            {
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await node.Open!.OnCallAsync!(context, node.Open, node.NodeId,
+                        (byte)(OpenFileMode.Write | OpenFileMode.EraseExisting), CancellationToken.None));
+                status = ex.StatusCode;
+            }
+            else
+            {
+                using Certificate certificate = CertificateBuilder.Create("CN=TrustList fixture")
+                    .SetRSAKeySize(2048).CreateForRSA();
+                status = method switch
+                {
+                    nameof(TrustListState.CloseAndUpdate) => (await node.CloseAndUpdate!.OnCallAsync!(
+                        context, node.CloseAndUpdate, node.NodeId, 1, CancellationToken.None)).ServiceResult.StatusCode,
+                    nameof(TrustListState.AddCertificate) => (await node.AddCertificate!.OnCallAsync!(
+                        context, node.AddCertificate, node.NodeId, certificate.RawData.ToByteString(),
+                        true, CancellationToken.None)).ServiceResult.StatusCode,
+                    _ => (await node.RemoveCertificate!.OnCallAsync!(context, node.RemoveCertificate, node.NodeId,
+                        "fixture-thumbprint", true, CancellationToken.None)).ServiceResult.StatusCode
+                };
+            }
+
+            stores.AuthorityUnavailable = false;
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(status, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
+                Assert.That(node.OpenCount!.Value, Is.Zero);
+                Assert.That(owner.GetStagedOperations().Count, Is.Zero);
+                Assert.That((await stores.Store.TryGetAsync(LeaseKey())).Found, Is.False);
+            }
+            resolver.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task DistributedTrustListReadDoesNotRequirePublicationLeaseAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var stores = new LeaseStores();
+            await stores.Store.EnrollAsync();
+            await using DistributedPushConfigurationTransactionCoordinator owner = Create(stores.Store, "A", time);
+            stores.AuthorityUnavailable = true;
+            SessionSystemContext context = CreateTrustListContext();
+            TrustListState node = CreateTrustListNode(context);
+            var certificateStore = new Mock<ICertificateStore>();
+            certificateStore.Setup(store => store.EnumerateAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => new CertificateCollection());
+            var resolver = new Mock<ICertificateStoreResolver>(MockBehavior.Strict);
+            resolver.Setup(store => store.OpenCertificateStore(It.IsAny<string>(), It.IsAny<string>(), true))
+                .Returns(certificateStore.Object);
+            using var trustList = new TrustList(node,
+                new CertificateStoreIdentifier("test-trusted") { StoreType = "ScopedTrusted" },
+                new CertificateStoreIdentifier("test-issuer") { StoreType = "ScopedIssuer" },
+                (_, _) => { }, (_, _) => { }, m_telemetry, owner,
+                maxTrustListSize: 0, maxTrustListSizeSafetyCeiling: 1024, storeResolver: resolver.Object);
+
+            OpenWithMasksMethodStateResult result = await node.OpenWithMasks!.OnCallAsync!(
+                context, node.OpenWithMasks, node.NodeId, (uint)TrustListMasks.TrustedCertificates,
+                CancellationToken.None);
+
+            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+            Assert.That(result.FileHandle, Is.Not.Zero);
+            Assert.That(owner.HoldsLease, Is.False);
+            certificateStore.Verify(store => store.EnumerateAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task AuthorityOutageBetweenOperationsFencesLaterCommitAndCompletionAsync(bool stageSecond)
+        {
+            var time = new FakeTimeProvider();
+            using var stores = new LeaseStores();
+            await stores.Store.EnrollAsync();
+            await using DistributedPushConfigurationTransactionCoordinator owner = Create(stores.Store, "A", time);
+            NodeId session = Session("owner");
+            await owner.AcquireTransactionOwnershipAsync(session);
+            int mutations = 0;
+            owner.Stage(session, new PushConfigurationOperation
+            {
+                CommitAsync = _ =>
+                {
+                    mutations++;
+                    stores.AuthorityUnavailable = true;
+                    return Task.CompletedTask;
+                }
+            });
+            if (stageSecond)
+            {
+                owner.Stage(session, new PushConfigurationOperation
+                {
+                    CommitAsync = _ =>
+                    {
+                        mutations++;
+                        return Task.CompletedTask;
+                    }
+                });
+            }
+            bool completed = false;
+            ServiceResult result = await owner.ApplyChangesAsync(
+                session, new PushConfigurationApplyEffects(), new PushConfigurationOperation
+                {
+                    CommitAsync = _ =>
+                    {
+                        completed = true;
+                        return Task.CompletedTask;
+                    }
+                });
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(ServiceResult.IsBad(result), Is.True);
+                Assert.That(mutations, Is.EqualTo(1));
+                Assert.That(completed, Is.False);
+                Assert.That(owner.HoldsLease, Is.False);
+            }
+        }
+
         private static string LeaseKey()
         {
             return new DistributedPushConfigurationOptions { ReplicaId = "x" }.TransactionLeaseKey;
@@ -558,7 +844,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         private DistributedPushConfigurationTransactionCoordinator Create(
-            InMemorySharedKeyValueStore store,
+            ISharedKeyValueStore store,
             string replicaId,
             FakeTimeProvider time,
             ILeaderElection? leaderElection = null,
@@ -579,6 +865,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             return new DistributedPushConfigurationOptions
             {
                 ReplicaId = replicaId,
+                LeaseMemberIds = ["A", "B"],
                 LeaseDuration = s_leaseDuration,
                 RenewInterval = s_renewInterval
             };
@@ -589,12 +876,94 @@ namespace Opc.Ua.Server.Tests.Redundancy
             return new NodeId(id, 1);
         }
 
+        private SessionSystemContext CreateTrustListContext()
+        {
+            return new SessionSystemContext(m_telemetry)
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable(),
+                SessionId = Session("owner"),
+                EncodeableFactory = Opc.Ua.EncodeableFactory.Create()
+            };
+        }
+
+        private static TrustListState CreateTrustListNode(ISystemContext context)
+        {
+            var node = new TrustListState(null) { NodeId = new NodeId(42, 1) };
+            node.CreateOrReplaceOpen(context, node);
+            node.CreateOrReplaceOpenWithMasks(context, node);
+            node.CreateOrReplaceRead(context, node);
+            node.CreateOrReplaceWrite(context, node);
+            node.CreateOrReplaceClose(context, node);
+            node.CreateOrReplaceCloseAndUpdate(context, node);
+            node.CreateOrReplaceAddCertificate(context, node);
+            node.CreateOrReplaceRemoveCertificate(context, node);
+            node.CreateOrReplaceOpenCount(context, node);
+            node.CreateOrReplaceLastUpdateTime(context, node);
+            return node;
+        }
+
         private static PushConfigurationOperation NoopOperation()
         {
             return new PushConfigurationOperation
             {
                 CommitAsync = _ => Task.CompletedTask
             };
+        }
+
+        private sealed class LeaseStores : IDisposable
+        {
+            public LeaseStores()
+            {
+                using var random = RandomNumberGenerator.Create();
+                var keyBytes = new byte[32];
+                random.GetBytes(keyBytes);
+                m_protector = new AesCbcHmacRecordProtector(keyBytes);
+                var authority = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
+                authority.As<ISharedKeyValueStoreConsistency>()
+                    .Setup(store => store.IsLinearizable(It.IsAny<string>())).Returns(true);
+                authority.As<ISharedKeyValueStoreConsistency>()
+                    .Setup(store => store.IsProcessLocal(It.IsAny<string>())).Returns(false);
+                authority.Setup(store => store.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Returns((string key, CancellationToken ct) => AuthorityUnavailable
+                        ? throw new TimeoutException("Authority unavailable.")
+                        : m_authority.TryGetAsync(key, ct));
+                authority.Setup(store => store.CompareAndSwapAsync(
+                        It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<ByteString>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(async (string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                    {
+                        if (PendingWrite != null)
+                        {
+                            await PendingWrite.WaitAsync(ct);
+                        }
+                        bool written = await m_authority.CompareAndSwapAsync(key, expected, value, ct);
+                        if (LoseNextWriteReply)
+                        {
+                            LoseNextWriteReply = false;
+                            throw new TimeoutException("Authority reply lost.");
+                        }
+                        return written;
+                    });
+                Store = new FreshnessProtectedKeyValueStore(
+                    m_payload, authority.Object, m_protector, Guid.NewGuid(), Guid.NewGuid());
+            }
+
+            public FreshnessProtectedKeyValueStore Store { get; }
+            public bool AuthorityUnavailable { get; set; }
+            public bool LoseNextWriteReply { get; set; }
+            public Task? PendingWrite { get; set; }
+
+            public void Dispose()
+            {
+                m_protector.Dispose();
+                m_authority.Dispose();
+                m_payload.Dispose();
+            }
+
+            private readonly AesCbcHmacRecordProtector m_protector;
+            private readonly InMemorySharedKeyValueStore m_authority = new();
+            private readonly InMemorySharedKeyValueStore m_payload = new();
         }
 
         private sealed class FixedLeaderElection : ILeaderElection

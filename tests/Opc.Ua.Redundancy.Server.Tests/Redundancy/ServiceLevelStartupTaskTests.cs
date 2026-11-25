@@ -5,9 +5,13 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -30,7 +34,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void OnServerStartedThrowsOnNullServer()
         {
-            var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
+            using var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
 
             Assert.That(async () => await task.OnServerStartedAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
@@ -38,7 +42,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task OnServerStartedNoOpsWhenServerObjectMissingAsync()
         {
-            var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
+            using var task = new ServiceLevelStartupTask(new ConstantServiceLevelProvider());
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.ServerObject).Returns((ServerObjectState)null!);
 
@@ -52,7 +56,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using DiagnosticsServerHarness harness = await DiagnosticsServerHarness.CreateAsync().ConfigureAwait(false);
             var provider = new MutableServiceLevelProvider(150);
-            var task = new ServiceLevelStartupTask(provider);
+            using var task = new ServiceLevelStartupTask(provider);
 
             await task.OnServerStartedAsync(harness.Server.Object).ConfigureAwait(false);
 
@@ -65,6 +69,86 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 harness.ServerObject.ServiceLevel!.Value,
                 Is.EqualTo((byte)42),
                 "a provider change is mirrored onto the live node");
+        }
+
+        [Test]
+        public async Task ClockPublishesHealthAndCurrentSessionLoadWithoutAnElectionAsync()
+        {
+            using DiagnosticsServerHarness harness = await DiagnosticsServerHarness.CreateAsync().ConfigureAwait(false);
+            var clock = new FakeTimeProvider();
+            await using var election = new StaticLeaderElection(true);
+            var sessionManager = new Mock<ISessionManager>();
+            List<ISession> sessions = [];
+            sessionManager.Setup(manager => manager.GetSessions()).Returns(sessions);
+            harness.Server.Setup(server => server.SessionManager).Returns(sessionManager.Object);
+            byte health = 245;
+            bool ready = true;
+            using var provider = new LeaderServiceLevelProvider(election, RedundancySupport.Warm,
+                getConnectedClientCount: null, getHealthServiceLevel: () => health, isRoleReady: _ => ready);
+            using var task = new ServiceLevelStartupTask(provider, clock);
+            await task.OnServerStartedAsync(harness.Server.Object).ConfigureAwait(false);
+            PropertyState<byte> serviceLevel = harness.ServerObject.ServiceLevel!;
+            List<byte> published = [];
+            provider.ServiceLevelChanged += published.Add;
+            Assert.That(serviceLevel.Value, Is.EqualTo(245));
+
+            var session = new Mock<ISession>().Object;
+            sessions.AddRange([session, session]);
+            clock.Advance(TimeSpan.FromMilliseconds(999));
+            Assert.That(serviceLevel.Value, Is.EqualTo(245));
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(serviceLevel.Value, Is.EqualTo(243));
+
+            health = ServiceLevels.DegradedMaximum;
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.DegradedMaximum));
+
+            ready = false;
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.NoData));
+
+            ready = true;
+            health = ServiceLevels.Maximum;
+            for (int i = 0; i < 60; i++)
+            {
+                sessions.Add(session);
+            }
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.HealthyMinimum));
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(published, Is.EqualTo(new byte[]
+            {
+                243, ServiceLevels.DegradedMaximum, ServiceLevels.NoData, ServiceLevels.HealthyMinimum
+            }));
+
+            task.Dispose();
+            sessions.Clear();
+            clock.Advance(TimeSpan.FromSeconds(1));
+            provider.SetServiceLevel(ServiceLevels.Maintenance);
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.HealthyMinimum));
+        }
+
+        [Test]
+        public async Task FailedHealthSamplePublishesNoDataAndRecoversOnNextTickAsync()
+        {
+            using DiagnosticsServerHarness harness = await DiagnosticsServerHarness.CreateAsync().ConfigureAwait(false);
+            var clock = new FakeTimeProvider();
+            await using var election = new StaticLeaderElection(true);
+            bool sampleFailed = false;
+            using var provider = new LeaderServiceLevelProvider(election, getHealthServiceLevel: () =>
+                sampleFailed ? throw new InvalidOperationException("Health unavailable") : ServiceLevels.Maximum);
+            using var task = new ServiceLevelStartupTask(provider, clock);
+            await task.OnServerStartedAsync(harness.Server.Object).ConfigureAwait(false);
+            PropertyState<byte> serviceLevel = harness.ServerObject.ServiceLevel!;
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.Maximum));
+
+            sampleFailed = true;
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.NoData));
+
+            sampleFailed = false;
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.Maximum));
         }
 
         private sealed class MutableServiceLevelProvider : IServiceLevelProvider

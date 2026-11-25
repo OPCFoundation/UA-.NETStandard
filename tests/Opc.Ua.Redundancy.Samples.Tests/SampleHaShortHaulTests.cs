@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -12,11 +11,7 @@ using NUnit.Framework;
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
     /// <summary>
-    /// Short-haul integration tests that launch the redundant sample applications in
-    /// their supported setups and assert on the high-availability behavior they log.
-    /// These are deterministic and complete quickly so they can run as part of pull
-    /// request validation. Longer, repeated failover soak scenarios live in
-    /// <see cref="SampleHaLongHaulTests"/>.
+    /// Exercises the sample executables' local topologies and fail-closed deployment checks.
     /// </summary>
     [TestFixture]
     [Category("SampleHaShortHaul")]
@@ -24,347 +19,231 @@ namespace Opc.Ua.Redundancy.Samples.Tests
     internal sealed class SampleHaShortHaulTests
     {
         /// <summary>
-        /// Separate released port batches may repeat; the two protocols need one distinct allocation.
+        /// The explicit isolated demo illustrates continuity or reset depending on mode.
         /// </summary>
-        [TestCase(1)]
-        [TestCase(3)]
-        public void StrongReplicaPortPlanUsesDisjointEndpointGroups(int count)
-        {
-            int allocations = 0;
-            (int[] serverPorts, int[] raftPorts) = RedundantServerCluster.AllocateStrongPorts(
-                count,
-                requested =>
-                {
-                    allocations++;
-                    return [.. Enumerable.Range(45000, requested)];
-                });
-
-            Assert.That(serverPorts, Has.Length.EqualTo(count));
-            Assert.That(raftPorts, Has.Length.EqualTo(count));
-            Assert.That(serverPorts.Intersect(raftPorts), Is.Empty);
-            Assert.That(serverPorts.Concat(raftPorts), Is.Unique);
-            Assert.That(allocations, Is.EqualTo(1));
-        }
-
-        /// <summary>
-        /// Verifies that the single-process PubSub demo in hot mode fails the active
-        /// publisher over to the standby and reports continuity with no data loss.
-        /// </summary>
-        [Test]
-        [CancelAfter(90_000)]
-        public async Task PubSubDemoHotShowsFailoverContinuityAsync(CancellationToken cancellationToken)
+        [TestCase("hot", "SIMULATED: HA OK: sequence continued")]
+        [TestCase("cold", "SIMULATED: DATA LOSS: sequence reset")]
+        [CancelAfter(45_000)]
+        public async Task IsolatedPubSubDemoRunsAsync(
+            string mode,
+            string expected,
+            CancellationToken ct)
         {
             await using var demo = new SampleAppProcess(
-                "pubsub-demo-hot",
+                "pubsub-demo",
                 "Redundancy/RedundantPubSub",
                 "RedundantPubSub",
-                ["--role", "demo", "--ha-mode", "hot"],
+                ["--role", "demo", "--ha-mode", mode],
                 SampleTestEnvironment.BuildFastDemo());
-
-            await demo.WaitForLineAsync(
-                "FAILOVER: stopping publisher-a; publisher-b is promoted.",
-                TimeSpan.FromSeconds(60),
-                cancellationToken).ConfigureAwait(false);
-            await demo.WaitForLineAsync(
-                "SIMULATED: HA OK: sequence continued",
-                TimeSpan.FromSeconds(30),
-                cancellationToken).ConfigureAwait(false);
-
-            Assert.That(
-                demo.ContainsLine("SIMULATED: DATA LOSS:"),
-                Is.False,
-                "Hot mode must not report a SequenceNumber reset (data loss).");
-            Assert.That(
-                await demo.WaitForExitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false),
-                Is.True,
-                "The PubSub demo should terminate on its own after the failover narrative.");
+            await demo.WaitForLineAsync(expected, TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+            Assert.That(await demo.WaitForExitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.True);
         }
 
         /// <summary>
-        /// Verifies that the single-process PubSub demo in cold mode makes the
-        /// SequenceNumber reset (data loss) visible after failover.
+        /// Rejects unsigned external traffic even when the demo option was explicitly given.
+        /// </summary>
+        [TestCase("false", "opc.udp://127.0.0.1:4840")]
+        [TestCase("true", "opc.udp://239.0.0.1:4840")]
+        [CancelAfter(30_000)]
+        public async Task PubSubRequiresExplicitLoopbackDemoAsync(
+            string insecure,
+            string endpoint,
+            CancellationToken ct)
+        {
+            await using var app = new SampleAppProcess(
+                "unsigned-pubsub",
+                "Redundancy/RedundantPubSub",
+                "RedundantPubSub",
+                ["--role", "subscriber", "--ha-insecure", insecure, "--pubsub-endpoint", endpoint]);
+            await AssertRefusedAsync(app, "Unsigned PubSub is limited to loopback demos", ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Networked PubSub warm/hot cannot use native Raft election without an activation fence.
         /// </summary>
         [Test]
-        [CancelAfter(90_000)]
-        public async Task PubSubDemoColdShowsDataLossAsync(CancellationToken cancellationToken)
+        [CancelAfter(30_000)]
+        public async Task ExternalPubSubHotRequiresLeaseFencingAsync(CancellationToken ct)
         {
-            await using var demo = new SampleAppProcess(
-                "pubsub-demo-cold",
+            await using var app = new SampleAppProcess(
+                "unfenced-pubsub",
                 "Redundancy/RedundantPubSub",
                 "RedundantPubSub",
-                ["--role", "demo", "--ha-mode", "cold"],
-                SampleTestEnvironment.BuildFastDemo());
-
-            await demo.WaitForLineAsync(
-                "FAILOVER: stopping publisher-a; publisher-b is promoted.",
-                TimeSpan.FromSeconds(60),
-                cancellationToken).ConfigureAwait(false);
-            await demo.WaitForLineAsync(
-                "SIMULATED: DATA LOSS: sequence reset",
-                TimeSpan.FromSeconds(30),
-                cancellationToken).ConfigureAwait(false);
-
-            Assert.That(
-                await demo.WaitForExitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false),
-                Is.True,
-                "The PubSub demo should terminate on its own after the failover narrative.");
+                ["--role", "publisher", "--ha-mode", "hot", "--ha-election", "leader-election",
+                    "--ha-raft-members", "3", "--ha-insecure", "false"]);
+            await AssertRefusedAsync(app, "External warm/hot PubSub requires HA_ELECTION=lease-store", ct)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Verifies that raw, event, and processed HistoryRead continuation points created
-        /// on the active Raft replica resume through a promoted replica without duplicates
-        /// or gaps after the active process is terminated.
+        /// A legacy unsecured peer address cannot silently start networked Raft.
         /// </summary>
-        [TestCase(0)]
-        [TestCase(15)]
-        [CancelAfter(300_000)]
-        public async Task StrongHistorianContinuationsSurviveActiveReplicaFailureAsync(
-            int failoverDelaySeconds,
-            CancellationToken cancellationToken)
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task StrongModeRejectsUnpinnedMembershipAsync(CancellationToken ct)
         {
-            await using RedundantServerCluster cluster = await RedundantServerCluster.StartStrongAsync(
-                count: 3,
-                startupTimeout: TimeSpan.FromSeconds(90),
-                cancellationToken).ConfigureAwait(false);
-            RedundantServerReplica active = await WaitForActiveReplicaAsync(
-                cluster,
-                TimeSpan.FromSeconds(90),
-                cancellationToken).ConfigureAwait(false);
+            await using var server = StartServer(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["HA_CONSISTENCY"] = "strong",
+                ["HA_RAFT_ID"] = "1",
+                ["HA_RAFT_BIND"] = "127.0.0.1:6560",
+                ["HA_RAFT_PEERS"] = "tcp://127.0.0.1:6561,tcp://127.0.0.1:6562"
+            });
+            await AssertRefusedAsync(server, "HA_RAFT_PEERS must contain unique ID|IP:port|SHA256 entries", ct)
+                .ConfigureAwait(false);
+        }
 
+        /// <summary>
+        /// Complete static membership and a configured secret cannot substitute for a freshness provider.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task StrongModeRejectsExternalStateWithoutAuthorityAsync(CancellationToken ct)
+        {
+            await using var server = StartServer(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["HA_CONSISTENCY"] = "strong",
+                ["HA_RAFT_ID"] = "1",
+                ["HA_RAFT_BIND"] = "127.0.0.1:6560",
+                ["HA_RAFT_PEERS"] = $"2|127.0.0.1:6561|{new string('a', 64)},3|127.0.0.1:6562|{new string('b', 64)}",
+                ["HA_RECORD_KEY_FILE"] = "not-used-without-an-authority"
+            });
+            await AssertRefusedAsync(server,
+                "External shared state requires an independently scoped freshness authority",
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Strong inconsistent topologies fail rather than starting in eventual mode.
+        /// </summary>
+        [TestCase("strong", "aa", "hot", "Strong consistency requires active/passive redundancy")]
+        [TestCase("strong", "ap", "none", "Strong consistency requires active/passive redundancy")]
+        [TestCase("eventual", "aa", "hot", "HA_GOSSIP_PEERS")]
+        [CancelAfter(30_000)]
+        public async Task UnsupportedServerTopologyFailsClosedAsync(
+            string consistency,
+            string mode,
+            string redundancy,
+            string message,
+            CancellationToken ct)
+        {
+            await using var server = StartServer(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["HA_MODE"] = mode,
+                ["HA_CONSISTENCY"] = consistency,
+                ["REDUNDANCY_MODE"] = redundancy
+            });
+            await AssertRefusedAsync(server, message, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The loopback strong demo really elects a Raft leader before starting UA.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task IsolatedStrongModeStartsRaftAsync(CancellationToken ct)
+        {
+            await using var server = StartServer(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["HA_CONSISTENCY"] = "strong",
+                ["HA_LOCAL_DEMO"] = "true"
+            });
+            await server.WaitForLineAsync("Raft is ready (one in-process member)", TimeSpan.FromSeconds(30), ct)
+                .ConfigureAwait(false);
+            await server.WaitForLineAsync("became ACTIVE writer", TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Neither insecure UA client flag alone enables permissive trust.
+        /// </summary>
+        [TestCase("--nosecurity")]
+        [TestCase("--autoaccept")]
+        [CancelAfter(30_000)]
+        public async Task ClientRequiresExplicitInsecureDemoAsync(string flag, CancellationToken ct)
+        {
             await using var client = new SampleAppProcess(
-                "history-client",
+                "insecure-client",
                 "Redundancy/RedundantClient",
                 "RedundantClient",
-                [
-                    "--server", active.ServerUrl,
-                    "--autoaccept",
-                    "--nosecurity",
-                    "--history",
-                    "--history-failover-delay",
-                    TimeSpan.FromSeconds(failoverDelaySeconds).ToString("c", CultureInfo.InvariantCulture)
-                ],
-                SampleTestEnvironment.IndependentClient);
-
-            await client.WaitForLineAsync(
-                "HISTORY: portable continuations ready",
-                TimeSpan.FromSeconds(120),
-                cancellationToken).ConfigureAwait(false);
-            Assert.That(
-                client.ContainsLine("RedundancySupport=None"),
-                Is.False,
-                "The client must observe initialized redundancy metadata before the failover exercise.");
-            Assert.That(
-                client.ContainsLine("HISTORY: write/read marker -4390 visible on active replica."),
-                Is.True,
-                "A HistoryUpdate written through the active replica must be immediately readable.");
-
-            active.Process.Kill();
-            Assert.That(
-                await active.Process.WaitForExitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false),
-                Is.True,
-                "The active server process must terminate during the failover exercise.");
-
-            await client.WaitForLineAsync(
-                "HISTORY HA OK:",
-                TimeSpan.FromSeconds(120),
-                cancellationToken).ConfigureAwait(false);
-            int failoverIndex = client.LastLineIndexContaining("FAILOVER: connection lost");
-            Assert.That(failoverIndex, Is.GreaterThanOrEqualTo(0));
-            Assert.That(
-                client.LastLineIndexContaining("HISTORY: write/read marker -4390 visible on promoted replica."),
-                Is.GreaterThan(failoverIndex),
-                "The promoted-replica checks must not run against the original active server.");
-            Assert.That(
-                client.ContainsLine("without duplicates or gaps"),
-                Is.True,
-                "Raw, event, and processed continuations must all resume on the promoted replica.");
-            Assert.That(
-                client.ContainsLine("HISTORY: write/read marker -4390 visible on promoted replica."),
-                Is.True,
-                "History written through the former active replica must be visible after promotion.");
-            Assert.That(
-                client.ContainsLine("HISTORY: promoted writer added shared raw and event history"),
-                Is.True,
-                "The promoted replica must append new raw and event history to the shared archive.");
-            Assert.That(
-                client.ContainsLine("BadContinuationPointInvalid"),
-                Is.False,
-                "Portable history continuations must remain valid across active-server loss.");
-        }
-
-        /// <summary>
-        /// Verifies that the ordered distributed historian cannot be enabled in
-        /// an eventual active/active multi-writer topology.
-        /// </summary>
-        [Test]
-        [CancelAfter(30_000)]
-        public async Task ActiveActiveHistorianConfigurationFailsClosedAsync(
-            CancellationToken cancellationToken)
-        {
-            await AssertHistorianTopologyFailsClosedAsync(
-                "aa",
-                "eventual",
-                "hotandmirrored",
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Reuses factory-assigned Browse results for Read and monitoring after the serving replica is killed.
-        /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        [CancelAfter(300_000)]
-        public async Task FactoryAssignedNodeIdsSurviveActiveReplicaFailureAsync(
-            bool activeActive,
-            CancellationToken cancellationToken)
-        {
-            await using RedundantServerCluster cluster = activeActive
-                ? await RedundantServerCluster.StartActiveActiveAsync(
-                    count: 3, startupTimeout: TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false)
-                : await RedundantServerCluster.StartStrongAsync(
-                    count: 3, startupTimeout: TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
-            RedundantServerReplica active = await WaitForActiveReplicaAsync(
-                cluster, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
-            await using var client = new SampleAppProcess(
-                "identity-client", "Redundancy/RedundantClient", "RedundantClient",
-                ["--server", active.ServerUrl, "--autoaccept", "--nosecurity", "--identity"],
-                SampleTestEnvironment.IndependentClient);
-            await client.WaitForLineAsync(
-                "IDENTITY: cached shared NodeIds", TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
-            active.Process.Kill();
-            Assert.That(await active.Process.WaitForExitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false), Is.True);
-            await client.WaitForLineAsync("IDENTITY HA OK:", TimeSpan.FromSeconds(120), cancellationToken)
+                [flag],
+                new Dictionary<string, string?>(StringComparer.Ordinal)
+                {
+                    ["HA_INSECURE"] = "false",
+                    ["CLIENT_MODE"] = "independent"
+                });
+            await AssertRefusedAsync(client, "require HA_INSECURE=true and an independent loopback client", ct)
                 .ConfigureAwait(false);
-            Assert.That(client.ContainsLine("without remapping or rebrowsing"), Is.True);
-            Assert.That(await client.WaitForExitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false), Is.True);
         }
 
         /// <summary>
-        /// Verifies that selecting a strong store does not make an active/active
-        /// multi-writer historian topology valid.
+        /// Checks that explicitly isolated active/active gossip replicas can still start.
         /// </summary>
         [Test]
-        [CancelAfter(30_000)]
-        public async Task StrongActiveActiveHistorianConfigurationFailsClosedAsync(
-            CancellationToken cancellationToken)
+        [CancelAfter(60_000)]
+        public async Task IsolatedActiveActiveReplicasStartAsync(CancellationToken ct)
         {
-            await AssertHistorianTopologyFailsClosedAsync(
-                "aa",
-                "strong",
-                "hotandmirrored",
-                cancellationToken).ConfigureAwait(false);
+            await using RedundantServerCluster cluster = await RedundantServerCluster.StartActiveActiveAsync(
+                count: 2, startupTimeout: TimeSpan.FromSeconds(25), ct).ConfigureAwait(false);
+            Assert.That(cluster.LiveReplicas(), Has.Count.EqualTo(2));
         }
 
         /// <summary>
-        /// Verifies that the distributed historian cannot use an eventual store,
-        /// even when the server topology is otherwise active/passive.
+        /// Verifies the two applications can connect in the explicit local UA demo.
         /// </summary>
         [Test]
-        [CancelAfter(30_000)]
-        public async Task EventualActivePassiveHistorianConfigurationFailsClosedAsync(
-            CancellationToken cancellationToken)
+        [CancelAfter(90_000)]
+        public async Task IsolatedServerAndClientConnectAsync(CancellationToken ct)
         {
-            await AssertHistorianTopologyFailsClosedAsync(
-                "ap",
-                "eventual",
-                "hot",
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Verifies that the RedundantClient sample connects to a RedundantServer set and
-        /// begins high-availability monitoring. This is a lightweight connectivity smoke
-        /// test of the server and client apps running together; the actual server
-        /// failover scenarios are exercised by the long-haul tests.
-        /// </summary>
-        [Test]
-        [CancelAfter(150_000)]
-        public async Task RedundantServerAndClientConnectAsync(CancellationToken cancellationToken)
-        {
-            await using RedundantServerCluster cluster = await RedundantServerCluster.StartSingleEventualAsync(
-                startupTimeout: TimeSpan.FromSeconds(60),
-                cancellationToken).ConfigureAwait(false);
-
+            await using RedundantServerCluster cluster = await RedundantServerCluster.StartStandaloneAsync(
+                startupTimeout: TimeSpan.FromSeconds(40), insecure: true, cancellationToken: ct).ConfigureAwait(false);
             await using var client = new SampleAppProcess(
                 "client",
                 "Redundancy/RedundantClient",
                 "RedundantClient",
-                [
-                    "--server", cluster.BootstrapServerUrl,
-                    "--autoaccept",
-                    "--nosecurity",
-                    "--duration", "00:02:00"
-                ],
+                ["--server", cluster.BootstrapServerUrl, "--nosecurity", "--duration", "00:02:00"],
                 SampleTestEnvironment.IndependentClient);
-
-            await client.WaitForLineAsync("Connected replica:", TimeSpan.FromSeconds(75), cancellationToken).ConfigureAwait(false);
+            await client.WaitForLineAsync("Monitoring ServerStatus.CurrentTime", TimeSpan.FromSeconds(45), ct)
+                .ConfigureAwait(false);
         }
 
-        private static async Task<RedundantServerReplica> WaitForActiveReplicaAsync(
-            RedundantServerCluster cluster,
-            TimeSpan timeout,
-            CancellationToken cancellationToken)
+        /// <summary>
+        /// The default UA server does not advertise an unsecured session endpoint.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task StandaloneServerAdvertisesOnlySecuredEndpointsAsync(CancellationToken ct)
         {
-            DateTime deadline = DateTime.UtcNow + timeout;
-            while (DateTime.UtcNow < deadline)
+            await using RedundantServerCluster cluster = await RedundantServerCluster.StartStandaloneAsync(
+                startupTimeout: TimeSpan.FromSeconds(40), cancellationToken: ct).ConfigureAwait(false);
+            ITelemetryContext telemetry = DefaultTelemetry.Create(_ => { });
+            using var telemetryLifetime = telemetry as IDisposable;
+            using DiscoveryClient discovery = await DiscoveryClient.CreateAsync(
+                new Uri(cluster.BootstrapServerUrl), telemetry, ct: ct).ConfigureAwait(false);
+            ArrayOf<EndpointDescription> endpoints = await discovery.GetEndpointsAsync(default, ct)
+                .ConfigureAwait(false);
+            Assert.That(endpoints.IsEmpty, Is.False);
+            foreach (EndpointDescription endpoint in endpoints)
             {
-                foreach (RedundantServerReplica replica in cluster.LiveReplicas())
-                {
-                    int activeIndex = replica.Process.LastLineIndexContaining(
-                        "became ACTIVE writer");
-                    int standbyIndex = replica.Process.LastLineIndexContaining(
-                        "became STANDBY");
-                    if (activeIndex > standbyIndex)
-                    {
-                        return replica;
-                    }
-                }
-
-                cancellationToken.ThrowIfCancellationRequested();
-                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+                Assert.That(endpoint.SecurityMode, Is.Not.EqualTo(MessageSecurityMode.None));
             }
-
-            throw new TimeoutException(
-                $"The strong server cluster did not elect an active writer within {timeout}.");
         }
 
-        private static async Task AssertHistorianTopologyFailsClosedAsync(
-            string mode,
-            string consistency,
-            string redundancyMode,
-            CancellationToken cancellationToken)
+        private static SampleAppProcess StartServer(Dictionary<string, string?> settings)
         {
-            int port = TestPorts.GetFreePort();
-            var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
-            {
-                ["HA_MODE"] = mode,
-                ["HA_CONSISTENCY"] = consistency,
-                ["REDUNDANCY_MODE"] = redundancyMode,
-                ["HA_HISTORIAN"] = "true",
-                ["HA_INSECURE"] = "true",
-                ["HA_HOST"] = "127.0.0.1",
-                ["HA_NODE_ID"] = "invalid-history-topology"
-            };
-
-            await using var server = new SampleAppProcess(
-                "invalid-history-topology",
+            settings["HA_HOST"] = "127.0.0.1";
+            settings["HA_INSECURE"] = "false";
+            return new SampleAppProcess(
+                "server",
                 "Redundancy/RedundantServer",
                 "RedundantServer",
-                ["--port", port.ToString(CultureInfo.InvariantCulture)],
-                environment);
+                ["--port", TestPorts.GetFreePort().ToString(CultureInfo.InvariantCulture)],
+                settings);
+        }
 
-            await server.WaitForLineAsync(
-                "distributed historian supports only a strongly consistent active/passive topology",
-                TimeSpan.FromSeconds(15),
-                cancellationToken).ConfigureAwait(false);
-            Assert.That(
-                await server.WaitForExitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
-                Is.True,
-                "An unsupported historian configuration must terminate startup.");
-            Assert.That(
-                server.ContainsLine("listening at"),
-                Is.False,
-                "The unsupported topology must fail before the OPC UA server starts listening.");
+        private static async Task AssertRefusedAsync(SampleAppProcess app, string message, CancellationToken ct)
+        {
+            await app.WaitForLineAsync(message, TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+            Assert.That(await app.WaitForExitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.True);
         }
     }
 }

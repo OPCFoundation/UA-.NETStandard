@@ -209,7 +209,7 @@ namespace Opc.Ua.Client
                 return ParticipantReconnectResult.Reactivated;
             }
 
-            if (RequiresSessionRecreation(channel))
+            if (RequiresSessionRecreation(recoveryClient?.TransportChannel ?? channel))
             {
                 return ParticipantReconnectResult.RequiresSessionRecreate;
             }

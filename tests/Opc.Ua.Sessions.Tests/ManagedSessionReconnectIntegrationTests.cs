@@ -464,7 +464,7 @@ namespace Opc.Ua.Sessions.Tests
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = await ClientFixture
-                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
 
             // The fake handler returns the same endpoint as the failover
@@ -488,6 +488,7 @@ namespace Opc.Ua.Sessions.Tests
                     JitterFactor = 0.0
                 })
                 .WithServerRedundancy(fakeHandler)
+                .WithServerRedundancyOptions(CreateFailoverOptions())
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
 
@@ -581,7 +582,7 @@ namespace Opc.Ua.Sessions.Tests
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = await ClientFixture
-                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
 
             // Handler always picks "no failover target available".
@@ -599,6 +600,7 @@ namespace Opc.Ua.Sessions.Tests
                     JitterFactor = 0.0
                 })
                 .WithServerRedundancy(fakeHandler)
+                .WithServerRedundancyOptions(CreateFailoverOptions())
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
 
@@ -809,7 +811,7 @@ namespace Opc.Ua.Sessions.Tests
             // session id. The subscription is recreated on the new
             // session and resumes delivering data.
             ConfiguredEndpoint endpoint = await ClientFixture
-                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
 
             var fakeHandler = new FakeRedundancyHandler(endpoint);
@@ -826,6 +828,7 @@ namespace Opc.Ua.Sessions.Tests
                     JitterFactor = 0.0
                 })
                 .WithServerRedundancy(fakeHandler)
+                .WithServerRedundancyOptions(CreateFailoverOptions())
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
 
@@ -1142,7 +1145,7 @@ namespace Opc.Ua.Sessions.Tests
             // becomes connected. The setting persists across an
             // in-place failover recreate (same V2 manager survives).
             ConfiguredEndpoint endpoint = await ClientFixture
-                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
 
             var fakeHandler = new FakeRedundancyHandler(endpoint);
@@ -1164,6 +1167,7 @@ namespace Opc.Ua.Sessions.Tests
                 // sides of the recreation so transfer is expected to succeed.
                 .WithUserIdentity(new UserIdentity("user1", "password"u8))
                 .WithServerRedundancy(fakeHandler)
+                .WithServerRedundancyOptions(CreateFailoverOptions())
                 .WithTransferSubscriptionsOnRecreate()
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
@@ -1364,6 +1368,23 @@ namespace Opc.Ua.Sessions.Tests
         /// endpoint. Always reports a non-transparent redundancy mode so
         /// the failover path is engaged.
         /// </summary>
+        private ServerRedundancyOptions CreateFailoverOptions()
+        {
+            string? expectedServerUri = ServerFixture?.Config.ApplicationUri ??
+                Environment.GetEnvironmentVariable("CLIENT_SERVER_URI");
+            if (string.IsNullOrWhiteSpace(expectedServerUri))
+            {
+                Assert.Ignore("An external redundancy test server requires a provisioned CLIENT_SERVER_URI.");
+            }
+
+            return new ServerRedundancyOptions
+            {
+                ExpectedServerApplicationUri = expectedServerUri,
+                ProbeMemberServiceLevel = false,
+                ServiceLevelMonitoringInterval = null
+            };
+        }
+
         private sealed class FakeRedundancyHandler : IServerRedundancyHandler
         {
             public FakeRedundancyHandler(ConfiguredEndpoint? target)

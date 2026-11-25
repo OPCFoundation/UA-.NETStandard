@@ -19,7 +19,7 @@ namespace Opc.Ua.Redundancy
     /// <c>RaftLeaderElection</c>. The external multi-node Raft engine (<c>RaftCs</c>) is a drop-in replacement
     /// of the <see cref="IRaftConsensus"/> contract.
     /// </remarks>
-    public sealed class InProcessRaftConsensus : IRaftConsensus
+    public sealed class InProcessRaftConsensus : IRaftConsensus, IRaftConsensusLocality
     {
         /// <summary>
         /// Creates a standalone single-node replica (its own private one-member cluster). The node is always the
@@ -55,6 +55,9 @@ namespace Opc.Ua.Redundancy
 
         /// <inheritdoc/>
         public bool IsLeader => Volatile.Read(ref m_isLeader);
+
+        /// <inheritdoc/>
+        public bool IsProcessLocal => true;
 
         /// <inheritdoc/>
         public event Action<bool>? LeadershipChanged;

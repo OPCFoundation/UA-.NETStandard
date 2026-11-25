@@ -76,8 +76,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             using var cts = new CancellationTokenSource(duration + TimeSpan.FromMinutes(10));
             CancellationToken cancellationToken = cts.Token;
 
-            await using RedundantServerCluster cluster = await RedundantServerCluster.StartSingleEventualAsync(
+            await using RedundantServerCluster cluster = await RedundantServerCluster.StartStandaloneAsync(
                 startupTimeout: TimeSpan.FromSeconds(60),
+                insecure: true,
                 cancellationToken).ConfigureAwait(false);
             RedundantServerReplica server = cluster.Replicas[0];
 
@@ -93,7 +94,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 ],
                 SampleTestEnvironment.IndependentClient);
 
-            await client.WaitForLineAsync("Connected replica:", TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
+            await client.WaitForLineAsync(
+                "Monitoring ServerStatus.CurrentTime", TimeSpan.FromSeconds(90), cancellationToken)
+                .ConfigureAwait(false);
 
             int cycles = 0;
             DateTime deadline = DateTime.UtcNow + duration;
