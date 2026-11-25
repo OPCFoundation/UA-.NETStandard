@@ -565,13 +565,15 @@ Registrar push uses the same approval provider and retained external evidence
 without requesting tickets from an externally authenticated device. The
 `OnboardingDevice` sample remains the ticket-based factory-identity example;
 it does not run an external authentication service or install its DCA credential.
-FDO discovery, ownership vouchers, TO0/TO1/TO2 and `fdo.csr` exchange remain
-outside these samples. No FDO SDK dependency or FDO interoperability result is
-provided. See [the handoff contract](../../docs/GDS.md#external-authentication-certificate-handoff)
-for provider registration and recovery behavior.
+The existing onboarding commands do not run the FDO exchange. The separate
+[FDO onboarding demo](FdoOnboarding/README.md) runs initialization, voucher
+transfer, TO0/TO1/TO2, and `fdo.csr` enrollment before connecting to the
+registrar. It uses a local development package and does not establish FDO
+interoperability. See [the handoff contract](../../docs/GDS.md#external-authentication-certificate-handoff)
+for provider registration and recovery.
 
-For hosts integrating FDO, the sample code has two components that are not
-wired into these commands. [`FdoRegistrarEnrollmentPolicy`](OnboardingRegistrar/FdoRegistrarEnrollmentPolicy.cs)
+The FDO demo wires two sample components into its enrollment callbacks.
+[`FdoRegistrarEnrollmentPolicy`](OnboardingRegistrar/FdoRegistrarEnrollmentPolicy.cs)
 checks the authenticated Device GUID and attestation certificate against
 operator-configured pins before asking the dedicated GDS group to sign the
 CSR. It records issuance before returning the certificate, then admits only
