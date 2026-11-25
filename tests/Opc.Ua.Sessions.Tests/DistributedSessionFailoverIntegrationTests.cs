@@ -16,6 +16,7 @@ using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
@@ -69,8 +70,12 @@ namespace Opc.Ua.Sessions.Tests
         [CancelAfter(180_000)]
         public async Task TokenReuseFailoverRestoresSessionOnStandbyAsync(CancellationToken ct)
         {
-            using var sharedStore = new InMemorySharedKeyValueStore();
+            using var payloads = new InMemorySharedKeyValueStore();
+            using var authority = new SimulatedSharedKeyValueStore();
             using var protector = new AesCbcHmacRecordProtector(MakeKey());
+            var sharedStore = new FreshnessProtectedKeyValueStore(
+                payloads, authority, protector, Guid.NewGuid(), Guid.NewGuid());
+            await sharedStore.EnrollAsync(ct).ConfigureAwait(false);
             var factory = new DistributedSessionManagerFactory(
                 sharedStore,
                 protector,
@@ -92,13 +97,14 @@ namespace Opc.Ua.Sessions.Tests
                     .GetEndpointAsync(urlB, SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
 
-                var redundancyHandler = new FailoverRedundancyHandler(endpointB);
+                var redundancyHandler = new FailoverRedundancyHandler(endpointB, fixtureB.Config.ApplicationUri!);
                 session = await new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
                     .UseEndpoint(endpointA)
                     .WithSessionName(nameof(TokenReuseFailoverRestoresSessionOnStandbyAsync))
                     .WithSessionTimeout(TimeSpan.FromSeconds(60))
                     .WithUserIdentity(new UserIdentity("user1", "password"u8))
                     .WithServerRedundancy(redundancyHandler)
+                    .WithServerRedundancyOptions(CreateFailoverOptions(fixtureA.Config.ApplicationUri!))
                     .WithTokenReuseFailover()
                     .WithReconnectPolicy(p => p with
                     {
@@ -211,8 +217,12 @@ namespace Opc.Ua.Sessions.Tests
         [DependsOnTest(nameof(TokenReuseFailoverRestoresSessionOnStandbyAsync), AllowFailure = true)]
         public async Task SessionUsedPastItsTimeoutFailsOverWithItsSessionIdAsync(CancellationToken ct)
         {
-            using var sharedStore = new InMemorySharedKeyValueStore();
+            using var payloads = new InMemorySharedKeyValueStore();
+            using var authority = new SimulatedSharedKeyValueStore();
             using var protector = new AesCbcHmacRecordProtector(MakeKey());
+            var sharedStore = new FreshnessProtectedKeyValueStore(
+                payloads, authority, protector, Guid.NewGuid(), Guid.NewGuid());
+            await sharedStore.EnrollAsync(ct).ConfigureAwait(false);
             var factory = new DistributedSessionManagerFactory(
                 sharedStore,
                 protector,
@@ -235,13 +245,14 @@ namespace Opc.Ua.Sessions.Tests
                     .GetEndpointAsync(urlB, SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
 
-                var redundancyHandler = new FailoverRedundancyHandler(endpointB);
+                var redundancyHandler = new FailoverRedundancyHandler(endpointB, fixtureB.Config.ApplicationUri!);
                 session = await new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
                     .UseEndpoint(endpointA)
                     .WithSessionName(nameof(SessionUsedPastItsTimeoutFailsOverWithItsSessionIdAsync))
                     .WithSessionTimeout(sessionTimeout)
                     .WithUserIdentity(new UserIdentity("user1", "password"u8))
                     .WithServerRedundancy(redundancyHandler)
+                    .WithServerRedundancyOptions(CreateFailoverOptions(fixtureA.Config.ApplicationUri!))
                     .WithTokenReuseFailover()
                     .WithReconnectPolicy(p => p with
                     {
@@ -384,11 +395,22 @@ namespace Opc.Ua.Sessions.Tests
             return key;
         }
 
+        private static Client.ServerRedundancyOptions CreateFailoverOptions(string expectedServerUri)
+        {
+            return new Client.ServerRedundancyOptions
+            {
+                ExpectedServerApplicationUri = expectedServerUri,
+                ProbeMemberServiceLevel = false,
+                ServiceLevelMonitoringInterval = null
+            };
+        }
+
         private sealed class FailoverRedundancyHandler : IServerRedundancyHandler
         {
-            public FailoverRedundancyHandler(ConfiguredEndpoint target)
+            public FailoverRedundancyHandler(ConfiguredEndpoint target, string targetApplicationUri)
             {
                 m_target = target;
+                m_targetApplicationUri = targetApplicationUri;
             }
 
             public int SelectCount { get; private set; }
@@ -399,15 +421,16 @@ namespace Opc.Ua.Sessions.Tests
             {
                 return new ValueTask<ServerRedundancyInfo>(new ServerRedundancyInfo
                 {
-                    Mode = RedundancySupport.Hot,
+                    Mode = RedundancySupport.HotAndMirrored,
                     ServiceLevel = 200,
                     RedundantServers =
                     [
                         new RedundantServer
                         {
-                            ServerUri = m_target.EndpointUrl?.ToString() ?? "urn:standby",
+                            ServerUri = m_targetApplicationUri,
                             ServerState = ServerState.Running,
-                            ServiceLevel = 250
+                            ServiceLevel = 250,
+                            Endpoint = m_target
                         }
                     ]
                 });
@@ -432,6 +455,7 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             private readonly ConfiguredEndpoint m_target;
+            private readonly string m_targetApplicationUri;
         }
     }
 }

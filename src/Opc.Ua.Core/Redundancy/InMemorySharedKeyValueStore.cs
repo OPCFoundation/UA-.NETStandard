@@ -19,10 +19,32 @@ namespace Opc.Ua.Redundancy
     /// same contract.
     /// </summary>
     public sealed class InMemorySharedKeyValueStore :
-        ISharedKeyValueStore,
+        IDeadlineGuardedSharedKeyValueStore,
         ISharedKeyValueStoreConsistency,
         IDisposable
     {
+        /// <summary>
+        /// Creates a process-local store with the system clock.
+        /// </summary>
+        public InMemorySharedKeyValueStore()
+            : this(TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates a process-local store with an explicit authority clock.
+        /// </summary>
+        /// <param name="timeProvider">The clock used for guarded deadlines.</param>
+        public InMemorySharedKeyValueStore(TimeProvider timeProvider)
+        {
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_utcAnchor = timeProvider.GetUtcNow();
+            m_timeAnchor = timeProvider.GetTimestamp();
+        }
+
+        /// <inheritdoc/>
+        public bool SupportsGuardedDeadlines => true;
+
         /// <inheritdoc/>
         public bool IsLinearizable(string key)
         {
@@ -139,6 +161,73 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
+        public ValueTask<bool> CompareAndSwapWhenAsync(
+            string key,
+            ByteString expected,
+            ByteString value,
+            string guardKey,
+            ByteString guardExpected,
+            CancellationToken ct = default)
+        {
+            return CompareAndSwapGuarded(key, expected, value, guardKey, guardExpected, null, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<bool> CompareAndSwapBeforeAsync(
+            string key,
+            ByteString expected,
+            ByteString value,
+            string guardKey,
+            ByteString guardExpected,
+            DateTimeOffset deadline,
+            CancellationToken ct = default)
+        {
+            return CompareAndSwapGuarded(key, expected, value, guardKey, guardExpected, deadline, ct);
+        }
+
+        private ValueTask<bool> CompareAndSwapGuarded(
+            string key,
+            ByteString expected,
+            ByteString value,
+            string guardKey,
+            ByteString guardExpected,
+            DateTimeOffset? deadline,
+            CancellationToken ct)
+        {
+            if (string.IsNullOrEmpty(guardKey) || key == guardKey || guardExpected.IsNull)
+            {
+                throw new ArgumentException("A separate guard with a non-null expected value is required.");
+            }
+            ct.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                if (!m_data.TryGetValue(guardKey, out ByteString guard) || guard != guardExpected)
+                {
+                    return new ValueTask<bool>(false);
+                }
+                if (deadline.HasValue && ReadAuthorityTimeLocked() >= deadline.Value)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotWritable, "The writer grant deadline has passed.");
+                }
+                return CompareAndSwapAsync(key, expected, value, ct);
+            }
+        }
+
+        private DateTimeOffset ReadAuthorityTimeLocked()
+        {
+            long timestamp = m_timeProvider.GetTimestamp();
+            DateTimeOffset elapsed = m_utcAnchor + m_timeProvider.GetElapsedTime(m_timeAnchor, timestamp);
+            DateTimeOffset utc = m_timeProvider.GetUtcNow();
+            if (utc > elapsed)
+            {
+                m_utcAnchor = utc;
+                m_timeAnchor = timestamp;
+                return utc;
+            }
+            return elapsed;
+        }
+
+        /// <inheritdoc/>
         public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
             string keyPrefix,
             [EnumeratorCancellation] CancellationToken ct = default)
@@ -240,7 +329,10 @@ namespace Opc.Ua.Redundancy
         }
 
         private readonly Lock m_lock = new();
+        private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<string, ByteString> m_data = new(StringComparer.Ordinal);
         private readonly List<Watcher> m_watchers = [];
+        private DateTimeOffset m_utcAnchor;
+        private long m_timeAnchor;
     }
 }

@@ -42,8 +42,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             m_kv = new InMemorySharedKeyValueStore();
             m_protector = new AesCbcHmacRecordProtector(MakeKey(1));
-            var factory = new DistributedSessionManagerFactory(
-                m_kv, m_protector, new DistributedSessionOptions { EnableFastReconnect = true });
+            var factory = new DistributedSessionManagerFactory(m_kv, m_protector);
 
             m_fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
             {

@@ -133,6 +133,8 @@ namespace Opc.Ua.Client
         /// default <see cref="DefaultServerRedundancyHandler"/>. To use a
         /// custom handler, pass it explicitly to
         /// <see cref="ManagedSession"/>.<c>CreateAsync</c>.
+        /// Supply an independently provisioned
+        /// <see cref="ServerRedundancyOptions.ExpectedServerApplicationUri"/> in <see cref="ServerRedundancy"/>.
         /// </summary>
         public bool EnableServerRedundancy { get; init; }
 
@@ -145,6 +147,8 @@ namespace Opc.Ua.Client
         /// failover). Requires the server side to mirror session state; the
         /// standby still performs the full <c>ActivateSession</c> signature
         /// validation, so the token alone never admits a session.
+        /// Supply <see cref="ServerRedundancyOptions.ExpectedServerApplicationUri"/> in
+        /// <see cref="ServerRedundancy"/>.
         /// </summary>
         public bool EnableTokenReuseFailover { get; init; }
 

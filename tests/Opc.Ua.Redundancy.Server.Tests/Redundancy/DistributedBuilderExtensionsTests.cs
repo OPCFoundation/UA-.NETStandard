@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -25,6 +27,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
     [Parallelizable(ParallelScope.All)]
     public sealed class DistributedBuilderExtensionsTests
     {
+        /// <summary>
+        /// A local definition route does not exempt other subscription records from requiring freshness.
+        /// </summary>
+        [Test]
+        public async Task SubscriptionRegistrationRejectsHybridWithUnknownBulkLocalityAsync()
+        {
+            using var localDefinitions = new InMemorySharedKeyValueStore();
+            ISharedKeyValueStore unknownBulk = Mock.Of<ISharedKeyValueStore>();
+            await using var hybrid = new HybridSharedKeyValueStore(unknownBulk, localDefinitions, ["subscription/"]);
+            Assert.That(hybrid.IsProcessLocal("subscription/"), Is.True);
+            Assert.That(hybrid.IsProcessLocal("subscription-retransmission/"), Is.False);
+
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton<ISharedKeyValueStore>(hybrid);
+            builder.UseDistributedSubscriptionMirroring();
+            await using ServiceProvider services = builder.Services.BuildServiceProvider();
+            Assert.That(() => services.GetRequiredService<ISubscriptionStore>(),
+                Throws.InvalidOperationException.With.Message.Contains("independent freshness authority"));
+        }
+
         [Test]
         public void AddServerServiceLevelThrowsOnNullBuilder()
         {

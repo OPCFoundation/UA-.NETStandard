@@ -229,26 +229,21 @@ namespace Opc.Ua.Aot.Tests
                 builder.SetMinimumLevel(LogLevel.Warning));
             var context = ServiceMessageContext.CreateEmpty(telemetry);
 
-            await using (var factory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, context, protector, telemetry))
-            {
-                IDataChangeMonitoredItemQueue dataQueue = factory.CreateDataChangeQueue(false, 77);
-                dataQueue.ResetQueue(4, false);
-                dataQueue.Enqueue(new DataValue(new Variant(101)), ServiceResult.Good);
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, protector, telemetry);
+            IDataChangeMonitoredItemQueue dataQueue = factory.CreateDataChangeQueue(false, 77);
+            dataQueue.ResetQueue(4, false);
+            dataQueue.Enqueue(new DataValue(new Variant(101)), ServiceResult.Good);
 
-                IEventMonitoredItemQueue eventQueue = factory.CreateEventQueue(false, 78);
-                eventQueue.SetQueueSize(4, true);
-                eventQueue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = 9, EventFields = [new Variant(true)] }));
+            IEventMonitoredItemQueue eventQueue = factory.CreateEventQueue(false, 78);
+            eventQueue.SetQueueSize(4, true);
+            eventQueue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = 9, EventFields = [new Variant(true)] }));
 
-                await factory.FlushAsync().ConfigureAwait(false);
-            }
+            await factory.FlushAsync().ConfigureAwait(false);
 
-            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, context, protector, telemetry);
-            IDataChangeMonitoredItemQueue? restoredData = await restoreFactory
+            IDataChangeMonitoredItemQueue? restoredData = await factory
                 .RestoreDataChangeQueueAsync(77)
                 .ConfigureAwait(false);
-            IEventMonitoredItemQueue? restoredEvent = await restoreFactory
+            IEventMonitoredItemQueue? restoredEvent = await factory
                 .RestoreEventQueueAsync(78)
                 .ConfigureAwait(false);
 

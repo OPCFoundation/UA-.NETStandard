@@ -39,7 +39,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task OneTimeSetUpAsync()
         {
             m_kv = new InMemorySharedKeyValueStore();
-            m_options = new LoadDirectionOptions { BalancingEndpointUrl = BalancingUrl };
+            m_options = new LoadDirectionOptions
+            {
+                BalancingEndpointUrl = BalancingUrl,
+                PeerApplicationUris = ["urn:B"]
+            };
             m_director = new ServerLoadDirector(
                 new ConstantServiceLevelProvider(100), // local is a Degraded standby
                 new ConstantLoadWeightProvider(200),

@@ -98,6 +98,16 @@ namespace Opc.Ua.Redundancy.Server
                     StatusCodes.BadConfigurationError,
                     "Replica-set startup requires an explicit fixed namespace and NodeId identity policy.");
             }
+            if (!InMemoryNodeStateStore.HasProcessLocalWrites(m_keyValueStore) &&
+                (!InMemoryNodeStateStore.HasGuardedWrites(m_keyValueStore) ||
+                    !AddressSpaceSynchronizer.SupportsWriterFence(m_election)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "Distributed address-space publication requires a store that checks the writer grant and its " +
+                    "deadline in the same commit, and a " +
+                    "writer election that exposes its committed grant on the same store.");
+            }
             if (server is INodeIdFactoryProvider { NodeIdFactory: ReplicaNodeIdFactory identity })
             {
                 identity.ValidateNamespaces(server.MessageContext.NamespaceUris);
@@ -120,7 +130,13 @@ namespace Opc.Ua.Redundancy.Server
             // transferred to the registry below (NodeStateStoreRegistry.Dispose
             // disposes registered stores from this task's DisposeAsync).
 #pragma warning disable CA2000
-            var store = new InMemoryNodeStateStore(m_keyValueStore, server.MessageContext, m_protector);
+            var store = new InMemoryNodeStateStore(
+                m_keyValueStore,
+                server.MessageContext,
+                m_protector,
+                default,
+                requireWriterGeneration: true,
+                publishManagedValue: PublishManagedValueAsync);
 #pragma warning restore CA2000
 
             // Own the node state store registry; nothing in the core server
@@ -190,6 +206,30 @@ namespace Opc.Ua.Redundancy.Server
             m_registry?.Dispose();
         }
 
+        /// <summary>
+        /// Checks that every local partition is ready in the elected role.
+        /// </summary>
+        internal bool IsRoleReady(bool isLeader)
+        {
+            lock (m_lock)
+            {
+                if (!m_replicationInitialized || m_election.IsLeader != isLeader)
+                {
+                    return false;
+                }
+
+                foreach (AddressSpaceSynchronizer synchronizer in m_synchronizers)
+                {
+                    (bool isReady, bool isWriter) = synchronizer.ReplicationStatus;
+                    if (!isReady || isWriter != isLeader)
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+
         private async ValueTask StartSynchronizersAsync(
             List<AddressSpaceRegistration> registrations,
             InMemoryNodeStateStore store,
@@ -223,6 +263,35 @@ namespace Opc.Ua.Redundancy.Server
                     m_synchronizers.Add(synchronizer);
                 }
             }
+            lock (m_lock)
+            {
+                m_replicationInitialized = true;
+            }
+        }
+
+        private async ValueTask PublishManagedValueAsync(NodeId nodeId, DataValue value, CancellationToken ct)
+        {
+            AddressSpaceSynchronizer? owner = null;
+            lock (m_lock)
+            {
+                if (m_replicationInitialized)
+                {
+                    foreach (AddressSpaceSynchronizer synchronizer in m_synchronizers)
+                    {
+                        if (synchronizer.OwnsNode(nodeId))
+                        {
+                            owner = synchronizer;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (owner == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotWritable, "No verified writer owns the distributed cache value.");
+            }
+            await owner.PublishManagedValueAsync(nodeId, value, ct).ConfigureAwait(false);
         }
 
         private async ValueTask StopSynchronizersAsync()
@@ -230,6 +299,7 @@ namespace Opc.Ua.Redundancy.Server
             AddressSpaceSynchronizer[] synchronizers;
             lock (m_lock)
             {
+                m_replicationInitialized = false;
                 synchronizers = [.. m_synchronizers, .. m_preparing];
                 m_synchronizers.Clear();
                 m_preparing.Clear();
@@ -250,5 +320,6 @@ namespace Opc.Ua.Redundancy.Server
         private readonly List<AddressSpaceSynchronizer> m_preparing = [];
         private NodeStateStoreRegistry? m_registry;
         private ReplicaNodeIdFactory? m_identity;
+        private bool m_replicationInitialized;
     }
 }

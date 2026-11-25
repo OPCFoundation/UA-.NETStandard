@@ -10,9 +10,13 @@
 #pragma warning disable CA2007
 
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
+using Raft.Configuration;
+using Raft.Storage;
+using Raft.Transport;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -51,6 +55,47 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(createdAgain, Is.False, "the second create-if-absent loses once the key is committed");
             Assert.That(found, Is.True);
             Assert.That(value.ToArray(), Is.EqualTo(new byte[] { 1 }));
+        }
+
+        [Test]
+        public async Task SingleNodeStoreReportsLocalLinearizabilityAsync()
+        {
+            await using var consensus = DefaultRaftConsensus.CreateSingleNode();
+            await using var store = new RaftSharedKeyValueStore(consensus);
+
+            Assert.That(consensus.IsProcessLocal, Is.True);
+            Assert.That(store.IsLinearizable("nonce/"), Is.True);
+            Assert.That(store.IsProcessLocal("nonce/"), Is.True);
+        }
+
+        [TestCase(1, true)]
+        [TestCase(3, false)]
+        public async Task ClusterStoreReportsSingletonAsLocalAsync(int voters, bool processLocal)
+        {
+            var storage = new MemoryStorage(new ConfState(voters == 1 ? [1UL] : [1UL, 2UL, 3UL]));
+            await using var consensus = DefaultRaftConsensus.CreateCluster(1, Mock.Of<IRaftTransport>(), storage);
+            await using var store = new RaftSharedKeyValueStore(consensus);
+
+            Assert.That(store.IsProcessLocal("nonce/"), Is.EqualTo(processLocal));
+        }
+
+        [Test]
+        public async Task InMemoryTransportKeepsMultiVoterClusterProcessLocalAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            await using var consensus = DefaultRaftConsensus.CreateCluster(1, [1UL, 2UL], network.CreateNode(1));
+            await using var store = new RaftSharedKeyValueStore(consensus);
+
+            Assert.That(store.IsProcessLocal("nonce/"), Is.True);
+        }
+
+        [Test]
+        public async Task ConsensusWithoutLocalityDoesNotAdvertiseCrossProcessSharingAsync()
+        {
+            await using var store = new RaftSharedKeyValueStore(Mock.Of<IRaftConsensus>());
+
+            Assert.That(store.IsLinearizable("nonce/"), Is.True);
+            Assert.That(store.IsProcessLocal("nonce/"), Is.True);
         }
 
         [Test]

@@ -16,6 +16,7 @@ using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Client.Tests.Stack.Client.Fakes;
 using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 #pragma warning disable CA2000
@@ -830,7 +831,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .GetField(
                     "m_redundancyInfo",
                     BindingFlags.NonPublic | BindingFlags.Instance)!
-                .SetValue(managedSession, new ServerRedundancyInfo());
+                .SetValue(managedSession, new ServerRedundancyInfo { Mode = RedundancySupport.Cold });
 
             ServiceResult result = await InvokeHandleFailoverAsync(
                     managedSession,
@@ -914,14 +915,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
-            ConfiguredEndpoint primary = CreateEndpoint();
+            using var peer = new AuthenticatedSessionPeer("urn:primary", configuration);
+            ConfiguredEndpoint primary = peer.ConfigureEndpoint(CreateEndpoint());
             primary.UpdateBeforeConnect = false;
-            primary.Description.Server.ApplicationUri = "urn:primary";
-            ConfiguredEndpoint oldPeer = CreateEndpoint();
+            ConfiguredEndpoint oldPeer = CoreUtils.Clone(primary)!;
             oldPeer.Description.Server.ApplicationUri = "urn:backup";
             oldPeer.Description.EndpointUrl = "opc.tcp://backup:4840";
-            ConfiguredEndpoint refreshedPeer = CreateEndpoint();
-            refreshedPeer.Description.Server.ApplicationUri = "urn:backup";
+            ConfiguredEndpoint refreshedPeer = CoreUtils.Clone(oldPeer)!;
             refreshedPeer.Description.EndpointUrl = "opc.tcp://backup:4841";
             var resolver = new Mock<IRedundantServerEndpointResolver>();
             int resolutions = 0;
@@ -944,17 +944,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     new DataValue(new Variant(DateTime.MinValue))
                 ]
             };
-            var channel = new Mock<ITransportChannel>();
-            channel.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
-            channel.SetupSequence(value => value.SendRequestAsync(
-                    It.IsAny<ReadRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(response)
-                .Throws(new ServiceResultException(StatusCodes.BadConnectionClosed));
-            using var inner = new SessionMock(channel, configuration, primary);
-            inner.SetConnected();
             var lease = new Mock<IManagedTransportChannel>();
-            lease.SetupGet(value => value.MessageContext).Returns(inner.MessageContext);
-            var manager = new Mock<IClientChannelManager>();
+            lease.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
+            Mock<IClientChannelManager> manager = CreateFailoverChannelManager();
             ConfiguredEndpoint? attemptedPeer = null;
             manager.Setup(value => value.GetAsync(
                     It.IsAny<ConfiguredEndpoint>(),
@@ -963,22 +955,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
                     ITransportWaitingConnection?, CancellationToken>((endpoint, _, _, _) => attemptedPeer = endpoint)
                 .Throws(new ServiceResultException(StatusCodes.BadServerHalted));
-            inner.BindManagedChannel(manager.Object, lease.Object);
-            var factory = new Mock<ISessionFactory>();
-            factory.SetupGet(value => value.Telemetry).Returns(telemetry);
-            factory.SetupGet(value => value.SubscriptionEngineFactory)
-                .Returns(DefaultSubscriptionEngineFactory.Instance);
-            factory.Setup(value => value.CreateAsync(
-                    configuration,
-                    It.Is<ConfiguredEndpoint>(candidate =>
-                        !ReferenceEquals(candidate, primary) && candidate.EndpointUrl == primary.EndpointUrl),
-                    false, false, It.IsAny<string>(), It.IsAny<uint>(),
-                    It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(inner);
+            int redundancyReads = 0;
+            ISessionFactory factory = peer.CreateSessionFactory(
+                telemetry, TimeProvider.System,
+                () => Interlocked.Increment(ref redundancyReads) == 1
+                    ? response : throw new ServiceResultException(StatusCodes.BadConnectionClosed),
+                session => session.BindManagedChannel(manager.Object, lease.Object));
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await using Client.ManagedSession managed = await Client.ManagedSession.CreateAsync(
-                configuration, primary, factory.Object, redundancyHandler: redundancy, ct: timeout.Token)
-                .ConfigureAwait(false);
+                configuration, primary, factory, redundancyHandler: redundancy,
+                serverRedundancy: peer.RedundancyOptions, ct: timeout.Token).ConfigureAwait(false);
             Assert.That(managed.RedundancySupport, Is.EqualTo(RedundancySupport.Hot));
 
             ServiceResult result = await managed.StateMachine.FailoverWithBudgetAsync!(
@@ -1008,10 +994,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
-            ConfiguredEndpoint primary = CreateEndpoint();
+            using var peer = new AuthenticatedSessionPeer("urn:primary", configuration);
+            ConfiguredEndpoint primary = peer.ConfigureEndpoint(CreateEndpoint());
             primary.UpdateBeforeConnect = false;
-            primary.Description.Server.ApplicationUri = "urn:primary";
-            ConfiguredEndpoint backup = CreateEndpoint();
+            ConfiguredEndpoint backup = CoreUtils.Clone(primary)!;
             backup.Description.Server.ApplicationUri = "urn:backup";
             backup.Description.EndpointUrl = "opc.tcp://backup:4840";
             var time = new FakeTimeProvider();
@@ -1053,17 +1039,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     new DataValue(new Variant(DateTime.MinValue))
                 ]
             };
-            var channel = new Mock<ITransportChannel>();
-            channel.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
-            channel.SetupSequence(value => value.SendRequestAsync(
-                    It.IsAny<ReadRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(response)
-                .Throws(new ServiceResultException(StatusCodes.BadConnectionClosed));
-            using var inner = new SessionMock(channel, configuration, primary);
-            inner.SetConnected();
             var lease = new Mock<IManagedTransportChannel>();
-            lease.SetupGet(value => value.MessageContext).Returns(inner.MessageContext);
-            var manager = new Mock<IClientChannelManager>();
+            lease.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
+            Mock<IClientChannelManager> manager = CreateFailoverChannelManager();
             ConfiguredEndpoint? attemptedPeer = null;
             manager.Setup(value => value.GetAsync(
                     It.IsAny<ConfiguredEndpoint>(), It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
@@ -1071,22 +1049,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
                     ITransportWaitingConnection?, CancellationToken>((endpoint, _, _, _) => attemptedPeer = endpoint)
                 .Throws(new ServiceResultException(StatusCodes.BadServerHalted));
-            inner.BindManagedChannel(manager.Object, lease.Object);
-            var factory = new Mock<ISessionFactory>();
-            factory.SetupGet(value => value.Telemetry).Returns(telemetry);
-            factory.SetupGet(value => value.SubscriptionEngineFactory)
-                .Returns(DefaultSubscriptionEngineFactory.Instance);
-            factory.Setup(value => value.CreateAsync(
-                    configuration,
-                    It.Is<ConfiguredEndpoint>(candidate =>
-                        !ReferenceEquals(candidate, primary) && candidate.EndpointUrl == primary.EndpointUrl),
-                    false, false, It.IsAny<string>(), It.IsAny<uint>(),
-                    It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(inner);
+            int redundancyReads = 0;
+            ISessionFactory factory = peer.CreateSessionFactory(
+                telemetry, time,
+                () => Interlocked.Increment(ref redundancyReads) == 1
+                    ? response : throw new ServiceResultException(StatusCodes.BadConnectionClosed),
+                session => session.BindManagedChannel(manager.Object, lease.Object));
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             Task<Client.ManagedSession> connecting = Client.ManagedSession.CreateAsync(
-                configuration, primary, factory.Object, redundancyHandler: redundancy, timeProvider: time,
-                ct: timeout.Token);
+                configuration, primary, factory, redundancyHandler: redundancy, timeProvider: time,
+                serverRedundancy: peer.RedundancyOptions, ct: timeout.Token);
             // Advancing before both parallel lookups enter can expire a peer before it is called.
             await Task.WhenAll(peerEntered.Task, backupEntered.Task).WaitAsync(timeout.Token).ConfigureAwait(false);
             if (waitForPeerTimeout)
@@ -1523,33 +1495,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
-            ConfiguredEndpoint endpoint = CreateEndpoint();
-            IServiceMessageContext messageContext = configuration.CreateMessageContext();
-
-            var channel = new Mock<IManagedTransportChannel>();
-            channel.SetupGet(c => c.MessageContext).Returns(messageContext);
-            var innerSession = new Session(
-                channel.Object,
-                configuration,
-                endpoint,
-                engineFactory: DefaultSubscriptionEngineFactory.Instance);
-
-            var sessionFactory = new Mock<ISessionFactory>();
-            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
-            sessionFactory.Setup(f => f.WithSubscriptionEngine(
-                    It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
-                .Returns(sessionFactory.Object);
-            sessionFactory.Setup(f => f.CreateAsync(
-                    It.IsAny<ApplicationConfiguration>(),
-                    It.IsAny<ConfiguredEndpoint>(),
-                    It.IsAny<bool>(),
-                    It.IsAny<bool>(),
-                    It.IsAny<string>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<IUserIdentity?>(),
-                    It.IsAny<ArrayOf<string>>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(innerSession);
+            using var peer = new AuthenticatedSessionPeer("urn:test:primary", configuration);
+            ConfiguredEndpoint endpoint = peer.ConfigureEndpoint(CreateEndpoint());
+            endpoint.UpdateBeforeConnect = false;
 
             Client.ManagedSession? managedSession = null;
             var fetchStarted = new TaskCompletionSource<bool>(
@@ -1572,8 +1520,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Task<Client.ManagedSession> createTask = Client.ManagedSession.CreateAsync(
                 configuration,
                 endpoint,
-                sessionFactory.Object,
+                peer.CreateSessionFactory(telemetry, TimeProvider.System),
                 redundancyHandler: redundancyHandler.Object,
+                serverRedundancy: peer.RedundancyOptions,
                 ct: cancellation.Token);
 
             Task startedTask = await Task.WhenAny(
@@ -1603,33 +1552,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
-            ConfiguredEndpoint endpoint = CreateEndpoint();
-            IServiceMessageContext messageContext = configuration.CreateMessageContext();
-
-            var channel = new Mock<IManagedTransportChannel>();
-            channel.SetupGet(c => c.MessageContext).Returns(messageContext);
-            var innerSession = new Session(
-                channel.Object,
-                configuration,
-                endpoint,
-                engineFactory: DefaultSubscriptionEngineFactory.Instance);
-
-            var sessionFactory = new Mock<ISessionFactory>();
-            sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
-            sessionFactory.Setup(f => f.WithSubscriptionEngine(
-                    It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
-                .Returns(sessionFactory.Object);
-            sessionFactory.Setup(f => f.CreateAsync(
-                    It.IsAny<ApplicationConfiguration>(),
-                    It.IsAny<ConfiguredEndpoint>(),
-                    It.IsAny<bool>(),
-                    It.IsAny<bool>(),
-                    It.IsAny<string>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<IUserIdentity?>(),
-                    It.IsAny<ArrayOf<string>>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(innerSession);
+            using var peer = new AuthenticatedSessionPeer("urn:test:primary", configuration);
+            ConfiguredEndpoint endpoint = peer.ConfigureEndpoint(CreateEndpoint());
+            endpoint.UpdateBeforeConnect = false;
 
             Client.ManagedSession? managedSession = null;
             var fetchStarted = new TaskCompletionSource<bool>(
@@ -1654,8 +1579,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Task<Client.ManagedSession> createTask = Client.ManagedSession.CreateAsync(
                 configuration,
                 endpoint,
-                sessionFactory.Object,
-                redundancyHandler: redundancyHandler.Object);
+                peer.CreateSessionFactory(telemetry, TimeProvider.System),
+                redundancyHandler: redundancyHandler.Object,
+                serverRedundancy: peer.RedundancyOptions);
 
             Task startedTask = await Task.WhenAny(
                     fetchStarted.Task,
@@ -2211,7 +2137,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 false,
                 false,
                 networkRedundancy,
-                null,
+                new ServerRedundancyOptions { ProbeMemberServiceLevel = false },
                 null,
                 null
             ]);
@@ -2223,6 +2149,19 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .SetValue(managedSession, innerSession);
 
             return managedSession;
+        }
+
+        private static Mock<IClientChannelManager> CreateFailoverChannelManager()
+        {
+            var manager = new Mock<IClientChannelManager>();
+            manager.Setup(value => value.UpdateClientCertificate(
+                    It.IsAny<Certificate?>(), It.IsAny<CertificateCollection?>()))
+                .Callback((Certificate? certificate, CertificateCollection? chain) =>
+                {
+                    certificate?.Dispose();
+                    chain?.Dispose();
+                });
+            return manager;
         }
 #pragma warning restore IDE0051, RCS1213
 

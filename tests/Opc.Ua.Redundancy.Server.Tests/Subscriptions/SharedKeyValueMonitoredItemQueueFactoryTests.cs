@@ -51,10 +51,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 queue.Enqueue(new DataValue(Variant.From(12)), ServiceResult.Good);
             }
             await factory.FlushAsync().ConfigureAwait(false);
-            string prefix = eventQueue ? "monitored-item-queue/event/" : "monitored-item-queue/data/";
-            (bool found, ByteString record) = await kv.TryGetAsync(prefix + "11").ConfigureAwait(false);
+            string key11 = eventQueue ? factory.EventKeyFor(11) : factory.DataChangeKeyFor(11);
+            string key12 = eventQueue ? factory.EventKeyFor(12) : factory.DataChangeKeyFor(12);
+            (bool found, ByteString record) = await kv.TryGetAsync(key11).ConfigureAwait(false);
             Assert.That(found, Is.True);
-            await kv.SetAsync(prefix + "12", record).ConfigureAwait(false);
+            await kv.SetAsync(key12, record).ConfigureAwait(false);
 
             if (eventQueue)
             {
@@ -84,21 +85,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var values = new DataValue[3];
-            await using (var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry))
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry);
+            IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 42);
+            queue.ResetQueue(5, false);
+            for (int i = 0; i < 3; i++)
             {
-                IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 42);
-                queue.ResetQueue(5, false);
-                for (int i = 0; i < 3; i++)
-                {
-                    values[i] = new DataValue(new Variant(i));
-                    queue.Enqueue(values[i], ServiceResult.Good);
-                }
-                await factory.FlushAsync().ConfigureAwait(false);
+                values[i] = new DataValue(new Variant(i));
+                queue.Enqueue(values[i], ServiceResult.Good);
             }
+            await factory.FlushAsync().ConfigureAwait(false);
 
-            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, context, telemetry: telemetry);
-            IDataChangeMonitoredItemQueue restored = (await restoreFactory
+            IDataChangeMonitoredItemQueue restored = (await factory
                 .RestoreDataChangeQueueAsync(42)
                 .ConfigureAwait(false))!;
 
@@ -120,17 +117,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var error = new ServiceResult(StatusCodes.BadNoData);
-            await using (var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry))
-            {
-                IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 7);
-                queue.ResetQueue(3, true);
-                queue.Enqueue(new DataValue(new Variant(1)), error);
-                await factory.FlushAsync().ConfigureAwait(false);
-            }
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry);
+            IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 7);
+            queue.ResetQueue(3, true);
+            queue.Enqueue(new DataValue(new Variant(1)), error);
+            await factory.FlushAsync().ConfigureAwait(false);
 
-            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, context, telemetry: telemetry);
-            IDataChangeMonitoredItemQueue restored = (await restoreFactory
+            IDataChangeMonitoredItemQueue restored = (await factory
                 .RestoreDataChangeQueueAsync(7)
                 .ConfigureAwait(false))!;
 
@@ -146,20 +139,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
             IServiceMessageContext context = CreateContext();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            await using (var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry))
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry);
+            IEventMonitoredItemQueue queue = factory.CreateEventQueue(false, 11);
+            queue.SetQueueSize(5, true);
+            for (uint i = 0; i < 3; i++)
             {
-                IEventMonitoredItemQueue queue = factory.CreateEventQueue(false, 11);
-                queue.SetQueueSize(5, true);
-                for (uint i = 0; i < 3; i++)
-                {
-                    queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = i, EventFields = [new Variant(i)] }));
-                }
-                await factory.FlushAsync().ConfigureAwait(false);
+                queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = i, EventFields = [new Variant(i)] }));
             }
+            await factory.FlushAsync().ConfigureAwait(false);
 
-            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, context, telemetry: telemetry);
-            IEventMonitoredItemQueue restored = (await restoreFactory
+            IEventMonitoredItemQueue restored = (await factory
                 .RestoreEventQueueAsync(11)
                 .ConfigureAwait(false))!;
 
@@ -191,9 +180,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             queue.Dequeue(out _, out _);
             await factory.FlushAsync().ConfigureAwait(false);
 
-            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, context, telemetry: telemetry);
-            IDataChangeMonitoredItemQueue restored = (await restoreFactory
+            IDataChangeMonitoredItemQueue restored = (await factory
                 .RestoreDataChangeQueueAsync(3)
                 .ConfigureAwait(false))!;
 
@@ -215,11 +202,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             queue.OverwriteLastValue(new DataValue(new Variant(99)), ServiceResult.Good);
             await factory.FlushAsync().ConfigureAwait(false);
 
-            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv,
-                context,
-                telemetry: telemetry);
-            IDataChangeMonitoredItemQueue restored = (await restoreFactory
+            IDataChangeMonitoredItemQueue restored = (await factory
                 .RestoreDataChangeQueueAsync(33)
                 .ConfigureAwait(false))!;
 
@@ -344,8 +327,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .ConfigureAwait(false);
 
             // The write of queue 1 holds the drain until queue 2 and the restored queue changed.
-            Gate first = kv.Hold(DataChangeKey(1));
-            Gate second = kv.Hold(DataChangeKey(2));
+            Gate first = kv.Hold(factory.DataChangeKeyFor(1));
+            Gate second = kv.Hold(factory.DataChangeKeyFor(2));
             CreateMirroredQueue(factory, 1);
             await first.WaitEnteredAsync().ConfigureAwait(false);
             CreateMirroredQueue(factory, 2);
@@ -376,9 +359,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
                 .ConfigureAwait(false);
 
-            Gate first = kv.Hold(DataChangeKey(1));
-            Gate second = kv.Hold(DataChangeKey(2));
-            Gate restoredWrite = kv.Hold(eventQueue ? EventKey(9) : DataChangeKey(9));
+            Gate first = kv.Hold(factory.DataChangeKeyFor(1));
+            Gate second = kv.Hold(factory.DataChangeKeyFor(2));
+            Gate restoredWrite = kv.Hold(eventQueue ? factory.EventKeyFor(9) : factory.DataChangeKeyFor(9));
             CreateMirroredQueue(factory, 1);
             await first.WaitEnteredAsync().ConfigureAwait(false);
             CreateMirroredQueue(factory, 2);
@@ -410,7 +393,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 kv, CreateContext(), telemetry: telemetry);
             IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
                 .ConfigureAwait(false);
-            string key = eventQueue ? EventKey(9) : DataChangeKey(9);
+            string key = eventQueue ? factory.EventKeyFor(9) : factory.DataChangeKeyFor(9);
             int writesBefore = kv.StartedWrites(key);
 
             // The queue is not staged, so its change is written; the write is in progress when it is aborted.
@@ -441,7 +424,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 kv, CreateContext(), telemetry: telemetry);
             IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
                 .ConfigureAwait(false);
-            string key = eventQueue ? EventKey(9) : DataChangeKey(9);
+            string key = eventQueue ? factory.EventKeyFor(9) : factory.DataChangeKeyFor(9);
             int writesBefore = kv.StartedWrites(key);
 
             restored.BeginRestore();
@@ -466,9 +449,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 kv, CreateContext(), telemetry: telemetry);
 
             // The write of queue 1 holds the drain until queues 2 and 3 changed.
-            Gate first = kv.Hold(DataChangeKey(1));
-            Gate second = kv.Hold(DataChangeKey(2));
-            Gate third = kv.Hold(DataChangeKey(3));
+            Gate first = kv.Hold(factory.DataChangeKeyFor(1));
+            Gate second = kv.Hold(factory.DataChangeKeyFor(2));
+            Gate third = kv.Hold(factory.DataChangeKeyFor(3));
             CreateMirroredQueue(factory, 1);
             await first.WaitEnteredAsync().ConfigureAwait(false);
             IDataChangeMonitoredItemQueue queue2 = CreateMirroredQueue(factory, 2);
@@ -487,7 +470,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await factory.FlushAsync().ConfigureAwait(false);
 
             Assert.That(kv.MaxConcurrentWritesOfAKey, Is.EqualTo(1), "the writes of a queue never overlap");
-            Assert.That(kv.StartedWrites(DataChangeKey(2)), Is.GreaterThanOrEqualTo(2));
+            Assert.That(kv.StartedWrites(factory.DataChangeKeyFor(2)), Is.GreaterThanOrEqualTo(2));
             IDataChangeMonitoredItemQueue? stored = await factory.RestoreDataChangeQueueAsync(2)
                 .ConfigureAwait(false);
             ((IRestorableMonitoredItemQueue)stored!).AbortRestore();
@@ -536,8 +519,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await factory.FlushAsync().ConfigureAwait(false);
 
             // The removal of the data-change key is held; the removal of the event key throws at once.
-            Gate dataRemoval = kv.Hold(DataChangeKey(5));
-            kv.ThrowOnNextDelete(EventKey(5));
+            Gate dataRemoval = kv.Hold(factory.DataChangeKeyFor(5));
+            kv.ThrowOnNextDelete(factory.EventKeyFor(5));
             queue.Dispose();
             Task flush = factory.FlushAsync().AsTask();
             Task finished;
@@ -555,14 +538,27 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(finished, Is.Not.SameAs(flush), "the batch waits for the removal still in progress");
         }
 
-        private static string DataChangeKey(uint monitoredItemId)
+        /// <summary>
+        /// Removing a local monitored item cannot remove another factory's queue with the same numeric id.
+        /// </summary>
+        [Test]
+        public async Task RemovingQueuePreservesOtherFactorysSnapshotAsync()
         {
-            return "monitored-item-queue/data/" + monitoredItemId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        }
+            using var store = new InMemorySharedKeyValueStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var first = new SharedKeyValueMonitoredItemQueueFactory(
+                store, CreateContext(), telemetry: telemetry);
+            await using var second = new SharedKeyValueMonitoredItemQueueFactory(
+                store, CreateContext(), telemetry: telemetry);
+            IDataChangeMonitoredItemQueue removed = CreateMirroredQueue(first, 9);
+            CreateMirroredQueue(second, 9);
+            await first.FlushAsync().ConfigureAwait(false);
+            await second.FlushAsync().ConfigureAwait(false);
 
-        private static string EventKey(uint monitoredItemId)
-        {
-            return "monitored-item-queue/event/" + monitoredItemId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            removed.Dispose();
+            await first.FlushAsync().ConfigureAwait(false);
+            Assert.That(await CountStoredDataChangeAsync(first, 9).ConfigureAwait(false), Is.Zero);
+            Assert.That(await CountStoredDataChangeAsync(second, 9).ConfigureAwait(false), Is.EqualTo(1));
         }
 
         private static async Task<IRestorableMonitoredItemQueue> StoreAndRestoreAsync(
@@ -643,18 +639,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
             IServiceMessageContext context = CreateContext();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            await using (var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry))
-            {
-                IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 21);
-                queue.ResetQueue(3, false);
-                queue.Enqueue(new DataValue(new Variant(123)), ServiceResult.Good);
-                await factory.FlushAsync().ConfigureAwait(false);
-            }
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(kv, context, telemetry: telemetry);
+            IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 21);
+            queue.ResetQueue(3, false);
+            queue.Enqueue(new DataValue(new Variant(123)), ServiceResult.Good);
+            await factory.FlushAsync().ConfigureAwait(false);
 
-            await using var restoreFactory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, context, telemetry: telemetry);
             await using var store = new SharedKeyValueSubscriptionStore(
-                kv, context, queueFactory: restoreFactory);
+                kv, context, queueFactory: factory);
 
             IDataChangeMonitoredItemQueue restored = (await store
                 .RestoreDataChangeMonitoredItemQueueAsync(21)

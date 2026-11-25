@@ -6,6 +6,7 @@
 #pragma warning disable CA2007
 
 using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
@@ -133,7 +134,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task OnServerStartedNoOpsWhenLocalServerUriMissingAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = [LocalServerUri] };
             var time = new FakeTimeProvider();
             using var task = new PeerDirectionPublishStartupTask(
                 store,
@@ -157,7 +158,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task OnServerStartedPublishesInitialServiceLevelAndLoadAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = [LocalServerUri] };
             var time = new FakeTimeProvider();
             using var task = new PeerDirectionPublishStartupTask(
                 store,
@@ -186,7 +187,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task ServiceLevelChangeRepublishesHealthSignalAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = [LocalServerUri] };
             var time = new FakeTimeProvider();
             var serviceLevel = new TriggerableServiceLevelProvider(200);
             using var task = new PeerDirectionPublishStartupTask(
@@ -211,7 +212,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task LoadWeightChangeIsCoalescedAndPublishedOnTimerAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions { LoadPublishInterval = TimeSpan.FromMilliseconds(25) };
+            var options = new LoadDirectionOptions
+            {
+                LoadPublishInterval = TimeSpan.FromMilliseconds(25),
+                PeerApplicationUris = [LocalServerUri]
+            };
             var time = new FakeTimeProvider();
             var loadWeight = new TriggerableLoadWeightProvider(30);
             using var task = new PeerDirectionPublishStartupTask(
@@ -236,7 +241,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task DisposeUnsubscribesAndStopsPublishingAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions { LoadPublishInterval = TimeSpan.FromMilliseconds(25) };
+            var options = new LoadDirectionOptions
+            {
+                LoadPublishInterval = TimeSpan.FromMilliseconds(25),
+                PeerApplicationUris = [LocalServerUri]
+            };
             var time = new FakeTimeProvider();
             var serviceLevel = new TriggerableServiceLevelProvider(200);
             var task = new PeerDirectionPublishStartupTask(
@@ -267,11 +276,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var inner = new InMemorySharedKeyValueStore();
             using var store = new ThrowingSharedKeyValueStore(inner, throwOnSet: true);
-            var options = new LoadDirectionOptions();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            var options = new LoadDirectionOptions { PeerApplicationUris = [LocalServerUri] };
             var time = new FakeTimeProvider();
             using var task = new PeerDirectionPublishStartupTask(
                 store,
-                NullRecordProtector.Instance,
+                protector,
                 options,
                 new TriggerableServiceLevelProvider(200),
                 new TriggerableLoadWeightProvider(30),
@@ -282,7 +295,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // Both the ServiceLevel and load publishes fail against the store; the task must swallow them.
             Assert.That(async () => await task.OnServerStartedAsync(server.Object).ConfigureAwait(false), Throws.Nothing);
 
-            var view = new SharedPeerDirectionView(inner, context, NullRecordProtector.Instance, options, time);
+            var view = new SharedPeerDirectionView(inner, context, protector, options, time);
             ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
             Assert.That(peers.Count, Is.Zero, "a failed publish must not surface a record");
         }
@@ -291,7 +304,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task LoadTimerWithoutChangeDoesNotRepublishAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions { LoadPublishInterval = TimeSpan.FromMilliseconds(25) };
+            var options = new LoadDirectionOptions
+            {
+                LoadPublishInterval = TimeSpan.FromMilliseconds(25),
+                PeerApplicationUris = [LocalServerUri]
+            };
             var time = new FakeTimeProvider();
             using var task = new PeerDirectionPublishStartupTask(
                 store,

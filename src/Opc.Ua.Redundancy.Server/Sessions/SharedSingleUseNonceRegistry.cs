@@ -33,7 +33,7 @@ namespace Opc.Ua.Redundancy.Server
         /// </param>
         public SharedSingleUseNonceRegistry(
             ISharedKeyValueStore store,
-            string keyPrefix = "nonce/",
+            string keyPrefix = DefaultKeyPrefix,
             TimeProvider? timeProvider = null)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
@@ -107,6 +107,23 @@ namespace Opc.Ua.Redundancy.Server
             return purged;
         }
 
+        /// <summary>
+        /// Requires a nonce keyspace that all replicas can use for linearizable single-use checks.
+        /// </summary>
+        internal static void ValidateSharedStore(ISharedKeyValueStore? store)
+        {
+            if (store is not ISharedKeyValueStoreConsistency consistency ||
+                !consistency.IsLinearizable(DefaultKeyPrefix) ||
+                consistency.IsProcessLocal(DefaultKeyPrefix))
+            {
+                throw new InvalidOperationException(
+                    $"Fast reconnect requires an {nameof(ISharedKeyValueStore)} that declares '{DefaultKeyPrefix}' " +
+                    $"linearizable and shared across processes via {nameof(ISharedKeyValueStoreConsistency)}. " +
+                    $"Register a shared nonce backend or disable {nameof(DistributedSessionOptions)}." +
+                    $"{nameof(DistributedSessionOptions.EnableFastReconnect)}.");
+            }
+        }
+
         private static string Digest(ByteString nonce)
         {
             byte[] data = nonce.ToArray();
@@ -122,6 +139,7 @@ namespace Opc.Ua.Redundancy.Server
             return Convert.ToBase64String(hash);
         }
 
+        private const string DefaultKeyPrefix = "nonce/";
         private readonly ISharedKeyValueStore m_store;
         private readonly string m_keyPrefix;
         private readonly TimeProvider m_timeProvider;

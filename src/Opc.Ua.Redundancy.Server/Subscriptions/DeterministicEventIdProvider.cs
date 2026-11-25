@@ -10,14 +10,12 @@ using Opc.Ua.Server.Fluent;
 namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>
-    /// Optional EventId synchronization provider for Transparent and HotAndMirrored redundancy.
+    /// Optional field-derived EventId provider for fluent events with occurrence-unique payloads.
     /// </summary>
     /// <remarks>
-    /// OPC 10000-4 §6.6.2.2 requires EventIds to be synchronized for Transparent and HotAndMirrored
-    /// <c>RedundantServerSet</c>s so clients do not double-process events after Failover. This provider is
-    /// deterministic for the same replica-set seed, notifier, event type, source, source timestamp, severity, and
-    /// message. It intentionally excludes per-replica <c>ReceiveTime</c>. Events that lack stable distinguishing
-    /// fields should set <c>EventId</c> explicitly or use a stronger application-level event identity.
+    /// This provider hashes a seed, notifier, event type, source, source timestamp, severity, and message.
+    /// Distinct occurrences with identical input fields collide. For cross-replica occurrence identity
+    /// supplied by an authoritative source, use <see cref="ReplicatedEventReporter"/>.
     /// </remarks>
     public sealed class DeterministicEventIdProvider : IEventIdProvider
     {

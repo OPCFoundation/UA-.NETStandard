@@ -760,6 +760,17 @@ namespace Opc.Ua.Server
                 : default;
         }
 
+        /// <summary>
+        /// Rejects per-entry certificate and CRL writes when the coordinator requires atomic publication.
+        /// </summary>
+        private void ValidateUnfencedTrustStoreMutation()
+        {
+            if (m_coordinator is IPushConfigurationTrustStoreMutationGate gate)
+            {
+                gate.ValidateUnfencedTrustStoreMutation();
+            }
+        }
+
         private ServiceResult Open(
             ISystemContext context,
             MethodState method,
@@ -849,6 +860,7 @@ namespace Opc.Ua.Server
             else if ((int)mode == ((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting))
             {
                 await HasSecureWriteAccessAsync(context, cancellationToken).ConfigureAwait(false);
+                ValidateUnfencedTrustStoreMutation();
                 // Per OPC UA Part 12 §7.10.2, opening a TrustList for
                 // writing participates in owner-Session validation: a
                 // different Session's active transaction rejects this
@@ -1273,6 +1285,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    ValidateUnfencedTrustStoreMutation();
                     await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
@@ -1583,6 +1596,7 @@ namespace Opc.Ua.Server
                 m_coordinator.Stage(sessionId, new PushConfigurationOperation
                 {
                     AffectedTrustList = trustListId,
+                    WritesUnfencedTrustStore = true,
                     CommitAsync = async ct =>
                     {
                         bool ok = true;
@@ -1749,6 +1763,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    ValidateUnfencedTrustStoreMutation();
                     await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
@@ -1850,6 +1865,7 @@ namespace Opc.Ua.Server
                         m_coordinator.Stage(sessionId, new PushConfigurationOperation
                         {
                             AffectedTrustList = trustListId,
+                            WritesUnfencedTrustStore = true,
                             CommitAsync = async ct =>
                             {
                                 CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
@@ -1971,6 +1987,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    ValidateUnfencedTrustStoreMutation();
                     await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
@@ -2121,6 +2138,7 @@ namespace Opc.Ua.Server
                             m_coordinator.Stage(sessionId, new PushConfigurationOperation
                             {
                                 AffectedTrustList = trustListId,
+                                WritesUnfencedTrustStore = true,
                                 CommitAsync = async ct =>
                                 {
                                     ICertificateStore commitStore = GetStore(storeIdentifier);

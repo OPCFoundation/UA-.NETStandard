@@ -8,6 +8,7 @@
 #pragma warning disable CA2007
 
 using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -96,12 +97,70 @@ namespace Opc.Ua.Redundancy.Server.Tests
         }
 
         [Test]
-        public async Task FactoryCreatesWithFastReconnectAndRegisteredNonceStoreAsync()
+        public async Task FactoryRejectsFastReconnectWithProcessLocalRaftNonceKeyspaceAsync()
         {
+            var registrations = new ServiceCollection()
+                .AddSingleton<IRecordProtector>(NullRecordProtector.Instance);
+            registrations.AddOpcUa().AddServer(_ => { })
+                .UseRedundancyConsistency();
+            await using ServiceProvider services = registrations.BuildServiceProvider();
+            var options = new ReplicatedSessionOptions();
+            options.Session.EnableFastReconnect = true;
+            await using var factory = new ReplicatedSessionManagerFactory(services, options);
+
+            Assert.That(
+                () => factory.Create(
+                    NewServer().Object,
+                    NewConfiguration(),
+                    TimeProvider.System,
+                    _ => null),
+                Throws.InvalidOperationException.With.Message.Contains("nonce/"));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FactoryRejectsFastReconnectWhenNonceConsistencyIsNotKnownAsync(bool hasCapability)
+        {
+            var backend = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
+            if (hasCapability)
+            {
+                backend.As<ISharedKeyValueStoreConsistency>()
+                    .Setup(s => s.IsLinearizable("nonce/"))
+                    .Returns(false);
+            }
             await using ServiceProvider services = new ServiceCollection()
                 .AddSingleton<IRecordProtector>(NullRecordProtector.Instance)
-                .AddSingleton<ISharedKeyValueStore>(new InMemorySharedKeyValueStore())
+                .AddSingleton(backend.Object)
                 .BuildServiceProvider();
+            var options = new ReplicatedSessionOptions();
+            options.Session.EnableFastReconnect = true;
+            await using var factory = new ReplicatedSessionManagerFactory(services, options);
+
+            Assert.That(
+                () => factory.Create(
+                    NewServer().Object,
+                    NewConfiguration(),
+                    TimeProvider.System,
+                    _ => null),
+                Throws.InvalidOperationException.With.Message.Contains("nonce/"));
+        }
+
+        [Test]
+        public async Task FactoryCreatesWithFastReconnectAndIndependentAuthorityAsync()
+        {
+            using var bulk = new InMemorySharedKeyValueStore();
+            using var authority = new SimulatedSharedKeyValueStore();
+            using var rng = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            rng.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            Array.Clear(key, 0, key.Length);
+            await using ServiceProvider services = new ServiceCollection()
+                .AddSingleton<IRecordProtector>(protector)
+                .AddSingleton<ISharedKeyValueStore>(bulk)
+                .AddSharedRecordFreshness(_ => authority, Guid.NewGuid(), Guid.NewGuid())
+                .BuildServiceProvider();
+            await services.GetRequiredService<FreshnessProtectedKeyValueStore>().EnrollAsync().ConfigureAwait(false);
             var options = new ReplicatedSessionOptions();
             options.Session.EnableFastReconnect = true;
             await using var factory = new ReplicatedSessionManagerFactory(services, options);

@@ -5,12 +5,16 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -141,7 +145,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions { BalancingEndpointUrl = BalancingUrl };
+            var options = new LoadDirectionOptions
+            {
+                BalancingEndpointUrl = BalancingUrl,
+                PeerApplicationUris = [PeerServerUri]
+            };
             var time = new FakeTimeProvider();
 
             // A healthier, idle peer is available in the shared store.
@@ -159,6 +167,48 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(redirect, Is.True, "the configured director redirects to the healthier idle peer");
             Assert.That(endpoints.Count, Is.EqualTo(1));
             Assert.That(endpoints[0]?.Server?.ApplicationUri, Is.EqualTo(PeerServerUri));
+        }
+
+        [TestCase(true, false, true)]
+        [TestCase(false, false, false)]
+        [TestCase(true, true, false)]
+        public async Task RegisteredMembershipOrExplicitLocalFallbackAsync(
+            bool registerStaticPeer, bool emptyOverride, bool expectedRedirect)
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var clock = new FakeTimeProvider();
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton<ISharedKeyValueStore>(store);
+            builder.Services.AddSingleton<TimeProvider>(clock);
+            builder.Services.AddSingleton<IServiceLevelProvider>(new ConstantServiceLevelProvider(100));
+            if (registerStaticPeer)
+            {
+                builder.AddServerRedundancy(options =>
+                    options.AddRedundantPeer(PeerServerUri, ["opc.tcp://peer:4840"]));
+            }
+            builder.UseServerLoadDirection(options =>
+            {
+                options.BalancingEndpointUrl = BalancingUrl;
+                if (emptyOverride)
+                {
+                    options.PeerApplicationUris = ArrayOf<string>.Empty;
+                }
+            });
+            await using ServiceProvider services = builder.Services.BuildServiceProvider();
+            LoadDirectionOptions options = services.GetRequiredService<LoadDirectionOptions>();
+            Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
+            await PublishPeerAsync(store, context, options, clock, PeerServerUri, 255, 0).ConfigureAwait(false);
+            LoadDirectionStartupTask task = services.GetServices<IServerStartupTask>()
+                .OfType<LoadDirectionStartupTask>()
+                .Single();
+            await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+
+            (bool redirect, ArrayOf<EndpointDescription> endpoints) = await services
+                .GetRequiredService<ServerLoadDirector>()
+                .TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints(LocalServerUri)).ConfigureAwait(false);
+
+            Assert.That(redirect, Is.EqualTo(expectedRedirect));
+            Assert.That(endpoints.Count, Is.EqualTo(expectedRedirect ? 1 : 0));
         }
 
         private static ServerLoadDirector CreateDirector(byte localServiceLevel = 255, byte localLoad = 0)
@@ -205,7 +255,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await directionPublisher.PublishLoadWeightAsync(load).ConfigureAwait(false);
 
             var endpointPublisher = new SharedPeerEndpointPublisher(
-                store, context, NullRecordProtector.Instance, options, serverUri);
+                store, context, NullRecordProtector.Instance, options, serverUri, time);
             await endpointPublisher.PublishAsync(LocalEndpoints(serverUri)).ConfigureAwait(false);
         }
 

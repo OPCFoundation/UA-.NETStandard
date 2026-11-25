@@ -8,11 +8,17 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -26,6 +32,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     public class SharedKeyValueCertificateStoreTests
     {
         private const string StorePath = "kv:pki/trusted";
+        private const string IssuerStorePath = "kv:pki/issuer";
 
         private static ITelemetryContext Telemetry => NUnitTelemetryContext.Create();
 
@@ -40,10 +47,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         private static SharedKeyValueCertificateStore CreateStore(
             ISharedKeyValueStore backend,
-            IRecordProtector? protector = null)
+            IRecordProtector? protector = null,
+            string path = StorePath)
         {
             var store = new SharedKeyValueCertificateStore(backend, protector, Telemetry);
-            store.Open(StorePath);
+            store.Open(path);
             return store;
         }
 
@@ -154,27 +162,218 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(afterDelete, Has.Count.Zero);
         }
 
+        /// <summary>
+        /// An authenticated freshness view is required even if a raw backend has a protector.
+        /// </summary>
         [Test]
-        public async Task TamperedRecordIsRejectedFailClosedAsync()
+        public void RawSharedBackendIsRejected()
         {
-            var protector = new MarkerRecordProtector();
-            using var backend = new InMemorySharedKeyValueStore();
-            using SharedKeyValueCertificateStore store = CreateStore(backend, protector);
-            using Certificate kept = CreateCertificate("CN=KvKept");
-            using Certificate tampered = CreateCertificate("CN=KvTampered");
-            await store.AddAsync(kept).ConfigureAwait(false);
-            await store.AddAsync(tampered).ConfigureAwait(false);
+            ISharedKeyValueStore backend = new Mock<ISharedKeyValueStore>(MockBehavior.Strict).Object;
+            using AesCbcHmacRecordProtector protector = CreateProtector();
 
-            // Forge the stored record for the tampered certificate by writing
-            // bytes that do not carry the protector's authentication marker.
-            string tamperedKey = StorePath + "/cert/" + tampered.Thumbprint;
-            await backend
-                .SetAsync(tamperedKey, new ByteString(new byte[] { 1, 2, 3, 4, 5 }))
+            Assert.That(() => new SharedKeyValueCertificateStore(backend, protector, Telemetry),
+                Throws.ArgumentException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("store"));
+            Assert.That(() => new SharedKeyValueCertificateStoreProvider(backend, protector),
+                Throws.ArgumentException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("store"));
+        }
+
+        /// <summary>
+        /// Neither an omitted nor a no-op protector is accepted for distributed certificate records.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FreshnessViewRequiresAuthenticatingCertificateProtector(bool explicitNullProtector)
+        {
+            using var stores = new ProtectedStores();
+            IRecordProtector? protector = explicitNullProtector ? NullRecordProtector.Instance : null;
+
+            Assert.That(() => new SharedKeyValueCertificateStore(stores.View, protector, Telemetry),
+                Throws.ArgumentException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("protector"));
+            Assert.That(() => new SharedKeyValueCertificateStoreProvider(stores.View, protector),
+                Throws.ArgumentException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("protector"));
+        }
+
+        /// <summary>
+        /// The distributed provider uses the configured freshness view, without enrolling it automatically.
+        /// </summary>
+        [Test]
+        public async Task InjectedProviderRequiresEnrollmentAndDoesNotReadLegacyRecordsAsync()
+        {
+            using var stores = new ProtectedStores();
+            using SharedKeyValueCertificateStore legacy = CreateStore(stores.Payload, stores.Protector);
+            using Certificate certificate = CertificateBuilder.Create("CN=KvLegacy").SetCAConstraint().CreateForRSA();
+            await legacy.AddAsync(certificate).ConfigureAwait(false);
+            var crl = new X509CRL(CrlBuilder.Create(certificate.SubjectName).CreateForRSA(certificate));
+            await legacy.AddCRLAsync(crl).ConfigureAwait(false);
+
+            var services = new ServiceCollection();
+            stores.RegisterFreshness(services);
+            services.AddOpcUa().AddSharedKeyValueCertificateStore();
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ICertificateStoreProvider storeProvider = provider.GetRequiredService<ICertificateStoreProvider>();
+            using ICertificateStore store = storeProvider.CreateStore(Telemetry);
+            store.Open(StorePath);
+
+            Assert.That(() => store.FindByThumbprintAsync(certificate.Thumbprint),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.Code))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+
+            await provider.GetRequiredService<FreshnessProtectedKeyValueStore>().EnrollAsync().ConfigureAwait(false);
+            using CertificateCollection absent = await store.FindByThumbprintAsync(certificate.Thumbprint)
                 .ConfigureAwait(false);
+            Assert.That(absent, Is.Empty);
+            Assert.That(await store.EnumerateCRLsAsync().ConfigureAwait(false), Is.Empty);
 
-            using CertificateCollection certificates = await store.EnumerateAsync().ConfigureAwait(false);
-            Assert.That(certificates, Has.Count.EqualTo(1), "the forged record must fail closed");
-            Assert.That(certificates[0].Thumbprint, Is.EqualTo(kept.Thumbprint));
+            await store.AddAsync(certificate).ConfigureAwait(false);
+            using CertificateCollection found = await store.FindByThumbprintAsync(certificate.Thumbprint)
+                .ConfigureAwait(false);
+            Assert.That(found.Single().Thumbprint, Is.EqualTo(certificate.Thumbprint));
+        }
+
+        /// <summary>
+        /// A committed but unavailable certificate is not an absent certificate or a partial list.
+        /// </summary>
+        [Test]
+        public async Task UnavailableCommittedCertificateFailsLookupEnumerationAndValidationAsync()
+        {
+            using var stores = new ProtectedStores();
+            await stores.View.EnrollAsync().ConfigureAwait(false);
+            using SharedKeyValueCertificateStore writer = CreateStore(stores.View, stores.Protector);
+            using Certificate certificate = CreateCertificate("CN=KvMissingCertificate");
+            using Certificate other = CreateCertificate("CN=KvAvailableCertificate");
+            await writer.AddAsync(other).ConfigureAwait(false);
+            string payloadKey = await stores.CommitAndGetPayloadKeyAsync(() => writer.AddAsync(certificate))
+                .ConfigureAwait(false);
+            await using CertificateManager manager = CreateManager(stores, autoAccept: true);
+            using var chain = new CertificateCollection { certificate };
+            var options = new ValidationOptions { RecordRejectedCertificates = false };
+            Assert.That((await manager.ValidateAsync(chain, options: options).ConfigureAwait(false)).IsValid, Is.True);
+
+            stores.MarkPayloadUnavailable(payloadKey);
+
+            using SharedKeyValueCertificateStore reader = CreateStore(stores.View, stores.Protector);
+            Assert.That(() => reader.FindByThumbprintAsync(certificate.Thumbprint),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.Code))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(() => reader.EnumerateAsync(),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.Code))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            CertificateValidationResult result = await manager.ValidateAsync(chain, options: options)
+                .ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.IsSuppressible, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        /// <summary>
+        /// An authority outage is not ordinary untrusted status, even when auto-acceptance is enabled.
+        /// </summary>
+        [Test]
+        public async Task AuthorityOutageInvalidatesCertificateValidationAsync()
+        {
+            using var stores = new ProtectedStores();
+            await stores.View.EnrollAsync().ConfigureAwait(false);
+            using Certificate certificate = CreateCertificate("CN=KvAuthorityUnavailable");
+            using SharedKeyValueCertificateStore writer = CreateStore(stores.View, stores.Protector);
+            await writer.AddAsync(certificate).ConfigureAwait(false);
+            await using CertificateManager manager = CreateManager(stores, autoAccept: true);
+            using var chain = new CertificateCollection { certificate };
+            var options = new ValidationOptions { RecordRejectedCertificates = false };
+            Assert.That((await manager.ValidateAsync(chain, options: options).ConfigureAwait(false)).IsValid, Is.True);
+
+            stores.MarkAuthorityUnavailable();
+
+            CertificateValidationResult result = await manager.ValidateAsync(chain, options: options)
+                .ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.IsSuppressible, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        /// <summary>
+        /// A previous successful validation must not override a committed removal from the trust list.
+        /// </summary>
+        [Test]
+        public async Task CommittedCertificateDeletionInvalidatesCachedTrustAsync()
+        {
+            using var stores = new ProtectedStores();
+            await stores.View.EnrollAsync().ConfigureAwait(false);
+            using SharedKeyValueCertificateStore writer = CreateStore(stores.View, stores.Protector);
+            using Certificate certificate = CreateCertificate("CN=KvRemoved");
+            await writer.AddAsync(certificate).ConfigureAwait(false);
+            await using CertificateManager manager = CreateManager(stores);
+            using var chain = new CertificateCollection { certificate };
+            var options = new ValidationOptions { RecordRejectedCertificates = false };
+            Assert.That((await manager.ValidateAsync(chain, options: options).ConfigureAwait(false)).IsValid, Is.True);
+
+            Assert.That(await writer.DeleteAsync(certificate.Thumbprint).ConfigureAwait(false), Is.True);
+
+            CertificateValidationResult removed = await manager.ValidateAsync(chain, options: options)
+                .ConfigureAwait(false);
+            Assert.That(removed.IsValid, Is.False);
+            Assert.That(removed.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// Data that is readable at the freshness layer but not authenticated as certificates or CRLs is rejected.
+        /// </summary>
+        [Test]
+        public async Task UnverifiableCommittedRecordsAreRejectedAsync()
+        {
+            using var stores = new ProtectedStores();
+            await stores.View.EnrollAsync().ConfigureAwait(false);
+            using SharedKeyValueCertificateStore writer = CreateStore(stores.View, stores.Protector);
+            using Certificate issuer = CertificateBuilder.Create("CN=KvProtectedRecord")
+                .SetCAConstraint()
+                .CreateForRSA();
+            await writer.AddAsync(issuer).ConfigureAwait(false);
+            var crl = new X509CRL(CrlBuilder.Create(issuer.SubjectName).CreateForRSA(issuer));
+            await writer.AddCRLAsync(crl).ConfigureAwait(false);
+
+            using AesCbcHmacRecordProtector otherProtector = CreateProtector();
+            using SharedKeyValueCertificateStore reader = CreateStore(stores.View, otherProtector);
+
+            Assert.That(() => reader.FindByThumbprintAsync(issuer.Thumbprint),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.Code))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(() => reader.EnumerateCRLsAsync(),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.Code))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        /// <summary>
+        /// A complete CRL in one store cannot make revocation succeed when the other store is unavailable.
+        /// </summary>
+        [Test]
+        public async Task MissingCommittedCrlBlocksRevocationAcrossTrustStoresAsync()
+        {
+            using var stores = new ProtectedStores();
+            await stores.View.EnrollAsync().ConfigureAwait(false);
+            using SharedKeyValueCertificateStore trusted = CreateStore(stores.View, stores.Protector);
+            using SharedKeyValueCertificateStore issuers = CreateStore(stores.View, stores.Protector, IssuerStorePath);
+            using Certificate issuer = CertificateBuilder.Create("CN=KvCrlStores").SetCAConstraint().CreateForRSA();
+            using Certificate leaf = CertificateBuilder.Create("CN=KvCrlStoresLeaf").SetIssuer(issuer).CreateForRSA();
+            await trusted.AddAsync(issuer).ConfigureAwait(false);
+            await issuers.AddAsync(issuer).ConfigureAwait(false);
+            var crl = new X509CRL(CrlBuilder.Create(issuer.SubjectName).CreateForRSA(issuer));
+            await trusted.AddCRLAsync(crl).ConfigureAwait(false);
+            string payloadKey = await stores.CommitAndGetPayloadKeyAsync(() => issuers.AddCRLAsync(crl))
+                .ConfigureAwait(false);
+            await using CertificateManager manager = CreateManager(stores, includeIssuerStore: true);
+            using var chain = new CertificateCollection { leaf };
+            var options = new ValidationOptions { RecordRejectedCertificates = false };
+            Assert.That((await manager.ValidateAsync(chain, options: options).ConfigureAwait(false)).IsValid, Is.True);
+
+            stores.MarkPayloadUnavailable(payloadKey);
+
+            Assert.That(() => issuers.IsRevokedAsync(issuer, leaf),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.Code))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            CertificateValidationResult result = await manager.ValidateAsync(chain, options: options)
+                .ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.IsSuppressible, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
         [Test]
@@ -241,8 +440,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task CrlAddEnumerateDeleteRoundTripAsync()
         {
-            using var backend = new InMemorySharedKeyValueStore();
-            using SharedKeyValueCertificateStore store = CreateStore(backend);
+            using var stores = new ProtectedStores();
+            await stores.View.EnrollAsync().ConfigureAwait(false);
+            using SharedKeyValueCertificateStore store = CreateStore(stores.View, stores.Protector);
             using Certificate issuer = CertificateBuilder
                 .Create("CN=KvCrlIssuer")
                 .SetCAConstraint()
@@ -276,6 +476,45 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(await store.DeleteCRLAsync(crl).ConfigureAwait(false), Is.True);
             X509CRLCollection empty = await store.EnumerateCRLsAsync().ConfigureAwait(false);
             Assert.That(empty, Has.Count.Zero);
+            Assert.That(await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false),
+                Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown));
+        }
+
+        /// <summary>
+        /// A same-name CRL with an unverifiable signature only belongs to another issuer if its key identifies one.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SameNameCrlRequiresAnIdentifiableIssuerAsync(bool identifyOtherIssuer)
+        {
+            using var stores = new ProtectedStores();
+            await stores.View.EnrollAsync().ConfigureAwait(false);
+            using SharedKeyValueCertificateStore store = CreateStore(stores.View, stores.Protector);
+            using Certificate issuer = CertificateBuilder.Create("CN=KvSameName").SetCAConstraint().CreateForRSA();
+            using Certificate other = CertificateBuilder.Create("CN=KvSameName").SetCAConstraint().CreateForRSA();
+            using Certificate leaf = CertificateBuilder.Create("CN=KvSameNameLeaf").SetIssuer(issuer).CreateForRSA();
+            await store.AddAsync(issuer).ConfigureAwait(false);
+            await store.AddAsync(other).ConfigureAwait(false);
+            var crl = new X509CRL(CrlBuilder.Create(issuer.SubjectName).CreateForRSA(issuer));
+            await store.AddCRLAsync(crl).ConfigureAwait(false);
+            CrlBuilder otherCrl = CrlBuilder.Create(other.SubjectName);
+            if (identifyOtherIssuer)
+            {
+                otherCrl.AddCRLExtension(other.BuildAuthorityKeyIdentifier());
+            }
+            await store.AddCRLAsync(new X509CRL(otherCrl.CreateForRSA(other))).ConfigureAwait(false);
+
+            if (identifyOtherIssuer)
+            {
+                Assert.That(await store.IsRevokedAsync(issuer, leaf).ConfigureAwait(false),
+                    Is.EqualTo(StatusCodes.Good));
+            }
+            else
+            {
+                Assert.That(() => store.IsRevokedAsync(issuer, leaf),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.Code))
+                        .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            }
         }
 
         [Test]
@@ -316,6 +555,120 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(
                 () => new SharedKeyValueCertificateStoreProvider(null!),
                 Throws.ArgumentNullException);
+        }
+
+        private static CertificateManager CreateManager(
+            ProtectedStores stores,
+            bool autoAccept = false,
+            bool includeIssuerStore = false)
+        {
+            var configuration = new SecurityConfiguration
+            {
+                UseValidatedCertificates = true,
+                AutoAcceptUntrustedCertificates = autoAccept,
+                RejectUnknownRevocationStatus = false
+            };
+            return CertificateManagerFactory.Create(configuration, Telemetry, options =>
+            {
+                options.AddStoreProvider(new SharedKeyValueCertificateStoreProvider(stores.View, stores.Protector));
+                options.AddTrustList(TrustListIdentifier.Peers.Name, StorePath,
+                    includeIssuerStore ? IssuerStorePath : null);
+            });
+        }
+
+        private static AesCbcHmacRecordProtector CreateProtector()
+        {
+            using var random = RandomNumberGenerator.Create();
+            var key = new byte[32];
+            random.GetBytes(key);
+            var protector = new AesCbcHmacRecordProtector(key);
+            Array.Clear(key, 0, key.Length);
+            return protector;
+        }
+
+        private sealed class ProtectedStores : IDisposable
+        {
+            public ProtectedStores()
+            {
+                m_payload.Setup(store => store.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Returns((string key, CancellationToken ct) => Payload.TryGetAsync(key, ct));
+                m_payload.Setup(store => store.SetAsync(
+                        It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                    .Returns((string key, ByteString value, CancellationToken ct) => Payload.SetAsync(key, value, ct));
+
+                Mock<ISharedKeyValueStoreConsistency> consistency = m_authority.As<ISharedKeyValueStoreConsistency>();
+                consistency.Setup(store => store.IsLinearizable(It.IsAny<string>())).Returns(true);
+                consistency.Setup(store => store.IsProcessLocal(It.IsAny<string>())).Returns(false);
+                m_authority.Setup(store => store.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Returns((string key, CancellationToken ct) => m_authorityData.TryGetAsync(key, ct));
+                m_authority.Setup(store => store.CompareAndSwapAsync(
+                        It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                    .Returns((string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                        m_authorityData.CompareAndSwapAsync(key, expected, value, ct));
+                m_authority.Setup(store => store.ScanAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Returns((string prefix, CancellationToken ct) => m_authorityData.ScanAsync(prefix, ct));
+
+                View = new FreshnessProtectedKeyValueStore(
+                    m_payload.Object, m_authority.Object, Protector, m_deployment, m_epoch);
+            }
+
+            public InMemorySharedKeyValueStore Payload { get; } = new();
+
+            public AesCbcHmacRecordProtector Protector { get; } = CreateProtector();
+
+            public FreshnessProtectedKeyValueStore View { get; }
+
+            public void RegisterFreshness(IServiceCollection services)
+            {
+                services.AddSingleton(m_payload.Object);
+                services.AddSingleton<IRecordProtector>(Protector);
+                services.AddSharedRecordFreshness(_ => m_authority.Object, m_deployment, m_epoch);
+            }
+
+            public async Task<string> CommitAndGetPayloadKeyAsync(Func<Task> commit)
+            {
+                List<string> before = await ReadPayloadKeysAsync().ConfigureAwait(false);
+                await commit().ConfigureAwait(false);
+                List<string> after = await ReadPayloadKeysAsync().ConfigureAwait(false);
+                return after.Except(before, StringComparer.Ordinal).Single();
+            }
+
+            public void MarkPayloadUnavailable(string key)
+            {
+                m_payload.Setup(store => store.TryGetAsync(key, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<(bool Found, ByteString Value)>((false, default)));
+            }
+
+            public void MarkAuthorityUnavailable()
+            {
+                m_authority.Setup(store => store.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Throws(new TimeoutException("Certificate store test authority is unavailable."));
+            }
+
+            public void Dispose()
+            {
+                Protector.Dispose();
+                m_authorityData.Dispose();
+                Payload.Dispose();
+            }
+
+            private async Task<List<string>> ReadPayloadKeysAsync()
+            {
+                var keys = new List<string>();
+                await foreach (KeyValuePair<string, ByteString> entry in Payload
+                    .ScanAsync(string.Empty)
+                    .ConfigureAwait(false))
+                {
+                    keys.Add(entry.Key);
+                }
+                return keys;
+            }
+
+            private readonly Mock<ISharedKeyValueStore> m_payload = new(MockBehavior.Strict);
+            private readonly Mock<ISharedKeyValueStore> m_authority = new(MockBehavior.Strict);
+            private readonly InMemorySharedKeyValueStore m_authorityData = new();
+            private readonly Guid m_deployment = Guid.NewGuid();
+            private readonly Guid m_epoch = Guid.NewGuid();
         }
 
         /// <summary>

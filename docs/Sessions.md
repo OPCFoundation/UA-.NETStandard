@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Sessions, Reconnection, and Subscription Engines
 
 This document describes how the OPC UA client stack composes the building
@@ -386,6 +391,10 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
         MaxDelay = TimeSpan.FromSeconds(30)
     })
     .WithServerRedundancy()
+    .WithServerRedundancyOptions(new ServerRedundancyOptions
+    {
+        ExpectedServerApplicationUri = provisionedServerUri
+    })
     .UseSubscriptionEngine(DefaultSubscriptionEngineFactory.Instance) // optional; V2 by default
     .ConnectAsync(ct);
 ```

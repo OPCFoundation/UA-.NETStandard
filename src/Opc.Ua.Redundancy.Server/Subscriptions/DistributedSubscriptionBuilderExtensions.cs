@@ -24,9 +24,8 @@ namespace Opc.Ua.Redundancy.Server
         /// HighAvailability capability boundary for continuation points: transferred sessions can identify and release
         /// mirrored opaque continuation tokens, but the local Browse/Query/History continuation enumerator state is not
         /// rebuilt on another replica. The registration also installs a
-        /// <see cref="SharedKeyValueMonitoredItemQueueFactory"/> as the <see cref="IMonitoredItemQueueFactory"/>, so
-        /// per-monitored-item data/event queues are continuously mirrored and restored on promotion, letting
-        /// queued-but-unpublished notifications survive a failover.
+        /// <see cref="SharedKeyValueMonitoredItemQueueFactory"/> as the <see cref="IMonitoredItemQueueFactory"/>.
+        /// Its checkpoints are scoped to one factory instance; they do not carry unpublished queues across replicas.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
@@ -41,7 +40,7 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.TryAddSingleton<ISharedKeyValueStore>(_ => new InMemorySharedKeyValueStore());
             builder.Services.TryAddSingleton(sp =>
                 new SharedKeyValueMonitoredItemQueueFactory(
-                    sp.GetRequiredService<ISharedKeyValueStore>(),
+                    RecordProtectionGuard.ResolveFreshStoreOrThrow(sp),
                     sp.GetRequiredService<IServiceMessageContext>(),
                     RecordProtectionGuard.ResolveProtectorOrThrow(sp),
                     sp.GetRequiredService<ITelemetryContext>()));
@@ -49,7 +48,7 @@ namespace Opc.Ua.Redundancy.Server
                 sp => sp.GetRequiredService<SharedKeyValueMonitoredItemQueueFactory>());
             builder.Services.TryAddSingleton<ISubscriptionStore>(sp =>
                 new SharedKeyValueSubscriptionStore(
-                    sp.GetRequiredService<ISharedKeyValueStore>(),
+                    RecordProtectionGuard.ResolveFreshStoreOrThrow(sp),
                     sp.GetRequiredService<IServiceMessageContext>(),
                     RecordProtectionGuard.ResolveProtectorOrThrow(sp),
                     sp.GetService<ILogger<SharedKeyValueSubscriptionStore>>(),

@@ -31,12 +31,28 @@ namespace Opc.Ua.Redundancy.Server
             LoadDirectionOptions options,
             ServerLoadDirector director,
             TimeProvider timeProvider)
+            : this(store, protector, options, director, timeProvider,
+                (options ?? throw new ArgumentNullException(nameof(options))).PeerApplicationUris)
+        {
+        }
+
+        /// <summary>
+        /// Creates the task with the resolved static member list.
+        /// </summary>
+        internal LoadDirectionStartupTask(
+            ISharedKeyValueStore store,
+            IRecordProtector protector,
+            LoadDirectionOptions options,
+            ServerLoadDirector director,
+            TimeProvider timeProvider,
+            ArrayOf<string> peerApplicationUris)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
-            m_protector = protector ?? throw new ArgumentNullException(nameof(protector));
+            m_protector = LoadDirectionRecordValidation.RequireProtection(m_store, protector);
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_director = director ?? throw new ArgumentNullException(nameof(director));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_peerApplicationUris = peerApplicationUris;
         }
 
         /// <inheritdoc/>
@@ -58,11 +74,13 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             IServiceMessageContext context = server.MessageContext;
-            var view = new SharedPeerDirectionView(m_store, context, m_protector, m_options, m_timeProvider);
+            var view = new SharedPeerDirectionView(
+                m_store, context, m_protector, m_options, m_timeProvider, m_peerApplicationUris);
             var policy = new BandedServerDirectionPolicy(view, m_options, LoadDirectionRandom.NextIndex);
-            var directory = new SharedPeerEndpointDirectory(m_store, context, m_protector, m_options);
+            var directory = new SharedPeerEndpointDirectory(
+                m_store, context, m_protector, m_options, m_timeProvider, m_peerApplicationUris);
             var endpointPublisher = new SharedPeerEndpointPublisher(
-                m_store, context, m_protector, m_options, localServerUri!);
+                m_store, context, m_protector, m_options, localServerUri!, m_timeProvider);
 
             m_director.Configure(policy, directory, endpointPublisher, localServerUri!);
             return default;
@@ -73,6 +91,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly LoadDirectionOptions m_options;
         private readonly ServerLoadDirector m_director;
         private readonly TimeProvider m_timeProvider;
+        private readonly ArrayOf<string> m_peerApplicationUris;
     }
 
     /// <summary>

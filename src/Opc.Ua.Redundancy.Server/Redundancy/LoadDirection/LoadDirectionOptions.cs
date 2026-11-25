@@ -13,6 +13,13 @@ namespace Opc.Ua.Redundancy.Server
     public sealed class LoadDirectionOptions
     {
         /// <summary>
+        /// The exact application URIs eligible for load direction. A null array uses the static peers registered
+        /// through <c>AddServerRedundancy</c>, if any. An explicitly empty array disables redirection. Without
+        /// configured peers discovery stays local; records and dynamic discovery never establish membership.
+        /// </summary>
+        public ArrayOf<string> PeerApplicationUris { get; set; }
+
+        /// <summary>
         /// The shared-store key prefix for the per-peer health <c>ServiceLevel</c> signal (eligibility). This keyspace
         /// can be routed to the strongly-consistent store (Raft) for a deterministic redirect target.
         /// </summary>
@@ -26,14 +33,14 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// The shared-store key prefix for the per-peer published <c>EndpointDescription</c>s that the local Server
-        /// returns when it directs a Client to a peer. Low-churn (published at startup and on certificate rotation),
-        /// so it can be routed to the strongly-consistent store alongside the health signal.
+        /// returns when it directs a Client to a peer. The record is refreshed by normal discovery requests and
+        /// can be routed to the strongly-consistent store alongside the health signal.
         /// </summary>
         public string EndpointKeyPrefix { get; set; } = "endpoint/";
 
         /// <summary>
-        /// How long a gossiped per-peer record is considered fresh. A peer whose health record is older than this is
-        /// excluded from direction (fail-safe); a load record older than this is treated as unknown for tie-breaking.
+        /// Maximum age of a peer's health, endpoint and load records. Missing, stale or future health or endpoints
+        /// prevent redirection; missing, stale or future load is treated as unknown for tie-breaking.
         /// </summary>
         public TimeSpan StalenessWindow { get; set; } = TimeSpan.FromSeconds(15);
 

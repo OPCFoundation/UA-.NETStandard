@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard — Distributed / High-Availability Server
 
 `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` adds the optional distributed building blocks that let an `OPCFoundation.NetStandard.Opc.Ua.Server` server run as a redundant replica set (active/passive or active/active) while sharing its address space and — optionally — its session state across replicas.
@@ -8,7 +13,12 @@ The core server library stays a self-contained, single-instance server. This pac
 
 - A shared, integrity-protected key/value backend (`ISharedKeyValueStore`) that mirrors node additions, removals, references, and values across replicas.
 - Leader election (`ILeaderElection`) for the shared-read / leader-write redundancy model, surfaced to clients through the standard OPC UA `ServiceLevel` and redundancy nodes.
-- Opt-in mirrors for HotAndMirrored/Transparent failover: encrypted session state with single-use nonce validation, subscription definitions, retransmission queues for `Republish`, best-effort continuation-point envelopes, and deterministic EventIds when an `IEventIdProvider` such as `DeterministicEventIdProvider` is configured.
+- Opt-in mirrors for HotAndMirrored/Transparent failover: encrypted session
+  state with single-use nonce validation, subscription definitions,
+  retransmission queues for `Republish`, and best-effort continuation
+  points. `UseReplicatedEventFeed` orders and replays shared occurrences
+  before a replica advertises readiness. The application supplies event
+  data and the policy for mirrored condition methods.
 
 ## Getting started
 
@@ -39,11 +49,27 @@ for direct construction, hybrid provisioning and legacy-state restrictions.
 
 Distributed address-space replication follows each node manager's declared non-standard `NamespaceUris`; namespace-zero infrastructure remains local to each replica. Node managers that use a custom ownership partition and return `null` for `NamespaceUris` must implement `ILocalAddressSpaceOwnership` with a stable `PartitionId` and an `OwnsNode(NodeId)` predicate.
 
-Active/passive writers require linearizable shared sequence coordination. Compose
-`UseRedundancyConsistency(...)` before `UseDistributedAddressSpace(...)`, or use
-an explicitly configured `HybridSharedKeyValueStore` for direct construction.
-Bare CRDT writers and process-local coordinators paired with replicated payloads
-fail before mutation.
+Managed cross-process writers require a strong store with guarded writes and a
+writer election that exposes its committed grant on that store. The shared-store
+lease election supports this with a freshness-protected view whose authority
+implements `IDeadlineGuardedSharedKeyValueStore`. The authority must compare
+the grant and its expiry in the same commit as the mutation. A separate
+sequence coordinator or a leadership predicate cannot do this. Process-local
+configurations do not require a distributed grant.
+
+For a strong Raft deployment, configure `UseDistributedAddressSpace` with
+`UseLeaderElection = true`, a unique `NodeId`, and the same complete
+`LeaseMemberIds` on every replica. This explicitly selects the protected
+publication lease over a previously registered Raft or Kubernetes election;
+Raft still provides the storage consensus. Do not register another server
+writer election after selecting the publication lease.
+
+The guard covers each committed topology, value, delta, sequence and metadata
+mutation. It does not roll back changes committed before the grant changed or
+turn the separate publications into a multi-key transaction. An unfinished
+publication reservation blocks writer takeover until reconciled.
+Managed value-cache writes use the owning partition's verified writer; an
+unbound registry handle cannot write topology or publication metadata.
 
 Authoritative bootstrap and compacted snapshots require strongly consistent
 state reads. CRDT payloads use non-destructive hydration and retained deltas:

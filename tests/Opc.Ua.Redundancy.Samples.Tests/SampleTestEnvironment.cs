@@ -39,13 +39,13 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         /// <summary>
-        /// Environment for a plain, independent managed RedundantClient (one that fails
-        /// over on its own rather than joining a coordinated client replica set).
+        /// Environment for an independent client in the explicit loopback reconnect demo.
         /// </summary>
         public static IReadOnlyDictionary<string, string?> IndependentClient { get; } =
             new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                ["CLIENT_MODE"] = "independent"
+                ["CLIENT_MODE"] = "independent",
+                ["HA_INSECURE"] = "true"
             };
 
         /// <summary>

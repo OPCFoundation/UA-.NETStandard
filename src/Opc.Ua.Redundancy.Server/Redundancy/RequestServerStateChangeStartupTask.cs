@@ -35,7 +35,8 @@ namespace Opc.Ua.Redundancy.Server
     /// counts down once per second and the server stops serving requests when it reaches zero.
     /// The process itself is not stopped. For any other state it is published as zero.
     /// <c>EstimatedReturnTime</c> is set to null (<see cref="DateTimeUtc.MinValue"/>) when the
-    /// requested state is <see cref="ServerState.Running"/>.
+    /// requested state is <see cref="ServerState.Running"/>. With a
+    /// <see cref="LeaderServiceLevelProvider"/>, Running also clears the administrative override.
     /// </para>
     /// <para>
     /// This task cannot restart the server process, so a request with <c>restart</c> set is
@@ -150,10 +151,6 @@ namespace Opc.Ua.Redundancy.Server
                     reason = LocalizedText.Null;
                 }
 
-                byte serviceLevel = SelectServiceLevel(state);
-                ApplyServiceLevel(serverObject, server.DefaultSystemContext, serviceLevel);
-                ApplyEstimatedReturnTime(serverObject, server.DefaultSystemContext, estimatedReturnTime);
-
                 lock (m_countdownLock)
                 {
                     if (m_disposed)
@@ -162,6 +159,8 @@ namespace Opc.Ua.Redundancy.Server
                     }
 
                     StopCountdown();
+                    ApplyEstimatedReturnTime(serverObject, server.DefaultSystemContext, estimatedReturnTime);
+                    ApplyServiceLevel(serverObject, server.DefaultSystemContext, state);
                     ApplyServerStatus(server, serverObject, state, secondsTillShutdown, reason);
                     if (secondsTillShutdown > 0)
                     {
@@ -219,6 +218,11 @@ namespace Opc.Ua.Redundancy.Server
                 return m_options.ServiceLevelSelector(state);
             }
 
+            return DefaultServiceLevel(state);
+        }
+
+        private static byte DefaultServiceLevel(ServerState state)
+        {
             return state switch
             {
                 ServerState.Running => ServiceLevels.Maximum,
@@ -228,8 +232,22 @@ namespace Opc.Ua.Redundancy.Server
             };
         }
 
-        private void ApplyServiceLevel(ServerObjectState serverObject, ISystemContext context, byte serviceLevel)
+        private void ApplyServiceLevel(ServerObjectState serverObject, ISystemContext context, ServerState state)
         {
+            if (m_serviceLevelController is LeaderServiceLevelProvider leadershipPolicy)
+            {
+                if (state == ServerState.Running)
+                {
+                    leadershipPolicy.ClearServiceLevelOverride();
+                }
+                else
+                {
+                    leadershipPolicy.SetServiceLevel(DefaultServiceLevel(state));
+                }
+                return;
+            }
+
+            byte serviceLevel = SelectServiceLevel(state);
             if (m_serviceLevelController != null)
             {
                 m_serviceLevelController.SetServiceLevel(serviceLevel);
@@ -238,7 +256,9 @@ namespace Opc.Ua.Redundancy.Server
 
             if (serverObject.ServiceLevel != null)
             {
-                serverObject.ServiceLevel.Value = serviceLevel;
+                serverObject.ServiceLevel.Value = LeaderServiceLevelProvider.HasIncompatibleIdentity(m_server)
+                    ? ServiceLevels.Maintenance
+                    : serviceLevel;
                 serverObject.ServiceLevel.ClearChangeMasks(context, false);
             }
         }

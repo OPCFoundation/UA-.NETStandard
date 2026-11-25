@@ -25,7 +25,9 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Gets or sets an optional mapping from requested server state to
-        /// <c>ServiceLevel</c>.
+        /// <c>ServiceLevel</c> when not using the built-in leadership policy.
+        /// That policy always advertises Maintenance for Shutdown or Suspended,
+        /// NoData for other non-Running states, and recomputes when returning to Running.
         /// </summary>
         public Func<ServerState, byte>? ServiceLevelSelector { get; set; }
 

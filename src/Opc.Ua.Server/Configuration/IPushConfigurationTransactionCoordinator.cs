@@ -256,6 +256,13 @@ namespace Opc.Ua.Server
         public NodeId AffectedTrustList { get; init; } = NodeId.Null;
 
         /// <summary>
+        /// Whether the commit or rollback can write to a trusted or issuer certificate or CRL store
+        /// without a fence. Set this even when the operation has no affected TrustList NodeId,
+        /// such as an issuer-chain import during certificate replacement.
+        /// </summary>
+        public bool WritesUnfencedTrustStore { get; init; }
+
+        /// <summary>
         /// Optional validation run before <b>any</b> operation in the
         /// transaction is committed, in request order, when
         /// <c>ApplyChanges</c> is called. OPC 10000-12 §7.10.2 requires the

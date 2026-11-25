@@ -9,6 +9,10 @@ namespace Opc.Ua.PubSub.Security.Sks
     /// <summary>
     /// Persists SecurityGroup key material for an SKS.
     /// </summary>
+    /// <remarks>
+    /// Stores shared by multiple SKS replicas must implement
+    /// <see cref="ICoordinatedPubSubSecurityKeyStore"/>.
+    /// </remarks>
     public interface IPubSubSecurityKeyStore
     {
         /// <summary>
@@ -27,8 +31,11 @@ namespace Opc.Ua.PubSub.Security.Sks
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Saves a SecurityGroup.
+        /// Saves a SecurityGroup for a process-local SKS.
         /// </summary>
+        /// <remarks>
+        /// A coordinated store can require a conditional write instead.
+        /// </remarks>
         /// <param name="group">SecurityGroup to save.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         ValueTask SaveSecurityGroupAsync(

@@ -1961,6 +1961,32 @@ namespace Opc.Ua.Client.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Recovery cannot use a channel without certificate authentication to create or activate a session.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateOnUnauthenticatedChannelSendsNoSessionRequestsAsync(bool reuseToken)
+        {
+            EndpointDescription endpoint = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            endpoint.Server.ApplicationUri = "urn:redundancy:member";
+            using var session = SessionMock.Create(endpoint);
+            session.SetConnected();
+            session.BindRedundantPeerIdentity(endpoint.Server.ApplicationUri);
+            session.EnableTokenReuseFailover = reuseToken;
+            NodeId sessionId = session.SessionId;
+            Mock<ITransportChannel> candidate = CreateReconnectChannelMock(session, endpoint);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                session.RecreateInPlaceAsync(channel: candidate.Object)).ConfigureAwait(false);
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(session.SessionId, Is.EqualTo(sessionId));
+            candidate.Verify(
+                channel => channel.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
         [Test]
         public async Task OpenAsyncDoesNotRequireSelectedApplicationUriForGenericSessionsAsync()
         {
@@ -2886,7 +2912,8 @@ namespace Opc.Ua.Client.Tests
                     typeof(SessionClient),
                     typeof(bool),
                     typeof(bool),
-                    typeof(bool)
+                    typeof(bool),
+                    typeof(string)
                 ],
                 null);
 
@@ -2894,7 +2921,10 @@ namespace Opc.Ua.Client.Tests
 
             var task = (Task?)method!.Invoke(
                 session,
-                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null, false, false, false]);
+                [
+                    endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse,
+                    null, false, false, false, null
+                ]);
 
             Assert.That(task, Is.Not.Null);
             return task!;

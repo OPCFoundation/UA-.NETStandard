@@ -7,11 +7,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
 
@@ -47,7 +50,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(options.Mode, Is.EqualTo(RedundancySupport.None));
             Assert.That(options.PeerServerUris, Is.Empty);
             Assert.That(options.CurrentServerId, Is.Not.Empty);
-            Assert.That(options.PeerServiceLevel, Is.EqualTo(ServiceLevels.Maximum));
         }
 
         [Test]
@@ -77,7 +79,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task OnServerStartedNoOpsWhenServerObjectMissingAsync()
         {
-            var task = new ServerRedundancyStartupTask(
+            await using var task = new ServerRedundancyStartupTask(
                 new ServerRedundancyController(new ServerRedundancyOptions()));
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.ServerObject).Returns((ServerObjectState)null!);
@@ -91,7 +93,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task NoneModeKeepsBaseTypeWithoutSubtypeChildrenAsync()
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
-            var task = new ServerRedundancyStartupTask(
+            await using var task = new ServerRedundancyStartupTask(
                 new ServerRedundancyController(new ServerRedundancyOptions()));
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
@@ -114,8 +116,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Mode = RedundancySupport.Transparent,
                 CurrentServerId = "replica-a"
             };
-            options.PeerServerUris.Add("urn:peer-a");
-            var task = new ServerRedundancyStartupTask(new ServerRedundancyController(options));
+            options.TransparentPeerServerIds.Add("replica-b");
+            await using var task = new ServerRedundancyStartupTask(new ServerRedundancyController(options));
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
 
@@ -128,7 +130,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(transparent.CurrentServerId!.Value, Is.EqualTo("replica-a"));
             Assert.That(transparent.CurrentServerId.NodeId,
                 Is.EqualTo(VariableIds.Server_ServerRedundancy_CurrentServerId));
-            Assert.That(transparent.RedundantServerArray!.Value[0].ServerId, Is.EqualTo("urn:peer-a"));
+            Assert.That(transparent.RedundantServerArray!.Value[0].ServerId, Is.EqualTo("replica-b"));
+            Assert.That(transparent.RedundantServerArray.Value[0].ServiceLevel, Is.EqualTo(ServiceLevels.NoData));
+            Assert.That(transparent.RedundantServerArray.Value[0].ServerState, Is.EqualTo(ServerState.Unknown));
+            Assert.That(transparent.RedundantServerArray.Value[1].ServerId, Is.EqualTo("replica-a"));
             Assert.That(HasChild(loaded, redundancy, BrowseNames.CurrentServerId), Is.True);
             Assert.That(HasChild(loaded, redundancy, BrowseNames.ServerUriArray), Is.False);
         }
@@ -143,7 +148,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
             options.PeerServerUris.Add("urn:peer-a");
             options.PeerServerUris.Add("urn:peer-b");
-            var task = new ServerRedundancyStartupTask(new ServerRedundancyController(options));
+            await using var task = new ServerRedundancyStartupTask(new ServerRedundancyController(options));
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
 
@@ -169,7 +174,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var options = new ServerRedundancyOptions();
             options.PeerServerUris.Add("urn:peer-a");
             var controller = new ServerRedundancyController(options);
-            var task = new ServerRedundancyStartupTask(controller);
+            await using var task = new ServerRedundancyStartupTask(controller);
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
             Assert.That(loaded.Server.Object.ServerObject.ServerRedundancy!.TypeDefinitionId,
@@ -199,6 +204,46 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 loaded.Manager.FindPredefinedNode<PropertyState<string>>(
                     VariableIds.Server_ServerRedundancy_CurrentServerId),
                 Is.Null);
+        }
+
+        /// <summary>
+        /// Reports observed physical peer status and stops advertising it after its validity window.
+        /// </summary>
+        [Test]
+        public async Task TransparentPeerStatusExpiresWithoutNewObservationAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var options = new ServerRedundancyOptions
+            {
+                Mode = RedundancySupport.Transparent,
+                CurrentServerId = "replica-a"
+            };
+            options.TransparentPeerServerIds.Add("replica-b");
+            using var store = new InMemorySharedKeyValueStore();
+            using var rng = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            rng.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            Array.Clear(key, 0, key.Length);
+            var time = new FakeTimeProvider();
+            var status = new SharedRedundantPeerStatus(store, protector, time, options.PeerStatusKeyPrefix);
+            using var controller = new ServerRedundancyController(options, status);
+            CancellationToken ct = TestContext.CurrentContext.CancellationToken;
+            await controller.AttachAsync(loaded.Server.Object, ct).ConfigureAwait(false);
+
+            await status.PublishAsync("replica-b", ServiceLevels.Maintenance, ServerState.Suspended, ct)
+                .ConfigureAwait(false);
+            await controller.RefreshPeerStatusAsync(ct).ConfigureAwait(false);
+
+            ServerRedundancyState redundancy = loaded.Server.Object.ServerObject.ServerRedundancy!;
+            Assert.That(redundancy.RedundantServerArray!.Value[0].ServiceLevel, Is.EqualTo(ServiceLevels.Maintenance));
+            Assert.That(redundancy.RedundantServerArray.Value[0].ServerState, Is.EqualTo(ServerState.Suspended));
+
+            time.Advance(TimeSpan.FromSeconds(15));
+            await controller.RefreshPeerStatusAsync(ct).ConfigureAwait(false);
+
+            Assert.That(redundancy.RedundantServerArray.Value[0].ServiceLevel, Is.EqualTo(ServiceLevels.NoData));
+            Assert.That(redundancy.RedundantServerArray.Value[0].ServerState, Is.EqualTo(ServerState.Unknown));
         }
 
         private static bool HasChild(

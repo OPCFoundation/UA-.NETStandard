@@ -720,7 +720,10 @@ namespace Opc.Ua.Bindings
             byte[] buffer = BinaryEncoder.EncodeMessage(request, Quotas.MessageContext);
 
             ClientChannelCertificate = ClientCertificate?.RawData;
-            ServerChannelCertificate = ServerCertificate?.RawData;
+            if (m_requestedSecurityMode == MessageSecurityMode.None)
+            {
+                ServerChannelCertificate = ServerCertificate?.RawData;
+            }
 
             m_oscRequestSignature = null;
 
@@ -901,6 +904,11 @@ namespace Opc.Ua.Bindings
                 if (!ValidateNonce(ServerCertificate, response.ServerNonce.ToArray()))
                 {
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                }
+
+                if (m_requestedSecurityMode != MessageSecurityMode.None)
+                {
+                    ServerChannelCertificate = serverCertificate?.RawData;
                 }
 
                 // log security information.

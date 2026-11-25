@@ -519,6 +519,7 @@ namespace Opc.Ua.PubSub.Server
                 MethodState? removePushTarget = diagnosticsNodeManager
                     .FindPredefinedNode<MethodState>(new NodeId(RemovePushTargetNodeId));
                 getKeys?.OnCallMethod2 = MethodHandlers.OnGetSecurityKeys;
+                getKeys?.OnCallMethod2Async = MethodHandlers.OnGetSecurityKeysAsync;
                 getGroup?.OnCallMethod = OnGetSecurityGroup;
                 addGroup?.OnCallMethod = OnAddSecurityGroup;
                 removeGroup?.OnCallMethod = OnRemoveSecurityGroup;
@@ -781,6 +782,10 @@ namespace Opc.Ua.PubSub.Server
                 return;
             }
 
+            ArrayOf<string> securityGroupIds = m_keyService is IAsyncPubSubSecurityGroupCatalog catalog
+                ? await catalog.GetSecurityGroupIdsAsync(cancellationToken).ConfigureAwait(false)
+                : m_keyService.SecurityGroupIds;
+
             List<NodeState> oldRoots;
             lock (m_addressSpaceGate)
             {
@@ -795,8 +800,9 @@ namespace Opc.Ua.PubSub.Server
             }
 
             var newRoots = new List<NodeState>();
-            foreach (string securityGroupId in (string[])[.. m_keyService.SecurityGroupIds])
+            for (int i = 0; i < securityGroupIds.Count; i++)
             {
+                string securityGroupId = securityGroupIds[i];
                 SksSecurityGroup? group = await m_keyService
                     .GetSecurityGroupAsync(securityGroupId, cancellationToken)
                     .ConfigureAwait(false);

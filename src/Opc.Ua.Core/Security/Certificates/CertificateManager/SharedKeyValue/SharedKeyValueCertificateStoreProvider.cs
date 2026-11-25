@@ -16,8 +16,9 @@ namespace Opc.Ua
     /// <see cref="CertificateStoreIdentifier"/> with store type
     /// <see cref="CertificateStoreType.SharedKeyValue"/> (or a store path using the
     /// <see cref="CertificateStoreType.SharedKeyValueScheme"/> prefix) resolves to a distributed store.
-    /// The injected <see cref="IRecordProtector"/> protects every stored record; an external,
-    /// network-reachable shared store must use an authenticating protector so a forged record fails closed.
+    /// Distributed use requires an authenticating <see cref="IRecordProtector"/> and a
+    /// <see cref="FreshnessProtectedKeyValueStore"/> whose authority epoch has been explicitly enrolled.
+    /// Legacy raw records are not opened or imported by this provider.
     /// </remarks>
     public sealed class SharedKeyValueCertificateStoreProvider : ICertificateStoreProvider
     {
@@ -30,12 +31,16 @@ namespace Opc.Ua
         /// <see cref="NullRecordProtector"/> (safe only for an in-memory, single-process store).
         /// </param>
         /// <exception cref="ArgumentNullException"><paramref name="store"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">
+        /// A backend other than <see cref="InMemorySharedKeyValueStore"/> lacks freshness protection
+        /// or an authenticating record protector.
+        /// </exception>
         public SharedKeyValueCertificateStoreProvider(
             ISharedKeyValueStore store,
             IRecordProtector? protector = null)
         {
-            m_store = store ?? throw new ArgumentNullException(nameof(store));
-            m_protector = protector ?? NullRecordProtector.Instance;
+            m_protector = SharedKeyValueCertificateStore.RequireProtection(store, protector);
+            m_store = store;
         }
 
         /// <inheritdoc/>

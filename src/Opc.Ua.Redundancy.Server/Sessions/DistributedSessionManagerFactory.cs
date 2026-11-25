@@ -55,6 +55,16 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
+            if (m_options.EnableFastReconnect)
+            {
+                SharedSingleUseNonceRegistry.ValidateSharedStore(m_keyValueStore);
+                if (m_keyValueStore is not FreshnessProtectedKeyValueStore)
+                {
+                    throw new InvalidOperationException(
+                        "Fast reconnect requires a committed session store backed by an independent freshness authority.");
+                }
+            }
+
             var sessionStore = new SharedKeyValueSessionStore(
                 m_keyValueStore, server.MessageContext, m_protector);
             var nonceRegistry = new SharedSingleUseNonceRegistry(m_keyValueStore, timeProvider: timeProvider);

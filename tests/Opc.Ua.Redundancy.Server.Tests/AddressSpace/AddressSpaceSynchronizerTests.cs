@@ -8,6 +8,7 @@
 #pragma warning disable CA2007
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -604,8 +605,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             await using var bulk = new ReplicatedSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-            await using var coordinator = new RaftSharedKeyValueStore(
-                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var coordinator = new SimulatedSharedKeyValueStore();
             ArrayOf<string> prefixes = routeNodeRecordsStrong
                 ? ["election/", "n/", "v/", "dlog/"]
                 : default;
@@ -1173,6 +1173,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
             });
             await AwaitWithTimeoutAsync(valueReceived).ConfigureAwait(false);
 
+            _ = await store.ReadWatchAsync().ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => Task.FromResult(synchronizer.IsReady),
+                "the standby should complete its initial checkpoint").ConfigureAwait(false);
+            var scanEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var allowScan = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            store.ScanAsync = async ct =>
+            {
+                scanEntered.TrySetResult(true);
+                await WaitWithCancellationAsync(allowScan.Task, ct).ConfigureAwait(false);
+                return null;
+            };
             Task<bool> malformedTopologyReceived = WaitForInboundAsync(
                 synchronizer, change => change.Sequence == 12);
             store.Publish(new NodeStateChange
@@ -1182,7 +1194,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Node = new StoredNode(nodeId, ByteString.From(new byte[] { 1, 2, 3 })),
                 Sequence = 12
             });
-            await AwaitWithTimeoutAsync(malformedTopologyReceived).ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(scanEntered.Task).ConfigureAwait(false);
+            Assert.That(malformedTopologyReceived.IsCompleted, Is.False);
+            Assert.That(synchronizer.IsReady, Is.False);
             Assert.That(local.TryGetNode(nodeId, out _), Is.False);
 
             Task<bool> repairedTopologyReceived = WaitForInboundAsync(
@@ -1196,7 +1210,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     NodeStateSerializer.Serialize(m_systemContext, NewVariable("repaired", 13.0))),
                 Sequence = 13
             });
+            allowScan.TrySetResult(true);
             await AwaitWithTimeoutAsync(repairedTopologyReceived).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => Task.FromResult(synchronizer.IsReady),
+                "the standby should become ready after the verified repair").ConfigureAwait(false);
 
             Assert.That(local.TryGetNode(nodeId, out NodeState? repaired), Is.True);
             Assert.That(((BaseVariableState)repaired!).Value, Is.EqualTo(newerValue.WrappedValue));
@@ -1265,10 +1283,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var synchronizer = new AddressSpaceSynchronizer(store, space, election);
             await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
             synchronizer.Start();
+            await AssertEventuallyAsync(
+                () => Task.FromResult(synchronizer.IsReady),
+                "takeover should begin from a verified standby").ConfigureAwait(false);
 
             BaseDataVariableState standbyNode = NewVariable("standby", 1.0);
             await space.AddOrUpdateNodeAsync(standbyNode).ConfigureAwait(false);
-            await Task.Delay(200).ConfigureAwait(false);
 
             Assert.That(synchronizer.IsWriter, Is.False);
             Assert.That(
@@ -1277,6 +1297,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 "a standby must not write to the shared store");
 
             election.Set(true);
+            await AssertEventuallyAsync(
+                () => Task.FromResult(synchronizer.IsWriter),
+                "the election should result in verified takeover").ConfigureAwait(false);
+            Assert.That(space.TryGetNode(standbyNode.NodeId, out _), Is.False);
             BaseDataVariableState promotedNode = NewVariable("promoted", 2.0);
             await space.AddOrUpdateNodeAsync(promotedNode).ConfigureAwait(false);
 
@@ -1284,6 +1308,142 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 async () => await store.TryGetNodeAsync(promotedNode.NodeId).ConfigureAwait(false) != null,
                 "the promoted replica should switch to writer mode").ConfigureAwait(false);
             Assert.That(synchronizer.IsWriter, Is.True);
+        }
+
+        /// <summary>
+        /// Reopens either a faulted or an ended watch and gates takeover on a complete recovery scan.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task WatchLossRequiresVerifiedRecoveryBeforePromotionAsync(bool faultWatch)
+        {
+            BaseDataVariableState deleted = NewVariable("missed-delete", 1.0);
+            var store = new ScriptedNodeStateStore
+            {
+                ScanAsync = _ => new ValueTask<IStoredNode?>(new StoredNode(
+                    deleted.NodeId, NodeStateSerializer.Serialize(m_systemContext, deleted)))
+            };
+            await using var election = new MutableLeaderElection();
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, space, election);
+            synchronizer.Start();
+            Channel<NodeStateChange> firstWatch = await store.ReadWatchAsync().ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => Task.FromResult(synchronizer.IsReady),
+                "the standby should be initially ready").ConfigureAwait(false);
+            Assert.That(space.TryGetNode(deleted.NodeId, out _), Is.True);
+            var scanEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var allowScan = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            BaseDataVariableState recovered = NewVariable("missed", 2.0);
+            store.ScanAsync = async ct =>
+            {
+                scanEntered.TrySetResult(true);
+                await WaitWithCancellationAsync(allowScan.Task, ct).ConfigureAwait(false);
+                return new StoredNode(recovered.NodeId, NodeStateSerializer.Serialize(m_systemContext, recovered));
+            };
+
+            firstWatch.Writer.TryComplete(faultWatch ? new InvalidOperationException("Watch unavailable.") : null);
+            try
+            {
+                _ = await store.ReadWatchAsync().ConfigureAwait(false);
+                await AwaitWithTimeoutAsync(scanEntered.Task).ConfigureAwait(false);
+                election.Set(true);
+                Assert.That(synchronizer.ReplicationStatus, Is.EqualTo((false, false)));
+                Assert.That(space.TryGetNode(recovered.NodeId, out _), Is.False);
+                BaseDataVariableState staleLocal = NewVariable("stale-local", 1.0);
+                await space.AddOrUpdateNodeAsync(staleLocal).ConfigureAwait(false);
+                Assert.That(store.Writes, Is.Empty);
+            }
+            finally
+            {
+                allowScan.TrySetResult(true);
+            }
+
+            await AssertEventuallyAsync(
+                () => Task.FromResult(synchronizer.IsWriter),
+                "takeover should follow the successful recovery scan").ConfigureAwait(false);
+            Assert.That(space.TryGetNode(recovered.NodeId, out NodeState? current), Is.True);
+            Assert.That(((BaseDataVariableState)current!).Value, Is.EqualTo(new Variant(2.0)));
+            Assert.That(space.TryGetNode(deleted.NodeId, out _), Is.False);
+            Assert.That(store.Writes, Is.Empty, "writes must not be queued before the verified handoff");
+            BaseDataVariableState newLocal = NewVariable("current-writer", 3.0);
+            await space.AddOrUpdateNodeAsync(newLocal).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => Task.FromResult(store.Writes.ContainsKey(newLocal.NodeId)),
+                "the effective writer should publish new local changes").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Retries unavailable checkpoint reads and observes shutdown while a retry is blocked.
+        /// </summary>
+        [Test]
+        public async Task ShutdownCancelsRecoveryAfterUnavailableCheckpointAsync()
+        {
+            var store = new ScriptedNodeStateStore();
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, space, () => false);
+            synchronizer.Start();
+            Channel<NodeStateChange> firstWatch = await store.ReadWatchAsync().ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => Task.FromResult(synchronizer.IsReady),
+                "the standby should be initially ready").ConfigureAwait(false);
+            var retryEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var waitForShutdown = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            store.ScanAsync = async ct =>
+            {
+                if (store.SubscriptionCount == 2)
+                {
+                    throw new InvalidOperationException("Checkpoint unavailable.");
+                }
+                retryEntered.TrySetResult(true);
+                try
+                {
+                    await WaitWithCancellationAsync(waitForShutdown.Task, ct).ConfigureAwait(false);
+                    return null;
+                }
+                finally
+                {
+                    cancelled.TrySetResult(ct.IsCancellationRequested);
+                }
+            };
+
+            firstWatch.Writer.TryComplete();
+            await AwaitWithTimeoutAsync(retryEntered.Task).ConfigureAwait(false);
+            Assert.That(synchronizer.ReplicationStatus, Is.EqualTo((false, false)));
+            await AwaitWithTimeoutAsync(synchronizer.DisposeAsync().AsTask()).ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(cancelled.Task).ConfigureAwait(false);
+            Assert.That(await cancelled.Task.ConfigureAwait(false), Is.True);
+            Assert.That(store.SubscriptionCount, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Applies eventual updates without advertising an unverified graph or enabling writes.
+        /// </summary>
+        [Test]
+        public async Task EventualStandbyDoesNotBecomeReadyOrPromoteAsync()
+        {
+            var store = new ScriptedNodeStateStore { HasAuthoritativeReads = false };
+            await using var election = new MutableLeaderElection();
+            var space = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, space, election);
+            synchronizer.Start();
+            _ = await store.ReadWatchAsync().ConfigureAwait(false);
+            election.Set(true);
+            BaseDataVariableState node = NewVariable("eventual", 1.0);
+            Task<bool> applied = WaitForInboundAsync(synchronizer, change => change.NodeId == node.NodeId);
+            store.Publish(new NodeStateChange
+            {
+                Kind = NodeStateChangeKind.Upsert,
+                NodeId = node.NodeId,
+                Node = new StoredNode(node.NodeId, NodeStateSerializer.Serialize(m_systemContext, node)),
+                Sequence = 1
+            });
+            await AwaitWithTimeoutAsync(applied).ConfigureAwait(false);
+
+            Assert.That(space.TryGetNode(node.NodeId, out _), Is.True);
+            Assert.That(synchronizer.ReplicationStatus, Is.EqualTo((false, false)));
+            Assert.That(store.Writes, Is.Empty);
         }
 
         [Test]
@@ -1354,6 +1514,57 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     return found && Equals(value.WrappedValue, new Variant(2.0));
                 },
                 "the write already in flight when demotion occurred must still complete").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Does not promote while a previous writer operation is in flight or publish its old queued updates.
+        /// </summary>
+        [Test]
+        public async Task TakeoverWaitsForInFlightWriteAndDiscardsOldQueueAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var innerStore = new InMemoryNodeStateStore(kv, m_messageContext);
+            var store = new StallingNodeStateStore(innerStore);
+            await using var election = new MutableLeaderElection();
+            election.Set(true);
+            var space = new DictionaryAddressSpace(m_systemContext);
+            BaseDataVariableState node = NewVariable("takeover", 1.0);
+            await space.AddOrUpdateNodeAsync(node).ConfigureAwait(false);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, space, election);
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+            synchronizer.Start();
+            store.Arm();
+            node.Value = new Variant(2.0);
+            node.ClearChangeMasks(m_systemContext, false);
+            await AwaitWithTimeoutAsync(store.FirstWriteStarted).ConfigureAwait(false);
+            try
+            {
+                node.Value = new Variant(3.0);
+                node.ClearChangeMasks(m_systemContext, false);
+                election.Set(false);
+                election.Set(true);
+                Assert.That(synchronizer.ReplicationStatus, Is.EqualTo((false, false)));
+            }
+            finally
+            {
+                store.ReleaseFirstWrite();
+            }
+            await AssertEventuallyAsync(
+                () => Task.FromResult(synchronizer.IsWriter),
+                "takeover should finish after the accepted write completes").ConfigureAwait(false);
+            Assert.That(node.Value, Is.EqualTo(new Variant(2.0)));
+            node.Value = new Variant(4.0);
+            node.ClearChangeMasks(m_systemContext, false);
+            await AssertEventuallyAsync(
+                async () =>
+                {
+                    (bool found, DataValue value) = await innerStore
+                        .TryReadValueAsync(node.NodeId)
+                        .ConfigureAwait(false);
+                    return found && value.WrappedValue == new Variant(4.0);
+                },
+                "the new writer epoch should publish").ConfigureAwait(false);
+            Assert.That(store.WrittenValues, Does.Not.Contain(new Variant(3.0)));
         }
 
         [Test]
@@ -1952,17 +2163,34 @@ namespace Opc.Ua.Server.Tests.Redundancy
             private readonly Channel<NodeStateChange> m_changes = Channel.CreateUnbounded<NodeStateChange>();
         }
 
-        private sealed class ScriptedNodeStateStore : INodeStateStore
+        private sealed class ScriptedNodeStateStore : INodeStateStore, INodeStateStoreReadConsistency
         {
+            public Func<CancellationToken, ValueTask<IStoredNode?>>? ScanAsync { get; set; }
+
+            public bool HasAuthoritativeReads { get; set; } = true;
+
+            public bool SupportsSnapshots => false;
+
+            public NodeIdDictionary<IStoredNode> Writes { get; } = [];
+
+            public int SubscriptionCount => Volatile.Read(ref m_subscriptions);
+
             public void Publish(NodeStateChange change)
             {
                 m_changes.Writer.TryWrite(change);
+            }
+
+            public async ValueTask<Channel<NodeStateChange>> ReadWatchAsync()
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                return await m_watches.Reader.ReadAsync(timeout.Token).ConfigureAwait(false);
             }
 
             public ValueTask UpsertNodeAsync(
                 IStoredNode node,
                 CancellationToken ct = default)
             {
+                Writes[node.NodeId] = node;
                 return default;
             }
 
@@ -1983,8 +2211,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             public async IAsyncEnumerable<IStoredNode> EnumerateAsync(
                 [EnumeratorCancellation] CancellationToken ct = default)
             {
-                await Task.CompletedTask.ConfigureAwait(false);
-                yield break;
+                Func<CancellationToken, ValueTask<IStoredNode?>>? scan = ScanAsync;
+                if (scan != null && await scan(ct).ConfigureAwait(false) is { } stored)
+                {
+                    yield return stored;
+                }
             }
 
             public ValueTask WriteValueAsync(
@@ -2013,11 +2244,21 @@ namespace Opc.Ua.Server.Tests.Redundancy
             public IAsyncEnumerable<NodeStateChange> SubscribeChangesAsync(
                 CancellationToken ct = default)
             {
-                return m_changes.Reader.ReadAllAsync(ct);
+                Channel<NodeStateChange> changes = m_changes;
+                if (Interlocked.Increment(ref m_subscriptions) > 1)
+                {
+                    changes = Channel.CreateUnbounded<NodeStateChange>();
+                    m_changes = changes;
+                }
+                m_watches.Writer.TryWrite(changes);
+                return changes.Reader.ReadAllAsync(ct);
             }
 
-            private readonly Channel<NodeStateChange> m_changes =
+            private readonly Channel<Channel<NodeStateChange>> m_watches =
+                Channel.CreateUnbounded<Channel<NodeStateChange>>();
+            private Channel<NodeStateChange> m_changes =
                 Channel.CreateUnbounded<NodeStateChange>();
+            private int m_subscriptions;
         }
 
         private static Task<bool> WaitForInboundAsync(
@@ -2135,6 +2376,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             public Task FirstWriteStarted => m_firstWriteStarted.Task;
 
+            public ConcurrentQueue<Variant> WrittenValues { get; } = new();
+
             /// <summary>
             /// Arms the stall: the next <see cref="WriteValueAsync"/> call
             /// after this point (and only that one) will stall.
@@ -2174,6 +2417,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 // Copy out of the `in` parameter before crossing an await
                 // boundary (in-parameters cannot be used in async methods).
                 DataValue copy = value;
+                WrittenValues.Enqueue(copy.WrappedValue);
                 if (Volatile.Read(ref m_armed) != 0 && Interlocked.Exchange(ref m_stalledOnce, 1) == 0)
                 {
                     return StallThenWriteAsync(nodeId, copy, ct);

@@ -36,7 +36,7 @@ namespace Opc.Ua.Redundancy.Server
             TimeProvider timeProvider)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
-            m_protector = protector ?? throw new ArgumentNullException(nameof(protector));
+            m_protector = LoadDirectionRecordValidation.RequireProtection(m_store, protector);
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_serviceLevelProvider = serviceLevelProvider
                 ?? throw new ArgumentNullException(nameof(serviceLevelProvider));

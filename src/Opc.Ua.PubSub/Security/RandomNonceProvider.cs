@@ -126,17 +126,24 @@ namespace Opc.Ua.PubSub.Security
                 ulong sequenceNumber = messageCount + 1;
                 m_messageCounts[identity] = sequenceNumber;
 
-                Span<byte> messageRandom = stackalloc byte[AesCtrNonceLayout.MessageRandomLength];
-#if NET6_0_OR_GREATER
-                m_rng.GetBytes(messageRandom);
-#else
-                byte[] tmp = new byte[AesCtrNonceLayout.MessageRandomLength];
-                m_rng.GetBytes(tmp);
-                tmp.AsSpan().CopyTo(messageRandom);
-#endif
-                uint random = BinaryPrimitives.ReadUInt32BigEndian(messageRandom) ^ keyNonceFold;
-                AesCtrNonceLayout.Build(random, sequenceNumber, buffer);
+                WriteNonce(m_rng, keyNonceFold, sequenceNumber, buffer);
             }
+        }
+
+        /// <summary>
+        /// Encodes a sequence number obtained from a durable range with the normal random prefix.
+        /// </summary>
+        internal static void WriteReservedNonce(uint sequenceNumber, ReadOnlySpan<byte> keyNonce, Span<byte> buffer)
+        {
+#if NET6_0_OR_GREATER
+            Span<byte> messageRandom = stackalloc byte[AesCtrNonceLayout.MessageRandomLength];
+            RandomNumberGenerator.Fill(messageRandom);
+            uint random = BinaryPrimitives.ReadUInt32BigEndian(messageRandom) ^ Fold32(keyNonce);
+            AesCtrNonceLayout.Build(random, sequenceNumber, buffer);
+#else
+            using var rng = RandomNumberGenerator.Create();
+            WriteNonce(rng, Fold32(keyNonce), sequenceNumber, buffer);
+#endif
         }
 
         /// <inheritdoc/>
@@ -152,6 +159,19 @@ namespace Opc.Ua.PubSub.Security
                 m_messageCounts.Clear();
                 m_rng.Dispose();
             }
+        }
+
+        private static void WriteNonce(
+            RandomNumberGenerator rng, uint keyNonceFold, ulong sequenceNumber, Span<byte> buffer)
+        {
+#if NET6_0_OR_GREATER
+            Span<byte> messageRandom = stackalloc byte[AesCtrNonceLayout.MessageRandomLength];
+#else
+            byte[] messageRandom = new byte[AesCtrNonceLayout.MessageRandomLength];
+#endif
+            rng.GetBytes(messageRandom);
+            uint random = BinaryPrimitives.ReadUInt32BigEndian(messageRandom) ^ keyNonceFold;
+            AesCtrNonceLayout.Build(random, sequenceNumber, buffer);
         }
 
         private static uint Fold32(ReadOnlySpan<byte> data)

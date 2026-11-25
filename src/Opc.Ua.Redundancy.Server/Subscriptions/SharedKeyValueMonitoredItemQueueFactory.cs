@@ -88,16 +88,13 @@ namespace Opc.Ua.Redundancy.Server
     }
 
     /// <summary>
-    /// A shared key/value backed <see cref="IMonitoredItemQueueFactory"/> that continuously mirrors monitored-item
-    /// data/event queues so a promoted replica can restore queued-but-unpublished values after a failover
-    /// (OPC 10000-4 §6.6; extension).
+    /// A shared key/value backed <see cref="IMonitoredItemQueueFactory"/> that checkpoints its own monitored-item queues.
     /// </summary>
     /// <remarks>
     /// Every mutation of a created queue hands an immutable snapshot to a non-blocking background drain that
     /// coalesces per monitored item and persists it to the shared store, protected at rest by the configured
-    /// <see cref="IRecordProtector"/>. On promotion, <see cref="RestoreDataChangeQueueAsync"/> /
-    /// <see cref="RestoreEventQueueAsync"/> read the snapshot back and rebuild a mirroring queue that keeps
-    /// mirroring for a subsequent failover. Durable (large, disk-backed) queues are out of scope, so
+    /// <see cref="IRecordProtector"/>. The keys are scoped to this factory instance, since numeric monitored-item
+    /// IDs do not identify a queue across replicas. Restore methods read only this factory's checkpoints.
     /// <see cref="SupportsDurableQueues"/> is <c>false</c>.
     /// <para>
     /// The drain writes the queues of different monitored items concurrently, up to a fixed limit; the writes
@@ -153,6 +150,9 @@ namespace Opc.Ua.Redundancy.Server
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_protector = protector ?? NullRecordProtector.Instance;
             m_logger = telemetry.CreateLogger<SharedKeyValueMonitoredItemQueueFactory>();
+            string ownerPrefix = $"monitored-item-queue/v2/{Guid.NewGuid():N}/";
+            m_dataChangePrefix = ownerPrefix + "data/";
+            m_eventPrefix = ownerPrefix + "event/";
             m_channel = Channel.CreateBounded<QueueMirrorCommand>(new BoundedChannelOptions(ChannelCapacity)
             {
                 FullMode = BoundedChannelFullMode.Wait,
@@ -254,20 +254,20 @@ namespace Opc.Ua.Redundancy.Server
             var operations = new List<Task>();
 
             await foreach (KeyValuePair<string, ByteString> pair in m_store
-                .ScanAsync(DataChangePrefix, cancellationToken)
+                .ScanAsync(m_dataChangePrefix, cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (TryParseId(pair.Key, DataChangePrefix, out uint id) && !live.Contains(id))
+                if (TryParseId(pair.Key, m_dataChangePrefix, out uint id) && !live.Contains(id))
                 {
                     operations.Add(DeleteKeyAsync(pair.Key, cancellationToken));
                 }
             }
 
             await foreach (KeyValuePair<string, ByteString> pair in m_store
-                .ScanAsync(EventPrefix, cancellationToken)
+                .ScanAsync(m_eventPrefix, cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (TryParseId(pair.Key, EventPrefix, out uint id) && !live.Contains(id))
+                if (TryParseId(pair.Key, m_eventPrefix, out uint id) && !live.Contains(id))
                 {
                     operations.Add(DeleteKeyAsync(pair.Key, cancellationToken));
                 }
@@ -752,14 +752,20 @@ namespace Opc.Ua.Redundancy.Server
             return new StringTable([.. serverUris.Memory.ToArray().Where(s => s != null).Select(s => s!)]);
         }
 
-        private static string DataChangeKeyFor(uint monitoredItemId)
+        /// <summary>
+        /// Gets the data-change record key within this queue factory's ownership scope.
+        /// </summary>
+        internal string DataChangeKeyFor(uint monitoredItemId)
         {
-            return DataChangePrefix + monitoredItemId.ToString("D", CultureInfo.InvariantCulture);
+            return m_dataChangePrefix + monitoredItemId.ToString("D", CultureInfo.InvariantCulture);
         }
 
-        private static string EventKeyFor(uint monitoredItemId)
+        /// <summary>
+        /// Gets the event record key within this queue factory's ownership scope.
+        /// </summary>
+        internal string EventKeyFor(uint monitoredItemId)
         {
-            return EventPrefix + monitoredItemId.ToString("D", CultureInfo.InvariantCulture);
+            return m_eventPrefix + monitoredItemId.ToString("D", CultureInfo.InvariantCulture);
         }
 
         private static bool TryParseId(string key, string prefix, out uint monitoredItemId)
@@ -782,9 +788,9 @@ namespace Opc.Ua.Redundancy.Server
         private const int QueueSnapshotFormatVersion = 1;
         private const int DefaultMaxConcurrentWrites = 16;
         private const int ChannelCapacity = 1024;
-        private const string DataChangePrefix = "monitored-item-queue/data/";
-        private const string EventPrefix = "monitored-item-queue/event/";
         private readonly ISharedKeyValueStore m_store;
+        private readonly string m_dataChangePrefix;
+        private readonly string m_eventPrefix;
         private readonly int m_maxConcurrentWrites;
         private readonly IServiceMessageContext m_context;
         private readonly IRecordProtector m_protector;

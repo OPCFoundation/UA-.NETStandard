@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Connections;
@@ -18,7 +19,11 @@ using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Redundancy;
+using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Policies;
+using Opc.Ua.PubSub.Tests.Security;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
@@ -456,6 +461,106 @@ namespace Opc.Ua.PubSub.Tests.Connections
             }
         }
 
+        /// <summary>
+        /// Secured writer output starts above the previous replica's range and keeps the normal UADP layout.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(100)]
+        public async Task SecuredWriterUsesReservedNoncesAcrossTakeoverAsync(int maximumFrameSize)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            PublisherId publisher = PublisherId.FromUInt16(11);
+            var groupConfig = new WriterGroupDataType { Name = "secured-writer", WriterGroupId = 7 };
+            const string component = "pubsub:writergroup:private-tests:secured-writer";
+            using var ring = new PubSubSecurityKeyRing("test-group");
+            ring.SetCurrent(TestSecurityKeyFactory.Create(1));
+            var keys = new StaticSecurityKeyProvider("test-group", ring);
+            using var receiverNonces = new RandomNonceProvider(publisher);
+            var window = new SecurityTokenWindow();
+            window.RegisterToken(1);
+            var receiver = new UadpSecurityWrapper(
+                PubSubAes128CtrPolicy.Instance, keys, receiverNonces, window, telemetry);
+            var shared = new Mock<IPubSubNonceRangeStore>(MockBehavior.Strict);
+            var firstRange =
+                new TaskCompletionSource<PubSubNonceRange?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            shared.Setup(x => x.ReserveAsync(publisher, 7, 1, component, 1, 1024, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PubSubNonceRange?>(firstRange.Task));
+            shared.Setup(x => x.ReserveAsync(publisher, 7, 1, component, 2, 1024, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new PubSubNonceRange(1025, 2048));
+            var message = new UadpNetworkMessage
+            {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
+                PublisherId = publisher,
+                WriterGroupId = 7,
+                DataSetMessages =
+                [
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
+                    {
+                        DataSetWriterId = 5,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [new DataSetField { Value = new Variant(new byte[128]) }]
+                    }
+                ]
+            };
+            ulong previous = 0;
+            for (long fence = 1; fence <= 2; fence++)
+            {
+                var coordinator = new Mock<IPubSubActivationCoordinator>();
+                coordinator.Setup(x => x.GetRoleAsync(component, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(PubSubComponentRole.Active);
+                var fences = new Mock<IPubSubActivationFenceProvider>();
+                long activeFence = fence;
+                fences.Setup(x => x.TryGetActiveFence(component, out activeFence)).Returns(true);
+                var group = new WriterGroup(groupConfig, [],
+                    new PubSubSchedule(TimeSpan.FromSeconds(1), TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero),
+                    Mock.Of<IPubSubScheduler>(), telemetry, TimeProvider.System);
+                using var publisherNonces = new RandomNonceProvider(publisher);
+                var wrapper = new UadpSecurityWrapper(
+                    PubSubAes128CtrPolicy.Instance, keys, publisherNonces, new SecurityTokenWindow(), telemetry);
+                var transport = new SpyTransport();
+                await using PubSubConnection connection = CreateConnection(
+                    Profiles.PubSubUdpUadpTransport,
+                    new Dictionary<string, INetworkMessageEncoder>
+                    {
+                        [Profiles.PubSubUdpUadpTransport] = new UadpEncoder()
+                    },
+                    new Dictionary<string, INetworkMessageDecoder>(),
+                    maxNetworkMessageSize: maximumFrameSize,
+                    securityWrapper: wrapper,
+                    writerGroups: [group],
+                    coordinator: coordinator.Object,
+                    nonceStore: shared.Object,
+                    fences: fences.Object);
+                SetPrivateField(connection, "m_transport", transport);
+
+                ValueTask send = group.PublishSink!(message, CancellationToken.None);
+                if (fence == 1)
+                {
+                    Assert.That(transport.SentPayloads, Is.Empty);
+                    firstRange.SetResult(new PubSubNonceRange(1, 1024));
+                }
+                await send.ConfigureAwait(false);
+
+                Assert.That(transport.SentPayloads, Has.Count.GreaterThan(maximumFrameSize == 0 ? 0 : 1));
+                foreach (ReadOnlyMemory<byte> frame in transport.SentPayloads)
+                {
+                    Assert.That(UadpDecoder.TryReadPrefix(frame, out UadpPrefixInfo prefix), Is.True);
+                    UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
+                        frame[..prefix.PrefixLength], frame[prefix.PrefixLength..],
+                        prefix.PublisherId, prefix.WriterGroupId, MessageSecurityMode.SignAndEncrypt)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsSuccess, Is.True, result.Reason);
+                    (_, ulong sequence) = AesCtrNonceLayout.Parse(result.Header!.Value.MessageNonce.Span);
+                    Assert.That(sequence, Is.GreaterThanOrEqualTo((ulong)((fence - 1) * 1024 + 1)));
+                    Assert.That(sequence, Is.GreaterThan(previous));
+                    previous = sequence;
+                }
+            }
+            shared.VerifyAll();
+        }
+
         [Test]
         [TestSpec("7.2.4.4.4", Summary = "Chunk splitting failures are surfaced and recorded")]
         public async Task SendChunkedAsync_WithInvalidFrameSize_ThrowsAndRecordsDiagnosticAsync()
@@ -496,6 +601,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     transport,
                     message,
                     context,
+                    null,
                     null,
                     CancellationToken.None).ConfigureAwait(false));
 
@@ -795,6 +901,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     "EncodeAndWrapUadpAsync",
                     new UadpNetworkMessage(),
                     context,
+                    null,
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(
@@ -959,7 +1066,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
             IDataSetMetaDataRegistry? registry = null,
             UadpSecurityWrapper? securityWrapper = null,
             ArrayOf<ReaderGroup> readerGroups = default,
-            WriterGroup[]? writerGroups = null)
+            WriterGroup[]? writerGroups = null,
+            IPubSubActivationCoordinator? coordinator = null,
+            IPubSubNonceRangeStore? nonceStore = null,
+            IPubSubActivationFenceProvider? fences = null)
         {
             return new PubSubConnection(
                 new PubSubConnectionDataType
@@ -978,7 +1088,14 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 TimeProvider.System,
                 securityWrapper,
                 UadpSecurityWrapOptions.SignAndEncrypt,
-                maxNetworkMessageSize);
+                maxNetworkMessageSize,
+                MessageSecurityMode.None,
+                scheduler: null,
+                coordinator,
+                writerCheckpointStore: null,
+                unauthenticatedMetaDataLimits: null,
+                nonceStore,
+                fences);
         }
 
         private static ReaderGroup NewWildcardReaderGroup()

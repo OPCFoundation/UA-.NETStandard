@@ -569,6 +569,11 @@ transaction is then shared **across the replica set**:
   working buffers and protects each record with an `IRecordProtector`. If an
   external store lacks a protector, the store fails closed.
 
+The distributed coordinator does not allow built-in TrustList, CRL, or
+issuer-chain writes to sinks that cannot commit the whole change with the
+current lease grant. Those methods return `BadNotSupported` for the
+distributed path. Reads and standalone trust-list updates remain available.
+
 This composes with the configured leader election. Setting `DistributedPushConfigurationOptions.RequireLeadership = true` additionally restricts transaction ownership to the elected leader; when the Kubernetes extension is configured (`UseKubernetesLeaderElection`), that leader is decided by the Kubernetes-native `Lease` already registered as the `ILeaderElection` service, reused without creating a second Kubernetes client. Distributed behaviour is opt-in — a server that does not call `UseDistributedPushConfiguration()` keeps the per-server coordinator and directory-backed pending-key store unchanged. See [High Availability](HighAvailability.md#distributed-pushmanagement-transactions-beyond-66-opt-in) for the full setup.
 
 **Method security and validation.** `ServerConfiguration` methods enforce

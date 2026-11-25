@@ -6,7 +6,6 @@
 #pragma warning disable CA2007
 
 using System;
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Threading;
@@ -23,166 +22,375 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests.Redundancy
 {
     /// <summary>
-    /// Unit tests for the security decision logic of
-    /// <see cref="DistributedSessionManager"/>: the SecurityPolicy/Mode
-    /// check and the single-use server-nonce consumption (replay defence) that
-    /// gate a mirrored fast-reconnect. The full reconstruct + signature path is
-    /// exercised by the two-server end-to-end test.
+    /// Validates shared activation, close, and session restoration.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
     [Parallelizable(ParallelScope.All)]
     public class DistributedSessionManagerTests
     {
-        /// <summary>
-        /// Captured RSA username proof cannot restore a consumed nonce while its replacement mirror is suspended.
-        /// </summary>
         [Test]
-        [Category("SecurityRegression")]
-        public async Task SecurityR27OrdinaryActivationConsumesNonceBeforeReplicaReplayAsync()
+        public async Task SessionRequestsFollowCommittedOwnerImmediatelyAfterTakeoverAsync()
         {
-            await using var harness = new ActivationReplayHarness();
-            await harness.InitializeAsync().ConfigureAwait(false);
-            ByteString previousNonce = harness.CurrentNonce;
-            (SignatureData signature, ExtensionObject token) = await harness.ProofAsync(previousNonce)
-                .ConfigureAwait(false);
-            harness.BlockMirror = true;
-            Task<ByteString> ordinary = harness.ActivateAsync(harness.First, "replica-A", signature, token);
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            using (OperationContext allowed = await harness.ValidateRequestAsync(harness.First, "replica-A"))
+            {
+                Assert.That(allowed.Session, Is.SameAs(harness.Created.Session));
+            }
+
+            await harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce);
+            Assert.That(harness.First.GetSession(harness.Created.AuthenticationToken),
+                Is.SameAs(harness.Created.Session));
+            foreach (RequestType service in new[] { RequestType.Read, RequestType.CloseSession })
+            {
+                ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await harness.ValidateRequestAsync(harness.First, "replica-A", service));
+                Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            }
+            using OperationContext moved = await harness.ValidateRequestAsync(harness.Second, "replica-B");
+            Assert.That(moved.SessionId, Is.EqualTo(harness.Created.SessionId));
+        }
+
+        [Test]
+        public async Task ClosedGenerationRejectsRequestsAndIsDroppedByHeartbeatAsync()
+        {
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            await harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce);
+            await harness.Second.CloseSessionAsync(harness.Created.SessionId);
+
+            Assert.That(harness.First.GetSession(harness.Created.AuthenticationToken),
+                Is.SameAs(harness.Created.Session));
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.ValidateRequestAsync(harness.First, "replica-A"));
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+
+            await harness.First.RefreshLivenessAsync(CancellationToken.None);
+            Assert.That(harness.First.GetSession(harness.Created.AuthenticationToken), Is.Null);
+            Assert.That(await harness.ReadEntryAsync(), Is.Null);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task AuthorityFailureRejectsRequestsWithoutEvictingSessionAsync(bool freshnessFailure)
+        {
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            harness.AfterOwnerRead = _ =>
+            {
+                if (freshnessFailure)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                }
+                throw new TimeoutException();
+            };
+
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.ValidateRequestAsync(harness.First, "replica-A"));
+            Assert.That(rejected!.StatusCode, Is.EqualTo(freshnessFailure
+                ? StatusCodes.BadSecurityChecksFailed
+                : StatusCodes.BadResourceUnavailable));
+            await harness.First.RefreshLivenessAsync(CancellationToken.None);
+            Assert.That(harness.First.GetSession(harness.Created.AuthenticationToken),
+                Is.SameAs(harness.Created.Session));
+
+            harness.AfterOwnerRead = null;
+            using OperationContext recovered = await harness.ValidateRequestAsync(harness.First, "replica-A");
+            Assert.That(recovered.UserIdentity.DisplayName, Is.EqualTo("operator"));
+        }
+
+        [Test]
+        public async Task RequestCannotUseReplacedLocalBindingAfterAuthorityReadAsync()
+        {
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            var read = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.AfterOwnerRead = async cancellationToken =>
+            {
+                harness.AfterOwnerRead = null;
+                read.TrySetResult(true);
+                await release.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            };
+            Task<OperationContext> pending = harness.ValidateRequestAsync(harness.First, "replica-A").AsTask();
             try
             {
-                await harness.MirrorEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
-                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await harness.ActivateAsync(harness.Second, "replica-B", signature, token).ConfigureAwait(false))
-                    ?? throw new AssertionException("Expected replay rejection.");
-                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
-                Assert.That(harness.Second.GetSession(harness.Created.AuthenticationToken), Is.Null);
-                Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
+                await read.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                await harness.ActivateAsync(harness.First, "replica-A-reconnect", harness.CurrentNonce);
             }
             finally
             {
-                harness.ReleaseMirror.TrySetResult(true);
-                await ordinary.ConfigureAwait(false);
+                release.TrySetResult(true);
             }
-            Assert.That(harness.Created.Session.SecureChannelId, Is.EqualTo("replica-A"));
-            Assert.That(harness.CurrentNonce, Is.Not.EqualTo(previousNonce));
+
+            ServiceResultException? rejected =
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await pending);
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            using OperationContext current = await harness.ValidateRequestAsync(harness.First, "replica-A-reconnect");
+            Assert.That(current.Session, Is.SameAs(harness.Created.Session));
+        }
+
+        [Test]
+        public async Task RequestAdmissionObservesRequestCancellationAsync()
+        {
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            using var cancellation = new CancellationTokenSource();
+            using var lifetime = new RequestLifetime(cancellation.Token);
+            var read = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.AfterOwnerRead = cancellationToken =>
+            {
+                read.TrySetResult(true);
+                return Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            };
+            Task<OperationContext> pending = harness.ValidateRequestAsync(
+                harness.First, "replica-A", lifetime: lifetime).AsTask();
+            try
+            {
+                await read.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            finally
+            {
+                cancellation.Cancel();
+            }
+            await Assert.ThatAsync(() => pending.WaitAsync(TimeSpan.FromSeconds(10)),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        public async Task MetadataOnlySessionRequestsDoNotReadAuthorityAsync()
+        {
+            await using var harness = new ActivationHarness(fastReconnect: false);
+            await harness.InitializeAsync();
+            harness.AfterOwnerRead = static _ => throw new TimeoutException();
+            try
+            {
+                using OperationContext allowed = await harness.ValidateRequestAsync(harness.First, "replica-A");
+                Assert.That(allowed.Session, Is.SameAs(harness.Created.Session));
+            }
+            finally
+            {
+                harness.AfterOwnerRead = null;
+            }
         }
 
         /// <summary>
-        /// A freshly mirrored proof remains usable once on the other replica and issues a new nonce.
+        /// A close committed by the owner wins over a pending failover activation.
         /// </summary>
         [Test]
-        [Category("SecurityRegression")]
-        public async Task SecurityR27FreshMirroredActivationWorksOnceAndRotatesNonceAsync()
+        public async Task OwnerCloseWinsBeforePendingTakeoverCommitsAsync()
         {
-            await using var harness = new ActivationReplayHarness();
-            await harness.InitializeAsync().ConfigureAwait(false);
-            ByteString previousNonce = harness.CurrentNonce;
-            (SignatureData signature, ExtensionObject token) = await harness.ProofAsync(previousNonce)
-                .ConfigureAwait(false);
-            ByteString replacement = await harness.ActivateAsync(
-                harness.Second, "replica-B", signature, token).ConfigureAwait(false);
-            Assert.That(replacement.IsEmpty, Is.False);
-            Assert.That(replacement, Is.Not.EqualTo(previousNonce));
-            Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
-            Assert.That(harness.Second.GetSession(harness.Created.AuthenticationToken)!.EffectiveIdentity.DisplayName,
-                Is.EqualTo("victim"));
-            (signature, token) = await harness.ProofAsync(replacement).ConfigureAwait(false);
-            ByteString next = await harness.ActivateAsync(
-                harness.Second, "replica-B", signature, token).ConfigureAwait(false);
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            harness.BeforeStandbyCommit = async () =>
+            {
+                harness.CommitEntered.TrySetResult(true);
+                await harness.ReleaseCommit.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            };
+            Task<ByteString> activation = harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce);
+            try
+            {
+                await harness.CommitEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                await harness.First.CloseSessionAsync(harness.Created.SessionId);
+            }
+            finally
+            {
+                harness.ReleaseCommit.TrySetResult(true);
+            }
+
+            ServiceResultException? error =
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await activation);
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(harness.Second.GetSession(harness.Created.AuthenticationToken), Is.Null);
+            Assert.That(await harness.ReadEntryAsync(), Is.Null);
+        }
+
+        /// <summary>
+        /// The committed owner can reactivate and close; the former owner cannot close its entry.
+        /// </summary>
+        [Test]
+        public async Task SignedTakeoverRotatesNonceAndFencesFormerOwnerCloseAsync()
+        {
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            ByteString replacement = await harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce);
+            Assert.That(replacement, Is.Not.EqualTo(harness.CurrentNonce));
+            SharedSessionEntry? committed = await harness.ReadEntryAsync();
+            Assert.That(committed!.OwnerId, Is.EqualTo(harness.Second.ReplicaId));
+            Assert.That(committed.ServerNonce, Is.EqualTo(replacement));
+            Assert.That(committed.AuthenticationToken, Is.EqualTo(harness.Created.AuthenticationToken));
+            ISession? restored = harness.Second.GetSession(harness.Created.AuthenticationToken);
+            Assert.That(restored!.Id, Is.EqualTo(harness.Created.SessionId));
+
+            await harness.First.CloseSessionAsync(harness.Created.SessionId);
+            Assert.That((await harness.ReadEntryAsync())!.OwnerId, Is.EqualTo(harness.Second.ReplicaId));
+            ByteString next = await harness.ActivateAsync(harness.Second, "replica-B", replacement);
             Assert.That(next, Is.Not.EqualTo(replacement));
-            Assert.That(harness.Claims(replacement), Is.EqualTo(1));
-            Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
+            Assert.That((await harness.ReadEntryAsync())!.ServerNonce, Is.EqualTo(next));
+            await harness.Second.CloseSessionAsync(restored.Id);
+            Assert.That(await harness.ReadEntryAsync(), Is.Null);
+        }
+
+        [Test]
+        public async Task TakeoverFencesAnInFlightActivationOnTheFormerOwnerAsync()
+        {
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            harness.BeforeOwnerCommit = async () =>
+            {
+                harness.CommitEntered.TrySetResult(true);
+                await harness.ReleaseCommit.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            };
+            Task<ByteString> pending = harness.ActivateAsync(
+                harness.First, "replica-A-reconnect", harness.CurrentNonce);
+            ByteString next;
+            try
+            {
+                await harness.CommitEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                next = await harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce);
+            }
+            finally
+            {
+                harness.ReleaseCommit.TrySetResult(true);
+                ServiceResultException? error =
+                    await Assert.ThrowsAsync<ServiceResultException>(async () => await pending);
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            }
+
+            SharedSessionEntry? committed = await harness.ReadEntryAsync();
+            Assert.That(committed!.OwnerId, Is.EqualTo(harness.Second.ReplicaId));
+            Assert.That(committed.ServerNonce, Is.EqualTo(next));
+            Assert.That(harness.Created.Session.SecureChannelId, Is.EqualTo("replica-A"));
         }
 
         /// <summary>
-        /// Invalid proof does not consume the valid nonce and an unavailable registry cannot move the local binding.
+        /// A failed write does not consume the committed activation state.
         /// </summary>
         [Test]
-        [Category("SecurityRegression")]
-        public async Task SecurityR27FailedProofDoesNotConsumeNonceAndRegistryFailureCannotCommitAsync()
+        public async Task TakeoverCanRetryWhenCommitDidNotHappenAsync()
         {
-            await using var harness = new ActivationReplayHarness();
-            await harness.InitializeAsync().ConfigureAwait(false);
-            ByteString previousNonce = harness.CurrentNonce;
-            (SignatureData signature, ExtensionObject token) = await harness.ProofAsync(previousNonce)
-                .ConfigureAwait(false);
-            var invalid = new SignatureData { Algorithm = signature.Algorithm, Signature = ByteString.From([1, 2, 3]) };
-            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await harness.ActivateAsync(harness.First, "replica-A", invalid, token).ConfigureAwait(false))
-                ?? throw new AssertionException("Expected signature rejection.");
-            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
-            Assert.That(harness.Claims(previousNonce), Is.Zero);
-            harness.RegistryUnavailable = true;
-            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await harness.ActivateAsync(harness.First, "replica-A", signature, token).ConfigureAwait(false));
-            Assert.That(harness.CurrentNonce, Is.EqualTo(previousNonce));
-            Assert.That(harness.Created.Session.SecureChannelId, Is.EqualTo("replica-A"));
-            Assert.That(harness.Claims(previousNonce), Is.Zero);
-            harness.RegistryUnavailable = false;
-            ByteString next = await harness.ActivateAsync(harness.First, "replica-A", signature, token)
-                .ConfigureAwait(false);
-            Assert.That(next, Is.Not.EqualTo(previousNonce));
-            Assert.That(harness.Claims(previousNonce), Is.EqualTo(1));
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            harness.BeforeStandbyCommit = static () => throw new TimeoutException("Test write did not commit.");
+            await Assert.ThrowsAsync<TimeoutException>(async () =>
+                await harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce));
+            Assert.That((await harness.ReadEntryAsync())!.ServerNonce, Is.EqualTo(harness.CurrentNonce));
+            Assert.That(harness.Second.GetSession(harness.Created.AuthenticationToken), Is.Null);
+
+            harness.BeforeStandbyCommit = null;
+            ByteString next = await harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce);
+            Assert.That((await harness.ReadEntryAsync())!.ServerNonce, Is.EqualTo(next));
         }
 
         /// <summary>
-        /// Models transparent replicas sharing a server key and strong nonce registry but lagging session publication.
+        /// A heartbeat does not invalidate a validated activation for the same owner and nonce.
         /// </summary>
-        private sealed class ActivationReplayHarness : IAsyncDisposable
+        [Test]
+        public async Task TakeoverRetriesAfterAnOwnerHeartbeatAsync()
+        {
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            harness.BeforeStandbyCommit = async () =>
+            {
+                harness.BeforeStandbyCommit = null;
+                await harness.Second.RefreshLivenessAsync(CancellationToken.None);
+                ISession? pending = harness.Second.GetSession(harness.Created.AuthenticationToken);
+                Assert.That(pending!.Activated, Is.False);
+                await harness.AdvanceHeartbeatAsync();
+            };
+            ByteString next = await harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce);
+            SharedSessionEntry? committed = await harness.ReadEntryAsync();
+            Assert.That(committed!.OwnerId, Is.EqualTo(harness.Second.ReplicaId));
+            Assert.That(committed.ServerNonce, Is.EqualTo(next));
+            Assert.That(harness.Second.GetSession(harness.Created.AuthenticationToken)!.Activated, Is.True);
+        }
+
+        [Test]
+        public async Task TakeoverConfirmsACommittedWriteAfterLosingItsAcknowledgementAsync()
+        {
+            await using var harness = new ActivationHarness();
+            await harness.InitializeAsync();
+            harness.LoseCommitAcknowledgement = true;
+            ByteString next = await harness.ActivateAsync(harness.Second, "replica-B", harness.CurrentNonce);
+            Assert.That((await harness.ReadEntryAsync())!.ServerNonce, Is.EqualTo(next));
+            Assert.That(harness.Second.GetSession(harness.Created.AuthenticationToken)!.Activated, Is.True);
+        }
+
+        /// <summary>
+        /// Models two replicas using a shared freshness authority and a signed channel.
+        /// </summary>
+        private sealed class ActivationHarness : IAsyncDisposable
         {
             /// <summary>
             /// Creates independent session managers and shared in-memory stores.
             /// </summary>
-            public ActivationReplayHarness()
+            public ActivationHarness(bool fastReconnect = true)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 m_context = ServiceMessageContext.CreateEmpty(telemetry);
-                var store = new SharedKeyValueSessionStore(m_sessions, m_context);
                 var registry = new SharedSingleUseNonceRegistry(m_nonces);
-                var countedRegistry = new Mock<ISingleUseNonceRegistry>();
-                countedRegistry.Setup(value => value.TryConsumeAsync(
-                        It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
-                    .Returns(async (ByteString nonce, CancellationToken ct) =>
-                    {
-                        if (RegistryUnavailable)
-                        {
-                            throw new InvalidOperationException("Required nonce registry is unavailable.");
-                        }
-                        bool consumed = await registry.TryConsumeAsync(nonce, ct).ConfigureAwait(false);
-                        if (consumed)
-                        {
-                            m_claims.AddOrUpdate(nonce, 1, static (_, count) => count + 1);
-                        }
-                        return consumed;
-                    });
-                var lagging = new Mock<ISharedSessionStore>();
-                lagging.Setup(value => value.PutAsync(It.IsAny<SharedSessionEntry>(), It.IsAny<CancellationToken>()))
+                m_freshness = new FreshnessProtectedKeyValueStore(
+                    m_sessions, m_authority, m_protector, Guid.NewGuid(), Guid.NewGuid());
+                m_store = new SharedKeyValueSessionStore(m_freshness, m_context, m_protector);
+                ISharedSessionStore owner = WithCommitControls(
+                    m_store, () => BeforeOwnerCommit, static () => false, () => AfterOwnerRead);
+                ISharedSessionStore standby = WithCommitControls(
+                    new SharedKeyValueSessionStore(m_freshness, m_context, m_protector),
+                    () => BeforeStandbyCommit,
+                    () => LoseCommitAcknowledgement);
+                Mock<IServerInternal> ownerServer = CreateServer();
+                First = CreateManager(registry, owner, ownerServer.Object, _ => m_serverCertificate.AddRef(),
+                    m_timeProvider, fastReconnect);
+                ownerServer.SetupGet(server => server.SessionManager).Returns(First);
+                ownerServer.Setup(server => server.CloseSessionAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<NodeId>(), false, It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext _, NodeId id, bool _, CancellationToken ct) =>
+                        First.CloseSessionAsync(id, ct));
+                Mock<IServerInternal> standbyServer = CreateServer();
+                Second = CreateManager(registry, standby, standbyServer.Object, _ => m_serverCertificate.AddRef(),
+                    m_timeProvider, fastReconnect);
+                standbyServer.SetupGet(server => server.SessionManager).Returns(Second);
+            }
+
+            private static ISharedSessionStore WithCommitControls(
+                SharedKeyValueSessionStore store,
+                Func<Func<Task>?> beforeCommit,
+                Func<bool> loseAcknowledgement,
+                Func<Func<CancellationToken, Task>?>? afterRead = null)
+            {
+                var controlled = new Mock<ISharedSessionStore>();
+                controlled.Setup(value => value.PutAsync(It.IsAny<SharedSessionEntry>(), It.IsAny<CancellationToken>()))
                     .Returns((SharedSessionEntry entry, CancellationToken ct) => store.PutAsync(entry, ct));
-                lagging.Setup(value => value.TryGetAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
-                    .Returns((NodeId token, CancellationToken ct) => store.TryGetAsync(token, ct));
-                lagging.Setup(value => value.TryReplaceAsync(
+                controlled.Setup(value => value.TryGetAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (NodeId token, CancellationToken ct) =>
+                    {
+                        SharedSessionEntry? current = await store.TryGetAsync(token, ct);
+                        if (afterRead?.Invoke() is Func<CancellationToken, Task> after)
+                        {
+                            await after(ct);
+                        }
+                        return current;
+                    });
+                controlled.Setup(value => value.TryReplaceAsync(
                         It.IsAny<SharedSessionEntry>(), It.IsAny<SharedSessionEntry>(), It.IsAny<CancellationToken>()))
                     .Returns(async (SharedSessionEntry current, SharedSessionEntry replacement, CancellationToken ct) =>
                     {
-                        if (BlockMirror && current.ServerNonce != replacement.ServerNonce)
+                        if (beforeCommit() is Func<Task> before && current.ServerNonce != replacement.ServerNonce)
                         {
-                            MirrorEntered.TrySetResult(true);
-                            await ReleaseMirror.Task.WaitAsync(ct).ConfigureAwait(false);
+                            await before();
                         }
-                        return await store.TryReplaceAsync(current, replacement, ct).ConfigureAwait(false);
+                        bool committed = await store.TryReplaceAsync(current, replacement, ct);
+                        if (committed && loseAcknowledgement())
+                        {
+                            throw new TimeoutException("Test write acknowledgement was lost.");
+                        }
+                        return committed;
                     });
-                lagging.Setup(value => value.RemoveAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
-                    .Returns((NodeId token, CancellationToken ct) => store.RemoveAsync(token, ct));
-                lagging.Setup(value => value.TryRemoveAsync(
+                controlled.Setup(value => value.TryRemoveAsync(
                         It.IsAny<SharedSessionEntry>(), It.IsAny<CancellationToken>()))
                     .Returns((SharedSessionEntry entry, CancellationToken ct) => store.TryRemoveAsync(entry, ct));
-                lagging.Setup(value => value.EnumerateAsync(It.IsAny<CancellationToken>()))
-                    .Returns((CancellationToken ct) => store.EnumerateAsync(ct));
-                First = CreateManager(countedRegistry.Object, lagging.Object, CreateServer().Object,
-                    _ => m_serverCertificate.AddRef());
-                Second = CreateManager(countedRegistry.Object, store, CreateServer().Object,
-                    _ => m_serverCertificate.AddRef());
+                return controlled.Object;
             }
 
             /// <summary>
@@ -206,25 +414,35 @@ namespace Opc.Ua.Server.Tests.Redundancy
             public ByteString CurrentNonce { get; private set; }
 
             /// <summary>
-            /// Gets or sets whether replacement-nonce publication is suspended.
+            /// Gets or sets a hook before the standby commits the activation.
             /// </summary>
-            public bool BlockMirror { get; set; }
+            public Func<Task>? BeforeStandbyCommit { get; set; }
 
             /// <summary>
-            /// Gets or sets whether the required shared registry fails.
+            /// Gets or sets a hook before the original owner commits an activation.
             /// </summary>
-            public bool RegistryUnavailable { get; set; }
+            public Func<Task>? BeforeOwnerCommit { get; set; }
 
             /// <summary>
-            /// Signals entry into post-commit publication.
+            /// Gets or sets a hook before the owner can observe the result of a store read.
             /// </summary>
-            public TaskCompletionSource<bool> MirrorEntered { get; } =
+            public Func<CancellationToken, Task>? AfterOwnerRead { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the standby receives a write acknowledgement.
+            /// </summary>
+            public bool LoseCommitAcknowledgement { get; set; }
+
+            /// <summary>
+            /// Signals entry into the standby's commit.
+            /// </summary>
+            public TaskCompletionSource<bool> CommitEntered { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>
-            /// Releases post-commit publication.
+            /// Releases the standby's commit.
             /// </summary>
-            public TaskCompletionSource<bool> ReleaseMirror { get; } =
+            public TaskCompletionSource<bool> ReleaseCommit { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>
@@ -232,29 +450,29 @@ namespace Opc.Ua.Server.Tests.Redundancy
             /// </summary>
             public async Task InitializeAsync()
             {
+                await m_freshness.EnrollAsync();
                 using OperationContext context = Context("replica-A");
-                Created = await First.CreateSessionAsync(context, m_serverCertificate, "victim",
+                Created = await First.CreateSessionAsync(context, m_serverCertificate, "operator",
                     ByteString.From(CreateBytes(32, 61)),
                     new ApplicationDescription { ApplicationUri = "urn:shared-app" },
                     context.ChannelContext!.EndpointDescription!.EndpointUrl, m_clientCertificate.AddRef(),
                     [], 60_000, 65_536).ConfigureAwait(false);
                 CurrentNonce = Created.ServerNonce;
-                (SignatureData signature, ExtensionObject token) = await ProofAsync(CurrentNonce).ConfigureAwait(false);
-                await ActivateAsync(First, "replica-A", signature, token).ConfigureAwait(false);
-                Assert.That(Created.Session.EffectiveIdentity.DisplayName, Is.EqualTo("victim"));
+                CurrentNonce = await ActivateAsync(First, "replica-A", CurrentNonce);
+                Assert.That(Created.Session.EffectiveIdentity.DisplayName, Is.EqualTo("operator"));
             }
 
             /// <summary>
-            /// Captures the real application signature and RSA-encrypted username token bound to one server nonce.
+            /// Prepares the application signature and encrypted user token for activation.
             /// </summary>
-            public async Task<(SignatureData Signature, ExtensionObject Token)> ProofAsync(ByteString nonce)
+            private async Task<(SignatureData Signature, ExtensionObject Token)> ProofAsync(ByteString nonce)
             {
                 SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(PolicyA)!;
                 byte[] signed = policy.GetClientSignatureData(null, nonce.ToArray(),
                     m_serverCertificate.RawData, null, null, []);
                 SignatureData signature = await SecurityPolicies.Default.CreateSignatureDataAsync(
                     policy, m_clientCertificate, signed, CancellationToken.None).ConfigureAwait(false);
-                var handler = new UserNameIdentityTokenHandler("victim", m_password);
+                var handler = new UserNameIdentityTokenHandler("operator", m_password);
                 handler.UpdatePolicy(new UserTokenPolicy { PolicyId = "username", TokenType = UserTokenType.UserName });
                 await handler.EncryptAsync(m_serverCertificate, nonce.ToArray(), PolicyA, m_context)
                     .ConfigureAwait(false);
@@ -262,29 +480,54 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             /// <summary>
-            /// Replays the exact captured credential fields on an independently identified SecureChannel.
+            /// Activates on a signed channel using the prior server nonce.
             /// </summary>
             public async Task<ByteString> ActivateAsync(
-                DistributedSessionManager manager, string channel, SignatureData signature, ExtensionObject token)
+                DistributedSessionManager manager, string channel, ByteString previousNonce)
             {
+                (SignatureData signature, ExtensionObject token) = await ProofAsync(previousNonce);
                 using OperationContext context = Context(channel);
                 (_, ByteString nonce, ServiceResult status) = await manager.ActivateSessionAsync(
                     context, Created.AuthenticationToken, signature, token, new SignatureData(), [])
                     .ConfigureAwait(false);
                 Assert.That(status.StatusCode, Is.EqualTo(StatusCodes.Good));
-                if (ReferenceEquals(manager, First))
-                {
-                    CurrentNonce = nonce;
-                }
                 return nonce;
             }
 
             /// <summary>
-            /// Returns successful atomic claims for exactly one nonce.
+            /// Reads the authoritative record for the created session.
             /// </summary>
-            public int Claims(ByteString nonce)
+            public ValueTask<SharedSessionEntry?> ReadEntryAsync()
             {
-                return m_claims.TryGetValue(nonce, out int count) ? count : 0;
+                return m_store.TryGetAsync(Created.AuthenticationToken);
+            }
+
+            /// <summary>
+            /// Runs the admission path shared by the server's session services.
+            /// </summary>
+            public async ValueTask<OperationContext> ValidateRequestAsync(
+                DistributedSessionManager manager,
+                string channel,
+                RequestType requestType = RequestType.Read,
+                RequestLifetime? lifetime = null)
+            {
+                using OperationContext context = Context(channel);
+                var header = new RequestHeader { AuthenticationToken = Created.AuthenticationToken };
+                return await manager.ValidateRequestAsync(
+                    header, context.ChannelContext!, requestType, lifetime ?? RequestLifetime.None);
+            }
+
+            /// <summary>
+            /// Commits a heartbeat as the previous owner.
+            /// </summary>
+            public async Task AdvanceHeartbeatAsync()
+            {
+                SharedSessionEntry current = (await ReadEntryAsync())!;
+                SharedSessionEntry next = current with
+                {
+                    LastContactAt = DateTimeUtc.From(current.LastContactAt.ToDateTime().AddMilliseconds(1))
+                };
+                Assert.That(await m_store.TryReplaceAsync(current, next), Is.True);
             }
 
             /// <summary>
@@ -292,7 +535,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             /// </summary>
             public async ValueTask DisposeAsync()
             {
-                ReleaseMirror.TrySetResult(true);
+                AfterOwnerRead = null;
+                ReleaseCommit.TrySetResult(true);
                 foreach (DistributedSessionManager manager in new[] { First, Second })
                 {
                     foreach (ISession session in manager.GetSessions())
@@ -305,6 +549,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 m_clientCertificate.Dispose();
                 m_sessions.Dispose();
                 m_nonces.Dispose();
+                m_authority.Dispose();
+                m_protector.Dispose();
             }
 
             /// <summary>
@@ -317,7 +563,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 server.SetupGet(value => value.IdentityRegistry).Returns(new ServerIdentityRegistry(
                     new UserNamePasswordAuthenticator((handler, _) =>
                     {
-                        if (handler.UserName != "victim" ||
+                        if (handler.UserName != "operator" ||
                             !handler.DecryptedPassword.AsSpan().SequenceEqual(m_password))
                         {
                             throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
@@ -334,7 +580,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 var endpoint = new EndpointDescription
                 {
-                    EndpointUrl = "opc.tcp://localhost/security-r27",
+                    EndpointUrl = "opc.tcp://localhost/shared-sessions",
                     SecurityPolicyUri = PolicyA, SecurityMode = MessageSecurityMode.Sign,
                     ServerCertificate = m_serverCertificate.RawData.ToByteString(),
                     UserIdentityTokens =
@@ -351,19 +597,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             /// <summary>The independently generated test server key shared by transparent replicas.</summary>
-            private readonly Certificate m_serverCertificate = CreateCertificate("CN=R27 Shared Server");
-            /// <summary>The application identity shared by the victim and the replaying application.</summary>
-            private readonly Certificate m_clientCertificate = CreateCertificate("CN=R27 Shared Application");
+            private readonly Certificate m_serverCertificate = CreateCertificate("CN=Shared Server");
+            /// <summary>The client application identity.</summary>
+            private readonly Certificate m_clientCertificate = CreateCertificate("CN=Shared Application");
             /// <summary>The password available only to the authenticator and proof-creation control.</summary>
             private readonly byte[] m_password = Nonce.CreateRandomNonceData(32);
             /// <summary>The shared session-record backend.</summary>
             private readonly InMemorySharedKeyValueStore m_sessions = new();
+            private readonly SimulatedSharedKeyValueStore m_authority = new();
+            private readonly AesCbcHmacRecordProtector m_protector = new(Nonce.CreateRandomNonceData(32));
+            private readonly FakeTimeProvider m_timeProvider = new();
+            private readonly FreshnessProtectedKeyValueStore m_freshness;
+            private readonly SharedKeyValueSessionStore m_store;
             /// <summary>The strongly consistent nonce-registry backend.</summary>
             private readonly InMemorySharedKeyValueStore m_nonces = new();
             /// <summary>The session serialization context.</summary>
             private readonly IServiceMessageContext m_context;
-            /// <summary>The count of successful atomic claims per nonce.</summary>
-            private readonly ConcurrentDictionary<ByteString, int> m_claims = new();
         }
 
         private const string PolicyA = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
@@ -381,7 +630,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ISharedSessionStore? sessionStore = null,
             IServerInternal? server = null,
             Func<string, Certificate?>? serverCertificateProvider = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            bool fastReconnect = true)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -408,7 +658,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 sessionStore ?? s_sessionStore,
                 nonceRegistry,
                 serverCertificateProvider ?? (_ => null),
-                new DistributedSessionOptions { EnableFastReconnect = true },
+                new DistributedSessionOptions { EnableFastReconnect = fastReconnect },
                 timeProvider);
         }
 
@@ -430,99 +680,75 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task AuthorizeSucceedsForMatchingPolicyAndFreshNonceAsync()
+        public void AuthorizeSucceedsForMatchingPolicyAndFreshNonce()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 1));
 
-            DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
+            DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
                 entry,
                 PolicyA,
                 MessageSecurityMode.SignAndEncrypt,
-                s_clientChannelCertificate).ConfigureAwait(false);
+                s_clientChannelCertificate);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
         }
 
         [Test]
-        public async Task AuthorizeRejectsMismatchedPolicyAsync()
+        public void AuthorizeRejectsMismatchedPolicy()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 2));
 
-            DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
+            DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
                 entry,
                 PolicyB,
                 MessageSecurityMode.SignAndEncrypt,
-                s_clientChannelCertificate).ConfigureAwait(false);
+                s_clientChannelCertificate);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.PolicyMismatch));
         }
 
         [Test]
-        public async Task AuthorizeRejectsMismatchedSecurityModeAsync()
+        public void AuthorizeRejectsMismatchedSecurityMode()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 3));
 
-            DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
+            DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
                 entry,
                 PolicyA,
                 MessageSecurityMode.Sign,
-                s_clientChannelCertificate).ConfigureAwait(false);
+                s_clientChannelCertificate);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.PolicyMismatch));
         }
 
         [Test]
-        public async Task AuthorizeRejectsReplayedNonceAsync()
-        {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 9));
-
-            DistributedSessionManager.RestoreDecision first = await manager.AuthorizeAndConsumeAsync(
-                entry,
-                PolicyA,
-                MessageSecurityMode.SignAndEncrypt,
-                s_clientChannelCertificate).ConfigureAwait(false);
-            DistributedSessionManager.RestoreDecision second = await manager.AuthorizeAndConsumeAsync(
-                entry,
-                PolicyA,
-                MessageSecurityMode.SignAndEncrypt,
-                s_clientChannelCertificate).ConfigureAwait(false);
-
-            Assert.That(first, Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
-            Assert.That(second, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceReplayed),
-                "a captured activation cannot be replayed once the nonce is consumed");
-        }
-
-        [Test]
-        public async Task AuthorizeRejectsEmptyNonceAsync()
+        public void AuthorizeRejectsEmptyNonce()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
             SharedSessionEntry entry = EntryWithNonce([]);
 
-            DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
+            DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
                 entry,
                 PolicyA,
                 MessageSecurityMode.SignAndEncrypt,
-                s_clientChannelCertificate).ConfigureAwait(false);
+                s_clientChannelCertificate);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceInvalid));
         }
 
         [Test]
-        public async Task AuthorizeRejectsMissingVersionedSecurityStateAsync()
+        public void AuthorizeRejectsMissingVersionedSecurityState()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
@@ -533,11 +759,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
 
             DistributedSessionManager.RestoreDecision decision =
-                await manager.AuthorizeAndConsumeAsync(
+                manager.AuthorizeRestore(
                     entry,
                     PolicyA,
                     MessageSecurityMode.SignAndEncrypt,
-                    s_clientChannelCertificate).ConfigureAwait(false);
+                    s_clientChannelCertificate);
 
             Assert.That(
                 decision,
@@ -632,7 +858,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task AuthorizeRejectsPreviousSecurityStateVersionAsync()
+        public void AuthorizeRejectsPreviousSecurityStateVersion()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
@@ -647,11 +873,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
 
             DistributedSessionManager.RestoreDecision decision =
-                await manager.AuthorizeAndConsumeAsync(
+                manager.AuthorizeRestore(
                     entry,
                     PolicyA,
                     MessageSecurityMode.SignAndEncrypt,
-                    s_clientChannelCertificate).ConfigureAwait(false);
+                    s_clientChannelCertificate);
 
             Assert.That(
                 decision,
@@ -659,7 +885,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task AuthorizeRejectsMissingClientUserIdAsync()
+        public void AuthorizeRejectsMissingClientUserId()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
@@ -671,11 +897,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
 
             DistributedSessionManager.RestoreDecision decision =
-                await manager.AuthorizeAndConsumeAsync(
+                manager.AuthorizeRestore(
                     entry,
                     PolicyA,
                     MessageSecurityMode.SignAndEncrypt,
-                    s_clientChannelCertificate).ConfigureAwait(false);
+                    s_clientChannelCertificate);
 
             Assert.That(
                 decision,
@@ -683,7 +909,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task AuthorizeRejectsUnactivatedIdentityStateAsync()
+        public void AuthorizeRejectsUnactivatedIdentityState()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
@@ -694,11 +920,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
 
             DistributedSessionManager.RestoreDecision decision =
-                await manager.AuthorizeAndConsumeAsync(
+                manager.AuthorizeRestore(
                     entry,
                     PolicyA,
                     MessageSecurityMode.SignAndEncrypt,
-                    s_clientChannelCertificate).ConfigureAwait(false);
+                    s_clientChannelCertificate);
 
             Assert.That(
                 decision,
@@ -706,7 +932,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task AuthorizeRejectsDifferentOriginalChannelCertificateAsync()
+        public void AuthorizeRejectsDifferentOriginalChannelCertificate()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
@@ -714,11 +940,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 12));
 
             DistributedSessionManager.RestoreDecision decision =
-                await manager.AuthorizeAndConsumeAsync(
+                manager.AuthorizeRestore(
                     entry,
                     PolicyA,
                     MessageSecurityMode.SignAndEncrypt,
-                    ByteString.From(CreateBytes(32, 0x61))).ConfigureAwait(false);
+                    ByteString.From(CreateBytes(32, 0x61)));
 
             Assert.That(
                 decision,
@@ -727,7 +953,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task AuthorizeRejectsAllZeroNonceAsync()
+        public void AuthorizeRejectsAllZeroNonce()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
@@ -735,17 +961,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedSessionEntry entry = EntryWithNonce(new byte[32]);
 
             DistributedSessionManager.RestoreDecision decision =
-                await manager.AuthorizeAndConsumeAsync(
+                manager.AuthorizeRestore(
                     entry,
                     PolicyA,
                     MessageSecurityMode.SignAndEncrypt,
-                    s_clientChannelCertificate).ConfigureAwait(false);
+                    s_clientChannelCertificate);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceInvalid));
         }
 
         [Test]
-        public async Task AuthorizeRejectsExpiredSessionAsync()
+        public void AuthorizeRejectsExpiredSession()
         {
             var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-07-08T12:00:00Z", CultureInfo.InvariantCulture));
             using var registryKv = new InMemorySharedKeyValueStore();
@@ -757,11 +983,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 SessionTimeout = 1000
             };
 
-            DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
+            DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
                 entry,
                 PolicyA,
                 MessageSecurityMode.SignAndEncrypt,
-                s_clientChannelCertificate).ConfigureAwait(false);
+                s_clientChannelCertificate);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.Expired));
         }
@@ -873,7 +1099,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         /// still restorable; its certificate is treated as not validated.
         /// </summary>
         [Test]
-        public async Task AuthorizeAcceptsVersionThreeSecurityStateAsync()
+        public void AuthorizeAcceptsVersionThreeSecurityState()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
@@ -884,11 +1110,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
 
             DistributedSessionManager.RestoreDecision decision =
-                await manager.AuthorizeAndConsumeAsync(
+                manager.AuthorizeRestore(
                     entry,
                     PolicyA,
                     MessageSecurityMode.SignAndEncrypt,
-                    s_clientChannelCertificate).ConfigureAwait(false);
+                    s_clientChannelCertificate);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
         }
@@ -1113,7 +1339,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         /// is not restored, and nothing is consumed or counted as a failed authentication.
         /// </summary>
         [Test]
-        public async Task AuthorizeRejectsEphemeralKeyUserTokenWithoutConsumingTheNonceAsync()
+        public void AuthorizeRejectsEphemeralKeyUserToken()
         {
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
@@ -1123,14 +1349,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 UserTokenRequiresEphemeralKey = true
             };
 
-            DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
+            DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
                 entry,
                 PolicyA,
                 MessageSecurityMode.SignAndEncrypt,
-                s_clientChannelCertificate).ConfigureAwait(false);
+                s_clientChannelCertificate);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.EphemeralKeyUnavailable));
-            Assert.That(await registry.TryConsumeAsync(entry.ServerNonce).ConfigureAwait(false), Is.True);
         }
 
         [TestCase(UserTokenType.UserName, null, ExpectedResult = true)]
@@ -1368,8 +1593,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
-        /// Issue #4627 RS-2: an activation that committed on this replica records it as the
-        /// owner, together with the liveness of the activation.
+        /// A metadata update from the owner records the liveness of the activation.
         /// </summary>
         [Test]
         public async Task MirroredActivationRecordsTheOwnerAsync()
@@ -1382,7 +1606,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using DistributedSessionManager manager = CreateManager(
                 new SharedSingleUseNonceRegistry(registryKv),
                 sessionStore);
-            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 33)) with { OwnerId = "another-replica" };
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 33)) with { OwnerId = manager.ReplicaId };
             await sessionStore.PutAsync(entry).ConfigureAwait(false);
 
             await manager.MirrorActivationIfCurrentAsync(

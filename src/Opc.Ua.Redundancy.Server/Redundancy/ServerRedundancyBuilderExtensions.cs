@@ -40,7 +40,8 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
             AddDiscoveryCapabilityConfiguration(builder, options);
             builder.Services.AddSingleton(options);
-            builder.Services.AddSingleton<ServerRedundancyController>();
+            builder.Services.AddSingleton(sp =>
+                new ServerRedundancyController(options, CreatePeerStatus(sp, options)));
             builder.Services.TryAddSingleton<IServerRedundancyController>(
                 sp => sp.GetRequiredService<ServerRedundancyController>());
             builder.Services.TryAddSingleton<IRedundantServerSetProvider>(
@@ -48,7 +49,8 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.AddSingleton<IServerStartupTask>(sp =>
                 new ServerRedundancyStartupTask(
                     sp.GetRequiredService<ServerRedundancyController>(),
-                    !sp.GetServices<IServiceLevelProvider>().Any()));
+                    !sp.GetServices<IServiceLevelProvider>().Any(),
+                    sp.GetService<TimeProvider>() ?? TimeProvider.System));
             return builder;
         }
 
@@ -92,6 +94,32 @@ namespace Opc.Ua.Redundancy.Server
             Action<RequestServerStateChangeOptions>? configure = null)
         {
             return AddRequestServerStateChange(builder, configure);
+        }
+
+        private static SharedRedundantPeerStatus? CreatePeerStatus(
+            IServiceProvider services,
+            ServerRedundancyOptions options)
+        {
+            ISharedKeyValueStore? store = services.GetService<ISharedKeyValueStore>();
+            if (store == null)
+            {
+                return null;
+            }
+            if (string.IsNullOrWhiteSpace(options.PeerStatusKeyPrefix))
+            {
+                throw new InvalidOperationException("The redundant peer status key prefix must not be empty.");
+            }
+            IRecordProtector? protector = services.GetService<IRecordProtector>();
+            if ((protector == null || protector is NullRecordProtector) &&
+                !HybridSharedKeyValueStore.UsesOnlyInProcessMemory(store))
+            {
+                throw new InvalidOperationException("A shared redundant peer status store requires record protection.");
+            }
+            return new SharedRedundantPeerStatus(
+                store,
+                protector ?? NullRecordProtector.Instance,
+                services.GetService<TimeProvider>() ?? TimeProvider.System,
+                options.PeerStatusKeyPrefix);
         }
 
         private static void AddDiscoveryCapabilityConfiguration(

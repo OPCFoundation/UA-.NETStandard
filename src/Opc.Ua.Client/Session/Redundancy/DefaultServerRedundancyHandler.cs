@@ -142,11 +142,9 @@ namespace Opc.Ua.Client
             }
 
             byte serviceLevel = 0;
-            bool serviceLevelAccessible = StatusCode.IsGood(errors[1].StatusCode);
-            if (StatusCode.IsGood(errors[1].StatusCode))
-            {
-                serviceLevel = values[1].GetValue<byte>(0);
-            }
+            bool serviceLevelAccessible = StatusCode.IsGood(errors[1].StatusCode) &&
+                StatusCode.IsGood(values[1].StatusCode) &&
+                values[1].WrappedValue.TryGetValue(out serviceLevel);
 
             DateTime estimatedReturnTime = DateTime.MinValue;
             if (StatusCode.IsGood(errors[4].StatusCode))
@@ -216,7 +214,7 @@ namespace Opc.Ua.Client
                 return NoFailover("Current server remains in the Healthy service level subrange.");
             }
 
-            RedundantServer? best = SelectBestPeer(redundancyInfo, currentEndpoint);
+            RedundantServer? best = SelectBestPeer(redundancyInfo, currentEndpoint, requireKnownLevel: true);
 
             if (redundancyInfo.ServiceLevelAccessible &&
                 ServiceLevels.IsMaintenance(redundancyInfo.ServiceLevel))
@@ -229,7 +227,7 @@ namespace Opc.Ua.Client
                         "Current server is in Maintenance and an operational redundant server is available.");
                 }
 
-                DateTime retryAfter = GetMaintenanceRetryTime(redundancyInfo.EstimatedReturnTime);
+                DateTime retryAfter = GetMaintenanceRetryTime(redundancyInfo.EstimatedReturnTime, GetNow());
                 return new ServerFailoverDecision(
                     isFailoverWarranted: false,
                     retryAfter,
@@ -243,7 +241,6 @@ namespace Opc.Ua.Client
 
             if (redundancyInfo.ServiceLevelAccessible &&
                 ServiceLevels.IsDegraded(redundancyInfo.ServiceLevel) &&
-                best.ServiceLevelKnown &&
                 !ServiceLevels.IsHealthy(best.ServiceLevel))
             {
                 return NoFailover("Current server is Degraded and no Healthy peer is available.");
@@ -748,7 +745,8 @@ namespace Opc.Ua.Client
 
         private RedundantServer? SelectBestPeer(
             ServerRedundancyInfo redundancyInfo,
-            ConfiguredEndpoint currentEndpoint)
+            ConfiguredEndpoint currentEndpoint,
+            bool requireKnownLevel = false)
         {
             string? currentUri = currentEndpoint.Description?.Server?.ApplicationUri;
             RedundantServer? best = null;
@@ -757,9 +755,14 @@ namespace Opc.Ua.Client
                 RedundantServer server = redundancyInfo.RedundantServers[ii];
                 if (server.ServerState == ServerState.Running &&
                     server.Endpoint != null &&
+                    server.ResolutionError == null &&
+                    (!requireKnownLevel || server.ServiceLevelKnown) &&
                     (!server.ServiceLevelKnown || ServiceLevels.IsOperational(server.ServiceLevel)) &&
                     !string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal) &&
-                    (best == null || server.ServiceLevel > best.ServiceLevel))
+                    (best == null ||
+                        (server.ServiceLevelKnown && !best.ServiceLevelKnown) ||
+                        (server.ServiceLevelKnown == best.ServiceLevelKnown &&
+                            server.ServiceLevel > best.ServiceLevel)))
                 {
                     best = server;
                 }
@@ -773,9 +776,11 @@ namespace Opc.Ua.Client
             return new ServerFailoverDecision(false, GetNow(), reason);
         }
 
-        private DateTime GetMaintenanceRetryTime(DateTime estimatedReturnTime)
+        /// <summary>
+        /// Uses the announced return time when it is still ahead, otherwise a maintenance backoff.
+        /// </summary>
+        internal static DateTime GetMaintenanceRetryTime(DateTime estimatedReturnTime, DateTime now)
         {
-            DateTime now = GetNow();
             return estimatedReturnTime > now
                 ? estimatedReturnTime
                 : now.Add(DefaultMaintenanceBackoff);

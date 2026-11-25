@@ -13,7 +13,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Gets or sets a value indicating whether a standby replica may
         /// <em>restore</em> a mirrored session and let a client reconnect by
-        /// re-running <c>ActivateSession</c> on a new SecureChannel (the
+        /// re-running <c>ActivateSession</c> on a new signed SecureChannel (the
         /// OPC UA HotAndMirrored fast reconnect).
         /// </summary>
         /// <remarks>
@@ -25,7 +25,10 @@ namespace Opc.Ua.Redundancy.Server
         /// the shared store. When set to <c>true</c>, a reconnect still performs
         /// the full <c>ActivateSession</c> client-signature validation against
         /// the mirrored, single-use <c>serverNonce</c>; the token is never an
-        /// authenticator on its own.
+        /// authenticator on its own. Fast reconnect requires a committed
+        /// session store with atomic nonce rotation and durable conditional
+        /// deletion. Sessions on <see cref="MessageSecurityMode.None"/> endpoints
+        /// can still operate locally but are never restored from shared state.
         /// </remarks>
         public bool EnableFastReconnect { get; set; }
 
@@ -42,7 +45,7 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Gets or sets how often the shared store is swept for the entries of timed-out
-        /// sessions and for orphaned consumed-nonce markers. Sessions of a replica that
+        /// sessions and for orphaned legacy consumed-nonce markers. Sessions of a replica that
         /// crashed or was shut down are never closed there, so without the sweep their
         /// records (with their nonces and client certificates) would stay in the store.
         /// Defaults to five minutes; zero or a negative value disables the sweep.
@@ -50,7 +53,7 @@ namespace Opc.Ua.Redundancy.Server
         public TimeSpan SweepInterval { get; set; } = TimeSpan.FromMinutes(5);
 
         /// <summary>
-        /// Gets or sets the minimum age of a consumed-nonce marker that no live session
+        /// Gets or sets the minimum age of a legacy consumed-nonce marker that no live session
         /// entry references before the sweep removes it. Defaults to one hour.
         /// </summary>
         public TimeSpan NonceMarkerRetention { get; set; } = TimeSpan.FromHours(1);

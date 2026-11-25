@@ -917,6 +917,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="istrm">The stream to read.</param>
+        /// <exception cref="ServiceResultException">
+        /// The child hierarchy exceeds the binary decoder's nesting limit.
+        /// </exception>
         public void LoadAsBinary(ISystemContext context, Stream istrm)
         {
             IServiceMessageContext messageContext = context.AsMessageContext();
@@ -1341,6 +1344,7 @@ namespace Opc.Ua
         /// </remarks>
         protected BaseInstanceState? UpdateChild(ISystemContext context, BinaryDecoder decoder)
         {
+            using var childScope = decoder.EnterChildNode();
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
             AttributesToSave encodedAttributes = attributesToLoad;
             string? symbolicName = null;

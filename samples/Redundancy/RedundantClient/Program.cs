@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -20,10 +22,7 @@ using Opc.Ua.Client.Redundancy;
 using Opc.Ua.Configuration;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Client;
-using Raft;
-using Raft.Configuration;
-using Raft.Storage;
-using Raft.Transport.NanoMsg;
+using RedundancySample;
 
 namespace RedundantClient
 {
@@ -46,11 +45,11 @@ namespace RedundantClient
             };
             var noSecurityOption = new Option<bool>("--nosecurity")
             {
-                Description = "Select endpoints with MessageSecurityMode.None."
+                Description = "Select an unsecured loopback endpoint (requires HA_INSECURE=true)."
             };
             var autoAcceptOption = new Option<bool>("--autoaccept")
             {
-                Description = "Automatically accept untrusted server certificates for sample runs."
+                Description = "Accept an untrusted loopback certificate (requires HA_INSECURE=true)."
             };
             var durationOption = new Option<TimeSpan>("--duration", "-d")
             {
@@ -117,6 +116,41 @@ namespace RedundantClient
             TimeSpan historyFailoverDelay,
             CancellationToken ct)
         {
+            string clientMode = (Environment.GetEnvironmentVariable("CLIENT_MODE") ?? "independent")
+                .Trim().ToLowerInvariant();
+            if (clientMode is not ("independent" or "eventual" or "strong"))
+            {
+                throw new InvalidOperationException("CLIENT_MODE must be independent, eventual or strong.");
+            }
+            bool unsafeDemo = noSecurity || autoAccept;
+            if (unsafeDemo && (!SampleFreshness.IsEnabled(Environment.GetEnvironmentVariable("HA_INSECURE")) ||
+                clientMode != "independent" ||
+                !Uri.TryCreate(serverUrl, UriKind.Absolute, out Uri? demoUrl) || !demoUrl.IsLoopback))
+            {
+                throw new InvalidOperationException(
+                    "--nosecurity and --autoaccept require HA_INSECURE=true and an independent loopback client.");
+            }
+            if ((clientMode != "independent" || unsafeDemo) && (history || identity))
+            {
+                throw new InvalidOperationException(
+                    "--history and --identity require an independent client with authenticated failover.");
+            }
+            bool enrollOnly = SampleFreshness.IsEnabled(Environment.GetEnvironmentVariable("CLIENT_ENROLL_ONLY"));
+            if (clientMode == "independent" && enrollOnly)
+            {
+                throw new InvalidOperationException("CLIENT_ENROLL_ONLY requires a coordinated client mode.");
+            }
+            string? expectedServerUri = Environment.GetEnvironmentVariable("CLIENT_SERVER_URI");
+            if (!string.IsNullOrEmpty(expectedServerUri) && !Uri.TryCreate(expectedServerUri, UriKind.Absolute, out _))
+            {
+                throw new InvalidOperationException("CLIENT_SERVER_URI must be an absolute OPC UA application URI.");
+            }
+            if (!enrollOnly && (history || identity || clientMode != "independent") &&
+                string.IsNullOrEmpty(expectedServerUri))
+            {
+                throw new InvalidOperationException("Set CLIENT_SERVER_URI to the trusted initial server application URI.");
+            }
+
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Information));
             using var telemetryDisposable = telemetry as IDisposable;
 
@@ -134,15 +168,19 @@ namespace RedundantClient
                 // file is copied to the output directory) so the sample runs from
                 // any working directory, e.g. `dotnet run --project ...` invoked
                 // from the repository root.
-                string configFilePath = System.IO.Path.Combine(
-                    AppContext.BaseDirectory, kConfigSectionName + ".Config.xml");
+                string configFilePath = Environment.GetEnvironmentVariable("CLIENT_CONFIG_PATH") ??
+                    System.IO.Path.Combine(AppContext.BaseDirectory, kConfigSectionName + ".Config.xml");
                 ApplicationConfiguration configuration = await application
                     .LoadApplicationConfigurationAsync(configFilePath, silent: false, ct: ct)
                     .ConfigureAwait(false);
-                if (autoAccept)
+                if (configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
-                    configuration.CertificateManager.AcceptError = (_, _) => true;
+                    throw new InvalidOperationException(
+                        "Set AutoAcceptUntrustedCertificates=false in the client application configuration.");
                 }
+                configuration.CertificateManager.AcceptError = autoAccept
+                    ? static (_, error) => error.StatusCode == StatusCodes.BadCertificateUntrusted
+                    : null;
 
                 bool haveCertificate = await application
                     .CheckApplicationInstanceCertificatesAsync(silent: false, ct: ct)
@@ -152,46 +190,33 @@ namespace RedundantClient
                     throw new InvalidOperationException("Application instance certificate invalid.");
                 }
 
+                if (clientMode != "independent")
+                {
+                    await RunCoordinatedClientAsync(
+                            clientMode, configuration, telemetry, serverUrl, expectedServerUri, suite, duration, ct)
+                        .ConfigureAwait(false);
+                    return;
+                }
+
                 // Wait for a reachable endpoint rather than failing if the server set is not
                 // up yet - the client and server containers start independently (no compose
                 // depends_on across the HA matrix), so the client tolerates a lagging server.
                 EndpointDescription selectedEndpoint = await SelectEndpointWithRetryAsync(
                         configuration, serverUrl, useSecurity: !noSecurity, telemetry, ct)
                     .ConfigureAwait(false);
+                if (unsafeDemo && (!Uri.TryCreate(selectedEndpoint.EndpointUrl, UriKind.Absolute, out Uri? selected) ||
+                    !selected.IsLoopback))
+                {
+                    throw new InvalidOperationException("The selected endpoint is not a loopback demo endpoint.");
+                }
                 var endpoint = new ConfiguredEndpoint(
                     null,
                     selectedEndpoint,
                     EndpointConfiguration.Create(configuration));
 
-                // A coordinated client replica set (CLIENT_MODE=eventual|strong) elects one
-                // active client that holds the session and shares its session secrets; the
-                // others stand by and take over on active-client loss. The default
-                // (CLIENT_MODE=independent) is a plain managed client that fails over on its own.
-                string clientMode = (Environment.GetEnvironmentVariable("CLIENT_MODE") ?? "independent")
-                    .Trim().ToLowerInvariant();
-                if (clientMode is "eventual" or "strong")
-                {
-                    if (history || identity)
-                    {
-                        throw new InvalidOperationException(
-                            "The --history and --identity scenarios require CLIENT_MODE=independent so one managed " +
-                            "session can retain its state across server failover.");
-                    }
-                    await RunCoordinatedClientAsync(
-                            clientMode, configuration, endpoint, telemetry, serverUrl, suite, duration, ct)
-                        .ConfigureAwait(false);
-                    return;
-                }
-
                 Console.WriteLine("Connecting managed client to {0}", serverUrl);
 
-                // Create a normal managed session and opt it into server redundancy
-                // handling — that's it. WithServerRedundancy() lets the session discover
-                // the redundant set (if any) from the connected server and fail over
-                // transparently; against a server that is not configured for redundancy it
-                // simply behaves as a resilient reconnecting session. The caller does not
-                // need to know the server topology before connecting.
-                ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+                ManagedSessionBuilder sessionBuilder = new ManagedSessionBuilder(configuration, telemetry)
                     .UseEndpoint(endpoint)
                     .WithSessionName(kApplicationName)
                     .WithUserIdentity(new UserIdentity())
@@ -201,11 +226,23 @@ namespace RedundantClient
                         InitialDelay = TimeSpan.FromMilliseconds(500),
                         MaxDelay = TimeSpan.FromMilliseconds(500),
                         MaxRetries = 3
-                    })
-                    .WithServerRedundancy()
-                    .WithTokenReuseFailover()
-                    .ConnectAsync(ct)
-                    .ConfigureAwait(false);
+                    });
+                if (!unsafeDemo && !string.IsNullOrEmpty(expectedServerUri))
+                {
+                    sessionBuilder.WithServerRedundancy().WithServerRedundancyOptions(new ServerRedundancyOptions
+                    {
+                        ExpectedServerApplicationUri = expectedServerUri
+                    });
+                }
+                ManagedSession session = unsafeDemo
+                    ? await ManagedSession.CreateAsync(
+                            sessionBuilder.Build(),
+                            configuration,
+                            new DefaultSessionFactory(telemetry),
+                            telemetry: telemetry,
+                            updateBeforeConnect: false,
+                            ct: ct).ConfigureAwait(false)
+                    : await sessionBuilder.ConnectAsync(ct).ConfigureAwait(false);
 
                 await using (session.ConfigureAwait(false))
                 {
@@ -215,7 +252,10 @@ namespace RedundantClient
                             e, session.ConfiguredEndpoint?.EndpointUrl?.ToString());
                     session.ConnectionStateChanged += OnConnState;
 
-                    await LogRedundancyInfoAsync(session, telemetry, ct).ConfigureAwait(false);
+                    if (!unsafeDemo)
+                    {
+                        await LogRedundancyInfoAsync(session, telemetry, ct).ConfigureAwait(false);
+                    }
                     if (suite)
                     {
                         await RunClientSuiteAsync(session, haMonitor, ct).ConfigureAwait(false);
@@ -292,85 +332,96 @@ namespace RedundantClient
         private static async Task RunCoordinatedClientAsync(
             string mode,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
             ITelemetryContext telemetry,
             string serverUrl,
+            string? expectedServerUri,
             bool suite,
             TimeSpan duration,
             CancellationToken ct)
         {
-            string nodeId = Environment.GetEnvironmentVariable("CLIENT_NODE_ID") ?? Dns.GetHostName();
+            Func<string, string?> read = Environment.GetEnvironmentVariable;
+            string nodeId = SampleCluster.Require(read, "CLIENT_NODE_ID");
             bool strong = string.Equals(mode, "strong", StringComparison.Ordinal);
+            var raft = SampleCluster.ReadRaft(read, "CLIENT");
+            IPEndPoint? gossipBind = strong
+                ? null
+                : SampleCluster.ParseEndpoint(SampleCluster.Require(read, "CLIENT_GOSSIP_BIND"), allowWildcard: true);
+            var gossipPeers = gossipBind == null ? [] : SampleCluster.ReadGossip(read, "CLIENT", gossipBind);
+            var services = new ServiceCollection();
+            using AesCbcHmacRecordProtector protector = await SampleFreshness.AddAsync(services, read, "CLIENT", ct)
+                .ConfigureAwait(false);
+            using SampleCluster cluster = await SampleCluster.LoadAsync(read, "CLIENT",
+                raft.Peers.Select(peer => peer.Pin).Concat(gossipPeers.Select(peer => peer.Pin)).ToArray(), ct)
+                .ConfigureAwait(false);
+            services.AddSingleton<IRaftConsensus>(_ => cluster.CreateRaft(raft.Id, raft.Bind, raft.Peers));
+            services.AddSingleton(sp => CreateClientSharedStore(
+                nodeId, sp.GetRequiredService<IRaftConsensus>(), cluster, gossipBind, gossipPeers));
+            ServiceProvider provider = services.BuildServiceProvider();
+            await using var lifetime = provider.ConfigureAwait(false);
+            if (await SampleFreshness.VerifyOrEnrollAsync(provider, read, "CLIENT", ct).ConfigureAwait(false))
+            {
+                return;
+            }
+            if (string.IsNullOrEmpty(expectedServerUri))
+            {
+                throw new InvalidOperationException("Set CLIENT_SERVER_URI to the trusted initial server application URI.");
+            }
+
+            var consensus = provider.GetRequiredService<IRaftConsensus>();
+            await provider.GetRequiredService<ISharedKeyValueStore>().TryGetAsync("election/sample-readiness", ct)
+                .ConfigureAwait(false);
+            var store = provider.GetRequiredService<FreshnessProtectedKeyValueStore>();
+            EndpointDescription selected = await SelectEndpointWithRetryAsync(
+                configuration, serverUrl, useSecurity: true, telemetry, ct).ConfigureAwait(false);
+            var endpoint = new ConfiguredEndpoint(null, selected, EndpointConfiguration.Create(configuration));
             var haMonitor = new HaMonitor();
 
-            // Elect the active client with a real Raft quorum among the client replicas - the
-            // same building blocks the server uses, mirrored on the client side. A coordinated
-            // set shares the leader's protected session secrets through a networked store, so it
-            // fails closed without a record protector (see CreateClientRecordProtector).
-            DefaultRaftConsensus consensus = BuildClientRaftCluster();
-            AesCbcHmacRecordProtector protector = CreateClientRecordProtector();
-            ISharedKeyValueStore store = CreateClientSharedStore(strong, nodeId, consensus);
             // Ownership of the election transfers to the RedundantClientSession's coordinator,
             // which disposes it in DisposeAsync (see ClientReplicaCoordinator).
 #pragma warning disable CA2000
             var election = new RaftLeaderElection(consensus, telemetry.CreateLogger<RaftLeaderElection>());
 #pragma warning restore CA2000
 
-            try
-            {
-                RedundantClientSession session = new RedundantClientSessionBuilder(telemetry)
-                    .WithNodeId(nodeId)
-                    .WithStandbyMode(ClientStandbyMode.Cold)
-                    .UseSession(token => ConnectLeaderSessionAsync(configuration, endpoint, telemetry, token))
-                    .ConfigureLeader(async (leaderSession, fastActivated, cfgCt) =>
-                    {
-                        Console.WriteLine(
-                            "ACTIVE CLIENT: replica '{0}' is now the active client; establishing monitoring.",
-                            nodeId);
-                        await LogRedundancyInfoAsync(leaderSession, telemetry, cfgCt).ConfigureAwait(false);
-                        if (suite)
-                        {
-                            await RunClientSuiteAsync(leaderSession, haMonitor, cfgCt).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            await SubscribeToCurrentTimeAsync(leaderSession, haMonitor, cfgCt)
-                                .ConfigureAwait(false);
-                        }
-                    })
-                    .UseRedundancy(election, store, protector)
-                    .Build();
-
-                await using (session.ConfigureAwait(false))
+            RedundantClientSession session = new RedundantClientSessionBuilder(telemetry)
+                .WithNodeId(nodeId)
+                .WithStandbyMode(ClientStandbyMode.Cold)
+                .UseSession(token => ConnectLeaderSessionAsync(configuration, endpoint, expectedServerUri, telemetry, token))
+                .ConfigureLeader(async (leaderSession, _, cfgCt) =>
                 {
-                    session.RoleChanged += haMonitor.OnRoleChanged;
-                    await session.StartAsync(ct).ConfigureAwait(false);
                     Console.WriteLine(
-                        "Coordinated client replica '{0}' started ({1} shared store) against {2}. Exactly one " +
-                        "replica is active; on active-client loss a standby is promoted and resumes monitoring. " +
-                        "Failover and data-loss events are logged as they happen. Press Ctrl+C to stop.",
-                        nodeId, mode, serverUrl);
-                    await RunForDurationAsync(duration, ct).ConfigureAwait(false);
-                    session.RoleChanged -= haMonitor.OnRoleChanged;
-                }
-            }
-            finally
+                        "ACTIVE CLIENT: replica '{0}' is now the active client; establishing monitoring.",
+                        nodeId);
+                    await LogRedundancyInfoAsync(leaderSession, telemetry, cfgCt).ConfigureAwait(false);
+                    if (suite)
+                    {
+                        await RunClientSuiteAsync(leaderSession, haMonitor, cfgCt).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await SubscribeToCurrentTimeAsync(leaderSession, haMonitor, cfgCt).ConfigureAwait(false);
+                    }
+                })
+                .UseRedundancy(election, store, protector)
+                .Build();
+
+            await using (session.ConfigureAwait(false))
             {
-                // The coordinator disposes the election on session dispose; dispose the shared
-                // store, the record protector, and the Raft consensus here (the stores hold the
-                // consensus with ownsConsensus:false).
-                if (store is IAsyncDisposable disposableStore)
-                {
-                    await disposableStore.DisposeAsync().ConfigureAwait(false);
-                }
-                protector.Dispose();
-                await consensus.DisposeAsync().ConfigureAwait(false);
+                session.RoleChanged += haMonitor.OnRoleChanged;
+                await session.StartAsync(ct).ConfigureAwait(false);
+                Console.WriteLine(
+                    "Coordinated client replica '{0}' started ({1} payload store) against {2}. Exactly one " +
+                    "replica is active; on active-client loss a standby is promoted and resumes monitoring. " +
+                    "Failover and data-loss events are logged as they happen. Press Ctrl+C to stop.",
+                    nodeId, mode, serverUrl);
+                await RunForDurationAsync(duration, ct).ConfigureAwait(false);
+                session.RoleChanged -= haMonitor.OnRoleChanged;
             }
         }
 
         private static async ValueTask<ManagedSession> ConnectLeaderSessionAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
+            string expectedServerUri,
             ITelemetryContext telemetry,
             CancellationToken ct)
         {
@@ -390,7 +441,10 @@ namespace RedundantClient
                             MaxRetries = 3
                         })
                         .WithServerRedundancy()
-                        .WithTokenReuseFailover()
+                        .WithServerRedundancyOptions(new ServerRedundancyOptions
+                        {
+                            ExpectedServerApplicationUri = expectedServerUri
+                        })
                         .ConnectAsync(ct)
                         .ConfigureAwait(false);
                 }
@@ -404,7 +458,11 @@ namespace RedundantClient
         }
 
         private static ISharedKeyValueStore CreateClientSharedStore(
-            bool strong, string nodeId, IRaftConsensus consensus)
+            string nodeId,
+            IRaftConsensus consensus,
+            SampleCluster cluster,
+            IPEndPoint? gossipBind,
+            List<(IPEndPoint Address, string Pin)> gossipPeers)
         {
             // CA2000: ownership of the stores created here transfers to the returned store (the
             // Hybrid owns its inner stores via ownsStores:true) and to the caller, which disposes
@@ -412,121 +470,22 @@ namespace RedundantClient
             // caller disposes it after the store.
 #pragma warning disable CA2000
             var raftStore = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
-            if (strong)
+            if (gossipBind == null)
             {
                 return raftStore;
             }
 
-            (IPAddress address, int port, List<IPEndPoint> peers) = ReadClientGossip();
-            var gossip = new TcpGossipTransport(new TcpGossipTransportOptions { Address = address, Port = port });
-            gossip.AddPeers(peers);
+            var gossip = new TcpGossipTransport(new TcpGossipTransportOptions
+            {
+                Address = gossipBind.Address,
+                Port = gossipBind.Port,
+                Tls = cluster.CreateGossipTls(gossipPeers.Select(peer => peer.Pin))
+            });
+            gossip.AddPeers(gossipPeers.Select(peer => peer.Address));
             var replicated = new ReplicatedSharedKeyValueStore(
                 ReplicaIdFromNodeId(nodeId), gossip, TimeProvider.System, CrdtReaderOptions.Default);
             return new HybridSharedKeyValueStore(replicated, raftStore, default, ownsStores: true);
 #pragma warning restore CA2000
-        }
-
-        private static AesCbcHmacRecordProtector CreateClientRecordProtector()
-        {
-            // A coordinated client set mirrors the leader's session secrets through a networked
-            // store, so ClientReplicaCoordinator fails closed on a NullRecordProtector. Use the
-            // shared CLIENT_RECORD_KEY when supplied; otherwise, for an explicit isolated demo
-            // (CLIENT_INSECURE=true), derive a well-known NON-SECRET demo key so all replicas
-            // agree - never do this in production.
-            string? recordKeyBase64 = Environment.GetEnvironmentVariable("CLIENT_RECORD_KEY");
-            if (!string.IsNullOrWhiteSpace(recordKeyBase64))
-            {
-                return new AesCbcHmacRecordProtector(Convert.FromBase64String(recordKeyBase64));
-            }
-
-            bool insecure = bool.TryParse(
-                Environment.GetEnvironmentVariable("CLIENT_INSECURE"), out bool value) &&
-                value;
-            if (insecure)
-            {
-                Console.Error.WriteLine(
-                    "[HA][WARNING] CLIENT_INSECURE=true: protecting mirrored client session secrets with a " +
-                    "well-known, NON-SECRET demo key derived from a constant. Use only for an isolated demo; " +
-                    "set CLIENT_RECORD_KEY to a shared base64 32-byte key in production.");
-                byte[] demoKey = SHA256.HashData(
-                    Encoding.UTF8.GetBytes("OPCFoundation/RedundantClient/insecure-demo/record-key"));
-                return new AesCbcHmacRecordProtector(demoKey);
-            }
-
-            throw new InvalidOperationException(
-                "A coordinated client set mirrors session secrets through a networked store and requires a " +
-                "record protector. Set CLIENT_RECORD_KEY to a shared base64 32-byte key (the same value on " +
-                "every client replica) to encrypt mirrored secrets, or set CLIENT_INSECURE=true to run this " +
-                "isolated demo without a real key.");
-        }
-
-        private static DefaultRaftConsensus BuildClientRaftCluster()
-        {
-            ulong raftId = ulong.TryParse(
-                Environment.GetEnvironmentVariable("CLIENT_RAFT_ID"), out ulong id) ? id : 1;
-            List<string> peers = ReadEnvList("CLIENT_RAFT_PEERS");
-            int members = int.TryParse(
-                Environment.GetEnvironmentVariable("CLIENT_RAFT_MEMBERS"), out int m) ? m : peers.Count + 1;
-            string bind = Environment.GetEnvironmentVariable("CLIENT_RAFT_BIND") ?? "tcp://0.0.0.0:6561";
-
-            var memberIds = new List<ulong>(members);
-            for (int i = 1; i <= members; i++)
-            {
-                memberIds.Add((ulong)i);
-            }
-
-            var transportOptions = new NanoMsgBusTransportOptions { BindAddress = bind };
-            foreach (string peer in peers)
-            {
-                transportOptions.Peers.Add(peer);
-            }
-
-            // The DefaultRaftConsensus adapter owns the node (which disposes the transport);
-            // MemoryStorage is volatile, so a restarted replica re-syncs from the leader.
-#pragma warning disable CA2000
-            var transport = new NanoMsgBusTransport(transportOptions);
-            var storage = new MemoryStorage(new ConfState(memberIds));
-            return DefaultRaftConsensus.CreateCluster(
-                raftId,
-                transport,
-                storage,
-                new RaftNodeOptions { TickInterval = TimeSpan.FromMilliseconds(50) },
-                config =>
-                {
-                    config.ElectionTick = 10;
-                    config.PreVote = true;
-                    config.CheckQuorum = true;
-                },
-                TimeSpan.FromSeconds(30));
-#pragma warning restore CA2000
-        }
-
-        private static (IPAddress Address, int Port, List<IPEndPoint> Peers) ReadClientGossip()
-        {
-            int port = int.TryParse(
-                Environment.GetEnvironmentVariable("CLIENT_GOSSIP_PORT"), out int p) ? p : 4841;
-            var peers = new List<IPEndPoint>();
-            foreach (string peer in ReadEnvList("CLIENT_GOSSIP_PEERS"))
-            {
-                peers.Add(ParseGossipEndpoint(peer));
-            }
-            return (IPAddress.Any, port, peers);
-        }
-
-        private static IPEndPoint ParseGossipEndpoint(string hostPort)
-        {
-            int separator = hostPort.LastIndexOf(':', StringComparison.Ordinal);
-            if (separator <= 0 || separator == hostPort.Length - 1)
-            {
-                throw new FormatException($"Invalid gossip endpoint '{hostPort}'; expected host:port.");
-            }
-
-            string host = hostPort[..separator];
-            int port = int.Parse(hostPort[(separator + 1)..], CultureInfo.InvariantCulture);
-            IPAddress address = IPAddress.TryParse(host, out IPAddress? ip)
-                ? ip
-                : Dns.GetHostAddresses(host)[0];
-            return new IPEndPoint(address, port);
         }
 
         private static ReplicaId ReplicaIdFromNodeId(string nodeId)
@@ -534,22 +493,6 @@ namespace RedundantClient
             // Derive a stable replica identity from the node id so it survives restarts.
             byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(nodeId));
             return new ReplicaId(new Guid(hash.AsSpan(0, 16).ToArray()));
-        }
-
-        private static List<string> ReadEnvList(string key)
-        {
-            var items = new List<string>();
-            string? value = Environment.GetEnvironmentVariable(key);
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return items;
-            }
-
-            items.AddRange(value.Split(
-                [',', ';'],
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-
-            return items;
         }
 
         private static async Task<EndpointDescription> SelectEndpointWithRetryAsync(

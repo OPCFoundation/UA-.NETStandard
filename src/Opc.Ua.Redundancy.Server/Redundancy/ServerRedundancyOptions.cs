@@ -38,9 +38,20 @@ namespace Opc.Ua.Redundancy.Server
         public string CurrentServerId { get; set; } = Environment.MachineName;
 
         /// <summary>
-        /// Gets or sets the <c>ServiceLevel</c> published for each configured peer Server in
-        /// <c>Server.ServerRedundancy.RedundantServerArray</c>.
+        /// Gets configured physical peer identifiers for a Transparent <c>RedundantServerSet</c>.
         /// </summary>
+        public IList<string> TransparentPeerServerIds { get; } = [];
+
+        /// <summary>
+        /// Gets or sets the record key prefix for peer status. Use a distinct prefix for each replica set
+        /// when more than one set uses the same shared store.
+        /// </summary>
+        public string PeerStatusKeyPrefix { get; set; } = "redundancy/peer-status/v1/";
+
+        /// <summary>
+        /// Gets or sets the former fixed peer <c>ServiceLevel</c>. Peer status is now observed live.
+        /// </summary>
+        [Obsolete("Peer ServiceLevel is observed from current authenticated status, not configured.")]
         public byte PeerServiceLevel { get; set; } = ServiceLevels.Maximum;
 
         /// <summary>

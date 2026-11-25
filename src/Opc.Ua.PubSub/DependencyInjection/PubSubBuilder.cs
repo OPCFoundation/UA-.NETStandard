@@ -421,6 +421,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     pb.WithSecurityWrapperResolver(securityWrapperResolver);
                 }
+                pb.ConfigureRedundancy(
+                    sp.GetService<IPubSubActivationCoordinator>(),
+                    sp.GetService<IPubSubNonceRangeStore>(),
+                    sp.GetService<IPubSubActivationFenceProvider>());
                 if (applyOptionsConfiguration)
                 {
                     if (!string.IsNullOrEmpty(options.ConfigurationFilePath))

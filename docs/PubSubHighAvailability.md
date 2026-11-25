@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # PubSub High Availability
 
 This guide explains how the OPC UA .NET Standard stack implements
@@ -16,6 +21,7 @@ PubSub redundancy is implemented by the opt-in `Opc.Ua.Redundancy.PubSub` librar
   - [Overview (as per Part 14 §9.1.6)](#overview-as-per-part-14-916)
   - [How it maps onto the stack](#how-it-maps-onto-the-stack)
   - [Sequence-number continuity (Hot standby)](#sequence-number-continuity-hot-standby)
+  - [Secured publisher nonce reservations](#secured-publisher-nonce-reservations)
   - [Shared security keys (SKS)](#shared-security-keys-sks)
   - [Consistency: eventual vs strong](#consistency-eventual-vs-strong)
   - [Kubernetes](#kubernetes)
@@ -45,7 +51,7 @@ The core PubSub package defines the seams that a redundant deployment replaces:
 | --- | --- |
 | `IPubSubActivationCoordinator` | Answers whether each PubSub component is `PubSubComponentRole.Active` or `PubSubComponentRole.Standby`, and raises `RoleChanged` when the runtime should pause or resume a component. |
 | `IPubSubLeaseStore` | Provides `TryAcquireAsync`, `TryRenewAsync`, and `ReleaseAsync` for single-owner component leases with monotonic fencing tokens. |
-| `IPubSubRuntimeStateStore` | Persists component `PubSubState` values for Cold and Warm rebuild / resume. |
+| `IPubSubRuntimeStateStore` | Shares group and child `PubSubState` values in Warm and Hot. Cold keeps state in process. |
 | `IPubSubSecurityKeyStore` | Persists SKS `SecurityGroup` key material so all redundant instances can use the same current and future keys. |
 
 `IPubSubBuilder` exposes those seams through `WithActivationCoordinator`, `WithLeaseStore`, `WithRuntimeStateStore`, and `WithSecurityKeyStore`. The distributed implementations in `Opc.Ua.Redundancy.PubSub` bridge them to the reusable HA infrastructure used by the server and client redundancy packages:
@@ -53,35 +59,75 @@ The core PubSub package defines the seams that a redundant deployment replaces:
 | Distributed building block | PubSub bridge |
 | --- | --- |
 | `ILeaderElection` | `LeaderElectionActivationCoordinator` maps leadership to whole-instance PubSub `Active` / `Standby` roles. |
-| `ISharedKeyValueStore.CompareAndSwapAsync` | `SharedStorePubSubLeaseStore` implements fenced leases for `LeaseActivationCoordinator`. |
-| `ISharedKeyValueStore` | `SharedStorePubSubRuntimeStateStore` stores component runtime state and the PubSub keyspace includes Hot sequence / keep-alive checkpoints. |
+| `FreshnessProtectedKeyValueStore` | `SharedStorePubSubLeaseStore` implements fenced leases for `LeaseActivationCoordinator`. |
+| `FreshnessProtectedKeyValueStore` and an activation fence | `SharedStorePubSubRuntimeStateStore` mirrors active group and child state; `SharedStorePubSubWriterCheckpointStore` commits Hot writer sequences. |
 | `IRecordProtector` + `ISharedKeyValueStore` | `SharedStorePubSubSecurityKeyStore` encrypts and authenticates shared SKS records before writing them to the store. |
 
 There are two election paths:
 
-- **Whole-instance active/standby.** `LeaderElectionActivationCoordinator` wraps an `ILeaderElection`. When the local replica is leader, every known PubSub component is `Active`; when it is a follower, every component is `Standby`. Use this when the deployment elects one active PubSub process at a time, for example with Raft leadership or the Kubernetes Lease election from `Opc.Ua.Redundancy.Kubernetes`.
-- **Per-component leases.** `SharedStorePubSubLeaseStore` backs the existing `LeaseActivationCoordinator`. Each connection, writer group, or reader group gets its own lease key. The active owner renews the lease; standbys retry acquisition and take over when renewal stops. Compare-and-swap plus a monotonic fencing token prevents a paused or partitioned owner from resuming with stale ownership.
+- **Whole-instance active/standby.** `LeaderElectionActivationCoordinator` wraps an `ILeaderElection`. When the local replica is leader, every known PubSub component is `Active`; when it is a follower, every component is `Standby`. Use this for Cold when the deployment elects one active process, for example with Kubernetes Lease election. The built-in adapter doesn't expose a fence. External Warm or Hot stores require a custom `IPubSubActivationFenceProvider` that reports the currently confirmed, durable activation fence, or per-component lease election.
+- **Per-component leases.** `SharedStorePubSubLeaseStore` backs `LeaseActivationCoordinator`. Writer and reader groups have separate lease keys. The active owner renews its exact grant; standbys retry acquisition and take over when renewal stops. Each lease-store instance has a new incarnation, so restarting with the same configured owner ID does not resume a live grant. Use the same lease duration on all replicas and keep their clocks synchronized. Connection-level runtime state has no group lease; it stays local.
 
-The low-level wiring is intentionally the same shape as the base PubSub builder:
+For external per-component leases and external Warm or Hot stores, register the payload backend and its
+`IRecordProtector`, then register a separate durable, linearizable authority. Enroll the freshness epoch
+before starting replicas, and restrict authority writes separately from payload-store access.
 
 ```csharp
-services.AddOpcUa()
-    .AddPubSub()
-    .WithRuntimeStateStore(runtimeStateStore)
-    .WithSecurityKeyStore(securityKeyStore)
-    .WithLeaseStore(leaseStore)
-    .WithActivationCoordinator(new LeaseActivationCoordinator(leaseStore, telemetry, ownerId));
+services.AddSharedRecordFreshness(_ => authorityStore, deploymentId, enrolledEpoch);
+services.AddPubSubRedundancy(options =>
+{
+    options.Election = PubSubRedundancyElection.LeaseStore;
+    options.Mode = PubSubRedundancyMode.Hot;
+    options.OwnerId = replicaId;
+});
 ```
 
-The intended high-level service-collection API is `AddPubSubRedundancy(Action<PubSubRedundancyOptions>?)`. It composes the same seams from `PubSubRedundancyOptions`, resolving `ISharedKeyValueStore`, `ILeaderElection` when `PubSubRedundancyElection.LeaderElection` is selected, and `IRecordProtector` for the shared SKS store.
+`AddPubSubRedundancy` supplies the fence provider for lease-store election. Directly configured
+external state and checkpoint stores also require callers to pass the active fence. Explicit
+in-memory stores remain available for single-process development.
+When upgrading an external backend, stop replicas that use the old lease format before starting
+the new version. Keep the enrolled epoch and lease records. A live authenticated legacy grant
+cannot be renewed by the new version and must expire before takeover. The next acquisition writes
+the new format and increments the retained fence; a released legacy grant can be taken over
+immediately. The freshness view doesn't import or trust former unprotected records.
+On shutdown, stop the coordinator before disposing the lease store so it can release its grants.
+If release doesn't complete, the replacement waits for the grant to expire.
 
 ## Sequence-number continuity (Hot standby)
 
 OPC UA Part 14 §7.2.5.4.1 defines the subscriber de-duplication key as `(PublisherId, DataSetWriterId, SequenceNumber)`. For a redundant publisher, the shared `PublisherId` and identical writer configuration mean the promoted standby must continue the same logical sequence stream.
 
-On promotion, Hot standby restores each writer to its stored sequence checkpoint + 1,000, advancing the local counter only if that value is higher. Sequence advances after the last checkpoint, store lag and wrap can still produce duplicates or gaps.
+On promotion, Hot standby restores each writer to its stored sequence checkpoint + 1,000, advancing the local counter only if that value is higher. The writer checkpoints with the same activation fence it held across publication. Sequence advances after the last checkpoint and wrap can still produce duplicates or gaps.
 
 Cold and Warm may restart sequences, requiring subscribers to reset de-duplication state. Distinguish a restart from normal sequence-number wrap.
+
+## Secured publisher nonce reservations
+
+The security header's 32-bit nonce SequenceNumber is separate from the Hot standby DataSetWriter checkpoint.
+Subscribers retain nonce reuse history across publishers for each active
+token. The history grows in bounded segments without dropping older
+segments; plan key rotation for the aggregate message rate of every
+publisher sharing a token.
+In every redundancy mode, secured UADP writers, including chunked messages, reserve nonce ranges before sending.
+A promoted or restarted writer skips unused numbers in the previous range; resuming does not reset subscriber
+replay checks. When the current SecurityTokenId runs out of numbers, publication is withheld until a new
+key and SecurityTokenId are available. Scopes sharing a token also share its sequence budget.
+
+Select `PubSubRedundancyElection.LeaseStore` for secured publication with `AddPubSubRedundancy`.
+Whole-instance `ILeaderElection` does not expose a fencing token, so it cannot authorize secured publication
+without a custom `IPubSubActivationFenceProvider`. With direct construction, use
+`PubSubApplicationBuilder.WithSecuredRedundancy` to supply the coordinator, the reservation store, and
+the current lease fence source.
+
+Use the same durable, linearizable authority for leases and reservations on every replica. The standard
+distributed lease registration requires an enrolled `FreshnessProtectedKeyValueStore`, which protects both
+records from rollback of shared payloads. A custom store must preserve equivalent monotonic state across
+restarts. Keep the same component identity across replicas
+and include PublisherId and distinct WriterGroupId fields on secured data messages so that separate writer
+leases do not contend for one wire replay scope. Discovery and Action output uses a separate connection
+control lease.
+Start with fresh keys and token IDs when enabling reservations on an existing publisher or after loss of
+the durable authority; the stack cannot recover the nonce sequences sent before that point.
 
 ## Shared security keys (SKS)
 
@@ -98,7 +144,12 @@ The reusable redundancy layer exposes `RedundancyConsistencyMode`:
 - **Eventual.** Bulk replicated state uses the leaderless CRDT / gossip store, while linearizable keyspaces are routed to a strong store. This is the default model for high-throughput state that can tolerate convergence delay.
 - **Strong.** All shared state uses a linearizable Raft-backed `ISharedKeyValueStore`. Choose this when every write must be quorum-confirmed.
 
-PubSub leases and leader election need compare-and-swap and therefore a strong keyspace. `SharedStorePubSubLeaseStore` uses `CompareAndSwapAsync` for acquisition, renewal, release, and fencing-token advancement, so it must run on a store that provides linearizable CAS for the `lease/pubsub/` keyspace. Bulk runtime state, Cold / Warm component state, SKS record discovery, and Hot writer sequence checkpoints can use eventual consistency when the failover policy accepts the resulting state lag. Deployments that require no stale checkpoint reads can place those keyspaces on the strong store as well, but that alone does not establish [sequence-number continuity](#sequence-number-continuity-hot-standby).
+External PubSub leases, Warm/Hot runtime state, and Hot checkpoints require authenticated records
+committed against the enrolled freshness authority. Raw linearizable CAS alone is insufficient. The
+authority retains record generations, and release retains the last lease fence. Don't delete these
+records to reset ownership. A replica stops using an unavailable or invalid record instead of
+recreating it. A committed newer fence prevents older or unfenced writes to the same state or
+checkpoint, but does not recover [sequence numbers never checkpointed](#sequence-number-continuity-hot-standby).
 
 ## Kubernetes
 

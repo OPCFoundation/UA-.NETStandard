@@ -3,9 +3,12 @@
 
 #pragma warning disable CA2000, CA2007
 
+using System;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -62,7 +65,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             builder.Services.AddSingleton<ISharedKeyValueStore>(new InMemorySharedKeyValueStore());
             builder.Services.AddSingleton<IServiceLevelProvider>(new ConstantServiceLevelProvider(200));
             builder.Services.AddSingleton<IRecordProtector>(NullRecordProtector.Instance);
-            builder.Services.AddSingleton(System.TimeProvider.System);
+            builder.Services.AddSingleton(TimeProvider.System);
 
             builder.UseServerLoadDirection(o =>
             {
@@ -81,6 +84,39 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     sp.GetServices<IServerStartupTask>().ToArray(),
                     Has.Length.GreaterThanOrEqualTo(2));
             });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NonlocalStoreRejectsMissingOrNoOpProtectionAsync(bool registerNoOp)
+        {
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton(Mock.Of<ISharedKeyValueStore>());
+            if (registerNoOp)
+            {
+                builder.Services.AddSingleton<IRecordProtector>(NullRecordProtector.Instance);
+            }
+            builder.UseServerLoadDirection();
+            await using ServiceProvider services = builder.Services.BuildServiceProvider();
+
+            Assert.That(() => services.GetServices<IServerStartupTask>().ToArray(),
+                Throws.InvalidOperationException.With.Message.Contains("authenticated IRecordProtector"));
+        }
+
+        [Test]
+        public async Task NonlocalStoreAcceptsAuthenticatedProtectorAsync()
+        {
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton(Mock.Of<ISharedKeyValueStore>());
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            builder.Services.AddSingleton<IRecordProtector>(protector);
+            builder.UseServerLoadDirection();
+            await using ServiceProvider services = builder.Services.BuildServiceProvider();
+
+            Assert.That(services.GetServices<IServerStartupTask>().ToArray(), Has.Length.EqualTo(2));
         }
     }
 }

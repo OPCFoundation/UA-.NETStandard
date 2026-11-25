@@ -143,10 +143,26 @@ namespace Opc.Ua.PubSub.Security.Sks
         public int MaxPastKeyCount { get; }
 
         /// <summary>
-        /// Ordered key history (oldest first). The current key is the
-        /// first non-expired entry.
+        /// Ordered key history (oldest first).
         /// </summary>
         public ArrayOf<PubSubSecurityKey> Keys { get; }
+
+        /// <summary>
+        /// Index of the last committed current key, or zero for an empty history.
+        /// An explicitly rotated key can supersede an earlier key that has not expired.
+        /// </summary>
+        public int CurrentKeyIndex
+        {
+            get => m_currentKeyIndex;
+            init
+            {
+                if (value < 0 || value >= Math.Max(1, Keys.Count))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(value));
+                }
+                m_currentKeyIndex = value;
+            }
+        }
 
         /// <summary>
         /// Caller identities authorized to retrieve keys for this group.
@@ -269,5 +285,7 @@ namespace Opc.Ua.PubSub.Security.Sks
 
             return false;
         }
+
+        private readonly int m_currentKeyIndex;
     }
 }

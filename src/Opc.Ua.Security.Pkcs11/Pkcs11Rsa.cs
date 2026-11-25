@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 using Net.Pkcs11Interop.HighLevelAPI.MechanismParams;
@@ -48,14 +49,22 @@ namespace Opc.Ua.Security.Pkcs11
             IObjectHandle privateKey,
             RSAParameters publicParameters)
         {
-            m_token = (token ?? throw new ArgumentNullException(nameof(token))).AddRef();
+            m_token = token ?? throw new ArgumentNullException(nameof(token));
             m_privateKey = privateKey ?? throw new ArgumentNullException(nameof(privateKey));
             m_publicParameters = publicParameters;
-
             m_publicKey = CreatePublicKey(publicParameters);
 
-            KeySizeValue = m_publicKey.KeySize;
-            LegalKeySizesValue = [new KeySizes(1024, 8192, 8)];
+            try
+            {
+                KeySizeValue = m_publicKey.KeySize;
+                LegalKeySizesValue = [new KeySizes(1024, 8192, 8)];
+                m_sessionReference = token.AddRef();
+            }
+            catch
+            {
+                m_publicKey.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -133,6 +142,8 @@ namespace Opc.Ua.Security.Pkcs11
             HashAlgorithmName hashAlgorithm,
             RSASignaturePadding padding)
         {
+            ThrowIfDisposed();
+
             if (hash == null)
             {
                 throw new ArgumentNullException(nameof(hash));
@@ -199,6 +210,8 @@ namespace Opc.Ua.Security.Pkcs11
         /// </exception>
         public override byte[] Decrypt(byte[] data, RSAEncryptionPadding padding)
         {
+            ThrowIfDisposed();
+
             if (data == null)
             {
                 throw new ArgumentNullException(nameof(data));
@@ -255,20 +268,34 @@ namespace Opc.Ua.Security.Pkcs11
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
-                m_publicKey.Dispose();
-
-                // Releases this key's reference; the session closes with the last.
-                m_token.Dispose();
+                try
+                {
+                    m_publicKey.Dispose();
+                }
+                finally
+                {
+                    m_sessionReference.Dispose();
+                }
             }
 
             base.Dispose(disposing);
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(Pkcs11Rsa));
+            }
         }
 
         private readonly Pkcs11Token m_token;
         private readonly IObjectHandle m_privateKey;
         private readonly RSAParameters m_publicParameters;
         private readonly RSA m_publicKey;
+        private readonly IDisposable m_sessionReference;
+        private int m_disposed;
     }
 }

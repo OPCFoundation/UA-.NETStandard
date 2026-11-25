@@ -35,6 +35,11 @@ namespace Opc.Ua.Client
         public bool ServiceLevelKnown { get; init; } = true;
 
         /// <summary>
+        /// Whether the health and state were read directly over an authenticated peer session.
+        /// </summary>
+        internal bool ServiceLevelProbed { get; init; }
+
+        /// <summary>
         /// The current state of the Server.
         /// </summary>
         public ServerState ServerState { get; init; }

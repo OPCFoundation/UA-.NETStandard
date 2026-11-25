@@ -46,21 +46,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task LeaseElectionOverRaftElectsSingleLeaderUnderContentionAsync()
+        public async Task BareRaftStoreDoesNotBackSharedLeaseAsync()
         {
             await using var store = new RaftSharedKeyValueStore();
-            await using var election1 = new SharedStoreLeaseElection(
-                store, "lease/leader", "node-1", TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(10));
-            await using var election2 = new SharedStoreLeaseElection(
-                store, "lease/leader", "node-2", TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(10));
-
-            bool[] acquired = await Task.WhenAll(
-                election1.TryAcquireOrRenewAsync().AsTask(),
-                election2.TryAcquireOrRenewAsync().AsTask()).ConfigureAwait(false);
-
-            Assert.That(acquired.Count(won => won), Is.EqualTo(1),
-                "exactly one replica may hold the lease at a time");
-            Assert.That(election1.IsLeader ^ election2.IsLeader, Is.True, "leadership is exclusive");
+            Assert.That(
+                () => new SharedStoreLeaseElection(
+                    store, "lease/leader", "node-1", TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(10)),
+                Throws.ArgumentException);
         }
 
         [Test]

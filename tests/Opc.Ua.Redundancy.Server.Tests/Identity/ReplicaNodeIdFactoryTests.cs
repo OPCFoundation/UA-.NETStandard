@@ -236,10 +236,10 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
         }
 
         /// <summary>
-        /// Keeps an invalidated peer admission at maintenance even if the ordinary provider reports healthy.
+        /// Keeps an invalid local namespace layout out of service even if the provider reports healthy.
         /// </summary>
         [Test]
-        public async Task RejectedPeerCannotRestoreHealthyServiceLevelAsync()
+        public async Task InvalidLocalNamespaceCannotRestoreHealthyServiceLevelAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messages = ServiceMessageContext.CreateEmpty(telemetry);
@@ -256,7 +256,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
             var startup = new ServiceLevelStartupTask(levels.Object);
             await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
-            identity.RejectPeer();
+            messages.NamespaceUris.Update([Namespaces.OpcUa, "urn:replica", "urn:unexpected", InstanceUri]);
+            Assert.That(() => identity.ValidateNamespaces(messages.NamespaceUris),
+                Throws.TypeOf<ServiceResultException>());
             levels.Raise(s => s.ServiceLevelChanged += null, (byte)250);
 
             Assert.That(serverObject.ServiceLevel.Value, Is.Zero);

@@ -36,8 +36,18 @@ namespace Opc.Ua.Redundancy.Kubernetes
         public string FallbackLeaseKey { get; set; } = "addressspace/kubernetes-leader";
 
         /// <summary>
-        /// Gets or sets whether the DI registration uses <see cref="SharedStoreLeaseElection"/> outside Kubernetes.
+        /// Gets or sets the explicitly configured replica id used only by the shared-store fallback.
         /// </summary>
-        public bool UseSharedStoreFallback { get; set; } = true;
+        public string FallbackNodeId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the same complete set of fallback lease member ids on every replica.
+        /// </summary>
+        public ArrayOf<string> FallbackLeaseMemberIds { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets whether to explicitly use an independently enrolled freshness store outside Kubernetes.
+        /// </summary>
+        public bool UseSharedStoreFallback { get; set; }
     }
 }

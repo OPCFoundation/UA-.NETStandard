@@ -77,6 +77,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public void FactoryRejectsFastReconnectWithProcessLocalNonceStore()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var factory = new DistributedSessionManagerFactory(
+                store, options: new DistributedSessionOptions { EnableFastReconnect = true });
+
+            Assert.That(
+                () => factory.Create(
+                    Mock.Of<IServerInternal>(),
+                    new ApplicationConfiguration(),
+                    TimeProvider.System,
+                    _ => null),
+                Throws.InvalidOperationException.With.Message.Contains("nonce/"));
+        }
+
+        [Test]
         public void FactoryConstructorRejectsNullStore()
         {
             Assert.That(
@@ -90,7 +106,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var services = new ServiceCollection();
             services.AddOpcUa()
                 .AddServer(_ => { })
-                .UseDistributedSessions(o => o.EnableFastReconnect = true);
+                .UseDistributedSessions();
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             Assert.That(

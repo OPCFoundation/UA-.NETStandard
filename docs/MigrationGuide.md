@@ -34,6 +34,7 @@ covers cross-cutting changes.
 - [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
 - [Migrating custom ISessionManager implementations to ShutdownAsync](#migrating-custom-isessionmanager-implementations-to-shutdownasync)
 - [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
+- [Configuring redundancy peer status](#configuring-redundancy-peer-status)
 - [Migrating SamplingGroupManager create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
 - [Migrating callers of the synchronous MonitoredNode2 notification wrappers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
 - [Migrating condition subclasses to asynchronous state setters](#migrating-condition-subclasses-to-asynchronous-state-setters)
@@ -835,6 +836,24 @@ absence-based cleanup or snapshot compaction. These are configuration
 requirements of the distributed-state extension, not a 1.5 persisted-format
 migration guarantee. See
 [address-space consistency](HighAvailability.md#activepassive-address-space-consistency).
+
+## Configuring redundancy peer status
+
+Remove uses of `ServerRedundancyOptions.PeerServiceLevel`. A replica
+publishes the observed ServiceLevel and ServerState instead of advertising
+one configured value for every peer. Configure a protected peer-status
+store and the physical `TransparentPeerServerIds` for a Transparent set.
+An unavailable observation reports NoData and Unknown.
+
+For managed client redundancy, set `ServerRedundancyOptions.ExpectedServerApplicationUri`
+from trusted deployment configuration. Do not initialize it from discovery.
+Use the shared application URI for Transparent sets. The client must be
+able to authenticate that application URI on the UA SecureChannel;
+HTTPS endpoints are not supported for managed redundancy.
+
+For applications adding distributed storage in 2.0, see
+[Configure the freshness authority](HighAvailability.md#configure-the-freshness-authority)
+for the required backend and coordinated upgrade procedure.
 
 ## Migrating SamplingGroupManager create/modify overrides
 

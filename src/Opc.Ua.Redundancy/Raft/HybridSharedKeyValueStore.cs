@@ -201,8 +201,23 @@ namespace Opc.Ua.Redundancy
         public bool IsProcessLocal(string key)
         {
             ISharedKeyValueStore store = Route(key);
-            return store is not ISharedKeyValueStoreConsistency consistency ||
+            return store is ISharedKeyValueStoreConsistency consistency &&
                 consistency.IsProcessLocal(key);
+        }
+
+        /// <summary>
+        /// Checks every backend before allowing a store to bypass shared-state protection.
+        /// </summary>
+        internal static bool UsesOnlyInProcessMemory(ISharedKeyValueStore store)
+        {
+            return store switch
+            {
+                InMemorySharedKeyValueStore => true,
+                RaftSharedKeyValueStore raft => raft.UsesOnlyInProcessMemory,
+                HybridSharedKeyValueStore hybrid =>
+                    UsesOnlyInProcessMemory(hybrid.m_bulk) && UsesOnlyInProcessMemory(hybrid.m_strong),
+                _ => false
+            };
         }
 
         private bool IsStrong(string keyOrPrefix)

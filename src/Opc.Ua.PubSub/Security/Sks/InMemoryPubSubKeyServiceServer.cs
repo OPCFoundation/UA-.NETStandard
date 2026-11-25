@@ -12,23 +12,23 @@ using Opc.Ua.Redaction;
 namespace Opc.Ua.PubSub.Security.Sks
 {
     /// <summary>
-    /// In-memory implementation of <see cref="IPubSubKeyServiceServer"/>
-    /// suitable for unit / integration tests and for embedded SKS
-    /// scenarios where keys live for the lifetime of the host
-    /// process. Keys are produced by <see cref="SksKeyGenerator"/>
-    /// using the configured <see cref="IPubSubSecurityPolicy"/>.
+    /// Implementation of <see cref="IPubSubKeyServiceServer"/> with a process-local
+    /// default. A coordinated store makes it possible to run multiple SKS replicas.
+    /// Keys are produced by <see cref="SksKeyGenerator"/> using the configured
+    /// <see cref="IPubSubSecurityPolicy"/>.
     /// </summary>
     /// <remarks>
     /// Implements the SKS server-side surface defined in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3.1">
-    /// Part 14 §8.3.1 PubSubKeyServiceType</see>. State is guarded
-    /// by an internal <see cref="Lock"/>; the lock
-    /// is never exposed.
+    /// Part 14 §8.3.1 PubSubKeyServiceType</see>. For coordinated stores no
+    /// local cache is used; authorization and keys come from the same
+    /// authoritative snapshot.
     /// </remarks>
-    public sealed class InMemoryPubSubKeyServiceServer : IPubSubKeyServiceServer
+    public sealed class InMemoryPubSubKeyServiceServer : IPubSubKeyServiceServer, IAsyncPubSubSecurityGroupCatalog
     {
         private const int DefaultMaxFutureKeyCount = 4;
         private const int DefaultMaxPastKeyCount = 4;
+        private const int MaxCommitAttempts = 16;
 
         private readonly Lock m_lock = new();
 
@@ -39,6 +39,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         private readonly ILogger m_logger;
         private readonly IPubSubSecurityEventSink? m_securityEventSink;
         private readonly IPubSubSecurityKeyStore m_keyStore;
+        private readonly ICoordinatedPubSubSecurityKeyStore? m_coordinatedStore;
         private readonly IPubSubSecurityPolicyRegistry m_securityPolicies;
 
         /// <summary>
@@ -67,8 +68,12 @@ namespace Opc.Ua.PubSub.Security.Sks
                 : telemetry.CreateLogger<InMemoryPubSubKeyServiceServer>();
             m_securityEventSink = securityEventSink;
             m_keyStore = keyStore ?? new InMemoryPubSubSecurityKeyStore();
+            m_coordinatedStore = m_keyStore as ICoordinatedPubSubSecurityKeyStore;
             m_securityPolicies = securityPolicies ?? PubSubSecurityPolicyRegistry.Default;
-            RestoreSecurityGroups();
+            if (m_coordinatedStore is null)
+            {
+                RestoreSecurityGroups();
+            }
         }
 
         /// <inheritdoc/>
@@ -76,11 +81,37 @@ namespace Opc.Ua.PubSub.Security.Sks
         {
             get
             {
+                if (m_coordinatedStore is not null)
+                {
+                    if (m_coordinatedStore.IsProcessLocal)
+                    {
+                        ValueTask<ArrayOf<string>> ids = m_coordinatedStore.GetSecurityGroupIdsAsync();
+                        if (ids.IsCompletedSuccessfully)
+                        {
+                            return ids.Result;
+                        }
+                    }
+                    throw new NotSupportedException("Use GetSecurityGroupIdsAsync with a coordinated SKS store.");
+                }
                 lock (m_lock)
                 {
                     return [.. m_groups.Keys];
                 }
             }
+        }
+
+        /// <summary>
+        /// Whether enumeration and method dispatch must use asynchronous bindings.
+        /// </summary>
+        internal bool UsesRemoteStore => m_coordinatedStore is { IsProcessLocal: false };
+
+        /// <inheritdoc/>
+        public ValueTask<ArrayOf<string>> GetSecurityGroupIdsAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return m_coordinatedStore is null
+                ? new ValueTask<ArrayOf<string>>(SecurityGroupIds)
+                : m_coordinatedStore.GetSecurityGroupIdsAsync(cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -94,56 +125,26 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
-            IPubSubSecurityPolicy? policy =
-                m_securityPolicies.GetByUri(group.SecurityPolicyUri) ??
-                throw new OpcUaSksException(
-                    StatusCodes.BadSecurityPolicyRejected,
-                    $"SecurityPolicyUri '{group.SecurityPolicyUri}' is not supported.");
+            IPubSubSecurityPolicy policy = GetRequiredPolicy(group);
+            if (m_coordinatedStore is not null)
+            {
+                return AddCoordinatedSecurityGroupAsync(m_coordinatedStore, group, policy, cancellationToken);
+            }
 
-            SksSecurityGroup? snapshot;
+            SksSecurityGroup snapshot;
             lock (m_lock)
             {
                 if (m_groups.ContainsKey(group.SecurityGroupId))
                 {
-                    throw new OpcUaSksException(
-                        StatusCodes.BadAlreadyExists,
-                        $"SecurityGroup '{group.SecurityGroupId}' already exists.");
+                    throw SecurityGroupAlreadyExists(group.SecurityGroupId);
                 }
 
-                int maxFuture = group.MaxFutureKeyCount > 0
-                    ? group.MaxFutureKeyCount
-                    : DefaultMaxFutureKeyCount;
-                int maxPast = group.MaxPastKeyCount > 0
-                    ? group.MaxPastKeyCount
-                    : DefaultMaxPastKeyCount;
-
-                List<PubSubSecurityKey> keys = group.Keys is { Count: > 0 } seed
-                    ? [.. seed]
-                    : SeedInitialKeys(policy, maxFuture, group.KeyLifetime);
-
-                uint nextTokenId = NextTokenIdAfter(keys);
-                var configured = new SksSecurityGroup(
-                    group.SecurityGroupId,
-                    group.SecurityPolicyUri,
-                    group.KeyLifetime,
-                    maxFuture,
-                    maxPast,
-                    keys,
-                    group.AuthorizedCallerIdentities,
-                    group.RolePermissions);
-                var state = new SecurityGroupState(
-                    configured,
-                    policy,
-                    keys,
-                    nextTokenId,
-                    currentIndex: 0);
+                SecurityGroupState state = CreateSecurityGroupState(group, policy);
                 m_groups[group.SecurityGroupId] = state;
-                snapshot = SnapshotLocked(state);
+                snapshot = Snapshot(state);
                 m_logger.RegisteredSksSecurityGroup(group.SecurityGroupId, group.SecurityPolicyUri);
             }
-            return snapshot is null
-                ? default
-                : m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken);
+            return m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -159,15 +160,21 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
-            bool removed;
+            if (m_coordinatedStore is not null)
+            {
+                if (!await m_coordinatedStore.RemoveSecurityGroupAsync(securityGroupId, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    throw SecurityGroupNotFound(securityGroupId);
+                }
+                return;
+            }
+
             lock (m_lock)
             {
-                removed = m_groups.Remove(securityGroupId);
-                if (!removed)
+                if (!m_groups.Remove(securityGroupId))
                 {
-                    throw new OpcUaSksException(
-                        StatusCodes.BadNotFound,
-                        $"SecurityGroup '{securityGroupId}' is not registered.");
+                    throw SecurityGroupNotFound(securityGroupId);
                 }
             }
             _ = await m_keyStore.RemoveSecurityGroupAsync(securityGroupId, cancellationToken)
@@ -187,13 +194,18 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (m_coordinatedStore is not null)
+            {
+                return ReadCoordinatedSecurityGroupAsync(m_coordinatedStore, securityGroupId, cancellationToken);
+            }
+
             lock (m_lock)
             {
                 if (!m_groups.TryGetValue(securityGroupId, out SecurityGroupState? state))
                 {
                     return new ValueTask<SksSecurityGroup?>((SksSecurityGroup?)null);
                 }
-                return new ValueTask<SksSecurityGroup?>(SnapshotLocked(state));
+                return new ValueTask<SksSecurityGroup?>(Snapshot(state));
             }
         }
 
@@ -284,7 +296,7 @@ namespace Opc.Ua.PubSub.Security.Sks
                 policy,
                 keys,
                 NextTokenIdAfter(keys),
-                currentIndex: 0);
+                group.CurrentKeyIndex);
             lock (m_lock)
             {
                 m_groups[group.SecurityGroupId] = state;
@@ -306,123 +318,30 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (m_coordinatedStore is not null)
+            {
+                return await GetCoordinatedSecurityKeysAsync(
+                    m_coordinatedStore, callerIdentity, request, callerRoleIds, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             SksSecurityGroup snapshot;
             SksKeyResponse response;
             lock (m_lock)
             {
                 if (!m_groups.TryGetValue(request.SecurityGroupId, out SecurityGroupState? state))
                 {
-                    EmitSecurityEvent(new PubSubSecurityEvent(
-                        PubSubSecurityEventKind.SksKeyRequestDenied,
-                        DateTimeOffset.UtcNow,
-                        PubSubSecurityEventOutcome.Rejected,
-                        securityGroupId: request.SecurityGroupId,
-                        callerIdentity: callerIdentity));
-                    throw new OpcUaSksException(
-                        StatusCodes.BadNotFound,
+                    throw DeniedKeyRequest(request, callerIdentity, StatusCodes.BadNotFound,
                         "The requested SecurityGroup does not exist.");
                 }
-                RotateExpiredCurrentLocked(state);
-                PrunePastKeysLocked(state);
-                if (!state.Group.IsCallerAuthorized(callerIdentity, callerRoleIds))
-                {
-                    EmitSecurityEvent(new PubSubSecurityEvent(
-                        PubSubSecurityEventKind.SksKeyRequestDenied,
-                        DateTimeOffset.UtcNow,
-                        PubSubSecurityEventOutcome.Rejected,
-                        securityGroupId: request.SecurityGroupId,
-                        callerIdentity: callerIdentity));
-                    throw new OpcUaSksException(
-                        StatusCodes.BadUserAccessDenied,
-                        "Caller is not authorized to retrieve keys for the requested SecurityGroup.");
-                }
-
-                EnsureLiveCurrentKeyLocked(state);
-                EnsureFutureKeysLocked(state, request.RequestedKeyCount);
-
-                uint currentTokenId = state.Keys.Count == 0
-                    ? 0u
-                    : state.Keys[state.CurrentIndex].TokenId;
-                uint firstTokenId = request.StartingTokenId == 0u
-                    ? currentTokenId
-                    : request.StartingTokenId;
-
-                var packed = new List<byte[]>();
-                int matched = 0;
-                for (int i = 0; i < state.Keys.Count && matched < request.RequestedKeyCount; i++)
-                {
-                    PubSubSecurityKey key = state.Keys[i];
-                    if (key.TokenId < firstTokenId)
-                    {
-                        continue;
-                    }
-                    packed.Add(SksKeyGenerator.Pack(key));
-                    matched++;
-                }
-
-                if (matched < request.RequestedKeyCount)
-                {
-                    int additional = (int)request.RequestedKeyCount - matched;
-                    int allowed = state.Group.MaxFutureKeyCount + 1 - FutureKeyCountLocked(state);
-                    int toGenerate = Math.Min(additional, allowed);
-                    if (toGenerate > 0)
-                    {
-                        var nowGen = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
-                        for (int i = 0; i < toGenerate; i++)
-                        {
-                            PubSubSecurityKey newKey = SksKeyGenerator.Generate(
-                                state.Policy,
-                                state.NextTokenId,
-                                NextIssuedAtLocked(state, nowGen),
-                                state.Group.KeyLifetime);
-                            state.Keys.Add(newKey);
-                            state.NextTokenId = unchecked(state.NextTokenId + 1u);
-                            packed.Add(SksKeyGenerator.Pack(newKey));
-                            matched++;
-                        }
-                    }
-                }
-
-                if (packed.Count == 0)
-                {
-                    throw new OpcUaSksException(
-                        StatusCodes.BadNotFound,
-                        $"No keys available starting at TokenId {firstTokenId}.");
-                }
-
-                uint actualFirst = state.Keys[FindFirstIndexLocked(state, firstTokenId)].TokenId;
-                TimeSpan timeToNextKey = ComputeTimeToNextKeyLocked(state);
-                response = new SksKeyResponse(
-                    state.Group.SecurityPolicyUri,
-                    actualFirst,
-                    packed,
-                    timeToNextKey,
-                    state.Group.KeyLifetime);
-                snapshot = SnapshotLocked(state);
-                m_logger.IssuedKeys(packed.Count, request.SecurityGroupId, actualFirst, callerIdentity);
-                EmitSecurityEvent(new PubSubSecurityEvent(
-                    PubSubSecurityEventKind.SksKeysIssued,
-                    DateTimeOffset.UtcNow,
-                    PubSubSecurityEventOutcome.Success,
-                    tokenId: actualFirst,
-                    securityGroupId: request.SecurityGroupId,
-                    callerIdentity: callerIdentity));
+                CheckCallerAuthorization(state.Group, request, callerIdentity, callerRoleIds);
+                List<PubSubSecurityKey> keys = SelectKeys(state, request);
+                response = CreateKeyResponse(state, keys);
+                snapshot = Snapshot(state);
             }
 
             await m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken).ConfigureAwait(false);
-            return response;
-        }
-
-        private static int FindFirstIndexLocked(SecurityGroupState state, uint tokenId)
-        {
-            for (int i = 0; i < state.Keys.Count; i++)
-            {
-                if (state.Keys[i].TokenId >= tokenId)
-                {
-                    return i;
-                }
-            }
-            return state.Keys.Count - 1;
+            return ReportKeysIssued(response, request, callerIdentity);
         }
 
         /// <inheritdoc/>
@@ -438,34 +357,23 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (m_coordinatedStore is not null)
+            {
+                await CommitKeyChangeAsync(m_coordinatedStore, securityGroupId, InvalidateKeys, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+
             SksSecurityGroup snapshot;
             lock (m_lock)
             {
                 if (!m_groups.TryGetValue(securityGroupId, out SecurityGroupState? state))
                 {
-                    throw new OpcUaSksException(
-                        StatusCodes.BadNotFound,
-                        $"SecurityGroup '{securityGroupId}' is not registered.");
+                    throw SecurityGroupNotFound(securityGroupId);
                 }
 
-                uint nextTokenId = unchecked(state.Keys[^1].TokenId + 1u);
-                for (int i = state.CurrentIndex; i < state.Keys.Count; i++)
-                {
-                    state.Keys[i].Dispose();
-                }
-                state.Keys.RemoveRange(state.CurrentIndex, state.Keys.Count - state.CurrentIndex);
-                PrunePastKeysLocked(state);
-                var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
-                PubSubSecurityKey current = SksKeyGenerator.Generate(
-                    state.Policy,
-                    nextTokenId,
-                    now,
-                    state.Group.KeyLifetime);
-                state.Keys.Add(current);
-                state.CurrentIndex = state.Keys.Count - 1;
-                state.NextTokenId = unchecked(nextTokenId + 1u);
-                EnsureFutureKeysLocked(state, (uint)(state.Group.MaxFutureKeyCount + 1));
-                snapshot = SnapshotLocked(state);
+                InvalidateKeys(state);
+                snapshot = Snapshot(state);
             }
             await m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken).ConfigureAwait(false);
         }
@@ -483,40 +391,295 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (m_coordinatedStore is not null)
+            {
+                await CommitKeyChangeAsync(m_coordinatedStore, securityGroupId, RotateKeys, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+
             SksSecurityGroup snapshot;
             lock (m_lock)
             {
                 if (!m_groups.TryGetValue(securityGroupId, out SecurityGroupState? state))
                 {
-                    throw new OpcUaSksException(
-                        StatusCodes.BadNotFound,
-                        $"SecurityGroup '{securityGroupId}' is not registered.");
+                    throw SecurityGroupNotFound(securityGroupId);
                 }
 
-                // Skip keys that expired while the SKS was idle first, so the
-                // forced successor is never an expired key made valid again.
-                EnsureLiveCurrentKeyLocked(state);
-                EnsureFutureKeysLocked(state, 2);
-                if (state.CurrentIndex + 1 >= state.Keys.Count)
-                {
-                    throw new OpcUaSksException(
-                        StatusCodes.BadNotFound,
-                        $"No future keys are available for SecurityGroup '{securityGroupId}'.");
-                }
-                state.CurrentIndex++;
-                // The next key becomes current now, so it and every key after
-                // it start one lifetime earlier than scheduled.
-                var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
-                for (int i = state.CurrentIndex; i < state.Keys.Count; i++)
-                {
-                    state.Keys[i] = state.Keys[i].WithIssuedAt(
-                        now + TimeSpan.FromTicks(state.Group.KeyLifetime.Ticks * (i - state.CurrentIndex)));
-                }
-                PrunePastKeysLocked(state);
-                EnsureFutureKeysLocked(state, (uint)(state.Group.MaxFutureKeyCount + 1));
-                snapshot = SnapshotLocked(state);
+                RotateKeys(state);
+                snapshot = Snapshot(state);
             }
             await m_keyStore.SaveSecurityGroupAsync(snapshot, cancellationToken).ConfigureAwait(false);
+        }
+
+        private IPubSubSecurityPolicy GetRequiredPolicy(SksSecurityGroup group)
+        {
+            return m_securityPolicies.GetByUri(group.SecurityPolicyUri) ??
+                throw new OpcUaSksException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    $"SecurityPolicyUri '{group.SecurityPolicyUri}' is not supported.");
+        }
+
+        private SecurityGroupState CreateSecurityGroupState(SksSecurityGroup group, IPubSubSecurityPolicy policy)
+        {
+            int maxFuture = group.MaxFutureKeyCount > 0 ? group.MaxFutureKeyCount : DefaultMaxFutureKeyCount;
+            int maxPast = group.MaxPastKeyCount > 0 ? group.MaxPastKeyCount : DefaultMaxPastKeyCount;
+            List<PubSubSecurityKey> keys = group.Keys.Count > 0
+                ? [.. group.Keys]
+                : SeedInitialKeys(policy, maxFuture, group.KeyLifetime);
+            var configured = new SksSecurityGroup(
+                group.SecurityGroupId,
+                group.SecurityPolicyUri,
+                group.KeyLifetime,
+                maxFuture,
+                maxPast,
+                keys,
+                group.AuthorizedCallerIdentities,
+                group.RolePermissions);
+            return new SecurityGroupState(configured, policy, keys, NextTokenIdAfter(keys), group.CurrentKeyIndex);
+        }
+
+        private SecurityGroupState CreateWorkingState(SksSecurityGroup group)
+        {
+            List<PubSubSecurityKey> keys = group.Keys.IsNull ? [] : [.. group.Keys];
+            return new SecurityGroupState(
+                group, GetRequiredPolicy(group), keys, NextTokenIdAfter(keys), group.CurrentKeyIndex);
+        }
+
+        private async ValueTask AddCoordinatedSecurityGroupAsync(
+            ICoordinatedPubSubSecurityKeyStore store,
+            SksSecurityGroup group,
+            IPubSubSecurityPolicy policy,
+            CancellationToken cancellationToken)
+        {
+            SecurityGroupState state = CreateSecurityGroupState(group, policy);
+            try
+            {
+                if (!await store.TryCommitSecurityGroupAsync(Snapshot(state), default, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    throw SecurityGroupAlreadyExists(group.SecurityGroupId);
+                }
+                m_logger.RegisteredSksSecurityGroup(group.SecurityGroupId, group.SecurityPolicyUri);
+            }
+            finally
+            {
+                if (group.Keys.Count == 0)
+                {
+                    state.Dispose();
+                }
+            }
+        }
+
+        private static async ValueTask<SksSecurityGroup?> ReadCoordinatedSecurityGroupAsync(
+            ICoordinatedPubSubSecurityKeyStore store,
+            string securityGroupId,
+            CancellationToken cancellationToken)
+        {
+            (SksSecurityGroup? group, _) = await store.ReadSecurityGroupAsync(securityGroupId, cancellationToken)
+                .ConfigureAwait(false);
+            return group;
+        }
+
+        private async ValueTask<SksKeyResponse> GetCoordinatedSecurityKeysAsync(
+            ICoordinatedPubSubSecurityKeyStore store,
+            string callerIdentity,
+            SksKeyRequest request,
+            ArrayOf<NodeId> callerRoleIds,
+            CancellationToken cancellationToken)
+        {
+            for (int attempt = 0; attempt < MaxCommitAttempts; attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                (SksSecurityGroup? group, ByteString revision) = await store
+                    .ReadSecurityGroupAsync(request.SecurityGroupId, cancellationToken).ConfigureAwait(false);
+                if (group is null)
+                {
+                    throw DeniedKeyRequest(request, callerIdentity, StatusCodes.BadNotFound,
+                        "The requested SecurityGroup does not exist.");
+                }
+
+                using SecurityGroupState state = CreateWorkingState(group);
+                CheckCallerAuthorization(group, request, callerIdentity, callerRoleIds);
+                uint nextTokenId = state.NextTokenId;
+                List<PubSubSecurityKey> keys = SelectKeys(state, request);
+                bool changed = state.NextTokenId != nextTokenId ||
+                    state.CurrentIndex != group.CurrentKeyIndex ||
+                    state.Keys.Count != group.Keys.Count;
+                if (changed && !await store.TryCommitSecurityGroupAsync(Snapshot(state), revision, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    continue;
+                }
+
+                // Pack and audit only keys from a committed generation.
+                return ReportKeysIssued(CreateKeyResponse(state, keys), request, callerIdentity);
+            }
+            throw CommitContention();
+        }
+
+        private async ValueTask CommitKeyChangeAsync(
+            ICoordinatedPubSubSecurityKeyStore store,
+            string securityGroupId,
+            Action<SecurityGroupState> change,
+            CancellationToken cancellationToken)
+        {
+            for (int attempt = 0; attempt < MaxCommitAttempts; attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                (SksSecurityGroup? group, ByteString revision) = await store
+                    .ReadSecurityGroupAsync(securityGroupId, cancellationToken).ConfigureAwait(false);
+                using SecurityGroupState state = CreateWorkingState(
+                    group ?? throw SecurityGroupNotFound(securityGroupId));
+                change(state);
+                if (await store.TryCommitSecurityGroupAsync(Snapshot(state), revision, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    return;
+                }
+            }
+            throw CommitContention();
+        }
+
+        private void CheckCallerAuthorization(
+            SksSecurityGroup group,
+            SksKeyRequest request,
+            string callerIdentity,
+            ArrayOf<NodeId> callerRoleIds)
+        {
+            if (!group.IsCallerAuthorized(callerIdentity, callerRoleIds))
+            {
+                throw DeniedKeyRequest(request, callerIdentity, StatusCodes.BadUserAccessDenied,
+                    "Caller is not authorized to retrieve keys for the requested SecurityGroup.");
+            }
+        }
+
+        private OpcUaSksException DeniedKeyRequest(
+            SksKeyRequest request,
+            string callerIdentity,
+            StatusCode status,
+            string message)
+        {
+            EmitSecurityEvent(new PubSubSecurityEvent(
+                PubSubSecurityEventKind.SksKeyRequestDenied,
+                DateTimeOffset.UtcNow,
+                PubSubSecurityEventOutcome.Rejected,
+                securityGroupId: request.SecurityGroupId,
+                callerIdentity: callerIdentity));
+            return new OpcUaSksException(status, message);
+        }
+
+        private SksKeyResponse ReportKeysIssued(SksKeyResponse response, SksKeyRequest request, string callerIdentity)
+        {
+            m_logger.IssuedKeys(response.Keys.Count, request.SecurityGroupId, response.FirstTokenId, callerIdentity);
+            EmitSecurityEvent(new PubSubSecurityEvent(
+                PubSubSecurityEventKind.SksKeysIssued,
+                DateTimeOffset.UtcNow,
+                PubSubSecurityEventOutcome.Success,
+                tokenId: response.FirstTokenId,
+                securityGroupId: request.SecurityGroupId,
+                callerIdentity: callerIdentity));
+            return response;
+        }
+
+        private List<PubSubSecurityKey> SelectKeys(SecurityGroupState state, SksKeyRequest request)
+        {
+            EnsureLiveCurrentKey(state);
+            PrunePastKeys(state);
+            EnsureFutureKeys(state, request.RequestedKeyCount);
+
+            uint firstTokenId = request.StartingTokenId == 0
+                ? state.Keys[state.CurrentIndex].TokenId
+                : request.StartingTokenId;
+            var selected = new List<PubSubSecurityKey>();
+            for (int i = 0; i < state.Keys.Count && selected.Count < request.RequestedKeyCount; i++)
+            {
+                PubSubSecurityKey key = state.Keys[i];
+                if (key.TokenId >= firstTokenId)
+                {
+                    selected.Add(key);
+                }
+            }
+
+            int available = state.Group.MaxFutureKeyCount + 1 - FutureKeyCount(state);
+            int toGenerate = Math.Min((int)request.RequestedKeyCount - selected.Count, available);
+            if (toGenerate > 0)
+            {
+                var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+                for (int i = 0; i < toGenerate; i++)
+                {
+                    PubSubSecurityKey key = AppendKey(state, NextIssuedAt(state, now));
+                    selected.Add(key);
+                }
+            }
+
+            if (selected.Count == 0)
+            {
+                throw new OpcUaSksException(
+                    StatusCodes.BadNotFound,
+                    $"No keys available starting at TokenId {firstTokenId}.");
+            }
+            return selected;
+        }
+
+        private SksKeyResponse CreateKeyResponse(SecurityGroupState state, List<PubSubSecurityKey> keys)
+        {
+            return new SksKeyResponse(
+                state.Group.SecurityPolicyUri,
+                keys[0].TokenId,
+                keys.ConvertAll(SksKeyGenerator.Pack),
+                ComputeTimeToNextKey(state),
+                state.Group.KeyLifetime);
+        }
+
+        private void InvalidateKeys(SecurityGroupState state)
+        {
+            for (int i = state.CurrentIndex; i < state.Keys.Count; i++)
+            {
+                state.Keys[i].Dispose();
+            }
+            state.Keys.RemoveRange(state.CurrentIndex, state.Keys.Count - state.CurrentIndex);
+            PrunePastKeys(state);
+            AppendKey(state, DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime));
+            state.CurrentIndex = state.Keys.Count - 1;
+            EnsureFutureKeys(state, (uint)(state.Group.MaxFutureKeyCount + 1));
+        }
+
+        private void RotateKeys(SecurityGroupState state)
+        {
+            // Skip keys that expired while the SKS was idle before forcing a successor.
+            EnsureLiveCurrentKey(state);
+            EnsureFutureKeys(state, 2);
+            if (state.CurrentIndex + 1 >= state.Keys.Count)
+            {
+                throw new OpcUaSksException(
+                    StatusCodes.BadNotFound,
+                    $"No future keys are available for SecurityGroup '{state.Group.SecurityGroupId}'.");
+            }
+            state.CurrentIndex++;
+            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
+            for (int i = state.CurrentIndex; i < state.Keys.Count; i++)
+            {
+                state.Keys[i] = state.Keys[i].WithIssuedAt(
+                    now + TimeSpan.FromTicks(state.Group.KeyLifetime.Ticks * (i - state.CurrentIndex)));
+            }
+            PrunePastKeys(state);
+            EnsureFutureKeys(state, (uint)(state.Group.MaxFutureKeyCount + 1));
+        }
+
+        private static OpcUaSksException SecurityGroupAlreadyExists(string id)
+        {
+            return new OpcUaSksException(StatusCodes.BadAlreadyExists, $"SecurityGroup '{id}' already exists.");
+        }
+
+        private static OpcUaSksException SecurityGroupNotFound(string id)
+        {
+            return new OpcUaSksException(StatusCodes.BadNotFound, $"SecurityGroup '{id}' is not registered.");
+        }
+
+        private static OpcUaSksException CommitContention()
+        {
+            return new OpcUaSksException(StatusCodes.BadServerTooBusy, "The SecurityGroup changed repeatedly.");
         }
 
         private List<PubSubSecurityKey> SeedInitialKeys(
@@ -555,9 +718,9 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
         }
 
-        private void EnsureFutureKeysLocked(SecurityGroupState state, uint requestedKeyCount)
+        private void EnsureFutureKeys(SecurityGroupState state, uint requestedKeyCount)
         {
-            int totalFromCurrent = FutureKeyCountLocked(state);
+            int totalFromCurrent = FutureKeyCount(state);
             int needed = (int)requestedKeyCount;
             if (totalFromCurrent >= needed)
             {
@@ -574,14 +737,17 @@ namespace Opc.Ua.PubSub.Security.Sks
             var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
             for (int i = 0; i < toAdd; i++)
             {
-                PubSubSecurityKey newKey = SksKeyGenerator.Generate(
-                    state.Policy,
-                    state.NextTokenId,
-                    NextIssuedAtLocked(state, now),
-                    state.Group.KeyLifetime);
-                state.Keys.Add(newKey);
-                state.NextTokenId = unchecked(state.NextTokenId + 1u);
+                AppendKey(state, NextIssuedAt(state, now));
             }
+        }
+
+        private static PubSubSecurityKey AppendKey(SecurityGroupState state, DateTimeUtc issuedAt)
+        {
+            PubSubSecurityKey key = SksKeyGenerator.Generate(
+                state.Policy, state.NextTokenId, issuedAt, state.Group.KeyLifetime);
+            state.Keys.Add(key);
+            state.NextTokenId = unchecked(state.NextTokenId + 1u);
+            return key;
         }
 
         /// <summary>
@@ -592,7 +758,7 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// generated made them all expire together, and the current key then
         /// jumped over every future key at once.
         /// </summary>
-        private static DateTimeUtc NextIssuedAtLocked(SecurityGroupState state, DateTimeUtc now)
+        private static DateTimeUtc NextIssuedAt(SecurityGroupState state, DateTimeUtc now)
         {
             if (state.Keys.Count == 0)
             {
@@ -603,7 +769,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             return next < now ? now : next;
         }
 
-        private TimeSpan ComputeTimeToNextKeyLocked(SecurityGroupState state)
+        private TimeSpan ComputeTimeToNextKey(SecurityGroupState state)
         {
             if (state.Keys.Count == 0)
             {
@@ -616,7 +782,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
         }
 
-        private void RotateExpiredCurrentLocked(SecurityGroupState state)
+        private void RotateExpiredCurrent(SecurityGroupState state)
         {
             while (state.CurrentIndex + 1 < state.Keys.Count &&
                 state.Keys[state.CurrentIndex].IsExpired(m_timeProvider))
@@ -632,32 +798,25 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// Without that, an expired last key would count as the current key
         /// and be handed out again on every request.
         /// </summary>
-        private void EnsureLiveCurrentKeyLocked(SecurityGroupState state)
+        private void EnsureLiveCurrentKey(SecurityGroupState state)
         {
-            RotateExpiredCurrentLocked(state);
+            RotateExpiredCurrent(state);
             if (state.Keys.Count > 0 &&
                 !state.Keys[state.CurrentIndex].IsExpired(m_timeProvider))
             {
                 return;
             }
-            var now = DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime);
-            PubSubSecurityKey current = SksKeyGenerator.Generate(
-                state.Policy,
-                state.NextTokenId,
-                now,
-                state.Group.KeyLifetime);
-            state.Keys.Add(current);
-            state.NextTokenId = unchecked(state.NextTokenId + 1u);
+            AppendKey(state, DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime));
             state.CurrentIndex = state.Keys.Count - 1;
-            PrunePastKeysLocked(state);
+            PrunePastKeys(state);
         }
 
-        private static int FutureKeyCountLocked(SecurityGroupState state)
+        private static int FutureKeyCount(SecurityGroupState state)
         {
             return Math.Max(0, state.Keys.Count - state.CurrentIndex);
         }
 
-        private static void PrunePastKeysLocked(SecurityGroupState state)
+        private static void PrunePastKeys(SecurityGroupState state)
         {
             while (state.CurrentIndex > state.Group.MaxPastKeyCount)
             {
@@ -668,7 +827,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
         }
 
-        private static SksSecurityGroup SnapshotLocked(SecurityGroupState state)
+        private static SksSecurityGroup Snapshot(SecurityGroupState state)
         {
             return new SksSecurityGroup(
                 state.Group.SecurityGroupId,
@@ -678,7 +837,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                 state.Group.MaxPastKeyCount,
                 [.. state.Keys],
                 state.Group.AuthorizedCallerIdentities,
-                state.Group.RolePermissions);
+                state.Group.RolePermissions)
+            {
+                CurrentKeyIndex = state.CurrentIndex
+            };
         }
 
         private static uint NextTokenIdAfter(List<PubSubSecurityKey> keys)
@@ -690,7 +852,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             return unchecked(keys[^1].TokenId + 1u);
         }
 
-        private sealed class SecurityGroupState
+        private sealed class SecurityGroupState : IDisposable
         {
             public SecurityGroupState(
                 SksSecurityGroup group,
@@ -715,6 +877,14 @@ namespace Opc.Ua.PubSub.Security.Sks
             public uint NextTokenId { get; set; }
 
             public int CurrentIndex { get; set; }
+
+            public void Dispose()
+            {
+                foreach (PubSubSecurityKey key in Keys)
+                {
+                    key.Dispose();
+                }
+            }
         }
     }
 
