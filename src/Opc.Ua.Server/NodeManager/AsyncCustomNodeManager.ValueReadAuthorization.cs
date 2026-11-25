@@ -570,6 +570,7 @@ namespace Opc.Ua.Server
                 string? transport = endpoint?.TransportProfileUri;
                 AccessRestrictionType? restrictions = node.AccessRestrictions;
                 long version = NodeState.RolePermissionsVersion;
+                long nodeVersion = node.PermissionVersion;
                 if (recheckRoles)
                 {
                     ServiceResult roles = await manager.ValidateRolePermissionsAsync(
@@ -592,7 +593,8 @@ namespace Opc.Ua.Server
                     securityMode == currentEndpoint?.SecurityMode &&
                     transport == currentEndpoint?.TransportProfileUri &&
                     restrictions == node.AccessRestrictions &&
-                    version == NodeState.RolePermissionsVersion)
+                    version == NodeState.RolePermissionsVersion &&
+                    nodeVersion == node.PermissionVersion)
                 {
                     return result;
                 }

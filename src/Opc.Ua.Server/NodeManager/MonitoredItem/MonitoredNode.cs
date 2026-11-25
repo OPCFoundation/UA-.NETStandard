@@ -1783,7 +1783,8 @@ namespace Opc.Ua.Server
                     out CachedEventPermission? cached) ||
                 !cached.Context.Matches(context) ||
                 !cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) ||
-                !ReferenceEquals(cachedSourceNode, sourceNode))
+                !ReferenceEquals(cachedSourceNode, sourceNode) ||
+                cached.SourceVersion != sourceNode.PermissionVersion)
             {
                 return false;
             }
@@ -1842,9 +1843,11 @@ namespace Opc.Ua.Server
                     return (restrictions, authorization.Session, notificationAuthorization);
                 }
                 NodeState? sourceNode = null;
+                long sourceVersion = 0;
                 if (cacheable)
                 {
                     sourceNode = await sourceLookup!.GetAsync(cancellationToken).ConfigureAwait(false);
+                    sourceVersion = sourceNode?.PermissionVersion ?? 0;
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!authorization.Matches(CapturePermissionContext(monitoredItem)))
                     {
@@ -1862,7 +1865,8 @@ namespace Opc.Ua.Server
                         out CachedEventPermission? cached) &&
                     cached.Context.Matches(authorization) &&
                     cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) &&
-                    ReferenceEquals(cachedSourceNode, sourceNode))
+                    ReferenceEquals(cachedSourceNode, sourceNode) &&
+                    cached.SourceVersion == sourceVersion)
                 {
                     result = cached.Result;
                 }
@@ -1873,7 +1877,8 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     if (cacheable)
                     {
-                        m_eventPermissionCache[key] = new CachedEventPermission(authorization, sourceNode!, result);
+                        m_eventPermissionCache[key] = new CachedEventPermission(
+                            authorization, sourceNode!, sourceVersion, result);
                     }
                 }
                 if (!ServiceResult.IsBad(result))
@@ -1984,6 +1989,7 @@ namespace Opc.Ua.Server
                 Volatile.Read(ref m_permissionGeneration),
                 NodeState.RolePermissionsVersion,
                 Node,
+                Node.PermissionVersion,
                 (m_server.NodeManager as IDynamicNodeManagerBatchHost)?.RoutingRevision,
                 session,
                 session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity,
@@ -2303,6 +2309,7 @@ namespace Opc.Ua.Server
             }
             long generation = authorization.Generation +
                 authorization.RolePermissionsVersion +
+                authorization.NodePermissionVersion +
                 authorization.IdentityGeneration;
             var inputs = MonitoredReadInputs.Capture(monitoredItem.Session, Node);
             ServerSystemContext cachedContext = GetSubscriberContext(GetSubscriberContextTemplate(), monitoredItem);
@@ -2348,6 +2355,7 @@ namespace Opc.Ua.Server
                 MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
                 long generation = authorization.Generation +
                     authorization.RolePermissionsVersion +
+                    authorization.NodePermissionVersion +
                     authorization.IdentityGeneration;
                 var inputs = MonitoredReadInputs.Capture(monitoredItem.Session, Node);
                 // the subscriber's own context, also when the reporter's context is not a
@@ -3118,6 +3126,9 @@ namespace Opc.Ua.Server
         /// <param name="Generation">The monitored node's local invalidation generation.</param>
         /// <param name="RolePermissionsVersion">The version of node and user role-permission attributes.</param>
         /// <param name="Node">The current node-state instance, guarding against NodeId reuse.</param>
+        /// <param name="NodePermissionVersion">
+        /// The <see cref="NodeState.PermissionVersion"/> of <paramref name="Node"/>, which moves when it is removed.
+        /// </param>
         /// <param name="RoutingRevision">The address-space routing snapshot used to resolve event nodes.</param>
         /// <param name="Session">The subscription's current owning session.</param>
         /// <param name="Identity">The current effective identity, not merely the principal's display name.</param>
@@ -3126,6 +3137,7 @@ namespace Opc.Ua.Server
             long Generation,
             long RolePermissionsVersion,
             NodeState Node,
+            long NodePermissionVersion,
             NodeManagerRoutingTable.RoutingSnapshot? RoutingRevision,
             ISession? Session,
             IUserIdentity? Identity,
@@ -3139,6 +3151,7 @@ namespace Opc.Ua.Server
                 return Generation == other.Generation &&
                     RolePermissionsVersion == other.RolePermissionsVersion &&
                     ReferenceEquals(Node, other.Node) &&
+                    NodePermissionVersion == other.NodePermissionVersion &&
                     ReferenceEquals(RoutingRevision, other.RoutingRevision) &&
                     ReferenceEquals(Session, other.Session) &&
                     ReferenceEquals(Identity, other.Identity) &&
@@ -3187,15 +3200,18 @@ namespace Opc.Ua.Server
             public CachedEventPermission(
                 in MonitoredItemPermissionContext context,
                 NodeState sourceNode,
+                long sourceVersion,
                 ServiceResult result)
             {
                 Context = context;
                 SourceNode = new WeakReference<NodeState>(sourceNode);
+                SourceVersion = sourceVersion;
                 Result = result;
             }
 
             public readonly MonitoredItemPermissionContext Context;
             public readonly WeakReference<NodeState> SourceNode;
+            public readonly long SourceVersion;
             public readonly ServiceResult Result;
         }
 

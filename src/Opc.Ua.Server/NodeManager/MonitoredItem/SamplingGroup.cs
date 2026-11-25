@@ -1117,10 +1117,13 @@ namespace Opc.Ua.Server
 
                     ReadValueId readValueId = m_readValueIds[ii];
                     PermissionVerdict verdict = m_verdicts[ii];
+                    NodeState? node = m_group.ResolveSampledNode(items[ii]);
+                    long nodeVersion = node?.PermissionVersion ?? 0;
                     ServiceResult? permissionResult = verdict.Result;
                     if (permissionResult == null ||
                         ii % m_revalidationStride == slice ||
                         verdict.Epoch != epoch ||
+                        verdict.NodeVersion != nodeVersion ||
                         verdict.IdentityGeneration != identityGeneration ||
                         !ReferenceEquals(verdict.Context, context) ||
                         !ReferenceEquals(verdict.Session, context.Session) ||
@@ -1143,11 +1146,10 @@ namespace Opc.Ua.Server
 
                         verdict = new PermissionVerdict(
                             permissionResult, epoch, context.Session, context.UserIdentity, readValueId.Handle,
-                            identityGeneration, context);
+                            identityGeneration, context, nodeVersion);
                         m_verdicts[ii] = verdict;
                     }
 
-                    NodeState? node = m_group.ResolveSampledNode(items[ii]);
                     if (node != null &&
                         ServiceResult.IsGood(permissionResult) &&
                         context.Session?.IsIdentityStale != true &&
@@ -1215,6 +1217,7 @@ namespace Opc.Ua.Server
         /// <param name="Handle">The current sampled handle.</param>
         /// <param name="IdentityGeneration">The session activation or role refresh generation.</param>
         /// <param name="Context">The shared authorization context captured for the sample.</param>
+        /// <param name="NodeVersion">The <see cref="NodeState.PermissionVersion"/> of the sampled node.</param>
         /// <param name="Read">An optional reusable exact-source grant.</param>
         /// <param name="ReadNode">The exact node authorized by the grant.</param>
         private readonly record struct PermissionVerdict(
@@ -1225,6 +1228,7 @@ namespace Opc.Ua.Server
             object? Handle,
             long IdentityGeneration,
             OperationContext Context,
+            long NodeVersion,
             MonitoredReadVerdict? Read = null,
             NodeState? ReadNode = null);
 
