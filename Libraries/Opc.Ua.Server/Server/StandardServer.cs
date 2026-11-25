@@ -471,19 +471,32 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 session = result.Session;
+
+                // closing the session decrements the count, whether CreateSession succeeds or not.
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.CurrentSessionCount++;
+                }
+
                 sessionId = result.SessionId;
                 authenticationToken = result.AuthenticationToken;
                 serverNonce = result.ServerNonce;
                 revisedSessionTimeout = result.RevisedSessionTimeout;
 
-                if (endpointUrl != null)
+                if (!string.IsNullOrEmpty(endpointUrl))
                 {
                     try
                     {
-                        // check the endpointurl
+                        // check the endpointurl. OPC 10000-4 5.7.2.2 defines no status code
+                        // for a malformed endpointUrl, it is reported like a host name mismatch.
+                        if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri parsedEndpointUrl))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid);
+                        }
+
                         var configuredEndpoint = new ConfiguredEndpoint
                         {
-                            EndpointUrl = new Uri(endpointUrl)
+                            EndpointUrl = parsedEndpointUrl
                         };
 
                         CertificateValidator.ValidateDomains(
@@ -557,7 +570,6 @@ namespace Opc.Ua.Server
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
-                    ServerInternal.ServerDiagnostics.CurrentSessionCount++;
                     ServerInternal.ServerDiagnostics.CumulatedSessionCount++;
                 }
 
@@ -590,8 +602,15 @@ namespace Opc.Ua.Server
                     MaxRequestMessageSize = maxRequestMessageSize
                 };
             }
-            catch (ServiceResultException e)
+            catch (Exception exception)
             {
+                ServiceResultException e = exception as ServiceResultException
+                    ?? ServiceResultException.Create(
+                        StatusCodes.BadUnexpectedError,
+                        exception,
+                        "CreateSession failed: {0}",
+                        exception.Message);
+
                 m_logger.LogError("Server - SESSION CREATE failed. {ErrorMessage}", e.Message);
 
                 // report the failed AuditCreateSessionEvent
@@ -617,6 +636,12 @@ namespace Opc.Ua.Server
                         ServerInternal.ServerDiagnostics.SecurityRejectedSessionCount++;
                         ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
                     }
+                }
+
+                // the caller gets the same exception as before.
+                if (exception is not ServiceResultException)
+                {
+                    throw;
                 }
 
                 throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, [], e);
