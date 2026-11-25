@@ -366,6 +366,121 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(manager.TryAcquireLoadedApplicationKey(id, passwords, null), Is.Null);
         }
 
+        [Test]
+        public async Task ConfiguredStoreLookupReusesKeyTheStoreLookupWouldLoadAsync()
+        {
+            (CertificateIdentifier id, SecurityConfiguration config) = await CreateStoreAsync("CN=ConfiguredStore")
+                .ConfigureAwait(false);
+            await using var manager = new CertificateManager(m_telemetry);
+            await manager.LoadApplicationCertificatesAsync(config, "urn:configured:store").ConfigureAwait(false);
+            using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(id.CertificateType)!;
+
+            // Without a thumbprint the store lookup could find another
+            // certificate of the subject, so the key is loaded again.
+            Assert.That(
+                manager.TryAcquireLoadedApplicationKeyForConfiguredStore(id, null, "urn:configured:store"),
+                Is.Null);
+
+            id.Thumbprint = loaded.Certificate.Thumbprint;
+            using (Certificate? reused = manager.TryAcquireLoadedApplicationKeyForConfiguredStore(
+                id, null, "urn:configured:store"))
+            {
+                Assert.That(reused, Is.Not.Null);
+                Assert.That(reused!.X509, Is.SameAs(loaded.Certificate.X509));
+            }
+            using (Certificate? found = await config.FindApplicationCertificateAsync(
+                SecurityPolicies.Basic256Sha256,
+                privateKey: true,
+                m_telemetry,
+                manager,
+                "urn:configured:store",
+                default).ConfigureAwait(false))
+            {
+                Assert.That(found, Is.Not.Null);
+                Assert.That(found!.X509, Is.SameAs(loaded.Certificate.X509));
+            }
+            using (Certificate? fromStore = await config.FindApplicationCertificateAsync(
+                SecurityPolicies.Basic256Sha256,
+                privateKey: true,
+                m_telemetry).ConfigureAwait(false))
+            {
+                Assert.That(fromStore, Is.Not.Null);
+                Assert.That(fromStore!.Thumbprint, Is.EqualTo(loaded.Certificate.Thumbprint));
+                Assert.That(fromStore.X509, Is.Not.SameAs(loaded.Certificate.X509));
+            }
+        }
+
+        [Test]
+        public async Task ConfiguredStoreLookupDoesNotReuseKeyFoundByApplicationUriAsync()
+        {
+            // The configured subject no longer matches: the manager finds the
+            // certificate through its application URI, the store lookup
+            // without an application URI does not find it.
+            using Certificate certificate = DefaultCertificateFactory.Instance
+                .CreateApplicationCertificate(
+                    "urn:renamed:application",
+                    "Renamed",
+                    "CN=Renamed",
+                    ["localhost"])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            string storePath = Path.Combine(
+                Path.GetTempPath(),
+                "opcua-cm-key-" + Guid.NewGuid().ToString("N")[..8]);
+            lock (m_tempDirs)
+            {
+                m_tempDirs.Add(storePath);
+            }
+            await certificate.AddToStoreAsync(CertificateStoreType.Directory, storePath, null, m_telemetry)
+                .ConfigureAwait(false);
+            var id = new CertificateIdentifier
+            {
+                SubjectName = "CN=BeforeRename",
+                StoreType = CertificateStoreType.Directory,
+                StorePath = storePath,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+            var config = new SecurityConfiguration { ApplicationCertificates = [id] };
+            await using var manager = new CertificateManager(m_telemetry);
+            await manager.LoadApplicationCertificatesAsync(config, "urn:renamed:application").ConfigureAwait(false);
+            using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(id.CertificateType)!;
+            Assert.That(loaded.Certificate.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+
+            id.Thumbprint = certificate.Thumbprint;
+            using (Certificate? managerKey = manager.TryAcquireLoadedApplicationKey(
+                id, null, "urn:renamed:application"))
+            {
+                Assert.That(managerKey, Is.Not.Null);
+            }
+            Assert.That(
+                manager.TryAcquireLoadedApplicationKeyForConfiguredStore(id, null, "urn:renamed:application"),
+                Is.Null);
+            Assert.That(
+                await config.FindApplicationCertificateAsync(
+                    SecurityPolicies.Basic256Sha256,
+                    privateKey: true,
+                    m_telemetry,
+                    manager,
+                    "urn:renamed:application",
+                    default).ConfigureAwait(false),
+                Is.Null);
+        }
+
+        [Test]
+        public async Task ConfiguredStoreLookupDoesNotReuseKeyOfCustomStoreProviderAsync()
+        {
+            (CertificateIdentifier id, SecurityConfiguration config) = await CreateStoreAsync("CN=ConfiguredCustom")
+                .ConfigureAwait(false);
+            await using var manager = new CertificateManager(
+                m_telemetry,
+                [new CountingDirectoryProvider(m_telemetry)]);
+            await manager.LoadApplicationCertificatesAsync(config).ConfigureAwait(false);
+            using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(id.CertificateType)!;
+            id.Thumbprint = loaded.Certificate.Thumbprint;
+
+            Assert.That(manager.TryAcquireLoadedApplicationKeyForConfiguredStore(id, null, null), Is.Null);
+        }
+
         private async Task<(CertificateIdentifier Id, SecurityConfiguration Config)> CreateStoreAsync(string subject)
         {
             using Certificate certificate = CertificateBuilder.Create(subject)

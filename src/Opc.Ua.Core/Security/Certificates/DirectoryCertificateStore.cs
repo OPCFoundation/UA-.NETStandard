@@ -1122,7 +1122,7 @@ namespace Opc.Ua
         /// thumbprint, subject (distinguished name or common name),
         /// application URI and certificate type.
         /// </summary>
-        private static bool MatchesPrivateKeyLookup(
+        internal static bool MatchesPrivateKeyLookup(
             Certificate certificate,
             string? thumbprint,
             string? subjectName,

@@ -153,11 +153,42 @@ namespace Opc.Ua
         /// <summary>
         /// Find application certificate for a security policy.
         /// </summary>
-        public async Task<Certificate?> FindApplicationCertificateAsync(
+        public Task<Certificate?> FindApplicationCertificateAsync(
             string securityPolicy,
             bool privateKey,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
+        {
+            return FindApplicationCertificateAsync(
+                securityPolicy,
+                privateKey,
+                telemetry,
+                loadedKeys: null,
+                loadedKeysApplicationUri: null,
+                ct);
+        }
+
+        /// <summary>
+        /// Find application certificate for a security policy, reusing a
+        /// private key <paramref name="loadedKeys"/> loaded from the
+        /// configured store when the store lookup would load the same
+        /// certificate.
+        /// </summary>
+        /// <param name="securityPolicy">The security policy URI.</param>
+        /// <param name="privateKey">Whether the private key is required.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="loadedKeys">The certificate manager that loaded this
+        /// configuration's keys, or <see langword="null"/>.</param>
+        /// <param name="loadedKeysApplicationUri">The application URI the
+        /// manager loaded the keys with.</param>
+        /// <param name="ct">The cancellation token.</param>
+        internal async Task<Certificate?> FindApplicationCertificateAsync(
+            string securityPolicy,
+            bool privateKey,
+            ITelemetryContext telemetry,
+            CertificateManager? loadedKeys,
+            string? loadedKeysApplicationUri,
+            CancellationToken ct)
         {
             foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
                 securityPolicy))
@@ -181,7 +212,11 @@ namespace Opc.Ua
                 {
                     if (privateKey)
                     {
-                        return await CertificateIdentifierResolver
+                        return loadedKeys?.TryAcquireLoadedApplicationKeyForConfiguredStore(
+                                id,
+                                CertificatePasswordProvider,
+                                loadedKeysApplicationUri)
+                            ?? await CertificateIdentifierResolver
                             .LoadPrivateKeyAsync(
                                 id,
                                 CertificatePasswordProvider,
