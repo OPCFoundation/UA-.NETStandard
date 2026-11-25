@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Sessions, GDS Client, and Subscriptions
 
 > **When to read this:** Read this for the move from caller-driven `Session`
@@ -227,10 +232,19 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
         MaxDelay = TimeSpan.FromSeconds(30)
     })
     .WithServerRedundancy()
+    .WithServerRedundancyOptions(new ServerRedundancyOptions
+    {
+        ExpectedServerApplicationUri = provisionedServerUri
+    })
     .ConnectAsync(ct);
 ```
 
 `Build()` returns an immutable `ManagedSessionOptions` snapshot; `ConnectAsync()` wraps `Build()` and `ManagedSession.CreateAsync(...)` so most callers can use the builder directly.
+
+When enabling server redundancy or token-reuse failover, provision
+`ServerRedundancyOptions.ExpectedServerApplicationUri` independently of
+discovery. A fully populated endpoint or a cached session handoff does not
+replace this configuration. Ordinary nonredundant connections do not need it.
 
 **New subscription API on `ISession`:**
 
