@@ -668,7 +668,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         Fail(token);
                     }
                     return nodes.TryGetValue(id, out BaseObjectState? node)
-                        ? new ValueTask<object>(node)
+                        ? new ValueTask<object?>(node)
                         : throw new AssertionException($"Unexpected external node {id}.");
                 });
             external.Setup(value => value.GetNodeMetadataAsync(
@@ -689,7 +689,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     {
                         Fail(token);
                     }
-                    return new ValueTask<NodeMetadata>(new NodeMetadata(node, node.NodeId)
+                    return new ValueTask<NodeMetadata?>(new NodeMetadata(node, node.NodeId)
                     {
                         NodeClass = NodeClass.Object,
                         BrowseName = node.BrowseName,
@@ -1330,7 +1330,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new ValueTask<NodeState?>((NodeState?)null));
             await manager.Builder.SealAsync().ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(requestedId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(requestedId).ConfigureAwait(false))!;
             Assert.That(handle, Is.Null);
         }
 
@@ -1733,8 +1733,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             bool browse,
             CancellationToken cancellationToken)
         {
-            object handle = await manager.GetManagerHandleAsync(sourceId, cancellationToken).ConfigureAwait(false)
-                ?? throw new AssertionException("The registered virtual source must have a manager handle.");
+            object handle = (await manager.GetManagerHandleAsync(sourceId, cancellationToken).ConfigureAwait(false)
+                ?? throw new AssertionException("The registered virtual source must have a manager handle."))!;
             if (browse)
             {
                 using var continuation = new ContinuationPoint

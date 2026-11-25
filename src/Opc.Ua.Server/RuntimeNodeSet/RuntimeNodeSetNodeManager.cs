@@ -267,14 +267,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask AddPredefinedNodeAsync(
-            ISystemContext context,
-            NodeState node,
-            CancellationToken cancellationToken = default)
+        protected override void OnPredefinedNodeAdded(ISystemContext context, NodeState node)
         {
-            await base.AddPredefinedNodeAsync(context, node, cancellationToken)
-                .ConfigureAwait(false);
-
+            base.OnPredefinedNodeAdded(context, node);
             m_dispatcher?.NotifyNodeAdded(context, node);
         }
 

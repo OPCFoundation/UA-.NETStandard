@@ -1657,6 +1657,11 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Gets whether <see cref="SealGraphAuthoring"/> has run.
+        /// </summary>
+        internal bool IsGraphAuthoringSealed => m_sealed;
+
+        /// <summary>
         /// Rejects graph or callback changes once configuration has been sealed.
         /// </summary>
         internal void ThrowIfSealed()

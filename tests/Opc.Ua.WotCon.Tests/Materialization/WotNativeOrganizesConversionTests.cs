@@ -92,7 +92,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     It.IsAny<BrowseResultMask>(),
                     It.IsAny<CancellationToken>()))
                 .Returns((OperationContext _, object handle, BrowseResultMask _, CancellationToken _) =>
-                    new ValueTask<NodeMetadata>(new NodeMetadata(handle, (NodeId)handle)
+                    new ValueTask<NodeMetadata?>(new NodeMetadata(handle, (NodeId)handle)
                     {
                         NodeClass = NodeClass.ObjectType,
                         BrowseName = new QualifiedName("BaseObjectType")

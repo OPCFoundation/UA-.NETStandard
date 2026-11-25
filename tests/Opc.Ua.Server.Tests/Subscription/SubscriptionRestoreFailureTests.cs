@@ -903,7 +903,7 @@ namespace Opc.Ua.Server.Tests
                 m_mock = new Mock<IAsyncNodeManager>();
                 m_mock.SetupGet(value => value.NamespaceUris).Returns([DeterministicServerMock.TestNamespaceUri]);
                 m_mock.Setup(value => value.GetManagerHandleAsync(SourceId, It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<object>(source));
+                    .Returns(new ValueTask<object?>(source));
                 m_mock
                     .Setup(value => value.SubscribeToEventsAsync(
                         It.IsAny<OperationContext>(),

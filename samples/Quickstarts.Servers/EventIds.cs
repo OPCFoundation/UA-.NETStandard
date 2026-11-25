@@ -28,7 +28,6 @@ namespace Quickstarts.Servers
         public const int NonExclusiveLevelHolder = 120;
         public const int ReferenceNodeManager = 130;
         public const int ReferenceServer = 140;
-        public const int SampleNodeManager = 160;
         public const int SubscriptionStore = 170;
         public const int TestDataNodeManager = 180;
         public const int TestDataSystem = 190;

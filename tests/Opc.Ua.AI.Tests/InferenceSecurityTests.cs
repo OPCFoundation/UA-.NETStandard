@@ -667,7 +667,7 @@ namespace Opc.Ua.AI.Tests
             using var continuation = new ContinuationPoint
             {
                 Manager = nm,
-                NodeToBrowse = await nm.GetManagerHandleAsync(root.Jobs!.NodeId).ConfigureAwait(false),
+                NodeToBrowse = (await nm.GetManagerHandleAsync(root.Jobs!.NodeId).ConfigureAwait(false))!,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = NodeId.Null,
                 IncludeSubtypes = true,

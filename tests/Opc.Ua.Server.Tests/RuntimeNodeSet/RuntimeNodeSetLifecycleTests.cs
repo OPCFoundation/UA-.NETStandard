@@ -601,13 +601,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 trackedReferences[rootNodeId][0].TargetId,
                 Is.EqualTo(new ExpandedNodeId(ObjectIds.Server)));
 
-            object sourceHandle = await runtimeManager
+            object? sourceHandle = await runtimeManager
                 .GetManagerHandleAsync(rootNodeId)
                 .ConfigureAwait(false);
             Assert.That(sourceHandle, Is.Not.Null);
             ServiceResult deleteResult = await runtimeManager
                 .DeleteReferenceAsync(
-                    sourceHandle,
+                    sourceHandle!,
                     ReferenceTypeIds.HasComponent,
                     isInverse: false,
                     targetId: ObjectIds.Server,

@@ -72,7 +72,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         }
                         mutations++;
                     }
-                    return new ValueTask<object>(result: null!);
+                    return new ValueTask<object?>(result: null!);
                 });
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(owner => owner.CreateAsync(

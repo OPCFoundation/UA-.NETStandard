@@ -420,7 +420,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
+        public ValueTask<object?> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
             {
@@ -430,11 +430,11 @@ namespace Opc.Ua.Server
             object? handle = SyncNodeManager.GetManagerHandle(nodeId);
 
             // Return a completed ValueTask since the underlying call is synchronous.
-            return new ValueTask<object>(handle!);
+            return new ValueTask<object?>(handle);
         }
 
         /// <inheritdoc/>
-        public ValueTask<NodeMetadata> GetNodeMetadataAsync(
+        public ValueTask<NodeMetadata?> GetNodeMetadataAsync(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
@@ -448,7 +448,7 @@ namespace Opc.Ua.Server
             NodeMetadata? nodeMetadata = SyncNodeManager.GetNodeMetadata(context, targetHandle, resultMask);
 
             // Return a completed ValueTask since the underlying call is synchronous.
-            return new ValueTask<NodeMetadata>(nodeMetadata!);
+            return new ValueTask<NodeMetadata?>(nodeMetadata);
         }
 
         /// <inheritdoc/>
