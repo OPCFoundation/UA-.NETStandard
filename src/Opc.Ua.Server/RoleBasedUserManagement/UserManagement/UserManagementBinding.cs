@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.UserManagement
             await Task.Yield();
 
             var result = new AddUserMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.UserManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -229,7 +229,7 @@ namespace Opc.Ua.Server.UserManagement
             await Task.Yield();
 
             var result = new ModifyUserMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.UserManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.UserManagement
             await Task.Yield();
 
             var result = new RemoveUserMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.UserManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;

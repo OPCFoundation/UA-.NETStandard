@@ -3441,6 +3441,42 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the authorization policy that every administrator check of the server consults.
+        /// </summary>
+        /// <remarks>
+        /// Returns <see cref="ServerAuthorizationPolicy.Default"/>. Override to supply host rules,
+        /// or register an <see cref="IServerAuthorizationPolicy"/> in the service container when
+        /// hosting through dependency injection.
+        /// </remarks>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>The authorization policy.</returns>
+        protected virtual IServerAuthorizationPolicy CreateAuthorizationPolicy(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return ServerAuthorizationPolicy.Default;
+        }
+
+        /// <summary>
+        /// Creates the sink that receives the audit events of the server.
+        /// </summary>
+        /// <remarks>
+        /// Returns <paramref name="addressSpaceSink"/>, which publishes each event to subscribed
+        /// clients. Override to forward events elsewhere as well (wrap it in a
+        /// <see cref="CompositeAuditEventSink"/>) or, deliberately, instead.
+        /// </remarks>
+        /// <param name="server">The server.</param>
+        /// <param name="addressSpaceSink">The default sink that publishes in the address space.</param>
+        /// <returns>The audit event sink.</returns>
+        protected virtual IAuditEventSink CreateAuditEventSink(
+            IServerInternal server,
+            IAuditEventSink addressSpaceSink)
+        {
+            return addressSpaceSink;
+        }
+
+        /// <summary>
         /// Creates the session manager for the server.
         /// </summary>
         /// <param name="server">The server.</param>

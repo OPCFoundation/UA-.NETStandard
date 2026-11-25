@@ -17,9 +17,6 @@ namespace Opc.Ua.Server
     /// </remarks>
     public static class RoleAuthorizationGate
     {
-        private static readonly NodeId s_securityAdmin
-            = ObjectIds.WellKnownRole_SecurityAdmin;
-
         /// <summary>
         /// Returns <c>Good</c> if the calling session is authorised to invoke
         /// an administrator method on the role/user management API.
@@ -31,28 +28,24 @@ namespace Opc.Ua.Server
         ///   or does not hold the <c>SecurityAdmin</c> role;</item>
         /// </list>
         /// </summary>
+        /// <remarks>
+        /// Asks the server's <see cref="IServerAuthorizationPolicy"/> for
+        /// <see cref="ServerAuthorizationDecision.SecurityAdmin"/>.
+        /// </remarks>
         public static ServiceResult CheckAdmin(ISystemContext context)
         {
-            ServiceResult channel = CheckEncryptedChannel(context);
-            if (ServiceResult.IsBad(channel))
-            {
-                return channel;
-            }
+            return Check(context, ServerAuthorizationDecision.SecurityAdmin);
+        }
 
-            IUserIdentity? identity = GetUserIdentity(context);
-            if (identity == null || identity.TokenType == UserTokenType.Anonymous)
-            {
-                return new ServiceResult(StatusCodes.BadUserAccessDenied,
-                    new LocalizedText("An authenticated SecurityAdmin session is required."));
-            }
-
-            if (!HoldsAdminRole(identity))
-            {
-                return new ServiceResult(StatusCodes.BadUserAccessDenied,
-                    new LocalizedText("The session does not hold the SecurityAdmin role."));
-            }
-
-            return ServiceResult.Good;
+        /// <summary>
+        /// Asks the <see cref="IServerAuthorizationPolicy"/> of the server that owns
+        /// <paramref name="context"/> for <paramref name="decision"/>.
+        /// </summary>
+        /// <param name="context">The calling context.</param>
+        /// <param name="decision">The decision to make.</param>
+        public static ServiceResult Check(ISystemContext context, ServerAuthorizationDecision decision)
+        {
+            return ServerAuthorizationPolicy.Resolve(context).Authorize(context, decision);
         }
 
         /// <summary>
@@ -112,41 +105,11 @@ namespace Opc.Ua.Server
             return (context as ISessionSystemContext)?.UserIdentity;
         }
 
-        private static bool HoldsAdminRole(IUserIdentity identity)
-        {
-            if (identity.GrantedRoleIds.Count == 0)
-            {
-                return false;
-            }
-            // Well-known role NodeIds are always in namespace 0 by spec
-            // (Part 3 §4.9.2 and Part 6 §F.7). Compare against both the
-            // canonical NodeId and the numeric identifier directly so a
-            // custom IRoleManager that returns the well-known role under a
-            // different NodeId representation still authorises correctly.
-            const uint securityAdminId = Objects.WellKnownRole_SecurityAdmin;
-            foreach (NodeId nodeId in identity.GrantedRoleIds)
-            {
-                if (nodeId == s_securityAdmin)
-                {
-                    return true;
-                }
-                if (nodeId.NamespaceIndex == 0 &&
-                    nodeId.IdType == IdType.Numeric &&
-                    nodeId.TryGetValue(out uint id) &&
-                    id == securityAdminId)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         private static SecureChannelContext? GetChannelContext(ISystemContext? context)
         {
             // The OPC UA Server hands a SessionSystemContext (concretely a
-            // ServerSystemContext) to method-state OnCallAsync delegates;
-            // ConfigurationNodeManager.HasApplicationSecureAdminAccess uses
-            // the same pattern. Match both base classes defensively so the
+            // ServerSystemContext) to method-state OnCallAsync delegates.
+            // Match both base classes defensively so the
             // gate works whether the caller is the server-side method
             // dispatcher (SessionSystemContext) or a fluent address-space
             // path that uses plain SystemContext.

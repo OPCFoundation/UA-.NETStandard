@@ -2363,17 +2363,8 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"/>
         private static bool HasApplicationSecureAdminAccess(ISystemContext context)
         {
-            if (context is SessionSystemContext { OperationContext: OperationContext operationContext } session)
-            {
-                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode !=
-                    MessageSecurityMode.SignAndEncrypt)
-                {
-                    return false;
-                }
-
-                return session?.UserIdentity?.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
-            }
-            return false;
+            return ServiceResult.IsGood(
+                RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.DiagnosticsRead));
         }
 
         /// <summary>

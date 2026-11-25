@@ -971,55 +971,47 @@ namespace Opc.Ua.Server
             ISystemContext context,
             bool requireEncryptedChannel)
         {
-            if (context is SessionSystemContext { OperationContext: OperationContext operationContext })
+            ServiceResult result = AuthorizationPolicy.Authorize(context, GetPushDecision(requireEncryptedChannel));
+            if (ServiceResult.IsBad(result))
             {
-                MessageSecurityMode securityMode = operationContext
-                    .ChannelContext?
-                    .EndpointDescription?
-                    .SecurityMode
-                    ?? MessageSecurityMode.Invalid;
-
-                bool channelSecure = requireEncryptedChannel
-                    ? securityMode == MessageSecurityMode.SignAndEncrypt
-                    : securityMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
-
-                if (!channelSecure)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadSecurityModeInsufficient,
-                        requireEncryptedChannel
-                            ? "This Method must be called from an encrypted SecureChannel " +
-                                "(MessageSecurityMode SignAndEncrypt)."
-                            : "This Method must be called from an authenticated SecureChannel " +
-                                "(MessageSecurityMode Sign or SignAndEncrypt).");
-                }
-
-                IUserIdentity identity = operationContext.UserIdentity;
-                // allow access to system configuration only with Role SecurityAdmin
-                if (identity == null ||
-                    identity.TokenType == UserTokenType.Anonymous ||
-                    !identity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUserAccessDenied,
-                        "Security Admin Role required to access this item.");
-                }
+                throw new ServiceResultException(result);
             }
         }
 
         /// <summary>
-        /// Awaits host policy only after the standard channel and role checks succeed.
+        /// Awaits host policy only after the server authorization policy grants the push decision.
         /// </summary>
-        private ValueTask AuthorizePushMutationAsync(
+        private async ValueTask AuthorizePushMutationAsync(
             ISystemContext context,
             bool requireEncryptedChannel,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel);
-            return m_serverConfigurationOptions.PushAuthorization?
-                .AuthorizeAsync(context, cancellationToken) ?? default;
+            ServiceResult result = await AuthorizationPolicy
+                .AuthorizeAsync(context, GetPushDecision(requireEncryptedChannel), cancellationToken)
+                .ConfigureAwait(false);
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
+            if (m_serverConfigurationOptions.PushAuthorization is { } pushAuthorization)
+            {
+                await pushAuthorization.AuthorizeAsync(context, cancellationToken).ConfigureAwait(false);
+            }
         }
+
+        private static ServerAuthorizationDecision GetPushDecision(bool requireEncryptedChannel)
+        {
+            return requireEncryptedChannel
+                ? ServerAuthorizationDecision.CertificatePushEncrypted
+                : ServerAuthorizationDecision.CertificatePush;
+        }
+
+        /// <summary>
+        /// The authorization policy of the owning server.
+        /// </summary>
+        private IServerAuthorizationPolicy AuthorizationPolicy =>
+            (Server as IServerAuthorizationPolicyProvider)?.AuthorizationPolicy ?? ServerAuthorizationPolicy.Default;
 
         /// <summary>
         /// Extracts the owning Session's NodeId from <paramref name="context"/>,
