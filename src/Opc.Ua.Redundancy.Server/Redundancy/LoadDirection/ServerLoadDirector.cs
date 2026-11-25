@@ -68,12 +68,33 @@ namespace Opc.Ua.Redundancy.Server
             IPeerEndpointPublisher endpointPublisher,
             string localServerUri)
         {
+            ConfigureCore(policy, endpointDirectory,
+                endpointPublisher ?? throw new ArgumentNullException(nameof(endpointPublisher)), localServerUri);
+        }
+
+        /// <summary>
+        /// Activates redirection without publishing request-filtered endpoint snapshots.
+        /// </summary>
+        internal void ConfigureForHostedPublishing(
+            IServerDirectionPolicy policy,
+            IPeerEndpointDirectory endpointDirectory,
+            string localServerUri)
+        {
+            ConfigureCore(policy, endpointDirectory, null, localServerUri);
+        }
+
+        private void ConfigureCore(
+            IServerDirectionPolicy policy,
+            IPeerEndpointDirectory endpointDirectory,
+            IPeerEndpointPublisher? endpointPublisher,
+            string localServerUri)
+        {
             m_endpointDirectory = endpointDirectory ?? throw new ArgumentNullException(nameof(endpointDirectory));
-            m_endpointPublisher = endpointPublisher ?? throw new ArgumentNullException(nameof(endpointPublisher));
             if (string.IsNullOrEmpty(localServerUri))
             {
                 throw new ArgumentException("The local ServerUri must be provided.", nameof(localServerUri));
             }
+            m_endpointPublisher = endpointPublisher;
             m_localServerUri = localServerUri;
             m_policy = policy ?? throw new ArgumentNullException(nameof(policy));
         }

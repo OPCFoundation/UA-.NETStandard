@@ -7,6 +7,7 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -169,6 +170,66 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(endpoints[0]?.Server?.ApplicationUri, Is.EqualTo(PeerServerUri));
         }
 
+        [Test]
+        public async Task IdleHostedPeerRefreshesHealthAndCurrentEndpointsUntilStoppedAsync()
+        {
+            const string updatedUrl = "opc.tcp://renewed:4840";
+            using var store = new InMemorySharedKeyValueStore();
+            var time = new FakeTimeProvider();
+            var options = new LoadDirectionOptions
+            {
+                PeerApplicationUris = [LocalServerUri],
+                StalenessWindow = TimeSpan.FromSeconds(10)
+            };
+            ArrayOf<EndpointDescription> snapshot = LocalEndpoints(LocalServerUri);
+            Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context,
+                endpointSnapshot: () => snapshot);
+            var directory = new SharedPeerEndpointDirectory(store, context, NullRecordProtector.Instance,
+                options, time);
+            var peerView = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
+            ServerLoadDirector director = CreateDirector();
+            var startupTask = new LoadDirectionStartupTask(store, NullRecordProtector.Instance, options,
+                director, time, options.PeerApplicationUris, useHostedPublishing: true);
+            await using var publisher = new PeerDirectionPublishStartupTask(store, NullRecordProtector.Instance,
+                options, new ConstantServiceLevelProvider(255), new ConstantLoadWeightProvider(), time);
+            await startupTask.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+            await publisher.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+
+            ArrayOf<EndpointDescription> initial = await directory.GetEndpointsAsync(LocalServerUri)
+                .ConfigureAwait(false);
+            Assert.That(initial.Count, Is.EqualTo(1));
+            Assert.That(initial[0].EndpointUrl, Is.Not.EqualTo(updatedUrl));
+
+            snapshot = LocalEndpoints(LocalServerUri);
+            snapshot[0].EndpointUrl = updatedUrl;
+            time.Advance(TimeSpan.FromSeconds(6));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (true)
+            {
+                ArrayOf<EndpointDescription> current = await directory.GetEndpointsAsync(LocalServerUri, timeout.Token)
+                    .ConfigureAwait(false);
+                if (current.Count == 1 && current[0].EndpointUrl == updatedUrl)
+                {
+                    break;
+                }
+                await Task.Delay(10, timeout.Token).ConfigureAwait(false);
+            }
+
+            time.Advance(TimeSpan.FromSeconds(5));
+            Assert.That((await peerView.GetPeersAsync().ConfigureAwait(false)).Count, Is.EqualTo(1));
+            await director.TryGetDirectedEndpointsAsync("opc.tcp://normal:4840", LocalEndpoints(LocalServerUri))
+                .ConfigureAwait(false);
+            ArrayOf<EndpointDescription> fresh = await directory.GetEndpointsAsync(LocalServerUri)
+                .ConfigureAwait(false);
+            Assert.That(fresh.Count, Is.EqualTo(1));
+            Assert.That(fresh[0].EndpointUrl, Is.EqualTo(updatedUrl));
+
+            await publisher.DisposeAsync().ConfigureAwait(false);
+            time.Advance(options.StalenessWindow + TimeSpan.FromTicks(1));
+            Assert.That((await peerView.GetPeersAsync().ConfigureAwait(false)).Count, Is.Zero);
+            Assert.That((await directory.GetEndpointsAsync(LocalServerUri).ConfigureAwait(false)).Count, Is.Zero);
+        }
+
         [TestCase(true, false, true)]
         [TestCase(false, false, false)]
         [TestCase(true, true, false)]
@@ -222,7 +283,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private static Mock<IServerInternal> CreateServer(
             bool hasServerUri,
             out IServiceMessageContext context,
-            IServiceMessageContext? sharedContext = null)
+            IServiceMessageContext? sharedContext = null,
+            Func<ArrayOf<EndpointDescription>>? endpointSnapshot = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             context = sharedContext ?? ServiceMessageContext.CreateEmpty(telemetry);
@@ -233,6 +295,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             var server = new Mock<IServerInternal>();
+            if (endpointSnapshot is not null)
+            {
+                server.As<IServerEndpointRegistryProvider>().Setup(s => s.ServerEndpoints).Returns(endpointSnapshot);
+            }
             server.Setup(s => s.Telemetry).Returns(telemetry);
             server.Setup(s => s.ServerUris).Returns(serverUris);
             server.Setup(s => s.MessageContext).Returns(context);

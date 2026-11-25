@@ -33,8 +33,8 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// The shared-store key prefix for the per-peer published <c>EndpointDescription</c>s that the local Server
-        /// returns when it directs a Client to a peer. The record is refreshed by normal discovery requests and
-        /// can be routed to the strongly-consistent store alongside the health signal.
+        /// returns when it directs a Client to a peer. Hosted servers refresh the complete endpoint snapshot
+        /// independently of discovery traffic. This keyspace can be strongly consistent alongside the health signal.
         /// </summary>
         public string EndpointKeyPrefix { get; set; } = "endpoint/";
 

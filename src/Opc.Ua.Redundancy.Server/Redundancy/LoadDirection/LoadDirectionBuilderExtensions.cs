@@ -64,7 +64,8 @@ namespace Opc.Ua.Redundancy.Server
                 options,
                 sp.GetRequiredService<ServerLoadDirector>(),
                 ResolveTimeProvider(sp),
-                ResolvePeerApplicationUris(sp, options)));
+                ResolvePeerApplicationUris(sp, options),
+                useHostedPublishing: true));
             builder.Services.AddSingleton<IServerStartupTask>(sp => new PeerDirectionPublishStartupTask(
                 sp.GetRequiredService<ISharedKeyValueStore>(),
                 ResolveProtector(sp),

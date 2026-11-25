@@ -45,7 +45,8 @@ namespace Opc.Ua.Redundancy.Server
             LoadDirectionOptions options,
             ServerLoadDirector director,
             TimeProvider timeProvider,
-            ArrayOf<string> peerApplicationUris)
+            ArrayOf<string> peerApplicationUris,
+            bool useHostedPublishing = false)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_protector = LoadDirectionRecordValidation.RequireProtection(m_store, protector);
@@ -53,6 +54,7 @@ namespace Opc.Ua.Redundancy.Server
             m_director = director ?? throw new ArgumentNullException(nameof(director));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_peerApplicationUris = peerApplicationUris;
+            m_useHostedPublishing = useHostedPublishing;
         }
 
         /// <inheritdoc/>
@@ -79,10 +81,16 @@ namespace Opc.Ua.Redundancy.Server
             var policy = new BandedServerDirectionPolicy(view, m_options, LoadDirectionRandom.NextIndex);
             var directory = new SharedPeerEndpointDirectory(
                 m_store, context, m_protector, m_options, m_timeProvider, m_peerApplicationUris);
-            var endpointPublisher = new SharedPeerEndpointPublisher(
-                m_store, context, m_protector, m_options, localServerUri!, m_timeProvider);
-
-            m_director.Configure(policy, directory, endpointPublisher, localServerUri!);
+            if (m_useHostedPublishing && server is IServerEndpointRegistryProvider)
+            {
+                m_director.ConfigureForHostedPublishing(policy, directory, localServerUri!);
+            }
+            else
+            {
+                var endpointPublisher = new SharedPeerEndpointPublisher(
+                    m_store, context, m_protector, m_options, localServerUri!, m_timeProvider);
+                m_director.Configure(policy, directory, endpointPublisher, localServerUri!);
+            }
             return default;
         }
 
@@ -92,6 +100,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ServerLoadDirector m_director;
         private readonly TimeProvider m_timeProvider;
         private readonly ArrayOf<string> m_peerApplicationUris;
+        private readonly bool m_useHostedPublishing;
     }
 
     /// <summary>

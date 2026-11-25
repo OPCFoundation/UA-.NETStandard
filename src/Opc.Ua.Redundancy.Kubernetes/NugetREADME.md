@@ -21,10 +21,36 @@ services.AddOpcUa()
     .AddServer(...)
     .UseKubernetesLeaderElection(options => options.LeaseName = "opcua-ha")
     .UseKubernetesPeerDiscovery(options => options.ServiceName = "opcua-ha-headless")
-    .UseKubernetesReadiness(); // /readyz and /livez on port 4852
+    .UseKubernetesReadiness(options =>
+    {
+        string podIp = Environment.GetEnvironmentVariable("POD_IP")
+            ?? throw new InvalidOperationException("Set POD_IP from status.podIP.");
+        options.Host = new UriBuilder("http", podIp).Host;
+    });
 ```
 
-The readiness probe listens on `KubernetesReadinessOptions.DefaultPort` (4852) unless `Port` is set. The default stays off the ports web applications commonly use (8080, 9090, ...), which would collide with the application or a sidecar in the same pod.
+Kubelet sends HTTP probes to the pod IP, so bind the listener to that IP
+rather than its default, `localhost`. Set `POD_IP` on the container using
+the Kubernetes Downward API:
+
+```yaml
+env:
+  - name: POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 4852
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: 4852
+```
+
+Both probes use `KubernetesReadinessOptions.DefaultPort` (4852) unless you
+set `Port`. If you change the port, update both probe definitions.
 
 Register a leader-aware `IServiceLevelProvider` so readiness reflects the
 elected role. Kubernetes Lease election alone does not guard publication of

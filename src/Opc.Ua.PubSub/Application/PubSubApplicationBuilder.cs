@@ -73,6 +73,8 @@ namespace Opc.Ua.PubSub.Application
         private IPubSubActivationCoordinator? m_activationCoordinator;
         private IPubSubNonceRangeStore? m_nonceRangeStore;
         private IPubSubActivationFenceProvider? m_activationFenceProvider;
+        private IPubSubRuntimeStateStore? m_runtimeStateStore;
+        private IPubSubWriterCheckpointStore? m_writerCheckpointStore;
 
         private Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?>?
             m_securityPolicySelector;
@@ -585,21 +587,27 @@ namespace Opc.Ua.PubSub.Application
             ConfigureRedundancy(
                 coordinator ?? throw new ArgumentNullException(nameof(coordinator)),
                 nonceRangeStore ?? throw new ArgumentNullException(nameof(nonceRangeStore)),
-                fences);
+                fences,
+                m_runtimeStateStore,
+                m_writerCheckpointStore);
             return this;
         }
 
         /// <summary>
-        /// Supplies the activation and optional reservation providers registered with DI.
+        /// Supplies the activation, nonce reservation and persistence providers registered with DI.
         /// </summary>
         internal void ConfigureRedundancy(
             IPubSubActivationCoordinator? coordinator,
             IPubSubNonceRangeStore? nonceRangeStore,
-            IPubSubActivationFenceProvider? fences)
+            IPubSubActivationFenceProvider? fences,
+            IPubSubRuntimeStateStore? runtimeStateStore,
+            IPubSubWriterCheckpointStore? writerCheckpointStore)
         {
             m_activationCoordinator = coordinator;
             m_nonceRangeStore = nonceRangeStore;
             m_activationFenceProvider = fences;
+            m_runtimeStateStore = runtimeStateStore;
+            m_writerCheckpointStore = writerCheckpointStore;
         }
 
         /// <summary>
@@ -645,9 +653,9 @@ namespace Opc.Ua.PubSub.Application
                     securityWrapperResolver: resolver,
                     maxNetworkMessageSizeResolver: null,
                     configurationStore: null,
-                    runtimeStateStore: null,
+                    runtimeStateStore: m_runtimeStateStore,
                     activationCoordinator: m_activationCoordinator,
-                    writerCheckpointStore: null,
+                    writerCheckpointStore: m_writerCheckpointStore,
                     unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
                     {
                         MaxCost = m_options.MaxUnauthenticatedMetaDataCost,

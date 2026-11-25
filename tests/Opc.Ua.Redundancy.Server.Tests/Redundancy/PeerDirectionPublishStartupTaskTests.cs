@@ -231,6 +231,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             loadWeight.Raise(99);
+            time.Advance(options.LoadPublishInterval);
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
             PeerDirectionRecord peer = await WaitForPeerAsync(view, p => p.LoadWeight == 99).ConfigureAwait(false);
@@ -321,8 +322,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
             await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
-            // Let the coalescing timer tick several times without any load change: each tick must be a no-op.
-            await Task.Delay(150).ConfigureAwait(false);
+            time.Advance(TimeSpan.FromTicks(options.LoadPublishInterval.Ticks * 3));
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
             ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
