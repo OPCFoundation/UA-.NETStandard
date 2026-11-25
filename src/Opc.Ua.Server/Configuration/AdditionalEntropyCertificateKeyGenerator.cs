@@ -388,6 +388,15 @@ namespace Opc.Ua.Server
         /// accepting a composite below the modulus's security strength. Each round of a prime that
         /// is accepted costs a full-size modular exponentiation, which is slow with the managed
         /// <see cref="BigInteger"/> of .NET Framework, so the count is not raised beyond the standard.
+        /// The table's error bounds (Damgård–Landrock–Pomerance) assume what
+        /// <see cref="GeneratePrime"/> does: every candidate is a fresh, uniformly random odd number
+        /// of the prime's size (no incremental search from one start value), and every round
+        /// draws its own random base. Fixing the top two bits draws from half of the odd
+        /// numbers of that size, about the share FIPS 186-5 itself uses (from √2·2^(b-1) up),
+        /// so the error grows at most twofold, far inside the margin of the table. Trial
+        /// division by small primes only rejects composites before Miller-Rabin runs. A modulus
+        /// between table rows uses the row below it, which is conservative because the error
+        /// bound falls as the prime grows.
         /// Moduli below 2048 bits have no FIPS 186-5 entry and keep a conservative fixed count.
         /// </remarks>
         /// <param name="modulusBits">The size of the RSA modulus in bits.</param>
