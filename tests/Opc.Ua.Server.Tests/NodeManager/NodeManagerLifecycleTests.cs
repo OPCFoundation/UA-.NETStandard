@@ -8245,17 +8245,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// previously delivered sequence numbers on each call, until a
         /// <see cref="DataChangeNotification"/> carrying <paramref name="clientHandle"/>
         /// arrives. Used to prove that a monitored item keeps being serviced (by whichever
-        /// NodeManager generation owns it) after a live lifecycle switch.
+        /// NodeManager generation owns it) after a live lifecycle switch. With
+        /// <paramref name="expected"/>, the first notification in a response that carries
+        /// it is returned even if a later one for the same handle follows.
         /// </summary>
         private async Task<(DataValue? Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
             PublishForDataChangeAsync(
                 ServerTestServices services,
                 uint subscriptionId,
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements,
-                uint clientHandle)
+                uint clientHandle,
+                int? expected = null)
         {
             const int MaxPublishAttempts = 20;
             DataValue? value = null;
+            bool matched = false;
 
             for (int attempt = 0; attempt < MaxPublishAttempts && value is null; attempt++)
             {
@@ -8284,9 +8288,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         {
                             foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                             {
-                                if (item.ClientHandle == clientHandle)
+                                if (item.ClientHandle == clientHandle && !matched)
                                 {
+                                    // With an expected value, the first match in the response
+                                    // wins; a later sample in the same response must not hide it.
                                     value = item.Value;
+                                    matched = expected is int wanted &&
+                                        item.Value is { } current &&
+                                        current.WrappedValue.TryGetValue(out int received) &&
+                                        received == wanted;
                                 }
                             }
                         }
@@ -8323,7 +8333,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     services,
                     subscriptionId,
                     acknowledgements,
-                    clientHandle).ConfigureAwait(false);
+                    clientHandle,
+                    expected).ConfigureAwait(false);
                 if (value is { } current &&
                     current.WrappedValue.TryGetValue(out int received) &&
                     received == expected)
