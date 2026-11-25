@@ -11,15 +11,24 @@ namespace Opc.Ua.Server
     /// and OPC 10000-18 (roles and users) that <see cref="RoleAuthorizationGate"/> enforced.
     /// </summary>
     /// <remarks>
-    /// Every decision requires an authenticated (non-anonymous) session that holds the
-    /// SecurityAdmin well-known role (or, for <see cref="ServerAuthorizationDecision.ConfigureAdmin"/>
-    /// and <see cref="ServerAuthorizationDecision.DiagnosticsConfiguration"/>, the ConfigureAdmin
-    /// role) on a SignAndEncrypt channel. <see cref="ServerAuthorizationDecision.CertificatePush"/>
-    /// accepts a Sign channel as well. The two certificate push decisions allow server-internal
-    /// calls (contexts without an <see cref="OperationContext"/>), so the host can drive the push
-    /// methods in process; every other decision denies them. The channel is checked first and
-    /// reported as <c>Bad_SecurityModeInsufficient</c>; the identity and role are reported as
+    /// <para>
+    /// A request that carries a <see cref="ServerAuthorizationRequest.StandardRule"/> (the GDS
+    /// and onboarding decisions) is decided by that rule; a companion decision without one is
+    /// denied.
+    /// </para>
+    /// <para>
+    /// Every other decision requires an authenticated (non-anonymous) session that holds the
+    /// SecurityAdmin well-known role on a SignAndEncrypt channel. ConfigureAdmin also satisfies
+    /// <see cref="ServerAuthorizationDecision.ConfigureAdmin"/> and
+    /// <see cref="ServerAuthorizationDecision.DiagnosticsConfiguration"/>; SecurityKeyServerPush also
+    /// satisfies <see cref="ServerAuthorizationDecision.SecurityKeyPush"/>.
+    /// <see cref="ServerAuthorizationDecision.CertificatePush"/> accepts a Sign channel as well. The
+    /// certificate push, TrustList and security key push decisions allow server-internal calls
+    /// (contexts without an <see cref="OperationContext"/>), so the host can drive them in process;
+    /// every other decision denies them. The channel is checked first and reported as
+    /// <c>Bad_SecurityModeInsufficient</c>; the identity and role are reported as
     /// <c>Bad_UserAccessDenied</c>.
+    /// </para>
     /// </remarks>
     public class ServerAuthorizationPolicy : IServerAuthorizationPolicy
     {
@@ -44,8 +53,20 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual ServiceResult Authorize(ISystemContext context, ServerAuthorizationDecision decision)
+        public virtual ServiceResult Authorize(ISystemContext context, ServerAuthorizationRequest request)
         {
+            if (request.StandardRule != null)
+            {
+                return request.EvaluateStandardRule(context);
+            }
+
+            ServerAuthorizationDecision decision = request.Decision;
+            if (!HasServerRule(decision))
+            {
+                // A companion decision asked without its owning component's rule.
+                return request.EvaluateStandardRule(context);
+            }
+
             OperationContext? operationContext = GetOperationContext(context);
             if (operationContext == null)
             {
@@ -83,30 +104,57 @@ namespace Opc.Ua.Server
                     new LocalizedText("An authenticated SecurityAdmin session is required."));
             }
 
-            bool acceptConfigureAdmin = decision is
-                ServerAuthorizationDecision.ConfigureAdmin or
-                ServerAuthorizationDecision.DiagnosticsConfiguration;
-            if (!HoldsRole(identity, Objects.WellKnownRole_SecurityAdmin) &&
-                !(acceptConfigureAdmin && HoldsRole(identity, Objects.WellKnownRole_ConfigureAdmin)))
+            if (HoldsRole(identity, Objects.WellKnownRole_SecurityAdmin))
             {
-                return new ServiceResult(
-                    StatusCodes.BadUserAccessDenied,
-                    new LocalizedText(acceptConfigureAdmin
-                        ? "The session does not hold the SecurityAdmin or ConfigureAdmin role."
-                        : "The session does not hold the SecurityAdmin role."));
+                return ServiceResult.Good;
             }
 
-            return ServiceResult.Good;
+            switch (decision)
+            {
+                case ServerAuthorizationDecision.ConfigureAdmin:
+                case ServerAuthorizationDecision.DiagnosticsConfiguration:
+                    return HoldsRole(identity, Objects.WellKnownRole_ConfigureAdmin)
+                        ? ServiceResult.Good
+                        : new ServiceResult(
+                            StatusCodes.BadUserAccessDenied,
+                            new LocalizedText("The session does not hold the SecurityAdmin or ConfigureAdmin role."));
+                case ServerAuthorizationDecision.SecurityKeyPush:
+                    return HoldsRole(identity, Objects.WellKnownRole_SecurityKeyServerPush)
+                        ? ServiceResult.Good
+                        : new ServiceResult(
+                            StatusCodes.BadUserAccessDenied,
+                            new LocalizedText("The session does not hold the SecurityAdmin or SecurityKeyServerPush role."));
+                default:
+                    return new ServiceResult(
+                        StatusCodes.BadUserAccessDenied,
+                        new LocalizedText("The session does not hold the SecurityAdmin role."));
+            }
         }
 
         /// <inheritdoc/>
         public virtual ValueTask<ServiceResult> AuthorizeAsync(
             ISystemContext context,
-            ServerAuthorizationDecision decision,
+            ServerAuthorizationRequest request,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new ValueTask<ServiceResult>(Authorize(context, decision));
+            return new ValueTask<ServiceResult>(Authorize(context, request));
+        }
+
+        /// <summary>
+        /// Returns <see langword="true"/> when the server stack holds the standard rule of
+        /// <paramref name="decision"/>; the companion decisions (GDS directory, certificate
+        /// manager, KeyCredential service, onboarding) take their rule from the request.
+        /// </summary>
+        public static bool HasServerRule(ServerAuthorizationDecision decision)
+        {
+            return decision is not (
+                ServerAuthorizationDecision.ApplicationRegistration or
+                ServerAuthorizationDecision.ApplicationQuery or
+                ServerAuthorizationDecision.CertificateManagement or
+                ServerAuthorizationDecision.CertificateRevocation or
+                ServerAuthorizationDecision.KeyCredentialManagement or
+                ServerAuthorizationDecision.DeviceOnboarding);
         }
 
         /// <summary>
@@ -117,7 +165,10 @@ namespace Opc.Ua.Server
         {
             return decision is
                 ServerAuthorizationDecision.CertificatePush or
-                ServerAuthorizationDecision.CertificatePushEncrypted;
+                ServerAuthorizationDecision.CertificatePushEncrypted or
+                ServerAuthorizationDecision.TrustListRead or
+                ServerAuthorizationDecision.TrustListWrite or
+                ServerAuthorizationDecision.SecurityKeyPush;
         }
 
         /// <summary>

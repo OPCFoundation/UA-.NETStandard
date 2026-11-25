@@ -30,25 +30,25 @@ namespace Opc.Ua.Server
     {
         /// <summary>
         /// Decides whether the caller of <paramref name="context"/> may perform
-        /// <paramref name="decision"/>.
+        /// <paramref name="request"/>.
         /// </summary>
         /// <param name="context">The calling context.</param>
-        /// <param name="decision">The decision to make.</param>
+        /// <param name="request">The decision to make, with its target and owning component rule.</param>
         /// <returns>
         /// <c>Good</c> when access is granted; otherwise the status to return to the client,
         /// normally <c>Bad_SecurityModeInsufficient</c> or <c>Bad_UserAccessDenied</c>.
         /// </returns>
-        ServiceResult Authorize(ISystemContext context, ServerAuthorizationDecision decision);
+        ServiceResult Authorize(ISystemContext context, ServerAuthorizationRequest request);
 
         /// <summary>
         /// Asynchronous form of <see cref="Authorize"/>.
         /// </summary>
         /// <param name="context">The calling context.</param>
-        /// <param name="decision">The decision to make.</param>
+        /// <param name="request">The decision to make, with its target and owning component rule.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         ValueTask<ServiceResult> AuthorizeAsync(
             ISystemContext context,
-            ServerAuthorizationDecision decision,
+            ServerAuthorizationRequest request,
             CancellationToken cancellationToken = default);
     }
 

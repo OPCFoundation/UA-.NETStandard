@@ -389,7 +389,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 await RequireRegistrarAsync(checkpoint, peer, cancellationToken).ConfigureAwait(false);
                 if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Unconfigured)
                 {
-                    AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
+                    AuthorizationHelper.HasAuthorization(context, ServerAuthorizationDecision.DeviceOnboarding, [Role.SecurityAdmin]);
                     await PrepareDefaultsAsync(checkpoint.Stage, cancellationToken).ConfigureAwait(false);
                     await SaveAsync(new(ProvisionableDeviceSecurityStage.Configuring, peer, null), cancellationToken)
                         .ConfigureAwait(false);
@@ -414,7 +414,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ArgumentNullException(nameof(store));
             }
             ByteString peer = GetPeer(context);
-            AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
+            AuthorizationHelper.HasAuthorization(context, ServerAuthorizationDecision.DeviceOnboarding, [Role.SecurityAdmin]);
             cancellationToken.ThrowIfCancellationRequested();
             ArrayOf<ApplicationDescription> detached = ProvisionableDeviceRuntime.SnapshotRegistrars(registrars);
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -518,7 +518,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         {
             ThrowIfDisposed();
             ByteString peer = GetPeer(context);
-            AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
+            AuthorizationHelper.HasAuthorization(context, ServerAuthorizationDecision.DeviceOnboarding, [Role.SecurityAdmin]);
             if (credentials == null)
             {
                 throw new ArgumentNullException(nameof(credentials));

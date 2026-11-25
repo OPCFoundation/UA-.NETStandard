@@ -78,6 +78,62 @@ namespace Opc.Ua.Server
         /// Part 17 alias mutation (AddAliasesToCategory, DeleteAliasesFromCategory).
         /// Default: as <see cref="SecurityAdmin"/>.
         /// </summary>
-        AliasManagement
+        AliasManagement,
+
+        /// <summary>
+        /// Opening and reading a TrustList (Part 12 §7.8.2): the server's own push TrustLists and
+        /// the GDS certificate group TrustLists. Default: as
+        /// <see cref="CertificatePushEncrypted"/>; the GDS supplies its own standard rule.
+        /// </summary>
+        TrustListRead,
+
+        /// <summary>
+        /// Writing a TrustList (Write, CloseAndUpdate, AddCertificate, RemoveCertificate).
+        /// Default: as <see cref="CertificatePushEncrypted"/>; the GDS supplies its own standard rule.
+        /// </summary>
+        TrustListWrite,
+
+        /// <summary>
+        /// Part 14 §9.1.3.3 SetSecurityKeys: a Security Key Server pushes keys to this server.
+        /// Default: SecurityAdmin or SecurityKeyServerPush, authenticated, SignAndEncrypt;
+        /// server-internal calls are allowed.
+        /// </summary>
+        SecurityKeyPush,
+
+        /// <summary>
+        /// GDS Part 12 §6.5 directory changes (RegisterApplication, UpdateApplication,
+        /// UnregisterApplication). The GDS supplies the standard rule.
+        /// </summary>
+        ApplicationRegistration,
+
+        /// <summary>
+        /// GDS Part 12 §6.5 directory reads restricted to a caller (GetApplication).
+        /// The GDS supplies the standard rule.
+        /// </summary>
+        ApplicationQuery,
+
+        /// <summary>
+        /// GDS Part 12 §7.6 certificate management (StartSigningRequest, StartNewKeyPairRequest,
+        /// FinishRequest, GetCertificateGroups, GetTrustList, GetCertificateStatus).
+        /// The GDS supplies the standard rule.
+        /// </summary>
+        CertificateManagement,
+
+        /// <summary>
+        /// GDS Part 12 §7.6 RevokeCertificate. The GDS supplies the standard rule.
+        /// </summary>
+        CertificateRevocation,
+
+        /// <summary>
+        /// GDS Part 12 §8.5 KeyCredential service (StartRequest, FinishRequest, Revoke).
+        /// The GDS supplies the standard rule.
+        /// </summary>
+        KeyCredentialManagement,
+
+        /// <summary>
+        /// Part 21 device onboarding administration (registrar acceptance, provisioning).
+        /// The GDS supplies the standard rule.
+        /// </summary>
+        DeviceOnboarding
     }
 }

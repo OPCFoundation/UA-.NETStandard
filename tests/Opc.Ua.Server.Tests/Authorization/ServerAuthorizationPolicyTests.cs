@@ -26,10 +26,20 @@ namespace Opc.Ua.Server.Tests.Authorization
 
         private static readonly string[] s_expectedSinkOrder = ["first", "third"];
 
-        private static readonly ServerAuthorizationDecision[] s_allDecisions =
-            Enum.GetValues(typeof(ServerAuthorizationDecision)).Cast<ServerAuthorizationDecision>().ToArray();
+        private static readonly ServerAuthorizationDecision[] s_trustListDecisions =
+            [ServerAuthorizationDecision.TrustListRead, ServerAuthorizationDecision.TrustListWrite];
 
-        private static ServerAuthorizationDecision[] AllDecisions() => s_allDecisions;
+        private static readonly ServerAuthorizationDecision[] s_serverDecisions =
+            [.. Enum.GetValues(typeof(ServerAuthorizationDecision)).Cast<ServerAuthorizationDecision>()
+                .Where(ServerAuthorizationPolicy.HasServerRule)];
+
+        private static readonly ServerAuthorizationDecision[] s_companionDecisions =
+            [.. Enum.GetValues(typeof(ServerAuthorizationDecision)).Cast<ServerAuthorizationDecision>()
+                .Where(d => !ServerAuthorizationPolicy.HasServerRule(d))];
+
+        private static ServerAuthorizationDecision[] AllDecisions() => s_serverDecisions;
+
+        private static ServerAuthorizationDecision[] CompanionDecisions() => s_companionDecisions;
 
         [TestCaseSource(nameof(AllDecisions))]
         public void SecurityAdminOverSignAndEncryptIsGrantedEveryDecision(ServerAuthorizationDecision decision)
@@ -95,12 +105,15 @@ namespace Opc.Ua.Server.Tests.Authorization
         }
 
         [TestCaseSource(nameof(AllDecisions))]
-        public void ServerInternalCallIsGrantedOnlyCertificatePush(ServerAuthorizationDecision decision)
+        public void ServerInternalCallIsGrantedOnlyPushDecisions(ServerAuthorizationDecision decision)
         {
             var context = new SessionSystemContext(s_telemetry);
             bool expected = decision is
                 ServerAuthorizationDecision.CertificatePush or
-                ServerAuthorizationDecision.CertificatePushEncrypted;
+                ServerAuthorizationDecision.CertificatePushEncrypted or
+                ServerAuthorizationDecision.TrustListRead or
+                ServerAuthorizationDecision.TrustListWrite or
+                ServerAuthorizationDecision.SecurityKeyPush;
 
             Assert.That(ServerAuthorizationPolicy.Default.Authorize(context, decision).StatusCode,
                 Is.EqualTo(expected ? StatusCodes.Good : StatusCodes.BadSecurityModeInsufficient));
@@ -268,6 +281,95 @@ namespace Opc.Ua.Server.Tests.Authorization
             });
         }
 
+        [TestCaseSource(nameof(CompanionDecisions))]
+        public void CompanionDecisionWithoutItsRuleIsDenied(ServerAuthorizationDecision decision)
+        {
+            ISystemContext context = CreateContext(
+                MessageSecurityMode.SignAndEncrypt, UserTokenType.UserName, ObjectIds.WellKnownRole_SecurityAdmin);
+
+            Assert.That(ServerAuthorizationPolicy.Default.Authorize(context, decision).StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void DefaultPolicyAppliesTheStandardRuleOfTheRequest(bool grant)
+        {
+            ISystemContext context = CreateContext(MessageSecurityMode.None, UserTokenType.Anonymous);
+            var request = new ServerAuthorizationRequest(
+                ServerAuthorizationDecision.CertificateManagement,
+                new NodeId(42u, 2),
+                _ => grant ? ServiceResult.Good : new ServiceResult(StatusCodes.BadNotWritable));
+
+            ServiceResult result = ServerAuthorizationPolicy.Default.Authorize(context, request);
+
+            Assert.That(result.StatusCode, Is.EqualTo(grant ? StatusCodes.Good : StatusCodes.BadNotWritable));
+        }
+
+        [Test]
+        public void HostPolicyDeniesACompanionDecisionBeforeItsRule()
+        {
+            var policy = new DenyingPolicy(ServerAuthorizationDecision.CertificateManagement);
+            ISystemContext context = CreateServerContext(policy, ObjectIds.WellKnownRole_SecurityAdmin);
+            bool ruleCalled = false;
+
+            ServiceResult result = RoleAuthorizationGate.Check(
+                context,
+                new ServerAuthorizationRequest(
+                    ServerAuthorizationDecision.CertificateManagement,
+                    NodeId.Null,
+                    _ =>
+                    {
+                        ruleCalled = true;
+                        return ServiceResult.Good;
+                    }));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(ruleCalled, Is.False);
+            });
+        }
+
+        [Test]
+        public void SecurityKeyServerPushRoleIsGrantedOnlySecurityKeyPush()
+        {
+            ISystemContext context = CreateContext(
+                MessageSecurityMode.SignAndEncrypt,
+                UserTokenType.UserName,
+                ObjectIds.WellKnownRole_SecurityKeyServerPush);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ServerAuthorizationPolicy.Default.Authorize(context, ServerAuthorizationDecision.SecurityKeyPush)
+                        .StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    ServerAuthorizationPolicy.Default.Authorize(context, ServerAuthorizationDecision.SecurityAdmin)
+                        .StatusCode,
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            });
+        }
+
+        [Test]
+        public void TrustListPolicyAccessAsksTheHostPolicy()
+        {
+            var policy = new DenyingPolicy(ServerAuthorizationDecision.TrustListWrite);
+            ISystemContext context = CreateServerContext(policy, ObjectIds.WellKnownRole_SecurityAdmin);
+            var store = new CertificateStoreIdentifier("trusted");
+
+            Assert.That(() => TrustList.AuthorizeReadByPolicy(context, store), Throws.Nothing);
+            ServiceResultException? denied = Assert.Throws<ServiceResultException>(
+                () => TrustList.AuthorizeWriteByPolicy(context, store));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(policy.Decisions, Is.EquivalentTo(s_trustListDecisions));
+            });
+        }
+
         [Test]
         public void CompositeAuditEventSinkForwardsInOrderAndIsolatesAFailingSink()
         {
@@ -390,15 +492,15 @@ namespace Opc.Ua.Server.Tests.Authorization
 
             public List<ServerAuthorizationDecision> Decisions { get; } = [];
 
-            public override ServiceResult Authorize(ISystemContext context, ServerAuthorizationDecision decision)
+            public override ServiceResult Authorize(ISystemContext context, ServerAuthorizationRequest request)
             {
                 lock (Decisions)
                 {
-                    Decisions.Add(decision);
+                    Decisions.Add(request.Decision);
                 }
-                return decision == m_denied
+                return request.Decision == m_denied
                     ? new ServiceResult(StatusCodes.BadUserAccessDenied)
-                    : base.Authorize(context, decision);
+                    : base.Authorize(context, request);
             }
 
             private readonly ServerAuthorizationDecision m_denied;

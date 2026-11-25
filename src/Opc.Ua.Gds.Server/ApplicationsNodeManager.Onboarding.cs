@@ -124,7 +124,8 @@ namespace Opc.Ua.Gds.Server
                 HasTrustListAccess(context, trustedStore);
                 return;
             }
-            for (int i = 0; i < bindings.Count; i++)
+            NodeId grantedApplication = NodeId.Null;
+            for (int i = 0; i < bindings.Count && grantedApplication.IsNull; i++)
             {
                 DeviceRegistrarApplicationBinding binding = bindings[i];
                 foreach (string certificateType in s_certificateTypeMap.Values)
@@ -138,12 +139,29 @@ namespace Opc.Ua.Gds.Server
                             await onboarding.AuthorizeApplicationAsync(
                                 context, application, cancellationToken).ConfigureAwait(false))
                         {
-                            return;
+                            grantedApplication = binding.ApplicationId;
+                            break;
                         }
                     }
                 }
             }
-            throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+
+            // The device binding is the standard rule; the server policy makes the decision.
+            ServiceResult standard = grantedApplication.IsNull
+                ? new ServiceResult(StatusCodes.BadUserAccessDenied)
+                : ServiceResult.Good;
+            ServiceResult result = await ServerAuthorizationPolicy.Resolve(context).AuthorizeAsync(
+                    context,
+                    new ServerAuthorizationRequest(
+                        ServerAuthorizationDecision.TrustListRead,
+                        grantedApplication,
+                        _ => standard),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
         }
 
         /// <summary>
@@ -241,7 +259,7 @@ namespace Opc.Ua.Gds.Server
                 }
             }
             AuthorizationHelper.HasAuthorization(
-                context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin, applicationId);
+                context, ServerAuthorizationDecision.CertificateManagement, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin, applicationId);
             return false;
         }
 

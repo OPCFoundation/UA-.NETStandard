@@ -39,13 +39,13 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Asks the <see cref="IServerAuthorizationPolicy"/> of the server that owns
-        /// <paramref name="context"/> for <paramref name="decision"/>.
+        /// <paramref name="context"/> for <paramref name="request"/>.
         /// </summary>
         /// <param name="context">The calling context.</param>
-        /// <param name="decision">The decision to make.</param>
-        public static ServiceResult Check(ISystemContext context, ServerAuthorizationDecision decision)
+        /// <param name="request">The decision to make.</param>
+        public static ServiceResult Check(ISystemContext context, ServerAuthorizationRequest request)
         {
-            return ServerAuthorizationPolicy.Resolve(context).Authorize(context, decision);
+            return ServerAuthorizationPolicy.Resolve(context).Authorize(context, request);
         }
 
         /// <summary>

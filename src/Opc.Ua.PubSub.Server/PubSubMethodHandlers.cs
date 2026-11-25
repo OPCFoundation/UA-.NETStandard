@@ -10,6 +10,7 @@ using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.PubSub.Server
 {
@@ -1763,9 +1764,11 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
-            if (!IsSecurityKeyPushAuthorized(context))
+            ServiceResult authorization =
+                RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.SecurityKeyPush);
+            if (ServiceResult.IsBad(authorization))
             {
-                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                return authorization;
             }
             if (inputArguments.Count < 7)
             {
@@ -1808,22 +1811,6 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
             }
-        }
-
-        private static bool IsSecurityKeyPushAuthorized(ISystemContext context)
-        {
-            if (StringComparer.Ordinal.Equals(context.UserId, "sks"))
-            {
-                return true;
-            }
-
-            if (context is not ISessionOperationContext sessionContext)
-            {
-                return false;
-            }
-
-            ArrayOf<NodeId> grantedRoleIds = sessionContext.UserIdentity?.GrantedRoleIds ?? [];
-            return grantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         }
 
         /// <summary>

@@ -73,7 +73,14 @@ namespace Opc.Ua.Gds.Server
         /// <paramref name="roles"/>, the <paramref name="applicationId"/> is
         /// checked against the identity's bound application(s).
         /// </summary>
+        /// <remarks>
+        /// The roles and privileges are the GDS standard rule for
+        /// <paramref name="decision"/>; the server's
+        /// <see cref="IServerAuthorizationPolicy"/> makes the decision and may
+        /// apply host rules before or instead of it.
+        /// </remarks>
         /// <param name="context">The current <see cref="ISystemContext"/>.</param>
+        /// <param name="decision">The authorization decision the method needs.</param>
         /// <param name="roles">
         /// All allowed roles; may include
         /// <see cref="GdsRole.ApplicationSelfAdmin"/> and/or
@@ -90,39 +97,64 @@ namespace Opc.Ua.Gds.Server
         /// </exception>
         public static void HasAuthorization(
             ISystemContext context,
+            ServerAuthorizationDecision decision,
             IEnumerable<Role> roles,
             [Optional] NodeId applicationId)
         {
             if (context != null)
             {
-                var allowedRoles = roles.ToHashSet();
-                bool selfAdmin = allowedRoles.Remove(GdsRole.ApplicationSelfAdmin);
-                bool appAdmin = allowedRoles.Remove(GdsRole.ApplicationAdmin);
+                ThrowIfBad(ServerAuthorizationPolicy.Resolve(context).Authorize(
+                    context,
+                    new ServerAuthorizationRequest(
+                        decision,
+                        applicationId,
+                        ctx => EvaluateRoles(ctx, roles, applicationId))));
+            }
+        }
 
-                //if true access is allowed
-                IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-                if (HasRole(userIdentity, allowedRoles, context.NamespaceUris))
-                {
-                    return;
-                }
+        /// <summary>
+        /// The GDS standard rule: one of <paramref name="roles"/>, or the
+        /// <c>ApplicationSelfAdmin</c> / <c>ApplicationAdmin</c> Privilege for
+        /// <paramref name="applicationId"/> when the roles include it.
+        /// </summary>
+        internal static ServiceResult EvaluateRoles(
+            ISystemContext context,
+            IEnumerable<Role> roles,
+            NodeId applicationId)
+        {
+            var allowedRoles = roles.ToHashSet();
+            bool selfAdmin = allowedRoles.Remove(GdsRole.ApplicationSelfAdmin);
+            bool appAdmin = allowedRoles.Remove(GdsRole.ApplicationAdmin);
 
-                if (selfAdmin)
-                {
-                    //if true access to own application is allowed
-                    if (CheckSelfAdminPrivilege(userIdentity, applicationId))
-                    {
-                        return;
-                    }
-                }
+            //if true access is allowed
+            IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            if (HasRole(userIdentity, allowedRoles, context.NamespaceUris))
+            {
+                return ServiceResult.Good;
+            }
 
-                if (appAdmin && CheckApplicationAdminPrivilege(userIdentity, applicationId))
-                {
-                    return;
-                }
+            //if true access to own application is allowed
+            if (selfAdmin && CheckSelfAdminPrivilege(userIdentity, applicationId))
+            {
+                return ServiceResult.Good;
+            }
 
-                throw new ServiceResultException(
-                    StatusCodes.BadUserAccessDenied,
-                    $"At least one of the Roles {string.Join(", ", roles)} is required to call the method");
+            if (appAdmin && CheckApplicationAdminPrivilege(userIdentity, applicationId))
+            {
+                return ServiceResult.Good;
+            }
+
+            return new ServiceResult(
+                StatusCodes.BadUserAccessDenied,
+                new LocalizedText(
+                    $"At least one of the Roles {string.Join(", ", roles)} is required to call the method"));
+        }
+
+        private static void ThrowIfBad(ServiceResult result)
+        {
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
             }
         }
 
@@ -143,11 +175,28 @@ namespace Opc.Ua.Gds.Server
             Dictionary<NodeId, string> certTypeMap,
             IApplicationsDatabase applicationsDatabase)
         {
+            ThrowIfBad(ServerAuthorizationPolicy.Resolve(context).Authorize(
+                context,
+                new ServerAuthorizationRequest(
+                    ServerAuthorizationDecision.TrustListRead,
+                    NodeId.Null,
+                    ctx => EvaluateTrustListAccess(ctx, trustedStore, certTypeMap, applicationsDatabase))));
+        }
+
+        /// <summary>
+        /// The GDS standard rule for reading a certificate group TrustList.
+        /// </summary>
+        private static ServiceResult EvaluateTrustListAccess(
+            ISystemContext context,
+            CertificateStoreIdentifier trustedStore,
+            Dictionary<NodeId, string> certTypeMap,
+            IApplicationsDatabase applicationsDatabase)
+        {
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
             IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
             if (HasRole(userIdentity, roles, context.NamespaceUris))
             {
-                return;
+                return ServiceResult.Good;
             }
 
             if (trustedStore != null &&
@@ -159,7 +208,7 @@ namespace Opc.Ua.Gds.Server
                     certTypeMap,
                     applicationsDatabase))
             {
-                return;
+                return ServiceResult.Good;
             }
 
             if (trustedStore != null &&
@@ -171,12 +220,14 @@ namespace Opc.Ua.Gds.Server
                     certTypeMap,
                     applicationsDatabase))
             {
-                return;
+                return ServiceResult.Good;
             }
 
-            throw new ServiceResultException(
+            return new ServiceResult(
                 StatusCodes.BadUserAccessDenied,
-                $"At least one of the Roles {string.Join(", ", roles)}, ApplicationSelfAdmin Privilege, or ApplicationAdmin Privilege is required to use the TrustList");
+                new LocalizedText(
+                    $"At least one of the Roles {string.Join(", ", roles)}, ApplicationSelfAdmin Privilege, " +
+                    "or ApplicationAdmin Privilege is required to use the TrustList"));
         }
 
         /// <summary>
@@ -205,16 +256,33 @@ namespace Opc.Ua.Gds.Server
         /// </exception>
         internal static void HasTrustListWriteAccess(ISystemContext context)
         {
+            ThrowIfBad(ServerAuthorizationPolicy.Resolve(context).Authorize(
+                context,
+                new ServerAuthorizationRequest(
+                    ServerAuthorizationDecision.TrustListWrite,
+                    NodeId.Null,
+                    s_trustListWriteRule)));
+        }
+
+        private static readonly System.Func<ISystemContext, ServiceResult> s_trustListWriteRule =
+            EvaluateTrustListWriteAccess;
+
+        /// <summary>
+        /// The GDS standard rule for writing a certificate group TrustList.
+        /// </summary>
+        private static ServiceResult EvaluateTrustListWriteAccess(ISystemContext context)
+        {
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin };
             IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
             if (HasRole(userIdentity, roles, context.NamespaceUris))
             {
-                return;
+                return ServiceResult.Good;
             }
 
-            throw new ServiceResultException(
+            return new ServiceResult(
                 StatusCodes.BadUserAccessDenied,
-                $"At least one of the Roles {string.Join(", ", roles)} is required to modify the TrustList");
+                new LocalizedText(
+                    $"At least one of the Roles {string.Join(", ", roles)} is required to modify the TrustList"));
         }
 
         /// <summary>

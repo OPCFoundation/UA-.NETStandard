@@ -83,11 +83,11 @@ namespace Opc.Ua.Server.Tests.Authorization
 
         private sealed class DenyKeyCredentialPushPolicy : ServerAuthorizationPolicy
         {
-            public override ServiceResult Authorize(ISystemContext context, ServerAuthorizationDecision decision)
+            public override ServiceResult Authorize(ISystemContext context, ServerAuthorizationRequest request)
             {
-                return decision == ServerAuthorizationDecision.KeyCredentialPush
+                return request.Decision == ServerAuthorizationDecision.KeyCredentialPush
                     ? new ServiceResult(StatusCodes.BadUserAccessDenied)
-                    : base.Authorize(context, decision);
+                    : base.Authorize(context, request);
             }
         }
 

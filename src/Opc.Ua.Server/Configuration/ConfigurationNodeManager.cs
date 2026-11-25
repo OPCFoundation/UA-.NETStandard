@@ -781,8 +781,8 @@ namespace Opc.Ua.Server
                     groupNode.TrustList!,
                     certGroup.TrustedStore,
                     certGroup.IssuerStore,
-                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                    new TrustList.SecureAccess(TrustList.AuthorizeReadByPolicy),
+                    new TrustList.SecureAccess(TrustList.AuthorizeWriteByPolicy),
                     Server.Telemetry,
                     m_coordinator,
                     m_configuration.ServerConfiguration?.MaxTrustListSize ?? 0,
@@ -791,11 +791,11 @@ namespace Opc.Ua.Server
                 if (m_serverConfigurationOptions.PushAuthorization != null)
                 {
                     trustList.SetWriteAuthorization((context, _, ct) =>
-                        AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                        AuthorizePushAsync(context, ServerAuthorizationDecision.TrustListWrite, ct));
                     if (m_applicationPushTarget != null)
                     {
                         trustList.SetReadAuthorization((context, _, ct) =>
-                            AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                            AuthorizePushAsync(context, ServerAuthorizationDecision.TrustListRead, ct));
                     }
                 }
                 if (IsApplicationCertificateGroup(certGroup))
@@ -981,14 +981,26 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Awaits host policy only after the server authorization policy grants the push decision.
         /// </summary>
-        private async ValueTask AuthorizePushMutationAsync(
+        private ValueTask AuthorizePushMutationAsync(
             ISystemContext context,
             bool requireEncryptedChannel,
             CancellationToken cancellationToken)
         {
+            return AuthorizePushAsync(context, GetPushDecision(requireEncryptedChannel), cancellationToken);
+        }
+
+        /// <summary>
+        /// Asks the server authorization policy for <paramref name="decision"/>, then the host
+        /// push authorization.
+        /// </summary>
+        private async ValueTask AuthorizePushAsync(
+            ISystemContext context,
+            ServerAuthorizationDecision decision,
+            CancellationToken cancellationToken)
+        {
             cancellationToken.ThrowIfCancellationRequested();
             ServiceResult result = await AuthorizationPolicy
-                .AuthorizeAsync(context, GetPushDecision(requireEncryptedChannel), cancellationToken)
+                .AuthorizeAsync(context, decision, cancellationToken)
                 .ConfigureAwait(false);
             if (ServiceResult.IsBad(result))
             {
