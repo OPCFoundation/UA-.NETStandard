@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public void FactoryRejectsFastReconnectWithProcessLocalNonceStore()
+        public void FactoryRejectsFastReconnectWithProcessLocalStore()
         {
             using var store = new InMemorySharedKeyValueStore();
             var factory = new DistributedSessionManagerFactory(
@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     new ApplicationConfiguration(),
                     TimeProvider.System,
                     _ => null),
-                Throws.InvalidOperationException.With.Message.Contains("nonce/"));
+                Throws.InvalidOperationException.With.Message.Contains("independent freshness authority"));
         }
 
         [Test]

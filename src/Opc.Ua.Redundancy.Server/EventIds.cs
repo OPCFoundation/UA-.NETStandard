@@ -63,11 +63,6 @@ namespace Opc.Ua
         public const int ServerRedundancyStartupTask = 90;
 
         /// <summary>
-        /// Event identifier offset for shared key-value monitored-item queue factory messages.
-        /// </summary>
-        public const int SharedKeyValueMonitoredItemQueueFactory = 100;
-
-        /// <summary>
         /// Event identifier offset for shared key-value subscription store messages.
         /// </summary>
         public const int SharedKeyValueSubscriptionStore = 110;

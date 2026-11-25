@@ -844,9 +844,8 @@ migration guarantee. See
 
 ## Configuring redundancy peer status
 
-Remove uses of `ServerRedundancyOptions.PeerServiceLevel`. A replica
-publishes the observed ServiceLevel and ServerState instead of advertising
-one configured value for every peer. Configure a protected peer-status
+A replica publishes observed ServiceLevel and ServerState for each peer.
+Configure a protected peer-status
 store and the physical `TransparentPeerServerIds` for a Transparent set.
 An unavailable observation reports NoData and Unknown.
 
@@ -1417,7 +1416,7 @@ The following classic client members are `[Obsolete]` and produce `CS0618`:
 | `Subscription.FastDataChangeCallback` and `FastDataChangeNotificationEventHandler` | `ISubscriptionNotificationHandler.OnDataChangeNotificationAsync` |
 | `Subscription.FastEventCallback` and `FastEventNotificationEventHandler` | `ISubscriptionNotificationHandler.OnEventDataNotificationAsync` |
 | `Subscription.FastKeepAliveCallback` and `FastKeepAliveNotificationEventHandler` | `ISubscriptionNotificationHandler.OnKeepAliveNotificationAsync` |
-| `ISession.DefaultSubscription` (and `Session`, `ManagedSession`, `RedundantClientSession`) | `ISubscriptionManager.Add` with `SubscriptionOptions` |
+| `ISession.DefaultSubscription` (and `Session`, `ManagedSession`) | `ISubscriptionManager.Add` with `SubscriptionOptions` |
 
 The members keep working; existing classic code builds with a warning. New
 code should use the managed (V2) subscription model: implement
@@ -1451,8 +1450,8 @@ for the complete mapping.
 
 ## Migrating from the PublishSequenceNumbersToAcknowledge event
 
-`ISession.PublishSequenceNumbersToAcknowledge` (and its implementations on `Session`,
-`ManagedSession` and `RedundantClientSession`) is `[Obsolete]`. Acknowledgements are now
+`ISession.PublishSequenceNumbersToAcknowledge` (and its implementations on `Session`
+and `ManagedSession`) is `[Obsolete]`. Acknowledgements are now
 controlled by injectable, asynchronous providers instead of an event that edits mutable
 lists. The event still works with its previous behaviour as long as no provider is
 configured.

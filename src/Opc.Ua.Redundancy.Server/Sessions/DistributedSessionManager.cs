@@ -50,7 +50,7 @@ namespace Opc.Ua.Redundancy.Server
     /// not a fence on operations already dispatched. The previous owner drops its stale
     /// local copy without deleting the entry. A restored session keeps its SessionId. A
     /// periodic sweep removes the entries of timed-out sessions (for example those of a
-    /// replica that crashed) and orphaned legacy consumed-nonce markers.
+    /// replica that crashed).
     /// </para>
     /// <para>
     /// A session whose user identity token is encrypted with an EphemeralKey (ECC or
@@ -67,7 +67,6 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="server">The hosting server.</param>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="sessionStore">The shared session store (encrypted).</param>
-        /// <param name="nonceRegistry">The registry used to sweep legacy consumed-nonce markers.</param>
         /// <param name="serverCertificateProvider">
         /// Resolves the shared server <c>ApplicationInstanceCertificate</c> for a
         /// security policy URI. Returns a new caller-owned certificate handle that
@@ -81,7 +80,6 @@ namespace Opc.Ua.Redundancy.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             ISharedSessionStore sessionStore,
-            ISingleUseNonceRegistry nonceRegistry,
             Func<string, Certificate?> serverCertificateProvider,
             DistributedSessionOptions? options = null,
             TimeProvider? timeProvider = null)
@@ -89,7 +87,6 @@ namespace Opc.Ua.Redundancy.Server
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_sessionStore = sessionStore ?? throw new ArgumentNullException(nameof(sessionStore));
-            m_nonceRegistry = nonceRegistry ?? throw new ArgumentNullException(nameof(nonceRegistry));
             m_serverCertificateProvider = serverCertificateProvider
                 ?? throw new ArgumentNullException(nameof(serverCertificateProvider));
             m_options = options ?? new DistributedSessionOptions();
@@ -1417,13 +1414,11 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Removes the entries of sessions that can no longer be restored (their owner
-        /// crashed or shut down, so nobody closed them) and the legacy consumed-nonce markers
-        /// that no live entry references any more.
+        /// crashed or shut down, so nobody closed them).
         /// </summary>
-        internal async ValueTask<(int Entries, int NonceMarkers)> SweepAsync(CancellationToken cancellationToken)
+        internal async ValueTask<int> SweepAsync(CancellationToken cancellationToken)
         {
             int removed = 0;
-            var liveNonces = new List<ByteString>();
             await foreach (SharedSessionEntry entry in m_sessionStore
                 .EnumerateAsync(cancellationToken)
                 .ConfigureAwait(false))
@@ -1433,19 +1428,14 @@ namespace Opc.Ua.Redundancy.Server
                     await TryRemoveEntryVersionAsync(entry, cancellationToken).ConfigureAwait(false))
                 {
                     removed++;
-                    continue;
                 }
-                liveNonces.Add(entry.ServerNonce);
             }
 
-            int purged = await m_nonceRegistry
-                .PurgeAsync(liveNonces, m_options.NonceMarkerRetention, cancellationToken)
-                .ConfigureAwait(false);
-            if (removed > 0 || purged > 0)
+            if (removed > 0)
             {
-                m_logger.SweptSharedSessionStore(removed, purged);
+                m_logger.SweptSharedSessionStore(removed);
             }
-            return (removed, purged);
+            return removed;
         }
 
         private async Task RunMaintenanceAsync(CancellationToken cancellationToken)
@@ -1621,7 +1611,6 @@ namespace Opc.Ua.Redundancy.Server
         private Task? m_maintenanceTask;
         private readonly IServerInternal m_server;
         private readonly ISharedSessionStore m_sessionStore;
-        private readonly ISingleUseNonceRegistry m_nonceRegistry;
         private readonly Func<string, Certificate?> m_serverCertificateProvider;
         private readonly DistributedSessionOptions m_options;
         private readonly bool m_fastReconnectEnabled;
@@ -1699,9 +1688,8 @@ namespace Opc.Ua.Redundancy.Server
             NodeId sessionId);
 
         [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 9, Level = LogLevel.Information,
-            Message = "Swept the shared session store: {Entries} expired session entries and {NonceMarkers} " +
-                "consumed-nonce markers removed.")]
-        public static partial void SweptSharedSessionStore(this ILogger logger, int entries, int nonceMarkers);
+            Message = "Swept the shared session store: {Entries} expired session entries removed.")]
+        public static partial void SweptSharedSessionStore(this ILogger logger, int entries);
 
         [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 10, Level = LogLevel.Warning,
             Message = "Distributed session maintenance failed.")]

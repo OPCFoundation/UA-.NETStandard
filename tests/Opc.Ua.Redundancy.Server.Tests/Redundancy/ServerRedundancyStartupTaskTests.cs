@@ -48,7 +48,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var options = new ServerRedundancyOptions();
 
             Assert.That(options.Mode, Is.EqualTo(RedundancySupport.None));
-            Assert.That(options.PeerServerUris, Is.Empty);
+            Assert.That(options.RedundantPeers, Is.Empty);
             Assert.That(options.CurrentServerId, Is.Not.Empty);
         }
 
@@ -146,8 +146,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 Mode = RedundancySupport.Hot
             };
-            options.PeerServerUris.Add("urn:peer-a");
-            options.PeerServerUris.Add("urn:peer-b");
+            options.AddRedundantPeer("urn:peer-a", []);
+            options.AddRedundantPeer("urn:peer-b", []);
             await using var task = new ServerRedundancyStartupTask(new ServerRedundancyController(options));
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
             var options = new ServerRedundancyOptions();
-            options.PeerServerUris.Add("urn:peer-a");
+            options.AddRedundantPeer("urn:peer-a", []);
             var controller = new ServerRedundancyController(options);
             await using var task = new ServerRedundancyStartupTask(controller);
 

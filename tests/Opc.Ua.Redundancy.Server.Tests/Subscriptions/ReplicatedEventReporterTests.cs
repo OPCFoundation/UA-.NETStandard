@@ -6,10 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Moq;
 using NUnit.Framework;
-using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
 
@@ -29,56 +26,38 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var context = new SystemContext(telemetry) { NamespaceUris = messageContext.NamespaceUris };
             var filterContext = new FilterContext(messageContext.NamespaceUris, new TypeTable(
                 messageContext.NamespaceUris), telemetry);
-            using var store = new InMemorySharedKeyValueStore();
             var groupId = new Uuid("11223344-5566-7788-9000-aabbccddeeff");
             var same = new ReplicatedEventIdentity(groupId, new Uuid("00112233-4455-6677-8899-aabbccddeeff"));
             var distinct = new ReplicatedEventIdentity(groupId, Uuid.NewUuid());
             var expected = ByteString.FromHexString(
                 "44332211665588779000AABBCCDDEEFF33221100554477668899AABBCCDDEEFF");
-            using ServiceProvider activeServices = CreateServices(
-                mode, groupId, Mock.Of<IReplicatedConditionMethodRelay>());
-            using ServiceProvider standbyServices = CreateServices(
-                mode, groupId, Mock.Of<IReplicatedConditionMethodRelay>());
-            ReplicatedEventReporter active = activeServices.GetRequiredService<ReplicatedEventReporter>();
-            ReplicatedEventReporter standby = standbyServices.GetRequiredService<ReplicatedEventReporter>();
+            var active = new ReplicatedEventReporter(mode, groupId, new TestRelay());
+            var standby = new ReplicatedEventReporter(mode, groupId, new TestRelay());
             var source = new BaseObjectState(null) { NodeId = new NodeId(42) };
             var payload = new BaseEventState(null);
             payload.Initialize(context, source, EventSeverity.Low, LocalizedText.From("Same payload"));
             ByteString originalId = payload.EventId!.Value;
 
-            await using var activeQueues = new SharedKeyValueMonitoredItemQueueFactory(
-                store, messageContext, telemetry: telemetry);
-            using IEventMonitoredItemQueue queue = activeQueues.CreateEventQueue(false, 10);
-            queue.SetQueueSize(3, false);
-            source.OnReportEvent = (_, _, e) => queue.Enqueue(new QueuedEvent(new EventFieldList
-            {
-                EventFields =
-                [
-                    new Variant(ReadEventId(filterContext, e)),
-                    ReadField(filterContext, e, BrowseNames.Message),
-                    ReadField(filterContext, e, BrowseNames.Time)
-                ]
-            }));
+            var reports = new List<(ByteString EventId, Variant Message, Variant Time)>();
+            source.OnReportEvent = (_, _, e) => reports.Add((
+                ReadEventId(filterContext, e),
+                ReadField(filterContext, e, BrowseNames.Message),
+                ReadField(filterContext, e, BrowseNames.Time)));
 
             await active.ReportEventAsync(context, source, payload, same).ConfigureAwait(false);
             await active.ReportEventAsync(context, source, payload, distinct).ConfigureAwait(false);
-            await activeQueues.FlushAsync().ConfigureAwait(false);
-
-            using IEventMonitoredItemQueue restored = (await activeQueues.RestoreEventQueueAsync(10)
-                .ConfigureAwait(false))!;
             var standbySource = new BaseObjectState(null) { NodeId = source.NodeId };
             ByteString standbyId = default;
             standbySource.OnReportEvent = (_, _, e) => standbyId = ReadEventId(filterContext, e);
             await standby.ReportEventAsync(context, standbySource, payload, same).ConfigureAwait(false);
 
-            Assert.That(restored.Dequeue(out QueuedEvent first), Is.True);
-            Assert.That(restored.Dequeue(out QueuedEvent second), Is.True);
-            Assert.That(first.EventFields[0], Is.EqualTo(new Variant(expected)));
-            Assert.That(second.EventFields[0], Is.Not.EqualTo(first.EventFields[0]));
-            Assert.That(first.EventFields[1], Is.EqualTo(new Variant(payload.Message!.Value)));
-            Assert.That(first.EventFields[2], Is.EqualTo(new Variant(payload.Time!.Value)));
-            Assert.That(second.EventFields[1], Is.EqualTo(first.EventFields[1]));
-            Assert.That(second.EventFields[2], Is.EqualTo(first.EventFields[2]));
+            Assert.That(reports, Has.Count.EqualTo(2));
+            Assert.That(reports[0].EventId, Is.EqualTo(expected));
+            Assert.That(reports[1].EventId, Is.Not.EqualTo(reports[0].EventId));
+            Assert.That(reports[0].Message, Is.EqualTo(new Variant(payload.Message!.Value)));
+            Assert.That(reports[0].Time, Is.EqualTo(new Variant(payload.Time!.Value)));
+            Assert.That(reports[1].Message, Is.EqualTo(reports[0].Message));
+            Assert.That(reports[1].Time, Is.EqualTo(reports[0].Time));
             Assert.That(standbyId, Is.EqualTo(expected));
             Assert.That(payload.EventId.Value, Is.EqualTo(originalId));
         }
@@ -100,9 +79,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var laterBranch = new ReplicatedEventIdentity(groupId, Uuid.NewUuid());
             var acknowledged = new ReplicatedEventIdentity(groupId, Uuid.NewUuid());
             var confirmed = new ReplicatedEventIdentity(groupId, Uuid.NewUuid());
-            var authority = new Mock<IReplicatedConditionMethodRelay>(MockBehavior.Strict);
-            var active = new ReplicatedEventReporter(RedundancySupport.HotAndMirrored, groupId, authority.Object);
-            var standby = new ReplicatedEventReporter(RedundancySupport.HotAndMirrored, groupId, authority.Object);
+            var authority = new TestRelay();
+            var active = new ReplicatedEventReporter(RedundancySupport.HotAndMirrored, groupId, authority);
+            var standby = new ReplicatedEventReporter(RedundancySupport.HotAndMirrored, groupId, authority);
             AlarmConditionState activeAlarm = CreateAlarm(context);
             AlarmConditionState standbyAlarm = CreateAlarm(context);
             active.BindConditionMethods(activeAlarm);
@@ -135,28 +114,31 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ByteString ackEventId = standby.GetEventId(acknowledged);
             Uuid foreignGroup = Uuid.NewUuid();
             var foreignReporter = new ReplicatedEventReporter(
-                RedundancySupport.HotAndMirrored, foreignGroup, authority.Object);
+                RedundancySupport.HotAndMirrored, foreignGroup, authority);
             ByteString foreignId = foreignReporter.GetEventId(
                 new ReplicatedEventIdentity(foreignGroup, Uuid.NewUuid()));
-            authority.Setup(a => a.CallAsync(
-                    groupId, context, standbyAlarm.NodeId, ReplicatedConditionMethod.Acknowledge,
-                    firstEventId, comment, It.IsAny<CancellationToken>()))
-                .Returns(async () =>
+            authority.Handler = async (group, callContext, conditionId, method, eventId, callComment) =>
+            {
+                Assert.That(group, Is.EqualTo(groupId));
+                Assert.That(callContext, Is.SameAs(context));
+                Assert.That(conditionId, Is.EqualTo(standbyAlarm.NodeId));
+                Assert.That(callComment, Is.EqualTo(comment));
+                if (method == ReplicatedConditionMethod.Acknowledge)
                 {
+                    Assert.That(eventId, Is.EqualTo(firstEventId));
                     await ApplyBranchAsync(standby, standbyAlarm, acknowledged, acked: true, confirmedState: false)
                         .ConfigureAwait(false);
-                    return ServiceResult.Good;
-                });
-            authority.Setup(a => a.CallAsync(
-                    groupId, context, standbyAlarm.NodeId, ReplicatedConditionMethod.Confirm,
-                    ackEventId, comment, It.IsAny<CancellationToken>()))
-                .Returns(async () =>
+                }
+                else
                 {
+                    Assert.That(method, Is.EqualTo(ReplicatedConditionMethod.Confirm));
+                    Assert.That(eventId, Is.EqualTo(ackEventId));
                     await ApplyBranchAsync(standby, standbyAlarm, confirmed, acked: true, confirmedState: true)
                         .ConfigureAwait(false);
                     standby.RetireConditionBranch(standbyAlarm, branchId);
-                    return ServiceResult.Good;
-                });
+                }
+                return ServiceResult.Good;
+            };
 
             Assert.That(await InvokeAsync(standbyAlarm.Acknowledge!, foreignId).ConfigureAwait(false),
                 Is.EqualTo(StatusCodes.BadEventIdUnknown));
@@ -168,7 +150,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(received, Has.Count.EqualTo(4));
             Assert.That(received[3], Is.EqualTo(standby.GetEventId(confirmed)));
             Assert.That(standbyAlarm.GetBranchCount(), Is.Zero);
-            authority.VerifyAll();
+            Assert.That(authority.Calls, Is.EqualTo(2));
 
             ValueTask ApplyBranchAsync(
                 ReplicatedEventReporter reporter,
@@ -211,23 +193,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [TestCase(RedundancySupport.Cold)]
         [TestCase(RedundancySupport.Warm)]
         [TestCase(RedundancySupport.Hot)]
-        public void OtherModesDoNotInstallReplicatedReports(RedundancySupport mode)
+        public void OtherModesDoNotSupportReplicatedReports(RedundancySupport mode)
         {
-            using ServiceProvider services = CreateServices(
-                mode, Uuid.NewUuid(), Mock.Of<IReplicatedConditionMethodRelay>());
-            Assert.That(() => services.GetRequiredService<ReplicatedEventReporter>(),
+            Assert.That(() => new ReplicatedEventReporter(
+                    mode, Uuid.NewUuid(), new TestRelay()),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
-        }
-
-        private static ServiceProvider CreateServices(
-            RedundancySupport mode,
-            Uuid groupId,
-            IReplicatedConditionMethodRelay relay)
-        {
-            var builder = new DiTestServerBuilder();
-            builder.AddServerRedundancy(options => options.Mode = mode);
-            builder.UseReplicatedEventReporting(groupId, _ => relay);
-            return builder.Services.BuildServiceProvider();
         }
 
         [TestCase(ReplicatedConditionMethod.Acknowledge)]
@@ -255,13 +225,36 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 alarm.OnConfirm = hook;
             }
             var reporter = new ReplicatedEventReporter(
-                RedundancySupport.Transparent, Uuid.NewUuid(), Mock.Of<IReplicatedConditionMethodRelay>());
+                RedundancySupport.Transparent, Uuid.NewUuid(), new TestRelay());
 
             Assert.That(() => reporter.BindConditionMethods(alarm), Throws.InvalidOperationException);
             Assert.That(alarm.AutoReportStateChanges, Is.True);
             Assert.That(alarm.Acknowledge!.OnCallAsync, Is.Null);
             Assert.That(alarm.Confirm!.OnCallAsync, Is.Null);
             Assert.That(calls, Is.Zero);
+        }
+
+        private sealed class TestRelay : IReplicatedConditionMethodRelay
+        {
+            public Func<Uuid, ISystemContext, NodeId, ReplicatedConditionMethod, ByteString, LocalizedText,
+                ValueTask<ServiceResult>>? Handler { get; set; }
+
+            public int Calls { get; private set; }
+
+            public ValueTask<ServiceResult> CallAsync(
+                Uuid groupId,
+                ISystemContext context,
+                NodeId conditionId,
+                ReplicatedConditionMethod method,
+                ByteString eventId,
+                LocalizedText comment,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Calls++;
+                return (Handler ?? throw new AssertionException("Unexpected condition method call."))(
+                    groupId, context, conditionId, method, eventId, comment);
+            }
         }
 
         private static AlarmConditionState CreateAlarm(SystemContext context)

@@ -26,7 +26,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
             using AesCbcHmacRecordProtector protector = CreateProtector();
-            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            ICoordinatedPubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             SksSecurityGroup expected = CreateGroup("group-a") with { CurrentKeyIndex = 1 };
 
             await keyStore.SaveSecurityGroupAsync(expected).ConfigureAwait(false);
@@ -170,7 +170,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
             using AesCbcHmacRecordProtector protector = CreateProtector();
-            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            ICoordinatedPubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
 
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-a")).ConfigureAwait(false);
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-b")).ConfigureAwait(false);
@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
             using AesCbcHmacRecordProtector protector = CreateProtector();
-            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            ICoordinatedPubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-a")).ConfigureAwait(false);
 
             bool removed = await keyStore.RemoveSecurityGroupAsync("group-a").ConfigureAwait(false);
@@ -213,7 +213,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
             using AesCbcHmacRecordProtector protector = CreateProtector();
-            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            ICoordinatedPubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
 
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-a")).ConfigureAwait(false);
             (bool found, ByteString stored) = await sharedStore
@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
             using AesCbcHmacRecordProtector protector = CreateProtector();
-            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            ICoordinatedPubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             SksSecurityGroup original = CreateGroup("group-a");
             SksSecurityGroup replacement = CreateGroup("group-a", maxFutureKeyCount: 7);
 
@@ -273,7 +273,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
             using AesCbcHmacRecordProtector protector = CreateProtector();
-            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            ICoordinatedPubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             SksSecurityGroup expected = CreateGroup("source");
             if (fenced)
             {
@@ -301,7 +301,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
         {
             using var sharedStore = new InMemorySharedKeyValueStore();
             using AesCbcHmacRecordProtector protector = CreateProtector();
-            SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
+            ICoordinatedPubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             await keyStore.SaveSecurityGroupAsync(CreateGroup("source")).ConfigureAwait(false);
             const string key = PubSubRedundancyStoreKeys.SecurityKeyPrefix + "source";
             (_, ByteString record) = await sharedStore.TryGetAsync(key).ConfigureAwait(false);

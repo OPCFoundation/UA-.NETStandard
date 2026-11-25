@@ -53,13 +53,11 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            ISharedKeyValueStore? nonceStore = m_services.GetService<ISharedKeyValueStore>();
             if (m_options.Session.EnableFastReconnect)
             {
                 FreshnessProtectedKeyValueStore? freshStore =
                     m_services.GetService<FreshnessProtectedKeyValueStore>() ??
-                    nonceStore as FreshnessProtectedKeyValueStore;
-                SharedSingleUseNonceRegistry.ValidateSharedStore(freshStore ?? nonceStore);
+                    m_services.GetService<ISharedKeyValueStore>() as FreshnessProtectedKeyValueStore;
                 if (freshStore == null)
                 {
                     throw new InvalidOperationException(
@@ -67,7 +65,7 @@ namespace Opc.Ua.Redundancy.Server
                 }
 
                 return CreateSessionManager(
-                    server, configuration, timeProvider, serverCertificateProvider, freshStore, freshStore,
+                    server, configuration, timeProvider, serverCertificateProvider, freshStore,
                     m_services.GetRequiredService<IRecordProtector>());
             }
 
@@ -83,12 +81,6 @@ namespace Opc.Ua.Redundancy.Server
                 m_services.GetService<ITelemetryContext>()?.CreateLogger<ReplicatedSharedKeyValueStore>() ??
                     NullLogger<ReplicatedSharedKeyValueStore>.Instance);
 
-            InMemorySharedKeyValueStore? ownedNonceStore = null;
-            if (nonceStore == null)
-            {
-                ownedNonceStore = new InMemorySharedKeyValueStore();
-                nonceStore = ownedNonceStore;
-            }
             lock (m_lock)
             {
                 m_entryStores.Add(entryStore);
@@ -96,14 +88,10 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     m_defaultNetworks.Add(defaultNetwork);
                 }
-                if (ownedNonceStore != null)
-                {
-                    m_ownedNonceStores.Add(ownedNonceStore);
-                }
             }
 
             return CreateSessionManager(
-                server, configuration, timeProvider, serverCertificateProvider, entryStore, nonceStore, protector);
+                server, configuration, timeProvider, serverCertificateProvider, entryStore, protector);
         }
 
         private DistributedSessionManager CreateSessionManager(
@@ -112,14 +100,12 @@ namespace Opc.Ua.Redundancy.Server
             TimeProvider timeProvider,
             Func<string, Certificate?> serverCertificateProvider,
             ISharedKeyValueStore entries,
-            ISharedKeyValueStore nonceStore,
             IRecordProtector? protector)
         {
             return new DistributedSessionManager(
                 server,
                 configuration,
                 new SharedKeyValueSessionStore(entries, server.MessageContext, protector),
-                new SharedSingleUseNonceRegistry(nonceStore, timeProvider: timeProvider),
                 serverCertificateProvider,
                 m_options.Session,
                 timeProvider);
@@ -130,15 +116,12 @@ namespace Opc.Ua.Redundancy.Server
         {
             ReplicatedSharedKeyValueStore[] stores;
             InMemoryNetwork[] networks;
-            InMemorySharedKeyValueStore[] nonceStores;
             lock (m_lock)
             {
                 stores = [.. m_entryStores];
                 m_entryStores.Clear();
                 networks = [.. m_defaultNetworks];
                 m_defaultNetworks.Clear();
-                nonceStores = [.. m_ownedNonceStores];
-                m_ownedNonceStores.Clear();
             }
 
             foreach (ReplicatedSharedKeyValueStore store in stores)
@@ -149,10 +132,6 @@ namespace Opc.Ua.Redundancy.Server
             {
                 await network.DisposeAsync().ConfigureAwait(false);
             }
-            foreach (InMemorySharedKeyValueStore nonceStore in nonceStores)
-            {
-                nonceStore.Dispose();
-            }
         }
 
         private readonly IServiceProvider m_services;
@@ -160,6 +139,5 @@ namespace Opc.Ua.Redundancy.Server
         private readonly Lock m_lock = new();
         private readonly List<ReplicatedSharedKeyValueStore> m_entryStores = [];
         private readonly List<InMemoryNetwork> m_defaultNetworks = [];
-        private readonly List<InMemorySharedKeyValueStore> m_ownedNonceStores = [];
     }
 }

@@ -329,7 +329,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 m_context = ServiceMessageContext.CreateEmpty(telemetry);
-                var registry = new SharedSingleUseNonceRegistry(m_nonces);
                 m_freshness = new FreshnessProtectedKeyValueStore(
                     m_sessions, m_authority, m_protector, Guid.NewGuid(), Guid.NewGuid());
                 m_store = new SharedKeyValueSessionStore(m_freshness, m_context, m_protector);
@@ -340,7 +339,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     () => BeforeStandbyCommit,
                     () => LoseCommitAcknowledgement);
                 Mock<IServerInternal> ownerServer = CreateServer();
-                First = CreateManager(registry, owner, ownerServer.Object, _ => m_serverCertificate.AddRef(),
+                First = CreateManager(owner, ownerServer.Object, _ => m_serverCertificate.AddRef(),
                     m_timeProvider, fastReconnect);
                 ownerServer.SetupGet(server => server.SessionManager).Returns(First);
                 ownerServer.Setup(server => server.CloseSessionAsync(
@@ -348,7 +347,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     .Returns((OperationContext _, NodeId id, bool _, CancellationToken ct) =>
                         First.CloseSessionAsync(id, ct));
                 Mock<IServerInternal> standbyServer = CreateServer();
-                Second = CreateManager(registry, standby, standbyServer.Object, _ => m_serverCertificate.AddRef(),
+                Second = CreateManager(standby, standbyServer.Object, _ => m_serverCertificate.AddRef(),
                     m_timeProvider, fastReconnect);
                 standbyServer.SetupGet(server => server.SessionManager).Returns(Second);
             }
@@ -548,7 +547,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 m_serverCertificate.Dispose();
                 m_clientCertificate.Dispose();
                 m_sessions.Dispose();
-                m_nonces.Dispose();
                 m_authority.Dispose();
                 m_protector.Dispose();
             }
@@ -609,8 +607,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             private readonly FakeTimeProvider m_timeProvider = new();
             private readonly FreshnessProtectedKeyValueStore m_freshness;
             private readonly SharedKeyValueSessionStore m_store;
-            /// <summary>The strongly consistent nonce-registry backend.</summary>
-            private readonly InMemorySharedKeyValueStore m_nonces = new();
             /// <summary>The session serialization context.</summary>
             private readonly IServiceMessageContext m_context;
         }
@@ -626,7 +622,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             new(s_sessionKv, ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
 
         private static DistributedSessionManager CreateManager(
-            ISingleUseNonceRegistry nonceRegistry,
             ISharedSessionStore? sessionStore = null,
             IServerInternal? server = null,
             Func<string, Certificate?>? serverCertificateProvider = null,
@@ -656,7 +651,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 server ?? serverMock.Object,
                 configuration,
                 sessionStore ?? s_sessionStore,
-                nonceRegistry,
                 serverCertificateProvider ?? (_ => null),
                 new DistributedSessionOptions { EnableFastReconnect = fastReconnect },
                 timeProvider);
@@ -682,9 +676,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeSucceedsForMatchingPolicyAndFreshNonce()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 1));
 
             DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
@@ -699,9 +691,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsMismatchedPolicy()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 2));
 
             DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
@@ -716,9 +706,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsMismatchedSecurityMode()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 3));
 
             DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
@@ -733,9 +721,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsEmptyNonce()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce([]);
 
             DistributedSessionManager.RestoreDecision decision = manager.AuthorizeRestore(
@@ -750,9 +736,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsMissingVersionedSecurityState()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 10)) with
             {
                 SecurityStateVersion = 0
@@ -777,9 +761,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry, sessionStore);
+            using DistributedSessionManager manager = CreateManager(sessionStore);
 
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 21));
             await sessionStore.PutAsync(entry).ConfigureAwait(false);
@@ -822,9 +804,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry, sessionStore);
+            using DistributedSessionManager manager = CreateManager(sessionStore);
 
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 24));
             await sessionStore.PutAsync(entry).ConfigureAwait(false);
@@ -860,9 +840,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsPreviousSecurityStateVersion()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
 
             // Version 2 stored a differently derived ClientUserId, so an entry a
             // peer replica wrote before the upgrade must fail closed instead of
@@ -887,9 +865,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsMissingClientUserId()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 11)) with
             {
                 ClientUserId = null,
@@ -911,9 +887,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsUnactivatedIdentityState()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 13)) with
             {
                 HasActivatedUserIdentity = false
@@ -934,9 +908,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsDifferentOriginalChannelCertificate()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 12));
 
             DistributedSessionManager.RestoreDecision decision =
@@ -955,9 +927,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsAllZeroNonce()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(new byte[32]);
 
             DistributedSessionManager.RestoreDecision decision =
@@ -974,9 +944,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void AuthorizeRejectsExpiredSession()
         {
             var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-07-08T12:00:00Z", CultureInfo.InvariantCulture));
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry, timeProvider: timeProvider);
+            using DistributedSessionManager manager = CreateManager(timeProvider: timeProvider);
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 4)) with
             {
                 LastActivatedAt = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds(-1001)),
@@ -996,14 +964,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task RestoreRejectsExpiredMirroredSessionAsync()
         {
             var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-07-08T12:00:00Z", CultureInfo.InvariantCulture));
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
             using DistributedSessionManager manager = CreateManager(
-                registry,
                 sessionStore: sessionStore,
                 timeProvider: timeProvider);
             var authenticationToken = new NodeId("expired-token", 2);
@@ -1031,13 +996,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void SecureRestoreWithinTimeoutReconstructsClientCertificate()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
             using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
             using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
             Mock<IServerInternal> server = CreateRestoreServerMock(true);
             using DistributedSessionManager manager = CreateManager(
-                registry,
                 server: server.Object,
                 serverCertificateProvider: _ => serverCertificate.AddRef());
             SharedSessionEntry entry = CreateSecureEntry(clientCertificate) with
@@ -1069,13 +1031,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [TestCase(false)]
         public void RestoredSessionKeepsTheClientCertificateProvenance(bool validated)
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
             using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
             using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
             Mock<IServerInternal> server = CreateRestoreServerMock(true);
             using DistributedSessionManager manager = CreateManager(
-                registry,
                 server: server.Object,
                 serverCertificateProvider: _ => serverCertificate.AddRef());
             SharedSessionEntry entry = CreateSecureEntry(clientCertificate) with
@@ -1101,9 +1060,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeAcceptsVersionThreeSecurityState()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 14)) with
             {
                 SecurityStateVersion = 3
@@ -1129,9 +1086,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [TestCase(true)]
         public async Task CreateSessionMirrorsTheClientCertificateProvenanceAsync(bool errorAccepted)
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
@@ -1139,7 +1094,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
             Mock<IServerInternal> server = CreateRestoreServerMock(true);
             using DistributedSessionManager manager = CreateManager(
-                registry,
                 sessionStore: sessionStore,
                 server: server.Object);
             using OperationContext context = CreateContext(clientCertificate.RawData);
@@ -1180,12 +1134,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void SecureRestoreWithoutClientCertificateChainIsRejected()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
             using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
             Mock<IServerInternal> server = CreateRestoreServerMock(true);
             using DistributedSessionManager manager = CreateManager(
-                registry,
                 server: server.Object,
                 serverCertificateProvider: _ => serverCertificate.AddRef());
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 6)) with
@@ -1207,9 +1158,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task FailedSecureRestoreDisposesTemporaryCertificateHandlesAsync()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
@@ -1222,7 +1171,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             try
             {
                 using DistributedSessionManager manager = CreateManager(
-                    registry,
                     sessionStore: sessionStore,
                     server: server.Object,
                     serverCertificateProvider: _ => serverCertificate.AddRef());
@@ -1260,8 +1208,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void ConstructorValidatesArguments()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             var serverMock = new Mock<IServerInternal>();
@@ -1280,7 +1226,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(
                 () => new DistributedSessionManager(
-                    serverMock.Object, configuration, store, registry, null!),
+                    serverMock.Object, configuration, store, null!),
                 Throws.ArgumentNullException);
         }
 
@@ -1293,10 +1239,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void AuthorizeAcceptsSessionKeptAliveByTheHeartbeat()
         {
             var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-08T12:00:00Z", CultureInfo.InvariantCulture));
-            using var registryKv = new InMemorySharedKeyValueStore();
-            using DistributedSessionManager manager = CreateManager(
-                new SharedSingleUseNonceRegistry(registryKv),
-                timeProvider: timeProvider);
+            using DistributedSessionManager manager = CreateManager(timeProvider: timeProvider);
             DateTime now = timeProvider.GetUtcNow().UtcDateTime;
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 30)) with
             {
@@ -1314,10 +1257,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void AuthorizeRejectsSessionWhoseHeartbeatStopped()
         {
             var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-08T12:00:00Z", CultureInfo.InvariantCulture));
-            using var registryKv = new InMemorySharedKeyValueStore();
-            using DistributedSessionManager manager = CreateManager(
-                new SharedSingleUseNonceRegistry(registryKv),
-                timeProvider: timeProvider);
+            using DistributedSessionManager manager = CreateManager(timeProvider: timeProvider);
             DateTime now = timeProvider.GetUtcNow().UtcDateTime;
 
             // Timeout plus the heartbeat's maximum lag (a quarter of the timeout plus the
@@ -1341,9 +1281,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public void AuthorizeRejectsEphemeralKeyUserToken()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
-            using DistributedSessionManager manager = CreateManager(registry);
+            using DistributedSessionManager manager = CreateManager();
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 32)) with
             {
                 UserTokenRequiresEphemeralKey = true
@@ -1404,9 +1342,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RestoreDoesNotConsumeTheNonceBeforeTheActivationIsValidatedAsync()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv);
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
@@ -1414,7 +1350,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
             Mock<IServerInternal> server = CreateRestoreServerMock(true);
             using DistributedSessionManager manager = CreateManager(
-                registry,
                 sessionStore: sessionStore,
                 server: server.Object,
                 serverCertificateProvider: _ => serverCertificate.AddRef());
@@ -1430,8 +1365,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 Assert.That(first, Is.Not.Null);
                 Assert.That(second, Is.Not.Null, "a failed or abandoned attempt leaves the session restorable");
-                Assert.That(await registry.TryConsumeAsync(entry.ServerNonce).ConfigureAwait(false), Is.True);
-                Assert.That(await sessionStore.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false), Is.Not.Null);
+                SharedSessionEntry? stored = await sessionStore.TryGetAsync(entry.AuthenticationToken)
+                    .ConfigureAwait(false);
+                Assert.That(stored, Is.Not.Null);
+                Assert.That(stored!.ServerNonce, Is.EqualTo(entry.ServerNonce));
             }
             finally
             {
@@ -1447,7 +1384,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task RestoreRequestsTheMirroredSessionIdAsync()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
@@ -1457,7 +1393,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             NodeId requested = NodeId.Null;
             Mock<IServerInternal> server = CreateRestoreServerMock(true, d => requested = d.SessionId);
             using DistributedSessionManager manager = CreateManager(
-                new SharedSingleUseNonceRegistry(registryKv),
                 sessionStore: sessionStore,
                 server: server.Object,
                 serverCertificateProvider: _ => serverCertificate.AddRef());
@@ -1482,7 +1417,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task CreateSessionRequestsAClusterUniqueSessionIdAsync()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
@@ -1494,7 +1428,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             int diagnosticsIndex = namespaces.GetIndexOrAppend(Ua.Namespaces.OpcUa + "Diagnostics");
             server.Setup(s => s.NamespaceUris).Returns(namespaces);
             using DistributedSessionManager manager = CreateManager(
-                new SharedSingleUseNonceRegistry(registryKv),
                 sessionStore: sessionStore,
                 server: server.Object);
 
@@ -1511,14 +1444,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task CreateSessionMirrorsOwnerAndServerCertificateAsync()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
             using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
             using DistributedSessionManager manager = CreateManager(
-                new SharedSingleUseNonceRegistry(registryKv),
                 sessionStore: sessionStore,
                 server: CreateRestoreServerMock(true).Object);
 
@@ -1539,7 +1470,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task CreateSessionMirrorsTheAdvertisedServerCertificateChainAsync()
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
@@ -1549,7 +1479,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var chain = new CertificateCollection { serverCertificate, issuer };
             ByteString chainBlob = ByteString.From(Utils.CreateCertificateChainBlob(chain));
             using DistributedSessionManager manager = CreateManager(
-                new SharedSingleUseNonceRegistry(registryKv),
                 sessionStore: sessionStore,
                 server: CreateRestoreServerMock(true).Object);
 
@@ -1569,14 +1498,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [TestCase(true, ExpectedResult = false)]
         public async Task<bool> CloseDeletesTheEntryOnlyOnTheOwningReplicaAsync(bool owned)
         {
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
             using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
             using DistributedSessionManager manager = CreateManager(
-                new SharedSingleUseNonceRegistry(registryKv),
                 sessionStore: sessionStore,
                 server: CreateRestoreServerMock(true).Object);
             CreateSessionResult result = await CreateMirroredSessionAsync(manager, serverCertificate, "close")
@@ -1602,10 +1529,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
-            using var registryKv = new InMemorySharedKeyValueStore();
-            using DistributedSessionManager manager = CreateManager(
-                new SharedSingleUseNonceRegistry(registryKv),
-                sessionStore);
+            using DistributedSessionManager manager = CreateManager(sessionStore);
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 33)) with { OwnerId = manager.ReplicaId };
             await sessionStore.PutAsync(entry).ConfigureAwait(false);
 
@@ -1625,21 +1549,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
-        /// Issue #4627 RS-6: the sweep removes the entries of sessions that can no longer
-        /// be restored and the consumed-nonce markers no live entry references.
+        /// The sweep removes expired sessions and preserves live ones.
         /// </summary>
         [Test]
-        public async Task SweepRemovesExpiredEntriesAndOrphanedNonceMarkersAsync()
+        public async Task SweepRemovesExpiredEntriesAndKeepsLiveSessionsAsync()
         {
             var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-08T12:00:00Z", CultureInfo.InvariantCulture));
-            using var registryKv = new InMemorySharedKeyValueStore();
             using var sessionKv = new InMemorySharedKeyValueStore();
-            var registry = new SharedSingleUseNonceRegistry(registryKv, timeProvider: timeProvider);
             var sessionStore = new SharedKeyValueSessionStore(
                 sessionKv,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
             using DistributedSessionManager manager = CreateManager(
-                registry,
                 sessionStore: sessionStore,
                 timeProvider: timeProvider);
 
@@ -1649,9 +1569,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 LastActivatedAt = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime),
                 SessionTimeout = 60_000
             };
-            Assert.That(await registry.TryConsumeAsync(expired.ServerNonce).ConfigureAwait(false), Is.True);
-            ByteString liveNonce = ByteString.From(CreateBytes(32, 41));
-            Assert.That(await registry.TryConsumeAsync(liveNonce).ConfigureAwait(false), Is.True);
 
             timeProvider.Advance(TimeSpan.FromHours(2));
             SharedSessionEntry live = EntryWithNonce(CreateBytes(32, 41)) with
@@ -1663,16 +1580,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await sessionStore.PutAsync(expired).ConfigureAwait(false);
             await sessionStore.PutAsync(live).ConfigureAwait(false);
 
-            (int entries, int markers) = await manager.SweepAsync(CancellationToken.None).ConfigureAwait(false);
+            int entries = await manager.SweepAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(entries, Is.EqualTo(1));
-            Assert.That(markers, Is.EqualTo(1));
             Assert.That(await sessionStore.TryGetAsync(expired.AuthenticationToken).ConfigureAwait(false), Is.Null);
             Assert.That(await sessionStore.TryGetAsync(live.AuthenticationToken).ConfigureAwait(false), Is.Not.Null);
-            Assert.That(
-                await registry.TryConsumeAsync(liveNonce).ConfigureAwait(false),
-                Is.False,
-                "the marker of a nonce a live entry carries is kept");
         }
 
         private static async Task<CreateSessionResult> CreateMirroredSessionAsync(

@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .AddSingleton<TimeProvider>(new FakeTimeProvider())
                 .AddSingleton(telemetry)
                 .AddSingleton(new ServerRedundancyOptions { Mode = RedundancySupport.HotAndMirrored });
-            builder.UseReplicatedEventFeed(group, _ => new Source());
+            builder.UseReplicatedEventReporting(group, _ => new Source());
             return builder.Services.BuildServiceProvider();
         }
 

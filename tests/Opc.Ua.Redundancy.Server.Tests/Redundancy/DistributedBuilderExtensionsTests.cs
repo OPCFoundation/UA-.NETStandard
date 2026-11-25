@@ -194,12 +194,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             builder.Services.AddSingleton(context);
             builder.Services.AddSingleton(telemetry);
-
             builder.UseDistributedSubscriptionMirroring();
 
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
-            Assert.That(sp.GetRequiredService<ISubscriptionStore>(),
-                Is.InstanceOf<SharedKeyValueSubscriptionStore>());
+            ISubscriptionStore store = sp.GetRequiredService<ISubscriptionStore>();
+            Assert.That(store, Is.InstanceOf<SharedKeyValueSubscriptionStore>());
+            Assert.That(sp.GetService<IMonitoredItemQueueFactory>(), Is.Null);
+            Assert.That(await store.RestoreDataChangeMonitoredItemQueueAsync(1).ConfigureAwait(false), Is.Null);
+            Assert.That(await store.RestoreEventMonitoredItemQueueAsync(1).ConfigureAwait(false), Is.Null);
         }
 
         [Test]
@@ -225,21 +227,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             builder.AddRequestServerStateChange();
 
-            using ServiceProvider sp = builder.Services.BuildServiceProvider();
-            Assert.That(sp.GetServices<IServerStartupTask>().ToArray(),
-                Has.Some.InstanceOf<RequestServerStateChangeStartupTask>());
-        }
-
-        [Test]
-        public void AddManualFailoverDelegatesToRequestServerStateChange()
-        {
-            var builder = new DiTestServerBuilder();
-
-#pragma warning disable CS0618 // exercising the obsolete alias on purpose
-            IOpcUaServerBuilder result = builder.AddManualFailover();
-#pragma warning restore CS0618
-
-            Assert.That(result, Is.SameAs(builder));
             using ServiceProvider sp = builder.Services.BuildServiceProvider();
             Assert.That(sp.GetServices<IServerStartupTask>().ToArray(),
                 Has.Some.InstanceOf<RequestServerStateChangeStartupTask>());

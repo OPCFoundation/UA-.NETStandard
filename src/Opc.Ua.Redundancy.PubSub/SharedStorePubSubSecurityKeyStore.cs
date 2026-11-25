@@ -16,9 +16,8 @@ namespace Opc.Ua.PubSub.Security.Sks
     /// Distributed PubSub SKS key store backed by a protected shared key/value store.
     /// </summary>
     /// <remarks>
-    /// On a distributed store, use <see cref="TryCommitSecurityGroupAsync"/> rather than the
-    /// legacy unconditional or fenced save overloads. A conditional update keeps authorization
-    /// and the current key in the same committed record.
+    /// <see cref="TryCommitSecurityGroupAsync"/> keeps authorization and the current key in
+    /// the same conditionally committed record.
     /// </remarks>
     public sealed class SharedStorePubSubSecurityKeyStore : ICoordinatedPubSubSecurityKeyStore
     {
@@ -112,18 +111,18 @@ namespace Opc.Ua.PubSub.Security.Sks
         }
 
         /// <inheritdoc/>
-        public ValueTask SaveSecurityGroupAsync(
+        ValueTask IPubSubSecurityKeyStore.SaveSecurityGroupAsync(
             SksSecurityGroup group,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
             return SaveSecurityGroupCoreAsync(group, null, cancellationToken);
         }
 
         /// <inheritdoc/>
-        public ValueTask SaveSecurityGroupAsync(
+        ValueTask IPubSubSecurityKeyStore.SaveSecurityGroupAsync(
             SksSecurityGroup group,
             long fencingToken,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
             return SaveSecurityGroupCoreAsync(group, fencingToken, cancellationToken);
         }

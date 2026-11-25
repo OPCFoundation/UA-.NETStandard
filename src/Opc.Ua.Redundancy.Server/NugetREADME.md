@@ -16,7 +16,7 @@ The core server library stays a self-contained, single-instance server. This pac
 - Opt-in mirrors for HotAndMirrored/Transparent failover: encrypted session
   state with single-use nonce validation, subscription definitions,
   retransmission queues for `Republish`, and best-effort continuation
-  points. `UseReplicatedEventFeed` orders and replays shared occurrences
+  points. `UseReplicatedEventReporting` orders and replays shared occurrences
   before a replica advertises readiness. The application supplies event
   data and the policy for mirrored condition methods.
 

@@ -75,12 +75,9 @@ namespace Opc.Ua.Redundancy.Server.Tests
         }
 
         [Test]
-        public async Task FactoryRejectsFastReconnectWithoutStronglyConsistentNonceStoreAsync()
+        public async Task FactoryRejectsFastReconnectWithoutACommittedSessionStoreAsync()
         {
-            // Fast reconnect replays a session by AuthenticationToken; the
-            // single-use nonce must be strongly consistent across the replica
-            // set. A record protector alone (no shared nonce store) must fail
-            // closed rather than silently use a per-process registry.
+            // Record protection alone cannot prove that the nonce and owner are current.
             await using ServiceProvider services = ServicesWithNullProtector();
             var options = new ReplicatedSessionOptions();
             options.Session.EnableFastReconnect = true;
@@ -93,11 +90,11 @@ namespace Opc.Ua.Redundancy.Server.Tests
                     TimeProvider.System,
                     _ => null),
                 Throws.InvalidOperationException
-                    .With.Message.Contains(nameof(ISharedKeyValueStore)));
+                    .With.Message.Contains("independent freshness authority"));
         }
 
         [Test]
-        public async Task FactoryRejectsFastReconnectWithProcessLocalRaftNonceKeyspaceAsync()
+        public async Task FactoryRejectsFastReconnectWithProcessLocalRaftAsync()
         {
             var registrations = new ServiceCollection()
                 .AddSingleton<IRecordProtector>(NullRecordProtector.Instance);
@@ -114,19 +111,19 @@ namespace Opc.Ua.Redundancy.Server.Tests
                     NewConfiguration(),
                     TimeProvider.System,
                     _ => null),
-                Throws.InvalidOperationException.With.Message.Contains("nonce/"));
+                Throws.InvalidOperationException.With.Message.Contains("independent freshness authority"));
         }
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task FactoryRejectsFastReconnectWhenNonceConsistencyIsNotKnownAsync(bool hasCapability)
+        public async Task FactoryRejectsFastReconnectWithAnUnprotectedStoreAsync(bool hasCapability)
         {
             var backend = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
             if (hasCapability)
             {
                 backend.As<ISharedKeyValueStoreConsistency>()
-                    .Setup(s => s.IsLinearizable("nonce/"))
-                    .Returns(false);
+                    .Setup(s => s.IsLinearizable(It.IsAny<string>()))
+                    .Returns(true);
             }
             await using ServiceProvider services = new ServiceCollection()
                 .AddSingleton<IRecordProtector>(NullRecordProtector.Instance)
@@ -142,7 +139,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
                     NewConfiguration(),
                     TimeProvider.System,
                     _ => null),
-                Throws.InvalidOperationException.With.Message.Contains("nonce/"));
+                Throws.InvalidOperationException.With.Message.Contains("independent freshness authority"));
         }
 
         [Test]

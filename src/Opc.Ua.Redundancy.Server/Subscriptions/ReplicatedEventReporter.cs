@@ -13,7 +13,7 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     /// <param name="GroupId">The stable UUID of the redundant server set.</param>
     /// <param name="OccurrenceId">The unique UUID allocated once for this occurrence in the set.</param>
-    public readonly record struct ReplicatedEventIdentity(Uuid GroupId, Uuid OccurrenceId);
+    internal readonly record struct ReplicatedEventIdentity(Uuid GroupId, Uuid OccurrenceId);
 
     /// <summary>
     /// A condition method that must execute at the authority for a mirrored condition.
@@ -34,7 +34,7 @@ namespace Opc.Ua.Redundancy.Server
     /// <summary>
     /// Relays condition method calls to the trusted authority for mirrored condition state.
     /// </summary>
-    public interface IReplicatedConditionMethodRelay
+    internal interface IReplicatedConditionMethodRelay
     {
         /// <summary>
         /// Authorizes and commits a condition method at the source of truth. The source resolves the
@@ -67,7 +67,7 @@ namespace Opc.Ua.Redundancy.Server
     /// occurrence UUIDs, retains condition state and method associations, and delivers updates once
     /// in order to each replica. This class neither transports records nor infers occurrences from event fields.
     /// </remarks>
-    public sealed class ReplicatedEventReporter
+    internal sealed class ReplicatedEventReporter
     {
         /// <summary>
         /// Creates a reporter for a Transparent or HotAndMirrored redundant server set.

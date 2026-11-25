@@ -70,7 +70,12 @@ Server redundancy is either **transparent** or **non-transparent**. In transpare
 
 ### Server.ServerRedundancy model
 
-Register `AddServerRedundancy(...)` on the server builder to populate the live `Server.ServerRedundancy` nodes after the server starts. `ServerRedundancyOptions.Mode` writes `RedundancySupport`. `PeerServerUris` and `RedundantPeers` populate `RedundantServerArray`; for non-transparent modes the startup task also populates `ServerUriArray`, and for transparent mode it publishes `CurrentServerId`.
+Register `AddServerRedundancy(...)` on the server builder to populate the live
+`Server.ServerRedundancy` nodes after the server starts. `ServerRedundancyOptions.Mode`
+writes `RedundancySupport`. In non-transparent modes, `RedundantPeers` supplies
+the configured membership for `ServerUriArray` and `RedundantServerArray`.
+In Transparent mode, `TransparentPeerServerIds` supplies the physical members
+and `CurrentServerId` identifies the local server.
 
 `Server.ServerRedundancy` is exposed as the generated subtype for the configured mode — `TransparentRedundancyType` for `Transparent`, `NonTransparentRedundancyType` for `Cold`/`Warm`/`Hot`/`HotAndMirrored`, or the base `ServerRedundancyType` for `None` — so a client that browses the node sees the correct `HasTypeDefinition` and only the members the standard defines for that subtype (`CurrentServerId` for transparent, `ServerUriArray` for non-transparent).
 
@@ -149,7 +154,6 @@ services.AddOpcUa()
         options.AddRedundantPeer(
             "urn:example:ha-server-2",
             new ArrayOf<string>(["opc.tcp://ha-server-2:4840"]));
-        options.PeerServiceLevel = ServiceLevels.DegradedMaximum;
     })
     .AddServerServiceLevel(new LeaderServiceLevelProvider(leaderElection, RedundancySupport.Warm))
     .AddRequestServerStateChange(options =>
@@ -434,7 +438,9 @@ You enable mirroring by registering the seams below on the server builder; each 
   reconnect is disabled.
 - A restored session keeps the `SessionId` the client received from `CreateSession`, so its diagnostics nodes, audit events and mirrored continuation points stay addressable across any number of failovers. To make that safe, `DistributedSessionManager` assigns new sessions a GUID `SessionId` that is unique across the replica set instead of a per-process counter value.
 - Replicas of a non-transparent (HotAndMirrored) set have their own ApplicationUri and certificate. The record carries the certificate of the server that created the session, and a restored session accepts a client signature over either that certificate or the restoring replica's own one (the stack's client signs the failover server's certificate). Encrypted user tokens must still be decryptable by the restoring replica: with RSA user token policies the client encrypts for the certificate it signs, and a session whose user token is encrypted with an ECC or RSA-DH `EphemeralKey` is not restored at all, because the private part of that key never leaves the replica that issued it — the reconnect is rejected before anything is consumed and the client re-creates the session.
-- A periodic sweep (`SweepInterval`, default five minutes) removes the records of sessions that can no longer be restored — for example those of a replica that crashed or shut down, which nobody closes — and the consumed-nonce markers that no live record references and that are older than `NonceMarkerRetention` (default one hour). A restore that finds an expired record deletes it as well.
+- A periodic sweep (`SweepInterval`, default five minutes) removes expired
+  session records, including those left behind by a replica that stopped.
+  A restore that finds an expired record deletes it as well.
 - Configure a real `IRecordProtector` for networked session storage.
 - Mirrored session records carry a `SecurityStateVersion`. The current
   implementation restores eligible records with versions **3 through 5**,
@@ -456,11 +462,9 @@ You enable mirroring by registering the seams below on the server builder; each 
   activations overlap the mirror keeps the newest `serverNonce` instead of
   whichever write happens to land last.
 - `UseDistributedSubscriptionMirroring(...)` registers `SharedKeyValueSubscriptionStore`
-  and `SharedKeyValueMonitoredItemQueueFactory`. The shared queue factory does
-  not support durable queues. It checkpoints data and events within its own
-  factory instance, not across replicas. Do not rely on this registration to
-  restore ordinary subscription definitions or queued-but-unpublished
-  notifications after promotion.
+  without replacing the server's monitored-item queue factory. Unpublished
+  notifications stay on the replica that queued them. Do not rely on this
+  registration to restore ordinary subscriptions after promotion.
 - The same store also implements `ISubscriptionRetransmissionStore`. Retransmission state is mirrored asynchronously through a non-blocking background drain: `NextSequenceNumber`, sent `NotificationMessage` entries, acknowledgements, and deletes are coalesced and persisted so `Republish` can continue after failover without blocking the publishing path.
 - `IContinuationPointStore` mirrors the generic Browse continuation envelope.
 - `IHistoryContinuationPointStore` separately persists versioned, protected
@@ -468,13 +472,7 @@ You enable mirroring by registering the seams below on the server builder; each 
   `IHistorianProviderIdentity` and portable resume tokens. Persistence is
   awaited before the continuation point is returned, and restore atomically
   claims the record so only one replica can resume it.
-- `UseReplicatedEventReporting(groupId, relayFactory)` registers a
-  `ReplicatedEventReporter` adapter. The application supplies the
-  authenticated, ordered occurrence feed, replay, readiness gate, and
-  `IReplicatedConditionMethodRelay`. Use the same group UUID on each
-  member and configure `AddServerRedundancy` in Transparent or
-  HotAndMirrored mode.
-- `UseReplicatedEventFeed(groupId, sourceFactory)` provides the authoritative
+- `UseReplicatedEventReporting(groupId, sourceFactory)` provides the authoritative
   feed and Acknowledge/Confirm relay. The application supplies trusted
   occurrence data and an authorization policy. The built-in feed owns
   ordering, guarded commits, replay, and readiness. Combine it with
@@ -522,9 +520,6 @@ You enable mirroring by registering the seams below on the server builder; each 
 Notes:
 
 - Hydration fully materializes the mirrored node graph (topology plus values): the snapshot + delta log reduces the store round trips and per-node work, but the whole graph is resident. True on-demand fault-in (materializing a node only when it is first browsed/read) would further cut time-to-ready and memory for very large, sparsely-accessed graphs; it requires an asynchronous node-resolution seam through the core node-manager read/browse path and is tracked as future work in OPCFoundation/UA-.NETStandard#3938. The eventual-consistency conflict-free replicated data type (CRDT) path already exchanges a compact state snapshot plus deltas.
-- The legacy shared monitored-item queue factory does not transfer queues
-  between replicas. Use retransmission or application recovery to recover
-  already-sent notifications where the configured subscription layer supports it.
 - Generic Browse continuation-point mirroring remains best-effort because a
   custom node manager's opaque `ContinuationPoint.Data` cannot be reconstructed
   automatically. Built-in historian continuations are recoverable when the
@@ -536,19 +531,6 @@ Notes:
   group UUID followed by the occurrence UUID, both in UA binary GUID order.
   Distinct occurrences get different UUIDs even if their payload and
   timestamp match.
-- With the reporter adapter, call `ReportEventAsync` to deliver an ordinary
-  occurrence through its local notifier. For conditions, call
-  `BindConditionMethods` on each addressable trunk after initializing its
-  methods. Replay committed state in order with
-  `ApplyConditionOccurrenceAsync`, preserving stable BranchIds.
-  Pass `publish: false` to restore retained state on a new standby before it
-  begins serving clients. Apply final occurrences before retiring branches.
-  `ConditionRefresh` then returns the same IDs for retained states; clients
-  still call it after failover. Acknowledge and Confirm send the supplied
-  EventId to the registered relay when called through an async node manager.
-  The authority validates the caller, resolves that ID to the exact condition
-  and branch, and commits resulting occurrences into the same feed. The
-  receiving replica does not execute those methods independently.
 - With the built-in feed, bind local notifiers and condition nodes from your
   node managers before startup replay. The trusted producer calls
   `PublishEventAsync` or `PublishConditionAsync` with the same occurrence
@@ -562,7 +544,8 @@ Notes:
   rebuilds retained conditions and their native method associations by
   replaying the committed prefix. It advertises `NoData`
   until it has caught up under its own writer grant. An administrator's
-  `Maintenance` override still takes precedence.
+  `Maintenance` override still takes precedence. Clients can call
+  `ConditionRefresh` after failover to retrieve the retained events and their IDs.
 - Initial replay does not re-emit ordinary historical events; mirrored
   notifications remain the responsibility of subscription mirroring. The
   append-only feed retains up to 100,000 records of up to 256 KiB each and
@@ -571,9 +554,8 @@ Notes:
   separately relay other mutating methods and exclude their condition values
   from independent address-space replication. Provider callbacks and event
   sinks must not re-enter the serialized feed or depend on replica-local time.
-- Events outside the built-in or custom feed, including independently
-  generated alarms and audit events, are not synchronized. The legacy
-  `DeterministicEventIdProvider` cannot distinguish identical occurrences.
+- Events outside the feed, including independently generated alarms and audit
+  events, are not synchronized.
 
 ### Active/passive address-space consistency
 

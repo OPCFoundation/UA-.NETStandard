@@ -45,17 +45,12 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Gets or sets how often the shared store is swept for the entries of timed-out
-        /// sessions and for orphaned legacy consumed-nonce markers. Sessions of a replica that
+        /// sessions. Sessions of a replica that
         /// crashed or was shut down are never closed there, so without the sweep their
         /// records (with their nonces and client certificates) would stay in the store.
         /// Defaults to five minutes; zero or a negative value disables the sweep.
         /// </summary>
         public TimeSpan SweepInterval { get; set; } = TimeSpan.FromMinutes(5);
 
-        /// <summary>
-        /// Gets or sets the minimum age of a legacy consumed-nonce marker that no live session
-        /// entry references before the sweep removes it. Defaults to one hour.
-        /// </summary>
-        public TimeSpan NonceMarkerRetention { get; set; } = TimeSpan.FromHours(1);
     }
 }

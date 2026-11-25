@@ -113,18 +113,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task NonceRegistryEnforcesExactlyOnceAsync()
+        public async Task RaftCsStoreRejectsASecondConditionalInsertAsync()
         {
             await using var store = new RaftSharedKeyValueStore(
                 DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
-            var registry = new SharedSingleUseNonceRegistry(store);
-            var nonce = ByteString.From(new byte[] { 1, 2, 3, 4 });
+            var value = ByteString.From(new byte[] { 1, 2, 3, 4 });
 
-            bool first = await registry.TryConsumeAsync(nonce).ConfigureAwait(false);
-            bool second = await registry.TryConsumeAsync(nonce).ConfigureAwait(false);
+            bool first = await store.CompareAndSwapAsync("election/claim", default, value).ConfigureAwait(false);
+            bool second = await store.CompareAndSwapAsync("election/claim", default, value).ConfigureAwait(false);
 
             Assert.That(first, Is.True);
-            Assert.That(second, Is.False, "a replayed nonce is rejected by the RaftCs-backed registry");
+            Assert.That(second, Is.False, "the key is no longer absent");
         }
     }
 }

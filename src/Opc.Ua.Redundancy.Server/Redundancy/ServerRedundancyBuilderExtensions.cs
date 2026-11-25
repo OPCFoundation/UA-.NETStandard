@@ -79,23 +79,6 @@ namespace Opc.Ua.Redundancy.Server
             return builder;
         }
 
-        /// <summary>
-        /// Wires the standard <c>Server.RequestServerStateChange</c> method for OPC 10000-4 §6.6.5
-        /// administrator-driven manual Failover to Maintenance or NoData.
-        /// </summary>
-        /// <param name="builder">The server builder.</param>
-        /// <param name="configure">Optional method wiring configuration.</param>
-        /// <remarks>
-        /// Use <see cref="AddRequestServerStateChange(IOpcUaServerBuilder, Action{RequestServerStateChangeOptions}?)"/>.
-        /// </remarks>
-        [Obsolete("Use AddRequestServerStateChange.")]
-        public static IOpcUaServerBuilder AddManualFailover(
-            this IOpcUaServerBuilder builder,
-            Action<RequestServerStateChangeOptions>? configure = null)
-        {
-            return AddRequestServerStateChange(builder, configure);
-        }
-
         private static SharedRedundantPeerStatus? CreatePeerStatus(
             IServiceProvider services,
             ServerRedundancyOptions options)
