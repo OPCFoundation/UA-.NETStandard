@@ -327,5 +327,30 @@ namespace Opc.Ua.Gds.Server
             }
             return false;
         }
+
+        /// <summary>
+        /// Revokes a certificate that was issued for an application that was
+        /// unregistered before the certificate was published. A failure is
+        /// logged by <see cref="RevokeIssuedCertificateAsync"/>.
+        /// </summary>
+        private async Task RevokeUnpublishedCertificateAsync(NodeId applicationId, ByteString certificate)
+        {
+            try
+            {
+                // The application is gone, so the revocation must not be
+                // cancelled with the request.
+                await RevokeIssuedCertificateAsync(certificate, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                m_logger.FailedToRevoke(ex, applicationId);
+            }
+        }
+
+        /// <summary>
+        /// Serializes the publication of an issued certificate with the
+        /// revocation and removal in UnregisterApplication.
+        /// </summary>
+        private readonly SemaphoreSlim m_publicationLock = new(1, 1);
     }
 }

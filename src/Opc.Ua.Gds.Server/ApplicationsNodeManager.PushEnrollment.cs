@@ -271,6 +271,37 @@ namespace Opc.Ua.Gds.Server
             ByteString encodedCertificate,
             CancellationToken ct)
         {
+            // UnregisterApplication revokes the issued certificates and
+            // removes the record under the same lock, so a certificate is
+            // either published to a registered application or revoked.
+            await m_publicationLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (m_database.GetApplication(applicationId) == null)
+                {
+                    await RevokeUnpublishedCertificateAsync(applicationId, encodedCertificate).ConfigureAwait(false);
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotFound,
+                        "The application was unregistered while the certificate was issued.");
+                }
+                await PublishCertificateIssuanceCoreAsync(
+                    applicationId, requestId, certificateGroup, certificateTypeId, encodedCertificate, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_publicationLock.Release();
+            }
+        }
+
+        private async ValueTask PublishCertificateIssuanceCoreAsync(
+            NodeId applicationId,
+            NodeId requestId,
+            ICertificateGroup certificateGroup,
+            NodeId certificateTypeId,
+            ByteString encodedCertificate,
+            CancellationToken ct)
+        {
             using Certificate certificate = Certificate.FromRawData(encodedCertificate);
             var identifier = new CertificateStoreIdentifier(
                 m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath!);

@@ -1234,22 +1234,32 @@ namespace Opc.Ua.Gds.Server
             }
 
             // Revoke every certificate the GDS issued to the application, the
-            // current ones and the ones they replaced.
-            foreach (ByteString certificate in await GetIssuedCertificatesAsync(
-                application, cancellationToken).ConfigureAwait(false))
+            // current ones and the ones they replaced, and remove the record.
+            // A certificate published at the same time is either seen here or
+            // finds the record gone and is revoked by the publication.
+            await m_publicationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                try
+                foreach (ByteString certificate in await GetIssuedCertificatesAsync(
+                    application, cancellationToken).ConfigureAwait(false))
                 {
-                    await RevokeIssuedCertificateAsync(certificate, cancellationToken)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        await RevokeIssuedCertificateAsync(certificate, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        m_logger.FailedToRevoke(ex, applicationId);
+                    }
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    m_logger.FailedToRevoke(ex, applicationId);
-                }
-            }
 
-            m_database.UnregisterApplication(applicationId);
+                m_database.UnregisterApplication(applicationId);
+            }
+            finally
+            {
+                m_publicationLock.Release();
+            }
 
             // OPC 10000-17 Annex C.3. The record is gone, so the cleanup must
             // not be cancelled with the request.
@@ -3419,6 +3429,7 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 m_finishRequestGate.Dispose();
+                m_publicationLock.Dispose();
             }
             catch (Exception error) when (error is not OutOfMemoryException)
             {
