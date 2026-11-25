@@ -19,6 +19,8 @@ nothing else above it (except a `#!` line):
 // SPDX-License-Identifier: MIT
 ```
 
+- The root `LICENSE` is exempt. It starts with `MIT License` so GitHub can
+  recognize the standard license text.
 - Use the file type's own comment syntax: `//` for C#, C, JavaScript, Java,
   Go, Rust; `#` for PowerShell, shell, YAML, Python; `@REM` for `.cmd`;
   `/* */` for CSS and USDA; `<!-- -->` for XML, XSD, AXAML, HTML, SVG and
