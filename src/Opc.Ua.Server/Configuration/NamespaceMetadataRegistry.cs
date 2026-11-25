@@ -87,6 +87,13 @@ namespace Opc.Ua.Server
         public event EventHandler? DefaultPermissionsChanged;
 
         /// <summary>
+        /// The server-wide cache of decoded static namespace defaults. Its entries are retired
+        /// by every move of <see cref="NamespaceDefaultPermissionReader.Generation"/> this
+        /// registry makes, and dropped by <see cref="Detach"/>.
+        /// </summary>
+        public NamespaceDefaultPermissionCache DefaultPermissionCache { get; } = new();
+
+        /// <summary>
         /// Gets the <see cref="NamespaceMetadataState"/> for
         /// <paramref name="namespaceUri"/>, or <c>null</c> when none exists or
         /// when the namespace is described by an untyped metadata Object.
@@ -889,6 +896,7 @@ namespace Opc.Ua.Server
             }
 
             NamespaceDefaultPermissionReader.Invalidate();
+            DefaultPermissionCache.Clear();
         }
 
         /// <summary>

@@ -98,15 +98,14 @@ namespace Opc.Ua.Server
             }
 
             OperationContext? operationContext = callerContext.OperationContext;
-            if (operationContext != null &&
-                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
+            if (TryGetCached(operationContext, configuration, namespaceIndex, out NamespaceDefaultPermissions cached))
             {
                 return cached;
             }
 
             long generation = Generation;
             NamespaceMetadataNode? state = null;
-            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
             if (configuration != null)
             {
                 try
@@ -130,9 +129,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NamespaceDefaultPermissions result = Decode(callerContext, state, namespaceIndex, generation);
-            operationContext?.SetDefaultPermissions(result);
-            return result;
+            return DecodeAndRemember(callerContext, operationContext, configuration, state, namespaceIndex, generation);
         }
 
         /// <summary>
@@ -156,15 +153,14 @@ namespace Opc.Ua.Server
             }
 
             OperationContext? operationContext = callerContext.OperationContext;
-            if (operationContext != null &&
-                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
+            if (TryGetCached(operationContext, configuration, namespaceIndex, out NamespaceDefaultPermissions cached))
             {
                 return cached;
             }
 
             long generation = Generation;
             NamespaceMetadataNode? state = null;
-            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
             if (configuration != null)
             {
                 if (configuration is not INamespaceMetadataSnapshot snapshot)
@@ -185,7 +181,58 @@ namespace Opc.Ua.Server
                 }
             }
 
+            return DecodeAndRemember(callerContext, operationContext, configuration, state, namespaceIndex, generation);
+        }
+
+        /// <summary>
+        /// Looks the defaults up in the request cache of <paramref name="operationContext"/>, then
+        /// in the server-wide cache of <paramref name="configuration"/>.
+        /// </summary>
+        private static bool TryGetCached(
+            OperationContext? operationContext,
+            IConfigurationNodeManager? configuration,
+            ushort namespaceIndex,
+            out NamespaceDefaultPermissions permissions)
+        {
+            if (operationContext != null &&
+                operationContext.TryGetDefaultPermissions(namespaceIndex, out permissions))
+            {
+                return true;
+            }
+
+            if (configuration is INamespaceDefaultPermissionCacheProvider provider &&
+                provider.DefaultPermissionCache.TryGet(namespaceIndex, out permissions))
+            {
+                return true;
+            }
+
+            permissions = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Decodes the defaults, remembers them server-wide when they are static and for the
+        /// rest of the service request of <paramref name="operationContext"/>.
+        /// </summary>
+        private static NamespaceDefaultPermissions DecodeAndRemember(
+            ServerSystemContext callerContext,
+            OperationContext? operationContext,
+            IConfigurationNodeManager? configuration,
+            NamespaceMetadataNode? state,
+            ushort namespaceIndex,
+            long generation)
+        {
+            // capture the properties before reading them: a typed state reads its slots live.
+            BaseVariableState? accessRestrictions = state?.DefaultAccessRestrictions;
+            BaseVariableState? rolePermissions = state?.DefaultRolePermissions;
+            BaseVariableState? userRolePermissions = state?.DefaultUserRolePermissions;
             NamespaceDefaultPermissions result = Decode(callerContext, state, namespaceIndex, generation);
+            if (configuration is INamespaceDefaultPermissionCacheProvider provider)
+            {
+                provider.DefaultPermissionCache.TryAdd(
+                    state, accessRestrictions, rolePermissions, userRolePermissions, result);
+            }
+
             operationContext?.SetDefaultPermissions(result);
             return result;
         }
@@ -391,7 +438,7 @@ namespace Opc.Ua.Server
                     IsStatic(state.DefaultUserRolePermissions));
         }
 
-        private static bool IsStatic(BaseVariableState? property)
+        internal static bool IsStatic(BaseVariableState? property)
         {
             return property == null ||
                 (IsWithoutReadCallbacks(property) &&
