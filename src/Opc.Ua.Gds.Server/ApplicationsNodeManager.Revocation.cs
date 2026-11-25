@@ -308,24 +308,45 @@ namespace Opc.Ua.Gds.Server
 
         /// <summary>
         /// Adds a certificate the GDS signed to the application certificate
-        /// store. It is not cancelled with the request: once signed, the
-        /// certificate must stay revocable.
+        /// store. It runs under the publication lock and is not cancelled
+        /// with the request: once signed, the certificate must stay
+        /// revocable. When the application was unregistered meanwhile, the
+        /// certificate is revoked instead and the issuance fails.
         /// </summary>
-        private async Task RecordIssuedCertificateAsync(Certificate certificate)
+        /// <exception cref="ServiceResultException">The application is no
+        /// longer registered (BadNotFound).</exception>
+        internal async Task RecordIssuedCertificateAsync(NodeId applicationId, Certificate certificate)
         {
-            using ICertificateStore? store = OpenApplicationCertificatesStore();
-            if (store == null)
+            await m_publicationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
             {
-                return;
-            }
+                if (m_database.GetApplication(applicationId) == null)
+                {
+                    await RevokeUnpublishedCertificateAsync(applicationId, ByteString.From(certificate.RawData))
+                        .ConfigureAwait(false);
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotFound,
+                        "The application was unregistered while the certificate was issued.");
+                }
 
-            using CertificateCollection existing = await store
-                .FindByThumbprintAsync(certificate.Thumbprint, CancellationToken.None)
-                .ConfigureAwait(false);
-            if (existing.Count == 0)
+                using ICertificateStore? store = OpenApplicationCertificatesStore();
+                if (store == null)
+                {
+                    return;
+                }
+
+                using CertificateCollection existing = await store
+                    .FindByThumbprintAsync(certificate.Thumbprint, CancellationToken.None)
+                    .ConfigureAwait(false);
+                if (existing.Count == 0)
+                {
+                    using var publicCertificate = Certificate.FromRawData(certificate.RawData);
+                    await store.AddAsync(publicCertificate, null, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            finally
             {
-                using var publicCertificate = Certificate.FromRawData(certificate.RawData);
-                await store.AddAsync(publicCertificate, null, CancellationToken.None).ConfigureAwait(false);
+                m_publicationLock.Release();
             }
         }
 

@@ -2677,7 +2677,7 @@ namespace Opc.Ua.Gds.Server
                 // application certificate store before it is retained or
                 // delivered, so UnregisterApplication and RevokeCertificate
                 // find it even when the publication never completes.
-                await RecordIssuedCertificateAsync(certificate).ConfigureAwait(false);
+                await RecordIssuedCertificateAsync(applicationId, certificate).ConfigureAwait(false);
 
                 result.IssuerCertificates = BuildIssuerCertificateChain(
                     certificate, certificateGroup, certificateTypeNodeId);
