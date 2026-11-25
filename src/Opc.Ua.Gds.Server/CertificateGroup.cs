@@ -286,14 +286,19 @@ namespace Opc.Ua.Gds.Server
             Certificate certificate,
             CancellationToken ct = default)
         {
-            X509CRL crl = await RevokeCertificateAsync(
-                AuthoritiesStore, certificate, null, m_telemetry,
-                CertificateIssuer, ct)
-                .ConfigureAwait(false);
-
-            // Also update TrustedList CRL so registerd Applications can get the new CRL
-            if (crl != null)
+            // The whole read-modify-write of the CA CRL and the copies into the
+            // trust lists run under the lock of the authorities store, so two
+            // revocations never rebuild the CRL from the same old version.
+            SemaphoreSlim crlLock = GetCrlLock(AuthoritiesStore);
+            await crlLock.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
+                X509CRL crl = await RevokeCertificateCoreAsync(
+                    AuthoritiesStore, certificate, null, m_telemetry,
+                    CertificateIssuer, ct)
+                    .ConfigureAwait(false);
+
+                // Also update TrustedList CRL so registerd Applications can get the new CRL
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(
                     Configuration.TrustedListPath);
                 await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
@@ -305,10 +310,13 @@ namespace Opc.Ua.Gds.Server
                     await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
                         .ConfigureAwait(false);
                 }
-            }
 
-            // return crl
-            return crl!;
+                return crl;
+            }
+            finally
+            {
+                crlLock.Release();
+            }
         }
 
         public virtual Task VerifySigningRequestAsync(
@@ -611,22 +619,31 @@ namespace Opc.Ua.Gds.Server
             // save only public key
             SetCertificate(certificateType, Certificate.FromRawData(certificate.RawData));
 
-            // initialize revocation list
-            X509CRL initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
-
-            //Update TrustedList Store
-            await initialCrl.AddToStoreAsync(AuthoritiesStore, m_telemetry, ct).ConfigureAwait(false);
-            // TODO: make CA trust selectable
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                Configuration.TrustedListPath);
-            await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
-                .ConfigureAwait(false);
-
-            // Update TrustedIssuerCertificates Store
-            if (IssuerCertificatesStore != null)
+            SemaphoreSlim crlLock = GetCrlLock(AuthoritiesStore);
+            await crlLock.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
-                await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
+                // initialize revocation list
+                X509CRL initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
+
+                //Update TrustedList Store
+                await initialCrl.AddToStoreAsync(AuthoritiesStore, m_telemetry, ct).ConfigureAwait(false);
+                // TODO: make CA trust selectable
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                    Configuration.TrustedListPath);
+                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier, ct)
                     .ConfigureAwait(false);
+
+                // Update TrustedIssuerCertificates Store
+                if (IssuerCertificatesStore != null)
+                {
+                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                crlLock.Release();
             }
 
             return Certificates[certificateType]!.AddRef();
@@ -826,6 +843,55 @@ namespace Opc.Ua.Gds.Server
             ICertificateIssuer? certificateIssuer,
             CancellationToken ct = default)
         {
+            if (storeIdentifier == null)
+            {
+                throw new ArgumentNullException(nameof(storeIdentifier));
+            }
+
+            SemaphoreSlim crlLock = GetCrlLock(storeIdentifier);
+            await crlLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                return await RevokeCertificateCoreAsync(
+                    storeIdentifier,
+                    certificate,
+                    issuerKeyFilePassword,
+                    telemetry,
+                    certificateIssuer,
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                crlLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Gets the lock that serializes every CRL read-modify-write on one
+        /// authorities store. All certificate groups of a GDS share the same
+        /// authorities store, so the lock is keyed by the store and not by the
+        /// group.
+        /// </summary>
+        internal static SemaphoreSlim GetCrlLock(CertificateStoreIdentifier storeIdentifier)
+        {
+            string storePath = (storeIdentifier.StorePath ?? string.Empty)
+                .Replace('\\', '/')
+                .TrimEnd('/');
+            string key = (storeIdentifier.StoreType ?? string.Empty) + "|" + storePath;
+            return s_crlLocks.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
+        }
+
+        /// <summary>
+        /// Revokes the certificate. The caller holds the CRL lock of the store.
+        /// </summary>
+        private static async Task<X509CRL> RevokeCertificateCoreAsync(
+            CertificateStoreIdentifier storeIdentifier,
+            Certificate certificate,
+            char[]? issuerKeyFilePassword,
+            ITelemetryContext? telemetry,
+            ICertificateIssuer? certificateIssuer,
+            CancellationToken ct)
+        {
             X509CRL? updatedCRL = null;
 
             _ = X509Utils.IsCertificateAuthority(certificate);
@@ -916,12 +982,25 @@ namespace Opc.Ua.Gds.Server
                     certCACrl,
                     certificateCollection);
 
+                // A failure to write the new CRL propagates: the certificate is
+                // not revoked and the caller must not report success.
                 await store.AddCRLAsync(updatedCRL, ct).ConfigureAwait(false);
 
-                // delete outdated CRLs from store
+                // delete outdated CRLs from store. The new CRL already holds
+                // every entry of the old ones, and the next revocation merges
+                // any CRL left behind, so a failed delete (for example a reader
+                // that holds the file open) does not lose a revocation.
                 foreach (X509CRL caCrl in certCACrl)
                 {
-                    await store.DeleteCRLAsync(caCrl, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await store.DeleteCRLAsync(caCrl, ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        telemetry?.CreateLogger<CertificateGroup>()
+                            .OutdatedCrlDeleteFailed(ex, certCA.Subject);
+                    }
                 }
             }
             finally
@@ -1141,6 +1220,8 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> s_crlLocks =
+            new(StringComparer.OrdinalIgnoreCase);
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }
@@ -1180,6 +1261,14 @@ namespace Opc.Ua.Gds.Server
             Message = "Multiple CRLs found for CA certificate {CertificateSubject}. The most recent one will be used.")]
         public static partial void MultipleCrlsFound(
             this ILogger logger,
+            [ApplicationIdentity] string certificateSubject);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.CertificateGroup + 5, Level = LogLevel.Warning,
+            Message = "Could not delete an outdated CRL of CA certificate {CertificateSubject}; " +
+                "the next revocation merges it.")]
+        public static partial void OutdatedCrlDeleteFailed(
+            this ILogger logger,
+            Exception ex,
             [ApplicationIdentity] string certificateSubject);
     }
 }

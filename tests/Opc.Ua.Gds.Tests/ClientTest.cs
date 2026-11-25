@@ -1244,6 +1244,11 @@ namespace Opc.Ua.Gds.Tests
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
+            // keep the certificate the client had before, for the admin
+            // sessions after the client has unregistered itself
+            m_clientCertificateBeforeRegistration =
+                m_gdsClient.Configuration.SecurityConfiguration.ApplicationCertificate;
+
             // register at gds and get gds issued certificate
             bool success = await m_gdsClient.RegisterTestClientAtGdsAsync().ConfigureAwait(false);
 
@@ -1424,6 +1429,12 @@ namespace Opc.Ua.Gds.Tests
             } while (requestBusy);
 
             await DisconnectGDSAsync().ConfigureAwait(false);
+
+            // The renewed certificate replaces the old one in the record, so
+            // only the renewed certificate acts for the application from now on.
+            await m_gdsClient.ApplyNewApplicationInstanceCertificateAsync(
+                application.Certificate.ToByteString(),
+                application.PrivateKey.ToByteString()).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1516,6 +1527,8 @@ namespace Opc.Ua.Gds.Tests
                                 application.PrivateKeyFormat,
                                 issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!,
                                 telemetry).ConfigureAwait(false);
+                            application.Certificate = certificate.ToArray();
+                            application.PrivateKey = privateKey.ToArray();
                         }
                         else
                         {
@@ -1546,6 +1559,11 @@ namespace Opc.Ua.Gds.Tests
             } while (requestBusy);
 
             await DisconnectGDSAsync().ConfigureAwait(false);
+
+            // Only the renewed certificate acts for the application from now on.
+            await m_gdsClient.ApplyNewApplicationInstanceCertificateAsync(
+                application.Certificate.ToByteString(),
+                application.PrivateKey.ToByteString()).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1636,6 +1654,13 @@ namespace Opc.Ua.Gds.Tests
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
 
+            // Unregistering revokes every certificate the GDS issued to the
+            // client, so the admin does not use one of them for the channel.
+            CertificateIdentifier applicationCertificate =
+                m_gdsClient.Configuration.SecurityConfiguration.ApplicationCertificate!;
+            m_gdsClient.Configuration.SecurityConfiguration.ApplicationCertificate =
+                m_clientCertificateBeforeRegistration ?? applicationCertificate;
+
             await ConnectGDSAsync(true).ConfigureAwait(false);
 
             ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
@@ -1648,17 +1673,38 @@ namespace Opc.Ua.Gds.Tests
 
             await DisconnectGDSAsync().ConfigureAwait(false);
 
-            //connect as self admin with revoked cert
-
-            await ConnectGDSAsync(false, true).ConfigureAwait(false);
-            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(() =>
-                m_gdsClient.GDSClient
-                    .GetCertificateGroupsAsync(application.ApplicationRecord.ApplicationId).AsTask());
-            Assert.That(sre, Is.Not.Null);
-            Assert.That(
-                sre.StatusCode,
-                Is.EqualTo(StatusCodes.BadUserAccessDenied),
-                sre.Result.ToString());
+            //connect as self admin with revoked cert: the channel is rejected
+            //or the session has no ApplicationSelfAdmin rights
+            m_gdsClient.Configuration.SecurityConfiguration.ApplicationCertificate = applicationCertificate;
+            try
+            {
+                ServiceResultException? sre = null;
+                try
+                {
+                    await ConnectGDSAsync(false, true).ConfigureAwait(false);
+                    await m_gdsClient.GDSClient
+                        .GetCertificateGroupsAsync(application.ApplicationRecord.ApplicationId)
+                        .ConfigureAwait(false);
+                }
+                catch (ServiceResultException ex)
+                {
+                    sre = ex;
+                }
+                Assert.That(sre, Is.Not.Null);
+                Assert.That(
+                    sre!.StatusCode,
+                    Is.AnyOf(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)StatusCodes.BadSecurityChecksFailed,
+                        (StatusCode)StatusCodes.BadCertificateRevoked),
+                    sre.Result.ToString());
+            }
+            finally
+            {
+                await DisconnectGDSAsync().ConfigureAwait(false);
+                m_gdsClient.Configuration.SecurityConfiguration.ApplicationCertificate =
+                    m_clientCertificateBeforeRegistration ?? applicationCertificate;
+            }
         }
 
         [Test]
@@ -1900,6 +1946,7 @@ namespace Opc.Ua.Gds.Tests
         private bool m_goodRegistrationOk;
         private bool m_invalidRegistrationOk;
         private bool m_gdsRegisteredTestClient;
+        private CertificateIdentifier? m_clientCertificateBeforeRegistration;
         private List<NodeId> m_supportedCertificateTypes;
         private bool m_goodNewKeyPairRequestOk;
         private readonly string m_storeType;

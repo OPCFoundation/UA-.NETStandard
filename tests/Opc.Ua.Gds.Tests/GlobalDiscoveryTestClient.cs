@@ -249,7 +249,11 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private async Task ApplyNewApplicationInstanceCertificateAsync(
+        /// <summary>
+        /// Installs a certificate the GDS issued as the application
+        /// certificate of the test client. The next session uses it.
+        /// </summary>
+        public async Task ApplyNewApplicationInstanceCertificateAsync(
             ByteString certificate,
             ByteString privateKey)
         {

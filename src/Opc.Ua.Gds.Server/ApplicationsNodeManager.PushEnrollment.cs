@@ -277,13 +277,33 @@ namespace Opc.Ua.Gds.Server
             using ICertificateStore store = identifier.OpenStore(Server.Telemetry);
             using CertificateCollection existing = await store.FindByThumbprintAsync(certificate.Thumbprint, ct)
                 .ConfigureAwait(false);
-            if (existing.Count == 0)
+            string certificateTypeName = m_certTypeMap[certificateTypeId];
+            if (!m_database.GetApplicationCertificate(applicationId, certificateTypeName, out ByteString previous))
             {
-                await store.AddAsync(certificate, null, ct).ConfigureAwait(false);
+                previous = default;
             }
-            m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateTypeId], encodedCertificate);
-            m_database.SetApplicationTrustLists(
-                applicationId, m_certTypeMap[certificateTypeId], certificateGroup.Configuration.TrustedListPath);
+            bool replacesPrevious = !previous.IsEmpty && !Utils.IsEqual(previous, encodedCertificate);
+
+            // A certificate that is already in the application store was
+            // published before. If the record holds another certificate now,
+            // this is a retried FinishRequest of an older request: the newer
+            // certificate stays and the older one is not made current again.
+            // The record decides which certificate acts for the application
+            // (ApplicationSelfAdmin); the replaced certificates stay in the
+            // application store, so RevokeCertificate and UnregisterApplication
+            // can still revoke them. They are not revoked here, because the
+            // application still uses the replaced certificate until it has
+            // installed the new one.
+            if (existing.Count == 0 || !replacesPrevious)
+            {
+                if (existing.Count == 0)
+                {
+                    await store.AddAsync(certificate, null, ct).ConfigureAwait(false);
+                }
+                m_database.SetApplicationCertificate(applicationId, certificateTypeName, encodedCertificate);
+                m_database.SetApplicationTrustLists(
+                    applicationId, certificateTypeName, certificateGroup.Configuration.TrustedListPath);
+            }
             CertificateRequestStore.AcceptRequest(requestId, encodedCertificate);
         }
 

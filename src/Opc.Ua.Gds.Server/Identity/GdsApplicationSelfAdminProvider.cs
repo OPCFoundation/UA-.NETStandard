@@ -127,8 +127,13 @@ namespace Opc.Ua.Gds.Server.Identity
                 }
             }
 
+            // The application store fallback is for records that hold no
+            // certificate. When the record holds one, only that certificate
+            // maps to the application: an older certificate in the store was
+            // replaced and must not act for it.
             if (matches.Length == 1 &&
                 m_isRegisteredCertificate != null &&
+                !HasRegisteredCertificate(matches[0].ApplicationId) &&
                 m_isRegisteredCertificate(context.ChannelCertificate))
             {
                 IUserIdentity augmentedIdentity = CreateAugmentedIdentity(
@@ -164,6 +169,23 @@ namespace Opc.Ua.Gds.Server.Identity
 
             m_logger.ApplicationSelfAdminGranted(context.ChannelApplicationUri, context.ChannelCertificate?.Thumbprint);
             return augmented;
+        }
+
+        private bool HasRegisteredCertificate(NodeId appId)
+        {
+            foreach (string certificateTypeId in s_certificateTypeIds)
+            {
+                if (m_database.GetApplicationCertificate(
+                        appId,
+                        certificateTypeId,
+                        out ByteString certificate) &&
+                    !certificate.IsEmpty)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool MatchesRegisteredCertificate(NodeId appId, Certificate channelCertificate)

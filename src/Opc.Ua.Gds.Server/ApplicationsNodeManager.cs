@@ -764,80 +764,6 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private ICertificateGroup? GetGroupForCertificate(ByteString certificate, NodeId certificateType)
-        {
-            if (certificate.Length > 0)
-            {
-                using var x509 = Certificate.FromRawData(certificate);
-                foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
-                {
-                    KeyValuePair<NodeId, Certificate?> matchingCert = certificateGroup
-                        .Certificates
-                        .FirstOrDefault(
-                            kvp =>
-                                X509Utils.CompareDistinguishedName(
-                                    kvp.Value!.Subject,
-                                    x509.Issuer) &&
-                                kvp.Key == certificateType);
-
-                    if (matchingCert.Value != null)
-                    {
-                        return certificateGroup;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private async Task<bool> RevokeCertificateAsync(
-            ByteString certificate,
-            NodeId certificateType,
-            CancellationToken cancellationToken = default)
-        {
-            bool revoked = false;
-            if (certificate.Length > 0)
-            {
-                ICertificateGroup? certificateGroup = GetGroupForCertificate(certificate, certificateType);
-
-                if (certificateGroup != null)
-                {
-                    using var x509 = Certificate.FromRawData(certificate);
-                    try
-                    {
-                        X509CRL crl = await certificateGroup
-                            .RevokeCertificateAsync(x509, cancellationToken)
-                            .ConfigureAwait(false);
-                        if (crl != null)
-                        {
-                            revoked = true;
-
-                            // The new CRL is in the server's issuer store. Notify the
-                            // certificate manager so that it revalidates the open
-                            // SecureChannels and closes those that use the revoked
-                            // certificate.
-                            try
-                            {
-                                m_configuration.CertificateManager?.NotifyTrustListChanged(
-                                    TrustListIdentifier.Peers,
-                                    trustChanged: false,
-                                    crlChanged: true);
-                            }
-                            catch (Exception ex)
-                            {
-                                m_logger.RevocationNotificationFailed(ex, certificateGroup.Id);
-                            }
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.UnexpectedErrorRevokingCertificate(e, x509.Subject, certificateGroup.Id);
-                    }
-                }
-            }
-            return revoked;
-        }
-
         /// <summary>
         /// Builds the issuer-certificate chain for a newly issued
         /// <paramref name="certificate"/> per OPC 10000-12 §7.6.6.
@@ -1296,7 +1222,8 @@ namespace Opc.Ua.Gds.Server
                 m_logger.OnUnregisterApplication(applicationId.ToString());
             }
 
-            if (m_database.GetApplication(applicationId) == null)
+            ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
+            if (application == null)
             {
                 return new UnregisterApplicationMethodStateResult
                 {
@@ -1306,23 +1233,19 @@ namespace Opc.Ua.Gds.Server
                 };
             }
 
-            foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
+            // Revoke every certificate the GDS issued to the application, the
+            // current ones and the ones they replaced.
+            foreach (ByteString certificate in await GetIssuedCertificatesAsync(
+                application, cancellationToken).ConfigureAwait(false))
             {
                 try
                 {
-                    if (m_database.GetApplicationCertificate(
-                            applicationId,
-                            certType.Value,
-                            out ByteString certificate) &&
-                        !certificate.IsEmpty)
-                    {
-                        await RevokeCertificateAsync(certificate, certType.Key, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
+                    await RevokeIssuedCertificateAsync(certificate, cancellationToken)
+                        .ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    m_logger.FailedToRevoke(ex, certType.Value);
+                    m_logger.FailedToRevoke(ex, applicationId);
                 }
             }
 
@@ -1369,7 +1292,8 @@ namespace Opc.Ua.Gds.Server
             {
                 AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdmin);
 
-                if (m_database.GetApplication(applicationId) == null)
+                ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
+                if (application == null)
                 {
                     result.ServiceResult = new ServiceResult(
                         StatusCodes.BadNotFound,
@@ -1383,28 +1307,14 @@ namespace Opc.Ua.Gds.Server
                         "The certificate is not a Certificate for the specified Application that was issued by the CertificateManager.");
                 }
 
-                bool revoked = false;
-                foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
-                {
-                    if (!m_database.GetApplicationCertificate(
-                            applicationId,
-                            certType.Value,
-                            out ByteString applicationCertificate) ||
-                        applicationCertificate.IsEmpty ||
-                        !Utils.IsEqual(applicationCertificate, certificate))
-                    {
-                        continue;
-                    }
-
-                    revoked = await RevokeCertificateAsync(
-                        certificate,
-                        certType.Key,
-                        cancellationToken).ConfigureAwait(false);
-                    if (revoked)
-                    {
-                        break;
-                    }
-                }
+                // Accept any certificate the GDS issued to the application,
+                // not only the one it holds now. A failure to
+                // update the CRL is reported as such and never as Good.
+                bool revoked =
+                    await IsIssuedToApplicationAsync(application, certificate, cancellationToken)
+                        .ConfigureAwait(false) &&
+                    await RevokeIssuedCertificateAsync(certificate, cancellationToken)
+                        .ConfigureAwait(false);
                 if (!revoked)
                 {
                     throw new ServiceResultException(
@@ -3661,8 +3571,8 @@ namespace Opc.Ua.Gds.Server
         public static partial void OnUnregisterApplication(this ILogger logger, string applicationId);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 14, Level = LogLevel.Warning,
-            Message = "Failed to revoke: {CertificateType}")]
-        public static partial void FailedToRevoke(this ILogger logger, Exception ex, string certificateType);
+            Message = "Failed to revoke a certificate of application {ApplicationId}.")]
+        public static partial void FailedToRevoke(this ILogger logger, Exception ex, NodeId applicationId);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 15, Level = LogLevel.Information,
             Message = "OnFindApplications: {ApplicationUri}")]
