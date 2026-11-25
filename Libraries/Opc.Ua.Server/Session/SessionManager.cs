@@ -176,10 +176,13 @@ namespace Opc.Ua.Server
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                // check session count.
-                if (m_maxSessionCount > 0 && m_sessions.Count >= m_maxSessionCount)
+                // check session count. A session that was never activated makes room for
+                // the new one (OPC 10000-4 5.7.2.1).
+                ISession sessionToClose = null;
+                if (IsSessionLimitReached)
                 {
-                    throw new ServiceResultException(StatusCodes.BadTooManySessions);
+                    sessionToClose = FindOldestNonActivatedSession()
+                        ?? throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
 
                 // check for same Nonce in another session
@@ -193,6 +196,16 @@ namespace Opc.Ua.Server
                         {
                             throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                         }
+                    }
+                }
+
+                if (sessionToClose != null)
+                {
+                    await CloseNonActivatedSessionAsync(sessionToClose).ConfigureAwait(false);
+
+                    if (IsSessionLimitReached)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTooManySessions);
                     }
                 }
 
@@ -332,11 +345,62 @@ namespace Opc.Ua.Server
                     out userTokenPolicy);
 
                 serverNonce = serverNonceObject.Data;
+
+                // from here on the session must not be closed to make room for another one.
+                lock (m_activatingSessionsLock)
+                {
+                    m_activatingSessions.Add(session);
+                }
             }
             finally
             {
                 m_semaphoreSlim.Release();
             }
+
+            bool contextChanged;
+            try
+            {
+                contextChanged = AuthenticateAndActivate(
+                    context,
+                    session,
+                    newIdentity,
+                    userTokenPolicy,
+                    localeIds,
+                    serverNonceObject);
+            }
+            finally
+            {
+                lock (m_activatingSessionsLock)
+                {
+                    m_activatingSessions.Remove(session);
+                }
+            }
+
+            // Channel transfers need a refresh even when the identity context is unchanged.
+            RefreshActivatedChannels();
+
+            // raise session related event.
+            if (contextChanged)
+            {
+                RaiseSessionEvent(session, SessionEventReason.Activated);
+            }
+
+            // indicates that the identity context for the session has changed.
+            return (contextChanged, serverNonce);
+        }
+
+        /// <summary>
+        /// Authenticates the user and activates the session.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool AuthenticateAndActivate(
+            OperationContext context,
+            ISession session,
+            UserIdentityToken newIdentity,
+            UserTokenPolicy userTokenPolicy,
+            StringCollection localeIds,
+            Nonce serverNonceObject)
+        {
             IUserIdentity identity = null;
             IUserIdentity effectiveIdentity = null;
             ServiceResult error = null;
@@ -391,25 +455,13 @@ namespace Opc.Ua.Server
 
             // activate session.
 
-            bool contextChanged = session.Activate(
+            return session.Activate(
                 context,
                 newIdentity,
                 identity,
                 effectiveIdentity,
                 localeIds,
                 serverNonceObject);
-
-            // Channel transfers need a refresh even when the identity context is unchanged.
-            RefreshActivatedChannels();
-
-            // raise session related event.
-            if (contextChanged)
-            {
-                RaiseSessionEvent(session, SessionEventReason.Activated);
-            }
-
-            // indicates that the identity context for the session has changed.
-            return (contextChanged, serverNonce);
         }
 
         /// <summary>
@@ -701,6 +753,87 @@ namespace Opc.Ua.Server
             }
         }
 
+        private bool IsSessionLimitReached
+            => m_maxSessionCount > 0 && m_sessions.Count >= m_maxSessionCount;
+
+        /// <summary>
+        /// Finds the oldest session that was never activated and has no activation in
+        /// progress. Must be called with m_semaphoreSlim held, which keeps a new
+        /// activation from starting until the caller has closed the session.
+        /// </summary>
+        private ISession FindOldestNonActivatedSession()
+        {
+            ISession oldest = null;
+            DateTime oldestConnectionTime = DateTime.MaxValue;
+
+            foreach (KeyValuePair<NodeId, ISession> current in m_sessions)
+            {
+                ISession session = current.Value;
+
+                // an activation that just finished has set Activated before it left the
+                // list, so the list has to be checked first.
+                lock (m_activatingSessionsLock)
+                {
+                    if (m_activatingSessions.Contains(session))
+                    {
+                        continue;
+                    }
+                }
+
+                if (session.Activated)
+                {
+                    continue;
+                }
+
+                DateTime connectionTime;
+                lock (session.DiagnosticsLock)
+                {
+                    connectionTime = session.SessionDiagnostics.ClientConnectionTime;
+                }
+
+                if (oldest == null || connectionTime < oldestConnectionTime)
+                {
+                    oldest = session;
+                    oldestConnectionTime = connectionTime;
+                }
+            }
+
+            return oldest;
+        }
+
+        /// <summary>
+        /// Closes a session that was never activated to make room for a new one.
+        /// </summary>
+        private async ValueTask CloseNonActivatedSessionAsync(ISession session)
+        {
+            m_logger.LogWarning(
+                "Server - Closing SessionId={SessionId}. It was never activated and the limit of {MaxSessionCount} sessions is reached.",
+                session.Id,
+                m_maxSessionCount);
+
+            try
+            {
+                // not cancellable, a close that was started has to finish.
+                await m_server.CloseSessionAsync(null, session.Id, false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                // the caller checks whether the session was removed.
+                m_logger.LogError(e, "Server - Error closing SessionId={SessionId}.", session.Id);
+                return;
+            }
+
+            // update diagnostics.
+            lock (m_server.DiagnosticsWriteLock)
+            {
+                m_server.ServerDiagnostics.SessionAbortCount++;
+            }
+
+            // raise audit event for session closed by the server.
+            m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Terminated");
+        }
+
         internal bool HasActivatedSession(string channelId)
         {
             return channelId != null && Volatile.Read(ref m_activatedChannels).Contains(channelId);
@@ -732,6 +865,10 @@ namespace Opc.Ua.Server
         // Published sets are never mutated. Readers do not take the refresh lock.
         private readonly object m_activatedChannelsLock = new();
         private HashSet<string> m_activatedChannels = new(StringComparer.Ordinal);
+
+        // Sessions with an activation in progress, one entry per activation.
+        private readonly object m_activatingSessionsLock = new();
+        private readonly List<ISession> m_activatingSessions = [];
 
         private readonly NodeIdDictionary<ISession> m_sessions;
         private readonly ManualResetEvent m_shutdownEvent;
