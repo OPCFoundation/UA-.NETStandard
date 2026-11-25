@@ -391,6 +391,46 @@ namespace Opc.Ua.Server.Tests.Authorization
             });
         }
 
+        [Test]
+        public void CompositeAuditEventSinkSkipsNullSinksAndRejectsNullArguments()
+        {
+            var first = new DelegateSink(() => { });
+            var sink = new CompositeAuditEventSink([first, null!]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sink.Sinks, Is.EqualTo(new IAuditEventSink[] { first }));
+                Assert.That(
+                    () => new CompositeAuditEventSink(null!),
+                    Throws.ArgumentNullException);
+                Assert.That(
+                    () => CompositeAuditEventSink.Combine(null!, [first]),
+                    Throws.ArgumentNullException);
+                Assert.That(
+                    () => new AddressSpaceAuditEventSink(null!),
+                    Throws.ArgumentNullException);
+            });
+        }
+
+        [Test]
+        public void CombineReturnsTheFirstSinkWhenNothingIsAdded()
+        {
+            var first = new DelegateSink(() => { });
+            var second = new DelegateSink(() => { });
+
+            IAuditEventSink combined = CompositeAuditEventSink.Combine(first, [second]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(CompositeAuditEventSink.Combine(first, null), Is.SameAs(first));
+                Assert.That(CompositeAuditEventSink.Combine(first, []), Is.SameAs(first));
+                Assert.That(combined, Is.InstanceOf<CompositeAuditEventSink>());
+                Assert.That(
+                    ((CompositeAuditEventSink)combined).Sinks,
+                    Is.EqualTo(new IAuditEventSink[] { first, second }));
+            });
+        }
+
         private static Task<CreateCredentialMethodStateResult> CreateCredentialAsync(
             KeyCredentialConfigurationFolderState folder,
             ISystemContext context)
