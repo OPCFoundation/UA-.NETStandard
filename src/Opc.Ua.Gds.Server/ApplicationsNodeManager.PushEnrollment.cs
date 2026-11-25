@@ -274,7 +274,9 @@ namespace Opc.Ua.Gds.Server
             // UnregisterApplication revokes the issued certificates and
             // removes the record under the same lock, so a certificate is
             // either published to a registered application or revoked.
-            await m_publicationLock.WaitAsync(ct).ConfigureAwait(false);
+            // The wait is not cancelled with the request, so a cancelled
+            // request cannot skip that decision.
+            await m_publicationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
                 if (m_database.GetApplication(applicationId) == null)

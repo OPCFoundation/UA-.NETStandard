@@ -306,6 +306,29 @@ namespace Opc.Ua.Gds.Server
                 string.Equals(subjectKey.SubjectKeyIdentifier, authority.KeyIdentifier, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Adds a certificate the GDS signed to the application certificate
+        /// store. It is not cancelled with the request: once signed, the
+        /// certificate must stay revocable.
+        /// </summary>
+        private async Task RecordIssuedCertificateAsync(Certificate certificate)
+        {
+            using ICertificateStore? store = OpenApplicationCertificatesStore();
+            if (store == null)
+            {
+                return;
+            }
+
+            using CertificateCollection existing = await store
+                .FindByThumbprintAsync(certificate.Thumbprint, CancellationToken.None)
+                .ConfigureAwait(false);
+            if (existing.Count == 0)
+            {
+                using var publicCertificate = Certificate.FromRawData(certificate.RawData);
+                await store.AddAsync(publicCertificate, null, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
         private ICertificateStore? OpenApplicationCertificatesStore()
         {
             string? storePath = m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath;

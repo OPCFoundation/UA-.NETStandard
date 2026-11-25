@@ -2672,6 +2672,13 @@ namespace Opc.Ua.Gds.Server
                 {
                     certificate = Certificate.FromRawData(generatedCertificate);
                 }
+
+                // Every certificate signed for the application is in the
+                // application certificate store before it is retained or
+                // delivered, so UnregisterApplication and RevokeCertificate
+                // find it even when the publication never completes.
+                await RecordIssuedCertificateAsync(certificate).ConfigureAwait(false);
+
                 result.IssuerCertificates = BuildIssuerCertificateChain(
                     certificate, certificateGroup, certificateTypeNodeId);
                 return result;
