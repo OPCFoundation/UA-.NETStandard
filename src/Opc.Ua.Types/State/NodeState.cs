@@ -6849,14 +6849,10 @@ namespace Opc.Ua
                 return;
             }
 
-            // a parent without a children lock has no children list and so no index.
-            if (Volatile.Read(ref parent.m_childrenLock) is not { } parentChildrenLock)
-            {
-                m_browseName = browseName;
-                return;
-            }
-
-            lock (parentChildrenLock)
+            // always under the parent's lock, even if it has no children yet: a rename that
+            // skipped the lock could interleave with a concurrent AddChild of this node and
+            // an index build, which would then keep the previous name.
+            lock (parent.GetOrCreateChildrenLock())
             {
                 m_browseName = browseName;
 
@@ -6872,12 +6868,9 @@ namespace Opc.Ua
         /// </summary>
         internal void InvalidateChildNameIndex()
         {
-            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
-            {
-                return;
-            }
-
-            lock (childrenLock)
+            // like the rename, never skip the lock: an index built concurrently with a
+            // lock-free check could otherwise keep the re-parented child.
+            lock (GetOrCreateChildrenLock())
             {
                 if (m_children != null)
                 {
