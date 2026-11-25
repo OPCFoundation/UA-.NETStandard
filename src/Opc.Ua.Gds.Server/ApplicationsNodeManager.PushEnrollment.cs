@@ -284,17 +284,20 @@ namespace Opc.Ua.Gds.Server
             }
             bool replacesPrevious = !previous.IsEmpty && !Utils.IsEqual(previous, encodedCertificate);
 
-            // A certificate that is already in the application store was
-            // published before. If the record holds another certificate now,
-            // this is a retried FinishRequest of an older request: the newer
-            // certificate stays and the older one is not made current again.
+            // The request is accepted only after the certificate is in the
+            // application store and in the record, so an accepted request was
+            // published completely before. If the record holds another
+            // certificate now, this is a retried FinishRequest of an older
+            // request: the newer certificate stays and the older one is not
+            // made current again. A request that is not accepted yet is an
+            // issuance that stopped part way and is published completely.
             // The record decides which certificate acts for the application
             // (ApplicationSelfAdmin); the replaced certificates stay in the
             // application store, so RevokeCertificate and UnregisterApplication
             // can still revoke them. They are not revoked here, because the
             // application still uses the replaced certificate until it has
             // installed the new one.
-            if (existing.Count == 0 || !replacesPrevious)
+            if (!replacesPrevious || !IsRequestAccepted(applicationId, requestId))
             {
                 if (existing.Count == 0)
                 {
@@ -305,6 +308,32 @@ namespace Opc.Ua.Gds.Server
                     applicationId, certificateTypeName, certificateGroup.Configuration.TrustedListPath);
             }
             CertificateRequestStore.AcceptRequest(requestId, encodedCertificate);
+        }
+
+        /// <summary>
+        /// Checks whether the request was accepted, which is the last step of
+        /// publishing its certificate.
+        /// </summary>
+        private bool IsRequestAccepted(NodeId applicationId, NodeId requestId)
+        {
+            try
+            {
+                return CertificateRequestStore.ReadRequest(
+                    applicationId,
+                    requestId,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _) == CertificateRequestState.Accepted;
+            }
+            catch (Exception ex) when (ex is ServiceResultException or ArgumentException or NotSupportedException)
+            {
+                // No readable state: publish completely.
+                return false;
+            }
         }
 
         /// <summary>

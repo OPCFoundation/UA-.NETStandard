@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
@@ -40,6 +41,29 @@ namespace Opc.Ua.Gds.Tests
             {
                 Directory.Delete(m_path, true);
             }
+        }
+
+        [Test]
+        public void EquivalentDirectoryStorePathsShareOneCrlLock()
+        {
+            string authorities = Path.Combine(m_path, "authorities");
+            SemaphoreSlim crlLock = CertificateGroup.GetCrlLock(new CertificateStoreIdentifier(authorities));
+
+            Assert.That(
+                CertificateGroup.GetCrlLock(
+                    new CertificateStoreIdentifier(Path.Combine(m_path, ".", "authorities"))),
+                Is.SameAs(crlLock));
+            Assert.That(
+                CertificateGroup.GetCrlLock(
+                    new CertificateStoreIdentifier(authorities + Path.DirectorySeparatorChar)),
+                Is.SameAs(crlLock));
+            Assert.That(
+                CertificateGroup.GetCrlLock(
+                    new CertificateStoreIdentifier(Path.Combine(m_path, "other", "..", "authorities"))),
+                Is.SameAs(crlLock));
+            Assert.That(
+                CertificateGroup.GetCrlLock(new CertificateStoreIdentifier(Path.Combine(m_path, "issuers"))),
+                Is.Not.SameAs(crlLock));
         }
 
         [Test]

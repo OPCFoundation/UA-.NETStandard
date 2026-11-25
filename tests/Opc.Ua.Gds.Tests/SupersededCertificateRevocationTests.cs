@@ -129,20 +129,21 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(newStatus, Is.EqualTo((StatusCode)StatusCodes.Good));
             }
 
-            // The revoked cert1 can no longer open a SecureChannel.
+            // The revoked cert1 can no longer open a SecureChannel. Only the
+            // connect may fail here: cert1 already lost ApplicationSelfAdmin, so
+            // a later call would fail even on an open channel.
             configuration.SecurityConfiguration.ApplicationCertificate = oldCertificateId;
             await using GlobalDiscoveryServerClient revoked = CreateClient(m_gdsClient.Anonymous);
             ServiceResultException? failure = null;
             try
             {
                 await revoked.ConnectAsync().ConfigureAwait(false);
-                await revoked.GetApplicationAsync(applicationId).ConfigureAwait(false);
             }
             catch (ServiceResultException ex)
             {
                 failure = ex;
             }
-            Assert.That(failure, Is.Not.Null, "The revoked certificate can still be used.");
+            Assert.That(failure, Is.Not.Null, "The revoked certificate can still open a SecureChannel.");
         }
 
         [Test]

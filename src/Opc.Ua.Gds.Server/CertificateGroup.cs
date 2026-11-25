@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Formats.Asn1;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -874,10 +875,28 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         internal static SemaphoreSlim GetCrlLock(CertificateStoreIdentifier storeIdentifier)
         {
-            string storePath = (storeIdentifier.StorePath ?? string.Empty)
-                .Replace('\\', '/')
-                .TrimEnd('/');
-            string key = (storeIdentifier.StoreType ?? string.Empty) + "|" + storePath;
+            string storeType = storeIdentifier.StoreType ?? string.Empty;
+            string storePath = storeIdentifier.StorePath ?? string.Empty;
+            if (string.Equals(storeType, CertificateStoreType.Directory, StringComparison.OrdinalIgnoreCase))
+            {
+                // Resolve the path the way DirectoryCertificateStore.Open does,
+                // so equivalent spellings of one directory share one lock.
+                string? resolved = Utils.ReplaceSpecialFolderNames(storePath);
+                if (!string.IsNullOrEmpty(resolved))
+                {
+                    try
+                    {
+                        storePath = new DirectoryInfo(resolved).FullName
+                            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    }
+                    catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException
+                        or UnauthorizedAccessException)
+                    {
+                        storePath = resolved;
+                    }
+                }
+            }
+            string key = storeType + "|" + storePath;
             return s_crlLocks.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
         }
 
