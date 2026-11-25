@@ -93,6 +93,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns <paramref name="first"/> when <paramref name="additional"/> is empty; otherwise a
+        /// composite that forwards to <paramref name="first"/> and then to each additional sink.
+        /// </summary>
+        /// <param name="first">The sink that receives each event first (normally the address space).</param>
+        /// <param name="additional">Further sinks, for example those registered in a service container.</param>
+        /// <param name="telemetry">The telemetry used to log a failing sink.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="first"/> is <c>null</c>.</exception>
+        public static IAuditEventSink Combine(
+            IAuditEventSink first,
+            IEnumerable<IAuditEventSink>? additional,
+            ITelemetryContext? telemetry = null)
+        {
+            if (first == null)
+            {
+                throw new ArgumentNullException(nameof(first));
+            }
+            var sinks = new List<IAuditEventSink> { first };
+            if (additional != null)
+            {
+                sinks.AddRange(additional);
+            }
+            return sinks.Count == 1 ? first : new CompositeAuditEventSink(sinks, telemetry);
+        }
+
+        /// <summary>
         /// The sinks, in the order they receive each event.
         /// </summary>
         public IReadOnlyList<IAuditEventSink> Sinks => m_sinks;

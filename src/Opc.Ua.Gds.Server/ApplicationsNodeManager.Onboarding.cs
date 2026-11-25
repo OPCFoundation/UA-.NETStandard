@@ -255,6 +255,19 @@ namespace Opc.Ua.Gds.Server
                     await onboarding.AuthorizeApplicationAsync(
                         context, application, cancellationToken).ConfigureAwait(false))
                 {
+                    // The device binding is the standard rule; the server policy makes the decision.
+                    ServiceResult result = await ServerAuthorizationPolicy.Resolve(context).AuthorizeAsync(
+                            context,
+                            new ServerAuthorizationRequest(
+                                ServerAuthorizationDecision.CertificateManagement,
+                                applicationId,
+                                static _ => ServiceResult.Good),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
                     return true;
                 }
             }

@@ -284,6 +284,38 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
+        public async Task RegisteredAuthorizationPolicyAndAuditSinkReachHostedGdsAsync()
+        {
+            var policy = new ServerAuthorizationPolicy();
+            var sink = new RecordingAuditEventSink();
+
+            await using GdsTestHost host = await StartGdsAsync(
+                nameof(RegisteredAuthorizationPolicyAndAuditSinkReachHostedGdsAsync),
+                services =>
+                {
+                    services.AddSingleton<IUserDatabase>(new StubUserDatabase());
+                    services.AddSingleton<IServerAuthorizationPolicy>(policy);
+                    services.AddSingleton<IAuditEventSink>(sink);
+                },
+                _ => { }).ConfigureAwait(false);
+
+            var server = (ServerInternalData)host.Server;
+            Assert.Multiple(() =>
+            {
+                Assert.That(server.AuthorizationPolicy, Is.SameAs(policy));
+                Assert.That(server.AuditEventSink, Is.InstanceOf<CompositeAuditEventSink>());
+                Assert.That(((CompositeAuditEventSink)server.AuditEventSink).Sinks, Does.Contain(sink));
+            });
+        }
+
+        private sealed class RecordingAuditEventSink : IAuditEventSink
+        {
+            public void ReportAuditEvent(ISystemContext context, AuditEventState e)
+            {
+            }
+        }
+
+        [Test]
         public async Task StartupTasksRunInOrderAfterGdsStartedAsync()
         {
             var calls = new ConcurrentQueue<string>();

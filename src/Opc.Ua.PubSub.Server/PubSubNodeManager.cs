@@ -490,11 +490,18 @@ namespace Opc.Ua.PubSub.Server
                 if (setKeys is not null)
                 {
                     setKeys.OnCallMethod = MethodHandlers.OnSetSecurityKeys;
+                    // Part 14 §9.1.3.3: the pushing SKS holds SecurityKeyServerPush; the handler
+                    // asks the server authorization policy (SecurityKeyPush) for the rest.
                     setKeys.RolePermissions =
                     [
                         new RolePermissionType
                         {
                             RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            Permissions = (uint)PermissionType.Call
+                        },
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_SecurityKeyServerPush,
                             Permissions = (uint)PermissionType.Call
                         }
                     ];

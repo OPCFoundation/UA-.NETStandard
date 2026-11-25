@@ -1370,7 +1370,11 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
-                AuthorizationHelper.HasAuthorization(context, ServerAuthorizationDecision.CertificateRevocation, AuthorizationHelper.CertificateAuthorityAdmin);
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    ServerAuthorizationDecision.CertificateRevocation,
+                    AuthorizationHelper.CertificateAuthorityAdmin,
+                    applicationId);
 
                 if (m_database.GetApplication(applicationId) == null)
                 {

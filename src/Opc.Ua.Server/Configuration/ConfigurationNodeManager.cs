@@ -1023,7 +1023,7 @@ namespace Opc.Ua.Server
         /// The authorization policy of the owning server.
         /// </summary>
         private IServerAuthorizationPolicy AuthorizationPolicy =>
-            (Server as IServerAuthorizationPolicyProvider)?.AuthorizationPolicy ?? ServerAuthorizationPolicy.Default;
+            ServerAuthorizationPolicy.ResolveServer(Server);
 
         /// <summary>
         /// Extracts the owning Session's NodeId from <paramref name="context"/>,

@@ -317,7 +317,8 @@ namespace Opc.Ua.Server
             IServerNamespaceDefaultPermissionsProvider,
             ISecurityPolicyRegistryProvider, ICertificateValidatorProvider, IHistoryContinuationPointStoreProvider,
             IAsyncDisposable,
-            IServerServiceLevelControl
+            IServerServiceLevelControl,
+            IServerAuthorizationPolicyProvider
         {
             /// <summary>
             /// Creates a candidate's metadata handles over the preparation's shared private storage.
@@ -399,6 +400,13 @@ namespace Opc.Ua.Server
 
             /// <inheritdoc/>
             public bool? DetectNodeIdCollisions => (m_server as INodeIdFactoryProvider)?.DetectNodeIdCollisions;
+
+            /// <summary>
+            /// The serving server's authorization policy. Request contexts of a published node manager
+            /// keep this facade as their server, so it must not fall back to the default policy.
+            /// </summary>
+            public IServerAuthorizationPolicy AuthorizationPolicy =>
+                ServerAuthorizationPolicy.ResolveServer(m_server);
 
             /// <inheritdoc/>
             public ArrayOf<EndpointDescription> ServerEndpoints =>

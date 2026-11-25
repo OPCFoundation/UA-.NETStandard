@@ -321,6 +321,11 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_server.ConfiguredRoleManager = useSharedRegistrations
                 ? m_services.GetService<IRoleManager>()
                 : null;
+
+            // The authorization policy and audit sinks are host-wide: they apply to the GDS
+            // whether or not a regular server shares the container.
+            m_server.ConfiguredAuthorizationPolicy = m_services.GetService<IServerAuthorizationPolicy>();
+            m_server.ConfiguredAuditEventSinks = [.. m_services.GetServices<IAuditEventSink>()];
             m_server.StageIdentityRegistrations(
                 CreateIdentityAuthenticators(),
                 CreateIdentityAugmenters());
@@ -808,6 +813,35 @@ namespace Opc.Ua.Gds.Server.Hosting
                 ApplicationConfiguration configuration)
             {
                 return ConfiguredRoleManager ?? base.CreateRoleManager(server, configuration);
+            }
+
+            /// <summary>
+            /// The authorization policy registered in the service container, or <c>null</c>
+            /// for the server's default.
+            /// </summary>
+            public IServerAuthorizationPolicy? ConfiguredAuthorizationPolicy { get; set; }
+
+            /// <summary>
+            /// The audit event sinks registered in the service container; each receives every
+            /// audit event after the address space publication.
+            /// </summary>
+            public IReadOnlyList<IAuditEventSink> ConfiguredAuditEventSinks { get; set; } = [];
+
+            protected override IServerAuthorizationPolicy CreateAuthorizationPolicy(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+            {
+                return ConfiguredAuthorizationPolicy ?? base.CreateAuthorizationPolicy(server, configuration);
+            }
+
+            protected override IAuditEventSink CreateAuditEventSink(
+                IServerInternal server,
+                IAuditEventSink addressSpaceSink)
+            {
+                return CompositeAuditEventSink.Combine(
+                    base.CreateAuditEventSink(server, addressSpaceSink),
+                    ConfiguredAuditEventSinks,
+                    server.Telemetry);
             }
 
             protected override async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 using System;
-using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Server.AliasNames;
@@ -185,10 +184,10 @@ namespace Opc.Ua.Server.Hosting
             IServerInternal server,
             IAuditEventSink addressSpaceSink)
         {
-            IAuditEventSink sink = base.CreateAuditEventSink(server, addressSpaceSink);
-            var sinks = new List<IAuditEventSink> { sink };
-            sinks.AddRange(m_services.GetServices<IAuditEventSink>());
-            return sinks.Count == 1 ? sink : new CompositeAuditEventSink(sinks, server.Telemetry);
+            return CompositeAuditEventSink.Combine(
+                base.CreateAuditEventSink(server, addressSpaceSink),
+                m_services.GetServices<IAuditEventSink>(),
+                server.Telemetry);
         }
 
         /// <inheritdoc/>

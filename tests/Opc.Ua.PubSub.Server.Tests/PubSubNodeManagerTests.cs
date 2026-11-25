@@ -49,6 +49,32 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(harness.RemoveConnectionMethod.OnCallMethod, Is.Not.Null);
         }
 
+        /// <summary>
+        /// The Call service checks the Method's RolePermissions before the handler runs, so a
+        /// pushing SKS that holds only SecurityKeyServerPush must be granted Call on SetSecurityKeys.
+        /// </summary>
+        [Test]
+        public async Task SetSecurityKeysGrantsCallToSecurityKeyServerPushAndSecurityAdminAsync()
+        {
+            using var harness = new Harness();
+
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            var callers = new List<NodeId>();
+            foreach (RolePermissionType permission in harness.SetSecurityKeysMethod.RolePermissions.Span)
+            {
+                if ((permission.Permissions & (uint)PermissionType.Call) != 0)
+                {
+                    callers.Add(permission.RoleId);
+                }
+            }
+            Assert.That(callers, Is.EquivalentTo(s_setSecurityKeysCallers));
+        }
+
+        private static readonly NodeId[] s_setSecurityKeysCallers =
+            [ObjectIds.WellKnownRole_SecurityAdmin, ObjectIds.WellKnownRole_SecurityKeyServerPush];
+
         [Test]
         public async Task CreateAddressSpaceAsync_WhenSksExposed_BindsSecurityKeyMethods()
         {

@@ -44,12 +44,19 @@ namespace Opc.Ua.Server
         /// <param name="context">The calling context.</param>
         public static IServerAuthorizationPolicy Resolve(ISystemContext? context)
         {
-            if (context is ServerSystemContext { Server: IServerAuthorizationPolicyProvider provider } &&
-                provider.AuthorizationPolicy is { } policy)
-            {
-                return policy;
-            }
-            return Default;
+            return context is ServerSystemContext { Server: { } server }
+                ? ResolveServer(server)
+                : Default;
+        }
+
+        /// <summary>
+        /// Returns the policy of <paramref name="server"/>, or <see cref="Default"/> when it does not
+        /// expose one.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        public static IServerAuthorizationPolicy ResolveServer(IServerInternal? server)
+        {
+            return (server as IServerAuthorizationPolicyProvider)?.AuthorizationPolicy ?? Default;
         }
 
         /// <inheritdoc/>
