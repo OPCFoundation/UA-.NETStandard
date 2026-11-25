@@ -331,6 +331,49 @@ namespace Opc.Ua.Server.Tests
             Assert.That(item.Invocations, Has.Count.EqualTo(queuedAtDispose));
         }
 
+        /// <summary>
+        /// An offset whose element does not fit in the buffer is not a tag:
+        /// reads and value subscriptions on it fail with BadNodeIdUnknown,
+        /// while the last whole element still resolves.
+        /// </summary>
+        [Test]
+        public async Task PartialElementOffsetIsUnknownAsync()
+        {
+            NodeId lastWhole = TagId((kTagCount - 1) * 4);
+            NodeId partial = TagId((kTagCount * 4) - 1);
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse read = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                [
+                    new ReadValueId { NodeId = lastWhole, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = partial, AttributeId = Attributes.Value }
+                ],
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(read.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(read.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+            uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
+            try
+            {
+                CreateMonitoredItemsResponse created = await CreateItemsAsync(
+                    subscriptionId,
+                    ValueItem(lastWhole, 1),
+                    ValueItem(partial, 2)).ConfigureAwait(false);
+
+                Assert.That(created.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(created.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+        }
+
         private NodeId TagId(int offset)
         {
             return new NodeId(Utils.Format("UInt32[{0}]", offset), m_instanceNamespaceIndex);

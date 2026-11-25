@@ -282,7 +282,7 @@ namespace MemoryBuffer
                     NumberStyles.None,
                     CultureInfo.InvariantCulture,
                     out uint offset) ||
-                offset >= buffer.SizeInBytes!.Value)
+                (ulong)offset + buffer.ElementSize > buffer.SizeInBytes!.Value)
             {
                 return null;
             }
@@ -355,8 +355,11 @@ namespace MemoryBuffer
         {
             if (TryGetTag(handle, monitoredItem, out MemoryBufferState? buffer, out uint offset))
             {
-                buffer!.AddMonitoredItem(monitoredItem, offset);
-                monitoredItem.QueueValue(buffer.ReadDataValue(offset), null);
+                // read first: a failed read must leave nothing registered
+                // with the scan, since a failed create does not delete.
+                DataValue initialValue = buffer!.ReadDataValue(offset);
+                buffer.AddMonitoredItem(monitoredItem, offset);
+                monitoredItem.QueueValue(initialValue, null);
             }
 
             base.OnMonitoredItemCreated(context, handle, monitoredItem);
