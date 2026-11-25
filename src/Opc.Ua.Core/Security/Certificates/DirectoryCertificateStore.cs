@@ -1612,7 +1612,10 @@ namespace Opc.Ua
                             }
                             else
                             {
+                                // Repeated in the same file: the earliest
+                                // position counts, as in a per-certificate scan.
                                 entry.DuplicateFiles = existing.DuplicateFiles;
+                                entry.IndexInFile = existing.IndexInFile;
                             }
                             existing.Certificate?.Dispose();
                             existing.CertificateWithPrivateKey?.Dispose();
