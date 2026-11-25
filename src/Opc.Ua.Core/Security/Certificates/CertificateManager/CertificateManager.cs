@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -937,7 +939,7 @@ namespace Opc.Ua
             {
                 return null;
             }
-            return string.Concat(identifier.StoreType, "|", identifier.StorePath);
+            return ComposeKey(identifier.StoreType, identifier.StorePath);
         }
 
         /// <summary>
@@ -947,13 +949,39 @@ namespace Opc.Ua
         /// </summary>
         private static string GetLoadedKeyId(CertificateIdentifier identifier, string? applicationUri)
         {
-            return string.Join(
-                "|",
+            return ComposeKey(
                 identifier.StoreType,
                 identifier.StorePath,
                 identifier.SubjectName,
                 identifier.CertificateType.ToString(),
                 applicationUri);
+        }
+
+        /// <summary>
+        /// Joins the parts so that different parts always give different
+        /// keys: each part is prefixed with its length, so a separator inside
+        /// a part (a subject name or path may contain any character) cannot
+        /// make two lookups collide. A null part differs from an empty one.
+        /// </summary>
+        private static string ComposeKey(params string?[] parts)
+        {
+            var builder = new StringBuilder();
+            foreach (string? part in parts)
+            {
+                if (part == null)
+                {
+                    builder.Append("-;");
+                }
+                else
+                {
+                    builder
+                        .Append(part.Length.ToString(CultureInfo.InvariantCulture))
+                        .Append(':')
+                        .Append(part)
+                        .Append(';');
+                }
+            }
+            return builder.ToString();
         }
 
         /// <summary>

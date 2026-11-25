@@ -232,6 +232,31 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task LookupsDifferingOnlyInSeparatorPlacementDoNotShareKeyAsync()
+        {
+            (CertificateIdentifier id, SecurityConfiguration config) = await CreateStoreAsync("CN=Separator")
+                .ConfigureAwait(false);
+            string type = id.CertificateType.ToString();
+            await using var manager = new CertificateManager(m_telemetry);
+            await manager.LoadApplicationCertificatesAsync(config, "urn:a|" + type + "|urn:b")
+                .ConfigureAwait(false);
+
+            // Joined with '|', subject + URI of this lookup read the same as
+            // those of the load above.
+            var shifted = new CertificateIdentifier
+            {
+                StoreType = id.StoreType,
+                StorePath = id.StorePath,
+                SubjectName = "CN=Separator|" + type + "|urn:a",
+                CertificateType = id.CertificateType
+            };
+            Assert.That(manager.TryAcquireLoadedApplicationKey(shifted, null, "urn:b"), Is.Null);
+            using Certificate? same = manager.TryAcquireLoadedApplicationKey(
+                id, null, "urn:a|" + type + "|urn:b");
+            Assert.That(same, Is.Not.Null);
+        }
+
+        [Test]
         public async Task KeyFromCustomStoreProviderIsNotReusedAsync()
         {
             (CertificateIdentifier id, SecurityConfiguration config) = await CreateStoreAsync("CN=CustomProviderKey")
