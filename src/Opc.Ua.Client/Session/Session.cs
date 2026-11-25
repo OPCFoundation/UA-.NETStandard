@@ -4007,6 +4007,11 @@ namespace Opc.Ua.Client
                     m_effectiveEndpoint = endpoint;
                 }
 
+                bool tryTokenReuse = allowTokenReuse &&
+                    (EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
+                    !SessionId.IsNull &&
+                    (!m_serverNonce.IsNull || m_endpoint.Description.SecurityMode == MessageSecurityMode.None);
+
                 // Build / install the new transport channel.
                 if (channel != null)
                 {
@@ -4025,7 +4030,7 @@ namespace Opc.Ua.Client
                         connection,
                         ct).ConfigureAwait(false);
 
-                    if (peerUri != null && newManagedLease is ManagedTransportChannelLease lease)
+                    if ((peerUri != null || tryTokenReuse) && newManagedLease is ManagedTransportChannelLease lease)
                     {
                         await lease.Entry.WaitForTransportAsync(ct).ConfigureAwait(false);
                     }
@@ -4110,10 +4115,8 @@ namespace Opc.Ua.Client
                 // existing session on the failover server by reusing the current
                 // AuthenticationToken instead of CreateSession. Any failure
                 // falls through to the full re-authentication below.
-                if (allowTokenReuse &&
-                    (EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
-                    !SessionId.IsNull &&
-                    (!m_serverNonce.IsNull || m_endpoint.Description.SecurityMode == MessageSecurityMode.None))
+                if (tryTokenReuse && !HasSessionClientCertificateChanged(
+                        (recoveryClient?.TransportChannel ?? TransportChannel).ClientChannelCertificate))
                 {
                     try
                     {

@@ -446,6 +446,11 @@ including in-flight requests and subscription restoration. The default is
 from the inner session when the cycle starts. See
 [shared retry budgets](#shared-retry-budget-with-managedsession) for overrides and handoff behaviour.
 
+If the replacement channel uses a different client application certificate,
+recovery creates a new session instead of sending the old authentication
+token. Mirrored recovery that requires token reuse cannot continue on that
+channel.
+
 Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
 `NotSupportedException`.
