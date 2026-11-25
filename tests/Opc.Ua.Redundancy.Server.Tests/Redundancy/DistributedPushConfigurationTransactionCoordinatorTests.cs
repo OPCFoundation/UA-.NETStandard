@@ -276,7 +276,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task ForeignOwnerGuardRejectsLocalStageAndValidateAsync()
+        public async Task ForeignOwnerGuardRejectsLocalStageValidationAndConfigurationFileOpenAsync()
         {
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
@@ -294,6 +294,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(
                 () => b.Stage(Session("s2"), NoopOperation()),
                 Throws.TypeOf<ServiceResultException>());
+            Assert.That(
+                () => b.OpenConfigurationFileWrite(new NodeId(42), Session("s2")),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadTransactionPending));
+            Assert.That(b.HasOpenTrustListWriter, Is.False);
         }
 
         [Test]

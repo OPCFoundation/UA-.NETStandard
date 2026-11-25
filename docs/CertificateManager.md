@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # CertificateManager
 
 `CertificateManager` manages application certificates, trust lists, validation,
@@ -937,6 +942,11 @@ out of auto-reconnect by setting
 continue calling `Session.ReloadInstanceCertificateAsync` + their own
 reconnect logic. The `ApplicationCertificateChanged` event still fires
 either way.
+
+When a session owns its channel, reconnect after reloading a different
+application certificate creates a new SecureChannel and Session instead
+of reactivating the previous Session. A reissued certificate counts as
+different even when it uses the same key.
 
 ### Working with Trust-Lists
 

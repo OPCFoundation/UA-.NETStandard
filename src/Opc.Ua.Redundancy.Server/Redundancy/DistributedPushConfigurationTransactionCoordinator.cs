@@ -59,6 +59,7 @@ namespace Opc.Ua.Redundancy.Server
     /// </remarks>
     public sealed class DistributedPushConfigurationTransactionCoordinator :
         IPushConfigurationTransactionCoordinator,
+        IPushConfigurationFileWriteCoordinator,
         IPushConfigurationTransactionOwnershipGate,
         IPushConfigurationTrustStoreMutationGate,
         IPushConfigurationTransactionCompletion,
@@ -263,6 +264,21 @@ namespace Opc.Ua.Redundancy.Server
         public void SetTrustListWriteOpen(NodeId trustListId, bool isOpen)
         {
             m_inner.SetTrustListWriteOpen(trustListId, isOpen);
+            SignalReconcile();
+        }
+
+        /// <inheritdoc/>
+        public void OpenConfigurationFileWrite(NodeId configurationFileId, NodeId sessionId)
+        {
+            ValidateSessionCanParticipate(sessionId);
+            if (m_inner is IPushConfigurationFileWriteCoordinator fileWriteCoordinator)
+            {
+                fileWriteCoordinator.OpenConfigurationFileWrite(configurationFileId, sessionId);
+            }
+            else
+            {
+                m_inner.SetTrustListWriteOpen(configurationFileId, true);
+            }
             SignalReconcile();
         }
 

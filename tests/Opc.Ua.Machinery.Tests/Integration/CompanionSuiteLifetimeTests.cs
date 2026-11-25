@@ -217,6 +217,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 Is.EqualTo(Isa95JobReturnStatus.Success));
             Assert.That(await receiver.StartAsync("SameOrder", []).ConfigureAwait(false),
                 Is.EqualTo(Isa95JobReturnStatus.Success));
+            Assert.That((await firstSource.TransitionAsync("SameOrder", Isa95JobExecutionTransition.MarkReady)
+                .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
             Assert.That((await firstSource.TransitionAsync("SameOrder", Isa95JobExecutionTransition.BeginExecution)
                 .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
             await firstSource.DrainAsync(first.RefreshAsync).ConfigureAwait(false);

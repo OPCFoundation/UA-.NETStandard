@@ -157,6 +157,8 @@ namespace Opc.Ua.Tools.Tests
             Assert.That((await m_fixture.Source.ReadAsync().ConfigureAwait(false)).Production.Jobs
                 .ToList().Single(job => job.Identifier == id).Phase,
                 Is.EqualTo(MachineToolProductionPhase.Initializing));
+            Assert.That((await m_fixture.Source.TransitionAsync(id, Isa95JobExecutionTransition.MarkReady)
+                .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
             Isa95JobOrderReceiptV2 executing = await m_fixture.Source
                 .TransitionAsync(id, Isa95JobExecutionTransition.BeginExecution).ConfigureAwait(false);
             Assert.That(executing.ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
@@ -185,6 +187,8 @@ namespace Opc.Ua.Tools.Tests
                 MachineToolServiceMcpFixture.Order(id)).ConfigureAwait(false));
             if (verb == "Abort")
             {
+                Assert.That((await m_fixture.Source.TransitionAsync(id, Isa95JobExecutionTransition.MarkReady)
+                    .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
                 Assert.That((await m_fixture.Source.TransitionAsync(id, Isa95JobExecutionTransition.BeginExecution)
                     .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
             }

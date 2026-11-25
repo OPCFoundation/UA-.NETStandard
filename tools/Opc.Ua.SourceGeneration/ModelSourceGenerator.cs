@@ -18,6 +18,7 @@ namespace Opc.Ua.SourceGeneration
         {
             SourceGenerator.AttachDebuggerIfRequested();
             EcmFieldCopyGeneration.Register(context);
+            Isa95V2TransitionGeneration.Register(context);
 
             // Pair every AdditionalFile with its own per-file analyzer config
             // options once, up front, so both the design/NodeSet2 filter and
@@ -32,7 +33,9 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> xmlInputFiles =
                 textsWithOptions
                     .Where(static pair => pair.Text.IsDesignOrNodeset2File())
-                    .Select(static (pair, _) => (pair.Text, pair.Options.ToNodeSetOptions()))
+                    .Select(static (pair, ct) => (
+                        (AdditionalText)new AdditionalTextSnapshot(pair.Text, ct),
+                        pair.Options.ToNodeSetOptions()))
                     .Collect();
 
             // Snapshot the structural per-file options before conversion so
@@ -45,7 +48,10 @@ namespace Opc.Ua.SourceGeneration
                     .Select(static (pair, _) => (
                         pair.Text,
                         Options: pair.Options.ToNodeSetOptions()))
-                    .Where(static pair => !pair.Options.Ignore);
+                    .Where(static pair => !pair.Options.Ignore)
+                    .Select(static (pair, ct) => (
+                        (AdditionalText)new AdditionalTextSnapshot(pair.Text, ct),
+                        pair.Options));
 
             // Every active WoT input is converted independently: parse, bounds,
             // missing preservation/native mapping, dependency/resolver and
@@ -85,10 +91,12 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<AdditionalText>> identifierFiles =
                 context.AdditionalTextsProvider
                     .Where(f => f.IsIdentifierFile())
+                    .Select(static (text, ct) => (AdditionalText)new AdditionalTextSnapshot(text, ct))
                     .Collect();
             IncrementalValueProvider<ImmutableArray<AdditionalText>> csvFiles =
                 context.AdditionalTextsProvider
                     .Where(f => f.HasFileExtension("csv"))
+                    .Select(static (text, ct) => (AdditionalText)new AdditionalTextSnapshot(text, ct))
                     .Collect();
             IncrementalValueProvider<ModelCompilationOptions> options =
                 context.AnalyzerConfigOptionsProvider

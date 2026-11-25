@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+using Opc.Ua.ISA95.JobControl;
+
 namespace Opc.Ua.ISA95.Server.Providers
 {
     /// <summary>
@@ -15,38 +17,38 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// No bits set. Used as a starting accumulator only; a successful call
         /// sets <see cref="Success"/>.
         /// </summary>
-        public const ulong None = 0UL;
+        public const ulong None = Isa95JobReturnStatusBits.None;
 
         /// <summary>
         /// The operation completed successfully (bit 0).
         /// </summary>
-        public const ulong Success = 1UL << 0;
+        public const ulong Success = Isa95JobReturnStatusBits.Success;
 
         /// <summary>
         /// The supplied job order identifier is unknown or invalid (bit 1).
         /// </summary>
-        public const ulong UnknownJobOrderId = 1UL << 1;
+        public const ulong UnknownJobOrderId = Isa95JobReturnStatusBits.UnknownJobOrderId;
 
         /// <summary>
         /// The supplied command is not valid (bit 2). Primarily used by V1.
         /// </summary>
-        public const ulong InvalidCommand = 1UL << 2;
+        public const ulong InvalidCommand = Isa95JobReturnStatusBits.InvalidCommand;
 
         /// <summary>
         /// The job order is in a state that does not permit the operation
         /// (bit 3).
         /// </summary>
-        public const ulong InvalidStatus = 1UL << 3;
+        public const ulong InvalidStatus = Isa95JobReturnStatusBits.InvalidStatus;
 
         /// <summary>
         /// The receiver is unable to accept the job order or response (bit 4).
         /// </summary>
-        public const ulong UnableToAccept = 1UL << 4;
+        public const ulong UnableToAccept = Isa95JobReturnStatusBits.UnableToAccept;
 
         /// <summary>
         /// The request itself is invalid, for example a required field is missing
         /// (bit 32).
         /// </summary>
-        public const ulong InvalidRequest = 1UL << 32;
+        public const ulong InvalidRequest = Isa95JobReturnStatusBits.InvalidRequest;
     }
 }

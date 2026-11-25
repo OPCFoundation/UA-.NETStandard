@@ -378,6 +378,7 @@ namespace Opc.Ua.Server
     /// <param name="References">Reference edits discovered before publication serialization.</param>
     /// <param name="CallbackPermit">The callback permit captured when preparation began, if any.</param>
     /// <param name="Admission">The semantic host admission acquired before mutation ownership.</param>
+    /// <param name="Progress">The transaction's core-publication progress, distinct from the route swap.</param>
     internal sealed record NodeManagerPublicationPlan(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
@@ -394,7 +395,8 @@ namespace Opc.Ua.Server
         CancellationToken CancellationToken,
         PreparedAddressSpaceReferences? References = null,
         NodeManagerCallbackPermit? CallbackPermit = null,
-        INodeManagerBatchAdmission? Admission = null);
+        INodeManagerBatchAdmission? Admission = null,
+        AddressSpacePublisher.PublicationProgress? Progress = null);
 
     /// <summary>
     /// Decorates publication and observes dispatch without replacing the bound host or its owners.

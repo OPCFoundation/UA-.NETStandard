@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -38,7 +39,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reuses the push engine on an ApplicationConfiguration instance without loading host diagnostics.
         /// </summary>
-        internal void BindApplicationConfiguration(
+        internal ApplicationPushAttachment BindApplicationConfiguration(
             ServerSystemContext context,
             ApplicationConfigurationState node,
             IApplicationConfigurationPushTarget target,
@@ -47,7 +48,92 @@ namespace Opc.Ua.Server
             m_applicationPushTarget = target;
             m_applicationOperations =
                 m_serverConfigurationOptions.PushAuthorization as IApplicationConfigurationPushOperations;
-            m_serverConfigurationNode = node;
+            ApplicationPushAttachment attachment = AttachApplicationPushNodes(context, node, binding);
+            try
+            {
+                SubscribeTrustMaterialEnforcement();
+                return attachment;
+            }
+            catch
+            {
+                attachment.Dispose();
+                throw;
+            }
+        }
+
+        internal ApplicationPushAttachment AttachApplicationPushNodes(
+            ServerSystemContext context,
+            ApplicationConfigurationState node,
+            ApplicationConfigurationPushBinding binding,
+            ApplicationPushAttachment? previous = null)
+        {
+            PrepareApplicationPushNodes(context, node);
+            List<(ServerCertificateGroup Group, CertificateGroupState Node)> groups =
+                GetApplicationCertificateGroupNodes(context, node);
+            foreach ((ServerCertificateGroup group, CertificateGroupState groupNode) in groups)
+            {
+                if (previous == null)
+                {
+                    group.NodeId = groupNode.NodeId;
+                    group.TrustListId = groupNode.TrustList!.NodeId;
+                }
+                else if (group.NodeId != groupNode.NodeId || group.TrustListId != groupNode.TrustList!.NodeId)
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError);
+                }
+            }
+
+            var attachment = new ApplicationPushAttachment(this, context, node, groups, binding);
+            try
+            {
+                ConfigurePushMethodNodes(node, m_configuration);
+                ConfigureOptionalServerConfigurationSurface(node, m_configuration);
+                attachment.File = ConfigureConfigurationFile(context, node, previous?.Node.ConfigurationFile);
+                if (previous == null)
+                {
+                    ValidateSecurityAdminPermissionDefaults(node);
+                }
+                RegisterSecurityAdminCallPermissions(context, node, binding.PermissionOwner ?? this);
+                WrapPushCalls(node, binding);
+                foreach ((ServerCertificateGroup group, CertificateGroupState groupNode) in groups)
+                {
+                    ConfigurePushTrustList(context, group, groupNode);
+                    WrapTrustListCalls(groupNode.TrustList!, binding);
+                }
+                if (node.ConfigurationFile != null)
+                {
+                    WrapConfigurationFileCalls(node.ConfigurationFile, binding);
+                }
+                attachment.RefreshDiagnostics();
+                lock (m_applicationAttachmentLock)
+                {
+                    Volatile.Write(ref m_applicationAttachments, [.. m_applicationAttachments, attachment]);
+                }
+                return attachment;
+            }
+            catch
+            {
+                attachment.Dispose();
+                throw;
+            }
+        }
+
+        private void UpdateApplicationDiagnostics(ISystemContext context)
+        {
+            foreach (ApplicationPushAttachment attachment in Volatile.Read(ref m_applicationAttachments))
+            {
+                if (attachment.IsServing)
+                {
+                    UpdateTransactionDiagnostics(context, attachment.Node.TransactionDiagnostics);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Materializes the managed application's push surface without consulting its providers.
+        /// </summary>
+        private void PrepareApplicationPushNodes(ServerSystemContext context, ApplicationConfigurationState node)
+        {
             node.AddGetCertificates(context)
                 .AddCreateSelfSignedCertificate(context)
                 .AddDeleteCertificate(context)
@@ -66,122 +152,129 @@ namespace Opc.Ua.Server
             {
                 node.ConfigurationFile = null;
             }
+        }
 
+        /// <summary>
+        /// Resolves group nodes in the supplied tree without changing the engine's group descriptors.
+        /// </summary>
+        private List<(ServerCertificateGroup Group, CertificateGroupState Node)> GetApplicationCertificateGroupNodes(
+            ServerSystemContext context, ApplicationConfigurationState node)
+        {
             CertificateGroupFolderState groups = node.CertificateGroups ??
                 throw new ArgumentException("The application has no certificate-groups folder.", nameof(node));
             var groupIds = new HashSet<NodeId>();
+            var groupNodes = new List<(ServerCertificateGroup, CertificateGroupState)>(m_certificateGroups.Count);
             foreach (ServerCertificateGroup group in m_certificateGroups)
             {
+                CertificateGroupState? groupNode;
                 if (group.BrowseName == BrowseNames.DefaultHttpsGroup)
                 {
                     groups.AddDefaultHttpsGroup(context);
-                    group.Node = groups.DefaultHttpsGroup!;
+                    groupNode = groups.DefaultHttpsGroup;
                 }
                 else if (group.BrowseName == BrowseNames.DefaultUserTokenGroup)
                 {
                     groups.AddDefaultUserTokenGroup(context);
-                    group.Node = groups.DefaultUserTokenGroup!;
+                    groupNode = groups.DefaultUserTokenGroup;
                 }
                 else
                 {
-                    group.Node = groups.DefaultApplicationGroup!;
+                    groupNode = groups.DefaultApplicationGroup;
                 }
-                NodeId id = group.Node is null ? NodeId.Null : group.Node.NodeId;
-                if (id.IsNull || id.NamespaceIndex == 0 || !groupIds.Add(id) ||
-                    group.Node?.TrustList == null || group.Node.TrustList.NodeId.NamespaceIndex == 0)
+                if (groupNode?.TrustList == null || groupNode.NodeId.IsNull ||
+                    groupNode.NodeId.NamespaceIndex == 0 || !groupIds.Add(groupNode.NodeId) ||
+                    groupNode.TrustList.NodeId.NamespaceIndex == 0)
                 {
                     throw new ArgumentException("Application certificate groups require distinct own-namespace ids.",
                         nameof(node));
                 }
-                group.NodeId = id;
+                groupNodes.Add((group, groupNode));
+            }
+            return groupNodes;
+        }
+
+        /// <summary>
+        /// Registers SecurityAdmin Browse and Call permissions without materializing namespace defaults.
+        /// </summary>
+        private void GrantSecurityAdminCallPermissions(ISystemContext context, NodeState node)
+        {
+            RevokeSecurityAdminCallPermissions();
+            ValidateSecurityAdminPermissionDefaults(node);
+            RegisterSecurityAdminCallPermissions(context, node);
+        }
+
+        /// <summary>
+        /// Preserves synchronous startup's default-policy validation without storing inherited permissions.
+        /// </summary>
+        private void ValidateSecurityAdminPermissionDefaults(NodeState node)
+        {
+            if (node is MethodState or BaseObjectState && node.RolePermissions.IsEmpty)
+            {
+                NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                    Server, SystemContext, node.NodeId.NamespaceIndex);
+                if (defaults.Status != StatusCodes.BadWouldBlock && !StatusCode.IsGood(defaults.Status))
+                {
+                    throw new ServiceResultException(defaults.Status);
+                }
             }
 
-            ConfigurePushConfiguration(context, m_configuration);
-            WrapPushCalls(node, binding);
-            foreach (ServerCertificateGroup group in m_certificateGroups)
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
             {
-                WrapTrustListCalls(group.Node!.TrustList!, binding);
-            }
-            if (node.ConfigurationFile != null)
-            {
-                WrapConfigurationFileCalls(node.ConfigurationFile, binding);
+                ValidateSecurityAdminPermissionDefaults(child);
             }
         }
 
         /// <summary>
-        /// Grants SecurityAdmin Browse and Call permissions on push methods and their containing objects.
+        /// Registers the current configuration tree after retiring any previous tree's grants.
         /// </summary>
-        private void GrantSecurityAdminCallPermissions(ISystemContext context, NodeState node)
+        private void RegisterSecurityAdminCallPermissions(
+            ISystemContext context, NodeState node, AsyncCustomNodeManager? owner = null)
         {
             if (node is MethodState or BaseObjectState)
             {
-                ArrayOf<RolePermissionType> permissions = node.RolePermissions;
-                bool hasRolePermissionRestrictions = !permissions.IsEmpty;
-                if (!hasRolePermissionRestrictions)
-                {
-                    NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
-                        Server, SystemContext, node.NodeId.NamespaceIndex);
-                    // Unresolved metadata is handled by the async startup pass; keep inheriting defaults here.
-                    if (defaults.Status != StatusCodes.BadWouldBlock)
-                    {
-                        if (!StatusCode.IsGood(defaults.Status))
-                        {
-                            throw new ServiceResultException(defaults.Status);
-                        }
-
-                        hasRolePermissionRestrictions = !defaults.DefaultRolePermissions.IsEmpty;
-                        if (hasRolePermissionRestrictions)
-                        {
-                            permissions = defaults.DefaultRolePermissions;
-                        }
-                    }
-                }
-
-                if (hasRolePermissionRestrictions)
-                {
-                    node.RolePermissions = AddSecurityAdminCallPermissions(permissions);
-                }
+                RegisterSecurityAdminCallPermissions(owner ?? this, node);
             }
 
             var children = new List<BaseInstanceState>();
             node.GetChildren(context, children);
             foreach (BaseInstanceState child in children)
             {
-                GrantSecurityAdminCallPermissions(context, child);
+                RegisterSecurityAdminCallPermissions(context, child, owner);
             }
         }
 
         /// <summary>
-        /// Adds SecurityAdmin Browse and Call permissions after asynchronously resolving namespace defaults.
+        /// Preserves asynchronous startup's default-policy validation before registering live grants.
         /// </summary>
         private async ValueTask GrantSecurityAdminCallPermissionsAsync(
             ServerSystemContext context,
             NodeState node,
             CancellationToken cancellationToken)
         {
-            if (node is MethodState or BaseObjectState)
+            cancellationToken.ThrowIfCancellationRequested();
+            RevokeSecurityAdminCallPermissions();
+            await ValidateSecurityAdminPermissionDefaultsAsync(context, node, cancellationToken).ConfigureAwait(false);
+            RegisterSecurityAdminCallPermissions(context, node);
+        }
+
+        /// <summary>
+        /// Rejects unresolved or failed inherited policies during asynchronous configuration.
+        /// </summary>
+        private async ValueTask ValidateSecurityAdminPermissionDefaultsAsync(
+            ServerSystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (node is MethodState or BaseObjectState && node.RolePermissions.IsEmpty)
             {
-                ArrayOf<RolePermissionType> permissions = node.RolePermissions;
-                bool hasRolePermissionRestrictions = !permissions.IsEmpty;
-                if (!hasRolePermissionRestrictions)
+                NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                    Server, context, node.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+                if (!StatusCode.IsGood(defaults.Status))
                 {
-                    NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
-                        Server, context, node.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
-                    if (!StatusCode.IsGood(defaults.Status))
-                    {
-                        throw new ServiceResultException(defaults.Status);
-                    }
-
-                    hasRolePermissionRestrictions = !defaults.DefaultRolePermissions.IsEmpty;
-                    if (hasRolePermissionRestrictions)
-                    {
-                        permissions = defaults.DefaultRolePermissions;
-                    }
-                }
-
-                if (hasRolePermissionRestrictions)
-                {
-                    node.RolePermissions = AddSecurityAdminCallPermissions(permissions);
+                    throw new ServiceResultException(defaults.Status);
                 }
             }
 
@@ -189,46 +282,9 @@ namespace Opc.Ua.Server
             node.GetChildren(context, children);
             foreach (BaseInstanceState child in children)
             {
-                await GrantSecurityAdminCallPermissionsAsync(context, child, cancellationToken)
+                await ValidateSecurityAdminPermissionDefaultsAsync(context, child, cancellationToken)
                     .ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Adds SecurityAdmin Browse and Call permissions without replacing other role permissions.
-        /// </summary>
-        private static ArrayOf<RolePermissionType> AddSecurityAdminCallPermissions(
-            ArrayOf<RolePermissionType> permissions)
-        {
-            const uint addedPermissions = (uint)(PermissionType.Browse | PermissionType.Call);
-            NodeId roleId = ObjectIds.WellKnownRole_SecurityAdmin;
-            var updatedPermissions = new List<RolePermissionType>(permissions.Count + 1);
-            bool foundSecurityAdmin = false;
-            for (int index = 0; index < permissions.Count; index++)
-            {
-                RolePermissionType permission = permissions[index];
-                var updatedPermission = new RolePermissionType
-                {
-                    RoleId = permission.RoleId,
-                    Permissions = permission.Permissions
-                };
-                if (updatedPermission.RoleId == roleId)
-                {
-                    updatedPermission.Permissions |= addedPermissions;
-                    foundSecurityAdmin = true;
-                }
-                updatedPermissions.Add(updatedPermission);
-            }
-            if (!foundSecurityAdmin)
-            {
-                updatedPermissions.Add(new RolePermissionType
-                {
-                    RoleId = roleId,
-                    Permissions = addedPermissions
-                });
-            }
-
-            return updatedPermissions.ToArrayOf();
         }
 
         /// <summary>
@@ -470,5 +526,73 @@ namespace Opc.Ua.Server
 
         /// <summary>The optional deployment admission shared by calls, registry reload and runtime effects.</summary>
         private IApplicationConfigurationPushOperations? m_applicationOperations;
+
+        private readonly Lock m_applicationAttachmentLock = new();
+        private ApplicationPushAttachment[] m_applicationAttachments = [];
+
+        /// <summary>
+        /// Owns the nodes and handles of one attachment to the managed application's push engine.
+        /// </summary>
+        internal sealed class ApplicationPushAttachment(
+            ConfigurationNodeManager engine,
+            ServerSystemContext context,
+            ApplicationConfigurationState node,
+            List<(ServerCertificateGroup Group, CertificateGroupState Node)> groups,
+            ApplicationConfigurationPushBinding binding) : IDisposable
+        {
+            internal ApplicationConfigurationState Node { get; } = node;
+
+            internal ServerSystemContext Context { get; } = context;
+
+            internal ApplicationConfigurationFile? File { get; set; }
+
+            internal bool IsServing => binding.IsServing;
+
+            internal bool HasOutstandingWork =>
+                engine.m_coordinator.IsTransactionActive || engine.m_coordinator.HasOpenTrustListWriter ||
+                File?.HasOutstandingAttachmentWork == true ||
+                groups.Any(pair => pair.Node.TrustList?.Handle is TrustList { HasOpenHandles: true });
+
+            internal void RefreshFrom(ApplicationPushAttachment previous)
+            {
+                if (Node.ConfigurationFile is { } file && previous.Node.ConfigurationFile is { } oldFile)
+                {
+                    file.CurrentVersion!.Value = oldFile.CurrentVersion!.Value;
+                    file.LastUpdateTime!.Value = oldFile.LastUpdateTime!.Value;
+                }
+                RefreshDiagnostics();
+            }
+
+            internal void RefreshDiagnostics()
+            {
+                engine.UpdateTransactionDiagnostics(Context, Node.TransactionDiagnostics);
+                Node.ClearChangeMasks(Context, true);
+            }
+
+            internal void SessionClosing(NodeId sessionId)
+            {
+                engine.m_coordinator.CancelForSessionClose(sessionId);
+                engine.UpdateApplicationDiagnostics(Context);
+                foreach ((_, CertificateGroupState group) in groups)
+                {
+                    (group.TrustList?.Handle as TrustList)?.NotifySessionClosing(sessionId);
+                }
+                File?.NotifySessionClosing(sessionId);
+            }
+
+            public void Dispose()
+            {
+                lock (engine.m_applicationAttachmentLock)
+                {
+                    Volatile.Write(ref engine.m_applicationAttachments,
+                        engine.m_applicationAttachments.Where(attachment => attachment != this).ToArray());
+                }
+                foreach ((_, CertificateGroupState group) in groups)
+                {
+                    (group.TrustList?.Handle as TrustList)?.Dispose();
+                }
+                File?.Dispose();
+            }
+        }
     }
 }

@@ -103,7 +103,7 @@ namespace Opc.Ua.ISA95.Server.Providers
     /// <summary>
     /// Publishes Job Control V2 job order status changes for server event
     /// projection. Each subscriber receives exactly one notification per
-    /// committed state change that occurs after it subscribes; subscribers are
+    /// committed creation or transition with a V2 status-event effect after it subscribes; subscribers are
     /// independent and cancellation or disposal of one does not affect others.
     /// </summary>
     public interface IIsa95JobStatusSourceV2

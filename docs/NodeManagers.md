@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Node Managers
 
 A node manager exposes part of a server's address space: variables, methods,
@@ -45,6 +50,8 @@ a server yet, start with [Getting started](GettingStarted.md).
     - [Recovering retained cleanup](#recovering-retained-cleanup)
     - [Capturing inputs and validating candidates](#capturing-inputs-and-validating-candidates)
     - [Publishing typed metadata](#publishing-typed-metadata)
+    - [Prepared forwarded sources](#prepared-forwarded-sources)
+    - [Managed NodeId reservations and conformance](#managed-nodeid-reservations-and-conformance)
     - [Historian registration ownership](#historian-registration-ownership)
   - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
     - [Reload modes](#reload-modes)
@@ -1612,6 +1619,47 @@ For metadata-only publication, call `writer.PrepareReadImagesAsync(images, ct)`
 and commit the returned unit. Those images are bound during preparation and
 cannot be changed through `SetMetadata`.
 
+#### Prepared forwarded sources
+
+A raw `AsyncCustomNodeManager` created within a prepared candidate can bind
+monitored nodes before its forwarding facade is published. The raw binding
+shares that exact facade generation's admission gate but does not add a route or
+an owner for physical cleanup. Only the serving routing snapshot authorizes new
+emissions. After abort or retirement, the old binding cannot follow a successor,
+even when another facade uses the same physical manager.
+
+#### Managed NodeId reservations and conformance
+
+PackML's managed composition path reserves the complete set of instance NodeIds
+before reading the equipment provider or administration store. The standard
+master node manager compares the identifier type and value under the namespace
+URI, not the candidate's temporary namespace index. Built-in custom node
+managers only index a reserved ID for the exact node instance in the claim.
+A conflict returns `BadNodeIdExists`; a same-owner PackML browse-name conflict
+still returns `BadBrowseNameDuplicated`.
+
+An unpublished replacement may reserve IDs held by its serving predecessor in
+the same lifecycle slot. The routing commit selects the serving generation;
+aborting the candidate leaves the predecessor's claims intact. Retirement
+keeps the outgoing generation's claims until exact physical cleanup succeeds.
+Do not use node absence or runtime disposal as proof that retirement finished.
+
+The built-in diagnostics Read path selects conformance values from the same
+routing image as the request. Candidate contributions remain private until the
+routing commit. That commit withdraws the retiring generation's contribution
+without dropping unrelated contributors or configured server profiles.
+Explicitly registered, independently hosted features still use
+`ConformanceUnitsManager` to publish configuration changes.
+
+`MasterNodeManager.ReserveManagedNodeIdsAsync` is an internal entry point for
+PackML, not a public extension point. Onboarding is not yet wired to it.
+That integration would need access to the same reservation path and must
+supply the exact materialized instances for namespace-zero IDs 29878–29881
+and their generated descendants before binding or indexing them. A custom
+index that bypasses built-in registration must enforce the claims itself.
+Reservation does not transfer provider bindings or replace Onboarding's
+reversible predecessor handoff.
+
 #### Historian registration ownership
 
 `StagingServer.HistorianRegistry` records NodeId, namespace and default
@@ -2116,6 +2164,11 @@ be treated as a new subscription. `BadNotSupported` from an all-events owner doe
 Deletion removes the item from the server's event registry before invoking unsubscribe callbacks, so
 a lifecycle operation started inside a callback cannot bind the deleted item to a new generation.
 
+When a facade forwards an all-events subscription to an async node manager, the logical owners share
+one physical link to the item on each root notifier. Releasing one owner keeps those links available
+to the others. The last owner detaches the links; if a provider callback fails, the retry uses the
+original notifier instance and does not repeat successful provider releases.
+
 The generation reclaimer owns retirement independently of the lifecycle writer. Each retired generation
 waits for its own view epochs and admitted callbacks; a blocked drain or deletion does not delay unrelated
 generations. Successful cleanup stages are retained across retries. A failure faults the retirement task
@@ -2137,6 +2190,24 @@ published, prepared reference additions complete even if the post-commit applica
 fails; that failure cannot restore the prior routing view. This path supports the in-memory `NodeState`
 ownership model of `AsyncCustomNodeManager` and adapted `CustomNodeManager2`; a custom external
 reference store is rejected before the decision.
+
+For an indexed node owned by an `AsyncCustomNodeManager`, use
+`AddExternalReferenceAsync` to link an externally owned source to it:
+
+```csharp
+await manager.AddExternalReferenceAsync(
+    node, ObjectIds.ObjectsFolder, ReferenceTypeIds.Organizes, isInverse: false,
+    cancellationToken: ct);
+```
+
+The method adds the reciprocal reference on `node`. For a private candidate it
+stages the external reference until publication; for a published manager it
+adds the reference through the master. The external source must exist by
+publication; a missing source rejects the commit before its durable decision.
+Deleting or replacing the target before publication discards its staged
+reference. Deleting a target from a published lifecycle manager also removes
+its contribution, so a later publication does not restore the reference. Finish
+changes to the candidate before starting its commit.
 
 #### Change notifications
 
@@ -2316,6 +2387,11 @@ Servers that publish namespace metadata themselves can override
 metadata or return without doing work.
 
 ### Historical-access reconciliation
+
+Before publishing a routing batch, the server withdraws historian registrations
+owned by the departing generations. If a withdrawal fails, the server restores
+the affected registrations at their original lookup precedence before changing
+any generation gates or publishing the new routes.
 
 Official companion NodeSets often declare `Historizing="true"` or set
 `AccessLevel` bits such as `HistoryRead` on variables whose type is
@@ -3468,6 +3544,15 @@ builder.Boilers.Boiler__1.DrumX001
 
 The `Server` Object (`i=2253`) is the aggregate event subscription point
 (OPC UA Part 5 [8.3.2](https://reference.opcfoundation.org/Core/Part5/v105/docs/8.3.2)).
+Use `await manager.RegisterRootNotifierAsync(node, ct)` to register a node
+without a parent notifier as a Server event root. For a published manager, the
+call publishes the Server object's `HasNotifier` reference and attempts to
+attach existing Server-event monitored items. While a lifecycle candidate is
+private, including after preparation returns, the reference is staged and
+existing subscriptions are attached during reconciliation after publication.
+Check the lifecycle result for reconciliation failures. Deleting the node
+through its manager removes the registration, so there is no removal API. If
+registration throws, delete the node to discard any partial registration.
 Server-wide fan-out treats an individual root or manager's `BadNotSupported` as
 non-participation, not as a failure of every other source. Root registration
 does not silently set `EventNotifier.SubscribeToEvents`; declare the capability

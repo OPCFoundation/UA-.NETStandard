@@ -23,8 +23,9 @@ namespace Opc.Ua.Server
             TypeTable typeTree,
             EncodeableFactory factory,
             ArrayOf<PreparedNodeManager> candidates,
-            IReadOnlyList<NodeState.ReferenceUpdate> referenceUpdates,
-            Action<bool> viewPublished)
+            IReadOnlyDictionary<NodeState.ReferenceUpdate, NodeManagerGeneration> referenceOwners,
+            Action<bool> viewPublished,
+            PublicationProgress? progress = null)
         {
             m_routes = routes;
             m_namespaces = namespaces;
@@ -34,16 +35,41 @@ namespace Opc.Ua.Server
             m_typeTree = typeTree;
             m_factory = factory;
             m_viewPublished = viewPublished;
+            m_progress = progress;
             m_stagingServers = new ChangePreparer.StagingServer?[candidates.Count];
             for (int index = 0; index < candidates.Count; index++)
             {
                 m_stagingServers[index] = ChangePreparer.GetServer(candidates[index].NodeManager);
             }
-            m_referenceUpdates = new NodeState.ReferenceUpdate[referenceUpdates.Count];
-            for (int index = 0; index < referenceUpdates.Count; index++)
+            m_referenceUpdates = new NodeState.ReferenceUpdate[referenceOwners.Count];
+            var snapshots = new Dictionary<
+                NodeManagerRoutingTable.RoutingSnapshot,
+                Dictionary<NodeState, ArrayOf<IReference>>>();
+            var nextImages = new Dictionary<NodeState, ArrayOf<IReference>>(RefEqualityComparer.Default);
+            int updateIndex = 0;
+            foreach (KeyValuePair<NodeState.ReferenceUpdate, NodeManagerGeneration> entry in referenceOwners)
             {
-                m_referenceUpdates[index] = referenceUpdates[index];
+                NodeState.ReferenceUpdate update = entry.Key;
+                m_referenceUpdates[updateIndex++] = update;
+                nextImages.Add(update.Owner, update.After);
+                foreach (AddressSpaceEpoch epoch in entry.Value.GetViewEpochs())
+                {
+                    if (epoch.IsDrained ||
+                        !epoch.TryGetSnapshot(out NodeManagerRoutingTable.RoutingSnapshot? snapshot) ||
+                        snapshot is null || snapshot.Revision == 0)
+                    {
+                        continue;
+                    }
+                    if (!snapshots.TryGetValue(snapshot, out Dictionary<NodeState, ArrayOf<IReference>>? images))
+                    {
+                        images = snapshot.CopyReferenceImages();
+                        snapshots.Add(snapshot, images);
+                    }
+                    images.TryAdd(update.Owner, update.Before);
+                }
             }
+            m_referenceImages = [.. snapshots];
+            m_nextReferenceImages = nextImages;
         }
 
         /// <summary>
@@ -52,6 +78,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void Publish()
         {
+            m_progress?.BeginCorePublication();
             m_namespaces.Complete();
             m_serverUris.Complete();
             m_types.Complete(m_typeTree);
@@ -60,6 +87,13 @@ namespace Opc.Ua.Server
             {
                 server?.Bind();
             }
+            foreach (KeyValuePair<
+                NodeManagerRoutingTable.RoutingSnapshot,
+                Dictionary<NodeState, ArrayOf<IReference>>> image in m_referenceImages)
+            {
+                image.Key.InstallReferenceImages(image.Value);
+            }
+            m_routes.Next.InstallReferenceImages(m_nextReferenceImages);
             foreach (NodeState.ReferenceUpdate update in m_referenceUpdates)
             {
                 update.Remove();
@@ -76,6 +110,7 @@ namespace Opc.Ua.Server
                 {
                     update.Complete();
                 }
+                m_routes.Next.InstallReferenceImages(m_emptyReferenceImages);
             }
         }
 
@@ -89,6 +124,35 @@ namespace Opc.Ua.Server
         private readonly EncodeableFactory m_factory;
         private readonly ChangePreparer.StagingServer?[] m_stagingServers;
         private readonly NodeState.ReferenceUpdate[] m_referenceUpdates;
+        private readonly KeyValuePair<
+            NodeManagerRoutingTable.RoutingSnapshot,
+            Dictionary<NodeState, ArrayOf<IReference>>>[] m_referenceImages;
+        private readonly Dictionary<NodeState, ArrayOf<IReference>> m_nextReferenceImages;
+        private readonly Dictionary<NodeState, ArrayOf<IReference>> m_emptyReferenceImages =
+            new(RefEqualityComparer.Default);
         private readonly Action<bool> m_viewPublished;
+
+        /// <summary>The transaction recording whether core publication has started.</summary>
+        private readonly PublicationProgress? m_progress;
+
+        /// <summary>
+        /// Tracks whether a transaction can still prove that it has not mutated the serving address space.
+        /// A started publication is not proof that the new routing image is visible.
+        /// </summary>
+        internal sealed class PublicationProgress
+        {
+            /// <summary>
+            /// Gets whether the publisher reached its first irreversible step.
+            /// </summary>
+            internal bool CorePublicationStarted { get; private set; }
+
+            /// <summary>
+            /// Marks the transaction immediately before the publisher starts mutating live state.
+            /// </summary>
+            internal void BeginCorePublication()
+            {
+                CorePublicationStarted = true;
+            }
+        }
     }
 }

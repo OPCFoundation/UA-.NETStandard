@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
 using NUnit.Framework;
+using Opc.Ua.ISA95.JobControl;
 
 namespace Opc.Ua.ISA95.Tests
 {
@@ -164,6 +165,68 @@ namespace Opc.Ua.ISA95.Tests
                     HasReference(transition, "HasCause", $"ns=1;i={methodId}"),
                     Is.True,
                     $"Transition i={transitionId} must have cause i={methodId}.");
+            }
+
+        }
+
+        [Test]
+        public void GeneratedV2TransitionTableMatchesTheScopedNodeSet()
+        {
+            XDocument document = LoadXml("Opc.Ua.ISA95.JobControl.V2.NodeSet2.xml");
+            XElement root = document.Root!;
+            XNamespace ns = root.Name.Namespace;
+            Dictionary<string, XElement> nodes = root.Elements()
+                .Where(e => e.Attribute("NodeId") != null)
+                .ToDictionary(e => e.Attribute("NodeId")!.Value, StringComparer.Ordinal);
+            (Isa95V2Machine Machine, string Name)[] machines =
+            [
+                (Isa95V2Machine.Receiver, "ISA95JobOrderReceiverSubStatesType"),
+                (Isa95V2Machine.Prepare, "ISA95PrepareStateMachineType"),
+                (Isa95V2Machine.Interrupted, "ISA95InterruptedStateMachineType"),
+                (Isa95V2Machine.Ended, "ISA95EndedStateMachineType")
+            ];
+            var expected = new List<Isa95V2Transition>();
+            var propertiesByParent = nodes.Values.Where(e => e.Name == ns + "UAVariable")
+                .ToLookup(e => (string?)e.Attribute("ParentNodeId"), StringComparer.Ordinal);
+            foreach ((Isa95V2Machine machine, string name) in machines)
+            {
+                string owner = nodes.Single(p => (string?)p.Value.Attribute("BrowseName") == $"1:{name}").Key;
+                foreach (XElement candidate in nodes.Values.Where(e =>
+                    (string?)e.Attribute("ParentNodeId") == owner && e.Name == ns + "UAObject"))
+                {
+                    string? from = FindForward(candidate, "FromState");
+                    if (from == null)
+                    {
+                        continue;
+                    }
+                    string to = FindForward(candidate, "ToState")!;
+                    string? cause = FindForward(candidate, "HasCause");
+                    string? method = cause == null ? null : nodes[cause].Attribute("BrowseName")!.Value.Split(':')[^1];
+                    expected.Add(new Isa95V2Transition(
+                        machine,
+                        ReadNumber(from, "StateNumber"),
+                        ReadNumber(to, "StateNumber"),
+                        ReadNumber(candidate.Attribute("NodeId")!.Value, "TransitionNumber"),
+                        method,
+                        FindForward(candidate, "HasEffect") == "ns=1;i=1006"));
+                }
+            }
+            Assert.That(Isa95V2TransitionTable.Entries.ToArray(), Is.EqualTo(
+                expected.OrderBy(e => e.Machine).ThenBy(e => e.From).ThenBy(e => e.To).ToArray()));
+
+            uint ReadNumber(string parent, string property)
+            {
+                return uint.Parse(propertiesByParent[parent]
+                    .Single(e => (string?)e.Attribute("BrowseName") == property)
+                    .Element(ns + "Value")!.Value, CultureInfo.InvariantCulture);
+            }
+
+            string? FindForward(XElement node, string type)
+            {
+                return node.Element(ns + "References")!
+                    .Elements(ns + "Reference")
+                    .SingleOrDefault(e => (string?)e.Attribute("ReferenceType") == type &&
+                        (string?)e.Attribute("IsForward") != "false")?.Value;
             }
         }
 

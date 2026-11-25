@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
+using Opc.Ua.ISA95.JobControl;
 using Opc.Ua.ISA95.Server.Providers;
 using V1 = Opc.Ua.ISA95.JobControl.V1;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
@@ -16,6 +17,43 @@ namespace Opc.Ua.ISA95.Tests.Providers
     [TestFixture]
     public class InMemoryIsa95JobControlProviderV2Tests
     {
+        [Test]
+        public async Task EffectlessTransitionsReachCatalogButNotStatusStream()
+        {
+            using var provider = new InMemoryIsa95JobControlProvider();
+            await provider.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.StoreAndStart, Isa95TestData.V2Order("job"))
+                .ConfigureAwait(false);
+            Isa95JobOrderReceiptV2 rejected = await provider.TransitionAsync(
+                "job", Isa95JobExecutionTransition.BeginExecution).ConfigureAwait(false);
+            Assert.That(rejected.ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.InvalidStatus));
+
+            IReadOnlyList<Isa95JobStatusNotificationV2>? status = null;
+            IReadOnlyList<Isa95JobOrderCatalogChange> changes = await Isa95TestData.CaptureCatalogAsync(
+                provider, 5, async () =>
+                {
+                    status = await Isa95TestData.CaptureAsync(provider, 3, async () =>
+                    {
+                        await provider.TransitionAsync("job", Isa95JobExecutionTransition.MarkReady)
+                            .ConfigureAwait(false);
+                        await provider.TransitionAsync("job", Isa95JobExecutionTransition.BeginExecution)
+                            .ConfigureAwait(false);
+                        await provider.TransitionAsync("job", Isa95JobExecutionTransition.Complete)
+                            .ConfigureAwait(false);
+                        await provider.TransitionAsync("job", Isa95JobExecutionTransition.Close)
+                            .ConfigureAwait(false);
+                        await provider.ReceiveJobOrderAsync(
+                            Isa95JobOrderOperationV2.Store, Isa95TestData.V2Order("sentinel")).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            Assert.That(changes, Has.Count.EqualTo(5));
+            Assert.That(changes[0].Order!.State[1].StateText.Text, Is.EqualTo("Ready"));
+            Assert.That(changes[3].Order!.State[1].StateText.Text, Is.EqualTo("Closed"));
+            Assert.That(status, Is.Not.Null);
+            Assert.That(status![0].StateText.Text, Is.EqualTo("Running"));
+            Assert.That(status[1].State[1].StateText.Text, Is.EqualTo("Completed"));
+            Assert.That(status[2].JobOrderId, Is.EqualTo("sentinel"));
+        }
+
         [Test]
         public async Task StoreAndStartAllowsOrderToStart()
         {
@@ -38,6 +76,7 @@ namespace Opc.Ua.ISA95.Tests.Providers
             await provider.ReceiveJobOrderAsync(
                 Isa95JobOrderOperationV2.StoreAndStart,
                 Isa95TestData.V2Order("job1")).ConfigureAwait(false);
+            await provider.TransitionAsync("job1", Isa95JobExecutionTransition.MarkReady).ConfigureAwait(false);
             await provider.TransitionAsync(
                 "job1",
                 Isa95JobExecutionTransition.BeginExecution).ConfigureAwait(false);
@@ -142,6 +181,7 @@ namespace Opc.Ua.ISA95.Tests.Providers
             await provider.ReceiveJobOrderAsync(
                 Isa95JobOrderOperationV2.StoreAndStart,
                 Isa95TestData.V2Order("job1")).ConfigureAwait(false);
+            await provider.TransitionAsync("job1", Isa95JobExecutionTransition.MarkReady).ConfigureAwait(false);
             await provider.TransitionAsync(
                 "job1",
                 Isa95JobExecutionTransition.BeginExecution).ConfigureAwait(false);
@@ -353,6 +393,7 @@ namespace Opc.Ua.ISA95.Tests.Providers
             await provider.ReceiveJobOrderAsync(
                 Isa95JobOrderOperationV2.StoreAndStart,
                 Isa95TestData.V2Order("job1")).ConfigureAwait(false);
+            await provider.TransitionAsync("job1", Isa95JobExecutionTransition.MarkReady).ConfigureAwait(false);
             await provider.TransitionAsync(
                 "job1",
                 Isa95JobExecutionTransition.BeginExecution).ConfigureAwait(false);
@@ -463,6 +504,7 @@ namespace Opc.Ua.ISA95.Tests.Providers
                 created).ConfigureAwait(false);
 
             // The execution transition supplies no comment; the retained comment persists.
+            await provider.TransitionAsync("job1", Isa95JobExecutionTransition.MarkReady).ConfigureAwait(false);
             IReadOnlyList<Isa95JobStatusNotificationV2> afterBegin = await Isa95TestData.CaptureAsync(
                 provider,
                 1,
@@ -669,16 +711,13 @@ namespace Opc.Ua.ISA95.Tests.Providers
         }
 
         [Test]
-        public async Task StateChangingOperationsDoNotEmitCatalogChanges()
+        public async Task StoreStartAndCancelPublishOrderedCatalogChanges()
         {
             using var provider = new InMemoryIsa95JobControlProvider();
 
-            // Store and Start are life-cycle state changes carried by the status
-            // source; only the trailing Cancel is a catalog change, so it must be
-            // the single change captured.
             IReadOnlyList<Isa95JobOrderCatalogChange> changes = await Isa95TestData.CaptureCatalogAsync(
                 provider,
-                1,
+                3,
                 async () =>
                 {
                     await provider.ReceiveJobOrderAsync(
@@ -692,8 +731,12 @@ namespace Opc.Ua.ISA95.Tests.Providers
                         Isa95TestData.V2Order("job1")).ConfigureAwait(false);
                 }).ConfigureAwait(false);
 
-            Assert.That(changes, Has.Count.EqualTo(1));
-            Assert.That(changes[0].Kind, Is.EqualTo(Isa95JobOrderCatalogChangeKind.Removed));
+            Assert.That(changes, Has.Count.EqualTo(3));
+            Assert.That(changes[0].Kind, Is.EqualTo(Isa95JobOrderCatalogChangeKind.Updated));
+            Assert.That(changes[0].Order!.State[0].StateNumber, Is.EqualTo(1u));
+            Assert.That(changes[1].Kind, Is.EqualTo(Isa95JobOrderCatalogChangeKind.Updated));
+            Assert.That(changes[1].Order!.State[0].StateNumber, Is.EqualTo(2u));
+            Assert.That(changes[2].Kind, Is.EqualTo(Isa95JobOrderCatalogChangeKind.Removed));
         }
     }
 }

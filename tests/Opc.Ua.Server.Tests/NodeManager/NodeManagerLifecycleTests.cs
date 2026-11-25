@@ -3244,8 +3244,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Event deletion releases the recorded all-events binding of a retiring generation exactly once,
-        /// reports a failed release to the client, and cleanup never replays the release.
+        /// Event deletion reports a failed release and retains the binding until retirement retries it.
+        /// The item remains usable by the release callback until cleanup completes.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -3273,6 +3273,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     services, ObjectIds.Server).ConfigureAwait(false);
             ISubscription eventSubscription = server.SubscriptionManager.GetSubscriptions()
                 .Single(subscription => subscription.Id == eventSubscriptionId);
+            IEventMonitoredItem eventItem = server.EventManager.GetMonitoredItems()
+                .Single(item => item.Id == eventMonitoredItemId);
+            var eventBinding = (IMonitoredItemGenerationBinding)eventItem;
+            var releaseStates = new ConcurrentQueue<(IEventMonitoredItem Item, bool Disposed)>();
+            retiredManager!.AllEventsCallback = (item, unsubscribe, _) =>
+            {
+                if (unsubscribe && item.Id == eventMonitoredItemId)
+                {
+                    releaseStates.Enqueue((item, ((IMonitoredItemGenerationBinding)item).IsDisposed));
+                }
+                return default;
+            };
+            Assert.That(original.Identity.EventBindings.ContainsKey(eventItem), Is.True);
             Assert.That(
                 original.Identity.Gate.TryEnter(out GenerationGate.Lease? admission),
                 Is.True,
@@ -3306,7 +3319,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     server.EventManager.GetMonitoredItems().Any(item => item.Id == eventMonitoredItemId),
                     Is.False);
                 Assert.That(retiredManager.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                Assert.That(eventBinding.IsDisposed, Is.EqualTo(!unsubscribeFails),
+                    "A failed release still owns the item needed for its retry.");
 
+                if (unsubscribeFails)
+                {
+                    Assert.That(
+                        original.Identity.EventBindings.TryGetValue(
+                            eventItem, out GenerationEventBindingRecord? retained),
+                        Is.True);
+                    Assert.That(retained!.RemovalRequested, Is.True);
+                    Assert.That(retained.State, Is.EqualTo(GenerationEventBindingState.Bound));
+                }
+
+                retiredManager.AllEventsUnsubscribeResult = ServiceResult.Good;
                 heldAdmission!.Dispose();
                 heldAdmission = null;
                 replacement = RequireRegistration(
@@ -3314,6 +3340,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
+                if (retiredManager is not null)
+                {
+                    retiredManager.AllEventsUnsubscribeResult = ServiceResult.Good;
+                }
                 heldAdmission?.Dispose();
                 if (replacementTask is not null)
                 {
@@ -3327,8 +3357,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(retiredManager.Find(valueNodeId), Is.Null);
             Assert.That(master.RetiringEventGenerations, Has.None.SameAs(original.Identity));
-            Assert.That(retiredManager.AllEventsUnsubscribeCount, Is.EqualTo(1),
-                "Cleanup must not replay a release for an already deleted item.");
+            Assert.That(retiredManager.AllEventsUnsubscribeCount, Is.EqualTo(unsubscribeFails ? 2 : 1),
+                "Cleanup retries only the release that failed during deletion.");
+            Assert.That(eventBinding.IsDisposed, Is.True);
+            Assert.That(releaseStates, Has.Count.EqualTo(unsubscribeFails ? 2 : 1));
+            foreach ((IEventMonitoredItem releasedItem, bool disposed) in releaseStates)
+            {
+                Assert.That(releasedItem, Is.SameAs(eventItem));
+                Assert.That(disposed, Is.False, "A release callback must not receive a disposed item.");
+            }
             await DeleteSubscriptionAsync(services, dataSubscriptionId).ConfigureAwait(false);
             await DeleteSubscriptionAsync(services, eventSubscriptionId).ConfigureAwait(false);
             await CommitChangeAsync(
@@ -9367,10 +9404,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IList<IEventMonitoredItem> monitoredItems,
                 CancellationToken cancellationToken = default)
             {
-                Interlocked.Increment(ref m_conditionRefreshCount);
+                // publish the ids before the count: tests wait on the count and then
+                // read the ids, which would otherwise still be the previous snapshot.
                 Interlocked.Exchange(
                     ref m_lastConditionRefreshMonitoredItemIds,
                     [.. monitoredItems.Select(monitoredItem => monitoredItem.Id)]);
+                Interlocked.Increment(ref m_conditionRefreshCount);
                 if (ConditionRefreshCallback is not null)
                 {
                     await ConditionRefreshCallback(monitoredItems, cancellationToken)

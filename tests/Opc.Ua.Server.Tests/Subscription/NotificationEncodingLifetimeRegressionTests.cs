@@ -273,7 +273,8 @@ namespace Opc.Ua.Server.Tests
         public void RentedNotificationArrayIsReturnedWithThePayload([Values(false, true)] bool acknowledgeFirst)
         {
             var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
-            MonitoredItemNotification[] rented = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(3);
+            var buffer = DataChangeNotificationBuffer.Rent(3);
+            MonitoredItemNotification[] rented = buffer.Items;
             for (int ii = 0; ii < 3; ii++)
             {
                 rented[ii] = new MonitoredItemNotification { ClientHandle = (uint)ii + 1, Value = new DataValue(ii) };
@@ -289,7 +290,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItemNotification[] originals = rented.Take(3).ToArray();
             NotificationMessage sent = queue.Enqueue(
-                [message], [], out _, out _, out NotificationMessageLease lease, [new RentedNotificationArrays(rented, null)]);
+                [message], [], out _, out _, out NotificationMessageLease lease, [new RentedNotificationArrays(buffer, null)]);
             var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
             PublishResponse decoded = Encode(response);
             Assert.That(
@@ -390,16 +391,18 @@ namespace Opc.Ua.Server.Tests
             var queue = new SentMessageQueue(() => 1, 1, null, NullLogger.Instance);
             var droppedItem = new MonitoredItemNotification { ClientHandle = 1 };
             var keptItem = new MonitoredItemNotification { ClientHandle = 2 };
-            MonitoredItemNotification[] dropped = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(1);
+            var droppedBuffer = DataChangeNotificationBuffer.Rent(1);
+            MonitoredItemNotification[] dropped = droppedBuffer.Items;
             dropped[0] = droppedItem;
-            MonitoredItemNotification[] kept = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(1);
+            var keptBuffer = DataChangeNotificationBuffer.Rent(1);
+            MonitoredItemNotification[] kept = keptBuffer.Items;
             kept[0] = keptItem;
             List<NotificationMessage> messages =
             [
                 new NotificationMessage { SequenceNumber = 1 },
                 new NotificationMessage { SequenceNumber = 2 }
             ];
-            List<RentedNotificationArrays> rented = [new(dropped, null), new(kept, null)];
+            List<RentedNotificationArrays> rented = [new(droppedBuffer, null), new(keptBuffer, null)];
 
             NotificationMessage sent = queue.Enqueue(messages, [], out _, out uint discarded, out NotificationMessageLease lease, rented);
 

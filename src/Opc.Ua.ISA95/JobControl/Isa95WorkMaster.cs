@@ -1,0 +1,31 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+namespace Opc.Ua.ISA95.JobControl
+{
+    /// <summary>
+    /// A version-neutral work master reference captured by the in-memory engine.
+    /// Work masters are referenced by a job order in both Job Control V1 and V2.
+    /// V1 carries a single string description; V2 carries a single localized text,
+    /// both unified onto <see cref="Description"/>.
+    /// </summary>
+    public sealed record Isa95WorkMaster
+    {
+        internal uint V2EncodingMask { get; init; }
+
+        /// <summary>
+        /// The identifier of the work master.
+        /// </summary>
+        public string? Id { get; init; }
+
+        /// <summary>
+        /// The localized descriptions of the work master.
+        /// </summary>
+        public ArrayOf<LocalizedText> Description { get; init; } = [];
+
+        /// <summary>
+        /// The parameters of the work master.
+        /// </summary>
+        public ArrayOf<Isa95Parameter> Parameters { get; init; } = [];
+    }
+}

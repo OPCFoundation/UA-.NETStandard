@@ -21,6 +21,116 @@ namespace Opc.Ua.Server.Tests.FileSystem
     public sealed class FileOpenOwnershipRegressionTests
     {
         /// <summary>
+        /// Read with Append starts at EOF, reports that position, and permits rewinding without opening for write.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ReadAppendReportsEofAndReadsAfterRewindAsync(bool synchronousOpen, bool emptyFile)
+        {
+            using var harness = new FileHarness();
+            byte[] content = emptyFile ? [] : [10, 20, 30, 40];
+            harness.Provider.SetupGet(value => value.IsWritable).Returns(false);
+            harness.Provider.Setup(value => value.OpenReadAsync("file", It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Stream>(new MemoryStream(content, writable: false)));
+            uint id;
+            if (synchronousOpen)
+            {
+                ServiceResult opened = harness.GetHandle().Open(harness.SessionId, 0x09, out id);
+                Assert.That(opened.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(id, Is.Not.Zero);
+            }
+            else
+            {
+                id = await FileReadRegressionTests.OpenAsync(
+                    harness.File, harness.Manager.SystemContext, 0x09).ConfigureAwait(false);
+            }
+            Assert.That(harness.GetHandle().OpenCount, Is.EqualTo(1));
+            (ServiceResult positionResult, List<Variant> positionOutput) = await FileReadRegressionTests.CallAsync(
+                harness.File.GetPosition!, harness.Manager.SystemContext, harness.File.NodeId, [id])
+                .ConfigureAwait(false);
+            Assert.That(positionResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(positionOutput, Has.Count.EqualTo(1));
+            Assert.That(positionOutput[0].TryGetValue(out ulong position), Is.True);
+            Assert.That(position, Is.EqualTo((ulong)content.Length));
+
+            (ServiceResult eofResult, List<Variant> eofOutput) = await FileReadRegressionTests.CallAsync(
+                harness.File.Read!, harness.Manager.SystemContext, harness.File.NodeId, [id, 4])
+                .ConfigureAwait(false);
+            Assert.That(eofResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(eofOutput, Has.Count.EqualTo(1));
+            Assert.That(eofOutput[0].TryGetValue(out ByteString eof), Is.True);
+            Assert.That(eof.IsEmpty, Is.True);
+
+            (ServiceResult rewindResult, _) = await FileReadRegressionTests.CallAsync(
+                harness.File.SetPosition!, harness.Manager.SystemContext, harness.File.NodeId, [id, 0ul])
+                .ConfigureAwait(false);
+            Assert.That(rewindResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(harness.GetHandle().GetStream(harness.SessionId, id)!.Position, Is.Zero);
+            (ServiceResult readResult, List<Variant> readOutput) = await FileReadRegressionTests.CallAsync(
+                harness.File.Read!, harness.Manager.SystemContext, harness.File.NodeId, [id, 4])
+                .ConfigureAwait(false);
+            Assert.That(readResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(readOutput, Has.Count.EqualTo(1));
+            Assert.That(readOutput[0].TryGetValue(out ByteString data), Is.True);
+            Assert.That(data, Is.EqualTo(ByteString.From(content.AsSpan())));
+            harness.Provider.Verify(value => value.OpenWriteAsync(
+                It.IsAny<string>(), It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(await harness.GetHandle().CloseAsync(harness.SessionId, id).ConfigureAwait(false), Is.True);
+            Assert.That(harness.GetHandle().OpenCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Failed EOF positioning disposes the stream without retaining its open reservation.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ReadAppendPositionFailureReleasesStreamAndReservationAsync(
+            bool synchronousOpen, bool seekFailure)
+        {
+            using var harness = new FileHarness();
+            var stream = new Mock<MemoryStream> { CallBase = true };
+            if (seekFailure)
+            {
+                stream.Setup(value => value.Seek(0, SeekOrigin.End)).Throws(new IOException("seek failed"));
+            }
+            else
+            {
+                stream.SetupGet(value => value.CanSeek).Returns(false);
+            }
+            harness.Provider.Setup(value => value.OpenReadAsync("file", It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Stream>(stream.Object));
+
+            ServiceResult result;
+            uint id;
+            if (synchronousOpen)
+            {
+                result = harness.GetHandle().Open(harness.SessionId, 0x09, out id);
+            }
+            else
+            {
+                (result, id) = await harness.GetHandle()
+                    .OpenAsync(harness.SessionId, 0x09, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            Assert.That(result.StatusCode,
+                Is.EqualTo(seekFailure ? StatusCodes.BadInvalidState : StatusCodes.BadNotSupported));
+            Assert.That(id, Is.Zero);
+            Assert.That(stream.Object.CanRead, Is.False);
+            Assert.That(harness.GetHandle().OpenCount, Is.Zero);
+            harness.Provider.Setup(value => value.OpenReadAsync("file", It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Stream>(new MemoryStream(new byte[4], writable: false)));
+            (ServiceResult next, uint nextId) = await harness.GetHandle()
+                .OpenAsync(harness.SessionId, 0x09, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(nextId, Is.Not.Zero);
+            Assert.That(harness.GetHandle().GetStream(harness.SessionId, nextId)!.Position, Is.EqualTo(4));
+        }
+
+        /// <summary>
         /// Verifies that an existing reader or writer rejects an erase-open before the destructive provider is invoked.
         /// </summary>
         [TestCase(false)]
@@ -33,7 +143,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             harness.Provider.Invocations.Clear();
             (ServiceResult result, _) = await FileReadRegressionTests.CallAsync(
                 harness.File.Open!, harness.Manager.SystemContext, harness.File.NodeId, [(byte)6]).ConfigureAwait(false);
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             harness.Provider.Verify(value => value.OpenWriteAsync(
                 It.IsAny<string>(), It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()), Times.Never);
             Assert.That(harness.GetHandle().GetStream(harness.SessionId, original), Is.Not.Null);
@@ -64,7 +174,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 (ServiceResult result, _) = await FileReadRegressionTests.CallAsync(
                     harness.File.Open!, harness.Manager.SystemContext, harness.File.NodeId, [(byte)6])
                     .ConfigureAwait(false);
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
                 harness.Provider.Verify(value => value.OpenWriteAsync(
                     It.IsAny<string>(), It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()), Times.Never);
             }
@@ -72,6 +182,92 @@ namespace Opc.Ua.Server.Tests.FileSystem
             {
                 release.TrySetResult(new MemoryStream(new byte[4], writable: true));
                 await read.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Existing and pending opens reject erase-open before the provider can modify content on either call path.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, false)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        public async Task WriteConflictRejectsBeforeProviderEffectsAsync(
+            bool existingWriter, bool pendingOpen, bool synchronousRejection)
+        {
+            using var harness = new FileHarness();
+            using var stream = new MemoryStream(new byte[] { 10, 20, 30, 40 }, writable: true);
+            var release = new TaskCompletionSource<Stream>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (pendingOpen)
+            {
+                if (existingWriter)
+                {
+                    harness.Provider.Setup(value => value.OpenWriteAsync(
+                        "file", It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<Stream>(release.Task));
+                }
+                else
+                {
+                    harness.Provider.Setup(value => value.OpenReadAsync("file", It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<Stream>(release.Task));
+                }
+            }
+            else
+            {
+                release.TrySetResult(stream);
+                harness.Provider.Setup(value => value.OpenReadAsync("file", It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<Stream>(stream));
+                harness.Provider.Setup(value => value.OpenWriteAsync(
+                    "file", It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<Stream>(stream));
+            }
+            FileHandle handle = harness.GetHandle();
+            Task<(ServiceResult Result, uint Handle)> original =
+                handle.OpenAsync(harness.SessionId, existingWriter ? (byte)2 : (byte)1, CancellationToken.None)
+                    .AsTask();
+            try
+            {
+                Assert.That(original.IsCompleted, Is.EqualTo(!pendingOpen));
+                Assert.That(handle.OpenCount, Is.EqualTo(pendingOpen ? 0 : 1));
+                harness.Provider.Invocations.Clear();
+                if (synchronousRejection)
+                {
+                    ServiceResult result = handle.Open(harness.SessionId, 6, out uint rejectedHandle);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                    Assert.That(rejectedHandle, Is.Zero);
+                }
+                else
+                {
+                    OpenMethodStateResult result = await harness.File.Open!.OnCallAsync!(
+                        harness.Manager.SystemContext, harness.File.Open, harness.File.NodeId, 6,
+                        CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                    Assert.That(result.FileHandle, Is.Zero);
+                }
+                harness.Provider.Verify(value => value.OpenWriteAsync(
+                    It.IsAny<string>(), It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()), Times.Never);
+                harness.Provider.Verify(value => value.OpenReadAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+                Assert.That(stream.ToArray(), Is.EqualTo(new byte[] { 10, 20, 30, 40 }));
+                Assert.That(stream.Position, Is.Zero);
+                Assert.That(stream.CanRead, Is.True);
+                Assert.That(handle.OpenCount, Is.EqualTo(pendingOpen ? 0 : 1));
+            }
+            finally
+            {
+                release.TrySetResult(stream);
+                (ServiceResult result, uint id) = await original.ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(id, Is.Not.Zero);
+                Assert.That(handle.GetStream(harness.SessionId, id), Is.SameAs(stream));
+                Assert.That(handle.OpenCount, Is.EqualTo(1));
+                Assert.That(await handle.CloseAsync(harness.SessionId, id).ConfigureAwait(false), Is.True);
+                Assert.That(handle.OpenCount, Is.Zero);
             }
         }
 
@@ -294,7 +490,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// Keeps a provider read active until the test releases it, even after lifetime cancellation.
         /// </summary>
-        private sealed class SuspendedProtocolReadStream : MemoryStream
+        internal sealed class SuspendedProtocolReadStream : MemoryStream
         {
             /// <summary>
             /// Creates a four-byte readable stream.
@@ -338,7 +534,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// Owns a file-system manager with a controllable provider and a shared test session.
         /// </summary>
-        private sealed class FileHarness : IDisposable
+        internal sealed class FileHarness : IDisposable
         {
             /// <summary>
             /// Creates a writable four-byte file whose provider opens can be observed or suspended.
@@ -346,6 +542,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             public FileHarness()
             {
                 Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queues);
+                Server = server.Object;
                 Provider.SetupGet(value => value.MountName).Returns("file-regression");
                 Provider.SetupGet(value => value.IsWritable).Returns(true);
                 Provider.Setup(value => value.GetEntryAsync("file", It.IsAny<CancellationToken>()))
@@ -365,6 +562,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// Gets the provider mock used to control stream acquisition and file capabilities.
             /// </summary>
             public Mock<IFileSystemProvider> Provider { get; } = new();
+
+            /// <summary>
+            /// Gets the server whose services are used by the manager.
+            /// </summary>
+            public IServerInternal Server { get; }
 
             /// <summary>
             /// Gets the manager that owns the file's open-handle state.

@@ -8,6 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
@@ -103,6 +104,16 @@ namespace Opc.Ua.Schema.Model
         /// ModelPublicationDate
         /// </summary>
         public string? ModelPublicationDate { get; set; }
+
+        /// <summary>
+        /// Cancellation for dependency materialization in this validator, never shared cache state.
+        /// </summary>
+        internal CancellationToken DependencyCancellation { get; set; }
+
+        /// <summary>
+        /// Selects assembly payloads after local namespace and explicit-file resolution.
+        /// </summary>
+        internal ModelDependencyResolver? DependencyResolver { get; set; }
 
         /// <summary>
         /// Returns a list of services filter by their service category.
@@ -348,6 +359,14 @@ namespace Opc.Ua.Schema.Model
 
             // load the design files.
             List<Namespace> namespaces = GetNamespaceList(designFilePaths);
+
+            if (DependencyResolver != null)
+            {
+                foreach (ModelDependencyV1 dependency in DependencyResolver.Resolve(namespaces, DependencyCancellation))
+                {
+                    ImportDependency(dependency, prefix: null, name: null);
+                }
+            }
 
             // Apply any dependency payloads that were registered via ImportDependency()
             // before validation began. Their type entries become visible
@@ -7298,7 +7317,8 @@ namespace Opc.Ua.Schema.Model
 
             foreach (DependencyNode entry in dependency.Nodes)
             {
-                TypeDesign? design = MaterialiseDependencyNode(entry);
+                DependencyCancellation.ThrowIfCancellationRequested();
+                TypeDesign? design = MaterialiseDependencyNode(entry, DependencyCancellation);
                 if (design == null)
                 {
                     continue;
@@ -7352,7 +7372,7 @@ namespace Opc.Ua.Schema.Model
             m_designFilePaths ??= [];
         }
 
-        private static TypeDesign? MaterialiseDependencyNode(DependencyNode entry)
+        private static TypeDesign? MaterialiseDependencyNode(DependencyNode entry, CancellationToken cancellationToken)
         {
             var symbolicId = new XmlQualifiedName(
                 entry.SymbolicName ?? string.Empty,
@@ -7436,6 +7456,7 @@ namespace Opc.Ua.Schema.Model
                 var parameters = new Parameter[entry.Fields.Count];
                 for (int i = 0; i < entry.Fields.Count; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     DependencyDataField f = entry.Fields[i];
                     parameters[i] = new Parameter
                     {
@@ -7465,7 +7486,7 @@ namespace Opc.Ua.Schema.Model
                 var instanceItems = new InstanceDesign[entry.Children.Count];
                 for (int i = 0; i < entry.Children.Count; i++)
                 {
-                    instanceItems[i] = MaterialiseDependencyChild(symbolicId, entry.Children[i]);
+                    instanceItems[i] = MaterialiseDependencyChild(symbolicId, entry.Children[i], cancellationToken);
                 }
                 design.Children = new ListOfChildren { Items = instanceItems };
                 design.HasChildren = true;
@@ -7480,8 +7501,10 @@ namespace Opc.Ua.Schema.Model
 
         private static InstanceDesign MaterialiseDependencyChild(
             XmlQualifiedName parentSymbolicId,
-            DependencyChild c)
+            DependencyChild c,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             InstanceDesign instance = c.InstanceKind switch
             {
                 3 => new PropertyDesign(),
@@ -7671,7 +7694,8 @@ namespace Opc.Ua.Schema.Model
                 var descendants = new InstanceDesign[c.Children.Count];
                 for (int index = 0; index < descendants.Length; index++)
                 {
-                    descendants[index] = MaterialiseDependencyChild(instance.SymbolicId, c.Children[index]);
+                    descendants[index] = MaterialiseDependencyChild(
+                        instance.SymbolicId, c.Children[index], cancellationToken);
                     descendants[index].Parent = instance;
                 }
                 instance.Children = new ListOfChildren { Items = descendants };

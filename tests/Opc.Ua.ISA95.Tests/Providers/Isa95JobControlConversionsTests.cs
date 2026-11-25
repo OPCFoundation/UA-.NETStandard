@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 using NUnit.Framework;
-using Opc.Ua.ISA95.Server.Providers;
+using Opc.Ua.ISA95.JobControl;
+using Opc.Ua.Tests;
 using V1 = Opc.Ua.ISA95.JobControl.V1;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
 
@@ -17,6 +18,87 @@ namespace Opc.Ua.ISA95.Tests.Providers
     [TestFixture]
     public class Isa95JobControlConversionsTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void V2OrderPreservesPresenceOfDefaultScalarsAndNestedEmptyArrays(bool json)
+        {
+            const uint topMask = (uint)(V2.ISA95JobOrderDataTypeFields.Priority |
+                V2.ISA95JobOrderDataTypeFields.JobOrderParameters);
+            const uint nestedMask = (uint)(V2.ISA95ParameterDataTypeFields.Description |
+                V2.ISA95ParameterDataTypeFields.Subparameters);
+            var input = new V2.ISA95JobOrderDataType
+            {
+                JobOrderID = "job",
+                Priority = 0,
+                JobOrderParameters =
+                [
+                    new V2.ISA95ParameterDataType
+                    {
+                        ID = "parameter",
+                        Description = [],
+                        Subparameters = [],
+                        EncodingMask = nestedMask
+                    }
+                ],
+                EncodingMask = topMask
+            };
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            V2.ISA95JobOrderDataType received = EncodeAndDecodeOrder(input, context, json);
+            V2.ISA95JobOrderDataType projected =
+                Isa95JobControlConversions.ToV2Order(Isa95JobControlConversions.FromV2Order(received));
+            V2.ISA95JobOrderDataType result = EncodeAndDecodeOrder(projected, context, json);
+            Assert.That(received.EncodingMask, Is.EqualTo(topMask));
+            Assert.That(result.EncodingMask, Is.EqualTo(topMask));
+            Assert.That(result.JobOrderParameters[0].EncodingMask, Is.EqualTo(nestedMask));
+            Assert.That(result.JobOrderParameters[0].Subparameters.IsNull, Is.False);
+            Assert.That(result.JobOrderParameters[0].Subparameters.Count, Is.Zero);
+        }
+
+        private static V2.ISA95JobOrderDataType EncodeAndDecodeOrder(
+            V2.ISA95JobOrderDataType order,
+            ServiceMessageContext context,
+            bool json)
+        {
+            if (json)
+            {
+                using var encoder = new JsonEncoder(context, JsonEncoderOptions.Compact);
+                encoder.WriteEncodeable("Order", order);
+                using var decoder = new JsonDecoder(encoder.CloseAndReturnText()!, context);
+                return decoder.ReadEncodeable<V2.ISA95JobOrderDataType>("Order");
+            }
+            using var binaryEncoder = new BinaryEncoder(context);
+            binaryEncoder.WriteEncodeable("Order", order);
+            using var binaryDecoder = new BinaryDecoder(binaryEncoder.CloseAndReturnBuffer()!, context);
+            return binaryDecoder.ReadEncodeable<V2.ISA95JobOrderDataType>("Order");
+        }
+
+        [Test]
+        public void UnchangedV2ResponseKeepsBareStateAndEditedStateGetsTargetNamespace()
+        {
+            var input = new V2.ISA95JobResponseDataType
+            {
+                JobOrderID = "job",
+                JobResponseID = "response",
+                JobState =
+                [
+                    new V2.ISA95StateDataType { StateNumber = 2, StateText = new LocalizedText("Custom") }
+                ]
+            };
+            Isa95JobResponse neutral = Isa95JobControlConversions.FromV2Response(input, 3);
+            input.JobState[0].StateNumber = 1;
+            V2.ISA95JobResponseDataType unedited = Isa95JobControlConversions.ToV2Response(neutral, 8);
+            Assert.That(neutral.State, Is.EqualTo(Isa95JobCanonicalState.AllowedToStartWaiting));
+            Assert.That(unedited.JobState.Count, Is.EqualTo(1));
+            Assert.That(unedited.JobState[0].StateNumber, Is.EqualTo(2u));
+            Assert.That(unedited.JobState[0].StateText.Text, Is.EqualTo("Custom"));
+
+            V2.ISA95JobResponseDataType edited = Isa95JobControlConversions.ToV2Response(
+                neutral with { State = Isa95JobCanonicalState.AllowedToStartLoaded }, 8);
+            Assert.That(edited.JobState.Count, Is.EqualTo(2));
+            Assert.That(edited.JobState[1].BrowsePath.Elements[0].TargetName.NamespaceIndex, Is.EqualTo(8));
+            Assert.That(edited.JobState[1].StateNumber, Is.EqualTo(3u));
+        }
+
         private static V2.ISA95ParameterDataType V2Param(string id, string value, string unit)
         {
             return new V2.ISA95ParameterDataType

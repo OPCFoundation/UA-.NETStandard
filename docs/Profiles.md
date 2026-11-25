@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA Profiles and Facets Support
 
 This document describes which [OPC UA Profiles and Facets](https://profiles.opcfoundation.org/) are implemented in the OPC UA .NET Standard Stack, and where in the codebase / documentation each one lives.
@@ -30,11 +35,12 @@ The SDK provides full or partial support for these core areas:
   transports, with platform-dependent DTLS profile limits.
 - Parts 16-20 and 23: state machines, aliases, roles, dictionary references,
   file transfer and common reference types.
-- Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
+- Part 21: [ticket validation, registrar runtime and pull/push workflows](Onboarding.md#opc-10000-21-onboardingclient),
   with retained device credentials, security reset, managed Client provisioning,
-  provider-backed Server/ClientAndServer push and a Part 22 `Resources` parent reference.
-  FDO protocols and credential installation remain external; the GDS guide
-  describes the remaining recovery and `ConfigurationFile` gaps.
+  provider-backed Server/ClientAndServer push, durable accepted-work recovery,
+  signing and key-pair pull, and lifecycle-aware Part 22 `Resources` composition.
+  Applications supply the deployment providers. The GDS guide describes
+  provider ownership, recovery boundaries, and optional `ConfigurationFile` limits.
 - Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
   an in-memory simulator, including defined optional capabilities when supplied
   by the provider; applications supply production network providers.
@@ -329,7 +335,7 @@ support gap.
 | [Machine Vision](Vision.md), OPC 40100-1/-2 | Full | Control, configuration, recipes, results, asset/condition monitoring and clients; providers supply acquisition, separate from the Perception draft |
 | [WoT Connectivity](WotCon.md), OPC 10100-1 | Full | Published 1.02 asset-connection API, server and client; additive registry extensions have separate scope |
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
-| [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
+| [PackML](PackML.md), OPC 30050 | Partial | Standalone runtime, administration, typed clients and fluent hosting; the runtime does not advertise a PackML server profile URI. Applications must configure time synchronization for certification. |
 | [PA-DIM](PADIM.md), OPC 30081 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
 | [Energy Consumption Management](ECM.md), OPC 34100 | Full | All defined measurement, standby and WOL capabilities with provider-backed server bindings, typed clients and fluent DI composition; equipment behavior remains application-owned |
 | [LADS](LADS.md), OPC 30500-1 | Full | Devices, functions, programs, results, maintenance, cooperative running operations, stored-data restoration, opt-in AMB building blocks and optional DI subtree locking. BaseServer configurable identification requires a stable URI and persistent AMB store; physical execution requires application providers |
@@ -662,28 +668,43 @@ OPC UA Part 12 areas:
   certificate issuance, typed pull/push workflows, and a singleton device host
   with retained factory credentials and security reset. Providers own software
   approval and state retention; restart durability depends on selecting a
-  durable provider. The bounded push scheduler accepts work in process and does
-  not persist the queue. Registrar push provisions managed Client
+  durable provider. The standard push registration requires a work store that
+  persists acceptance and reconciles interrupted attempts before retry.
+  Registrar push provisions managed Client
   applications and supports managed Server/ClientAndServer applications when
   the host supplies authoritative discovery URLs, installed certificates,
   endpoints, user identities and explicit client trust. The default managed-
   application verifier supports UA-TCP and HTTPS with independently validated
   TLS and application identities. The sample can be configured for
   one managed Server or ClientAndServer application after DCA proof. The
-  provisionable-device factory adds a Part 22 `Resources` parent reference, but
-  shared Resources manager integration is not implemented. Registrar push uses
+  provisionable-device factory publishes its standard nodes through lifecycle-aware
+  routing alongside the Part 22 `Resources` manager. A host can
+  [replace the device node manager](Onboarding.md#replace-a-provisionable-devices-node-manager)
+  without replacing its runtime or managed targets. Registrar push uses
   the configured certificate type by default and permits a host-selected type
   for each managed application; the selected type must be advertised by its
   certificate group. Per-entry remote `ConfigurationFile`
   update/confirm and restart recovery use optional application-scoped Part 12
-  providers. The originally selected certificate type is retained during recovery.
+  providers. The client reads the existing content and rewinds before writing.
+  It rejects shorter replacements because FileType supplies no interoperable
+  truncation operation.
+  Pull supports signing and new-key-pair requests for the DCA and managed
+  applications. Signing recovery retains the request and its private key.
+  [New-key-pair recovery](GDS.md#recover-pull-dca-key-pair-requests) resumes from a protected
+  checkpoint. If the registrar consumed the request and the response was lost,
+  the workflow starts a fresh request rather than attempting certificate-only
+  recovery. Recovery retains the originally selected certificate type.
   The optional external-authentication handoff uses an injectable provider for
   dedicated CA trust and configured product/DCA approval; typed external pull
-  and registrar push reuse the existing lifecycle. FDO protocols and credential
-  installation remain external.
-  Connected recovery fixtures are present; their execution status is tracked
-  separately. See
-  [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
+  and registrar push reuse the existing lifecycle. The external service runs
+  FDO and installs the bootstrap credential when that authentication option
+  is used.
+  **Deployment requirements:** Implementers supply protected key-pair storage,
+  exclusive ownership for durable records, and any distributed coordination or
+  software installation their deployment needs. The connected recovery test
+  uses an in-memory checkpoint to verify the SDK workflow across a new session;
+  it does not verify persistence across a process restart. See
+  [the implemented scope](Onboarding.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
 features, partial support, and hosting integration. This is not a claim that every
@@ -856,6 +877,7 @@ for the variant selected by `--ctt`.
 - [Pumps](Pumps.md) (OPC 40223)
 - [AutoID Devices](AutoID.md) (OPC 30010)
 - [Scales](Scales.md) (OPC 40200 and PackML)
+- [PackML](PackML.md) (OPC 30050 standalone units)
 - [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4)
 - [MachineTool and WMTP](MachineTool.md) (OPC 40501-1 and OPC 40505)
 - [Geometric Measurement Systems](GMS.md) (OPC 40210)
@@ -933,7 +955,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
 | [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens require `IFileSystemReadWriteProvider`; conflicting write opens can return `Bad_InvalidState` instead of `Bad_NotWritable` |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Initial pull cannot request a new key pair, and §7.2 recovery after a lost accepted response is incomplete. Managed-application updates and restart recovery depend on host providers. The Part 22 `Resources` integration is absent, and `ConfigurationFile` transfer is partial. Push acceptance is process-local. Hosts must reconcile registrar and device state before retrying after a restart or interruption. [Details](GDS.md#opc-10000-21-onboardingclient) |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Full | - |
 | [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | - |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
@@ -961,7 +983,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30020: MDIS](https://reference.opcfoundation.org/specs/OPC-30020) | 1.3 | No | - |
 | [OPC 30030: BACnet](https://reference.opcfoundation.org/specs/OPC-30030) | 2.00.1 | No | - |
 | [OPC 30040: AutomationML](https://reference.opcfoundation.org/specs/OPC-30040) | 1.00 | No | - |
-| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | Generated model and Scales integration; not a standalone all-unit-mode runtime |
+| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | The runtime does not advertise a PackML server profile URI; inherited facets require application and deployment configuration |
 | [OPC 30060: Tobacco Machine Communication](https://reference.opcfoundation.org/specs/OPC-30060) | 2.00.1 | No | - |
 | [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Full | - |
 | [OPC 30090: Field Device Tool (FDT)](https://reference.opcfoundation.org/specs/OPC-30090) | 1.01 | No | - |

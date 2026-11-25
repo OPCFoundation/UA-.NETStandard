@@ -1813,7 +1813,8 @@ namespace Opc.Ua.Server
                 new(MonitoredItemReferenceComparer.Instance);
 
             private readonly List<IMonitoredItem> m_failedItems = [];
-            private readonly HashSet<IMonitoredItem> m_markedDeletedItems = [];
+            private readonly HashSet<IMonitoredItem> m_markedDeletedItems =
+                new(MonitoredItemReferenceComparer.Instance);
 
             /// <summary>Whether the source consumers have already completed this transition's fences.</summary>
             private bool m_sourceNotificationsDrained;
@@ -1948,6 +1949,7 @@ namespace Opc.Ua.Server
         /// The server factory does not support prepared publication,
         /// or a manager being replaced does not support safe reload.
         /// </exception>
+        /// <param name="handoff">The worker that owns this replacement, if any.</param>
         private async ValueTask<IPreparedChanges> PrepareChangesAsync(
             ArrayOf<LifecycleChange> changes,
             LifecycleWriter.PublicationSession? publication,
@@ -1958,7 +1960,8 @@ namespace Opc.Ua.Server
             InitialPublication? initial = null,
             ShutdownPublication? shutdown = null,
             NodeManagerReadinessScope? readiness = null,
-            bool bindReadiness = false)
+            bool bindReadiness = false,
+            HandoffRequest? handoff = null)
         {
             if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0 && initial is null))
             {
@@ -2045,6 +2048,12 @@ namespace Opc.Ua.Server
                         }
                         if (change.Factory is { } slotFactory)
                         {
+                            if (current is not null && slotFactory is INodeManagerHandoffFactory &&
+                                (handoff is null || !ReferenceEquals(current.Registration, handoff.Predecessor)))
+                            {
+                                throw new NotSupportedException(
+                                    "This replacement requires the exact predecessor and the server handoff worker.");
+                            }
                             ValidateFactoryRegistration(slotFactory, target);
                         }
                         if (current is not null)
@@ -2069,11 +2078,12 @@ namespace Opc.Ua.Server
                         {
                             continue;
                         }
-                        entry.Manager = await preparation.CreateNodeManagerAsync(
+                        (entry.Manager, entry.Handoff) = await preparation.CreateNodeManagerAsync(
                             change.Factory,
                             m_server.CurrentConfiguration,
                             current is not null,
                             IsOwnedNodeManager,
+                            handoff is null ? null : current?.Prepared.NodeManager,
                             cancellationToken).ConfigureAwait(false);
                         ChangePreparer.StagingServer stagingServer = ChangePreparer.GetServer(entry.Manager)!;
                         try
@@ -2084,6 +2094,7 @@ namespace Opc.Ua.Server
                                 ? NodeManagerGenerationRegistry.CreateAddition(entry.Manager)
                                 : NodeManagerGenerationRegistry.CreateReplacement(
                                     current.Registration.Identity, entry.Manager);
+                            stagingServer.BindForwardedSource(generation);
                             entry.Prepared = await host.PrepareAsync(
                                 entry.Manager, generation, current?.Prepared.NodeManager, cancellationToken)
                                 .ConfigureAwait(false);
@@ -2094,7 +2105,7 @@ namespace Opc.Ua.Server
                             }
                             await ValidateDataTypeCompatibilityAsync(stagingServer, entry.Manager, cancellationToken)
                                 .ConfigureAwait(false);
-                            if (current is not null)
+                            if (current is not null && entry.Handoff is null)
                             {
                                 if (current.Prepared.NodeManager is not INodeManagerReloadParticipant participant)
                                 {
@@ -2145,7 +2156,10 @@ namespace Opc.Ua.Server
                         preparation.TypeTree, preparation.OriginalTypes,
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
                         preparation.FactoryRevision, resolver, preparation, publication,
-                        initial, shutdown, callbackPermit);
+                        initial, shutdown, callbackPermit)
+                    {
+                        Handoff = handoff
+                    };
                     var prepared = new PreparedChanges(payload, validationOnly, bindReadiness ? readiness : null);
                     if (readImages.Count != 0)
                     {
@@ -2322,6 +2336,35 @@ namespace Opc.Ua.Server
                     .Where(entry => entry.Current is not null && entry.Prepared is null)
                     .Select(entry => entry.Current!.Prepared.NodeManager)
                     .ToArrayOf();
+                Dictionary<NodeManagerGeneration, ConformanceUnitsManager.NodeManagerContribution>?
+                    stagedConformance = !validationOnly &&
+                        batch.Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: not null }
+                            ? ConformanceUnitsManager.StageContributions(candidates)
+                            : null;
+                ArrayOf<INodeManagerReadImage> readImages = batch.ReadImages;
+                if (batch.Entries.Count != 0 && stagedConformance is not null &&
+                    batch.Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } catalog } &&
+                    batch.Server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnostics &&
+                    batch.RoutingRevision.TryGetGeneration(diagnostics, out NodeManagerGeneration? diagnosticsOwner))
+                {
+                    var retiringGenerations = new HashSet<NodeManagerGeneration>(RefEqualityComparer.Default);
+                    foreach (BatchEntry entry in batch.Entries)
+                    {
+                        if (entry.Current is { } current)
+                        {
+                            retiringGenerations.Add(current.Registration.Identity);
+                        }
+                    }
+                    if (diagnosticsOwner is not null && !retiringGenerations.Contains(diagnosticsOwner))
+                    {
+                        readImages =
+                        [
+                            .. readImages,
+                            catalog.PrepareReadImage(diagnostics, batch.RoutingRevision,
+                                retiringGenerations, stagedConformance)
+                        ];
+                    }
+                }
                 using PreparedAddressSpaceReferences references =
                     await batch.Host.PrepareReferencesAsync(
                         candidates,
@@ -2445,14 +2488,15 @@ namespace Opc.Ua.Server
                         Factory: batch.Factory,
                         OriginalFactory: batch.OriginalFactory,
                         FactoryRevision: batch.FactoryRevision,
-                        ReadImages: batch.ReadImages,
+                        ReadImages: readImages,
                         Commit: lifecycleCommit,
                         CaptureCommittedReferences: committed => committedReferences = committed,
                         CancellationToken: cancellationToken,
                         Preparation: batch.Preparation,
                         References: references,
                         CallbackPermit: batch.CallbackPermit,
-                        Admission: admission);
+                        Admission: admission,
+                        Progress: batch.PublicationProgress);
                     committedReferences = await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (
@@ -2464,9 +2508,12 @@ namespace Opc.Ua.Server
                     _ = await AbortBatchEntriesAsync(
                         batch.Server, batch.Host, batch.Entries,
                         deferUntilShutdown: true).ConfigureAwait(false);
+                    string phase = batch.PublicationProgress.CorePublicationStarted
+                        ? "Core publication started; the prior routing view alone does not prove integrity. "
+                        : "Core publication did not start. ";
                     throw new InvalidOperationException(
-                        "The durable NodeManager decision succeeded, but routing publication failed before the " +
-                        "serving view changed. Candidate cleanup is deferred until server shutdown; " +
+                        "The durable NodeManager decision succeeded, but publication did not complete. " +
+                        phase + "Candidate cleanup is deferred until server shutdown; " +
                         "restart the server to recover.",
                         failure);
                 }
@@ -2510,13 +2557,27 @@ namespace Opc.Ua.Server
                     await reconciliation.RunAsync(
                         NodeManagerReconciliationStage.Publication,
                         [],
-                        () => conformanceUnitsManager.PublishAsync(CancellationToken.None)).ConfigureAwait(false);
+                        () => conformanceUnitsManager.PublishStagedAsync(stagedConformance, CancellationToken.None))
+                        .ConfigureAwait(false);
                 }
                 try
                 {
                     if (committedReferences is not null)
                     {
                         await committedReferences.ReconcileAdditionsAsync(reconciliation).ConfigureAwait(false);
+                    }
+                    for (int index = 0; index < candidates.Count; index++)
+                    {
+                        PreparedNodeManager candidate = candidates[index];
+                        if (NodeManagerGenerationRegistry.GetIdentity(candidate.NodeManager)
+                            is AsyncCustomNodeManager manager)
+                        {
+                            await reconciliation.RunAsync(
+                                NodeManagerReconciliationStage.References,
+                                [candidate.Generation],
+                                () => manager.PublishRootNotifierReferencesAsync(CancellationToken.None))
+                                .ConfigureAwait(false);
+                        }
                     }
                     foreach (MonitoredItemTransition transition in monitoredItemTransitions)
                     {
@@ -3375,6 +3436,11 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Gets or sets the drain plan for the exact borrowed successor.
+            /// </summary>
+            public NodeManagerHandoffCandidate? Handoff { get; set; }
+
+            /// <summary>
             /// Gets or sets the prepared node manager of the change.
             /// </summary>
             public PreparedNodeManager? Prepared { get; set; }
@@ -3526,6 +3592,16 @@ namespace Opc.Ua.Server
             public bool DecisionCommitted { get; set; }
 
             /// <summary>
+            /// Gets the sole worker allowed to commit this replacement.
+            /// </summary>
+            public HandoffRequest? Handoff { get; init; }
+
+            /// <summary>
+            /// Tracks the first irreversible core mutation independently of the decision and route swap.
+            /// </summary>
+            public AddressSpacePublisher.PublicationProgress PublicationProgress { get; } = new();
+
+            /// <summary>
             /// Gets the server the batch was prepared for.
             /// </summary>
             public IServerInternal Server { get; }
@@ -3608,6 +3684,7 @@ namespace Opc.Ua.Server
                 PreparationPayload payload, bool validationOnly, NodeManagerReadinessScope? readiness)
             {
                 m_payload = payload;
+                m_requiresHandoff = payload.Handoff is not null;
                 m_validationOnly = validationOnly;
                 m_readiness = readiness;
                 Registrations = payload.Registrations;
@@ -3719,11 +3796,16 @@ namespace Opc.Ua.Server
                 return DisposeCoreAsync(decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)));
             }
 
-            private ValueTask DisposeCoreAsync(NodeManagerDecisionContext? decisionContext)
+            private ValueTask DisposeCoreAsync(
+                NodeManagerDecisionContext? decisionContext, HandoffRequest? handoff = null)
             {
                 PreparationPayload payload;
                 lock (m_state)
                 {
+                    if (m_requiresHandoff && handoff is null)
+                    {
+                        throw new NotSupportedException("Only the owning server worker may dispose this handoff.");
+                    }
                     if (decisionContext is not null)
                     {
                         m_payload?.Owner.ThrowIfDecisionCallbackActive(decisionContext);
@@ -3740,6 +3822,14 @@ namespace Opc.Ua.Server
                 }
                 _ = AbortAsync(payload);
                 return new ValueTask(m_finished.Task);
+            }
+
+            /// <summary>
+            /// Releases the worker's private preparation without exposing its completion to other callers.
+            /// </summary>
+            public ValueTask DisposeHandoffAsync(HandoffRequest handoff)
+            {
+                return DisposeCoreAsync(null, handoff);
             }
 
             /// <summary>
@@ -3855,12 +3945,20 @@ namespace Opc.Ua.Server
                 Action? publishCommittedState,
                 NodeManagerDecisionContext? decisionContext,
                 NodeManagerReadinessScope? readiness,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                HandoffRequest? handoff = null)
             {
                 PreparationPayload payload;
                 TaskCompletionSource<LifecycleResult> commitCompletion;
                 lock (m_state)
                 {
+                    if (m_requiresHandoff &&
+                        (handoff is null || m_payload is null || !ReferenceEquals(handoff, m_payload.Handoff) ||
+                            m_commitCompletion is not null || decideAsync is not null ||
+                            publishCommittedState is not null || readiness is not null))
+                    {
+                        throw new NotSupportedException("Only the owning server worker may commit this handoff.");
+                    }
                     if (decisionContext is not null)
                     {
                         m_payload?.Owner.ThrowIfDecisionCallbackActive(decisionContext);
@@ -3888,6 +3986,15 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Consumes the worker's authority to commit its exact prepared successor.
+            /// </summary>
+            public ValueTask<LifecycleResult> CommitHandoffAsync(
+                HandoffRequest handoff, CancellationToken cancellationToken)
+            {
+                return CommitCoreAsync(null, null, null, null, cancellationToken, handoff);
+            }
+
+            /// <summary>
             /// Executes one commit or validation and releases preparation after publication or cleanup transfer.
             /// </summary>
             // TODO: Remove this suppression when RCS1140 distinguishes failure on a separate completion task.
@@ -3909,10 +4016,12 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        result = await payload.Owner.CompleteChangesAsync(
-                            payload, decideAsync, m_validationOnly, readiness,
-                            publishCommittedState, cancellationToken)
-                            .ConfigureAwait(false);
+                        result = payload.Handoff is null
+                            ? await payload.Owner.CompleteChangesAsync(
+                                payload, decideAsync, m_validationOnly, readiness,
+                                publishCommittedState, cancellationToken).ConfigureAwait(false)
+                            : await payload.Owner.CompleteHandoffAsync(payload, cancellationToken)
+                                .ConfigureAwait(false);
                         if (!m_validationOnly && result is null)
                         {
                             throw new InvalidOperationException("A publication returned no committed result.");
@@ -4095,6 +4204,9 @@ namespace Opc.Ua.Server
 
             /// <summary>Whether this unit admits validation only.</summary>
             private readonly bool m_validationOnly;
+
+            /// <summary>Whether ordinary callers must be denied even after preparation has been consumed.</summary>
+            private readonly bool m_requiresHandoff;
 
             private readonly NodeManagerReadinessScope? m_readiness;
         }

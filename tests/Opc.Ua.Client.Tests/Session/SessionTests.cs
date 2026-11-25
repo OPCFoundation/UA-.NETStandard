@@ -2913,6 +2913,7 @@ namespace Opc.Ua.Client.Tests
                     typeof(bool),
                     typeof(bool),
                     typeof(bool),
+                    typeof(bool),
                     typeof(string)
                 ],
                 null);
@@ -2923,7 +2924,7 @@ namespace Opc.Ua.Client.Tests
                 session,
                 [
                     endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse,
-                    null, false, false, false, null
+                    null, false, false, false, true, null
                 ]);
 
             Assert.That(task, Is.Not.Null);
