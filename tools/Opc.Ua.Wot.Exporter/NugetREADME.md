@@ -14,6 +14,7 @@ opcua-wot-export C:\models
 opcua-wot-export C:\models C:\export
 opcua-wot-export C:\models\Opc.Ua.Di.NodeSet2.xml
 opcua-wot-export C:\models C:\export --registry-base-url https://registry.example.com --group-id opcua
+opcua-wot-export C:\models C:\export --metadata C:\publisher.json --identifier-safe-keys
 ```
 
 The source path is required. The default output is `out` in the source
@@ -34,6 +35,52 @@ Thing Models carry catalogue-compatible `id` URNs derived from the native
 namespace URI and local BrowseName, for example
 `urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType`.
 Titles and native `uav:id` identities are unchanged.
+
+`uav:fullName` and `uav:typeName` identify native declarations and types
+independently of the document ID. Names use reversed DNS host labels, namespace
+path segments, and native BrowseNames. Invalid or ambiguous names require an
+explicit mapping through `--metadata <file>`. The JSON object uses portable
+native NodeIds as keys:
+
+```json
+{
+  "nsu=urn:plant:pump;i=1001": {
+    "name": "com.example.plant.PumpType",
+    "isStandalone": true
+  },
+  "nsu=urn:plant:pump;i=1010": {
+    "name": "com.example.plant.PumpType.Speed",
+    "eventContractType": ["com.example.plant.SpeedChanged.v1"]
+  }
+}
+```
+
+Provide a name for each identity that needs a mapping, including custom
+DataTypes. `isStandalone` applies only to a non-event ObjectType Thing Model
+root. It is not inherited. A missing assertion leaves intent unspecified.
+`eventContractType` supplies assigned CloudEvents contract types for the
+interaction. The exporter does not invent contracts.
+
+`--identifier-safe-keys` prefers native SymbolicNames and sanitizes interaction
+keys to ASCII identifiers. Native identity order determines collision
+suffixes. References and optional-affordance pointers use the emitted keys.
+Native BrowseNames and literal values remain unchanged. Without this option,
+keys use local BrowseNames. Optionality includes both placeholder rules;
+native placeholder cardinality still applies.
+
+Ordinary payload schemas include inherited Structure fields, required members,
+arrays, enum choices, and Union alternatives. Missing or unrepresentable
+schemas produce location-specific diagnostics. Concrete integer properties
+have exact storage bounds, including array items. Method/Event schemas and
+nested Structure fields do not receive these added bounds.
+
+Engineering limits use `uav:euRange`, separate from payload bounds.
+Runtime unit associations use `uav:withUnit` and a target string property with
+`uav:unitCodeSystem`. UN/CEFACT codes come from the native UnitId.
+Other vocabularies require paired `unitCodeSystem` and `unitCode` metadata
+on the unit property. Unknown vocabularies produce a warning and no runtime
+association. Localized display text is not a unit code.
+Fallback text retains its source locale.
 
 Links to exported Thing Models use this registry path:
 
@@ -57,6 +104,8 @@ JSON Pointer fragments are preserved. Links to support files remain local.
 The tool does not rewrite native preservation payloads, form URLs, or literal
 schema values. Include required NodeSets in the input to resolve their model
 links. Unresolved native references remain unchanged.
+Resolved inheritance adds `tm:extends` and retains `ua:HasSupertype`.
+An unavailable parent produces an incomplete-inheritance warning.
 
 Publish the generated Thing Models under their hashed registry resource IDs
 and namespace versions. The tool does not upload documents or host URLs.

@@ -55,7 +55,9 @@ namespace Opc.Ua.Redundancy.Server
                     settings.NamespaceUris,
                     mode,
                     writerAssignedIds ? services.GetRequiredService<ILeaderElection>() : null,
-                    activeActive ? null : services.GetService<ISharedKeyValueStore>(),
+                    activeActive || services.GetService<ISharedKeyValueStore>() == null
+                        ? null
+                        : RecordProtectionGuard.ResolveFreshStoreOrThrow(services),
                     services.GetService<IRecordProtector>());
             }));
             builder.Services.Replace(ServiceDescriptor.Singleton<IRebasableNodeIdFactory>(

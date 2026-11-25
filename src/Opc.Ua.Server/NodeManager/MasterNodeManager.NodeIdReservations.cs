@@ -58,7 +58,7 @@ namespace Opc.Ua.Server
                             {
                                 continue;
                             }
-                            object handle = await routing.NodeManagers[ownerIndex].GetManagerHandleAsync(
+                            object? handle = await routing.NodeManagers[ownerIndex].GetManagerHandleAsync(
                                 servingId, cancellationToken).ConfigureAwait(false);
                             if (handle is not null)
                             {

@@ -155,11 +155,24 @@ namespace Opc.Ua.PubSub.Security
         /// <exception cref="ServiceResultException">
         /// The provider returned no current key or an invalid zero token identifier.
         /// </exception>
-        public async ValueTask<ReadOnlyMemory<byte>> WrapAsync(
+        public ValueTask<ReadOnlyMemory<byte>> WrapAsync(
             ReadOnlyMemory<byte> outerPrefix,
             ReadOnlyMemory<byte> innerPayload,
             UadpSecurityWrapOptions options = UadpSecurityWrapOptions.SignAndEncrypt,
             CancellationToken cancellationToken = default)
+        {
+            return WrapWithNonceSequenceAsync(outerPrefix, innerPayload, options, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Uses a committed nonce sequence for the exact key selected by this wrapping operation.
+        /// </summary>
+        internal async ValueTask<ReadOnlyMemory<byte>> WrapWithNonceSequenceAsync(
+            ReadOnlyMemory<byte> outerPrefix,
+            ReadOnlyMemory<byte> innerPayload,
+            UadpSecurityWrapOptions options,
+            Func<uint, CancellationToken, ValueTask<uint>>? reserveSequence,
+            CancellationToken cancellationToken)
         {
             using PubSubSecurityKey? ownedKey = (m_keyProvider as Sks.PushSecurityKeyProvider)
                 ?.GetSnapshot(null, cancellationToken);
@@ -185,7 +198,31 @@ namespace Opc.Ua.PubSub.Security
             byte[] nonceBytes = Policy.NonceLength == 0
                 ? []
                 : new byte[Policy.NonceLength];
-            if (Policy.NonceLength != 0)
+            if (reserveSequence is not null)
+            {
+                if (nonceBytes.Length != AesCtrNonceLayout.NonceLength)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed, "The security policy cannot use reserved AES-CTR nonces.");
+                }
+                uint tokenId = key.TokenId;
+                ValueTask<uint> pending = reserveSequence(tokenId, cancellationToken);
+                bool refreshKey = ownedKey is null && !pending.IsCompletedSuccessfully;
+                uint sequence = await pending.ConfigureAwait(false);
+                if (refreshKey)
+                {
+                    // A borrowed key may have been retired while committing the reservation.
+                    key = await m_keyProvider.GetCurrentKeyAsync(cancellationToken).ConfigureAwait(false);
+                    if (key is null || key.TokenId != tokenId)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The publication key changed during nonce reservation.");
+                    }
+                }
+                RandomNonceProvider.WriteReservedNonce(sequence, key.KeyNonce.Span, nonceBytes);
+            }
+            else if (Policy.NonceLength != 0)
             {
                 m_nonceProvider.GetNext(key.TokenId, key.KeyNonce.Span, nonceBytes);
             }

@@ -863,6 +863,11 @@ namespace Opc.Ua.Server
         /// await. A NodeManager that cannot register synchronously - one
         /// wrapping a purely synchronous <see cref="INodeManager"/> - is free
         /// to make this a no-op.
+        /// <see cref="AsyncCustomNodeManager"/> assigns missing instance
+        /// NodeIds and raises the same per-node added notifications as its
+        /// asynchronous registration, but cannot attach asynchronous
+        /// behaviour: nodes that need it are registered with
+        /// <c>AddPredefinedNodeAsync</c>.
         /// </remarks>
         /// <param name="node">The node to register.</param>
         void AddNode(NodeState node);
@@ -920,7 +925,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Returns null if the node does not exist.
         /// </remarks>
-        ValueTask<NodeMetadata> GetNodeMetadataAsync(
+        ValueTask<NodeMetadata?> GetNodeMetadataAsync(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
@@ -940,7 +945,7 @@ namespace Opc.Ua.Server
         /// underlying system then it must check to see if it recognizes the syntax of the node id.
         /// The handle in this case may simply be a partially parsed version of the node id.
         /// </remarks>
-        ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default);
+        ValueTask<object?> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Adds references to the node manager.

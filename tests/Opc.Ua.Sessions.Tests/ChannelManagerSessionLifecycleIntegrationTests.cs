@@ -161,15 +161,15 @@ namespace Opc.Ua.Sessions.Tests
 
             try
             {
-                ConfiguredEndpoint endpointA = await GetEndpointAsync(SecurityPolicies.None)
+                ConfiguredEndpoint endpointA = await GetEndpointAsync(SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
                 (secondaryFixture, Uri secondaryUrl) = await StartSecondaryServerAsync()
                     .ConfigureAwait(false);
                 ConfiguredEndpoint endpointB = await GetEndpointAsync(
-                    SecurityPolicies.None,
+                    SecurityPolicies.Basic256Sha256,
                     secondaryUrl).ConfigureAwait(false);
 
-                var redundancyHandler = new FakeRedundancyHandler(endpointB);
+                var redundancyHandler = new FakeRedundancyHandler(endpointB, secondaryFixture.Config.ApplicationUri!);
                 failoverSession = await new ManagedSessionBuilder(
                         ClientFixture.Config,
                         Telemetry)
@@ -177,6 +177,12 @@ namespace Opc.Ua.Sessions.Tests
                     .WithChannelManager(manager)
                     .WithSessionName(nameof(FailoverSwapsOnlyOneLeaseWhenChannelsAreSharedAsync) + "Failover")
                     .WithServerRedundancy(redundancyHandler)
+                    .WithServerRedundancyOptions(new ServerRedundancyOptions
+                    {
+                        ExpectedServerApplicationUri = ServerFixture.Config.ApplicationUri,
+                        ProbeMemberServiceLevel = false,
+                        ServiceLevelMonitoringInterval = null
+                    })
                     .WithReconnectPolicy(p => p with
                     {
                         Strategy = BackoffStrategy.Constant,
@@ -221,7 +227,17 @@ namespace Opc.Ua.Sessions.Tests
                 IManagedTransportChannel newLease = GetManagedChannel(failoverSession);
                 Assert.That(newLease, Is.Not.SameAs(oldLease));
                 Assert.That(newLease.Key, Is.Not.EqualTo(keyA));
-                Assert.That(newLease.Key, Is.EqualTo(ManagedChannelKey.FromEndpoint(endpointB)));
+                ManagedChannelKey targetKey = ManagedChannelKey.FromEndpoint(endpointB);
+                var expectedKey = new ManagedChannelKey(
+                    targetKey.EndpointUrl,
+                    targetKey.SecurityPolicyUri,
+                    targetKey.SecurityMode,
+                    targetKey.ServerCertificateThumbprint,
+                    targetKey.EndpointConfigurationHash,
+                    keyA.ClientCertificateThumbprint,
+                    reverseConnectionIdentity: null,
+                    targetKey.TransportProfileUri);
+                Assert.That(newLease.Key, Is.EqualTo(expectedKey));
 
                 ManagedChannelDiagnostic diagnosticA = GetDiagnostic(manager, keyA);
                 ManagedChannelDiagnostic diagnosticB = GetDiagnostic(manager, newLease.Key);
@@ -323,9 +339,10 @@ namespace Opc.Ua.Sessions.Tests
 
         private sealed class FakeRedundancyHandler : IServerRedundancyHandler
         {
-            public FakeRedundancyHandler(ConfiguredEndpoint target)
+            public FakeRedundancyHandler(ConfiguredEndpoint target, string targetApplicationUri)
             {
                 m_target = target;
+                m_targetApplicationUri = targetApplicationUri;
             }
 
             public int FetchCount { get; private set; }
@@ -345,9 +362,10 @@ namespace Opc.Ua.Sessions.Tests
                         [
                             new RedundantServer
                             {
-                                ServerUri = "urn:channel-manager:secondary",
+                                ServerUri = m_targetApplicationUri,
                                 ServerState = ServerState.Running,
-                                ServiceLevel = 250
+                                ServiceLevel = 250,
+                                Endpoint = m_target
                             }
                         ]
                     });
@@ -372,6 +390,7 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             private readonly ConfiguredEndpoint m_target;
+            private readonly string m_targetApplicationUri;
         }
     }
 }

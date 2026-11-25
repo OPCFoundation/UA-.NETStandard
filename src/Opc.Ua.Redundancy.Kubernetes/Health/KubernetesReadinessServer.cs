@@ -203,10 +203,18 @@ namespace Opc.Ua.Redundancy.Kubernetes
             try
             {
                 string path = context.Request.Url?.AbsolutePath ?? string.Empty;
-                bool isReadyPath = string.Equals(path, m_options.ReadinessPath, StringComparison.OrdinalIgnoreCase);
-                bool ok = !isReadyPath || IsReady();
-                context.Response.StatusCode = ok ? (int)HttpStatusCode.OK : (int)HttpStatusCode.ServiceUnavailable;
-                string body = ok ? "ok" : "not ready";
+                bool isReadyPath = MatchesProbePath(path, m_options.ReadinessPath);
+                bool isLivePath = MatchesProbePath(path, m_options.LivenessPath);
+                HttpStatusCode status = isReadyPath
+                    ? (IsReady() ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable)
+                    : (isLivePath ? HttpStatusCode.OK : HttpStatusCode.NotFound);
+                context.Response.StatusCode = (int)status;
+                string body = status switch
+                {
+                    HttpStatusCode.OK => "ok",
+                    HttpStatusCode.ServiceUnavailable => "not ready",
+                    _ => "not found"
+                };
                 byte[] bytes = Encoding.UTF8.GetBytes(body);
                 context.Response.ContentType = "text/plain; charset=utf-8";
                 context.Response.ContentLength64 = bytes.Length;
@@ -220,6 +228,12 @@ namespace Opc.Ua.Redundancy.Kubernetes
             {
                 context.Response.Close();
             }
+        }
+
+        private static bool MatchesProbePath(string requestPath, string configuredPath)
+        {
+            string path = configuredPath.StartsWith('/', StringComparison.Ordinal) ? configuredPath : "/" + configuredPath;
+            return string.Equals(requestPath.TrimEnd('/'), path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
         }
 
         private static string ToPrefix(string host, int port, string path)

@@ -1658,6 +1658,43 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(machine.State, Is.EqualTo(ConnectionState.Reconnecting));
         }
 
+        /// <summary>
+        /// Maintenance defers both automatic and explicit reconnect to the recovery deadline.
+        /// </summary>
+        [Test]
+        public async Task MaintenanceDeadlineDefersReconnectAsync()
+        {
+            var time = new FakeTimeProvider();
+            var policy = new ReconnectPolicy { InitialDelay = TimeSpan.Zero, JitterFactor = 0 };
+            await using var machine = new ConnectionStateMachine(policy, m_logger, timeProvider: time);
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            var reconnected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.ReconnectAsync = _ =>
+            {
+                reconnected.TrySetResult(true);
+                return Task.FromResult(ServiceResult.Good);
+            };
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            machine.Start();
+            machine.RequestConnect();
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+
+            var delay = TimeSpan.FromMinutes(8);
+            Assert.That(machine.SuspendRecoveryUntil(
+                time.GetUtcNow().UtcDateTime.Add(delay), new ServiceResult(StatusCodes.BadServerHalted)), Is.True);
+
+            time.Advance(delay - TimeSpan.FromMilliseconds(1));
+            Assert.That(machine.RequestReconnect(), Is.False);
+            machine.RequestConnect();
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
+            Assert.That(machine.AreServicesAvailable, Is.False);
+            Assert.That(reconnected.Task.IsCompleted, Is.False);
+
+            time.Advance(TimeSpan.FromMilliseconds(1));
+            await reconnected.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task TriggerReconnectWhenDisconnectedIsNoOp()
         {

@@ -30,7 +30,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// <param name="reconnectDelay">
         /// The fake-time delay before the channel reconnect attempt, or null to use <see cref="ReconnectDelay"/>.
         /// </param>
-        public ManagedSessionReconnectHarness(TimeSpan? reconnectDelay = null)
+        /// <param name="authenticatePeer">Whether the channels model an authenticated redundancy peer.</param>
+        public ManagedSessionReconnectHarness(TimeSpan? reconnectDelay = null, bool authenticatePeer = false)
         {
             Telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Trace).AddProvider(Logs));
@@ -51,6 +52,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 },
                 channel =>
                 {
+                    m_authenticatedPeer?.ConfigureChannel(channel);
                     int channelNumber = Interlocked.Increment(ref m_channelCount);
                     channel.SupportedFeatures = TransportChannelFeatures.Reconnect;
                     if (channelNumber == 1)
@@ -64,6 +66,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     channel.RequestHandler = (request, ct) =>
                         SendRequestAsync(channel, channelNumber == 1, request, ct);
                 });
+            if (authenticatePeer)
+            {
+                m_authenticatedPeer = new AuthenticatedSessionPeer("urn:test:takeover-peer", Channels.Configuration);
+            }
         }
 
         /// <summary>
@@ -322,7 +328,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             Session = await UaManagedSession.CreateAsync(
                 new ManagedSessionOptions
                 {
-                    Endpoint = SessionChannelHarness.CreateEndpoint(),
+                    Endpoint = CreateEndpoint(),
                     SessionTimeout = RequestedSessionTimeout,
                     SubscriptionEngineFactory = EngineFactory,
                     TransferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate,
@@ -385,7 +391,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             UaManagedSession successor = await UaManagedSession.CreateAsync(
                 new ManagedSessionOptions
                 {
-                    Endpoint = SessionChannelHarness.CreateEndpoint(),
+                    Endpoint = CreateEndpoint(),
                     SessionTimeout = RequestedSessionTimeout,
                     SubscriptionEngineFactory = subscriptionEngineFactory ?? SuccessorEngineFactory,
                     TimeProvider = Clock,
@@ -394,7 +400,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     ModelChangeTracking = modelChangeTracking,
                     PreferredLocales = preferredLocales,
                     TakeoverFrom = handoff,
-                    Takeover = options
+                    Takeover = options,
+                    ServerRedundancy = m_authenticatedPeer?.RedundancyOptions ?? new ServerRedundancyOptions()
                 },
                 Channels.Configuration,
                 new DefaultSessionFactory(Telemetry),
@@ -554,10 +561,22 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             }
             finally
             {
+                m_authenticatedPeer?.Dispose();
                 m_shutdown.Dispose();
                 (Telemetry as IDisposable)?.Dispose();
                 Logs.Dispose();
             }
+        }
+
+        private ConfiguredEndpoint CreateEndpoint()
+        {
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            return m_authenticatedPeer?.ConfigureEndpoint(endpoint) ?? endpoint;
+        }
+
+        private IServiceResponse CreateResponse(ScriptedChannel channel, IServiceRequest request)
+        {
+            return m_authenticatedPeer?.CreateResponse(channel, request) ?? channel.CreateResponse(request);
         }
 
         private async ValueTask<IServiceResponse> SendRequestAsync(
@@ -571,7 +590,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             {
                 case CreateSessionRequest:
                     int sessionNumber = Interlocked.Increment(ref m_sessionCount);
-                    var sessionResponse = (CreateSessionResponse)channel.CreateResponse(request);
+                    var sessionResponse = (CreateSessionResponse)CreateResponse(channel, request);
                     string suffix = sessionNumber.ToString(CultureInfo.InvariantCulture);
                     sessionResponse.SessionId = new NodeId($"session-{suffix}", 1);
                     sessionResponse.AuthenticationToken = new NodeId($"token-{suffix}", 1);
@@ -603,7 +622,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                         {
                             throw new ServiceResultException(TakeoverActivationStatus);
                         }
-                        var takeoverResponse = (ActivateSessionResponse)channel.CreateResponse(request);
+                        var takeoverResponse = (ActivateSessionResponse)CreateResponse(channel, request);
                         if (TakeoverServerNonce is Func<ByteString> nonce)
                         {
                             takeoverResponse.ServerNonce = nonce();
@@ -623,7 +642,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                             throw new ServiceResultException(RecoveryActivationStatus);
                         }
                     }
-                    return channel.CreateResponse(request);
+                    return CreateResponse(channel, request);
                 case CreateSubscriptionRequest create:
                     int subscriptionNumber = Interlocked.Increment(ref m_subscriptionCount);
                     uint subscriptionId = m_serverSubscriptions.AddOrUpdate(
@@ -938,6 +957,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// </summary>
         public const uint SubscriptionId = 77;
 
+        private readonly AuthenticatedSessionPeer? m_authenticatedPeer;
         private readonly CancellationTokenSource m_shutdown = new();
         private readonly ConcurrentQueue<IServiceRequest> m_requests = new();
         private readonly ConcurrentDictionary<NodeId, uint> m_serverSubscriptions = new();

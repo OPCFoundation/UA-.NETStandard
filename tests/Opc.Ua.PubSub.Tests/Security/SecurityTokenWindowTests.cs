@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -124,6 +125,37 @@ namespace Opc.Ua.PubSub.Tests.Security
                     scopedWindow.TryAccept(publisherA, 2, tokenId, 1, MakeNonce(51)),
                     Is.True);
             });
+        }
+
+        /// <summary>
+        /// A token accepts a long sequence of fresh nonces without dropping the oldest reuse history.
+        /// </summary>
+        [Test]
+        public void NonceHistoryGrowsWithoutForgettingAcrossPublisherScopes()
+        {
+            const uint tokenId = 1;
+            const uint messages = 20_000;
+            var window = new SecurityTokenWindow(historySize: 64, timeProvider: null, nonceFilterSizeInBytes: 8192);
+            window.RegisterToken(tokenId);
+            var scoped = (IScopedSecurityTokenWindow)window;
+            PublisherId first = PublisherId.FromUInt32(100);
+            PublisherId second = PublisherId.FromUInt32(200);
+            Span<byte> nonce = stackalloc byte[8];
+            uint rejected = 0;
+            for (uint sequence = 1; sequence <= messages; sequence++)
+            {
+                BinaryPrimitives.WriteUInt32LittleEndian(nonce, sequence);
+                BinaryPrimitives.WriteUInt32LittleEndian(nonce[4..], sequence);
+                if (!scoped.TryAccept(first, 1, tokenId, sequence, nonce))
+                {
+                    rejected++;
+                }
+            }
+
+            BinaryPrimitives.WriteUInt32LittleEndian(nonce, 1);
+            BinaryPrimitives.WriteUInt32LittleEndian(nonce[4..], 1);
+            Assert.That(rejected, Is.LessThan(messages / 100));
+            Assert.That(scoped.TryAccept(second, 2, tokenId, 1, nonce), Is.False);
         }
 
         [Test]

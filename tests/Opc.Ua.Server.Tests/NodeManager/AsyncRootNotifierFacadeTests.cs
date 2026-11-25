@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Mock<ICoreNodeManager> core = Mock.Get(server.Object.CoreNodeManager);
                 core.Setup(value => value.GetManagerHandleAsync(
                         ObjectIds.Server, It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<object>(serverObject));
+                    .Returns(new ValueTask<object?>(serverObject));
                 core.Setup(value => value.AddReferencesAsync(
                         It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
                     .Callback<IDictionary<NodeId, IList<IReference>>, CancellationToken>((references, _) =>

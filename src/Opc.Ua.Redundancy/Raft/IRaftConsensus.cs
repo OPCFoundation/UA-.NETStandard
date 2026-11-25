@@ -66,4 +66,15 @@ namespace Opc.Ua.Redundancy
         /// <param name="ct">Cancellation token.</param>
         ValueTask CampaignAsync(CancellationToken ct = default);
     }
+
+    /// <summary>
+    /// Declares whether a Raft consensus backend can share its log across processes.
+    /// </summary>
+    public interface IRaftConsensusLocality
+    {
+        /// <summary>
+        /// Gets whether the backend is confined to the current process or sharing across processes is not known.
+        /// </summary>
+        bool IsProcessLocal { get; }
+    }
 }

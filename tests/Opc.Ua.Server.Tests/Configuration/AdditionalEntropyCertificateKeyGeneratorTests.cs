@@ -150,6 +150,17 @@ namespace Opc.Ua.Server.Tests
             Assert.That(RsaModulus(certificate), Has.Length.EqualTo(256), "expected a 2048-bit RSA key");
         }
 
+        [TestCase(1024, 64)]
+        [TestCase(2048, 5)]
+        [TestCase(3072, 4)]
+        [TestCase(4096, 4)]
+        public void MillerRabinRoundsFollowFips1865TableB1(int modulusBits, int expectedRounds)
+        {
+            Assert.That(
+                AdditionalEntropyCertificateKeyGenerator.GetMillerRabinRounds(modulusBits),
+                Is.EqualTo(expectedRounds));
+        }
+
         [Test]
         public void SameServerEntropyAndSameNonceProduceTheSameRsaKey()
         {

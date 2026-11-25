@@ -232,7 +232,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 return new ServerSystemContext(Server.Object, context);
             }
 
-            private static ValueTask<NodeMetadata> CreateMetadata(NodeId nodeId)
+            private static ValueTask<NodeMetadata?> CreateMetadata(NodeId nodeId)
             {
                 if (nodeId == s_failingSource)
                 {
@@ -254,7 +254,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 {
                     metadata.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
                 }
-                return new ValueTask<NodeMetadata>(metadata);
+                return new ValueTask<NodeMetadata?>(metadata);
             }
         }
     }

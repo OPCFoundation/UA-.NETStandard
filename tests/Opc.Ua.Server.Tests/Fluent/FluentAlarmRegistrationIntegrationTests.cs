@@ -329,7 +329,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Harness harness,
             NodeId nodeId)
         {
-            object handle = await harness.Manager.GetManagerHandlePublicAsync(nodeId).ConfigureAwait(false);
+            object handle = (await harness.Manager.GetManagerHandlePublicAsync(nodeId).ConfigureAwait(false))!;
             using var operationContext = new OperationContext(
                 new RequestHeader(),
                 null,
@@ -546,7 +546,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return FindPredefinedNode<TNode>(nodeId)!;
             }
 
-            public ValueTask<object> GetManagerHandlePublicAsync(NodeId nodeId)
+            public ValueTask<object?> GetManagerHandlePublicAsync(NodeId nodeId)
             {
                 return GetManagerHandleAsync(nodeId);
             }

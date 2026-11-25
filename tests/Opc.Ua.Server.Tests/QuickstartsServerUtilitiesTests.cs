@@ -18,21 +18,19 @@ namespace Opc.Ua.Server.Tests
     public class QuickstartsServerUtilitiesTests
     {
         /// <summary>
-        /// Registers the classic and asynchronous Quickstarts factories.
+        /// Registers every Quickstarts factory through the asynchronous API.
         /// </summary>
         [Test]
-        public void AddDefaultNodeManagersRegistersClassicAndAsyncFactories()
+        public void AddDefaultNodeManagersRegistersAsyncFactories()
         {
             var server = new Mock<IStandardServer>();
 
             Quickstarts.Servers.Utils.AddDefaultNodeManagers(server.Object);
 
-#pragma warning disable CS0618, UA0031 // MemoryBuffer is still registered through the synchronous factory.
             server.Verify(
-                s => s.AddNodeManager(It.Is<INodeManagerFactory>(
+                s => s.AddNodeManager(It.Is<IAsyncNodeManagerFactory>(
                     factory => factory is MemoryBuffer.MemoryBufferNodeManagerFactory)),
                 Times.Once);
-#pragma warning restore CS0618, UA0031
             server.Verify(
                 s => s.AddNodeManager(It.Is<IAsyncNodeManagerFactory>(
                     factory => factory is Boiler.BoilerNodeManagerFactory)),
@@ -45,38 +43,36 @@ namespace Opc.Ua.Server.Tests
                 s => s.AddNodeManager(It.Is<IAsyncNodeManagerFactory>(
                     factory => factory is global::Alarms.AlarmNodeManagerFactory)),
                 Times.Once);
+#pragma warning disable CS0618, UA0031 // Verifies that the deprecated synchronous registration is no longer used.
+            server.Verify(
+                s => s.AddNodeManager(It.IsAny<INodeManagerFactory>()),
+                Times.Never);
+#pragma warning restore CS0618, UA0031
         }
 
         /// <summary>
-        /// Exposes each factory through the interface that its node manager supports.
+        /// Lists the factories in the order that fixes the sample namespace indexes.
         /// </summary>
         [Test]
-        public void DefaultNodeManagerFactoriesPreserveClassicAndAsyncCompatibility()
+        public void DefaultNodeManagerFactoriesKeepNamespaceOrder()
         {
-#pragma warning disable CS0618, UA0031 // MemoryBuffer is still registered through the synchronous factory.
-            ArrayOf<INodeManagerFactory> classicFactories =
-                Quickstarts.Servers.Utils.NodeManagerFactories;
-#pragma warning restore CS0618, UA0031
             ArrayOf<IAsyncNodeManagerFactory> asyncFactories =
                 Quickstarts.Servers.Utils.AsyncNodeManagerFactories;
 
             Assert.That(
-                classicFactories,
-                Has.Count.EqualTo(1));
-            Assert.That(
-                classicFactories[0],
-                Is.TypeOf<MemoryBuffer.MemoryBufferNodeManagerFactory>());
-            Assert.That(
                 asyncFactories,
-                Has.Count.EqualTo(3));
+                Has.Count.EqualTo(4));
             Assert.That(
                 asyncFactories[0],
-                Is.TypeOf<Boiler.BoilerNodeManagerFactory>());
+                Is.TypeOf<MemoryBuffer.MemoryBufferNodeManagerFactory>());
             Assert.That(
                 asyncFactories[1],
-                Is.TypeOf<TestData.TestDataNodeManagerFactory>());
+                Is.TypeOf<Boiler.BoilerNodeManagerFactory>());
             Assert.That(
                 asyncFactories[2],
+                Is.TypeOf<TestData.TestDataNodeManagerFactory>());
+            Assert.That(
+                asyncFactories[3],
                 Is.TypeOf<global::Alarms.AlarmNodeManagerFactory>());
         }
 
@@ -90,7 +86,7 @@ namespace Opc.Ua.Server.Tests
         {
             ArrayOf<IAsyncNodeManagerFactory> asyncFactories =
                 Quickstarts.Servers.Utils.AsyncNodeManagerFactories;
-            var alarmFactory = (global::Alarms.AlarmNodeManagerFactory)asyncFactories[2];
+            var alarmFactory = (global::Alarms.AlarmNodeManagerFactory)asyncFactories[3];
             int original = alarmFactory.SimulationInterval;
             try
             {
@@ -107,10 +103,11 @@ namespace Opc.Ua.Server.Tests
                     Quickstarts.Servers.Utils.CttAlarmSimulationInterval,
                     Is.LessThan(global::Alarms.AlarmNodeManager.DefaultSimulationInterval));
                 ArrayOf<IAsyncNodeManagerFactory> after = Quickstarts.Servers.Utils.AsyncNodeManagerFactories;
-                Assert.That(after, Has.Count.EqualTo(3));
+                Assert.That(after, Has.Count.EqualTo(4));
                 Assert.That(after[0], Is.SameAs(asyncFactories[0]));
                 Assert.That(after[1], Is.SameAs(asyncFactories[1]));
-                Assert.That(after[2], Is.SameAs(alarmFactory));
+                Assert.That(after[2], Is.SameAs(asyncFactories[2]));
+                Assert.That(after[3], Is.SameAs(alarmFactory));
             }
             finally
             {

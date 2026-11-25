@@ -90,22 +90,30 @@ namespace Opc.Ua.Redundancy.Server
                     sp => options.RecordProtectorFactory(sp));
             }
 
-            builder.Services.TryAddSingleton<ILeaderElection>(sp =>
-                options.UseLeaderElection
-                    ? new SharedStoreLeaseElection(
-                        sp.GetRequiredService<ISharedKeyValueStore>(),
+            if (options.UseLeaderElection)
+            {
+                builder.Services.Replace(ServiceDescriptor.Singleton<ILeaderElection>(sp =>
+                    new SharedStoreLeaseElection(
+                        sp.GetRequiredService<FreshnessProtectedKeyValueStore>(),
                         options.LeaseKey,
                         options.NodeId,
+                        options.LeaseMemberIds,
                         options.LeaseDuration,
-                        options.RenewInterval)
-                    : new StaticLeaderElection(true));
+                        options.RenewInterval,
+                        sp.GetService<TimeProvider>())));
+            }
+            else
+            {
+                builder.Services.TryAddSingleton<ILeaderElection>(_ => new StaticLeaderElection(true));
+            }
 
             builder.Services.TryAddSingleton<IServiceLevelProvider>(sp =>
                 new LeaderServiceLevelProvider(
                     sp.GetRequiredService<ILeaderElection>(),
                     options.RedundancyMode,
                     options.ServiceLevelLoadMetric,
-                    options.HealthServiceLevel));
+                    options.HealthServiceLevel,
+                    sp.GetRequiredService<DistributedAddressSpaceStartupTask>().IsRoleReady));
 
             // The service-level startup task updates Server.ServiceLevel from
             // the provider.
@@ -121,7 +129,7 @@ namespace Opc.Ua.Redundancy.Server
             // and forwarded as an IServerStartupTask so the host still runs it.
             builder.Services.TryAddSingleton(sp =>
                 new DistributedAddressSpaceStartupTask(
-                    sp.GetRequiredService<ISharedKeyValueStore>(),
+                    RecordProtectionGuard.ResolveFreshStoreOrThrow(sp),
                     sp.GetRequiredService<ILeaderElection>(),
                     RecordProtectionGuard.ResolveProtectorOrThrow(sp),
                     options.UseLeaderElection ? options.LeaseKey : null));
@@ -189,7 +197,7 @@ namespace Opc.Ua.Redundancy.Server
 
             builder.Services.TryAddSingleton<ISessionManagerFactory>(sp =>
                 new DistributedSessionManagerFactory(
-                    sp.GetRequiredService<ISharedKeyValueStore>(),
+                    RecordProtectionGuard.ResolveFreshStoreOrThrow(sp),
                     RecordProtectionGuard.ResolveProtectorOrThrow(sp),
                     options));
 

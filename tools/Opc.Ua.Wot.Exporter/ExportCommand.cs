@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -33,7 +34,8 @@ namespace Opc.Ua.Wot.Exporter
             {
                 await m_output.WriteLineAsync(
                     ("Usage: opcua-wot-export <source-path> [output-path] " +
-                        "[--registry-base-url <url>] [--group-id <id>]\n" +
+                        "[--registry-base-url <url>] [--group-id <id>] " +
+                        "[--metadata <file>] [--identifier-safe-keys]\n" +
                         "Read *NodeSet2.xml in the source folder and its subfolders.\n" +
                         "Default output: <source-path>\\out. A source file is also accepted.\n" +
                         "An explicit output path is relative to the current folder.\n" +
@@ -46,7 +48,8 @@ namespace Opc.Ua.Wot.Exporter
             }
             if (!TryReadArguments(
                 args, m_getEnvironmentVariable("OPCUA_WOT_REGISTRY_BASE_URL"),
-                out string[] paths, out string registryBaseUrl, out string groupId))
+                out string[] paths, out string registryBaseUrl, out string groupId,
+                out string? metadataPath, out bool identifierSafeKeys))
             {
                 await m_error.WriteLineAsync(
                     "ERROR: Supply a source path and, if needed, an output path. Use --help for help.".AsMemory(),
@@ -57,6 +60,10 @@ namespace Opc.Ua.Wot.Exporter
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                ExportMetadata metadata = metadataPath is null
+                    ? new ExportMetadata()
+                    : ExportMetadata.Parse(await File.ReadAllBytesAsync(metadataPath, cancellationToken)
+                        .ConfigureAwait(false));
                 string source = Path.GetFullPath(paths[0]);
                 bool singleFile = File.Exists(source);
                 if (!singleFile && !Directory.Exists(source))
@@ -125,7 +132,8 @@ namespace Opc.Ua.Wot.Exporter
                 var nodeResolver = WotDocumentNodeResolver.FromNodeSets(
                     loaded.Select(file => file.NodeSet).ToArrayOf(), cancellationToken);
                 var converted = new List<(string Path, UANodeSet NodeSet)>();
-                var references = new RegistryModelReferences(registryBaseUrl, groupId);
+                var mapping = new ExportModelMapping(loaded.Select(file => file.NodeSet), metadata, identifierSafeKeys);
+                var references = new RegistryModelReferences(registryBaseUrl, groupId, mapping);
                 foreach ((string path, UANodeSet nodeSet) in loaded)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -137,6 +145,7 @@ namespace Opc.Ua.Wot.Exporter
                             nodeSet, nodeResolver, cancellationToken)
                             .ConfigureAwait(false);
                         references.Add(nodeSet, documents, modelIds);
+                        mapping.AddDefinitions(documents);
                         converted.Add((path, nodeSet));
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
@@ -199,13 +208,17 @@ namespace Opc.Ua.Wot.Exporter
             string? environmentRegistryBaseUrl,
             out string[] paths,
             out string registryBaseUrl,
-            out string groupId)
+            out string groupId,
+            out string? metadataPath,
+            out bool identifierSafeKeys)
         {
             var positional = new List<string>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
             registryBaseUrl = string.IsNullOrEmpty(environmentRegistryBaseUrl)
                 ? "https://opcfoundation.org" : environmentRegistryBaseUrl;
             groupId = "opcua";
+            metadataPath = null;
+            identifierSafeKeys = false;
             for (int i = 0; i < args.Length; i++)
             {
                 string argument = args[i];
@@ -213,7 +226,11 @@ namespace Opc.Ua.Wot.Exporter
                 {
                     positional.Add(argument);
                 }
-                else if (argument is not ("--registry-base-url" or "--group-id") ||
+                else if (argument == "--identifier-safe-keys" && seen.Add(argument))
+                {
+                    identifierSafeKeys = true;
+                }
+                else if (argument is not ("--registry-base-url" or "--group-id" or "--metadata") ||
                     !seen.Add(argument) ||
                     ++i == args.Length ||
                     args[i] is ['-', ..])
@@ -225,9 +242,13 @@ namespace Opc.Ua.Wot.Exporter
                 {
                     registryBaseUrl = args[i];
                 }
-                else
+                else if (argument == "--group-id")
                 {
                     groupId = args[i];
+                }
+                else
+                {
+                    metadataPath = args[i];
                 }
             }
             paths = [.. positional];
@@ -352,6 +373,11 @@ namespace Opc.Ua.Wot.Exporter
                 }
             }
             ArrayOf<ReadOnlyMemory<byte>> output = references.Write(documents, cancellationToken);
+            foreach (string diagnostic in references.Diagnostics.Distinct(StringComparer.Ordinal))
+            {
+                await m_error.WriteLineAsync($"  WARNING: {diagnostic}".AsMemory(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
             Directory.CreateDirectory(destination);
             for (int i = 0; i < documents.Entries.Count; i++)
             {
@@ -410,7 +436,8 @@ namespace Opc.Ua.Wot.Exporter
                 var nativeId = NodeId.Parse(node.NodeId);
                 string namespaceUri = nativeId.NamespaceIndex == 0
                     ? Types.Namespaces.OpcUa
-                    : nodeSet.NamespaceUris[nativeId.NamespaceIndex - 1];
+                    : nodeSet.NamespaceUris?[nativeId.NamespaceIndex - 1] ??
+                        throw new FormatException($"No namespace URI for native NodeId '{node.NodeId}'.");
                 string name = QualifiedName.Parse(node.BrowseName).Name!;
                 string prefix;
                 if (Uri.TryCreate(namespaceUri, UriKind.Absolute, out Uri? uri) && uri.Host.Length > 0)
@@ -515,7 +542,7 @@ namespace Opc.Ua.Wot.Exporter
         private static bool IsInputError(Exception exception)
         {
             return exception is IOException or UnauthorizedAccessException or ArgumentException
-                or FormatException or XmlException or InvalidOperationException or NotSupportedException;
+                or FormatException or XmlException or JsonException or InvalidOperationException or NotSupportedException;
         }
 
         /// <summary>Receives progress and completion messages.</summary>

@@ -6,6 +6,7 @@
 #pragma warning disable CA2007
 
 using System;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +14,9 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Redundancy.Kubernetes.Tests
 {
@@ -39,11 +42,10 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
 
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            // Outside a cluster the factory yields a not-in-cluster client and the
-            // leader election falls back to a static non-leader, all without any IO.
+            // Discovery options can be resolved locally; election requires an actual backend.
             IKubernetesApiClient apiClient = provider.GetRequiredService<IKubernetesApiClient>();
             Assert.That(apiClient.IsInCluster, Is.False);
-            Assert.That(provider.GetRequiredService<ILeaderElection>(), Is.Not.Null);
+            Assert.That(() => provider.GetRequiredService<ILeaderElection>(), Throws.InvalidOperationException);
             Assert.That(provider.GetRequiredService<IKubernetesPeerDiscovery>(), Is.Not.Null);
             Assert.That(provider.GetRequiredService<KubernetesReadinessServer>(), Is.Not.Null);
             Assert.That(provider.GetServices<IServerStartupTask>(), Is.Not.Empty);
@@ -58,6 +60,9 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             KubernetesReadinessServer leaderReadiness = leaderProvider.GetRequiredService<KubernetesReadinessServer>();
 
             Assert.That(await leaderElection.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(leaderServiceLevelProvider.GetServiceLevel(), Is.EqualTo(ServiceLevels.NoData));
+            Assert.That(leaderReadiness.IsReady(), Is.False);
+            await StartReplicationAsync(leaderProvider).ConfigureAwait(false);
             Assert.That(leaderServiceLevelProvider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maximum));
             Assert.That(leaderReadiness.IsReady(), Is.True);
 
@@ -69,8 +74,22 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 followerProvider.GetRequiredService<KubernetesReadinessServer>();
 
             Assert.That(await followerElection.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            await StartReplicationAsync(followerProvider).ConfigureAwait(false);
             Assert.That(followerServiceLevelProvider.GetServiceLevel(), Is.EqualTo(ServiceLevels.DegradedMaximum));
             Assert.That(followerReadiness.IsReady(), Is.False);
+        }
+
+        private static ValueTask StartReplicationAsync(ServiceProvider provider)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(s => s.Telemetry).Returns(telemetry);
+            server.SetupGet(s => s.MessageContext).Returns(messageContext);
+            server.SetupGet(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
+            server.SetupGet(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
+            server.Setup(s => s.FindNodeManagers<ILocalAddressSpaceSource>()).Returns([]);
+            return provider.GetRequiredService<DistributedAddressSpaceStartupTask>().OnServerStartedAsync(server.Object);
         }
 
         [Test]
@@ -110,15 +129,60 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         public async Task LeaderElectionFallsBackToSharedStoreOutsideClusterAsync()
         {
             var services = new ServiceCollection();
+            services.AddSingleton<ISharedKeyValueStore, InMemorySharedKeyValueStore>();
+            services.AddSingleton<SimulatedSharedKeyValueStore>();
+            services.AddSingleton<IRecordProtector>(_ =>
+            {
+                using var random = RandomNumberGenerator.Create();
+                var keyBytes = new byte[32];
+                random.GetBytes(keyBytes);
+                return new AesCbcHmacRecordProtector(keyBytes);
+            });
+            services.AddSharedRecordFreshness(
+                sp => sp.GetRequiredService<SimulatedSharedKeyValueStore>(), Guid.NewGuid(), Guid.NewGuid());
             services.AddOpcUa()
                 .AddServer(_ => { })
-                .UseKubernetesLeaderElection(options => options.UseSharedStoreFallback = true);
+                .UseKubernetesLeaderElection(options =>
+                {
+                    options.UseSharedStoreFallback = true;
+                    options.FallbackNodeId = "replica-a";
+                    options.FallbackLeaseMemberIds = ["replica-a", "replica-b"];
+                });
 
             await using ServiceProvider provider = services.BuildServiceProvider();
 
-            Assert.That(
-                provider.GetRequiredService<ILeaderElection>(),
-                Is.InstanceOf<SharedStoreLeaseElection>());
+            await provider.GetRequiredService<FreshnessProtectedKeyValueStore>().EnrollAsync();
+            ILeaderElection election = provider.GetRequiredService<ILeaderElection>();
+            Assert.That(election, Is.InstanceOf<SharedStoreLeaseElection>());
+            Assert.That(await election.TryAcquireOrRenewAsync(), Is.True);
+        }
+
+        [Test]
+        public async Task MissingProtectedFallbackDoesNotRegisterAPerPodStoreAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<IKubernetesApiClient>(x => !x.IsInCluster));
+            services.AddOpcUa().AddServer(_ => { })
+                .UseKubernetesLeaderElection(options => options.UseSharedStoreFallback = true);
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(provider.GetService<ISharedKeyValueStore>(), Is.Null);
+            Assert.That(() => provider.GetRequiredService<ILeaderElection>(), Throws.InvalidOperationException);
+        }
+
+        /// <summary>
+        /// Missing in-cluster credentials do not silently select a local election.
+        /// </summary>
+        [Test]
+        public async Task LeaderElectionRequiresAnExplicitFallbackOutsideClusterAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<IKubernetesApiClient>(x => !x.IsInCluster));
+            services.AddOpcUa().AddServer(_ => { }).UseKubernetesLeaderElection();
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(() => provider.GetRequiredService<ILeaderElection>(),
+                Throws.InvalidOperationException.With.Message.Contains("explicitly configured"));
         }
 
         private static ServiceProvider BuildProvider(IKubernetesApiClient apiClient)

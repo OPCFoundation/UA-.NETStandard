@@ -10,6 +10,7 @@ using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
@@ -69,6 +70,11 @@ namespace Opc.Ua.PubSub.Application
         private PubSubConfigurationDataType? m_configuration;
         private string? m_configurationFilePath;
         private IPubSubSecurityWrapperResolver? m_securityWrapperResolver;
+        private IPubSubActivationCoordinator? m_activationCoordinator;
+        private IPubSubNonceRangeStore? m_nonceRangeStore;
+        private IPubSubActivationFenceProvider? m_activationFenceProvider;
+        private IPubSubRuntimeStateStore? m_runtimeStateStore;
+        private IPubSubWriterCheckpointStore? m_writerCheckpointStore;
 
         private Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?>?
             m_securityPolicySelector;
@@ -567,6 +573,44 @@ namespace Opc.Ua.PubSub.Application
         }
 
         /// <summary>
+        /// Configures fenced activation and durable nonce reservations for secured publication.
+        /// </summary>
+        /// <param name="coordinator">The coordinator providing the component role.</param>
+        /// <param name="nonceRangeStore">The durable store that reserves nonce sequences.</param>
+        /// <param name="fences">The current lease source, if not implemented by the coordinator.</param>
+        /// <returns>This builder.</returns>
+        public PubSubApplicationBuilder WithSecuredRedundancy(
+            IPubSubActivationCoordinator coordinator,
+            IPubSubNonceRangeStore nonceRangeStore,
+            IPubSubActivationFenceProvider? fences = null)
+        {
+            ConfigureRedundancy(
+                coordinator ?? throw new ArgumentNullException(nameof(coordinator)),
+                nonceRangeStore ?? throw new ArgumentNullException(nameof(nonceRangeStore)),
+                fences,
+                m_runtimeStateStore,
+                m_writerCheckpointStore);
+            return this;
+        }
+
+        /// <summary>
+        /// Supplies the activation, nonce reservation and persistence providers registered with DI.
+        /// </summary>
+        internal void ConfigureRedundancy(
+            IPubSubActivationCoordinator? coordinator,
+            IPubSubNonceRangeStore? nonceRangeStore,
+            IPubSubActivationFenceProvider? fences,
+            IPubSubRuntimeStateStore? runtimeStateStore,
+            IPubSubWriterCheckpointStore? writerCheckpointStore)
+        {
+            m_activationCoordinator = coordinator;
+            m_nonceRangeStore = nonceRangeStore;
+            m_activationFenceProvider = fences;
+            m_runtimeStateStore = runtimeStateStore;
+            m_writerCheckpointStore = writerCheckpointStore;
+        }
+
+        /// <summary>
         /// Validates the accumulated state and constructs the
         /// runtime <see cref="IPubSubApplication"/>.
         /// </summary>
@@ -609,14 +653,16 @@ namespace Opc.Ua.PubSub.Application
                     securityWrapperResolver: resolver,
                     maxNetworkMessageSizeResolver: null,
                     configurationStore: null,
-                    runtimeStateStore: null,
-                    activationCoordinator: null,
-                    writerCheckpointStore: null,
+                    runtimeStateStore: m_runtimeStateStore,
+                    activationCoordinator: m_activationCoordinator,
+                    writerCheckpointStore: m_writerCheckpointStore,
                     unauthenticatedMetaDataLimits: new UnauthenticatedMetaDataLimits
                     {
                         MaxCost = m_options.MaxUnauthenticatedMetaDataCost,
                         IdleTimeout = m_options.UnauthenticatedMetaDataIdleTimeout
-                    });
+                    },
+                    nonceRangeStore: m_nonceRangeStore,
+                    activationFenceProvider: m_activationFenceProvider);
                 for (int i = 0; i < m_actionResponders.Count; i++)
                 {
                     application.RegisterActionHandler(

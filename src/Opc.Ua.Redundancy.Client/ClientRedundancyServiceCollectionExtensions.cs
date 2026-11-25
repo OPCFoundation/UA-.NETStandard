@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Redundancy;
 
@@ -52,7 +53,10 @@ namespace Opc.Ua.Redundancy.Client
                 replicaId,
                 transportFactory(sp),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System,
-                CrdtReaderOptions.Default
+                CrdtReaderOptions.Default,
+                sp.GetService<ITelemetryContext>()?.CreateLogger<ReplicatedSharedKeyValueStore>() ??
+                    sp.GetService<ILoggerFactory>()?.CreateLogger<ReplicatedSharedKeyValueStore>() ??
+                    NullLogger<ReplicatedSharedKeyValueStore>.Instance
             ));
             return services;
         }
@@ -330,7 +334,10 @@ namespace Opc.Ua.Redundancy.Client
                 replicaId,
                 replicatedTransportFactory!(sp),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System,
-                CrdtReaderOptions.Default
+                CrdtReaderOptions.Default,
+                sp.GetService<ITelemetryContext>()?.CreateLogger<ReplicatedSharedKeyValueStore>() ??
+                    sp.GetService<ILoggerFactory>()?.CreateLogger<ReplicatedSharedKeyValueStore>() ??
+                    NullLogger<ReplicatedSharedKeyValueStore>.Instance
             );
             return new HybridSharedKeyValueStore(replicatedStore, raftStore, default, ownsStores: true);
 #pragma warning restore CA2000

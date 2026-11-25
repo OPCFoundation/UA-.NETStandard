@@ -577,7 +577,10 @@ namespace Opc.Ua
             {
                 result = HandleCertificateValidationException(se, certificate, acceptError);
             }
-            if (result.IsValid && validatedPath != null && options?.ValidateForSigning != true)
+            if (result.IsValid &&
+                validatedPath != null &&
+                !m_state.UsesSharedKeyValueStore &&
+                options?.ValidateForSigning != true)
             {
                 m_validatedCertificates[certificate.Thumbprint] = validatedPath;
             }
@@ -935,8 +938,11 @@ namespace Opc.Ua
                 // connection and permanently defeat the cache for exactly
                 // the certificates it was written for. Time validity must
                 // still hold for the leaf and every resolved issuer. A current
-                // cache hit skips the expensive chain-policy build below.
+                // cache hit skips the expensive chain-policy build below. For
+                // shared stores, a committed trust removal can leave the same
+                // issuer path (e.g. supplied by the peer); re-evaluate trust.
                 if (UseValidatedCertificates &&
+                    !state.UsesSharedKeyValueStore &&
                     options?.ValidateForSigning != true &&
                     !HasRevocationError(validationErrors) &&
                     m_validatedCertificates.TryGetValue(
@@ -1549,6 +1555,12 @@ namespace Opc.Ua
             ICertificateStore? store = m_openStore(storeIdentifier);
             if (store == null)
             {
+                if (storeIdentifier.StoreType == CertificateStoreType.SharedKeyValue)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The configured shared certificate store could not be opened.");
+                }
                 return null;
             }
 
@@ -1898,14 +1910,18 @@ namespace Opc.Ua
             CertificateValidationOptions options,
             CancellationToken ct)
         {
+            if (m_state.UsesSharedKeyValueStore)
+            {
+                return await CheckIssuerRevocationInTrustStoresAsync(issuer, certificate, options, ct)
+                    .ConfigureAwait(false);
+            }
             StatusCode status = await store.IsRevokedAsync(issuer, certificate, ct).ConfigureAwait(false);
             return ToRevocationError(status, certificate, options);
         }
 
         /// <summary>
-        /// Checks the revocation status of <paramref name="certificate"/> for an
-        /// issuer that was not found in a store, against the CRLs held by the
-        /// trusted and the issuer store. A revocation in either store wins; with
+        /// Checks the revocation status of <paramref name="certificate"/> across the
+        /// trusted and issuer stores. A revocation in either store wins; with
         /// no valid CRL in either store the status is unknown. A store that
         /// cannot hold CRLs gives no answer; only when no opened store can hold
         /// CRLs is the check reported as not supported.
@@ -2409,7 +2425,15 @@ namespace Opc.Ua
             ArrayOf<Certificate> ApplicationCertificates,
             ArrayOf<CertificateIdentifier> TrustedCertificates = default,
             ArrayOf<CertificateIdentifier> IssuerCertificates = default,
-            ArrayOf<X509CRL> CertificateRevocationLists = default);
+            ArrayOf<X509CRL> CertificateRevocationLists = default)
+        {
+            /// <summary>
+            /// Gets whether trust or revocation policy depends on a shared certificate store.
+            /// </summary>
+            public bool UsesSharedKeyValueStore =>
+                TrustedStore?.StoreType == CertificateStoreType.SharedKeyValue ||
+                IssuerStore?.StoreType == CertificateStoreType.SharedKeyValue;
+        }
     }
 
     /// <summary>

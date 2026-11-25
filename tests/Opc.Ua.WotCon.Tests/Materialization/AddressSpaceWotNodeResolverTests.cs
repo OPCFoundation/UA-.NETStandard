@@ -395,7 +395,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         NodeClass = nodeClass,
                         BrowseName = new QualifiedName("TankType", index)
                     };
-                    return new ValueTask<NodeMetadata>(metadata);
+                    return new ValueTask<NodeMetadata?>(metadata);
                 });
 
             var master = new Mock<IMasterNodeManager>();

@@ -34,10 +34,15 @@ namespace Opc.Ua.Redundancy.Server
         /// Gets or sets the unique identifier for this server replica. It is
         /// written into the shared transaction lease so a standby replica can
         /// tell whether the lease is its own (safe to renew) or another
-        /// replica's (must wait until it expires). Defaults to the machine
-        /// name; give every replica in a set a distinct value.
+        /// replica's (must wait until it expires). Configure a distinct value
+        /// for every replica.
         /// </summary>
-        public string ReplicaId { get; set; } = Environment.MachineName;
+        public string ReplicaId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the same complete set of transaction lease member ids on every replica.
+        /// </summary>
+        public ArrayOf<string> LeaseMemberIds { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the shared-store key prefix under which all
@@ -55,6 +60,9 @@ namespace Opc.Ua.Redundancy.Server
         /// allowing a standby replica to start a new transaction. Must be
         /// greater than <see cref="RenewInterval"/>.
         /// </summary>
+        /// <remarks>
+        /// Use the same lifetime and synchronized UTC clocks on all replicas.
+        /// </remarks>
         public TimeSpan LeaseDuration { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
@@ -131,20 +139,15 @@ namespace Opc.Ua.Redundancy.Server
         /// </exception>
         internal void Validate()
         {
-            if (string.IsNullOrEmpty(ReplicaId))
-            {
-                throw new ArgumentException(
-                    "DistributedPushConfigurationOptions.ReplicaId must not be null or empty.");
-            }
-            if (string.IsNullOrEmpty(KeyPrefix))
+            if (string.IsNullOrWhiteSpace(KeyPrefix))
             {
                 throw new ArgumentException(
                     "DistributedPushConfigurationOptions.KeyPrefix must not be null or empty.");
             }
-            if (LeaseDuration <= TimeSpan.Zero)
+            if (LeaseDuration <= TimeSpan.Zero || LeaseDuration.TotalMilliseconds >= uint.MaxValue)
             {
                 throw new ArgumentException(
-                    "DistributedPushConfigurationOptions.LeaseDuration must be positive.");
+                    "DistributedPushConfigurationOptions.LeaseDuration is outside the supported timer range.");
             }
             if (RenewInterval <= TimeSpan.Zero)
             {
@@ -155,6 +158,11 @@ namespace Opc.Ua.Redundancy.Server
             {
                 throw new ArgumentException(
                     "DistributedPushConfigurationOptions.RenewInterval must be less than LeaseDuration.");
+            }
+            if (ReservationTimeout < TimeSpan.Zero)
+            {
+                throw new ArgumentException(
+                    "DistributedPushConfigurationOptions.ReservationTimeout must not be negative.");
             }
         }
     }

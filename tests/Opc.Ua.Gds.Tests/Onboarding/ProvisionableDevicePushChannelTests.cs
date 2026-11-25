@@ -127,8 +127,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 hosted = provider.GetServices<IHostedService>()
                     .Single(static service => service.GetType().Name == "OpcUaServerHostedService");
                 await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
-                using var firstClient = new ClientFixture(telemetry: telemetry);
-                using var secondClient = new ClientFixture(telemetry: telemetry);
+                using var firstClient = new ClientFixture(telemetry: telemetry)
+                {
+                    OperationTimeout = kKeyGenerationOperationTimeout
+                };
+                using var secondClient = new ClientFixture(telemetry: telemetry)
+                {
+                    OperationTimeout = kKeyGenerationOperationTimeout
+                };
                 await firstClient.LoadClientConfigurationAsync(Path.Combine(root, "first"), "FirstRegistrar")
                     .ConfigureAwait(false);
                 await secondClient.LoadClientConfigurationAsync(Path.Combine(root, "second"), "SecondRegistrar")
@@ -231,8 +237,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var factoryTrust = new TrustListDataType();
             try
             {
-                using var firstClient = new ClientFixture(telemetry: telemetry);
-                using var nextClient = new ClientFixture(telemetry: telemetry);
+                using var firstClient = new ClientFixture(telemetry: telemetry)
+                {
+                    OperationTimeout = kKeyGenerationOperationTimeout
+                };
+                using var nextClient = new ClientFixture(telemetry: telemetry)
+                {
+                    OperationTimeout = kKeyGenerationOperationTimeout
+                };
                 await firstClient.LoadClientConfigurationAsync(Path.Combine(root, "first"), "ActivationRegistrar")
                     .ConfigureAwait(false);
                 await nextClient.LoadClientConfigurationAsync(Path.Combine(root, "next"), "ReplacementRegistrar")
@@ -679,6 +691,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 string.Empty, true, Nonce.CreateRandomNonceData(32).ToByteString(), CancellationToken.None)
                 .ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Request timeout for the registrar clients. CreateSigningRequest with regeneratePrivateKey derives a new
+        /// RSA key from managed prime generation inside the call, which takes seconds on .NET Framework and longer
+        /// on a loaded CI runner, so the fixture's 10 s default for fast calls is too tight. The other push suites
+        /// use 120 s for the same reason.
+        /// </summary>
+        private const int kKeyGenerationOperationTimeout = 60_000;
 
         /// <summary>The configured roles needed by the registrar's push operations.</summary>
         private static readonly string[] s_registrarRoles = ["SecurityAdmin", "ConfigureAdmin"];

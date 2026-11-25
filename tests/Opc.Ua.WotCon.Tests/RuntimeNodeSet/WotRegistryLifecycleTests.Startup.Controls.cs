@@ -973,7 +973,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
 
             /// <summary>
-            /// Counts the removal and removes the projection under a five-second deadline.
+            /// Counts the removal and removes the projection under the projection deadline.
             /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -982,7 +982,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             {
                 Interlocked.Increment(ref m_removeCalls);
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                deadline.CancelAfter(TimeSpan.FromSeconds(5));
+                deadline.CancelAfter(s_projectionDeadline);
                 try
                 {
                     return await inner.RemoveAsync(handle, deadline.Token).ConfigureAwait(false);

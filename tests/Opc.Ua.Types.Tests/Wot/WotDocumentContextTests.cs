@@ -224,8 +224,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     entry.GetProperty("title").GetProperty("@id").GetString(),
                     Is.EqualTo(TitleIri));
                 Assert.That(
-                    entry.GetProperty("title").GetProperty("@language").ValueKind,
-                    Is.EqualTo(JsonValueKind.Null));
+                    entry.GetProperty("title").GetProperty("@language").GetString(),
+                    Is.EqualTo("de"));
                 Assert.That(entry.TryGetProperty("description", out _), Is.False,
                     "The carrying node has only a fallback title, not a fallback description.");
             });
@@ -334,8 +334,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     local.GetProperty("displayName").GetProperty("@id").GetString(),
                     Is.EqualTo("uav:unitDisplayName"));
                 Assert.That(
-                    local.GetProperty("displayName").GetProperty("@language").ValueKind,
-                    Is.EqualTo(JsonValueKind.Null));
+                    local.GetProperty("displayName").GetProperty("@language").GetString(),
+                    Is.EqualTo("de"));
                 Assert.That(
                     local.GetProperty("description").GetProperty("@id").GetString(),
                     Is.EqualTo("uav:unitDescription"));
@@ -381,8 +381,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 .GetProperty("uav:engineeringUnits").GetProperty("@context");
             string fallbackMember = displayNameFallback ? "displayName" : "description";
             string ordinaryMember = displayNameFallback ? "description" : "displayName";
-            Assert.That(context.GetProperty(fallbackMember).GetProperty("@language").ValueKind,
-                Is.EqualTo(JsonValueKind.Null));
+            Assert.That(context.GetProperty(fallbackMember).GetProperty("@language").GetString(),
+                Is.EqualTo("de"));
             Assert.That(context.TryGetProperty(ordinaryMember, out _), Is.False);
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
             UAVariable restoredUnit = restored.Items!.OfType<UAVariable>().Single();

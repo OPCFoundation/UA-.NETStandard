@@ -5,11 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
@@ -99,9 +101,48 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(second.Connections[0].ReaderGroups[0].State.State, Is.EqualTo(PubSubState.Operational));
         }
 
+        [Test]
+        public async Task RuntimeStateUsesGroupFenceAndSkipsUnownedTransitionsAsync()
+        {
+            const string leaseScope = "pubsub:writergroup:Connection1:WriterGroup1";
+            const string runtimeId = "pubsub:writer-group:Connection1:WriterGroup1";
+            var configurationStore = new InMemoryPubSubConfigurationStore(new PubSubConfigurationDataType
+            {
+                Connections = [],
+                PublishedDataSets = []
+            });
+            var store = new Mock<IPubSubRuntimeStateStore>();
+            var coordinator = new Mock<IPubSubActivationCoordinator>();
+            coordinator.Setup(x => x.GetRoleAsync(leaseScope, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(PubSubComponentRole.Active);
+            Mock<IPubSubActivationFenceProvider> fences = coordinator.As<IPubSubActivationFenceProvider>();
+            long fence = 17;
+            fences.Setup(x => x.TryGetActiveFence(leaseScope, out fence)).Returns(true);
+            await using RuntimeApplication application =
+                await NewApplicationAsync(configurationStore, store.Object, coordinator.Object).ConfigureAwait(false);
+            application.SetAddressSpaceNamespaceIndex(NamespaceIndex);
+            NodeId connectionId = await application.AddConnectionAsync(NewConnection()).ConfigureAwait(false);
+            await application.AddWriterGroupAsync(
+                connectionId,
+                new WriterGroupDataType { Name = "WriterGroup1", WriterGroupId = 1, PublishingInterval = 1000 })
+                .ConfigureAwait(false);
+            await application.StartAsync().ConfigureAwait(false);
+
+            store.Verify(x => x.SetStateAsync(runtimeId, PubSubState.Operational, fence, CancellationToken.None),
+                Times.AtLeastOnce);
+
+            store.Invocations.Clear();
+            fences.Setup(x => x.TryGetActiveFence(leaseScope, out fence)).Returns(false);
+            Assert.That(application.Connections[0].WriterGroups[0].State.TryPause(), Is.True);
+            store.Verify(x => x.SetStateAsync(runtimeId, PubSubState.Paused, fence, CancellationToken.None),
+                Times.Never);
+            store.Verify(x => x.SetStateAsync(runtimeId, PubSubState.Paused, CancellationToken.None), Times.Never);
+        }
+
         private static async ValueTask<RuntimeApplication> NewApplicationAsync(
             InMemoryPubSubConfigurationStore configurationStore,
-            InMemoryPubSubRuntimeStateStore runtimeStateStore)
+            IPubSubRuntimeStateStore runtimeStateStore,
+            IPubSubActivationCoordinator? coordinator = null)
         {
             TimeProvider timeProvider = TimeProvider.System;
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -123,7 +164,8 @@ namespace Opc.Ua.PubSub.Tests.Application
                 new Dictionary<string, IPublishedDataSetSource>(StringComparer.Ordinal),
                 new Dictionary<string, ISubscribedDataSetSink>(StringComparer.Ordinal),
                 configurationStore: configurationStore,
-                runtimeStateStore: runtimeStateStore);
+                runtimeStateStore: runtimeStateStore,
+                activationCoordinator: coordinator);
         }
 
         private static PubSubConnectionDataType NewConnection()

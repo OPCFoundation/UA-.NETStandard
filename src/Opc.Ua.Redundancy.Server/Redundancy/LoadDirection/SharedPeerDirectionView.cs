@@ -20,7 +20,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="store">The shared store the signals are gossiped through.</param>
         /// <param name="context">The message context used to decode records.</param>
         /// <param name="protector">Verifies record integrity; forged/tampered records are dropped.</param>
-        /// <param name="options">The load-direction options (key prefixes, staleness window).</param>
+        /// <param name="options">The load-direction options (members, key prefixes and age window).</param>
         /// <param name="timeProvider">The time source for staleness checks.</param>
         public SharedPeerDirectionView(
             ISharedKeyValueStore store,
@@ -28,42 +28,67 @@ namespace Opc.Ua.Redundancy.Server
             IRecordProtector protector,
             LoadDirectionOptions options,
             TimeProvider timeProvider)
+            : this(store, context, protector, options, timeProvider,
+                (options ?? throw new ArgumentNullException(nameof(options))).PeerApplicationUris)
+        {
+        }
+
+        /// <summary>
+        /// Creates the view with the resolved static member list.
+        /// </summary>
+        internal SharedPeerDirectionView(
+            ISharedKeyValueStore store,
+            IServiceMessageContext context,
+            IRecordProtector protector,
+            LoadDirectionOptions options,
+            TimeProvider timeProvider,
+            ArrayOf<string> peerApplicationUris)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_protector = protector ?? throw new ArgumentNullException(nameof(protector));
+            m_protector = LoadDirectionRecordValidation.RequireProtection(m_store, protector);
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_peerApplicationUris = LoadDirectionRecordValidation.SnapshotMembers(peerApplicationUris);
         }
 
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<PeerDirectionRecord>> GetPeersAsync(
             CancellationToken cancellationToken = default)
         {
-            long nowTicks = m_timeProvider.GetUtcNow().UtcDateTime.Ticks;
-            long stalenessTicks = m_options.StalenessWindow.Ticks;
-
-            Dictionary<string, (byte Value, long Ticks)> health = await ReadSignalsAsync(
-                m_options.ServiceLevelKeyPrefix, cancellationToken).ConfigureAwait(false);
-            Dictionary<string, (byte Value, long Ticks)> load = await ReadSignalsAsync(
-                m_options.LoadKeyPrefix, cancellationToken).ConfigureAwait(false);
-
-            var records = new List<PeerDirectionRecord>(health.Count);
-            foreach (KeyValuePair<string, (byte Value, long Ticks)> entry in health)
+            var signals = new List<(string ServerUri, byte ServiceLevel, long HealthTicks,
+                byte LoadWeight, long LoadTicks, bool LoadFound)>(m_peerApplicationUris.Count);
+            foreach (string serverUri in m_peerApplicationUris)
             {
-                if (IsStale(nowTicks, entry.Value.Ticks, stalenessTicks))
+                (bool healthFound, byte serviceLevel, long healthTicks) = await ReadSignalAsync(
+                    m_options.ServiceLevelKeyPrefix, serverUri, cancellationToken).ConfigureAwait(false);
+                if (!healthFound)
                 {
                     continue;
                 }
 
-                bool loadKnown = load.TryGetValue(entry.Key, out (byte Value, long Ticks) loadEntry) &&
-                    !IsStale(nowTicks, loadEntry.Ticks, stalenessTicks);
+                (bool loadFound, byte loadWeight, long loadTicks) = await ReadSignalAsync(
+                    m_options.LoadKeyPrefix, serverUri, cancellationToken).ConfigureAwait(false);
+                signals.Add((serverUri, serviceLevel, healthTicks, loadWeight, loadTicks, loadFound));
+            }
 
+            long nowTicks = m_timeProvider.GetUtcNow().UtcDateTime.Ticks;
+            TimeSpan maximumAge = m_options.StalenessWindow;
+            var records = new List<PeerDirectionRecord>(signals.Count);
+            foreach ((string serverUri, byte serviceLevel, long healthTicks,
+                byte loadWeight, long loadTicks, bool loadFound) in signals)
+            {
+                if (!LoadDirectionRecordValidation.IsCurrent(healthTicks, nowTicks, maximumAge))
+                {
+                    continue;
+                }
+
+                bool loadKnown = loadFound && LoadDirectionRecordValidation.IsCurrent(loadTicks, nowTicks, maximumAge);
                 records.Add(new PeerDirectionRecord
                 {
-                    ServerUri = entry.Key,
-                    ServiceLevel = entry.Value.Value,
-                    LoadWeight = loadKnown ? loadEntry.Value : (byte)0,
+                    ServerUri = serverUri,
+                    ServiceLevel = serviceLevel,
+                    LoadWeight = loadKnown ? loadWeight : (byte)0,
                     LoadKnown = loadKnown
                 });
             }
@@ -71,39 +96,24 @@ namespace Opc.Ua.Redundancy.Server
             return new ArrayOf<PeerDirectionRecord>([.. records]);
         }
 
-        private async ValueTask<Dictionary<string, (byte Value, long Ticks)>> ReadSignalsAsync(
+        private async ValueTask<(bool Found, byte Value, long Ticks)> ReadSignalAsync(
             string keyPrefix,
+            string serverUri,
             CancellationToken cancellationToken)
         {
-            var result = new Dictionary<string, (byte Value, long Ticks)>(StringComparer.Ordinal);
-            await foreach (KeyValuePair<string, ByteString> entry in m_store
-                .ScanAsync(keyPrefix, cancellationToken)
-                .ConfigureAwait(false))
+            string key = keyPrefix + serverUri;
+            (bool found, ByteString record) = await m_store.TryGetAsync(key, cancellationToken).ConfigureAwait(false);
+            if (found &&
+                m_protector.TryUnprotect(RecordProtectionContext.Create("peer-direction", key), record,
+                    out ByteString payload) &&
+                PeerDirectionCodec.TryDecode(
+                    payload, m_context, out string recordServerUri, out byte value, out long ticks) &&
+                string.Equals(recordServerUri, serverUri, StringComparison.Ordinal))
             {
-                if (!m_protector.TryUnprotect(
-                        RecordProtectionContext.Create("peer-direction", entry.Key),
-                        entry.Value,
-                        out ByteString payload) ||
-                    !PeerDirectionCodec.TryDecode(
-                        payload, m_context, out string serverUri, out byte value, out long ticks))
-                {
-                    continue;
-                }
-
-                // Keep the newest record when a peer appears more than once.
-                if (!result.TryGetValue(serverUri, out (byte Value, long Ticks) existing) ||
-                    ticks > existing.Ticks)
-                {
-                    result[serverUri] = (value, ticks);
-                }
+                return (true, value, ticks);
             }
 
-            return result;
-        }
-
-        private static bool IsStale(long nowTicks, long recordTicks, long stalenessTicks)
-        {
-            return nowTicks - recordTicks > stalenessTicks;
+            return default;
         }
 
         private readonly ISharedKeyValueStore m_store;
@@ -111,5 +121,6 @@ namespace Opc.Ua.Redundancy.Server
         private readonly IRecordProtector m_protector;
         private readonly LoadDirectionOptions m_options;
         private readonly TimeProvider m_timeProvider;
+        private readonly HashSet<string> m_peerApplicationUris;
     }
 }

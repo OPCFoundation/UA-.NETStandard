@@ -213,6 +213,7 @@ namespace Opc.Ua
                         ServerCertificates = m_serverCertificates,
                         ReverseConnectListener = true,
                         MaxChannelCount = kDefaultMaxChannelCount,
+                        HandshakeTimeout = TimeSpan.FromSeconds(5),
                         ConnectionRateLimiter = m_connectionRateLimiter
                     };
 
@@ -418,22 +419,20 @@ namespace Opc.Ua
 
         /// <summary>
         /// The most connections the reverse connect listener keeps pending
-        /// before they sent their ReverseHello and were handed off; the
-        /// default of a server's listener.
+        /// before they send their ReverseHello and are handed off.
         /// </summary>
-        internal const int kDefaultMaxChannelCount = 1000;
+        internal const int kDefaultMaxChannelCount = 128;
 
         /// <summary>
         /// The sustained rate of connections the reverse connect listener
-        /// admits; the default of a server's listener.
+        /// admits before authenticating the peer.
         /// </summary>
-        internal const int kDefaultConnectionsPerSecond = 500;
+        internal const int kDefaultConnectionsPerSecond = 32;
 
         /// <summary>
-        /// The burst of connections the reverse connect listener admits; the
-        /// default of a server's listener.
+        /// The burst of connections the reverse connect listener admits.
         /// </summary>
-        internal const int kDefaultConnectionBurst = 1000;
+        internal const int kDefaultConnectionBurst = 64;
 
         /// <summary>
         /// Admits connections at the rate of a token bucket.

@@ -23,10 +23,7 @@ namespace Opc.Ua.Redundancy.Server
     /// mirroring is envelope-only: the opaque continuation token, owner SessionId, kind, and expiry metadata are
     /// persisted so a backup can reject, release, or correlate the token, but Browse/Query/History continuation
     /// enumerator internals owned by a local node manager remain process-local runtime state and are not resumed by
-    /// this store.
-    /// When paired with a <see cref="SharedKeyValueMonitoredItemQueueFactory"/>, the per-monitored-item data/event
-    /// queues are also restored on promotion: the asynchronous restore members re-hydrate the mirrored queue values
-    /// so queued-but-unpublished notifications survive a failover.
+    /// this store. It does not persist queued-but-unpublished notifications.
     /// </remarks>
     public sealed class SharedKeyValueSubscriptionStore :
         ISubscriptionStore,
@@ -44,22 +41,16 @@ namespace Opc.Ua.Redundancy.Server
         /// Optional record protector applied to every encoded subscription entry; defaults to pass-through.
         /// </param>
         /// <param name="logger">Optional logger for asynchronous mirror failures.</param>
-        /// <param name="queueFactory">
-        /// Optional shared-store monitored-item queue factory. When supplied, the asynchronous queue-restore
-        /// members re-hydrate mirrored data/event queues on promotion; otherwise they return <c>null</c>.
-        /// </param>
         public SharedKeyValueSubscriptionStore(
             ISharedKeyValueStore store,
             IServiceMessageContext context,
             IRecordProtector? protector = null,
-            ILogger<SharedKeyValueSubscriptionStore>? logger = null,
-            SharedKeyValueMonitoredItemQueueFactory? queueFactory = null)
+            ILogger<SharedKeyValueSubscriptionStore>? logger = null)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_protector = protector ?? NullRecordProtector.Instance;
             m_logger = logger;
-            m_queueFactory = queueFactory;
             m_definitionCache = s_definitionCaches.GetValue(store, static _ => new SharedDefinitionCache());
             m_channel = Channel.CreateBounded<MirrorCommand>(new BoundedChannelOptions(ChannelCapacity)
             {
@@ -174,41 +165,31 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
+        IDataChangeMonitoredItemQueue ISubscriptionStore.RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
         {
             return null!;
         }
 
         /// <inheritdoc/>
-        public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
+        IEventMonitoredItemQueue ISubscriptionStore.RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
             return null!;
         }
 
         /// <inheritdoc/>
-        public ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(
+        ValueTask<IDataChangeMonitoredItemQueue?> ISubscriptionStore.RestoreDataChangeMonitoredItemQueueAsync(
             uint monitoredItemId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
-            if (m_queueFactory == null)
-            {
-                return new ValueTask<IDataChangeMonitoredItemQueue?>((IDataChangeMonitoredItemQueue?)null);
-            }
-
-            return m_queueFactory.RestoreDataChangeQueueAsync(monitoredItemId, cancellationToken);
+            return default;
         }
 
         /// <inheritdoc/>
-        public ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(
+        ValueTask<IEventMonitoredItemQueue?> ISubscriptionStore.RestoreEventMonitoredItemQueueAsync(
             uint monitoredItemId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
-            if (m_queueFactory == null)
-            {
-                return new ValueTask<IEventMonitoredItemQueue?>((IEventMonitoredItemQueue?)null);
-            }
-
-            return m_queueFactory.RestoreEventQueueAsync(monitoredItemId, cancellationToken);
+            return default;
         }
 
         /// <inheritdoc/>
@@ -224,14 +205,6 @@ namespace Opc.Ua.Redundancy.Server
             List<StoredSubscription> restoredSubscriptions = m_definitionCache
                 .CloneWhere([.. createdSubscriptions.Keys]);
             await StoreSubscriptionsAsync(restoredSubscriptions, cancellationToken).ConfigureAwait(false);
-
-            if (m_queueFactory != null)
-            {
-                HashSet<uint> liveMonitoredItemIds = [.. createdSubscriptions.SelectMany(pair => pair.Value.Memory.ToArray())];
-                await m_queueFactory
-                    .CleanupAsync(liveMonitoredItemIds, cancellationToken)
-                    .ConfigureAwait(false);
-            }
         }
 
         /// <inheritdoc/>
@@ -1567,7 +1540,6 @@ namespace Opc.Ua.Redundancy.Server
         private readonly IServiceMessageContext m_context;
         private readonly IRecordProtector m_protector;
         private readonly ILogger<SharedKeyValueSubscriptionStore>? m_logger;
-        private readonly SharedKeyValueMonitoredItemQueueFactory? m_queueFactory;
         private readonly SharedDefinitionCache m_definitionCache;
         private readonly Channel<MirrorCommand> m_channel;
         private readonly CancellationTokenSource m_drainCts = new();

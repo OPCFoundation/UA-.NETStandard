@@ -283,7 +283,7 @@ namespace Opc.Ua.Client.TestFramework
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
 
-                NodeMetadata metadata = await viewManager.GetNodeMetadataAsync(
+                NodeMetadata? metadata = await viewManager.GetNodeMetadataAsync(
                         context,
                         viewHandle,
                         BrowseResultMask.NodeClass,

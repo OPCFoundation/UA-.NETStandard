@@ -362,7 +362,12 @@ namespace Opc.Ua.Client.Tests
                 redundancy.Setup(value => value.SelectFailoverTarget(
                         It.IsAny<ServerRedundancyInfo>(), It.IsAny<ConfiguredEndpoint>()))
                     .Returns((ServerRedundancyInfo _, ConfiguredEndpoint endpoint) => CoreUtils.Clone(endpoint)!);
-                builder.WithServerRedundancy(redundancy.Object);
+                builder.WithServerRedundancy(redundancy.Object)
+                    .WithServerRedundancyOptions(new ServerRedundancyOptions
+                    {
+                        ExpectedServerApplicationUri = ServerFixture.Config.ApplicationUri,
+                        ProbeMemberServiceLevel = false
+                    });
             }
             await using ManagedSessionType session = await builder.ConnectAsync(timeout.Token).ConfigureAwait(false);
             if (failover)

@@ -20,6 +20,7 @@ opcua-wot-export C:\models
 opcua-wot-export C:\models C:\export
 opcua-wot-export C:\models\Opc.Ua.Di.NodeSet2.xml
 opcua-wot-export C:\models C:\export --registry-base-url https://registry.example.com --group-id opcua
+opcua-wot-export C:\models C:\export --metadata C:\publisher.json --identifier-safe-keys
 ```
 
 The source path is required. The output path is optional.
@@ -81,6 +82,107 @@ in NodeSet source order, including names used by instance nodes.
 Existing document IDs are preserved. Titles remain the source DisplayNames;
 `uav:id` remains the namespace-qualified native node identity.
 
+### Names and publisher metadata
+
+The exporter writes `uav:fullName` and `uav:typeName` independently of the
+document `id`. Type roots carry the represented type name. Affordance names
+identify their native declaring type and declaration path, not their output
+key. Value schemas identify their DataType, including array element types.
+
+Automatic names reverse the namespace's DNS host labels and append its path
+segments and native BrowseName. The namespace must be an HTTP(S) URL with no
+userinfo, explicit port, query, fragment, or trailing host dot. Each name
+segment must match `[A-Za-z_][A-Za-z0-9_]*`. Invalid segments, ambiguous
+declaration ownership, and name collisions require explicit mappings.
+The exporter does not invent name suffixes to resolve these collisions.
+
+Use `--metadata <file>` for explicit publisher facts. The UTF-8 JSON object
+uses portable native NodeIds as keys:
+
+```json
+{
+  "nsu=urn:plant:pump;i=1001": {
+    "name": "com.example.plant.PumpType",
+    "isStandalone": true
+  },
+  "nsu=urn:plant:pump;i=1010": {
+    "name": "com.example.plant.PumpType.Speed",
+    "eventContractType": ["com.example.plant.SpeedChanged.v1"]
+  },
+  "nsu=urn:plant:pump;i=1011": {
+    "name": "com.example.plant.PumpType.Speed.EngineeringUnits",
+    "unitCodeSystem": "http://unitsofmeasure.org",
+    "unitCode": "m/s"
+  }
+}
+```
+
+Provide a `name` for every required identity whose name cannot be derived,
+including custom DataTypes. Each `name` must be unambiguous in the input batch.
+Metadata does not change document IDs or native identities.
+
+`isStandalone` applies only to a non-event ObjectType Thing Model root.
+Both `true` and `false` are explicit publisher assertions. Omission leaves
+intent unspecified. Subtypes do not inherit this assertion. The converter
+preserves it as residue on a round trip.
+
+`eventContractType` applies only to the interaction with that native identity.
+Its array must contain distinct contract type strings with a final `.vN`
+segment, where `N` is a positive integer with no leading zero.
+An ordinary NodeSet export does not assert a CloudEvents contract.
+
+### Identifier-safe keys
+
+`--identifier-safe-keys` selects identifier-safe keys in `properties`,
+`actions`, and `events`. The default mode retains native local BrowseNames.
+The selected mode prefers a nonempty native `SymbolicName`. Otherwise, it
+uses the local BrowseName. It replaces each maximal run outside
+`[A-Za-z0-9_]` with `_` and prefixes `A_` if the result does not start with
+an ASCII letter.
+
+Within each interaction map, canonical native identity order determines
+collision suffixes `_2`, `_3`, and later values. Candidate names and source
+pointers break ties. The exporter updates optionality, unit associations,
+and schema or model references to use the emitted keys. Native BrowseNames,
+identities, and literal payloads remain unchanged.
+
+`tm:optional` contains complete-affordance RFC 6901 pointers for `Optional`,
+`OptionalPlaceholder`, and `MandatoryPlaceholder` declarations. The native
+modelling rule still controls placeholder cardinality.
+
+### Payload schemas and engineering metadata
+
+Ordinary WoT schemas describe Structure fields, inherited fields, required
+members, arrays, enums, and Union alternatives. Native type annotations remain
+authoritative. A schema that cannot be fully represented, such as a recursive
+Structure or an unresolved type, produces a diagnostic with the document and
+schema pointer. Include all required DataType models to reduce these gaps.
+
+Concrete integer properties have exact storage bounds at their scalar or
+array-item schemas. Resolved custom simple types use their concrete storage
+type. Tighter authored constraints remain in place. An empty intersection
+fails export. These added storage bounds do not apply to Method/Event schemas,
+abstract numeric types, or nested Structure fields.
+
+`uav:euRange` carries engineering limits separately from ordinary
+`minimum` and `maximum`. Unknown native NaN endpoints are omitted. An infinite
+endpoint produces a diagnostic and remains available in the native source.
+
+`uav:withUnit` points to a separate string property in the same document.
+That property declares `uav:unitCodeSystem` and uses a code from that
+vocabulary, not localized display text. UN/CEFACT codes come from the packed
+native UnitId. Use paired `unitCodeSystem` and `unitCode` metadata for other
+vocabularies. An unknown vocabulary produces a diagnostic and no runtime unit
+association. `uav:engineeringUnits` retains the native unit information.
+
+The exporter creates no sampling endpoint. A runtime publisher must associate
+each sample with the unit that applied to it. If that association is unavailable,
+the consumer must treat the sample's unit as unknown.
+
+Singular fallback titles, descriptions, and engineering-unit text retain their
+selected source locale through a local context override. Only untagged source
+text uses `"@language": null`.
+
 ### Registry references and versions
 
 The registry resource ID is separate from the WoT `id` in the JSON document:
@@ -132,14 +234,16 @@ For native string NodeIds, only `#/` starts a JSON Pointer fragment.
 If that complete native target is not registered, the reference stays
 unchanged; the command does not resolve a shorter prefix before another `#`.
 References in `patternProperties` schema maps also use registry URLs.
-Resolved `ua:HasSupertype` links use `tm:extends`; other link relations are
-preserved.
+Resolved parent Thing Models add a `tm:extends` link. The native
+`ua:HasSupertype` link remains unchanged. An unavailable parent produces an
+incomplete-inheritance diagnostic and retains the native link.
 
 Fallback Thing Models for view-only or standalone-method NodeSets also
 receive registry identities and namespace versions. Their native view or
 method is preserved.
 
-The first conversion pass retains only model identity and version metadata.
+The first conversion pass retains model identity, version, key allocations,
+and readable DataType definitions.
 It disposes each source's generated documents before it converts the next
 source. A second pass converts and writes one source at a time.
 Generated JSON payloads do not accumulate across the input tree; the local
@@ -159,8 +263,8 @@ its registry links. Keep support files at the locations their local links name.
 The command uses the asynchronous document-set export API.
 That API checks that the result can preserve the source facts.
 It can add a native projection or a preservation envelope when the readable
-mapping is not complete. The command does not change the export vocabulary,
-create network endpoints, or fetch required models from the network.
+mapping is not complete. The command applies the mapping rules above. It does not create network
+endpoints or fetch required models from the network.
 The output is not a certificate of full W3C or OPC UA conformance.
 See [conversion limits and conformance](WotNodeSetConversion.md).
 The command permits up to 100,000 linked documents, a depth of 128, and

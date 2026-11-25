@@ -316,7 +316,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     {
                         MaxCost = options.MaxUnauthenticatedMetaDataCost,
                         IdleTimeout = options.UnauthenticatedMetaDataIdleTimeout
-                    });
+                    },
+                    nonceRangeStore: sp.GetService<IPubSubNonceRangeStore>(),
+                    activationFenceProvider: sp.GetService<IPubSubActivationFenceProvider>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

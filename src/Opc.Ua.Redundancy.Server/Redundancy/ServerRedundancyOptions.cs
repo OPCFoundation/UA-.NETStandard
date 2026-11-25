@@ -20,13 +20,6 @@ namespace Opc.Ua.Redundancy.Server
         public RedundancySupport Mode { get; set; } = RedundancySupport.None;
 
         /// <summary>
-        /// Gets URI-only fallback peer ServerUris for legacy configuration that cannot provide discovery URLs.
-        /// Prefer <see cref="RedundantPeers"/> or <see cref="AddRedundantPeer"/> as the canonical redundancy
-        /// peer input; those entries drive both <c>FindServers</c> and the flat redundancy URI variables.
-        /// </summary>
-        public IList<string> PeerServerUris { get; } = [];
-
-        /// <summary>
         /// Gets the canonical rich peer descriptions used by <c>FindServers</c> for a non-transparent
         /// <c>RedundantServerSet</c> (OPC 10000-4 §6.6.2.4.5.1) and by the flat redundancy URI variables.
         /// </summary>
@@ -38,10 +31,15 @@ namespace Opc.Ua.Redundancy.Server
         public string CurrentServerId { get; set; } = Environment.MachineName;
 
         /// <summary>
-        /// Gets or sets the <c>ServiceLevel</c> published for each configured peer Server in
-        /// <c>Server.ServerRedundancy.RedundantServerArray</c>.
+        /// Gets configured physical peer identifiers for a Transparent <c>RedundantServerSet</c>.
         /// </summary>
-        public byte PeerServiceLevel { get; set; } = ServiceLevels.Maximum;
+        public IList<string> TransparentPeerServerIds { get; } = [];
+
+        /// <summary>
+        /// Gets or sets the record key prefix for peer status. Use a distinct prefix for each replica set
+        /// when more than one set uses the same shared store.
+        /// </summary>
+        public string PeerStatusKeyPrefix { get; set; } = "redundancy/peer-status/v1/";
 
         /// <summary>
         /// Gets or sets a value indicating whether non-transparent modes add
@@ -73,14 +71,13 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Gets the peer application URIs used for redundancy variables, derived from the canonical
-        /// <see cref="RedundantPeers"/> list plus the URI-only <see cref="PeerServerUris"/> fallback.
+        /// <see cref="RedundantPeers"/> list.
         /// </summary>
         /// <returns>The configured peer application URIs.</returns>
         public ArrayOf<string> GetPeerApplicationUris()
         {
             return new ArrayOf<string>(RedundantPeers
                 .Select(peer => peer.ApplicationUri)
-                .Concat(PeerServerUris)
                 .Where(uri => !string.IsNullOrEmpty(uri))
                 .Distinct(StringComparer.Ordinal)
                 .ToArray());

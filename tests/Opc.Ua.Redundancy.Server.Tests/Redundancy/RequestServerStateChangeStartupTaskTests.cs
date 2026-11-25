@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
 
@@ -415,6 +416,60 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(estimatedReturnTimeNode.Value, Is.EqualTo(DateTimeUtc.MinValue));
             Assert.That(ReadState(loaded), Is.EqualTo(ServerState.Running));
             Assert.That(loaded.Status.Value.ShutdownReason.IsNullOrEmpty, Is.True);
+            Assert.That(loaded.Server.Object.ServerObject.ServiceLevel!.Value, Is.EqualTo(ServiceLevels.Maximum));
+        }
+
+        [TestCase(RedundancySupport.Cold, ServiceLevels.NoData)]
+        [TestCase(RedundancySupport.Warm, (byte)178)]
+        public async Task RequestRunningRestoresStandbyRoleAndHealthAsync(RedundancySupport mode, byte expected)
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var clock = new FakeTimeProvider();
+            await using var election = new StaticLeaderElection(false);
+            byte health = ServiceLevels.Maximum;
+            using var provider = new LeaderServiceLevelProvider(election, mode, getHealthServiceLevel: () => health);
+            using var publisher = new ServiceLevelStartupTask(provider, clock);
+            using var task = new RequestServerStateChangeStartupTask(
+                new RequestServerStateChangeOptions
+                {
+                    AdminAccessValidator = _ => { },
+                    ServiceLevelSelector = _ => ServiceLevels.Maximum,
+                    TimeProvider = clock
+                },
+                provider);
+            await publisher.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            PropertyState<byte> serviceLevel = loaded.Server.Object.ServerObject.ServiceLevel!;
+            var estimate = new DateTimeUtc(638000000000000000);
+            ServiceResult suspend = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Suspended,
+                estimate,
+                0,
+                LocalizedText.Null,
+                restart: false);
+            Assert.That(suspend, Is.EqualTo(ServiceResult.Good));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.Maintenance));
+
+            health = 178;
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.Maintenance));
+
+            ServiceResult resume = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Running,
+                estimate,
+                0,
+                LocalizedText.Null,
+                restart: false);
+            Assert.That(resume, Is.EqualTo(ServiceResult.Good));
+            Assert.That(serviceLevel.Value, Is.EqualTo(expected));
+            Assert.That(loaded.Server.Object.ServerObject.EstimatedReturnTime!.Value, Is.EqualTo(DateTimeUtc.MinValue));
         }
 
         [Test]

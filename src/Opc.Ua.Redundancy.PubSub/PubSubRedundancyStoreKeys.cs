@@ -8,9 +8,8 @@ namespace Opc.Ua.PubSub.Redundancy
     /// distributed PubSub redundancy bridges so every store agrees on its keyspace.
     /// </summary>
     /// <remarks>
-    /// The <c>lease/</c> prefix routes to the strong (linearizable) keyspace of a
-    /// <see cref="Ua.Redundancy.HybridSharedKeyValueStore"/> because leases require
-    /// compare-and-swap; the remaining prefixes tolerate eventual consistency.
+    /// External lease and state claims are committed by a separately enrolled
+    /// <see cref="Ua.Redundancy.FreshnessProtectedKeyValueStore"/>.
     /// </remarks>
     internal static class PubSubRedundancyStoreKeys
     {

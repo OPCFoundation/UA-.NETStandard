@@ -1908,7 +1908,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(supported.AreEventsMonitored, Is.False);
                 Assert.That(other.AreEventsMonitored, Is.False);
 
-                object handle = await manager.GetManagerHandleAsync(unsupported.NodeId).ConfigureAwait(false);
+                object handle = (await manager.GetManagerHandleAsync(unsupported.NodeId).ConfigureAwait(false))!;
                 ServiceResult direct = await manager.SubscribeToEventsAsync(
                     context, handle, 1, item.Object, false).ConfigureAwait(false);
                 Assert.That(direct.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
@@ -2117,11 +2117,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 };
                 m_supported.Setup(value => value.GetManagerHandleAsync(
                         ObjectIds.Server, It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<object>(source));
+                    .Returns(new ValueTask<object?>(source));
                 m_supported.Setup(value => value.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(), It.IsAny<object>(),
                         It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata>(new NodeMetadata(source, source.NodeId)
+                    .Returns(new ValueTask<NodeMetadata?>(new NodeMetadata(source, source.NodeId)
                     {
                         NodeClass = NodeClass.Object,
                         EventNotifier = EventNotifiers.SubscribeToEvents

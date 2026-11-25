@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
+using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -121,13 +122,29 @@ namespace Opc.Ua.PubSub.Redundancy
         }
 
         [Test]
-        public async Task NetworkedStoreWithProtectorResolvesSecurityKeyStoreAsync()
+        public async Task NetworkedStoreWithProtectorButWithoutFreshnessFailsClosedAsync()
         {
             ISharedKeyValueStore networkedStore = new Mock<ISharedKeyValueStore>(MockBehavior.Loose).Object;
             ServiceCollection services = CreateServices(networkedStore, registerElection: true);
-            services.AddSingleton<IRecordProtector>(new AesCbcHmacRecordProtector(new byte[32]));
+            using var protector = new AesCbcHmacRecordProtector(new byte[32]);
+            services.AddSingleton<IRecordProtector>(protector);
             services.AddPubSubRedundancy(o => o.Election = PubSubRedundancyElection.LeaderElection);
 
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(() => provider.GetRequiredService<IPubSubSecurityKeyStore>(), Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public async Task NetworkedStoreWithFreshnessResolvesSecurityKeyStoreAsync()
+        {
+            using var payload = new SimulatedSharedKeyValueStore();
+            using var authority = new SimulatedSharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(new byte[32]);
+            ServiceCollection services = CreateServices(payload, registerElection: true);
+            services.AddSingleton<IRecordProtector>(protector);
+            services.AddSharedRecordFreshness(_ => authority, Guid.NewGuid(), Guid.NewGuid());
+            services.AddPubSubRedundancy(o => o.Election = PubSubRedundancyElection.LeaderElection);
             await using ServiceProvider provider = services.BuildServiceProvider();
 
             Assert.That(

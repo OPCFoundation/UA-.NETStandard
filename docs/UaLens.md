@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # UaLens
 
 UaLens is an Avalonia desktop application for exploring OPC UA address spaces,
@@ -139,6 +144,9 @@ Permanently**. Accept Once applies only to the selected endpoint and certificate
 disconnecting or changing the target clears it. Permanent trust is written to
 the certificate store. Invalid or revoked certificates cannot be accepted through
 the untrusted-certificate prompt.
+
+Ordinary Lens connections reconnect to the selected endpoint. Lens does not
+automatically fail over to another server using that endpoint's trust decision.
 
 ### Automatic connection
 

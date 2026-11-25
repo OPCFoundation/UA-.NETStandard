@@ -895,6 +895,38 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Raises <c>NotifyNodeAdded</c> on <paramref name="builder"/> for a
+        /// node registered after <see cref="SealConfigurationAsync"/> sealed it.
+        /// </summary>
+        /// <remarks>
+        /// Call it from <c>OnPredefinedNodeAdded</c>. A node registered before
+        /// the seal is skipped: the seal replays the notification for every
+        /// predefined node, so notifying it here as well would run its
+        /// <c>OnNodeAdded</c> handler twice, the first time before
+        /// configuration has finished.
+        /// </remarks>
+        /// <param name="builder">The builder the Configure pass used.</param>
+        /// <param name="context">The system context of the registration.</param>
+        /// <param name="node">The registered node.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        protected void NotifyPredefinedNodeAdded(
+            NodeManagerBuilder builder,
+            ISystemContext context,
+            NodeState node)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (builder.IsGraphAuthoringSealed)
+            {
+                builder.Dispatcher.NotifyNodeAdded(context, node);
+            }
+        }
+
+        /// <summary>
         /// Seals the builder, replays <c>NotifyNodeAdded</c> for every node
         /// this manager owns, and then completes the registrations the
         /// <c>Configure</c> pass could not finish synchronously and starts

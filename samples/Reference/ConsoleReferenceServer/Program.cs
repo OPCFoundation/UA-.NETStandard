@@ -186,14 +186,6 @@ namespace Quickstarts.ReferenceServer
                     // Create the server and add the node managers
                     server.Create(Servers.Utils.AsyncNodeManagerFactories);
 
-                    // The MemoryBuffer sample still uses the synchronous node manager API.
-#pragma warning disable CS0618, UA0031 // MemoryBuffer still derives from the synchronous SampleNodeManager.
-                    foreach (INodeManagerFactory factory in Servers.Utils.NodeManagerFactories)
-                    {
-                        server.Server!.AddNodeManager(factory);
-                    }
-#pragma warning restore CS0618, UA0031
-
                     // Add GDS node manager if configured
                     GlobalDiscoveryServerConfiguration? gdsConfig = server.Configuration
                         .ParseExtension<GlobalDiscoveryServerConfiguration>();

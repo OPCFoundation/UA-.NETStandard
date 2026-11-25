@@ -552,8 +552,8 @@ namespace Opc.Ua.Gds.Tests
                         .ConfigureAwait(false);
                     Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
 
-                    object deviceHandle = await old.NodeManager.GetManagerHandleAsync(new NodeId(29878u),
-                        cancellationToken).ConfigureAwait(false);
+                    object deviceHandle = (await old.NodeManager.GetManagerHandleAsync(new NodeId(29878u),
+                        cancellationToken).ConfigureAwait(false))!;
                     var device = (ProvisionableDeviceState)((NodeHandle)deviceHandle).Node;
                     Task<ServiceResult> tickets = device.RequestTickets!.OnCallMethod2Async!(
                         context, device.RequestTickets, device.NodeId, [], [Variant.Null], cancellationToken)
@@ -627,9 +627,9 @@ namespace Opc.Ua.Gds.Tests
             {
                 ushort ns = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-                object handle = await manager.GetManagerHandleAsync(
+                object handle = (await manager.GetManagerHandleAsync(
                     new NodeId($"Application:{target.Configuration.ApplicationUri}", ns), cancellationToken)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 return (ApplicationConfigurationState)((NodeHandle)handle).Node;
             }
 
@@ -1196,7 +1196,7 @@ namespace Opc.Ua.Gds.Tests
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
                 var applicationNodeId = new NodeId($"Application:{applicationUri}", namespaceIndex);
-                object handle = await retryManager.GetManagerHandleAsync(applicationNodeId).ConfigureAwait(false);
+                object handle = (await retryManager.GetManagerHandleAsync(applicationNodeId).ConfigureAwait(false))!;
 
                 Assert.That(handle, Is.TypeOf<NodeHandle>());
                 var node = ((NodeHandle)handle).Node;
@@ -1243,8 +1243,8 @@ namespace Opc.Ua.Gds.Tests
                 var deviceNodeId = new NodeId(29878u);
                 var firstNodeId = new NodeId($"Application:{firstApplicationUri}", namespaceIndex);
                 var secondNodeId = new NodeId($"Application:{secondApplicationUri}", namespaceIndex);
-                object firstHandle = await manager.GetManagerHandleAsync(firstNodeId).ConfigureAwait(false);
-                object secondHandle = await manager.GetManagerHandleAsync(secondNodeId).ConfigureAwait(false);
+                object firstHandle = (await manager.GetManagerHandleAsync(firstNodeId).ConfigureAwait(false))!;
+                object secondHandle = (await manager.GetManagerHandleAsync(secondNodeId).ConfigureAwait(false))!;
                 Assert.That(firstHandle, Is.TypeOf<NodeHandle>());
                 Assert.That(secondHandle, Is.TypeOf<NodeHandle>());
                 Assert.That(((NodeHandle)firstHandle).Node, Is.TypeOf<ApplicationConfigurationState>());
@@ -1356,9 +1356,9 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-                object handle = await manager.GetManagerHandleAsync(
+                object handle = (await manager.GetManagerHandleAsync(
                     new NodeId($"Application:{target.Configuration.ApplicationUri}", namespaceIndex))
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var application = (ApplicationConfigurationState)((NodeHandle)handle).Node;
                 ApplicationConfigurationFileState file = application.ConfigurationFile!;
                 Assert.That(file, Is.Not.Null);
@@ -1420,9 +1420,9 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-                object handle = await manager.GetManagerHandleAsync(
+                object handle = (await manager.GetManagerHandleAsync(
                     new NodeId($"Application:{target.Configuration.ApplicationUri}", namespaceIndex))
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var application = (ApplicationConfigurationState)((NodeHandle)handle).Node;
                 ApplicationConfigurationFileState file = application.ConfigurationFile!;
                 ServerSystemContext context = ((AsyncCustomNodeManager)manager).SystemContext;
@@ -1926,8 +1926,8 @@ namespace Opc.Ua.Gds.Tests
         private async Task<NodeId> GetProvisionableDeviceNodeIdAsync(NodeManagerRegistration registration)
         {
             var expectedNodeId = new NodeId(29878u);
-            object handle = await registration.NodeManager.GetManagerHandleAsync(expectedNodeId)
-                .ConfigureAwait(false);
+            object handle = (await registration.NodeManager.GetManagerHandleAsync(expectedNodeId)
+                .ConfigureAwait(false))!;
             Assert.That(handle, Is.TypeOf<NodeHandle>());
             NodeState device = ((NodeHandle)handle).Node;
             Assert.That(device.NodeId, Is.EqualTo(expectedNodeId));

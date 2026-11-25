@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -964,6 +965,10 @@ namespace Opc.Ua.Server
                             session,
                             context,
                             activationState.RestorePending,
+                            serverNonce,
+                            clientUserTokenType,
+                            clientUserId,
+                            userTokenPolicy,
                             CancellationToken.None).ConfigureAwait(false);
                     }
                     finally
@@ -1248,7 +1253,24 @@ namespace Opc.Ua.Server
                 bool removed = false;
                 try
                 {
-                    await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    if (!m_sessions.TryGetValue(authenticationToken, out ISession? foundSession) ||
+                        !ReferenceEquals(foundSession, session))
+                    {
+                        return;
+                    }
+
+                    ExceptionDispatchInfo? closeFailure = null;
+                    try
+                    {
+                        await OnSessionClosingAsync(authenticationToken, session, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        closeFailure = ExceptionDispatchInfo.Capture(ex);
+                    }
+
+                    await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                     try
                     {
                         lock (m_bindingsLock)
@@ -1259,6 +1281,7 @@ namespace Opc.Ua.Server
                                 !ReferenceEquals(currentSession, session) ||
                                 !m_sessions.TryRemove(authenticationToken, out _))
                             {
+                                closeFailure?.Throw();
                                 return;
                             }
                             removed = true;
@@ -1280,6 +1303,7 @@ namespace Opc.Ua.Server
                     // must finish: a cancelled close would leave its SessionDiagnostics
                     // node and array entry behind for a session that no longer exists.
                     await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    closeFailure?.Throw();
                 }
                 finally
                 {
@@ -1496,8 +1520,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called once for a Session materialized by <see cref="RestoreSessionAsync"/>,
         /// after its first <c>ActivateSession</c> passed the client signature, user
-        /// identity and continuity checks and the session was activated locally, immediately
-        /// before the activation is bound and committed.
+        /// identity and continuity checks, before activation is committed locally.
         /// </summary>
         /// <remarks>
         /// A distributed manager consumes its single-use restore state here (for example
@@ -1508,9 +1531,8 @@ namespace Opc.Ua.Server
         /// discarded from this manager without going through
         /// <see cref="CloseSessionAsync"/>, so mirrored state is not deleted. Only the binding,
         /// which fails only for a session that is being closed, commits after this call returns
-        /// <c>true</c>, so the request's cancellation is not passed: a restore must not be
-        /// consumed and then abandoned. Work that must only happen for a committed activation
-        /// belongs in <see cref="OnSessionActivatedAsync"/>.
+        /// <c>true</c>, so the request's cancellation is not passed. Work that must only
+        /// happen after the local activation belongs in <see cref="OnSessionActivatedAsync"/>.
         /// </remarks>
         /// <param name="authenticationToken">The Session authentication token.</param>
         /// <param name="session">The restored Session.</param>
@@ -1549,6 +1571,49 @@ namespace Opc.Ua.Server
                     context,
                     cancellationToken)
                 : new ValueTask<bool>(true);
+        }
+
+        /// <summary>
+        /// Admits the validated activation under the per-Session activation gate, with
+        /// the new state available to implementations that commit it in a shared store.
+        /// </summary>
+        /// <param name="authenticationToken">The session authentication token.</param>
+        /// <param name="session">The session with its previous activation state.</param>
+        /// <param name="context">The operation context of the activation.</param>
+        /// <param name="isRestoredSession">Whether this is the first activation of a restored session.</param>
+        /// <param name="serverNonce">The nonce to issue on success.</param>
+        /// <param name="clientUserTokenType">The validated user token type.</param>
+        /// <param name="clientUserId">The validated identity continuity key.</param>
+        /// <param name="userTokenPolicy">The policy used to validate the user token.</param>
+        /// <param name="cancellationToken">The cancellation token for the commit.</param>
+        /// <returns><c>true</c> to proceed with activation; <c>false</c> to reject it.</returns>
+        protected virtual ValueTask<bool> AdmitActivationAsync(
+            NodeId authenticationToken,
+            ISession session,
+            OperationContext context,
+            bool isRestoredSession,
+            ByteString serverNonce,
+            UserTokenType clientUserTokenType,
+            string? clientUserId,
+            UserTokenPolicy? userTokenPolicy,
+            CancellationToken cancellationToken)
+        {
+            return AdmitActivationAsync(authenticationToken, session, context, isRestoredSession, cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs under the per-Session activation gate before an explicit or timed-out close
+        /// removes the session. Local teardown still runs if this callback fails.
+        /// </summary>
+        /// <param name="authenticationToken">The session authentication token.</param>
+        /// <param name="session">The session being closed.</param>
+        /// <param name="cancellationToken">The cancellation token for the close.</param>
+        protected virtual ValueTask OnSessionClosingAsync(
+            NodeId authenticationToken,
+            ISession session,
+            CancellationToken cancellationToken)
+        {
+            return default;
         }
 
         /// <summary>
@@ -1694,6 +1759,15 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
 
+                NodeId authenticationToken = requestHeader.AuthenticationToken;
+                bool requiresAdmission = RequiresSessionRequestAdmission(session);
+                SessionActivationState? admissionState = null;
+                SessionBindingContext? admissionBinding = null;
+                if (requiresAdmission && m_sessionActivationStates.TryGetValue(session, out admissionState))
+                {
+                    admissionBinding = admissionState.DispatchBinding;
+                }
+
                 // validate request header.
                 session!.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
@@ -1702,6 +1776,21 @@ namespace Opc.Ua.Server
                 if (SessionTermination.IsClosingOrClaimed(session))
                 {
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
+
+                if (requiresAdmission)
+                {
+                    try
+                    {
+                        EnsureSessionRequestBinding(authenticationToken, session, admissionState, admissionBinding);
+                        await ValidateSessionRequestAdmissionAsync(
+                            authenticationToken, session, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException error)
+                    {
+                        (session as Session)?.UpdateRejectedRequestCounters(requestType, error.StatusCode);
+                        throw;
+                    }
                 }
 
                 // Part 18 §4.4.1 — if a Role configuration change marked the
@@ -1721,8 +1810,24 @@ namespace Opc.Ua.Server
                 // re-evaluation so the privilege reflects the roles the request runs with.
                 session.ValidateDiagnosticInfo(requestHeader);
 
-                // return context.
-                return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, session);
+                var context = new OperationContext(
+                    requestHeader, secureChannelContext, requestType, requestLifetime, session);
+                if (requiresAdmission)
+                {
+                    try
+                    {
+                        // The ownership read admits this activation, not any replacement
+                        // binding or identity installed while the read was outstanding.
+                        EnsureSessionRequestBinding(authenticationToken, session, admissionState, admissionBinding);
+                    }
+                    catch (ServiceResultException error)
+                    {
+                        context.Dispose();
+                        (session as Session)?.UpdateRejectedRequestCounters(requestType, error.StatusCode);
+                        throw;
+                    }
+                }
+                return context;
             }
             catch (ServiceResultException sre)
             {
@@ -1763,6 +1868,49 @@ namespace Opc.Ua.Server
             catch (Exception e)
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
+            }
+        }
+
+        /// <summary>
+        /// Whether session service requests need an authoritative admission check in addition
+        /// to validation of the local channel and session state.
+        /// </summary>
+        /// <param name="session">The local session named by the request.</param>
+        /// <returns><c>true</c> to validate admission before dispatch.</returns>
+        protected virtual bool RequiresSessionRequestAdmission(ISession session)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Validates whether an otherwise valid local session may still admit a service request.
+        /// </summary>
+        /// <param name="authenticationToken">The session token.</param>
+        /// <param name="session">The local session named by the request.</param>
+        /// <param name="cancellationToken">The request's lifetime token.</param>
+        /// <exception cref="ServiceResultException">The session may not admit the request.</exception>
+        protected virtual ValueTask ValidateSessionRequestAdmissionAsync(
+            NodeId authenticationToken,
+            ISession session,
+            CancellationToken cancellationToken)
+        {
+            return default;
+        }
+
+        private void EnsureSessionRequestBinding(
+            NodeId authenticationToken,
+            ISession session,
+            SessionActivationState? state,
+            SessionBindingContext? binding)
+        {
+            // An unactivated session has no committed binding but can be closed.
+            if (state == null ||
+                (binding == null && (state.IsCommitting || session.Activated)) ||
+                !ReferenceEquals(state.DispatchBinding, binding) ||
+                !ReferenceEquals(GetSession(authenticationToken), session) ||
+                SessionTermination.IsClosingOrClaimed(session))
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
         }
 
@@ -3121,10 +3269,10 @@ namespace Opc.Ua.Server
             /// </summary>
             public bool IsCommitting
             {
-                get => m_isCommitting;
+                get => Volatile.Read(ref m_isCommitting);
                 set
                 {
-                    m_isCommitting = value;
+                    Volatile.Write(ref m_isCommitting, value);
                     PublishDispatchBinding();
                 }
             }

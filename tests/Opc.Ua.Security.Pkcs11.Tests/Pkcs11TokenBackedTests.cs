@@ -3,9 +3,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Net.Pkcs11Interop.Common;
+using Net.Pkcs11Interop.HighLevelAPI;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -41,7 +43,7 @@ namespace Opc.Ua.Security.Pkcs11.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(module.LoadedModulePath, Is.EqualTo("/fake/module.so"));
+                Assert.That(module.LoadedModulePath, Is.EqualTo(options.ModulePath));
                 Assert.That(module.Logins, Is.EqualTo(1), "a PIN means a login");
                 Assert.That(token.Options, Is.SameAs(options));
             });
@@ -191,9 +193,10 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         public void TokenSessionOutlivesTheFirstHolder()
         {
             using var module = new FakePkcs11Module();
-            var token = module.OpenToken();
+            using Pkcs11Token token = module.OpenToken();
 
-            token.AddRef();
+            using IDisposable reference = token.AddRef();
+            token.Dispose();
             token.Dispose();
 
             Assert.That(
@@ -201,9 +204,265 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 Is.False,
                 "a second holder still needs the session");
 
-            token.Dispose();
+            reference.Dispose();
+            reference.Dispose();
 
             Assert.That(module.SessionDisposed, Is.True, "the last release closes it");
+        }
+
+        [Test]
+        public void ModuleAliasKeepsSeparateSessionsUntilLastRelease()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11Token first = module.OpenToken();
+            Pkcs11TokenOptions alias = module.CreateOptions();
+            string relativePath = Path.Combine("fake", ".", "subdir", "..", "module.so");
+            alias.ModulePath = Path.DirectorySeparatorChar == '\\' ? relativePath.ToUpperInvariant() : relativePath;
+            alias.TokenLabel = null;
+            alias.SlotId = module.SlotId;
+            using Pkcs11Token second = module.OpenToken(alias);
+            using Pkcs11Rsa key = CreateRsaKey(module, second);
+
+            first.Dispose();
+
+            AssertRsaSigns(key);
+            Assert.Multiple(() =>
+            {
+                Assert.That(module.LibraryLoads, Is.EqualTo(1));
+                Assert.That(module.Logins, Is.EqualTo(1));
+                Assert.That(module.SessionsOpened, Is.EqualTo(2));
+                Assert.That(module.SessionsClosed, Is.EqualTo(1));
+                Assert.That(module.Logouts, Is.Zero);
+                Assert.That(module.LibraryDisposals, Is.Zero);
+            });
+
+            second.Dispose();
+            AssertRsaSigns(key);
+            key.Dispose();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(module.SessionsClosed, Is.EqualTo(2));
+                Assert.That(module.Logouts, Is.EqualTo(1));
+                Assert.That(module.LibraryDisposals, Is.EqualTo(1));
+            });
+
+            using (module.OpenToken())
+            {
+                Assert.That(module.LibraryLoads, Is.EqualTo(2));
+                Assert.That(module.Logins, Is.EqualTo(2));
+            }
+        }
+
+        [Test]
+        public void ConcurrentAcquisitionsShareInitializationAndLogin()
+        {
+            using var module = new FakePkcs11Module();
+            var tokens = new Pkcs11Token?[8];
+            try
+            {
+                Parallel.For(0, tokens.Length, i => tokens[i] = module.OpenToken());
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(module.LibraryLoads, Is.EqualTo(1));
+                    Assert.That(module.Logins, Is.EqualTo(1));
+                    Assert.That(module.SessionsOpened, Is.EqualTo(tokens.Length));
+                });
+            }
+            finally
+            {
+                Parallel.ForEach(tokens, token => token?.Dispose());
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(module.SessionsClosed, Is.EqualTo(tokens.Length));
+                Assert.That(module.Logouts, Is.EqualTo(1));
+                Assert.That(module.LibraryDisposals, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void DifferentModuleFilesDoNotShareLoginOrFinalization()
+        {
+            using var module = new FakePkcs11Module();
+            using var other = new FakePkcs11Module { UserPin = "another-pin" };
+            Pkcs11TokenOptions first = module.CreateOptions();
+            Pkcs11TokenOptions second = other.CreateOptions(other.UserPin);
+            second.ModulePath = Path.GetFullPath(Path.Combine("fake", "other.so"));
+            var loader = new CallbackLibraryLoader((factories, path) =>
+                (path == first.ModulePath ? module : other).Load(factories, path));
+
+            using var firstToken = new Pkcs11Token(first, loader);
+            using Pkcs11Rsa firstKey = CreateRsaKey(module, firstToken);
+            using (var secondToken = new Pkcs11Token(second, loader))
+            using (Pkcs11Rsa secondKey = CreateRsaKey(other, secondToken))
+            {
+                AssertRsaSigns(secondKey);
+            }
+
+            AssertRsaSigns(firstKey);
+            Assert.That(other.LibraryDisposals, Is.EqualTo(1));
+            Assert.That(module.LibraryDisposals, Is.Zero);
+        }
+
+        [TestCase("invalid")]
+        [TestCase(null)]
+        public void IncompatiblePinIsRejectedWithoutDisturbingLiveKey(string? pin)
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11Token first = module.OpenToken();
+            using Pkcs11Rsa key = CreateRsaKey(module, first);
+
+            Assert.Throws<CryptographicException>(() => module.OpenToken(module.CreateOptions(pin)));
+
+            AssertRsaSigns(key);
+            Assert.Multiple(() =>
+            {
+                Assert.That(module.SessionsOpened, Is.EqualTo(1));
+                Assert.That(module.Logouts, Is.Zero);
+                Assert.That(module.LibraryDisposals, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void PublicSessionDoesNotBecomeAuthenticatedWhenAnotherStoreOpens()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11Token publicToken = module.OpenToken(module.CreateOptions(pin: null));
+
+            Assert.Throws<CryptographicException>(() => module.OpenToken());
+            Assert.That(publicToken.FindCertificates(), Has.Count.EqualTo(2));
+            Assert.That(publicToken.FindPrivateKey(CKK.CKK_RSA, module.RsaId), Is.Null);
+            Assert.That(module.Logins, Is.Zero);
+
+            publicToken.Dispose();
+            using Pkcs11Token authenticated = module.OpenToken();
+            using Pkcs11Rsa key = CreateRsaKey(module, authenticated);
+            AssertRsaSigns(key);
+        }
+
+        [Test]
+        public void UnownedLoginIsNotAcceptedOrLoggedOut()
+        {
+            using var module = new FakePkcs11Module { ExternallyLoggedIn = true };
+
+            Pkcs11Exception error = Assert.Throws<Pkcs11Exception>(() => module.OpenToken())!;
+            Assert.That(error.RV, Is.EqualTo(CKR.CKR_USER_ALREADY_LOGGED_IN));
+            Assert.Throws<CryptographicException>(() => module.OpenToken(module.CreateOptions(pin: null)));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(module.Logouts, Is.Zero);
+                Assert.That(module.SessionsClosed, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void FailedSlotSelectionAndOpenDoNotDisturbLiveKey()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11Token first = module.OpenToken();
+            using Pkcs11Rsa key = CreateRsaKey(module, first);
+            Pkcs11TokenOptions noMatch = module.CreateOptions();
+            noMatch.SlotId = ulong.MaxValue;
+
+            Assert.Throws<CryptographicException>(() => module.OpenToken(noMatch));
+            AssertRsaSigns(key);
+
+            module.ThrowOnOpenSession = true;
+            Pkcs11Exception error = Assert.Throws<Pkcs11Exception>(() => module.OpenToken())!;
+            Assert.That(error.RV, Is.EqualTo(CKR.CKR_SESSION_COUNT));
+            AssertRsaSigns(key);
+            Assert.Multiple(() =>
+            {
+                Assert.That(module.SessionsClosed, Is.Zero);
+                Assert.That(module.Logouts, Is.Zero);
+                Assert.That(module.LibraryDisposals, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TokenLoginsAreIndependentAndFailedLoginCanBeRetried()
+        {
+            using var other = new FakePkcs11Module(slotId: 8) { UserPin = "another-pin" };
+            using var module = new FakePkcs11Module { SecondToken = other };
+            using Pkcs11Token first = module.OpenToken();
+            using Pkcs11Rsa firstKey = CreateRsaKey(module, first);
+            Pkcs11TokenOptions second = module.CreateOptions();
+            second.SlotId = other.SlotId;
+
+            Pkcs11Exception error = Assert.Throws<Pkcs11Exception>(() => module.OpenToken(second))!;
+            Assert.That(error.RV, Is.EqualTo(CKR.CKR_PIN_INCORRECT));
+            Assert.That(other.SessionsClosed, Is.EqualTo(1));
+            Assert.That(other.Logouts, Is.Zero);
+            AssertRsaSigns(firstKey);
+
+            second.Pin = other.UserPin;
+            using (Pkcs11Token token = module.OpenToken(second))
+            using (Pkcs11Rsa key = CreateRsaKey(other, token))
+            {
+                AssertRsaSigns(key);
+            }
+
+            AssertRsaSigns(firstKey);
+            Assert.Multiple(() =>
+            {
+                Assert.That(module.LibraryLoads, Is.EqualTo(1));
+                Assert.That(module.LibraryDisposals, Is.Zero);
+                Assert.That(module.Logouts, Is.Zero);
+                Assert.That(other.Logouts, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void DisposingKeysTwiceDoesNotReleaseTheirSiblingSession()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11Token token = module.OpenToken();
+            using Pkcs11Rsa rsa = CreateRsaKey(module, token);
+            using Pkcs11Rsa sibling = CreateRsaKey(module, token);
+            using Certificate certificate = Certificate.FromRawData(module.EccCertificate);
+            using ECDsa publicKey = certificate.GetECDsaPublicKey()!;
+            using var ecc = new Pkcs11ECDsa(
+                token, token.FindPrivateKey(CKK.CKK_EC, module.EccId)!, publicKey.ExportParameters(false));
+            byte[] hash = Hash(HashAlgorithmName.SHA256);
+
+            token.Dispose();
+            rsa.Dispose();
+            rsa.Dispose();
+            ecc.Dispose();
+            ecc.Dispose();
+
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ObjectDisposedException>(
+                    () => rsa.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+                Assert.Throws<ObjectDisposedException>(() => rsa.Decrypt([1], RSAEncryptionPadding.Pkcs1));
+                Assert.Throws<ObjectDisposedException>(() => ecc.SignHash(hash));
+                Assert.That(module.SessionsClosed, Is.Zero);
+            });
+            AssertRsaSigns(sibling);
+
+            sibling.Dispose();
+            Assert.That(module.SessionsClosed, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FailedKeyConstructionDoesNotKeepSessionOpen()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11Token token = module.OpenToken();
+
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentNullException>(() => new Pkcs11Rsa(token, null!, default));
+                Assert.Throws<ArgumentNullException>(() => new Pkcs11ECDsa(token, null!, default));
+            });
+
+            token.Dispose();
+            Assert.That(module.SessionsClosed, Is.EqualTo(1));
         }
 
         [Test]
@@ -1108,6 +1367,21 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             }
         }
 
+        private static Pkcs11Rsa CreateRsaKey(FakePkcs11Module module, Pkcs11Token token)
+        {
+            using Certificate certificate = Certificate.FromRawData(module.RsaCertificate);
+            using RSA publicKey = certificate.GetRSAPublicKey()!;
+            return new Pkcs11Rsa(
+                token, token.FindPrivateKey(CKK.CKK_RSA, module.RsaId)!, publicKey.ExportParameters(false));
+        }
+
+        private static void AssertRsaSigns(Pkcs11Rsa key)
+        {
+            byte[] hash = Hash(HashAlgorithmName.SHA256);
+            byte[] signature = key.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            Assert.That(key.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
+        }
+
         private static byte[] Hash(HashAlgorithmName algorithm)
         {
             byte[] data = [1, 2, 3, 4, 5];
@@ -1226,6 +1500,15 @@ namespace Opc.Ua.Security.Pkcs11.Tests
 
             Assert.That(loaded, Is.Not.Null);
             return loaded!;
+        }
+
+        private sealed class CallbackLibraryLoader(
+            Func<Pkcs11InteropFactories, string, IPkcs11Library> load) : IPkcs11LibraryLoader
+        {
+            public IPkcs11Library Load(Pkcs11InteropFactories factories, string modulePath)
+            {
+                return load(factories, modulePath);
+            }
         }
     }
 }

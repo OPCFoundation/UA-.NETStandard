@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests
                 manager
                     .Setup(m => m.GetManagerHandleAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                     .Returns((NodeId nodeId, CancellationToken _) =>
-                        new ValueTask<object>(metadata.ContainsKey(nodeId) ? nodeId : null!));
+                        new ValueTask<object?>(metadata.ContainsKey(nodeId) ? nodeId : null!));
                 manager
                     .Setup(m => m.GetPermissionMetadataAsync(
                         It.IsAny<OperationContext>(),
@@ -106,7 +106,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<BrowseResultMask>(),
                         It.IsAny<CancellationToken>()))
                     .Returns((OperationContext _, object handle, BrowseResultMask _, CancellationToken _) =>
-                        new ValueTask<NodeMetadata>(metadata[(NodeId)handle]));
+                        new ValueTask<NodeMetadata?>(metadata[(NodeId)handle]));
                 manager
                     .Setup(m => m.TranslateBrowsePathAsync(
                         It.IsAny<OperationContext>(),

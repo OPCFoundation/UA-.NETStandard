@@ -30,6 +30,28 @@ namespace Opc.Ua.Server.Tests.Redundancy
     public class RaftSharedKeyValueStoreTests
     {
         /// <summary>
+        /// A command is applied only against the grant that is current in the committed log.
+        /// </summary>
+        [Test]
+        public async Task GuardedMutationRequiresBothCommittedComparisonsAsync()
+        {
+            await using var store = new RaftSharedKeyValueStore();
+            ByteString first = ByteString.From(new byte[] { 1 });
+            ByteString second = ByteString.From(new byte[] { 2 });
+            await store.SetAsync("grant", first).ConfigureAwait(false);
+            await store.SetAsync("grant", second).ConfigureAwait(false);
+
+            Assert.That(await store.CompareAndSwapWhenAsync("target", default, first, "grant", first)
+                .ConfigureAwait(false), Is.False);
+            Assert.That((await store.TryGetAsync("target").ConfigureAwait(false)).Found, Is.False);
+            Assert.That(await store.CompareAndSwapWhenAsync("target", default, second, "grant", second)
+                .ConfigureAwait(false), Is.True);
+            Assert.That(await store.CompareAndSwapWhenAsync("target", default, first, "grant", second)
+                .ConfigureAwait(false), Is.False);
+            Assert.That((await store.TryGetAsync("target").ConfigureAwait(false)).Value, Is.EqualTo(second));
+        }
+
+        /// <summary>
         /// Verifies that a committed Raft store value can be retrieved.
         /// </summary>
         [Test]
@@ -255,6 +277,54 @@ namespace Opc.Ua.Server.Tests.Redundancy
             bool[] results = await Task.WhenAll(races).ConfigureAwait(false);
 
             Assert.That(results.Count(won => won), Is.EqualTo(1), "exactly one compare-and-swap may win");
+        }
+
+        /// <summary>
+        /// The byte limit includes the multibyte key and both operands rather than just the new value.
+        /// </summary>
+        [Test]
+        public async Task CommandLimitIncludesKeyAndCasOperandsAsync()
+        {
+            await using var consensus = new ControlledApplyConsensus();
+            await using var store = new RaftSharedKeyValueStore(consensus);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            const string key = "\u00e9";
+            const int overheadWithKey = 36;
+            int maxBytes = RaftSharedKeyValueStore.MaxCommandBytes;
+            var operand = new ByteString(new byte[maxBytes / 2]);
+
+            Assert.That(async () => await store.SetAsync(
+                key, new ByteString(new byte[maxBytes - overheadWithKey + 1]), cts.Token), Throws.ArgumentException);
+            Assert.That(async () => await store.CompareAndSwapAsync(key, operand, operand, cts.Token),
+                Throws.ArgumentException);
+            Assert.That(consensus.ProposalCount, Is.Zero, "size validation precedes proposal acceptance");
+
+            Task accepted = store.SetAsync(
+                key, new ByteString(new byte[maxBytes - overheadWithKey]), cts.Token).AsTask();
+            ReadOnlyMemory<byte> command = await consensus.NextProposalAsync(cts.Token);
+            Assert.That(command.Length, Is.EqualTo(maxBytes));
+            await consensus.CommitAsync(command, cts.Token);
+            await accepted;
+        }
+
+        /// <summary>
+        /// A local CAS completes with the result of its precise command, even when another commit uses its identity.
+        /// </summary>
+        [Test]
+        public async Task CompareAndSwapWaitsForItsExactCommittedCommandAsync()
+        {
+            await using var consensus = new ControlledApplyConsensus();
+            await using var store = new RaftSharedKeyValueStore(consensus);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task<bool> pending = store.CompareAndSwapAsync("key", default, ByteString.From(1), cts.Token).AsTask();
+            ReadOnlyMemory<byte> original = await consensus.NextProposalAsync(cts.Token);
+
+            byte[] alternate = original.ToArray();
+            alternate[^1] = 2;
+            await consensus.CommitAsync(alternate, cts.Token);
+            await consensus.CommitAsync(original, cts.Token);
+
+            Assert.That(await pending, Is.False, "only the first applied CAS observes a missing key");
         }
 
         /// <summary>
@@ -518,6 +588,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             public ChannelReader<ReadOnlyMemory<byte>> Committed => m_committed.Reader;
 
+            public int ProposalCount => Volatile.Read(ref m_proposalCount);
+
             public ValueTask StartAsync(CancellationToken ct = default)
             {
                 return default;
@@ -528,6 +600,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 CancellationToken ct = default)
             {
                 await m_canPropose.Task.ConfigureAwait(false);
+                Interlocked.Increment(ref m_proposalCount);
                 await m_proposed.Writer.WriteAsync(command.ToArray(), ct).ConfigureAwait(false);
             }
 
@@ -579,6 +652,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             private bool m_isLeader = true;
+            private int m_proposalCount;
         }
 
         private sealed class CancellationAwareNeverCommitsConsensus :

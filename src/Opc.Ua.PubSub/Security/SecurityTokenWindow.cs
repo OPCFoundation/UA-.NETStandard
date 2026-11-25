@@ -35,13 +35,11 @@ namespace Opc.Ua.PubSub.Security
     /// be replayed once the window has advanced past it (no eviction-replay).
     /// </para>
     /// <para>
-    /// In addition each token owns a fixed-size 1 MiB Bloom filter that rejects
-    /// nonce reuse globally across all publisher and writer-group scopes
-    /// without retaining an unbounded set of nonce values. Filter bits are
-    /// never cleared while the token is active, so an exact nonce reuse
-    /// cannot become acceptable. As with any Bloom filter, saturation can
-    /// cause a fresh nonce to be rejected as a false positive; retiring the
-    /// token or resetting the window clears the filter.
+    /// Each token also tracks nonce reuse across all publisher and writer-group scopes.
+    /// Its Bloom filter starts at 1 MiB and adds bounded segments as the token is used.
+    /// A nonce is checked against every segment, and no segment is dropped while the
+    /// token is active. Rotate keys before filling the final segment to limit false
+    /// positives.
     /// </para>
     /// </remarks>
     public sealed class SecurityTokenWindow : ISecurityTokenWindow, IScopedSecurityTokenWindow
@@ -261,13 +259,53 @@ namespace Opc.Ua.PubSub.Security
         {
             public NonceReplayFilter(int sizeInBytes)
             {
-                m_bits = new byte[sizeInBytes];
-                m_bitCount = checked((ulong)sizeInBytes * 8);
+                m_segments = [new NonceFilterSegment(sizeInBytes)];
             }
 
             public bool MightContain(ReadOnlySpan<byte> nonce)
             {
-                (ulong firstHash, ulong secondHash) = ComputeHashes(nonce);
+                (ulong firstHash, ulong secondHash) = NonceFilterSegment.ComputeHashes(nonce);
+                foreach (NonceFilterSegment segment in m_segments)
+                {
+                    if (segment.MightContain(firstHash, secondHash))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            public void Add(ReadOnlySpan<byte> nonce)
+            {
+                NonceFilterSegment active = m_segments[^1];
+                if (active.ShouldGrow && m_segments.Count < kMaxSegments && active.Size <= int.MaxValue / 2)
+                {
+                    active = new NonceFilterSegment(active.Size * 2);
+                    m_segments.Add(active);
+                }
+
+                (ulong firstHash, ulong secondHash) = NonceFilterSegment.ComputeHashes(nonce);
+                active.Add(firstHash, secondHash);
+            }
+
+            private const int kMaxSegments = 4;
+            private readonly List<NonceFilterSegment> m_segments;
+        }
+
+        private sealed class NonceFilterSegment
+        {
+            public NonceFilterSegment(int sizeInBytes)
+            {
+                m_bits = new byte[sizeInBytes];
+                m_bitCount = (ulong)sizeInBytes * 8;
+            }
+
+            public int Size => m_bits.Length;
+
+            public bool ShouldGrow => m_insertions >= Math.Max(1L, Size / 2);
+
+            public bool MightContain(ulong firstHash, ulong secondHash)
+            {
                 for (int ii = 0; ii < NonceHashCount; ii++)
                 {
                     ulong bitIndex = unchecked(firstHash + ((ulong)ii * secondHash)) % m_bitCount;
@@ -281,17 +319,17 @@ namespace Opc.Ua.PubSub.Security
                 return true;
             }
 
-            public void Add(ReadOnlySpan<byte> nonce)
+            public void Add(ulong firstHash, ulong secondHash)
             {
-                (ulong firstHash, ulong secondHash) = ComputeHashes(nonce);
                 for (int ii = 0; ii < NonceHashCount; ii++)
                 {
                     ulong bitIndex = unchecked(firstHash + ((ulong)ii * secondHash)) % m_bitCount;
                     m_bits[(int)(bitIndex >> 3)] |= (byte)(1 << (int)(bitIndex & 7));
                 }
+                m_insertions++;
             }
 
-            private static (ulong FirstHash, ulong SecondHash) ComputeHashes(
+            public static (ulong FirstHash, ulong SecondHash) ComputeHashes(
                 ReadOnlySpan<byte> nonce)
             {
                 ulong firstHash = ComputeHash(nonce, 14695981039346656037UL);
@@ -322,6 +360,7 @@ namespace Opc.Ua.PubSub.Security
 
             private readonly byte[] m_bits;
             private readonly ulong m_bitCount;
+            private long m_insertions;
         }
 
         private sealed class TokenState

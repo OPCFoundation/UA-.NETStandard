@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Reverse Connect
 
 ## Overview
@@ -156,7 +161,11 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .UseEndpoint(endpoint)
     .UseReverseConnect(manager, new Uri("urn:example:server-a"))
     .WithServerRedundancy()
-    .WithServerRedundancyOptions(new ServerRedundancyOptions { MemberConnections = manager })
+    .WithServerRedundancyOptions(new ServerRedundancyOptions
+    {
+        ExpectedServerApplicationUri = "urn:example:server-a",
+        MemberConnections = manager
+    })
     .ConnectAsync(cancellationToken)
     .ConfigureAwait(false);
 ```

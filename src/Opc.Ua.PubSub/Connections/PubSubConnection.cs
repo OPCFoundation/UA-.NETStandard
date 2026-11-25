@@ -55,6 +55,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
+        private readonly PubSubNonceSequenceSource? m_nonceSequences;
         private readonly UadpSecurityWrapper? m_securityWrapper;
         private readonly UadpSecurityWrapOptions m_securityWrapOptions;
         private readonly MessageSecurityMode m_requiredSecurityMode;
@@ -227,6 +228,37 @@ namespace Opc.Ua.PubSub.Connections
             IPubSubActivationCoordinator? activationCoordinator,
             IPubSubWriterCheckpointStore? writerCheckpointStore,
             UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits)
+            : this(configuration, transportFactory, encoders, decoders, writerGroups, readerGroups,
+                metaDataRegistry, diagnostics, telemetry, timeProvider, securityWrapper, securityWrapOptions,
+                maxNetworkMessageSize, requiredSecurityMode, scheduler, activationCoordinator, writerCheckpointStore,
+                unauthenticatedMetaDataLimits, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a connection that can consume durable nonce reservations when secured.
+        /// </summary>
+        internal PubSubConnection(
+            PubSubConnectionDataType configuration,
+            IPubSubTransportFactory transportFactory,
+            IReadOnlyDictionary<string, INetworkMessageEncoder> encoders,
+            IReadOnlyDictionary<string, INetworkMessageDecoder> decoders,
+            ArrayOf<WriterGroup> writerGroups,
+            ArrayOf<ReaderGroup> readerGroups,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            UadpSecurityWrapper? securityWrapper,
+            UadpSecurityWrapOptions securityWrapOptions,
+            int maxNetworkMessageSize,
+            MessageSecurityMode requiredSecurityMode,
+            IPubSubScheduler? scheduler,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits,
+            IPubSubNonceRangeStore? nonceRangeStore,
+            IPubSubActivationFenceProvider? activationFenceProvider)
         {
             if (configuration is null)
             {
@@ -311,6 +343,12 @@ namespace Opc.Ua.PubSub.Connections
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
+            if (securityWrapper is not null &&
+                (nonceRangeStore is not null || m_activationCoordinator is not AlwaysActiveCoordinator))
+            {
+                m_nonceSequences = new PubSubNonceSequenceSource(
+                    nonceRangeStore, m_activationCoordinator, activationFenceProvider);
+            }
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_scheduler = scheduler ?? new PubSubScheduler(telemetry, timeProvider);
@@ -340,7 +378,8 @@ namespace Opc.Ua.PubSub.Connections
                 State.AttachChild(wg.State);
                 wg.ConfigureActivationCoordinator(
                     BuildWriterGroupComponentId(Name, wg.Name),
-                    m_activationCoordinator);
+                    m_activationCoordinator,
+                    activationFenceProvider);
                 wg.ConfigureWriterCheckpointStore(m_writerCheckpointStore);
                 wg.EncodingProfileOverride = ResolveEncoderProfile();
                 wg.PubSubAddressing = new WriterGroup.PublisherIdHolder
@@ -2303,12 +2342,19 @@ namespace Opc.Ua.PubSub.Connections
                     m_metaDataRegistry,
                     m_diagnostics,
                     m_timeProvider);
+                NoncePermit permit = await GetNoncePermitAsync(networkMessage, null, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!permit.CanPublish)
+                {
+                    return;
+                }
                 ReadOnlyMemory<byte>? payload = await EncodeOutboundAsync(
                     networkMessage,
                     encoder,
                     context,
+                    permit,
                     cancellationToken).ConfigureAwait(false);
-                if (payload is null)
+                if (payload is null || !await HasCurrentFenceAsync(permit, cancellationToken).ConfigureAwait(false))
                 {
                     return;
                 }
@@ -2940,10 +2986,17 @@ namespace Opc.Ua.PubSub.Connections
                 m_diagnostics,
                 m_timeProvider);
 
+            NoncePermit permit = await GetNoncePermitAsync(networkMessage, writerGroup, cancellationToken)
+                .ConfigureAwait(false);
+            if (!permit.CanPublish)
+            {
+                return;
+            }
             ReadOnlyMemory<byte>? encoded = await EncodeOutboundAsync(
                 networkMessage,
                 encoder,
                 context,
+                permit,
                 cancellationToken).ConfigureAwait(false);
             if (encoded is null)
             {
@@ -2955,13 +3008,15 @@ namespace Opc.Ua.PubSub.Connections
                 payload.Length > m_maxNetworkMessageSize &&
                 networkMessage is UadpNetworkMessage uadpForChunk)
             {
-                await SendChunkedAsync(transport, uadpForChunk, context, writerGroup, cancellationToken)
+                await SendChunkedAsync(transport, uadpForChunk, context, writerGroup, permit, cancellationToken)
                     .ConfigureAwait(false);
                 return;
             }
 
-            await transport.SendAsync(payload, topic, cancellationToken)
-                .ConfigureAwait(false);
+            if (await HasCurrentFenceAsync(permit, cancellationToken).ConfigureAwait(false))
+            {
+                await transport.SendAsync(payload, topic, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -2974,11 +3029,12 @@ namespace Opc.Ua.PubSub.Connections
             PubSubNetworkMessage networkMessage,
             INetworkMessageEncoder encoder,
             PubSubNetworkMessageContext context,
+            NoncePermit permit,
             CancellationToken cancellationToken)
         {
             if (m_securityWrapper is not null && IsSecurableUadpMessage(networkMessage))
             {
-                return await EncodeAndWrapUadpAsync(networkMessage, context, cancellationToken)
+                return await EncodeAndWrapUadpAsync(networkMessage, context, permit, cancellationToken)
                     .ConfigureAwait(false);
             }
             if (RequiresInboundSecurity ||
@@ -3041,6 +3097,7 @@ namespace Opc.Ua.PubSub.Connections
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
             WriterGroup? writerGroup,
+            NoncePermit permit,
             CancellationToken cancellationToken)
         {
             ushort sequenceNumber = unchecked(
@@ -3071,8 +3128,12 @@ namespace Opc.Ua.PubSub.Connections
                 ReadOnlyMemory<byte> frame = chunk.Frame;
                 if (wrapper is not null)
                 {
-                    frame = await WrapChunkAsync(wrapper, chunk, cancellationToken)
+                    frame = await WrapChunkAsync(wrapper, chunk, permit, cancellationToken)
                         .ConfigureAwait(false);
+                }
+                if (!await HasCurrentFenceAsync(permit, cancellationToken).ConfigureAwait(false))
+                {
+                    return;
                 }
                 await transport.SendAsync(frame, topic: null, cancellationToken)
                     .ConfigureAwait(false);
@@ -3082,15 +3143,16 @@ namespace Opc.Ua.PubSub.Connections
         private async ValueTask<ReadOnlyMemory<byte>> WrapChunkAsync(
             UadpSecurityWrapper wrapper,
             UadpChunkFrame chunk,
+            NoncePermit permit,
             CancellationToken cancellationToken)
         {
             try
             {
-                return await wrapper
-                    .WrapAsync(
+                return await WrapOutboundUadpAsync(
+                        wrapper,
                         chunk.Frame[..chunk.PayloadOffset],
                         chunk.Frame[chunk.PayloadOffset..],
-                        m_securityWrapOptions,
+                        permit,
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -3226,6 +3288,7 @@ namespace Opc.Ua.PubSub.Connections
         private async ValueTask<ReadOnlyMemory<byte>> EncodeAndWrapUadpAsync(
             PubSubNetworkMessage message,
             PubSubNetworkMessageContext context,
+            NoncePermit permit,
             CancellationToken cancellationToken)
         {
             ReadOnlyMemory<byte> wrapped;
@@ -3235,8 +3298,7 @@ namespace Opc.Ua.PubSub.Connections
                     message, context, out int payloadOffset);
                 ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
                 ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
-                wrapped = await m_securityWrapper!
-                    .WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken)
+                wrapped = await WrapOutboundUadpAsync(m_securityWrapper!, prefix, inner, permit, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -3263,6 +3325,59 @@ namespace Opc.Ua.PubSub.Connections
                     data.DataSetMessages.Count);
             }
             return wrapped;
+        }
+
+        private async ValueTask<NoncePermit> GetNoncePermitAsync(
+            PubSubNetworkMessage message, WriterGroup? writerGroup, CancellationToken cancellationToken)
+        {
+            if (m_nonceSequences is null || !IsSecurableUadpMessage(message))
+            {
+                return default;
+            }
+            string componentId = writerGroup is null
+                ? $"pubsub:control:{Name}"
+                : BuildWriterGroupComponentId(Name, writerGroup.Name);
+            long fence = await m_nonceSequences.GetActiveFenceAsync(componentId, cancellationToken)
+                .ConfigureAwait(false);
+            return new NoncePermit(componentId, fence);
+        }
+
+        private async ValueTask<bool> HasCurrentFenceAsync(NoncePermit permit, CancellationToken cancellationToken)
+        {
+            return permit.ComponentId is null ||
+                await m_nonceSequences!.GetActiveFenceAsync(permit.ComponentId, cancellationToken)
+                    .ConfigureAwait(false) == permit.Fence;
+        }
+
+        private ValueTask<ReadOnlyMemory<byte>> WrapOutboundUadpAsync(
+            UadpSecurityWrapper wrapper,
+            ReadOnlyMemory<byte> prefix,
+            ReadOnlyMemory<byte> inner,
+            NoncePermit permit,
+            CancellationToken cancellationToken)
+        {
+            if (permit.ComponentId is not string componentId)
+            {
+                return wrapper.WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken);
+            }
+            // Use the subscriber's wire identity; configured ids can be absent from the header.
+            if (!UadpDecoder.TryReadPrefix(prefix, out UadpPrefixInfo wire))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "Cannot identify the outbound PubSub replay scope.");
+            }
+            return wrapper.WrapWithNonceSequenceAsync(prefix, inner, m_securityWrapOptions,
+                (tokenId, ct) => m_nonceSequences!.NextAsync(
+                    wire.PublisherId, wire.WriterGroupId, tokenId, componentId, permit.Fence, ct),
+                cancellationToken);
+        }
+
+        private readonly record struct NoncePermit(string? ComponentId, long Fence)
+        {
+            /// <summary>
+            /// Whether this send has a current fence or does not require one.
+            /// </summary>
+            public bool CanPublish => ComponentId is null || Fence > 0;
         }
 
         private INetworkMessageEncoder? ResolveEncoder()
@@ -3753,6 +3868,7 @@ namespace Opc.Ua.PubSub.Connections
             {
             }
             m_reassembler.Dispose();
+            m_nonceSequences?.Dispose();
         }
     }
 

@@ -16,11 +16,9 @@ namespace Opc.Ua.PubSub.Configuration
     /// component state after a failover (Warm/Hot standby, OPC UA Part 14 §9.1.6).
     /// </summary>
     /// <remarks>
-    /// Component runtime state is a public lifecycle value rather than a secret, so it is
-    /// stored without record protection. When the caller provides a fencing token the write is
-    /// additionally guarded against stale-active overwrite; callers that do not yet flow a token
-    /// keep the previous unconditional behavior. Use the security-key or session stores for
-    /// material that must be encrypted at rest.
+    /// External state requires an enrolled <see cref="FreshnessProtectedKeyValueStore"/> and a
+    /// current activation fence. A state already written with a fence cannot be overwritten by
+    /// an older or unfenced writer, even with an explicit process-local backend.
     /// </remarks>
     public sealed class SharedStorePubSubRuntimeStateStore : IPubSubRuntimeStateStore
     {
@@ -33,7 +31,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </exception>
         public SharedStorePubSubRuntimeStateStore(ISharedKeyValueStore store)
         {
-            m_store = store ?? throw new ArgumentNullException(nameof(store));
+            m_store = FencedSharedStoreValue.RequireStore(store);
         }
 
         /// <inheritdoc/>
@@ -46,30 +44,31 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentException("componentId must be non-empty.", nameof(componentId));
             }
 
-            (bool found, ByteString value) = await m_store
-                .TryGetAsync(PubSubRedundancyStoreKeys.RuntimeStatePrefix + componentId, cancellationToken)
+            (bool found, ByteString value) = await FencedSharedStoreValue.ReadRetainedAsync(
+                    m_store, PubSubRedundancyStoreKeys.RuntimeStatePrefix + componentId, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !FencedSharedStoreValue.TryExtractPayload(value, out ByteString payload, out _))
+            bool allowUnfenced = m_store is InMemorySharedKeyValueStore;
+            if (!found ||
+                !FencedSharedStoreValue.TryExtractFixedPayload(value, sizeof(int), allowUnfenced,
+                    out ByteString payload, out _))
             {
                 return null;
             }
 
-            ReadOnlySpan<byte> bytes = payload.Span;
-            if (bytes.Length < sizeof(int))
-            {
-                return null;
-            }
-
-            return (PubSubState)BinaryPrimitives.ReadInt32LittleEndian(bytes);
+            var state = (PubSubState)BinaryPrimitives.ReadInt32LittleEndian(payload.Span);
+            return IsValidState(state)
+                ? state
+                : throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The shared PubSub runtime state is invalid.");
         }
 
         /// <inheritdoc/>
-        public async ValueTask SetStateAsync(
+        public ValueTask SetStateAsync(
             string componentId,
             PubSubState state,
             CancellationToken cancellationToken = default)
         {
-            await SetStateCoreAsync(componentId, state, null, cancellationToken).ConfigureAwait(false);
+            return SetStateCoreAsync(componentId, state, null, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -82,7 +81,7 @@ namespace Opc.Ua.PubSub.Configuration
             return SetStateCoreAsync(componentId, state, fencingToken, cancellationToken);
         }
 
-        private async ValueTask SetStateCoreAsync(
+        private ValueTask SetStateCoreAsync(
             string componentId,
             PubSubState state,
             long? fencingToken,
@@ -92,15 +91,25 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 throw new ArgumentException("componentId must be non-empty.", nameof(componentId));
             }
+            if (!IsValidState(state))
+            {
+                throw new ArgumentOutOfRangeException(nameof(state));
+            }
 
             byte[] buffer = new byte[sizeof(int)];
             BinaryPrimitives.WriteInt32LittleEndian(buffer, (int)state);
-            await FencedSharedStoreValue.StoreAsync(
+            return FencedSharedStoreValue.StoreFixedAsync(
                 m_store,
                 PubSubRedundancyStoreKeys.RuntimeStatePrefix + componentId,
                 new ByteString(buffer),
                 fencingToken,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
+        }
+
+        private static bool IsValidState(PubSubState state)
+        {
+            return state is PubSubState.Disabled or PubSubState.Paused or PubSubState.Operational or
+                PubSubState.Error or PubSubState.PreOperational;
         }
 
         private readonly ISharedKeyValueStore m_store;

@@ -40,7 +40,8 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
             AddDiscoveryCapabilityConfiguration(builder, options);
             builder.Services.AddSingleton(options);
-            builder.Services.AddSingleton<ServerRedundancyController>();
+            builder.Services.AddSingleton(sp =>
+                new ServerRedundancyController(options, CreatePeerStatus(sp, options)));
             builder.Services.TryAddSingleton<IServerRedundancyController>(
                 sp => sp.GetRequiredService<ServerRedundancyController>());
             builder.Services.TryAddSingleton<IRedundantServerSetProvider>(
@@ -48,7 +49,8 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.AddSingleton<IServerStartupTask>(sp =>
                 new ServerRedundancyStartupTask(
                     sp.GetRequiredService<ServerRedundancyController>(),
-                    !sp.GetServices<IServiceLevelProvider>().Any()));
+                    !sp.GetServices<IServiceLevelProvider>().Any(),
+                    sp.GetService<TimeProvider>() ?? TimeProvider.System));
             return builder;
         }
 
@@ -77,21 +79,30 @@ namespace Opc.Ua.Redundancy.Server
             return builder;
         }
 
-        /// <summary>
-        /// Wires the standard <c>Server.RequestServerStateChange</c> method for OPC 10000-4 §6.6.5
-        /// administrator-driven manual Failover to Maintenance or NoData.
-        /// </summary>
-        /// <param name="builder">The server builder.</param>
-        /// <param name="configure">Optional method wiring configuration.</param>
-        /// <remarks>
-        /// Use <see cref="AddRequestServerStateChange(IOpcUaServerBuilder, Action{RequestServerStateChangeOptions}?)"/>.
-        /// </remarks>
-        [Obsolete("Use AddRequestServerStateChange.")]
-        public static IOpcUaServerBuilder AddManualFailover(
-            this IOpcUaServerBuilder builder,
-            Action<RequestServerStateChangeOptions>? configure = null)
+        private static SharedRedundantPeerStatus? CreatePeerStatus(
+            IServiceProvider services,
+            ServerRedundancyOptions options)
         {
-            return AddRequestServerStateChange(builder, configure);
+            ISharedKeyValueStore? store = services.GetService<ISharedKeyValueStore>();
+            if (store == null)
+            {
+                return null;
+            }
+            if (string.IsNullOrWhiteSpace(options.PeerStatusKeyPrefix))
+            {
+                throw new InvalidOperationException("The redundant peer status key prefix must not be empty.");
+            }
+            IRecordProtector? protector = services.GetService<IRecordProtector>();
+            if ((protector == null || protector is NullRecordProtector) &&
+                !HybridSharedKeyValueStore.UsesOnlyInProcessMemory(store))
+            {
+                throw new InvalidOperationException("A shared redundant peer status store requires record protection.");
+            }
+            return new SharedRedundantPeerStatus(
+                store,
+                protector ?? NullRecordProtector.Instance,
+                services.GetService<TimeProvider>() ?? TimeProvider.System,
+                options.PeerStatusKeyPrefix);
         }
 
         private static void AddDiscoveryCapabilityConfiguration(

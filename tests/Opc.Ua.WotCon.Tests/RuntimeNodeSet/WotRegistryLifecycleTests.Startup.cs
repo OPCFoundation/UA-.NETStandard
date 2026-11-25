@@ -84,6 +84,15 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
         }
 
+        /// <summary>
+        /// Deadline the projection host wrappers put on each projection call to turn a lifecycle self-wait into
+        /// a <c>DeadlineExpired</c> failure instead of a hang. A self-wait never completes, so the deadline only
+        /// has to fire before the tests' 20 s budgets. It must not be tight: the wrapped commit includes the
+        /// registry store's write-through flush, which .NET Framework queues to the thread pool, and that took
+        /// more than 5 s on a loaded CI runner and was cancelled mid-commit.
+        /// </summary>
+        private static readonly TimeSpan s_projectionDeadline = TimeSpan.FromSeconds(15);
+
         private NodeManagerRegistration m_registryRegistration = null!;
         private FileWotRegistryStore? m_startupStore;
 
@@ -197,7 +206,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Func<CancellationToken, ValueTask<T>> action, CancellationToken cancellationToken)
             {
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                deadline.CancelAfter(TimeSpan.FromSeconds(5));
+                deadline.CancelAfter(s_projectionDeadline);
                 try
                 {
                     return await action(deadline.Token).ConfigureAwait(false);

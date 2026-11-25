@@ -163,6 +163,7 @@ namespace Opc.Ua.Client
             m_instanceCertificateEntry = template.m_instanceCertificateEntry?.AddRef();
             m_effectiveEndpoint = template.m_effectiveEndpoint;
             m_expectedServerApplicationUri = template.m_expectedServerApplicationUri;
+            m_redundantPeerUri = template.m_redundantPeerUri;
             SessionFactory = template.SessionFactory;
             if (template.m_defaultSubscription != null)
             {
@@ -1461,6 +1462,34 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Requires a certificate-authenticated peer for opening and subsequently recovering this session.
+        /// </summary>
+        internal void BindRedundantPeerIdentity(string expectedUri)
+        {
+            Volatile.Write(ref m_redundantPeerUri, expectedUri);
+        }
+
+        /// <summary>
+        /// Gets the expected application URI retained across recovery on this peer.
+        /// </summary>
+        internal string? RedundantPeerUri => Volatile.Read(ref m_redundantPeerUri);
+
+        /// <summary>
+        /// Opens a short-lived peer session without loading tables, operation limits, or starting keep-alive.
+        /// </summary>
+        internal Task OpenForRedundancyProbeAsync(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            bool checkDomain,
+            CancellationToken ct)
+        {
+            return OpenCoreAsync(
+                this, sessionName, sessionTimeout, identity, default, checkDomain, closeChannel: false, ct,
+                probeOnly: true);
+        }
+
         private async Task OpenCoreAsync(
             SessionClient serviceClient,
             string sessionName,
@@ -1470,7 +1499,8 @@ namespace Opc.Ua.Client
             bool checkDomain,
             bool closeChannel,
             CancellationToken ct,
-            ArrayOf<EndpointDescription> refreshedEndpoints = default)
+            ArrayOf<EndpointDescription> refreshedEndpoints = default,
+            bool probeOnly = false)
         {
             ThrowIfDisposed();
             using Activity? activity = CachedActivitySource.StartActivity();
@@ -1479,7 +1509,7 @@ namespace Opc.Ua.Client
             lock (m_lock)
             {
                 m_openStarted = true;
-                expectedServerApplicationUri = m_expectedServerApplicationUri;
+                expectedServerApplicationUri = RedundantPeerUri ?? m_expectedServerApplicationUri;
             }
 
             ArrayOf<EndpointDescription> discoveryServerEndpoints = refreshedEndpoints.IsEmpty
@@ -1515,6 +1545,9 @@ namespace Opc.Ua.Client
                 m_effectiveEndpoint = m_endpoint;
                 previous?.Dispose();
             }
+
+            ITransportChannel activeChannel = serviceClient.TransportChannel;
+            ValidateRedundantPeer(activeChannel);
 
             // Load certificate and chain if not already loaded.
             await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
@@ -1735,12 +1768,14 @@ namespace Opc.Ua.Client
                 ValidateServerCertificateApplicationUri(serverCertificate, m_endpoint);
 
                 ValidateServerSignature(
+                    activeChannel,
                     serverCertificate,
                     serverSignature,
                     clientCertificateData,
                     clientCertificateChainData,
                     m_clientNonce,
                     serverNonce);
+                ValidateRedundantPeer(activeChannel);
 
                 // The nonce returned by CreateSession belongs to a brand-new
                 // server-side Session, so it is validated as a new nonce
@@ -1763,11 +1798,11 @@ namespace Opc.Ua.Client
 
                 // create the client signature.
                 byte[] dataToSign = securityPolicy!.GetClientSignatureData(
-                    TransportChannel.ChannelThumbprint,
+                    activeChannel.ChannelThumbprint,
                     serverNonce.ToArray(),
                     serverCertificate?.RawData,
-                    TransportChannel.ServerChannelCertificate,
-                    TransportChannel.ClientChannelCertificate,
+                    activeChannel.ServerChannelCertificate,
+                    activeChannel.ClientChannelCertificate,
                     m_clientNonce ?? []);
 
                 SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
@@ -1793,12 +1828,12 @@ namespace Opc.Ua.Client
                     // sign data with user token, using the user token policy (OPC 10000-4 6.1.8).
                     dataToSign = GetUserTokenPolicyInfo(tokenSecurityPolicyUri, securityPolicy)
                         .GetUserTokenSignatureData(
-                            TransportChannel.ChannelThumbprint,
+                            activeChannel.ChannelThumbprint,
                             serverNonce.ToArray(),
                             serverCertificate?.RawData,
-                            TransportChannel.ServerChannelCertificate,
+                            activeChannel.ServerChannelCertificate,
                             m_instanceCertificateEntry?.Certificate.RawData,
-                            TransportChannel.ClientChannelCertificate,
+                            activeChannel.ClientChannelCertificate,
                             m_clientNonce ?? [],
                             m_endpoint.Description.SecurityMode);
 
@@ -1861,8 +1896,10 @@ namespace Opc.Ua.Client
                         SessionId);
                 }
 
-                // fetch namespaces.
-                await FetchNamespaceTablesAsync(serviceClient, ct).ConfigureAwait(false);
+                if (!probeOnly)
+                {
+                    await FetchNamespaceTablesAsync(serviceClient, ct).ConfigureAwait(false);
+                }
 
                 lock (m_lock)
                 {
@@ -1879,6 +1916,11 @@ namespace Opc.Ua.Client
                     m_systemContext.PreferredLocales = m_preferredLocales;
                     m_systemContext.SessionId = SessionId;
                     m_systemContext.UserIdentity = identity;
+                }
+
+                if (probeOnly)
+                {
+                    return;
                 }
 
                 // fetch operation limits
@@ -2522,6 +2564,9 @@ namespace Opc.Ua.Client
             SessionClient? recoveryClient = null,
             string? ephemeralKeyPolicyUri = null)
         {
+            ITransportChannel activeChannel = recoveryClient?.TransportChannel ?? TransportChannel;
+            ValidateRedundantPeer(activeChannel);
+
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
@@ -2529,11 +2574,11 @@ namespace Opc.Ua.Client
 
             // create the client signature.
             byte[] dataToSign = securityPolicy!.GetClientSignatureData(
-                TransportChannel.ChannelThumbprint,
+                activeChannel.ChannelThumbprint,
                 serverNonce.ToArray(),
                 m_serverCertificate?.RawData,
-                TransportChannel.ServerChannelCertificate,
-                TransportChannel.ClientChannelCertificate,
+                activeChannel.ServerChannelCertificate,
+                activeChannel.ClientChannelCertificate,
                 m_clientNonce ?? []);
 
             SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
@@ -2601,12 +2646,12 @@ namespace Opc.Ua.Client
             {
                 dataToSign = GetUserTokenPolicyInfo(tokenSecurityPolicyUri, securityPolicy)
                     .GetUserTokenSignatureData(
-                        TransportChannel.ChannelThumbprint,
+                        activeChannel.ChannelThumbprint,
                         serverNonce.ToArray(),
                         m_serverCertificate?.RawData,
-                        TransportChannel.ServerChannelCertificate,
+                        activeChannel.ServerChannelCertificate,
                         m_instanceCertificateEntry?.Certificate.RawData,
-                        TransportChannel.ClientChannelCertificate,
+                        activeChannel.ClientChannelCertificate,
                         m_clientNonce ?? [],
                         m_endpoint.Description.SecurityMode);
 
@@ -3736,13 +3781,15 @@ namespace Opc.Ua.Client
         /// previous channel once the subscriptions are restored. Used when the previous Server is still
         /// reachable, so its session is not left allocated until it times out.
         /// </param>
+        /// <param name="expectedPeerUri">The expected application URI of the replacement peer, if changing peers.</param>
         /// <exception cref="ArgumentNullException"><paramref name="budget"/> is <c>null</c>.</exception>
         internal Task RecreateInPlaceAsync(
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
             ITransportWaitingConnection? connection,
             CancellationToken ct,
-            bool retirePreviousSession = false)
+            bool retirePreviousSession = false,
+            string? expectedPeerUri = null)
         {
             if (budget == null)
             {
@@ -3755,7 +3802,8 @@ namespace Opc.Ua.Client
                 channel: null,
                 budget,
                 ct,
-                retirePreviousSession: retirePreviousSession);
+                retirePreviousSession: retirePreviousSession,
+                expectedPeerUri: expectedPeerUri);
         }
 
         internal Task ReactivateOnNetworkEndpointAsync(
@@ -3802,7 +3850,8 @@ namespace Opc.Ua.Client
         internal Task ReactivateMirroredSessionAsync(
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? connection,
-            CancellationToken ct)
+            CancellationToken ct,
+            string? expectedPeerUri = null)
         {
             if (endpoint == null)
             {
@@ -3816,7 +3865,8 @@ namespace Opc.Ua.Client
                 budget: null,
                 ct,
                 recreateSubscriptions: false,
-                requireTokenReuse: true);
+                requireTokenReuse: true,
+                expectedPeerUri: expectedPeerUri);
         }
 
         private async Task RecreateInPlaceCoreAsync(
@@ -3831,7 +3881,8 @@ namespace Opc.Ua.Client
             bool networkRecovery = false,
             bool bindSuppliedChannel = false,
             bool retirePreviousSession = false,
-            bool allowTokenReuse = true)
+            bool allowTokenReuse = true,
+            string? expectedPeerUri = null)
         {
             ThrowIfDisposed();
             using Activity? activity = CachedActivitySource.StartActivity();
@@ -3844,7 +3895,11 @@ namespace Opc.Ua.Client
             IClientChannelManager? manager = oldManagedLease?.Manager ?? ChannelManager;
             IManagedTransportChannel? newManagedLease = null;
             bool managedLeaseActivated = false;
-            ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
+            ConfiguredEndpoint previousEndpoint = m_endpoint;
+            ConfiguredEndpoint targetEndpoint = endpoint ?? previousEndpoint;
+            string? previousPeerUri = RedundantPeerUri;
+            string? peerUri = expectedPeerUri ?? previousPeerUri;
+            bool peerAuthenticated = false;
             bool resetReconnect = false;
             bool publishingPaused = false;
             bool reused = false;
@@ -3862,6 +3917,11 @@ namespace Opc.Ua.Client
                 Reconnecting = true;
                 resetReconnect = true;
                 m_reconnectLock.Release();
+
+                if (peerUri != null)
+                {
+                    ServerPeerIdentity.ValidateEndpoint(targetEndpoint, peerUri);
+                }
 
                 if (manager != null)
                 {
@@ -3883,7 +3943,8 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                if (manager != null && channel == null && oldManagedLease != null && !requireTokenReuse)
+                if (manager != null && channel == null && oldManagedLease != null && !requireTokenReuse &&
+                    (expectedPeerUri == null || string.Equals(peerUri, previousPeerUri, StringComparison.Ordinal)))
                 {
                     var targetKey = ManagedChannelKey.FromEndpoint(
                         targetEndpoint,
@@ -3934,7 +3995,10 @@ namespace Opc.Ua.Client
 
                 // need to refresh the identity (reprompt for password,
                 // refresh token).
-                RecreateRenewUserIdentity();
+                if (peerUri == null)
+                {
+                    RecreateRenewUserIdentity();
+                }
 
                 // Switch endpoint before the channel is built.
                 if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
@@ -3943,9 +4007,15 @@ namespace Opc.Ua.Client
                     m_effectiveEndpoint = endpoint;
                 }
 
+                bool tryTokenReuse = allowTokenReuse &&
+                    (EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
+                    !SessionId.IsNull &&
+                    (!m_serverNonce.IsNull || m_endpoint.Description.SecurityMode == MessageSecurityMode.None);
+
                 // Build / install the new transport channel.
                 if (channel != null)
                 {
+                    AuthenticateTarget(recoveryClient?.TransportChannel ?? channel);
                     TransportChannel = channel;
                     if (bindSuppliedChannel)
                     {
@@ -3960,6 +4030,11 @@ namespace Opc.Ua.Client
                         connection,
                         ct).ConfigureAwait(false);
 
+                    if ((peerUri != null || tryTokenReuse) && newManagedLease is ManagedTransportChannelLease lease)
+                    {
+                        await lease.Entry.WaitForTransportAsync(ct).ConfigureAwait(false);
+                    }
+                    AuthenticateTarget(newManagedLease);
                     m_managedChannel = newManagedLease;
                     // Keep the old lease alive until the new session is fully reactivated.
                     InitializeChannel(newManagedLease);
@@ -4009,6 +4084,16 @@ namespace Opc.Ua.Client
                                 .ConfigureAwait(false);
                     }
 
+                    try
+                    {
+                        AuthenticateTarget(newChannel);
+                    }
+                    catch
+                    {
+                        newChannel.Dispose();
+                        throw;
+                    }
+
                     if (retirePreviousSession)
                     {
                         // The previous channel stays open to close the previous session on it.
@@ -4021,14 +4106,17 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                if (peerUri != null)
+                {
+                    RecreateRenewUserIdentity();
+                }
+
                 // Token-reuse fast reconnect: re-activate the
                 // existing session on the failover server by reusing the current
                 // AuthenticationToken instead of CreateSession. Any failure
                 // falls through to the full re-authentication below.
-                if (allowTokenReuse &&
-                    (EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
-                    !SessionId.IsNull &&
-                    (!m_serverNonce.IsNull || m_endpoint.Description.SecurityMode == MessageSecurityMode.None))
+                if (tryTokenReuse && !HasSessionClientCertificateChanged(
+                        (recoveryClient?.TransportChannel ?? TransportChannel).ClientChannelCertificate))
                 {
                     try
                     {
@@ -4187,6 +4275,12 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
+                if (peerUri != null && !peerAuthenticated)
+                {
+                    m_endpoint = previousEndpoint;
+                    m_effectiveEndpoint = previousEndpoint;
+                }
+
                 if (newManagedLease != null && !managedLeaseActivated)
                 {
                     if (oldManagedLease != null &&
@@ -4257,6 +4351,16 @@ namespace Opc.Ua.Client
                     StartPublishing(OperationTimeout, true);
                 }
 #endif
+            }
+
+            void AuthenticateTarget(ITransportChannel candidate)
+            {
+                if (peerUri != null)
+                {
+                    ServerPeerIdentity.Validate(candidate, targetEndpoint, peerUri);
+                    BindRedundantPeerIdentity(peerUri);
+                    peerAuthenticated = true;
+                }
             }
         }
 
@@ -4831,6 +4935,7 @@ namespace Opc.Ua.Client
                 }
 
                 ITransportChannel activeChannel = recoveryClient?.TransportChannel ?? TransportChannel;
+                ValidateRedundantPeer(activeChannel);
 
                 byte[] channelThumbprint = activeChannel.ChannelThumbprint;
                 byte[] serverChannelCertificate = activeChannel.ServerChannelCertificate;
@@ -6710,6 +6815,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerSignature(
+            ITransportChannel activeChannel,
             Certificate? serverCertificate,
             SignatureData serverSignature,
             ByteString clientCertificateData,
@@ -6733,11 +6839,11 @@ namespace Opc.Ua.Client
             SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(m_endpoint.Description.SecurityPolicyUri!);
 
             byte[] dataToSign = securityPolicy!.GetServerSignatureData(
-                TransportChannel.ChannelThumbprint,
+                activeChannel.ChannelThumbprint,
                 clientNonce,
-                TransportChannel.ServerChannelCertificate,
+                activeChannel.ServerChannelCertificate,
                 clientCertificateData.ToArray(),
-                TransportChannel.ClientChannelCertificate,
+                activeChannel.ClientChannelCertificate,
                 serverNonce.ToArray());
 
             if (!m_securityPolicies.VerifySignatureData(
@@ -6750,11 +6856,11 @@ namespace Opc.Ua.Client
                 if (!clientCertificateChainData.IsEmpty)
                 {
                     dataToSign = securityPolicy.GetServerSignatureData(
-                        TransportChannel.ChannelThumbprint,
+                        activeChannel.ChannelThumbprint,
                         clientNonce,
-                        TransportChannel.ServerChannelCertificate,
+                        activeChannel.ServerChannelCertificate,
                         clientCertificateChainData.ToArray(),
-                        TransportChannel.ClientChannelCertificate,
+                        activeChannel.ClientChannelCertificate,
                         serverNonce.ToArray());
 
                     if (!m_securityPolicies.VerifySignatureData(
@@ -6791,6 +6897,14 @@ namespace Opc.Ua.Client
             {
                 ICertificateValidatorEx validator = m_configuration.CertificateManager;
                 validator.ValidateApplicationUri(serverCertificate, endpoint);
+            }
+        }
+
+        private void ValidateRedundantPeer(ITransportChannel channel)
+        {
+            if (RedundantPeerUri is string expectedUri)
+            {
+                ServerPeerIdentity.Validate(channel, m_endpoint, expectedUri);
             }
         }
 
@@ -7586,6 +7700,7 @@ namespace Opc.Ua.Client
         protected ConfiguredEndpoint m_effectiveEndpoint;
 
         private string? m_expectedServerApplicationUri;
+        private string? m_redundantPeerUri;
         private bool m_openStarted;
 
         /// <summary>

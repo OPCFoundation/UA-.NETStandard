@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!--
@@ -64,6 +68,8 @@
     into their assemblies directly.
   -->
   <ItemGroup Condition="'$(_SamplesPlaceholder)' != 'true'">
+    <Compile Include="..\..\samples\Redundancy\Common\SampleCluster.cs" Link="Common\SampleCluster.cs" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
     <ProjectReference Include="..\..\samples\Redundancy\RedundantServer\RedundantServer.csproj"
                       ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\samples\Redundancy\RedundantClient\RedundantClient.csproj"
