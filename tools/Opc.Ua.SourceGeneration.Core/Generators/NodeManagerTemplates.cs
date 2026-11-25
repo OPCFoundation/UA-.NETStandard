@@ -217,9 +217,11 @@ namespace Opc.Ua.SourceGeneration
                         global::Opc.Ua.NodeState node)
                     {
                         base.OnPredefinedNodeAdded(context, node);
+                        // nodes registered before the seal are notified by
+                        // its replay; notify only the ones added after it.
                         if (__m_builder is { } __b)
                         {
-                            __b.Dispatcher.NotifyNodeAdded(context, node);
+                            NotifyPredefinedNodeAdded(__b, context, node);
                         }
                     }
 

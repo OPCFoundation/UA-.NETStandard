@@ -363,7 +363,13 @@ node, as `AddPredefinedNodeAsync` does. Override `OnPredefinedNodeAdded`,
 rather than `AddPredefinedNodeAsync`, for work that must follow every
 registration. Generated node managers and `RuntimeNodeSetNodeManager` raise
 their per-node `OnNodeAdded` lifecycle handlers from it, so nodes added through
-`AddNode` after start-up now raise them too. `AddNode` cannot await, so it
+`AddNode` after start-up now raise them too. Nodes registered while the builder
+is still being configured are notified once, by the replay when it is sealed;
+before 2.1 a generated manager notified asynchronously registered nodes a second
+time during configuration. A hand-written `FluentNodeManagerBase` subclass that
+raises the handlers itself can call `NotifyPredefinedNodeAdded(builder, context,
+node)` from its `OnPredefinedNodeAdded` override for the same behaviour.
+`AddNode` cannot await, so it
 still does not call `AddBehaviourToPredefinedNodeAsync` or overrides of
 `AddPredefinedNodeAsync`; register nodes that need behaviour with
 `AddPredefinedNodeAsync`.
