@@ -1096,8 +1096,8 @@ namespace Opc.Ua.Server
         /// that are not a service request (monitored item and session contexts, which can
         /// be kept for a long time) remember nothing here, so a changed dynamic default
         /// applies to them at once. Entries are indexed by namespace index: a slot array
-        /// for the first <see cref="kDefaultPermissionSlots"/> namespaces, allocated once per
-        /// request, and a concurrent dictionary beyond it.
+        /// for the first <see cref="kDefaultPermissionSlots"/> namespaces, sized to the highest
+        /// index seen, and a concurrent dictionary beyond it.
         /// </remarks>
         internal bool TryGetDefaultPermissions(
             ushort namespaceIndex,
@@ -1107,7 +1107,7 @@ namespace Opc.Ua.Server
             if (namespaceIndex < kDefaultPermissionSlots)
             {
                 StrongBox<NamespaceDefaultPermissions>?[]? slots = Volatile.Read(ref m_defaultPermissionSlots);
-                if (slots != null)
+                if (slots != null && namespaceIndex < slots.Length)
                 {
                     entry = Volatile.Read(ref slots[namespaceIndex]);
                 }
@@ -1148,12 +1148,7 @@ namespace Opc.Ua.Server
             ushort namespaceIndex = permissions.NamespaceIndex;
             if (namespaceIndex < kDefaultPermissionSlots)
             {
-                StrongBox<NamespaceDefaultPermissions>?[]? slots = Volatile.Read(ref m_defaultPermissionSlots);
-                if (slots == null)
-                {
-                    slots = new StrongBox<NamespaceDefaultPermissions>?[kDefaultPermissionSlots];
-                    slots = Interlocked.CompareExchange(ref m_defaultPermissionSlots, slots, null) ?? slots;
-                }
+                StrongBox<NamespaceDefaultPermissions>?[] slots = GetDefaultPermissionSlots(namespaceIndex);
 
                 Volatile.Write(ref slots[namespaceIndex], entry);
                 return;
@@ -1168,6 +1163,44 @@ namespace Opc.Ua.Server
             }
 
             overflow[namespaceIndex] = entry;
+        }
+
+        /// <summary>
+        /// Returns a slot array that holds <paramref name="namespaceIndex"/>, sized to the
+        /// highest index seen so a request over a few low namespaces allocates little. A
+        /// store into an array that a concurrent grow just replaced is lost; that only costs
+        /// a second read.
+        /// </summary>
+        private StrongBox<NamespaceDefaultPermissions>?[] GetDefaultPermissionSlots(ushort namespaceIndex)
+        {
+            while (true)
+            {
+                StrongBox<NamespaceDefaultPermissions>?[]? slots = Volatile.Read(ref m_defaultPermissionSlots);
+                if (slots != null && namespaceIndex < slots.Length)
+                {
+                    return slots;
+                }
+
+                int length = slots?.Length ?? 4;
+                while (length <= namespaceIndex)
+                {
+                    length *= 2;
+                }
+
+                var grown = new StrongBox<NamespaceDefaultPermissions>?[Math.Min(length, kDefaultPermissionSlots)];
+                if (slots != null)
+                {
+                    for (int ii = 0; ii < slots.Length; ii++)
+                    {
+                        grown[ii] = Volatile.Read(ref slots[ii]);
+                    }
+                }
+
+                if (ReferenceEquals(Interlocked.CompareExchange(ref m_defaultPermissionSlots, grown, slots), slots))
+                {
+                    return grown;
+                }
+            }
         }
 
         /// <summary>
