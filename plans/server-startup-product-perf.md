@@ -291,7 +291,45 @@ by subject returns B with its key, and the lookup by A's thumbprint returns
 nothing. The store's directory check alone (timestamps, file count) does not
 notice the change. The per-file check of the lookup does.
 
-### PFX loads and paired A/B
+### PFX loads and paired A/B (follow-up 3)
 
-Pending: `bench.lock` on the shared machine was held by a stale lock
-(2026-11-25). Method and results follow when the lock is free.
+Measured 2026-11-25 10:55–11:00. A is the #5171 head `9c497dc54`; B is this
+follow-up (`ef25f9bb7`). Both use the same probe and are net10.0 Release builds
+copied to short paths (`C:\sA`, `C:\sB`). The PKI folder is warm, shared and
+pre-warmed once. Each side ran 5 alternating rounds (A/B, B/A) with
+`OPCUA_STARTUP_PROBE_CYCLES=10`, serially and with
+`OPCUA_STARTUP_PROBE_WORKERS=4`: 50 cycles per cell, medians in ms, cold cycles
+excluded. All runs passed. The probe ran under `bench.lock`. Both builds carry
+the same temporary, environment-guarded PFX trace line (`OPCUA_PFX_TRACE`, not
+committed), which is off during the timing rounds.
+
+PFX loads, StandardServer, warm PKI, cold + 1 cycle (2 cycles), from the trace:
+
+| Caller | A | B |
+|---|---:|---:|
+| `ValidateAsync` (server 5 + client 5 per cycle) | 20 | 20 |
+| Connect (`Session.LoadInstanceCertificateEntryAsync`: channel and session) | 4 | 0 |
+| **Total (per cycle)** | **24 (12)** | **20 (10)** |
+
+| Mode | Server | A connect | B connect | A total | B total | Total change |
+|---|---|---:|---:|---:|---:|---:|
+| Warm | StandardServer | 39.2 | 21.8 | 280 | 249 | −11 % |
+| Warm | ReferenceServer | 43.4 | 23.3 | 892 | 817 | −8 % |
+| 4 workers | StandardServer | 48.8 | 32.8 | 605 | 574 | −5 % |
+| 4 workers | ReferenceServer | 52.1 | 33.2 | 1421 | 1382 | −3 % |
+
+Per-round medians of connect (A/B):
+
+- Warm StandardServer 32.0/20.7, 34.3/20.3, 33.1/21.7, 44.1/21.0, 191.2/26.7.
+- Warm ReferenceServer 34.8/20.8, 39.1/24.1, 41.9/21.1, 54.2/27.0, 71.8/27.3.
+- 4 workers StandardServer 43.4/31.3, 41.4/35.2, 49.8/29.1, 140.5/34.3, 55.3/34.4.
+- 4 workers ReferenceServer 47.0/33.4, 47.2/31.6, 44.2/31.3, 55.9/38.7, 140.5/37.8.
+
+Connect is faster in every round of every cell: ~17–20 ms (−44 %) warm and
+~16–19 ms with 4 workers, which is the two key decryptions. The other phases
+are unchanged within noise. Server load was 39.3 → 36.6 (StandardServer) and
+40.0 → 37.0 (ReferenceServer), the same code on both sides. Totals are
+noisier: per-round warm StandardServer totals were 226/255, 252/238, 250/248,
+313/235 and 852/298, and a round where A was faster occurs in each cell. The
+total change in the table is the connect saving plus noise on a shared
+machine.
