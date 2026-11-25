@@ -54,7 +54,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (!thumbprints.Contains(certificate.Thumbprint) &&
                     HasApplicationUri(certificate, application.ApplicationUri!) &&
-                    FindIssuingGroup(certificate) != null &&
+                    await IsSignedByCertificateGroupAsync(certificate, ct).ConfigureAwait(false) &&
                     thumbprints.Add(certificate.Thumbprint))
                 {
                     result.Add(ByteString.From(certificate.RawData));
@@ -98,7 +98,7 @@ namespace Opc.Ua.Gds.Server
             using (x509)
             {
                 if (!HasApplicationUri(x509, application.ApplicationUri!) ||
-                    FindIssuingGroup(x509) == null)
+                    !await IsSignedByCertificateGroupAsync(x509, ct).ConfigureAwait(false))
                 {
                     return false;
                 }
@@ -204,6 +204,45 @@ namespace Opc.Ua.Gds.Server
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Checks that a CA certificate of a certificate group signed the
+        /// certificate. The CA certificates in the authorities store are
+        /// used, so certificates of a replaced CA certificate are found too.
+        /// </summary>
+        private async Task<bool> IsSignedByCertificateGroupAsync(
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            ICertificateGroup? certificateGroup = FindIssuingGroup(certificate);
+            if (certificateGroup?.AuthoritiesStore == null)
+            {
+                return false;
+            }
+
+            using ICertificateStore store = certificateGroup.AuthoritiesStore.OpenStore(Server.Telemetry);
+            using CertificateCollection authorities = await store.EnumerateAsync(ct).ConfigureAwait(false);
+            foreach (Certificate authority in authorities)
+            {
+                if (!X509Utils.CompareDistinguishedName(authority.SubjectName, certificate.IssuerName))
+                {
+                    continue;
+                }
+                try
+                {
+                    using X509Certificate2 issuer = authority.AsX509Certificate2();
+                    if (new X509Signature(certificate.RawData).Verify(issuer))
+                    {
+                        return true;
+                    }
+                }
+                catch (CryptographicException)
+                {
+                    // not this authority
+                }
+            }
+            return false;
         }
 
         /// <summary>

@@ -7,6 +7,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Gds.Tests
@@ -243,6 +245,75 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        [Test]
+        public async Task UnregisterRevokesCurrentAndReplacedCertificatesAsync()
+        {
+            await using GlobalDiscoveryServerClient admin = CreateClient(m_gdsClient.AdminUser);
+            await admin.ConnectAsync().ConfigureAwait(false);
+            (NodeId applicationId, ByteString firstCertificate) = await RegisterAndIssueAsync(admin, "Unregister")
+                .ConfigureAwait(false);
+            ByteString secondCertificate = await IssueAsync(admin, applicationId, "CN=UnregisterRenewed,O=OPC Foundation")
+                .ConfigureAwait(false);
+            (_, ByteString otherCertificate) = await RegisterAndIssueAsync(admin, "Bystander").ConfigureAwait(false);
+
+            await admin.UnregisterApplicationAsync(applicationId).ConfigureAwait(false);
+
+            (StatusCode firstStatus, _) = await admin.CheckRevocationStatusAsync(firstCertificate)
+                .ConfigureAwait(false);
+            (StatusCode secondStatus, _) = await admin.CheckRevocationStatusAsync(secondCertificate)
+                .ConfigureAwait(false);
+            (StatusCode otherStatus, _) = await admin.CheckRevocationStatusAsync(otherCertificate)
+                .ConfigureAwait(false);
+            Assert.That(firstStatus, Is.EqualTo((StatusCode)StatusCodes.BadCertificateRevoked), "replaced certificate");
+            Assert.That(secondStatus, Is.EqualTo((StatusCode)StatusCodes.BadCertificateRevoked), "current certificate");
+            Assert.That(otherStatus, Is.EqualTo((StatusCode)StatusCodes.Good), "certificate of another application");
+        }
+
+        [Test]
+        public async Task RevokeCertificateRejectsForgedCertificateInApplicationStoreAsync()
+        {
+            await using GlobalDiscoveryServerClient admin = CreateClient(m_gdsClient.AdminUser);
+            await admin.ConnectAsync().ConfigureAwait(false);
+            (NodeId applicationId, ByteString issuedCertificate) = await RegisterAndIssueAsync(admin, "Forged")
+                .ConfigureAwait(false);
+            ApplicationRecordDataType record = await admin.GetApplicationAsync(applicationId).ConfigureAwait(false);
+
+            // A certificate with the application's URI and the GDS CA's
+            // subject as issuer, signed by another key, in the GDS
+            // application certificate store.
+            using Certificate issued = Certificate.FromRawData(issuedCertificate);
+            using Certificate otherCa = CertificateBuilder.Create(issued.Issuer).SetCAConstraint().CreateForRSA();
+            using Certificate forged = DefaultCertificateFactory.Instance
+                .CreateApplicationCertificate(record.ApplicationUri!, "Forged", "CN=Forged,O=OPC Foundation", ["localhost"])
+                .SetIssuer(otherCa)
+                .CreateForRSA();
+            using var forgedPublic = Certificate.FromRawData(forged.RawData);
+            GlobalDiscoveryServerConfiguration gdsConfiguration =
+                m_server.Config.ParseExtension<GlobalDiscoveryServerConfiguration>()!;
+            using (ICertificateStore store = new CertificateStoreIdentifier(
+                gdsConfiguration.ApplicationCertificatesStorePath!).OpenStore(NUnitTelemetryContext.Create()))
+            {
+                await store.AddAsync(forgedPublic).ConfigureAwait(false);
+            }
+
+            ServiceResultException? ex = null;
+            try
+            {
+                await admin.RevokeCertificateAsync(applicationId, ByteString.From(forged.RawData))
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException e)
+            {
+                ex = e;
+            }
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+
+            (StatusCode status, _) = await admin.CheckRevocationStatusAsync(issuedCertificate)
+                .ConfigureAwait(false);
+            Assert.That(status, Is.EqualTo((StatusCode)StatusCodes.Good));
+        }
+
         private GlobalDiscoveryServerClient CreateClient(IUserIdentity user)
         {
             ApplicationConfiguration configuration = m_gdsClient.Configuration;
@@ -267,18 +338,28 @@ namespace Opc.Ua.Gds.Tests
                 ProductUri = "http://opcfoundation.org/UA/SupersededCertificate",
                 ApplicationNames = [new LocalizedText("en-US", unique)]
             }).ConfigureAwait(false);
+            ByteString certificate = await IssueAsync(admin, applicationId, "CN=" + unique + ",O=OPC Foundation")
+                .ConfigureAwait(false);
+            return (applicationId, certificate);
+        }
+
+        private static async Task<ByteString> IssueAsync(
+            GlobalDiscoveryServerClient admin,
+            NodeId applicationId,
+            string subjectName)
+        {
             NodeId requestId = await admin.StartNewKeyPairRequestAsync(
                 applicationId,
                 default,
                 default,
-                "CN=" + unique + ",O=OPC Foundation",
+                subjectName,
                 ["localhost"],
                 "PEM",
                 []).ConfigureAwait(false);
             (ByteString certificate, _, _) = await admin.FinishRequestAsync(applicationId, requestId)
                 .ConfigureAwait(false);
             Assert.That(certificate.IsEmpty, Is.False);
-            return (applicationId, certificate);
+            return certificate;
         }
     }
 }
