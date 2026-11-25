@@ -133,5 +133,107 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
         }
+
+        [Test]
+        public async Task TrustListGetsLatestCrlWhenOutdatedCrlIsRetainedAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            const string subjectName = "CN=GDS Outdated Crl CA, O=OPC Foundation";
+            CertificateGroupConfiguration configuration = CreateConfiguration(m_path, subjectName);
+            using var certificateGroup = new TrustListUpdatingCertificateGroup(
+                m_path + "/authorities",
+                configuration,
+                telemetry);
+            using Certificate caCertificate = await certificateGroup
+                .CreateCACertificateAsync(subjectName, certificateGroup.CertificateTypes[0])
+                .ConfigureAwait(false);
+            using Certificate signingKey = await certificateGroup
+                .LoadSigningKeyAsync(caCertificate, null, telemetry)
+                .ConfigureAwait(false);
+            using Certificate first = CertificateBuilder.Create("CN=RevokedFirst").SetIssuer(signingKey).CreateForRSA();
+            using Certificate second = CertificateBuilder.Create("CN=RevokedSecond").SetIssuer(signingKey).CreateForRSA();
+
+            X509CRL outdated = await certificateGroup.RevokeCertificateAsync(first).ConfigureAwait(false);
+            X509CRL latest = await certificateGroup.RevokeCertificateAsync(second).ConfigureAwait(false);
+            Assert.That(CertificateGroup.SelectLatestCrl([outdated, latest]), Is.SameAs(latest));
+            Assert.That(CertificateGroup.SelectLatestCrl([latest, outdated]), Is.SameAs(latest));
+
+            // The outdated CRL is still in the authorities store, as after a
+            // failed delete. It sorts after the latest one.
+            File.WriteAllBytes(
+                Path.Combine(m_path, "authorities", "crl", "zzz-outdated.crl"),
+                outdated.RawData);
+
+            await certificateGroup.UpdateTrustedListAsync().ConfigureAwait(false);
+
+            using ICertificateStore trusted = new CertificateStoreIdentifier(configuration.TrustedListPath)
+                .OpenStore(telemetry);
+            X509CRLCollection trustedCrls = await trusted.EnumerateCRLsAsync(caCertificate, false)
+                .ConfigureAwait(false);
+            Assert.That(trustedCrls.Any(crl => crl.IsRevoked(second)), Is.True);
+            Assert.That(trustedCrls.Any(crl => crl.IsRevoked(first)), Is.True);
+        }
+
+        [Test]
+        public async Task IssuingGroupIsTheGroupOfTheSigningCaAsync()
+        {
+            // Two groups with the same CA subject name but different CA keys.
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            const string subjectName = "CN=GDS Shared Subject CA, O=OPC Foundation";
+            string firstPath = Path.Combine(m_path, "first");
+            string secondPath = Path.Combine(m_path, "second");
+            CertificateGroupConfiguration firstConfiguration = CreateConfiguration(firstPath, subjectName);
+            CertificateGroupConfiguration secondConfiguration = CreateConfiguration(secondPath, subjectName);
+            using var firstGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
+                firstPath + "/authorities",
+                firstConfiguration);
+            using var secondGroup = (CertificateGroup)new CertificateGroup(telemetry).Create(
+                secondPath + "/authorities",
+                secondConfiguration);
+            using Certificate firstCa = await firstGroup
+                .CreateCACertificateAsync(subjectName, firstGroup.CertificateTypes[0])
+                .ConfigureAwait(false);
+            using Certificate secondCa = await secondGroup
+                .CreateCACertificateAsync(subjectName, secondGroup.CertificateTypes[0])
+                .ConfigureAwait(false);
+            using Certificate secondKey = await secondGroup
+                .LoadSigningKeyAsync(secondCa, null, telemetry)
+                .ConfigureAwait(false);
+            using Certificate issued = CertificateBuilder.Create("CN=IssuedBySecond").SetIssuer(secondKey).CreateForRSA();
+
+            Assert.That(
+                ApplicationsNodeManager.FindIssuingGroup([firstGroup, secondGroup], issued),
+                Is.SameAs(secondGroup));
+            Assert.That(
+                ApplicationsNodeManager.FindIssuingGroup([secondGroup, firstGroup], issued),
+                Is.SameAs(secondGroup));
+        }
+
+        private static CertificateGroupConfiguration CreateConfiguration(string basePath, string subjectName)
+        {
+            return new CertificateGroupConfiguration
+            {
+                SubjectName = subjectName,
+                BaseStorePath = basePath,
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
+        }
+
+        private sealed class TrustListUpdatingCertificateGroup : CertificateGroup
+        {
+            public TrustListUpdatingCertificateGroup(
+                string authoritiesStorePath,
+                CertificateGroupConfiguration configuration,
+                ITelemetryContext telemetry)
+                : base(authoritiesStorePath, configuration, telemetry, null)
+            {
+            }
+
+            public Task UpdateTrustedListAsync()
+            {
+                return UpdateAuthorityCertInCertificateStoreAsync(
+                    new CertificateStoreIdentifier(Configuration.TrustedListPath));
+            }
+        }
     }
 }

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -1221,13 +1222,16 @@ namespace Opc.Ua.Gds.Server
                             }
                         }
 
-                        // copy latest CRL to trusted list
-                        foreach (
-                            X509CRL crl in await authorityStore
-                                .EnumerateCRLsAsync(certificate, true, ct)
-                                .ConfigureAwait(false))
+                        // copy latest CRL to trusted list. An outdated CRL may
+                        // still be in the authorities store when its delete
+                        // failed; copying it after the latest one would replace
+                        // the latest one in the destination.
+                        X509CRL? latestCrl = SelectLatestCrl(await authorityStore
+                            .EnumerateCRLsAsync(certificate, true, ct)
+                            .ConfigureAwait(false));
+                        if (latestCrl != null)
                         {
-                            await trustedOrIssuerStore.AddCRLAsync(crl, ct).ConfigureAwait(false);
+                            await trustedOrIssuerStore.AddCRLAsync(latestCrl, ct).ConfigureAwait(false);
                         }
                     }
                 }
@@ -1237,6 +1241,29 @@ namespace Opc.Ua.Gds.Server
                 authorityStore.Dispose();
                 trustedOrIssuerStore.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Selects the CRL with the highest CRL number, and the latest
+        /// ThisUpdate among CRLs with the same number.
+        /// </summary>
+        internal static X509CRL? SelectLatestCrl(IEnumerable<X509CRL> crls)
+        {
+            X509CRL? latest = null;
+            BigInteger latestNumber = BigInteger.MinusOne;
+            foreach (X509CRL crl in crls)
+            {
+                BigInteger number = crl.CrlExtensions.FindExtension<X509CrlNumberExtension>()?.CrlNumber
+                    ?? BigInteger.MinusOne;
+                if (latest == null ||
+                    number > latestNumber ||
+                    (number == latestNumber && crl.ThisUpdate > latest.ThisUpdate))
+                {
+                    latest = crl;
+                    latestNumber = number;
+                }
+            }
+            return latest;
         }
 
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> s_crlLocks =

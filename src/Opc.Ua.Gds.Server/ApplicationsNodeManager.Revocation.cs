@@ -4,9 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -210,18 +212,59 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private ICertificateGroup? FindIssuingGroup(Certificate certificate)
         {
-            foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
+            return FindIssuingGroup(m_certificateGroups.Values, certificate);
+        }
+
+        /// <summary>
+        /// Finds the certificate group whose CA certificate issued the
+        /// certificate.
+        /// </summary>
+        internal static ICertificateGroup? FindIssuingGroup(
+            IEnumerable<ICertificateGroup> certificateGroups,
+            Certificate certificate)
+        {
+            // Prefer the group whose CA certificate is the actual issuer: the
+            // authority key identifier names its key or its serial number.
+            // Groups may share a CA subject name.
+            X509AuthorityKeyIdentifierExtension? authority =
+                certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
+            ICertificateGroup? subjectMatch = null;
+            foreach (ICertificateGroup certificateGroup in certificateGroups)
             {
                 foreach (Certificate? caCertificate in certificateGroup.Certificates.Values)
                 {
-                    if (caCertificate != null &&
-                        X509Utils.CompareDistinguishedName(caCertificate.Subject, certificate.Issuer))
+                    if (caCertificate == null ||
+                        !X509Utils.CompareDistinguishedName(caCertificate.Subject, certificate.Issuer))
+                    {
+                        continue;
+                    }
+                    if (authority != null && IsAuthority(authority, caCertificate))
                     {
                         return certificateGroup;
                     }
+                    subjectMatch ??= certificateGroup;
                 }
             }
-            return null;
+
+            // A CA certificate that was replaced is no longer the group's
+            // current one; its certificates are found by the subject name.
+            return subjectMatch;
+        }
+
+        private static bool IsAuthority(
+            X509AuthorityKeyIdentifierExtension authority,
+            Certificate caCertificate)
+        {
+            if (!string.IsNullOrEmpty(authority.SerialNumber) &&
+                string.Equals(authority.SerialNumber, caCertificate.SerialNumber, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            X509SubjectKeyIdentifierExtension? subjectKey =
+                caCertificate.FindExtension<X509SubjectKeyIdentifierExtension>();
+            return subjectKey != null &&
+                !string.IsNullOrEmpty(authority.KeyIdentifier) &&
+                string.Equals(subjectKey.SubjectKeyIdentifier, authority.KeyIdentifier, StringComparison.OrdinalIgnoreCase);
         }
 
         private ICertificateStore? OpenApplicationCertificatesStore()
