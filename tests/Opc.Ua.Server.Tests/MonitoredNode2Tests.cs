@@ -1102,6 +1102,74 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// N6: marking the monitored node deleted retires its cached data change permission,
+        /// while the deletion of an unrelated node leaves it cached.
+        /// </summary>
+        [TestCase(true, 2)]
+        [TestCase(false, 1)]
+        public async Task OnMonitoredNodeChangedNodeDeletionRetiresOnlyItsOwnCachedPermissionAsync(
+            bool deleteMonitoredNode, int expectedValidations)
+        {
+            var nodeId = new NodeId("testNode", 1);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+            var unrelated = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("unrelatedNode", 1),
+                BrowseName = new QualifiedName("unrelatedNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock = CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+
+            // the delivery channel validates and queues the first value asynchronously: wait
+            // until it was delivered, so its verdict is cached before the deletion.
+            for (int ii = 0; ii < 3000 && !HasQueuedValue(monitoredItemMock); ii++)
+            {
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+            Assert.That(HasQueuedValue(monitoredItemMock), Is.True, "the first value was not delivered");
+
+            // the node manager marks every node it removes deleted.
+            (deleteMonitoredNode ? node : unrelated).UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+
+            // Asynchronous disposal is the delivery barrier.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    nodeId,
+                    PermissionType.Read,
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(expectedValidations));
+        }
+
+        /// <summary>
         /// Verifies that when ValidateRolePermissions returns a bad result, the value is not
         /// queued but the access denied status is (Part 4 5.13.2.1), and the result is cached
         /// (so validation is not repeated on every change).
@@ -2651,6 +2719,18 @@ namespace Opc.Ua.Server.Tests
             eventItemMock.Setup(m => m.Session).Returns(sessionMock.Object);
 
             return eventItemMock;
+        }
+
+        private static bool HasQueuedValue(Mock<IDataChangeMonitoredItem2> monitoredItemMock)
+        {
+            foreach (IInvocation invocation in monitoredItemMock.Invocations)
+            {
+                if (invocation.Method.Name.StartsWith("Queue", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static Mock<IDataChangeMonitoredItem2> CreateDataChangeMonitoredItemMock(

@@ -68,6 +68,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase("SecurityMode")]
         [TestCase("Transport")]
         [TestCase("AccessRestrictions")]
+        [TestCase("NodeDeleted")]
         public async Task GoodVerdictIsRetiredByEachKeyAsync(string key)
         {
             await using var harness = new Harness();
@@ -82,6 +83,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.ChecksIn(7), Is.Zero, "the new verdict is reused");
             for (int ii = 0; ii <= 7; ii++)
             {
+                Assert.That(harness.Status(ii), Is.EqualTo(StatusCodes.Good));
+            }
+        }
+
+        /// <summary>
+        /// N6: the deletion of another node does not retire the verdict of the sampled node.
+        /// </summary>
+        [Test]
+        public async Task GoodVerdictSurvivesUnrelatedNodeDeletionAsync()
+        {
+            await using var harness = new Harness();
+            harness.AfterSample(3, () => harness.Change("UnrelatedNodeDeleted"));
+            await harness.StartAsync().ConfigureAwait(false);
+            await harness.WaitForSampleAsync(6).ConfigureAwait(false);
+
+            for (int ii = 1; ii <= 6; ii++)
+            {
+                Assert.That(harness.ChecksIn(ii), Is.Zero, $"sample {ii} reran the exact-source check");
                 Assert.That(harness.Status(ii), Is.EqualTo(StatusCodes.Good));
             }
         }
@@ -460,6 +479,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         break;
                     case "AccessRestrictions":
                         Node.AccessRestrictions = AccessRestrictionType.SigningRequired;
+                        break;
+                    case "NodeDeleted":
+                        // the node manager marks every node it removes deleted.
+                        Node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                        break;
+                    case "UnrelatedNodeDeleted":
+                        new BaseDataVariableState(null).UpdateChangeMasks(NodeStateChangeMasks.Deleted);
                         break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(key), key, null);
