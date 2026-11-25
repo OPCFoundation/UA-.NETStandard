@@ -1142,7 +1142,7 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet)
         {
             if (optionalAffordances is not null &&
-                GetBaselineModellingRule(node, nodeSet) is "Optional" or "OptionalPlaceholder")
+                GetBaselineModellingRule(node, nodeSet) is "Optional" or "OptionalPlaceholder" or "MandatoryPlaceholder")
             {
                 optionalAffordances.Add("/" + collection + "/" + EscapePointerToken(key));
             }

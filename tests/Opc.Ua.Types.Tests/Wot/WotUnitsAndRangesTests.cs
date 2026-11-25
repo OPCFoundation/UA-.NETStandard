@@ -721,6 +721,41 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Rejects reversed engineering endpoints with or without a containing instrument range.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReversedSeparateEngineeringRangeIsReported(bool withInstrumentRange)
+        {
+            string instrumentRange = withInstrumentRange
+                ? ",\"uav:instrumentRange\":{\"minimum\":0,\"maximum\":100}"
+                : string.Empty;
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"speed\":{\"type\":\"number\"," +
+                "\"uav:euRange\":{\"minimum\":10,\"maximum\":0}" + instrumentRange + "}}");
+
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.InvalidRangeValue &&
+                diagnostic.Location?.JsonPointer == "/properties/speed/uav:euRange/minimum"), Is.True);
+        }
+
+        /// <summary>
+        /// Accepts engineering metadata whose endpoints are ordered or omitted.
+        /// </summary>
+        [TestCase("\"minimum\":0")]
+        [TestCase("\"maximum\":10")]
+        [TestCase("\"minimum\":0,\"maximum\":10")]
+        public void OrderedOrPartialSeparateEngineeringRangeIsAccepted(string endpoints)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"speed\":{\"type\":\"number\",\"uav:euRange\":{" + endpoints + "}}}");
+
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.InvalidRangeValue), Is.False,
+                WotAnalogTestData.Describe(result.Diagnostics));
+        }
+
         [Test]
         public void ReversedInstrumentRangeIsReported()
         {
