@@ -481,6 +481,29 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(manager.TryAcquireLoadedApplicationKeyForConfiguredStore(id, null, null), Is.Null);
         }
 
+        [Test]
+        public async Task ConfiguredStoreLookupResolvesTheStoreTypeLikeTheBuiltInResolutionAsync()
+        {
+            (CertificateIdentifier id, SecurityConfiguration config) = await CreateStoreAsync("CN=ConfiguredType")
+                .ConfigureAwait(false);
+            // Without a store type the path decides, for the manager and for
+            // the built-in resolution: a directory path is a directory store.
+            id.StoreType = null;
+            await using var manager = new CertificateManager(m_telemetry);
+            await manager.LoadApplicationCertificatesAsync(config).ConfigureAwait(false);
+            using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(id.CertificateType)!;
+            id.Thumbprint = loaded.Certificate.Thumbprint;
+            using (Certificate? reused = manager.TryAcquireLoadedApplicationKeyForConfiguredStore(id, null, null))
+            {
+                Assert.That(reused, Is.Not.Null);
+                Assert.That(reused!.X509, Is.SameAs(loaded.Certificate.X509));
+            }
+
+            // Any other store type is loaded from its store.
+            id.StoreType = CertificateStoreType.X509Store;
+            Assert.That(manager.TryAcquireLoadedApplicationKeyForConfiguredStore(id, null, null), Is.Null);
+        }
+
         private async Task<(CertificateIdentifier Id, SecurityConfiguration Config)> CreateStoreAsync(string subject)
         {
             using Certificate certificate = CertificateBuilder.Create(subject)
