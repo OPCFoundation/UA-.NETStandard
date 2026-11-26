@@ -985,6 +985,105 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Returns a retired grant's node to its pre-grant read path, and keeps nodes that never had a
+        /// grant off the dynamic permission path even when they install their own callback.
+        /// </summary>
+        [Test]
+        public async Task RetiredGrantRestoresStaticPermissionReadsAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                server.SetupGet(value => value.Telemetry).Returns(s_telemetry);
+                var metadata = new NamespaceMetadataState(null);
+                metadata.AddDefaultRolePermissions(server.Object.DefaultSystemContext);
+                var configuration = new Mock<IConfigurationNodeManager>();
+                configuration.Setup(value => value.GetNamespaceMetadataStateAsync(
+                    It.IsAny<ushort>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<NamespaceMetadataState?>(metadata));
+                Mock.Get(server.Object.NodeManager).SetupGet(value => value.ConfigurationNodeManager)
+                    .Returns(configuration.Object);
+                await using var owner = new PermissionTestNodeManager(server.Object);
+                ArrayOf<RolePermissionType> explicitPermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Observer,
+                        Permissions = (uint)PermissionType.Browse
+                    }
+                ];
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId(901, owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("GrantedNode", owner.NamespaceIndex),
+                    RolePermissions = explicitPermissions
+                };
+                var untouched = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId(902, owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("UntouchedNode", owner.NamespaceIndex),
+                    RolePermissions = explicitPermissions
+                };
+                SessionSystemContext session = CreateContext(
+                    UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt,
+                    ObjectIds.WellKnownRole_SecurityAdmin);
+                ServerSystemContext context = ToServerContext(server.Object, session);
+
+                // a node that never had a grant stays on the static path, with or without a callback.
+                Assert.That(AsyncCustomNodeManager.RequiresDynamicPermissionReads(untouched), Is.False);
+                untouched.OnReadRolePermissions =
+                    (ISystemContext _, NodeState _, ref ArrayOf<RolePermissionType> _) => ServiceResult.Good;
+                Assert.That(AsyncCustomNodeManager.RequiresDynamicPermissionReads(untouched), Is.False);
+                Assert.That(await ReadRolePermissionsAsync(untouched).ConfigureAwait(false),
+                    Is.EqualTo(Project(explicitPermissions)));
+
+                AsyncCustomNodeManager.RegisterSecurityAdminCallPermissions(owner, node);
+                Assert.That(node.OnReadRolePermissions, Is.Not.Null);
+                Assert.That(AsyncCustomNodeManager.RequiresDynamicPermissionReads(node), Is.True);
+                List<(NodeId RoleId, uint Permissions)> granted =
+                    await ReadRolePermissionsAsync(node).ConfigureAwait(false);
+                Assert.That(granted.Any(permission =>
+                    permission.RoleId == ObjectIds.WellKnownRole_SecurityAdmin &&
+                    (permission.Permissions & (uint)PermissionType.Call) != 0), Is.True);
+
+                owner.RevokeSecurityAdminCallPermissions();
+                Assert.That(node.OnReadRolePermissions, Is.Null);
+                Assert.That(AsyncCustomNodeManager.RequiresDynamicPermissionReads(node), Is.False);
+                Assert.That(await ReadRolePermissionsAsync(node).ConfigureAwait(false),
+                    Is.EqualTo(Project(explicitPermissions)));
+                Assert.That(Project(node.RolePermissions), Is.EqualTo(Project(explicitPermissions)));
+
+                // a grant retired over a node's own callback keeps that callback on the dynamic path.
+                NodeAttributeEventHandler<ArrayOf<RolePermissionType>> original =
+                    (ISystemContext _, NodeState _, ref ArrayOf<RolePermissionType> _) => ServiceResult.Good;
+                node.OnReadRolePermissions = original;
+                AsyncCustomNodeManager.RegisterSecurityAdminCallPermissions(owner, node);
+                owner.RevokeSecurityAdminCallPermissions();
+                Assert.That(node.OnReadRolePermissions, Is.SameAs(original));
+                Assert.That(AsyncCustomNodeManager.RequiresDynamicPermissionReads(node), Is.True);
+                Assert.That(await ReadRolePermissionsAsync(node).ConfigureAwait(false),
+                    Is.EqualTo(Project(explicitPermissions)));
+
+                async Task<List<(NodeId, uint)>> ReadRolePermissionsAsync(NodeState target)
+                {
+                    (ServiceResult result, DataValue value) =
+                        await AsyncCustomNodeManager.ReadConfigurationPermissionAttributeAsync(
+                            server.Object, target, context, Attributes.RolePermissions,
+                            default, default, new DataValue(), CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(value.WrappedValue.TryGetStructure(
+                        out ArrayOf<RolePermissionType> permissions), Is.True);
+                    return Project(permissions);
+                }
+
+                static List<(NodeId, uint)> Project(ArrayOf<RolePermissionType> permissions)
+                {
+                    return permissions.ToList().ConvertAll(permission => (permission.RoleId, permission.Permissions));
+                }
+            }
+        }
+
+        /// <summary>
         /// Owns only the permission grant under test, without starting another server.
         /// </summary>
         private sealed class PermissionTestNodeManager : AsyncCustomNodeManager
