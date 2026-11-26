@@ -17,6 +17,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
+        [NoFixtureServer]
         public async Task WorkerCancellationFailureStillJoinsRetainedDrainAsync(bool subscriptionWorker)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -30,6 +31,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             CancellationTokenRegistration callback = default;

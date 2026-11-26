@@ -309,6 +309,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(retry.NewGeneration, Is.EqualTo(2u));
             Assert.That(await ReadStockValueAsync("Reading").ConfigureAwait(false), Is.EqualTo(84));
             await AssertStockMembershipAsync("child", 2, ["Reading", "Other"]).ConfigureAwait(false);
+            // The replaced generation disposes its runtime when its retirement completes, which can
+            // finish after RefreshAsync returns on a loaded runner (seen on net48 CI).
+            for (int attempt = 0; attempt < 200 && probe.RuntimeCreatedCount - probe.RuntimeDisposedCount > 1; attempt++)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false);
+            }
             Assert.That(probe.RuntimeCreatedCount - probe.RuntimeDisposedCount, Is.EqualTo(1));
         }
 

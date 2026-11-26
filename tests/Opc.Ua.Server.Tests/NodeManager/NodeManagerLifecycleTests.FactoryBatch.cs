@@ -222,6 +222,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <param name="register">Whether readiness registers the store with the server.</param>
         [TestCase(false)]
         [TestCase(true)]
+        [NoFixtureServer]
         public async Task InitialAliasFactoryRegistersAtReadinessAsync(bool register)
         {
             using var store = new InMemoryAliasNameStore([]);
@@ -245,11 +246,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             try
             {
-                LifecycleTestServer server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "initial-alias"))
+                LifecycleTestServer server = await fixture.StartAsync(
+                    Path.Combine(m_pkiRoot, "initial-alias"))
                     .ConfigureAwait(false);
                 IAliasNameStoreRegistry registry =
                     ((IAliasNameStoreRegistryProvider)server.CurrentInstance).AliasNameStoreRegistry;
@@ -807,6 +810,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Rejects unsupported factories before creating or owning initial candidates.
         /// </summary>
         [Test]
+        [NoFixtureServer]
         public async Task InitialPublicationRejectsUnsupportedFactoryBeforeCandidateEffectsAsync()
         {
             var candidate = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
@@ -823,12 +827,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             try
             {
+                string pki = Path.Combine(m_pkiRoot, "foreign-factory");
                 ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await fixture.StartAsync(Path.Combine(m_pkiRoot, "foreign-factory")).ConfigureAwait(false))
+                    await fixture.StartAsync(pki).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
                 Assert.That(failure.InnerException, Is.TypeOf<NotSupportedException>());
@@ -846,6 +852,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        [NoFixtureServer]
         public async Task PreparedBatchFactoryOwnershipEndsWithServerLifetimeAsync()
         {
             IEncodeableFactory factory = EncodeableFactory.Create();
@@ -854,6 +861,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             string pki = Path.Combine(m_pkiRoot, "factory-lifetime");

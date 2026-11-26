@@ -45,7 +45,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration registration = RequireRegistration(publicationResult1.Registrations[0]);
             AssertLifecycleValue(original);
             NodeId nodeId = new(events ? kRootNodeId : kValueNodeId, original.NamespaceIndexes[0]);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)

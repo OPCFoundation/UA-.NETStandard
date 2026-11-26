@@ -562,9 +562,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var runtimeFactory = new Mock<IWotProjectionBindingRuntimeFactory>(MockBehavior.Strict);
             runtimeFactory.Setup(factory => factory.CreateAsync(
                 It.IsAny<INodeManagerBuilder>(), It.IsAny<ArrayOf<WotBindingPlan>>(),
-                It.IsAny<CancellationToken>())).Returns(() =>
+                It.IsAny<CancellationToken>())).Returns((INodeManagerBuilder _, ArrayOf<WotBindingPlan> plans, CancellationToken _) =>
                 {
                     probe.RuntimeCreatedCount++;
+                    probe.LastRuntimeResourceXids = [.. plans.ToList().Select(plan => plan.ResourceXid)];
                     var runtime = new Mock<IAsyncDisposable>(MockBehavior.Strict);
                     runtime.Setup(owner => owner.DisposeAsync()).Returns(() =>
                     {
@@ -776,6 +777,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the runtime created count for <c>HandoffProbe</c>.
             /// </summary>
             public int RuntimeCreatedCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the resource xids of the binding plans of the last created runtime.
+            /// </summary>
+            public string[] LastRuntimeResourceXids { get; set; } = [];
 
             /// <summary>
             /// Gets or sets the runtime disposed count for <c>HandoffProbe</c>.

@@ -32,6 +32,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerReadiness")]
+        [NoFixtureServer]
         public async Task ReadinessWarningReportsPublishedGenerationWithoutForcingCompletionAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -77,13 +78,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             StandardServer? server = null;
             Task<LifecycleResult>? add = null;
             try
             {
-                server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "readiness-warning"))
+                server = await fixture.StartAsync(
+                    Path.Combine(m_pkiRoot, "readiness-warning"))
                     .ConfigureAwait(false);
                 INodeManagerLifecycle lifecycle = server.NodeManagerLifecycle;
                 ReadinessLifecycleNodeManager? participant = null;

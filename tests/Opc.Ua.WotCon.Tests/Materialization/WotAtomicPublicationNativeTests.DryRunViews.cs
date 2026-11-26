@@ -700,16 +700,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string retiredXid = exactRetiredVersion
                 ? WotDependencyGraph.VersionXid(retired, retired.DefaultVersion!)
                 : retired.Xid;
+            // Decide by the resource a runtime is built for, not by a creation count: validation
+            // can build more than one runtime for the same unit.
             probe.OnRuntimeCreated = () =>
             {
-                if (rejectFirstUnitOnly)
-                {
-                    probe.RejectReadImages = probe.RuntimeCreatedCount == 2;
-                }
-                else if (rejectEveryUnit || probe.RuntimeCreatedCount > 2)
-                {
-                    probe.RejectReadImages = true;
-                }
+                bool forFirst = probe.LastRuntimeResourceXids.Contains(first.Xid);
+                probe.RejectReadImages = rejectEveryUnit || (rejectFirstUnitOnly ? forFirst : !forFirst);
             };
             m_events.Clear();
 

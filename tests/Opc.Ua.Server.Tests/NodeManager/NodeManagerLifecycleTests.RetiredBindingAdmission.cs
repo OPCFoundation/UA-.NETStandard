@@ -273,6 +273,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
                 {
+                    ReuseCachedCertificates = true,
                     OperationTimeout = 60000,
                     SessionTimeout = 60000
                 };
@@ -448,6 +449,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
                 {
+                    ReuseCachedCertificates = true,
                     OperationTimeout = 60000,
                     SessionTimeout = 60000
                 };

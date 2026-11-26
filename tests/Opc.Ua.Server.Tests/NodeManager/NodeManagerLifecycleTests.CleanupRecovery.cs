@@ -389,6 +389,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("NodeManagerLifecycle")]
         [Category("FileSystem")]
+        [NoFixtureServer]
         public Task PublishedDirectoryCursorUsesAuthorizedRecoveryBeforeRetirementAsync()
         {
             return ExerciseDirectoryCursorRecoveryAsync(retireBeforeFailure: false);
@@ -400,6 +401,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("NodeManagerLifecycle")]
         [Category("FileSystem")]
+        [NoFixtureServer]
         public Task PublishedDirectoryCursorFailureAfterRetirementUsesAuthorizedRecoveryAsync()
         {
             return ExerciseDirectoryCursorRecoveryAsync(retireBeforeFailure: true);
@@ -432,6 +434,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             var failure = new IOException("The provider cursor did not close.");
@@ -668,6 +671,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task RetiredConsumerUsesAuthorizedRecoveryWithoutRepeatedDisposalAsync()
         {
             var authorization = new CleanupRecoveryAuthorization();
@@ -690,6 +694,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             string namespaceUri = kModelNamespaceUri + ":RetiredConsumer:" + Guid.NewGuid().ToString("N");
@@ -706,8 +711,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 probe.IsExternallyClosed;
             try
             {
-                server = await fixture.StartAsync(
-                    Path.Combine(m_pkiRoot, "consumer-" + Guid.NewGuid().ToString("N"))).ConfigureAwait(false);
+                server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "consumer-" + Guid.NewGuid().ToString("N")))
+                    .ConfigureAwait(false);
                 INodeManagerLifecycle lifecycle = server.NodeManagerLifecycle;
                 NodeManagerCleanupRecovery service = recovery ??
                     throw new InvalidOperationException("The cleanup recovery service was not bound.");
@@ -852,6 +857,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CleanupRecoveryRequiresAuthorizedVerifiedAuditedConfirmationAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(2)
@@ -929,6 +935,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CleanupDiscoveryReportsParticipantFailureAndRecoversIndependentResourceAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1012,6 +1019,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CleanupDiscoveryRetainsKnownParticipantsWhenResourceGetterFailsAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(
@@ -1069,6 +1077,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CleanupDiscoveryReportsClosedGenerationAdmissionAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1102,6 +1111,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ClosedSessionHistoryFailureRequiresExactVerifiedRecoveryAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1167,6 +1177,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <exception cref="InvalidOperationException"></exception>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task HistoryRecoveryReportsReleaseNotificationFailureAfterConfirmationAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1238,6 +1249,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task HistoryRecoveryConfirmsOnlyTheVerifiedPointAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1319,6 +1331,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CleanupRecoverySanitizesDescriptionsForDiscoveryAndVerificationAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1370,6 +1383,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CleanupRecoveryRejectsUnconsumedParticipantCapabilitiesAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1406,6 +1420,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CleanupRecoveryRejectsEmptyVerificationResourceAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1433,6 +1448,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ConfirmationFailureBeforeConsumptionLeavesResourceRetainedAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1462,6 +1478,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(false)]
         [TestCase(true)]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ConfirmationFailureAfterConsumptionUsesRetainedStateAsync(bool keepFailure)
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -1511,6 +1528,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ReconciliationWaitsForOtherRetainedFailureAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(2)
@@ -1542,6 +1560,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(false)]
         [TestCase(true)]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ReconciliationWaitsForAdmittedVerifierAsync(bool cancelReconciliation)
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(2)
@@ -1654,6 +1673,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(false, true)]
         [TestCase(true, true)]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public Task VerificationRejectsReentrantRecoveryForItsGenerationAsync(
             bool confirmAgain,
             bool duringLookup)
@@ -1664,6 +1684,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(false)]
         [TestCase(true)]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public Task VerificationDiscoveryRejectsReentrantRecoveryForItsGenerationAsync(bool confirmAgain)
         {
             return VerifyRecoveryReentryAsync(confirmAgain, duringLookup: false, duringDiscovery: true);
@@ -1744,6 +1765,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ExitedVerifierDoesNotBlockInheritedRecoveryAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(2)
@@ -1816,6 +1838,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task NestedVerificationPreservesActiveAncestorAfterInnerExitAsync()
         {
             await using CleanupRecoveryHarness outer = await CreateCleanupRecoveryHarnessAsync(2)
@@ -1912,6 +1935,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task NewFailureCanBeConfirmedWhileEarlierOfferWaitsAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(
@@ -1949,6 +1973,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task UncertainLaterConfirmationKeepsEarlierOfferUntilReconciledAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(
@@ -1991,6 +2016,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task RejectedReconciliationKeepsEarlierOfferUntilLaterFailureIsConfirmedAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(
@@ -2025,6 +2051,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task UnknownClearedConfirmationRequiresReconciliationAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2059,6 +2086,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ReconciliationCompletesWhenSuccessAuditCancelsCallerAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2105,6 +2133,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task PendingConfirmationDiscoveryRequiresAuthorizationAndAuditAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2157,6 +2186,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task UnknownRetainedConfirmationRequiresFreshVerificationAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2185,6 +2215,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task IndependentUnknownConfirmationsRequireSeparateReconciliationAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(2)
@@ -2214,6 +2245,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task ConcurrentVerificationRetainsPrivateGenerationUntilVerifierReturnsAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2273,6 +2305,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task AdmittedVerificationCanConfirmAfterRecoveryGateClosesAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2317,6 +2350,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CancelledConfirmationDoesNotRemoveResourceWhileAnotherVerifierRunsAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2376,6 +2410,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CancelledVerificationReleasesPrivateGenerationAdmissionAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2421,6 +2456,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task CleanupWaitsForConfirmationOutcomeAuditAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(2)
@@ -2460,6 +2496,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task FailedOutcomeAuditRetainsCleanupUntilReconciledAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2488,6 +2525,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task FailedResumptionRetainsClaimedConfirmationUntilReconciledAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(1)
@@ -2556,6 +2594,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase("Abort")]
         [TestCase("Disposal")]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task PrivateCleanupRecoversFailuresCreatedByCompletedStagesAsync(string stage)
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(
@@ -2601,6 +2640,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task PrivatePreexistingFailureBlocksProducerShutdownUntilConfirmationAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(
@@ -2635,6 +2675,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <exception cref="AssertionException"></exception>
         [Test]
         [Category("NodeManagerLifecycle")]
+        [NoFixtureServer]
         public async Task VerifiedPrivateCleanupReleasesWriterUnitAndPreservesFailureAsync()
         {
             await using CleanupRecoveryHarness harness = await CreateCleanupRecoveryHarnessAsync(
@@ -2661,12 +2702,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await harness.Recovery.ConfirmAsync(handle).ConfigureAwait(false);
             harness.AssertPhysicalCleanupOnce();
             await Task.Yield();
-            for (int attempt = 0; attempt < 3 && factory.IsAlive; attempt++)
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-            }
+            await CollectUntilReleasedAsync(() => !factory.IsAlive).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(factory.IsAlive, Is.False);
@@ -2717,12 +2753,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
             try
             {
-                LifecycleTestServer testServer = await fixture.StartAsync(
-                    Path.Combine(m_pkiRoot, "cleanup-" + Guid.NewGuid().ToString("N"))).ConfigureAwait(false);
+                LifecycleTestServer testServer = await fixture.StartAsync(Path.Combine(m_pkiRoot, "cleanup-" + Guid.NewGuid().ToString("N")))
+                    .ConfigureAwait(false);
                 var owner = (NodeManagerLifecycle)testServer.NodeManagerLifecycle;
                 string namespaceUri = kModelNamespaceUri + ":Cleanup:" + Guid.NewGuid().ToString("N");
                 Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(namespaceUri);

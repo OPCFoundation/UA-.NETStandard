@@ -35,16 +35,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
     /// monitored-item transitions, and rollback paths for Add/Reload/Remove.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Each test starts a fresh <see cref="ServerFixture{ReferenceServer}"/> so that
     /// namespace-table, routing-table, and registration baselines are predictable and
-    /// unaffected by other tests' live add/reload/remove mutations.
+    /// unaffected by other tests' live add/reload/remove mutations. Tests marked
+    /// <see cref="NoFixtureServerAttribute"/> host their own server (or none) and skip it.
+    /// </para>
+    /// <para>
+    /// Every test owns its server, session, mocks and certificate store, so the tests run
+    /// in parallel, each on its own fixture instance. The store is copied from a template
+    /// that is created once per test process (see <c>NodeManagerLifecycleTests.TestPki.cs</c>).
+    /// </para>
     /// </remarks>
     [TestFixture]
     [Category("NodeManagerLifecycle")]
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [NonParallelizable]
+    [Parallelizable(ParallelScope.All)]
+    [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
     public sealed partial class NodeManagerLifecycleTests
     {
         private const double kMaxAge = 10000;
@@ -87,38 +96,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
             "urn:localhost:opcfoundation.org:NodeManagerLifecycleTests";
 
         /// <summary>
-        /// Creates one PKI root for the fixture so that application certificates are
-        /// generated once rather than for every test; servers stay per test.
-        /// </summary>
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
-        {
-            m_pkiRoot = Path.Combine(
-                Path.GetTempPath(),
-                "nl-" + Guid.NewGuid().ToString("N"));
-        }
-
-        /// <summary>
-        /// Deletes the fixture PKI root.
-        /// </summary>
-        [OneTimeTearDown]
-        public void OneTimeTearDown()
-        {
-            if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
-            {
-                Directory.Delete(m_pkiRoot, recursive: true);
-            }
-        }
-
-        /// <summary>
-        /// Starts a fresh <see cref="ReferenceServer"/> and activates a session for the test.
+        /// Picks a private certificate store for the test, then starts a fresh
+        /// <see cref="ReferenceServer"/> and activates a session unless the test is
+        /// marked <see cref="NoFixtureServerAttribute"/>.
         /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
+            m_pkiRoot = CreatePkiRoot();
+            m_logger = NUnitTelemetryContext.Create().CreateLogger<NodeManagerLifecycleTests>();
             m_fixtureCleanupAuthorization = new CleanupRecoveryAuthorization();
             m_fixtureCleanupAudit = new CleanupRecoveryAudit();
             m_fixtureCleanupVerifier = new CleanupRecoveryVerifier { Verified = false };
+            if (TestContext.CurrentContext.Test.Method?
+                .GetCustomAttributes<NoFixtureServerAttribute>(false).Length > 0)
+            {
+                return;
+            }
             m_fixture = new ServerFixture<LifecycleTestServer>(telemetry =>
             {
                 var server = new LifecycleTestServer(telemetry);
@@ -129,11 +123,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
+                ReuseCachedCertificates = true,
                 AutoAccept = true
             };
 
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
-            m_logger = NUnitTelemetryContext.Create().CreateLogger<NodeManagerLifecycleTests>();
             m_startupRegistrationIds = [];
             m_startupRegistrations = m_server.NodeManagerLifecycle.Registrations;
             m_startupRegistrations.ForEach(
@@ -171,9 +165,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 finally
                 {
-                    if (m_fixture is not null)
+                    try
                     {
-                        await m_fixture.StopAsync().ConfigureAwait(false);
+                        if (m_fixture is not null)
+                        {
+                            await m_fixture.StopAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        DeletePkiRoot(m_pkiRoot);
                     }
                 }
             }
@@ -1242,6 +1243,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// deterministically at the end of the test.
         /// </summary>
         [Test]
+        [NoFixtureServer]
         public Task AddAsyncBeforeServerStartRejectsWithoutInvokingFactoryAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2957,12 +2959,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "Re-enabling the migrated item must preserve its client-visible identity.");
 
             // The re-enabled item still delivers a fresh value pushed on the replacement node.
+            // Re-enabling queues an initial sample of the current value (4242) first, which a
+            // slow sampling pass can publish after the push below; wait for the pushed value.
             await PushRetiredValueAsync(server, replacementManager, valueNodeId, 5353).ConfigureAwait(false);
-            (pushed, acknowledgements) = await PublishForDataChangeAsync(
+            (pushed, acknowledgements) = await PublishUntilDataChangeAsync(
                 services,
                 subscriptionId,
                 acknowledgements,
-                clientHandle).ConfigureAwait(false);
+                clientHandle,
+                5353).ConfigureAwait(false);
             Assert.That(pushed!.Value.WrappedValue.GetInt32(), Is.EqualTo(5353));
 
             // (3) Delete the migrated item using its unchanged client-visible ID.
@@ -8240,17 +8245,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// previously delivered sequence numbers on each call, until a
         /// <see cref="DataChangeNotification"/> carrying <paramref name="clientHandle"/>
         /// arrives. Used to prove that a monitored item keeps being serviced (by whichever
-        /// NodeManager generation owns it) after a live lifecycle switch.
+        /// NodeManager generation owns it) after a live lifecycle switch. With
+        /// <paramref name="expected"/>, the first notification in a response that carries
+        /// it is returned even if a later one for the same handle follows.
         /// </summary>
         private async Task<(DataValue? Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
             PublishForDataChangeAsync(
                 ServerTestServices services,
                 uint subscriptionId,
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements,
-                uint clientHandle)
+                uint clientHandle,
+                int? expected = null)
         {
             const int MaxPublishAttempts = 20;
             DataValue? value = null;
+            bool matched = false;
 
             for (int attempt = 0; attempt < MaxPublishAttempts && value is null; attempt++)
             {
@@ -8279,9 +8288,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         {
                             foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                             {
-                                if (item.ClientHandle == clientHandle)
+                                if (item.ClientHandle == clientHandle && !matched)
                                 {
+                                    // With an expected value, the first match in the response
+                                    // wins; a later sample in the same response must not hide it.
                                     value = item.Value;
+                                    matched = expected is int wanted &&
+                                        item.Value is { } current &&
+                                        current.WrappedValue.TryGetValue(out int received) &&
+                                        received == wanted;
                                 }
                             }
                         }
@@ -8294,6 +8309,39 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.Not.Null,
                 $"No data-change notification for client handle {clientHandle} on subscription " +
                 $"{subscriptionId} arrived within {MaxPublishAttempts} bounded publish attempts.");
+            return (value, acknowledgements);
+        }
+
+        /// <summary>
+        /// Publishes until a data change for <paramref name="clientHandle"/> carries
+        /// <paramref name="expected"/>, skipping values that an earlier action (for example an
+        /// initial sample after re-enabling the item) queued before it.
+        /// </summary>
+        private async Task<(DataValue? Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
+            PublishUntilDataChangeAsync(
+                ServerTestServices services,
+                uint subscriptionId,
+                ArrayOf<SubscriptionAcknowledgement> acknowledgements,
+                uint clientHandle,
+                int expected)
+        {
+            const int MaxDataChanges = 10;
+            DataValue? value = null;
+            for (int attempt = 0; attempt < MaxDataChanges; attempt++)
+            {
+                (value, acknowledgements) = await PublishForDataChangeAsync(
+                    services,
+                    subscriptionId,
+                    acknowledgements,
+                    clientHandle,
+                    expected).ConfigureAwait(false);
+                if (value is { } current &&
+                    current.WrappedValue.TryGetValue(out int received) &&
+                    received == expected)
+                {
+                    break;
+                }
+            }
             return (value, acknowledgements);
         }
 

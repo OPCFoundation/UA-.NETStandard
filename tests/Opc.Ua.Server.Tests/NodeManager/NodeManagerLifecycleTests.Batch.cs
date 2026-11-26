@@ -282,7 +282,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken token) =>
                     CreateCandidateAsync(server, configuration, token));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateOptions(
                 kSecondModelNamespaceUri, kSecondRegistrationValue))), timeout.Token).ConfigureAwait(
                 false)).Registrations[0]);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -786,7 +786,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         LifecycleChange.Replace(
                             second.Slot, CreateTrackingNodeManagementFactory(404, _ => { }, kSecondModelNamespaceUri))
                     ], timeout.Token).ConfigureAwait(false);
-                await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+                await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
                 await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
                 using Client.ISession session = await client.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -1161,7 +1161,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedBatchRejectsChangedRoutingInputsOverNativeTcp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var client = new ClientFixture(false, true, telemetry);
+            await using var client = new ClientFixture(false, true, telemetry) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot);
             Assert.That(client.SessionFactory, Is.TypeOf<DefaultSessionFactory>());
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(

@@ -539,6 +539,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
             {
+                ReuseCachedCertificates = true,
                 OperationTimeout = 60000,
                 SessionTimeout = 60000
             };
@@ -630,6 +631,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal server = m_server.CurrentInstance;
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
             {
+                ReuseCachedCertificates = true,
                 OperationTimeout = 60000,
                 SessionTimeout = 60000
             };
@@ -753,6 +755,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
             {
+                ReuseCachedCertificates = true,
                 OperationTimeout = 60000
             };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -949,6 +952,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
             {
+                ReuseCachedCertificates = true,
                 OperationTimeout = 60000,
                 SessionTimeout = 60000
             };
