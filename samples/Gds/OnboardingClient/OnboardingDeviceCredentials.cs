@@ -726,7 +726,7 @@ namespace OnboardingClientSample
             using Certificate combined = BindToRetainedKey(issued, retainedKey);
             CertificateIdentifier identifier = GetIdentifier();
             await PersistApplicationCertificateAsync(
-                    identifier, combined, verifyPersistence: true, ct, verifyPersistedKey: true)
+                    identifier, combined, verifyPersistence: true, verifyPersistedKey: true, ct)
                 .ConfigureAwait(false);
             await ActivateInstalledCertificateAsync(identifier, combined, issuerChain, ct).ConfigureAwait(false);
         }
@@ -1099,8 +1099,8 @@ namespace OnboardingClientSample
             using TrustListData trust = DecodeTrustList(credentials.TrustList);
             CertificateIdentifier identifier = GetIdentifier();
             await PersistApplicationCertificateAsync(
-                    identifier, combined, m_journal != null || verifyPersistedKey, cancellationToken,
-                    verifyPersistedKey)
+                    identifier, combined, m_journal != null || verifyPersistedKey, verifyPersistedKey,
+                    cancellationToken)
                 .ConfigureAwait(false);
             await m_manager.WriteTrustListAsync(
                 TrustListIdentifier.Peers, trust, TrustListMasks.All, cancellationToken).ConfigureAwait(false);
@@ -1120,8 +1120,8 @@ namespace OnboardingClientSample
             CertificateIdentifier identifier,
             Certificate combined,
             bool verifyPersistence,
-            CancellationToken cancellationToken,
-            bool verifyPersistedKey)
+            bool verifyPersistedKey,
+            CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(identifier.StorePath) || string.IsNullOrEmpty(identifier.StoreType))
             {
