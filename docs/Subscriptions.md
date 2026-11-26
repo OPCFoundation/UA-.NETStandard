@@ -52,6 +52,7 @@ pools, when to pick which) see
   - [Acknowledgement providers](#acknowledgement-providers)
   - [Legacy acknowledgement event](#legacy-acknowledgement-event)
 - [Publishing during session recovery](#publishing-during-session-recovery)
+  - [Refreshing managed monitored values after recovery](ManagedSubscriptionValueRefresh.md)
   - [Refreshing classic monitored values when ResendData fails](#refreshing-classic-monitored-values-when-resenddata-fails)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
@@ -717,6 +718,9 @@ their acknowledgements and release their active counts before replacing session
 and subscription state.
 
 ### Refreshing classic monitored values when ResendData fails
+
+For managed V2 subscriptions, see
+[Refresh managed subscription values after recovery](ManagedSubscriptionValueRefresh.md).
 
 [`Server.ResendData`](https://reference.opcfoundation.org/v105/Core/docs/Part5/9.2)
 is optional. After reconnect, check the `bool` returned by

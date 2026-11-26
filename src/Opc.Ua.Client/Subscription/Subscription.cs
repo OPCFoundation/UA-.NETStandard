@@ -20,7 +20,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// state management of the subscription on the server using the
     /// subscription and monitored item service set provided as context.
     /// </summary>
-    internal abstract class Subscription : MessageProcessor, IManagedSubscription,
+    internal abstract partial class Subscription : MessageProcessor, IManagedSubscription,
         IMonitoredItemManagerContext
     {
         /// <inheritdoc/>
@@ -937,7 +937,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 SubscriptionNotificationMessage projected = NotificationMessageDispatch.Create(
                     message, handle, [.. stringTable],
-                    data => m_monitoredItems.CreateNotification(data, handle),
+                    data => CreateTrackedDataChanges(data, handle),
                     events => m_monitoredItems.CreateNotification(events, handle),
                     republished: (publishStateMask & PublishState.Republish) != 0);
                 for (int i = 0; i < message.NotificationData.Count; i++)
@@ -993,6 +993,7 @@ namespace Opc.Ua.Client.Subscriptions
                 var acknowledgement = new AcknowledgementHandle(
                     GetAcknowledgementScope(MessageGeneration), sequenceNumber);
                 changes = m_monitoredItems.CreateNotification(notification, acknowledgement, pooled);
+                m_valueRefresh?.Observe(changes.Span);
                 await m_handler.OnDataChangeNotificationAsync(this, sequenceNumber,
                     publishTime, changes,
                     publishStateMask, stringTable).ConfigureAwait(false);

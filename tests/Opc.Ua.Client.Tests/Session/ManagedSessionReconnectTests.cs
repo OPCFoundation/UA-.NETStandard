@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -26,6 +27,224 @@ namespace Opc.Ua.Client.Tests.ManagedSession
     [NonParallelizable]
     public sealed class ManagedSessionReconnectTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecoveryDeliversReadSnapshotForSurvivingSubscriptionAsync(bool transfer)
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                RecoveryActivationStatus = transfer ? StatusCodes.BadSessionIdInvalid : StatusCodes.Good,
+                TransferStatus = StatusCodes.Good,
+                ResendStatus = StatusCodes.BadMethodInvalid,
+                SnapshotRead = (_, _) => new ValueTask<ArrayOf<DataValue>>([new DataValue(new Variant(42))])
+            };
+            await harness.ConnectAsync(transfer).ConfigureAwait(false);
+            harness.ReplacementSession.Release();
+            ISubscription subscription = harness.AddSubscription(refreshValues: true);
+            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+                .ConfigureAwait(false);
+            await WaitForPhaseAsync(harness.NextWirePublishAsync().AsTask(), "initial publish").ConfigureAwait(false);
+
+            await RecoverForValueRefreshAsync(harness).ConfigureAwait(false);
+            ReceivedSnapshot snapshot = await WaitForPhaseAsync(
+                harness.NextSnapshotAsync().AsTask(), "fallback snapshot").ConfigureAwait(false);
+
+            Assert.That(snapshot.Subscription, Is.SameAs(subscription));
+            Assert.That(snapshot.Item.Name, Is.EqualTo("Value"));
+            Assert.That(snapshot.Value.WrappedValue, Is.EqualTo(new Variant(42)));
+            CallRequest resend = await WaitForPhaseAsync(harness.NextResendAsync().AsTask(), "resend call")
+                .ConfigureAwait(false);
+            NodeId token = new(transfer ? "token-2" : "token-1", 1);
+            Assert.That(resend.RequestHeader.AuthenticationToken, Is.EqualTo(token));
+            Assert.That(resend.MethodsToCall[0].InputArguments[0], Is.EqualTo(new Variant(SubscriptionId)));
+            ReadRequest read = harness.Requests.ToList().OfType<ReadRequest>()
+                .Single(x => x.NodesToRead[0].NodeId == new NodeId("Value", 1));
+            Assert.That(read.RequestHeader.AuthenticationToken, Is.EqualTo(token));
+            Assert.That(read.MaxAge, Is.Zero);
+            Assert.That(read.TimestampsToReturn, Is.EqualTo(TimestampsToReturn.Both));
+            Assert.That(harness.Requests.ToList().OfType<CreateSubscriptionRequest>().Count(), Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecoveryDoesNotReadWhenDisabledOrResendSucceedsAsync(bool optedIn)
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                RecoveryActivationStatus = StatusCodes.Good
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            ISubscription subscription = harness.AddSubscription(refreshValues: optedIn);
+            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+                .ConfigureAwait(false);
+            await WaitForPhaseAsync(harness.NextWirePublishAsync().AsTask(), "initial publish").ConfigureAwait(false);
+            await RecoverForValueRefreshAsync(harness).ConfigureAwait(false);
+            if (optedIn)
+            {
+                await WaitForPhaseAsync(harness.NextResendAsync().AsTask(), "successful resend").ConfigureAwait(false);
+            }
+            await subscription.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(harness.Requests.ToList().OfType<CallRequest>().Count(
+                x => x.MethodsToCall[0].MethodId == MethodIds.Server_ResendData), Is.EqualTo(optedIn ? 1 : 0));
+            Assert.That(harness.Requests.ToList().OfType<ReadRequest>().Any(
+                x => x.NodesToRead[0].NodeId == new NodeId("Value", 1)), Is.False);
+        }
+
+        [Test]
+        public async Task RecoveryReadsOnlyThePartitionWhoseResendFailedAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                RecoveryActivationStatus = StatusCodes.Good,
+                ResendResult = id => id == SubscriptionId ? StatusCodes.Good : StatusCodes.BadMethodInvalid,
+                SnapshotRead = (_, _) => new ValueTask<ArrayOf<DataValue>>([new DataValue(new Variant(42))])
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            ISubscription subscription = harness.AddSubscription(refreshValues: true, maxItemsPerPartition: 1);
+            var secondNode = new NodeId("Value2", 1);
+            Assert.That(subscription.TryAddMonitoredItem("Second", secondNode, o => o, out IMonitoredItem? second),
+                Is.True);
+            for (int i = 0; i < 2; i++)
+            {
+                await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "partition monitored item")
+                    .ConfigureAwait(false);
+            }
+            await WaitForPhaseAsync(harness.NextWirePublishAsync().AsTask(), "initial publish").ConfigureAwait(false);
+
+            await RecoverForValueRefreshAsync(harness).ConfigureAwait(false);
+            ReceivedSnapshot snapshot = await WaitForPhaseAsync(
+                harness.NextSnapshotAsync().AsTask(), "snapshot from the failed partition").ConfigureAwait(false);
+            for (int i = 0; i < 2; i++)
+            {
+                await WaitForPhaseAsync(harness.NextResendAsync().AsTask(), "partition resend").ConfigureAwait(false);
+            }
+            Assert.That(snapshot.Subscription, Is.SameAs(subscription));
+            Assert.That(snapshot.Item, Is.SameAs(second));
+            Assert.That(harness.Requests.ToList().OfType<ReadRequest>()
+                .Where(x => x.NodesToRead[0].NodeId.NamespaceIndex == 1)
+                .Select(x => x.NodesToRead[0].NodeId), Is.EqualTo(new[] { secondNode }));
+        }
+
+        [Test]
+        public async Task PublishOvertakesBatchedSnapshotWithoutSyntheticAcknowledgementsAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                RecoveryActivationStatus = StatusCodes.Good,
+                ResendStatus = StatusCodes.BadMethodInvalid
+            };
+            var firstRead = new TaskCompletionSource<ReadRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var badNode = new NodeId("Bad", 1);
+            harness.SnapshotRead = async (read, ct) =>
+            {
+                if (read.NodesToRead[0].NodeId == badNode)
+                {
+                    return [DataValue.FromStatusCode(StatusCodes.BadNotReadable)];
+                }
+                if (firstRead.TrySetResult(read))
+                {
+                    await releaseRead.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
+                return [new DataValue(new Variant(400))];
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.Session.InnerSession.OperationLimits.MaxNodesPerRead = 1;
+            ISubscription subscription = harness.AddSubscription(refreshValues: true);
+            var secondNode = new NodeId("Value2", 1);
+            var encoding = new QualifiedName("Default Binary");
+            Assert.That(subscription.TryAddMonitoredItem("Second", secondNode,
+                o => o with { IndexRange = "1:2", Encoding = encoding }, out IMonitoredItem? second), Is.True);
+            Assert.That(subscription.TryAddMonitoredItem("Bad", badNode, o => o, out IMonitoredItem? bad), Is.True);
+            Assert.That(subscription.TryAddMonitoredItem(
+                "Third", new NodeId("Third", 1), o => o, out _), Is.True);
+            var items = new List<MonitoredItemCreateRequest>();
+            while (items.Count < 4)
+            {
+                CreateMonitoredItemsRequest request = await WaitForPhaseAsync(
+                    harness.NextMonitoredItemsAsync().AsTask(), "created monitored items").ConfigureAwait(false);
+                items.AddRange(request.ItemsToCreate.ToList());
+            }
+            WirePublish publish = await WaitForPhaseAsync(harness.NextWirePublishAsync().AsTask(), "initial publish")
+                .ConfigureAwait(false);
+            harness.FirstNotification.Release();
+            await RecoverForValueRefreshAsync(harness).ConfigureAwait(false);
+            ReadRequest pending = await WaitForPhaseAsync(firstRead.Task, "first pending snapshot batch")
+                .ConfigureAwait(false);
+            MonitoredItemCreateRequest raced = items.Single(
+                x => x.ItemToMonitor.NodeId == pending.NodesToRead[0].NodeId);
+            publish.ReplyWithValue(raced.RequestedParameters.ClientHandle, 500);
+            ReceivedData notification = await WaitForPhaseAsync(
+                harness.NextNotificationAsync().AsTask(), "publish during snapshot read").ConfigureAwait(false);
+            Assert.That(notification.Change.Value.WrappedValue, Is.EqualTo(new Variant(500)));
+            uint removed = items.First(x => x.ItemToMonitor.NodeId != raced.ItemToMonitor.NodeId &&
+                x.ItemToMonitor.NodeId != badNode && x.ItemToMonitor.NodeId != secondNode)
+                .RequestedParameters.ClientHandle;
+            Assert.That(subscription.MonitoredItems.TryRemove(removed), Is.True);
+            releaseRead.TrySetResult(true);
+
+            ReceivedSnapshot snapshot = await WaitForPhaseAsync(
+                harness.NextSnapshotAsync().AsTask(), "snapshot of the unraced item").ConfigureAwait(false);
+            Assert.That(snapshot.Item, Is.Not.SameAs(notification.Change.MonitoredItem));
+            Assert.That(snapshot.Item, Is.Not.SameAs(bad));
+            Assert.That(snapshot.Item.ClientHandle, Is.Not.EqualTo(removed));
+            Assert.That(snapshot.Value.WrappedValue, Is.EqualTo(new Variant(400)));
+            ReadRequest secondRead = harness.Requests.ToList().OfType<ReadRequest>()
+                .Single(x => x.NodesToRead[0].NodeId == secondNode);
+            Assert.That(secondRead.NodesToRead[0].IndexRange, Is.EqualTo("1:2"));
+            Assert.That(secondRead.NodesToRead[0].DataEncoding, Is.EqualTo(encoding));
+            Assert.That(second!.Created, Is.True);
+            WirePublish acknowledgement = await WaitForPhaseAsync(
+                harness.NextWirePublishAsync().AsTask(), "publish acknowledgement").ConfigureAwait(false);
+            AssertAcknowledgement(acknowledgement.Request.SubscriptionAcknowledgements);
+        }
+
+        [Test]
+        public async Task NewRecoveryInvalidatesPendingSnapshotAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                RecoveryActivationStatus = StatusCodes.Good,
+                ResendStatus = StatusCodes.BadMethodInvalid
+            };
+            var readStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.SnapshotRead = async (_, ct) =>
+            {
+                if (readStarted.TrySetResult(true))
+                {
+                    await releaseRead.Task.WaitAsync(ct).ConfigureAwait(false);
+                    return [new DataValue(new Variant(1))];
+                }
+                return [new DataValue(new Variant(2))];
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.AddSubscription(refreshValues: true);
+            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+                .ConfigureAwait(false);
+            await WaitForPhaseAsync(harness.NextWirePublishAsync().AsTask(), "initial publish").ConfigureAwait(false);
+
+            await RecoverForValueRefreshAsync(harness).ConfigureAwait(false);
+            await WaitForPhaseAsync(readStarted.Task, "first snapshot read").ConfigureAwait(false);
+            await RecoverForValueRefreshAsync(harness).ConfigureAwait(false);
+            releaseRead.TrySetResult(true);
+
+            ReceivedSnapshot snapshot = await WaitForPhaseAsync(
+                harness.NextSnapshotAsync().AsTask(), "snapshot from the newer recovery").ConfigureAwait(false);
+            Assert.That(snapshot.Value.WrappedValue, Is.EqualTo(new Variant(2)));
+        }
+
+        private static async Task RecoverForValueRefreshAsync(ManagedSessionReconnectHarness harness)
+        {
+            Task recovery = harness.StartRecoveryAsync();
+            await WaitForPhaseAsync(harness.TransportReconnect.Entered, "held transport reconnect")
+                .ConfigureAwait(false);
+            harness.TransportReconnect.Release();
+            harness.RecoveryActivation.Release();
+            await WaitForPhaseAsync(recovery, "successful connection recovery").ConfigureAwait(false);
+        }
+
         /// <summary>
         /// Verifies that session recreation cancels and drains a publish parked at channel readiness,
         /// drops old-generation acknowledgements, and resumes the original subscription and publish worker.

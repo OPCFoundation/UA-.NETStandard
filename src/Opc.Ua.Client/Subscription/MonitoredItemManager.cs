@@ -234,6 +234,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     return false;
                 }
                 m_monitoredItemsByName.Remove(monitoredItem.Name);
+                m_valueRefresh?.Remove(monitoredItem);
                 // Purge pending unresolved triggering deltas that
                 // reference this removed item (either by name as the
                 // pending triggering key, or as an inner triggered
@@ -297,6 +298,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     if (m_monitoredItems.Remove(clientHandle, out MonitoredItem? monitoredItem))
                     {
                         m_monitoredItemsByName.Remove(monitoredItem.Name);
+                        m_valueRefresh?.Remove(monitoredItem);
                         DropPendingForRemovedItem(monitoredItem);
                         m_deletedItems.Add(monitoredItem);
                     }
@@ -643,6 +645,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     deletes[index].SetDeleteResult(
                         response.Results[index], index, response.DiagnosticInfos,
                         response.ResponseHeader);
+                    if (m_valueRefresh != null && !deletes[index].Item.Created)
+                    {
+                        m_valueRefresh.Remove(deletes[index].Item);
+                    }
                 }
             }
 
@@ -694,6 +700,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         monitoredItems[index].SetMonitoringModeResult(
                             mode.Key, response.Results[index], index, response.DiagnosticInfos,
                             response.ResponseHeader);
+                        if (m_valueRefresh != null && StatusCode.IsGood(response.Results[index]))
+                        {
+                            m_valueRefresh.ResetValue(monitoredItems[index].Item);
+                        }
                     }
                 }
             }
@@ -722,6 +732,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         monitoredItems[index].SetCreateResult(requests[index],
                             response.Results[index], index, response.DiagnosticInfos,
                             response.ResponseHeader);
+                        if (m_valueRefresh != null && monitoredItems[index].Item.Created)
+                        {
+                            RecordValueRefreshTarget(monitoredItems[index].Item, requests[index].ItemToMonitor);
+                        }
                         if (creationsNeedingTriggeringReplay.Contains(monitoredItems[index]) &&
                             StatusCode.IsGood(response.Results[index].StatusCode))
                         {
@@ -792,6 +806,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     if (resetAll)
                     {
+                        m_valueRefresh?.Remove(monitoredItem);
                         monitoredItem.Reset();
                     }
                     // build item request.
@@ -878,6 +893,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     // Reset all items
                     foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                     {
+                        m_valueRefresh?.Remove(monitoredItem);
                         monitoredItem.Reset();
                     }
                     return false;
@@ -975,6 +991,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         m_logger.SubscriptionRecreateClientItemItem(
                             m_context.Id,
                             missingOnServer.ClientHandle);
+                        m_valueRefresh?.Remove(missingOnServer);
                         missingOnServer.Reset();
                     }
                     else if (cachedOnly)
@@ -2068,9 +2085,30 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private int m_pendingTriggeringCount;
 
+        /// <summary>
+        /// Installs optional tracking before the first monitored-item operation.
+        /// </summary>
+        internal void EnableValueRefresh(SubscriptionValueRefresh refresh)
+        {
+            m_valueRefresh = refresh;
+        }
+
+        private void RecordValueRefreshTarget(MonitoredItem item, ReadValueId target)
+        {
+            lock (m_monitoredItemsLock)
+            {
+                if (m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? current) &&
+                    ReferenceEquals(item, current))
+                {
+                    m_valueRefresh?.SetTarget(item, target);
+                }
+            }
+        }
+
         private readonly IMonitoredItemManagerContext m_context;
         private readonly List<MonitoredItem> m_deletedItems = [];
         private readonly Lock m_monitoredItemsLock = new();
+        private SubscriptionValueRefresh? m_valueRefresh;
         private readonly Dictionary<uint, MonitoredItem> m_monitoredItems = [];
         private readonly Dictionary<string, MonitoredItem> m_monitoredItemsByName = [];
         private readonly ILogger m_logger;
