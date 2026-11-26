@@ -205,7 +205,8 @@ commit (`C:\ulh\p10`), recorded on 2026-11-26.
 
 The n6 lines use the subscription load of the lifecycle lines, with one ReferenceServer manager and
 no readers. `--addnodes 50` runs one AddNodes and one DeleteNodes of an Object under `Scalar`
-every 50 ms. Each such request calls `NodeState.InvalidateRolePermissionsCache()` server-wide.
+every 50 ms. Each such request calls `NodeState.InvalidateRolePermissionsCache()` server-wide
+twice, so a pair is 4 invalidations.
 
 | Line | Server cores | Server alloc / 15 s | Contention / 15 s | Per notification alloc / CPU | AddNodes+DeleteNodes p50 / p99 ms | Delivery % |
 |---|---|---|---|---|---|---|
@@ -221,14 +222,15 @@ every 50 ms. Each such request calls `NodeState.InvalidateRolePermissionsCache()
 What this shows:
 
 - **N6 is not free on the write-driven data-change path.** At 20 AddNodes+DeleteNodes pairs per
-  second (40 invalidations per second), per-notification allocation rises from 171 B to 774 B
+  second (80 invalidations per second: each request invalidates before dispatch and again in
+  `finally`), per-notification allocation rises from 171 B to 774 B
   (4.5×). Server allocation rises 5×, lock contention goes from 11 to about 19,300 events in 15 s,
   and CPU per notification goes up 58 % (noisy).
 - **N6 also defeats the sampled verdict cache.** With 10,000 unchanged sampled items (f4p), the
   same invalidation rate raises server allocation 5.5× (139 → 761 MB per 15 s, about 2.1 MB per
   AddNodes+DeleteNodes pair). Server CPU rises 61 % (0.18 → 0.29 cores, about 5.5 ms per pair)
-  and gen0 collections go from 2 to 17. Invalidation every 50 ms is faster than the 100 ms
-  sampling, so nearly every sample rebuilds its verdict: the alloc trace attributes 97 % of the
+  and gen0 collections go from 2 to 17. Four invalidations every 50 ms are far more frequent
+  than the 100 ms sampling, so nearly every sample rebuilds its verdict: the alloc trace attributes 97 % of the
   752 MB to it, about 490 B per sample. `MonitoredReadVerdict.ValidateAsync` is 20 %. Two
   `NodeHandle`s per sample account for 36 %: one from `GetManagerHandleAsync` via
   `SamplingGroup` → `ValidateRolePermissionsAsync`, and one from `ValidateMonitoredReadAsync`.
