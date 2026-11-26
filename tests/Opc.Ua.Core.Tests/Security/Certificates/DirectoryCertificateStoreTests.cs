@@ -850,8 +850,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             File.WriteAllBytes(keyFile, PEMWriter.ExportPrivateKeyAsPEM(a));
             NodeId rsaType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
 
-            using var store = new DirectoryCertificateStore(m_telemetry);
+            // The clock runs ahead of every file and directory timestamp, so
+            // the directory-level check keeps the cache: only the per-file
+            // check can notice the rewrite.
+            var time = new FakeTimeProvider(DateTimeOffset.UtcNow.AddMinutes(1));
+            using var store = new DirectoryCertificateStore(noSubDirs: false, m_telemetry, time);
             store.Open(m_tempDir, false);
+
+            // A full enumeration completes the directory scan. A lookup alone
+            // stops at the first match and leaves the cache incomplete, and
+            // the next lookup would then reread every file anyway.
+            using (CertificateCollection all = await store.EnumerateAsync().ConfigureAwait(false))
+            {
+                Assert.That(all, Has.Count.EqualTo(1));
+            }
             using (Certificate warm = (await store.LoadPrivateKeyAsync(
                 null!, "CN=PemRenewal", null, rsaType, null).ConfigureAwait(false))!)
             {
@@ -859,8 +871,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(warm.Thumbprint, Is.EqualTo(a.Thumbprint));
             }
             DateTime keyWritten = File.GetLastWriteTimeUtc(keyFile);
+            DateTime certWritten = File.GetLastWriteTimeUtc(certFile);
+            DateTime certsDirWritten = Directory.GetLastWriteTimeUtc(certs);
 
             File.WriteAllBytes(certFile, PEMWriter.ExportCertificateAsPEM(b));
+            // A distinct file timestamp, and the directory timestamp as before.
+            File.SetLastWriteTimeUtc(certFile, certWritten.AddSeconds(2));
+            Directory.SetLastWriteTimeUtc(certs, certsDirWritten);
 
             using Certificate renewed = (await store.LoadPrivateKeyAsync(
                 null!, "CN=PemRenewal", null, rsaType, null).ConfigureAwait(false))!;
