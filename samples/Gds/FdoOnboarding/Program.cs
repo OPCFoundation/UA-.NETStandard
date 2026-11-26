@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -28,11 +29,12 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.Hosting;
 using UaObjectTypeIds = Opc.Ua.ObjectTypeIds;
 
-if (args.Length != 2 || !Path.IsPathFullyQualified(args[0]) ||
+if ((args.Length != 2 && !(args.Length == 3 && args[2] == "--replace")) ||
+    !Path.IsPathFullyQualified(args[0]) ||
     !int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out int port) ||
     port is < 1024 or > 65535)
 {
-    Console.Error.WriteLine("Usage: FdoOnboarding <new absolute state directory> <loopback OPC UA port>");
+    Console.Error.WriteLine("Usage: FdoOnboarding <new absolute state directory> <loopback OPC UA port> [--replace]");
     return 2;
 }
 
@@ -45,7 +47,7 @@ try
     }
     Directory.CreateDirectory(root);
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
-    await RunAsync(root, port, timeout.Token).ConfigureAwait(false);
+    await RunAsync(root, port, args.Length == 3, timeout.Token).ConfigureAwait(false);
     return 0;
 }
 catch (Exception error)
@@ -54,7 +56,7 @@ catch (Exception error)
     return 1;
 }
 
-static async Task RunAsync(string root, int port, CancellationToken ct)
+static async Task RunAsync(string root, int port, bool replace, CancellationToken ct)
 {
     const string product = "urn:opcua:fdo-demo:product";
     const string applicationUri = "urn:opcua:fdo-demo:dca";
@@ -68,6 +70,8 @@ static async Task RunAsync(string root, int port, CancellationToken ct)
     await using var httpLifetime = http.ConfigureAwait(false);
     using var bootstrap = new FdoBootstrap(http.Address);
     BootstrappedDevice initialized = await bootstrap.RunAsync(http, ct).ConfigureAwait(false);
+    using ECDsa? owner2 = replace ? ECDsa.Create(ECCurve.NamedCurves.nistP256) : null;
+    using var replacement = owner2 == null ? null : new ReplacementDemo(root, initialized.Credential, owner2);
     ByteString guid = ByteString.From(initialized.Credential.DeviceGuid.Span);
     ByteString attestationPin = ByteString.From(SHA256.HashData(bootstrap.Attestation.Span));
 
@@ -184,9 +188,21 @@ static async Task RunAsync(string root, int port, CancellationToken ct)
                 .GetRequiredService<IDeviceRegistrarExternalAuthenticationPolicy>();
             var ownerHandler = new OwnerEnrollmentCallbacks(policy);
             var deviceHandler = new DeviceEnrollmentCallbacks(
-                credentials, key.Certificate, deviceTrust, authority.TrustedCertificates, guid, csr);
+                credentials, key.Certificate, deviceTrust, authority.TrustedCertificates, guid, csr, replacement);
+            using TrustListData previousPeers = await deviceCertificates
+                .ReadTrustListAsync(TrustListIdentifier.Peers, TrustListMasks.All, ct).ConfigureAwait(false);
             FdoDeviceEnrollment enrolled = await RunEnrollmentAsync(
-                http, bootstrap, initialized, ownerHandler, deviceHandler, csr, ct).ConfigureAwait(false);
+                http, bootstrap, initialized, ownerHandler, deviceHandler, csr, replacement, ct).ConfigureAwait(false);
+            using TrustListData currentPeers = await deviceCertificates
+                .ReadTrustListAsync(TrustListIdentifier.Peers, TrustListMasks.All, ct).ConfigureAwait(false);
+            RequireSamePeerTrust(previousPeers, currentPeers);
+            using CertificateEntry? installed = deviceCertificates.AcquireApplicationCertificateByType(
+                UaObjectTypeIds.RsaSha256ApplicationCertificateType);
+            if (installed?.Certificate is not { HasPrivateKey: true } installedLeaf ||
+                !installedLeaf.RawData.AsSpan().SequenceEqual(enrolled.Certificate.Span))
+            {
+                throw new InvalidOperationException("The enrolled DCA leaf is not active with its private key.");
+            }
 
             await server.StartAsync(ct).ConfigureAwait(false);
             await ready.Task.WaitAsync(ct).ConfigureAwait(false);
@@ -230,6 +246,7 @@ static async Task<FdoDeviceEnrollment> RunEnrollmentAsync(
     IFdoOwnerEnrollmentHandler ownerHandler,
     IFdoDeviceEnrollmentHandler deviceHandler,
     ByteString csr,
+    ReplacementDemo? replacement,
     CancellationToken ct)
 {
     const ushort max = FdoBootstrap.MaxMessageSize;
@@ -250,7 +267,8 @@ static async Task<FdoDeviceEnrollment> RunEnrollmentAsync(
         CipherSuite = FdoPairedCipherSuite.A128Gcm,
         AllowRendezvous = true,
         AllowRendezvousBypass = false,
-        AllowCredentialReuse = true,
+        AllowCredentialReuse = replacement == null,
+        Replacement = replacement?.OwnerOptions,
         UseProvisionalPairedProfile = true,
         MaxMessageSize = max,
         MaxDeviceServiceInfoSize = 4096
@@ -267,13 +285,15 @@ static async Task<FdoDeviceEnrollment> RunEnrollmentAsync(
         CipherSuite = FdoPairedCipherSuite.A128Gcm,
         RendezvousResult = initialized.Redirect,
         AllowRendezvousBypass = false,
-        AllowCredentialReuse = true,
+        AllowCredentialReuse = replacement == null,
+        ReplacementHandler = replacement,
         UseProvisionalPairedProfile = true,
         MaxMessageSize = max,
         MaxOwnerServiceInfoSize = 4096,
         Metadata = new FdoDeviceMetadata("demo", "demo", "1", "opcua-dca", ":", "demo"),
         EnrollmentHandler = deviceHandler
     });
+    replacement?.Bind(device);
     using var binding = FdoHttpServerSession.ForOwner(owner, max);
     FdoDeviceEnrollment result = await http.RunAsync(binding,
         token => FdoHttp.RunDeviceAsync(device, http.Address, max, token), ct).ConfigureAwait(false);
@@ -281,7 +301,32 @@ static async Task<FdoDeviceEnrollment> RunEnrollmentAsync(
     {
         throw new InvalidOperationException("The protected TO2 exchange did not complete.");
     }
+    if (replacement != null)
+    {
+        await replacement.VerifyAsync(owner.CommittedReplacement, device.ActivatedReplacement, ct)
+            .ConfigureAwait(false);
+        Console.WriteLine("FDO_REPLACEMENT_ACTIVATED after=DoneAck20 ownerVoucher=verified dca=installed");
+    }
     return result;
+}
+
+static void RequireSamePeerTrust(TrustListData before, TrustListData after)
+{
+    if (!Same(before.TrustedCertificates, after.TrustedCertificates,
+            cert => Fingerprint(cert.RawData.AsSpan())) ||
+        !Same(before.IssuerCertificates, after.IssuerCertificates,
+            cert => Fingerprint(cert.RawData.AsSpan())) ||
+        !Same(before.TrustedCrls, after.TrustedCrls, crl => Fingerprint(crl.RawData.AsSpan())) ||
+        !Same(before.IssuerCrls, after.IssuerCrls, crl => Fingerprint(crl.RawData.AsSpan())))
+    {
+        throw new InvalidOperationException("Enrollment unexpectedly changed OPC UA peer trust.");
+    }
+
+    static string Fingerprint(ReadOnlySpan<byte> der) => Convert.ToHexString(SHA256.HashData(der));
+
+    static bool Same<T>(IEnumerable<T> oldValues, IEnumerable<T> newValues, Func<T, string> fingerprint) =>
+        oldValues.Select(fingerprint).Order(StringComparer.Ordinal)
+            .SequenceEqual(newValues.Select(fingerprint).Order(StringComparer.Ordinal), StringComparer.Ordinal);
 }
 
 static HostApplicationBuilder CreateHostBuilder()

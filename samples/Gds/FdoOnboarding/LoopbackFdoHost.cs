@@ -133,14 +133,22 @@ namespace FdoOnboarding
                             ContentLength = context.Request.ContentLength,
                             Body = context.Request.Body
                         }, requestTimeout.Token).ConfigureAwait(false);
-                    context.Response.ContentType = "application/cbor";
+                    context.Response.StatusCode = response.StatusCode;
                     context.Response.Headers.Authorization = response.Authorization;
-                    context.Response.Headers["Message-Type"] =
-                        response.MessageType.ToString(CultureInfo.InvariantCulture);
                     ReadOnlyMemory<byte> body = response.EncodedBody;
                     context.Response.ContentLength = body.Length;
-                    await context.Response.Body.WriteAsync(body, requestTimeout.Token).ConfigureAwait(false);
+                    if (!body.IsEmpty)
+                    {
+                        context.Response.ContentType = "application/cbor";
+                        context.Response.Headers["Message-Type"] =
+                            response.MessageType.ToString(CultureInfo.InvariantCulture);
+                        await context.Response.Body.WriteAsync(body, requestTimeout.Token).ConfigureAwait(false);
+                    }
                     await context.Response.CompleteAsync().ConfigureAwait(false);
+                    if (response.IsTerminal)
+                    {
+                        return;
+                    }
                     phase.Binding.ConfirmResponseSent();
                     if (phase.Binding.IsComplete)
                     {

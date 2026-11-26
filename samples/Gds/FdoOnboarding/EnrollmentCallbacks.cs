@@ -54,7 +54,8 @@ namespace FdoOnboarding
         CertificateValidationScope trust,
         CertificateCollection issuers,
         ByteString deviceGuid,
-        ByteString csr) : IFdoDeviceEnrollmentHandler
+        ByteString csr,
+        ReplacementDemo? replacement) : IFdoDeviceEnrollmentHandler
     {
         /// <inheritdoc/>
         public async ValueTask ValidateCertificateAsync(
@@ -75,6 +76,7 @@ namespace FdoOnboarding
         /// <inheritdoc/>
         public ValueTask InstallAsync(FdoDeviceEnrollment enrollment, CancellationToken cancellationToken)
         {
+            replacement?.RequireActivated();
             if (m_validated is not { } validated || m_installationStarted || validated.RunId != enrollment.RunId ||
                 !validated.Certificate.Span.SequenceEqual(enrollment.Certificate.Span))
             {
