@@ -313,6 +313,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
             catch (Exception ex)
             {
+                Interlocked.Increment(ref m_failures);
                 m_failureTypes.AddOrUpdate("Retired" + ex.GetType().Name, 1, (_, count) => count + 1);
             }
             finally

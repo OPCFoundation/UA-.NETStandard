@@ -373,7 +373,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                             m_nodeManagementStatus = (StatusCode.IsGood(status) ? deleted.Results[0] : status).ToString();
                         }
                     }
-                    catch (ServiceResultException ex) when (!ct.IsCancellationRequested)
+                    catch (ServiceResultException) when (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (ServiceResultException ex)
                     {
                         Interlocked.Increment(ref m_nodeManagementBad);
                         m_nodeManagementStatus = ex.StatusCode.ToString();
